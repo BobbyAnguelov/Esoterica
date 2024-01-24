@@ -3,7 +3,7 @@
 #include "Animation_RuntimeGraphNode_State.h"
 #include "Engine/Animation/AnimationBoneMask.h"
 #include "Engine/Animation/AnimationBlender.h"
-#include "Engine/Math/Easing.h"
+#include "Base/Math/Easing.h"
 
 //-------------------------------------------------------------------------
 
@@ -45,10 +45,10 @@ namespace EE::Animation::GraphNodes
             PreferClosestSyncEventID, // Only checked if MatchSyncEventID is set, will prefer the closest matching sync event rather than the first found
         };
 
-        struct EE_ENGINE_API Settings : public PoseNode::Settings
+        struct EE_ENGINE_API Definition : public PoseNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingType, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions, m_targetSyncIDNodeIdx, m_startBoneMaskNodeIdx, m_boneMaskBlendInTimePercentage );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingOp, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions, m_targetSyncIDNodeIdx, m_startBoneMaskNodeIdx, m_boneMaskBlendInTimePercentage );
 
         public:
 
@@ -75,7 +75,7 @@ namespace EE::Animation::GraphNodes
             float                               m_syncEventOffset = 0;
             TBitFlags<TransitionOptions>        m_transitionOptions;
             int16_t                             m_targetSyncIDNodeIdx = InvalidIndex;
-            Math::Easing::Type                  m_blendWeightEasingType = Math::Easing::Type::Linear;
+            Math::Easing::Operation             m_blendWeightEasingOp = Math::Easing::Operation::Linear;
             RootMotionBlendMode                 m_rootMotionBlend = RootMotionBlendMode::Blend;
         };
 
@@ -127,8 +127,8 @@ namespace EE::Animation::GraphNodes
 
         inline void CalculateBlendWeight()
         {
-            auto pSettings = GetSettings<TransitionNode>();
-            m_blendWeight = EvaluateEasingFunction( pSettings->m_blendWeightEasingType, m_transitionProgress );
+            auto pDefinition = GetDefinition<TransitionNode>();
+            m_blendWeight = Math::Easing::Evaluate( pDefinition->m_blendWeightEasingOp, m_transitionProgress );
             m_blendWeight = Math::Clamp( m_blendWeight, 0.0f, 1.0f );
         }
 
@@ -145,6 +145,7 @@ namespace EE::Animation::GraphNodes
         EE_FORCE_INLINE StateNode* GetSourceStateNode() { EE_ASSERT( IsSourceAState() ); return reinterpret_cast<StateNode*>( m_pSourceNode ); }
 
         void EndSourceTransition( GraphContext& context );
+
     private:
 
         PoseNode*                               m_pSourceNode = nullptr;
@@ -153,7 +154,6 @@ namespace EE::Animation::GraphNodes
         FloatValueNode*                         m_pEventOffsetOverrideNode = nullptr;
         BoneMaskValueNode*                      m_pStartBoneMaskNode = nullptr;
         IDValueNode*                            m_pTargetSyncIDNode = nullptr;
-        BoneMask                                m_boneMask;
         SyncTrack                               m_syncTrack;
         float                                   m_transitionProgress = 0;
         float                                   m_transitionLength = 0; // This is either time in seconds, or percentage of the sync track

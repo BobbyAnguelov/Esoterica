@@ -140,6 +140,23 @@ namespace EE
 
 namespace EE::PG
 {
+    struct PropertyChainElement
+    {
+        PropertyChainElement() = default;
+
+        PropertyChainElement( IReflectedType* pTypeInstance, TypeSystem::PropertyInfo const* pPropertyInfo )
+            : m_pTypeInstance( pTypeInstance )
+            , m_pPropertyInfo( pPropertyInfo )
+        {}
+
+    public:
+
+        IReflectedType*                     m_pTypeInstance = nullptr;
+        TypeSystem::PropertyInfo const*     m_pPropertyInfo = nullptr;
+    };
+
+    //-------------------------------------------------------------------------
+
     class GridRow
     {
     public:
@@ -187,6 +204,8 @@ namespace EE::PG
                 pChild->RecursiveOperation( function );
             }
         }
+
+        virtual void GeneratePropertyChangedNotificationChain( TVector<PropertyChainElement>& outChain ) const;
 
     protected:
 
@@ -314,6 +333,8 @@ namespace EE::PG
         void RebuildChildren();
 
         inline bool HasPropertyEditor() const { return m_pPropertyEditor != nullptr; }
+
+        virtual void GeneratePropertyChangedNotificationChain( TVector<PropertyChainElement>& outChain ) const override;
 
     private:
 

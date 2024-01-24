@@ -11,13 +11,13 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void PoweredRagdollNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void PoweredRagdollNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<PoweredRagdollNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_physicsBlendWeightNodeIdx, pNode->m_pBlendWeightValueNode );
         context.SetOptionalNodePtrFromIndex( m_inpulseOriginVectorNodeIdx, pNode->m_pImpulseOriginValueNode );
         context.SetOptionalNodePtrFromIndex( m_inpulseForceVectorNodeIdx, pNode->m_pImpulseForceValueNode );
-        PassthroughNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
+        PassthroughNode::Definition::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
 
         pNode->m_pRagdollDefinition = context.m_pDataSet->GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
     }
@@ -124,10 +124,10 @@ namespace EE::Animation::GraphNodes
 
         if ( m_pRagdollDefinition != nullptr && context.m_pPhysicsWorld != nullptr )
         {
-            auto pNodeSettings = GetSettings<PoweredRagdollNode>();
-            m_pRagdoll = context.m_pPhysicsWorld->CreateRagdoll( m_pRagdollDefinition, pNodeSettings->m_profileID, context.m_graphUserID );
+            auto pNodeDefinition = GetDefinition<PoweredRagdollNode>();
+            m_pRagdoll = context.m_pPhysicsWorld->CreateRagdoll( m_pRagdollDefinition, pNodeDefinition->m_profileID, context.m_graphUserID );
             m_pRagdoll->SetPoseFollowingEnabled( true );
-            m_pRagdoll->SetGravityEnabled( pNodeSettings->m_isGravityEnabled );
+            m_pRagdoll->SetGravityEnabled( pNodeDefinition->m_isGravityEnabled );
         }
     }
 
@@ -155,7 +155,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        float const physicsWeight = ( m_pBlendWeightValueNode != nullptr ) ? m_pBlendWeightValueNode->GetValue<float>( context ) : GetSettings<PoweredRagdollNode>()->m_physicsBlendWeight;
+        float const physicsWeight = ( m_pBlendWeightValueNode != nullptr ) ? m_pBlendWeightValueNode->GetValue<float>( context ) : GetDefinition<PoweredRagdollNode>()->m_physicsBlendWeight;
         result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( m_pRagdoll, GetNodeIndex(), setPoseTaskIdx, physicsWeight );
         return result;
     }

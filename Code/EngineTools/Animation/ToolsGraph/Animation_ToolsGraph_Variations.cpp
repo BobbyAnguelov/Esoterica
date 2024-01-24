@@ -11,57 +11,45 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    String Variation::GenerateResourceFilePathPrefix( FileSystem::Path const& graphPath )
-    {
-        FileSystem::Path const parentDirectory = graphPath.GetParentDirectory();
-        String const filenameNoExtension = graphPath.GetFileNameWithoutExtension();
-        return String( String::CtorSprintf(), "%s%s%c", parentDirectory.c_str(), filenameNoExtension.c_str(), s_graphPathDelimiter );
-    }
-
     String Variation::GenerateResourceFilePath( FileSystem::Path const& graphPath, StringID variationID )
     {
-        FileSystem::Path const parentDirectory = graphPath.GetParentDirectory();
-        String const filenameNoExtension = graphPath.GetFileNameWithoutExtension();
-        return String( String::CtorSprintf(), "%s%s%c%s.agv", parentDirectory.c_str(), filenameNoExtension.c_str(), s_graphPathDelimiter, variationID.c_str() );
+        return String( String::CtorSprintf(), "%s%c%s.agv", graphPath.c_str(), ResourcePath::s_pathDelimiter, variationID.c_str() );
     }
 
     String Variation::GetVariationNameFromResourceID( ResourceID const& resourceID )
     {
-        EE_ASSERT( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
-        String const name = resourceID.GetResourcePath().GetFileNameWithoutExtension();
-        size_t const delimiterIdx = name.find_last_of( s_graphPathDelimiter );
-        EE_ASSERT( delimiterIdx != String::npos );
-        return name.substr( delimiterIdx + 1 );
+        String variationName;
+        if ( resourceID.IsSubResourceID() )
+        {
+            variationName = resourceID.GetFileNameWithoutExtension();
+        }
+        else
+        {
+            variationName = Variation::s_defaultVariationID.c_str();
+        }
+        return variationName;
     }
 
-    ResourceID Variation::GetGraphResourceID( ResourceID const& resourceID )
+    ResourceID Variation::GetGraphResourceID( ResourceID const& resourceID, StringID* pOutOptionalVariation )
     {
+        ResourceID graphResourceID;
+        
         // Try to extract the actual graph ID from the resource ID for variations
-        if ( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
+        if ( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() && resourceID.IsSubResourceID() )
         {
-            String const name = resourceID.GetResourcePath().GetFileNameWithoutExtension();
-            size_t const delimiterIdx = name.find_last_of( s_graphPathDelimiter );
-            if ( delimiterIdx != String::npos )
+            graphResourceID = resourceID.GetParentResourceID();
+
+            if ( pOutOptionalVariation != nullptr )
             {
-                String const newResourcePath( String::CtorSprintf(), "%s%s.%s", resourceID.GetResourcePath().GetParentDirectory().c_str(), name.substr( 0, delimiterIdx ).c_str(), GraphDefinition::GetStaticResourceTypeID().ToString().c_str() );
-                return ResourceID( newResourcePath );
+                *pOutOptionalVariation = StringID( resourceID.GetFileNameWithoutExtension() );
             }
         }
+        else // Just pass through the resource ID
+        {
+            graphResourceID = resourceID;
+        }
 
-        // Just pass through the resource ID
-        return resourceID;
-    }
-
-    bool Variation::TryCreateVariationFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourcePath, FileSystem::Path const& graphPath, StringID variationID )
-    {
-        GraphVariationResourceDescriptor resourceDesc;
-        resourceDesc.m_graphPath = ResourcePath::FromFileSystemPath( rawResourcePath, graphPath );
-        resourceDesc.m_variationID = variationID;
-
-        String const variationPathStr = Variation::GenerateResourceFilePath( graphPath, variationID );
-        FileSystem::Path const variationPath( variationPathStr.c_str() );
-
-        return Resource::ResourceDescriptor::TryWriteToFile( typeRegistry, variationPath, &resourceDesc );
+        return graphResourceID;
     }
 
     //-------------------------------------------------------------------------

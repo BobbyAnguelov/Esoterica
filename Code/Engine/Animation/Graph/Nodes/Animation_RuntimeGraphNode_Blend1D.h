@@ -11,10 +11,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings : public PoseNode::Settings
+        struct EE_ENGINE_API Definition : public PoseNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_sourceNodeIndices, m_inputParameterValueNodeIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_sourceNodeIndices, m_inputParameterValueNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -71,6 +71,10 @@ namespace EE::Animation::GraphNodes
         virtual bool IsValid() const override;
         virtual SyncTrack const& GetSyncTrack() const override { return m_blendedSyncTrack; }
 
+        #if EE_DEVELOPMENT_TOOLS
+        inline void GetDebugInfo( int16_t& outSourceIdx0, int16_t& outSourceIdx1, float& outBlendweight ) const;
+        #endif
+
     protected:
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
@@ -103,10 +107,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public ParameterizedBlendNode::Settings
+        struct EE_ENGINE_API Definition final : public ParameterizedBlendNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( ParameterizedBlendNode::Settings, m_parameterization );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( ParameterizedBlendNode::Definition, m_parameterization );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -120,9 +124,9 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public ParameterizedBlendNode::Settings
+        struct EE_ENGINE_API Definition final : public ParameterizedBlendNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
+            EE_REFLECT_TYPE( Definition );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
         };

@@ -6,7 +6,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void VectorInfoNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VectorInfoNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VectorInfoNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -29,14 +29,14 @@ namespace EE::Animation::GraphNodes
     void VectorInfoNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        auto pSettings = GetSettings<VectorInfoNode>();
+        auto pDefinition = GetDefinition<VectorInfoNode>();
 
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
 
             Vector const inputVector = m_pInputValueNode->GetValue<Vector>( context );
-            switch ( pSettings->m_desiredInfo )
+            switch ( pDefinition->m_desiredInfo )
             {
                 case Info::X:
                 m_value = inputVector.GetX();
@@ -100,7 +100,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VectorCreateNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VectorCreateNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VectorCreateNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_inputVectorValueNodeIdx, pNode->m_pInputVectorValueNode );
@@ -199,7 +199,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VectorNegateNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VectorNegateNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VectorNegateNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );

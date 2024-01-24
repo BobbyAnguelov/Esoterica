@@ -146,7 +146,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 auto const* pPrimaryPose = pAnimComponent->GetPrimaryPose();
-                EE_ASSERT( pPrimaryPose->HasGlobalTransforms() );
+                EE_ASSERT( pPrimaryPose->HasModelSpaceTransforms() );
                 TransferAnimationPoseToMesh( pPrimaryPose );
 
                 // Transfer secondary poses
@@ -223,7 +223,7 @@ namespace EE::Animation
                 //          This update is already set to the lowest priority so in general users wont need to do anything
 
                 auto const* pPrimaryPose = pAnimComponent->GetPrimaryPose();
-                EE_ASSERT( pPrimaryPose->HasGlobalTransforms() );
+                EE_ASSERT( pPrimaryPose->HasModelSpaceTransforms() );
                 TransferAnimationPoseToMesh( pPrimaryPose );
 
                 // Transfer secondary poses

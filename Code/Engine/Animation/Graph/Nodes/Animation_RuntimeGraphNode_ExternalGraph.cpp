@@ -7,7 +7,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ExternalGraphNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ExternalGraphNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         CreateNode<ExternalGraphNode>( context, options );
     }
@@ -18,7 +18,7 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( m_pGraphInstance == nullptr );
     }
 
-    void ExternalGraphNode::AttachGraphInstance( GraphContext& context, GraphInstance* pExternalGraphInstance )
+    void ExternalGraphNode::AttachExternalGraphInstance( GraphContext& context, GraphInstance* pExternalGraphInstance )
     {
         EE_ASSERT( pExternalGraphInstance != nullptr );
         EE_ASSERT( m_pGraphInstance == nullptr );

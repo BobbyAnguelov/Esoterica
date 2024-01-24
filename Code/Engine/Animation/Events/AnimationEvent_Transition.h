@@ -13,7 +13,7 @@ namespace EE
 
 namespace EE::Animation
 {
-    enum class TransitionMarker : uint8_t
+    enum class TransitionRule : uint8_t
     {
         EE_REFLECT_ENUM
 
@@ -22,7 +22,7 @@ namespace EE::Animation
         BlockTransition,
     };
 
-    enum class TransitionMarkerCondition : uint8_t
+    enum class TransitionRuleCondition : uint8_t
     {
         EE_REFLECT_ENUM
 
@@ -32,26 +32,12 @@ namespace EE::Animation
         Blocked,
     };
 
-    struct SampledTransitionMarker
-    {
-        SampledTransitionMarker() = default;
-
-        SampledTransitionMarker( Animation::TransitionMarker marker, StringID ID )
-            : m_marker( marker )
-            , m_ID( ID )
-        {
-        }
-
-        Animation::TransitionMarker     m_marker = Animation::TransitionMarker::BlockTransition;
-        StringID                        m_ID;
-    };
-
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    EE_ENGINE_API char const* GetTransitionMarkerName( TransitionMarker marker );
-    EE_ENGINE_API char const* GetTransitionMarkerConditionName( TransitionMarkerCondition markerCondition );
-    EE_ENGINE_API Color GetTransitionMarkerColor( TransitionMarker marker );
+    EE_ENGINE_API char const* GetTransitionRuleName( TransitionRule marker );
+    EE_ENGINE_API char const* GetTransitionRuleConditionName( TransitionRuleCondition markerCondition );
+    EE_ENGINE_API Color GetTransitionMarkerColor( TransitionRule marker );
     #endif
 
     //-------------------------------------------------------------------------
@@ -63,20 +49,20 @@ namespace EE::Animation
 
     public:
 
-        inline TransitionMarker GetMarker() const { return m_marker; }
-        inline StringID GetMarkerID() const { return m_optionalMarkerID; }
-        inline bool IsTransitioningAllowed() const { return m_marker != TransitionMarker::BlockTransition; }
-        inline bool IsTransitionFullyAllowed() const { return m_marker == TransitionMarker::AllowTransition; }
-        inline bool IsTransitionConditionallyAllowed() const { return m_marker == TransitionMarker::ConditionallyAllowTransition; }
-        inline bool IsTransitionBlocked() const { return m_marker == TransitionMarker::BlockTransition; }
+        inline TransitionRule GetRule() const { return m_rule; }
+        inline StringID GetOptionalID() const { return m_optionalMarkerID; }
+        inline bool IsTransitioningAllowed() const { return m_rule != TransitionRule::BlockTransition; }
+        inline bool IsTransitionFullyAllowed() const { return m_rule == TransitionRule::AllowTransition; }
+        inline bool IsTransitionConditionallyAllowed() const { return m_rule == TransitionRule::ConditionallyAllowTransition; }
+        inline bool IsTransitionBlocked() const { return m_rule == TransitionRule::BlockTransition; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDebugText() const override { return GetTransitionMarkerName( m_marker ); }
+        virtual InlineString GetDebugText() const override { return GetTransitionRuleName( m_rule ); }
         #endif
 
     private:
 
-        EE_REFLECT() TransitionMarker      m_marker;
-        EE_REFLECT() StringID              m_optionalMarkerID;
+        EE_REFLECT() TransitionRule     m_rule;
+        EE_REFLECT() StringID           m_optionalMarkerID;
     };
 }

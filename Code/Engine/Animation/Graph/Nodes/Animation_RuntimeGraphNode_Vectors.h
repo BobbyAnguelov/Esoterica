@@ -1,6 +1,6 @@
 #pragma once
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Node.h"
-#include "Engine/Math/Easing.h"
+#include "Base/Math/Easing.h"
 
 //-------------------------------------------------------------------------
 
@@ -25,10 +25,10 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_desiredInfo );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_inputValueNodeIdx, m_desiredInfo );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -54,10 +54,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public VectorValueNode::Settings
+        struct EE_ENGINE_API Definition final : public VectorValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( VectorValueNode::Settings, m_inputVectorValueNodeIdx, m_inputValueXNodeIdx, m_inputValueYNodeIdx, m_inputValueZNodeIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( VectorValueNode::Definition, m_inputVectorValueNodeIdx, m_inputValueXNodeIdx, m_inputValueYNodeIdx, m_inputValueZNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -88,10 +88,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public VectorValueNode::Settings
+        struct EE_ENGINE_API Definition final : public VectorValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( VectorValueNode::Settings, m_inputValueNodeIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( VectorValueNode::Definition, m_inputValueNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 

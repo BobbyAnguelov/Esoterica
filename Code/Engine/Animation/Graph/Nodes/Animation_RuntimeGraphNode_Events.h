@@ -27,16 +27,16 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    // Check for a given ID - coming either from a state event or generic event
+    // Check for a given ID - coming either from a state event or ID event
     class EE_ENGINE_API IDEventConditionNode : public BoolValueNode
     {
 
     public:
 
-        struct EE_ENGINE_API Settings : public BoolValueNode::Settings
+        struct EE_ENGINE_API Definition : public BoolValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_rules, m_eventIDs );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( BoolValueNode::Definition, m_sourceStateNodeIdx, m_rules, m_eventIDs );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -63,6 +63,72 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    // Get the ID for a given ID animation event
+    class EE_ENGINE_API IDEventNode : public IDValueNode
+    {
+
+    public:
+
+        struct EE_ENGINE_API Definition : public IDValueNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( IDValueNode::Definition, m_sourceStateNodeIdx, m_rules, m_defaultValue );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+        public:
+
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
+            TBitFlags<EventConditionRules>              m_rules;
+            StringID                                    m_defaultValue;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        StateNode const*                                m_pSourceStateNode = nullptr;
+        StringID                                        m_value;
+    };
+
+    //-------------------------------------------------------------------------
+
+    // Get the percentage through a ID event with a specific ID
+    class EE_ENGINE_API IDEventPercentageThroughNode : public FloatValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Definition : public BoolValueNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_sourceStateNodeIdx, m_rules, m_eventID );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+        public:
+
+            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
+            TBitFlags<EventConditionRules>              m_rules;
+            StringID                                    m_eventID;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        StateNode const*                                m_pSourceStateNode = nullptr;
+        float                                           m_result = -1.0f;
+    };
+
+    //-------------------------------------------------------------------------
+
     // Check for a given state event - coming either from a state event or generic event
     class EE_ENGINE_API StateEventConditionNode : public BoolValueNode
     {
@@ -78,10 +144,10 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        struct EE_ENGINE_API Settings : public BoolValueNode::Settings
+        struct EE_ENGINE_API Definition : public BoolValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_rules, m_conditions );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( BoolValueNode::Definition, m_sourceStateNodeIdx, m_rules, m_conditions );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -107,46 +173,14 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    // Get the percentage through a generic event with a specific ID
-    class EE_ENGINE_API GenericEventPercentageThroughNode : public FloatValueNode
-    {
-    public:
-
-        struct EE_ENGINE_API Settings : public BoolValueNode::Settings
-        {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_rules, m_eventID );
-
-            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
-
-        public:
-
-            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
-            TBitFlags<EventConditionRules>              m_rules;
-            StringID                                    m_eventID;
-        };
-
-    private:
-
-        virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-
-    private:
-
-        StateNode const*                                m_pSourceStateNode = nullptr;
-        float                                           m_result = -1.0f;
-    };
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINE_API FootEventConditionNode : public BoolValueNode
     {
     public:
 
-        struct EE_ENGINE_API Settings : public BoolValueNode::Settings
+        struct EE_ENGINE_API Definition : public BoolValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_rules );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( BoolValueNode::Definition, m_sourceStateNodeIdx, m_rules );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -174,10 +208,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_phaseCondition, m_rules );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_sourceStateNodeIdx, m_phaseCondition, m_rules );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -205,10 +239,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings : public IDValueNode::Settings
+        struct EE_ENGINE_API Definition : public IDValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( IDValueNode::Settings, m_sourceStateNodeIdx, m_rules );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( IDValueNode::Definition, m_sourceStateNodeIdx, m_rules );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -243,10 +277,10 @@ namespace EE::Animation::GraphNodes
             GreaterThanEqualToEventIndex,
         };
 
-        struct EE_ENGINE_API Settings : public BoolValueNode::Settings
+        struct EE_ENGINE_API Definition : public BoolValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx, m_syncEventIdx, m_triggerMode );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_sourceStateNodeIdx, m_syncEventIdx, m_triggerMode );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -277,10 +311,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings : public IDValueNode::Settings
+        struct EE_ENGINE_API Definition : public IDValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( IDValueNode::Settings, m_sourceStateNodeIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( IDValueNode::Definition, m_sourceStateNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -309,10 +343,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_sourceStateNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -341,10 +375,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_sourceStateNodeIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_sourceStateNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -373,19 +407,19 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings : public BoolValueNode::Settings
+        struct EE_ENGINE_API Definition : public BoolValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_sourceStateNodeIdx, m_markerCondition, m_markerIDToMatch, m_rules );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( BoolValueNode::Definition, m_sourceStateNodeIdx, m_ruleCondition, m_requireRuleID, m_rules );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
         public:
 
-            StringID                                    m_markerIDToMatch = StringID();
+            StringID                                    m_requireRuleID = StringID();
             TBitFlags<EventConditionRules>              m_rules;
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
-            TransitionMarkerCondition                   m_markerCondition = TransitionMarkerCondition::AnyAllowed;
+            TransitionRuleCondition                     m_ruleCondition = TransitionRuleCondition::AnyAllowed;
         };
 
     private:

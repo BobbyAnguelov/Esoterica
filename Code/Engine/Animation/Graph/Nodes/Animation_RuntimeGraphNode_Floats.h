@@ -1,6 +1,6 @@
 #pragma once
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Node.h"
-#include "Engine/Math/Easing.h"
+#include "Base/Math/Easing.h"
 #include "Base/Math/FloatCurve.h"
 
 //-------------------------------------------------------------------------
@@ -20,10 +20,10 @@ namespace EE::Animation::GraphNodes
             EE_REFLECT() float             m_end = 0;
         };
 
-        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_inputRange, m_outputRange );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_inputValueNodeIdx, m_inputRange, m_outputRange );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -50,10 +50,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_clampRange );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_inputValueNodeIdx, m_clampRange );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -79,10 +79,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_inputValueNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -107,17 +107,17 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_easeTime, m_startValue, m_inputValueNodeIdx, m_easingType, m_useStartValue );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_easeTime, m_startValue, m_inputValueNodeIdx, m_easingOp, m_useStartValue );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             float                       m_easeTime = 1.0f;
             float                       m_startValue = 0.0f;
             int16_t                     m_inputValueNodeIdx = InvalidIndex;
-            Math::Easing::Type          m_easingType = Math::Easing::Type::Linear;
+            Math::Easing::Operation     m_easingOp = Math::Easing::Operation::Linear;
             bool                        m_useStartValue = false;
         };
 
@@ -146,10 +146,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_curve );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_inputValueNodeIdx, m_curve );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -186,10 +186,10 @@ namespace EE::Animation::GraphNodes
             Div,
         };
 
-        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdxA, m_inputValueNodeIdxB, m_returnAbsoluteResult, m_operator, m_valueB );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_inputValueNodeIdxA, m_inputValueNodeIdxB, m_returnAbsoluteResult, m_operator, m_valueB );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -230,10 +230,10 @@ namespace EE::Animation::GraphNodes
             LessThan,
         };
 
-        struct EE_ENGINE_API Settings final : public BoolValueNode::Settings
+        struct EE_ENGINE_API Definition final : public BoolValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_inputValueNodeIdx, m_comparandValueNodeIdx, m_comparison, m_epsilon, m_comparisonValue );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( BoolValueNode::Definition, m_inputValueNodeIdx, m_comparandValueNodeIdx, m_comparison, m_epsilon, m_comparisonValue );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -263,10 +263,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public BoolValueNode::Settings
+        struct EE_ENGINE_API Definition final : public BoolValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_inputValueNodeIdx, m_range, m_isInclusiveCheck );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( BoolValueNode::Definition, m_inputValueNodeIdx, m_range, m_isInclusiveCheck );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -293,10 +293,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_switchValueNodeIdx, m_trueValueNodeIdx, m_falseValueNodeIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_switchValueNodeIdx, m_trueValueNodeIdx, m_falseValueNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -335,10 +335,10 @@ namespace EE::Animation::GraphNodes
             FlipHemisphereNegate, // Flips the hemisphere and returns the negated angle relative to 180 ( e.g. 135deg will result in 45deg )
         };
 
-        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_inputValueNodeIdx, m_operation );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_inputValueNodeIdx, m_operation );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -364,10 +364,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public FloatValueNode::Settings
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( FloatValueNode::Settings, m_conditionNodeIndices, m_values, m_defaultValue, m_easeTime, m_easingType );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_conditionNodeIndices, m_values, m_defaultValue, m_easeTime, m_easingOp );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -375,7 +375,7 @@ namespace EE::Animation::GraphNodes
             TInlineVector<float, 5>     m_values;
             float                       m_defaultValue = 0.0f;
             float                       m_easeTime = 0.2f;
-            Math::Easing::Type          m_easingType = Math::Easing::Type::Linear;
+            Math::Easing::Operation     m_easingOp = Math::Easing::Operation::Linear;
         };
 
     private:

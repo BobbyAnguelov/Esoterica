@@ -25,7 +25,7 @@ namespace EE
 
     public:
 
-        bool InitializeModule( ModuleContext& context, IniFile const& iniFile );
+        bool InitializeModule( ModuleContext& context );
         void ShutdownModule( ModuleContext& context );
 
         // Resource Loading

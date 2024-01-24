@@ -23,14 +23,6 @@ namespace EE::Animation
 
     public:
 
-        #if EE_DEVELOPMENT_TOOLS
-        enum class DrawFlags
-        {
-            DrawBoneNames,
-            DrawBoneWeights,
-        };
-        #endif
-
         enum class Type : uint8_t
         {
             None = 0,
@@ -74,42 +66,42 @@ namespace EE::Animation
         // Pose state
         //-------------------------------------------------------------------------
 
-        void Reset( Type initState = Type::None, bool calcGlobalPose = false );
+        void Reset( Type initState = Type::None, bool calculateModelSpacePose = false );
 
         inline bool IsPoseSet() const { return m_state != State::Unset; }
         inline bool IsReferencePose() const { return m_state == State::ReferencePose; }
         inline bool IsZeroPose() const { return m_state == State::ZeroPose; }
         inline bool IsAdditivePose() const { return m_state == State::AdditivePose; }
 
-        // Local Transforms
+        // Parent-Bone-Space Transforms
         //-------------------------------------------------------------------------
 
-        TVector<Transform> const& GetTransforms() const { return m_localTransforms; }
+        TVector<Transform> const& GetTransforms() const { return m_parentSpaceTransforms; }
 
         inline Transform const& GetTransform( int32_t boneIdx ) const
         {
             EE_ASSERT( boneIdx < GetNumBones() );
-            return m_localTransforms[boneIdx];
+            return m_parentSpaceTransforms[boneIdx];
         }
 
         inline void SetTransform( int32_t boneIdx, Transform const& transform )
         {
             EE_ASSERT( boneIdx < GetNumBones() && boneIdx >= 0 );
-            m_localTransforms[boneIdx] = transform;
+            m_parentSpaceTransforms[boneIdx] = transform;
             MarkAsValidPose();
         }
 
         inline void SetRotation( int32_t boneIdx, Quaternion const& rotation )
         {
             EE_ASSERT( boneIdx < GetNumBones() && boneIdx >= 0 );
-            m_localTransforms[boneIdx].SetRotation( rotation );
+            m_parentSpaceTransforms[boneIdx].SetRotation( rotation );
             MarkAsValidPose();
         }
 
         inline void SetTranslation( int32_t boneIdx, Float3 const& translation )
         {
             EE_ASSERT( boneIdx < GetNumBones() && boneIdx >= 0 );
-            m_localTransforms[boneIdx].SetTranslation( translation );
+            m_parentSpaceTransforms[boneIdx].SetTranslation( translation );
             MarkAsValidPose();
         }
 
@@ -117,24 +109,24 @@ namespace EE::Animation
         inline void SetScale( int32_t boneIdx, float uniformScale )
         {
             EE_ASSERT( boneIdx < GetNumBones() && boneIdx >= 0 );
-            m_localTransforms[boneIdx].SetScale( uniformScale );
+            m_parentSpaceTransforms[boneIdx].SetScale( uniformScale );
             MarkAsValidPose();
         }
 
-        // Global Transform Cache
+        // Model-Space Transform Cache
         //-------------------------------------------------------------------------
 
-        inline bool HasGlobalTransforms() const { return !m_globalTransforms.empty(); }
-        inline void ClearGlobalTransforms() { m_globalTransforms.clear(); }
-        inline TVector<Transform> const& GetGlobalTransforms() const { return m_globalTransforms; }
-        void CalculateGlobalTransforms();
+        inline bool HasModelSpaceTransforms() const { return !m_modelSpaceTransforms.empty(); }
+        inline void ClearModelSpaceTransforms() { m_modelSpaceTransforms.clear(); }
+        inline TVector<Transform> const& GetModelSpaceTransforms() const { return m_modelSpaceTransforms; }
+        void CalculateModelSpaceTransforms( Skeleton::LOD lod = Skeleton::LOD::High );
         Transform GetGlobalTransform( int32_t boneIdx ) const;
 
         // Debug
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color = Colors::HotPink, float lineThickness = 2.0f, BoneMask const* pBoneMask = nullptr, TBitFlags<DrawFlags> drawFlags = TBitFlags<DrawFlags>() ) const;
+        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Skeleton::LOD lod = Skeleton::LOD::High, Color color = Colors::HotPink, float lineThickness = 2.0f, bool bDrawBoneNames = false, BoneMask const* pBoneMask = nullptr, TVector<int32_t> const& boneIdxFilter = {} ) const;
         #endif
 
     private:
@@ -155,8 +147,8 @@ namespace EE::Animation
     private:
 
         Skeleton const*             m_pSkeleton;                // The skeleton for this pose
-        TVector<Transform>          m_localTransforms;          // Parent-space transforms
-        TVector<Transform>          m_globalTransforms;         // Character-space transforms
+        TVector<Transform>          m_parentSpaceTransforms;    // Parent-space transforms
+        TVector<Transform>          m_modelSpaceTransforms;     // Model-space transforms
         State                       m_state = State::Unset;     // Pose state
     };
 }

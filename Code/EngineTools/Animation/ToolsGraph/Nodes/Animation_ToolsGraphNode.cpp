@@ -181,7 +181,7 @@ namespace EE::Animation::GraphNodes
         {
             case GraphValueType::Bool:
             {
-                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<bool>( runtimeNodeIdx );
+                auto const value = pGraphNodeContext->GetNodeValue<bool>( runtimeNodeIdx );
                 ImGui::Text( "Value: " );
                 ImGui::SameLine();
                 ImGui::TextColored( ( value ? Colors::LimeGreen : Colors::IndianRed ).ToFloat4(), value ? "True" : "False" );
@@ -190,7 +190,7 @@ namespace EE::Animation::GraphNodes
 
             case GraphValueType::ID:
             {
-                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<StringID>( runtimeNodeIdx );
+                auto const value = pGraphNodeContext->GetNodeValue<StringID>( runtimeNodeIdx );
                 if ( value.IsValid() )
                 {
                     ImGui::Text( "Value: %s", value.c_str() );
@@ -204,21 +204,21 @@ namespace EE::Animation::GraphNodes
 
             case GraphValueType::Float:
             {
-                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<float>( runtimeNodeIdx );
+                auto const value = pGraphNodeContext->GetNodeValue<float>( runtimeNodeIdx );
                 ImGui::Text( "Value: %.3f", value );
             }
             break;
 
             case GraphValueType::Vector:
             {
-                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Vector>( runtimeNodeIdx );
+                auto const value = pGraphNodeContext->GetNodeValue<Vector>( runtimeNodeIdx );
                 DrawVectorInfoText( ctx, value );
             }
             break;
 
             case GraphValueType::Target:
             {
-                auto const value = pGraphNodeContext->GetRuntimeNodeDebugValue<Target>( runtimeNodeIdx );
+                auto const value = pGraphNodeContext->GetNodeValue<Target>( runtimeNodeIdx );
                 DrawTargetInfoText( ctx, value );
             }
             break;

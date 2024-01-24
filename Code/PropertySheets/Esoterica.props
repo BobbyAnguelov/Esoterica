@@ -7,6 +7,7 @@
     <Import Project="$(SolutionDir)Code\PropertySheets\SuperLuminal.props" />
     <Import Project="$(SolutionDir)Code\PropertySheets\Navpower.props" />
     <Import Project="$(SolutionDir)Code\PropertySheets\Optick.props" />
+    <Import Project="$(SolutionDir)Code\PropertySheets\PhysX.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros">
     <EE_ROOT_DIR>$(SolutionDir)</EE_ROOT_DIR>
@@ -67,10 +68,4 @@
       <Command>taskkill /F /IM EsotericaResourceServer.exe 2&gt;&amp;1 | exit /B 0</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
-  <Target Name="EE_CopyINI" BeforeTargets="Build">
-    <Copy SkipUnchangedFiles="True" SourceFiles="$(SolutionDir)Code\Esoterica.ini" DestinationFolder="$(OutDir)" />
-  </Target>
-  <Target Name="EE_CleanINI" BeforeTargets="Clean">
-    <Delete TreatErrorsAsWarnings="True" Files="$(OutDir)Esoterica.ini" />
-  </Target>
 </Project>

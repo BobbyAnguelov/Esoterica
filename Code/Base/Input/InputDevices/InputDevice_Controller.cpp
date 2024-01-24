@@ -5,12 +5,25 @@
 
 namespace EE::Input
 {
-    void ControllerInputDevice::UpdateState( Seconds deltaTime )
+    void ControllerDevice::SetLeftStickDeadzones( float innerDeadzone, float outerDeadzone )
     {
-        m_controllerState.Update( deltaTime );
+        EE_ASSERT( innerDeadzone >= 0.0f && innerDeadzone <= 1.0f );
+        EE_ASSERT( outerDeadzone >= 0.0f && outerDeadzone <= 1.0f );
+        m_leftStickInnerDeadzone = innerDeadzone;
+        m_leftStickOuterDeadzone = outerDeadzone;
     }
 
-    void ControllerInputDevice::SetTriggerValues( float leftRawValue, float rightRawValue )
+    void ControllerDevice::SetRightStickDeadzones( float innerDeadzone, float outerDeadzone )
+    {
+        EE_ASSERT( innerDeadzone >= 0.0f && innerDeadzone <= 1.0f );
+        EE_ASSERT( outerDeadzone >= 0.0f && outerDeadzone <= 1.0f );
+        m_rightStickInnerDeadzone = innerDeadzone;
+        m_rightStickOuterDeadzone = outerDeadzone;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void ControllerDevice::SetTriggerValues( float leftRawValue, float rightRawValue )
     {
         auto calculateFilteredTriggerValue = [] ( float rawValue, float threshold )
         {
@@ -27,25 +40,39 @@ namespace EE::Input
 
         //-------------------------------------------------------------------------
 
-        m_controllerState.m_triggerRaw[ControllerInputState::Direction::Left] = leftRawValue;
-        m_controllerState.m_triggerRaw[ControllerInputState::Direction::Right] = rightRawValue;
-        m_controllerState.m_triggerFiltered[ControllerInputState::Direction::Left] = calculateFilteredTriggerValue( leftRawValue, m_settings.m_leftTriggerThreshold );
-        m_controllerState.m_triggerFiltered[ControllerInputState::Direction::Right] = calculateFilteredTriggerValue( rightRawValue, m_settings.m_rightTriggerThreshold );
+        float const leftFilteredValue = calculateFilteredTriggerValue( leftRawValue, m_leftTriggerThreshold );
+        if ( leftFilteredValue > 0.0f )
+        {
+            Press( InputID::Controller_LeftTrigger, leftRawValue, leftFilteredValue );
+        }
+        else
+        {
+            Release( InputID::Controller_LeftTrigger );
+        }
+
+        //-------------------------------------------------------------------------
+
+        float const rightFilteredValue = calculateFilteredTriggerValue( rightRawValue, m_rightTriggerThreshold );
+        if ( rightFilteredValue > 0.0f )
+        {
+            Press( InputID::Controller_RightTrigger, rightRawValue, rightFilteredValue );
+        }
+        else
+        {
+            Release( InputID::Controller_RightTrigger );
+        }
     }
 
-    void ControllerInputDevice::SetAnalogStickValues( Float2 const& leftRawValue, Float2 const& rightRawValue )
+    void ControllerDevice::SetAnalogStickValues( Float2 const& leftValue, Float2 const& rightValue )
     {
-        auto calculateRawValue = [] ( Float2 const rawValue, bool bInvertY )
+        auto CalculateRawValue = [] ( Float2 const rawValue, bool bInvertY )
         {
             float const normalizedX = Math::Clamp( rawValue.m_x, -1.0f, 1.0f );
             float const normalizedY = Math::Clamp( rawValue.m_y, -1.0f, 1.0f );
             return Float2( normalizedX, bInvertY ? -normalizedY : normalizedY );
         };
 
-        m_controllerState.m_analogInputRaw[ControllerInputState::Direction::Left] = calculateRawValue( leftRawValue, m_settings.m_leftStickInvertY );
-        m_controllerState.m_analogInputRaw[ControllerInputState::Direction::Right] = calculateRawValue( rightRawValue, m_settings.m_rightStickInvertY );
-
-        auto calculateFilteredValue = [] ( Float2 const rawValue, float const innerDeadzoneRange, float const outerDeadzoneRange )
+        auto CalculateFilteredValue = [] ( Float2 const rawValue, float const innerDeadzoneRange, float const outerDeadzoneRange )
         {
             EE_ASSERT( innerDeadzoneRange >= 0 && innerDeadzoneRange <= 1.0f && outerDeadzoneRange >= 0 && outerDeadzoneRange <= 1.0f );
 
@@ -71,7 +98,37 @@ namespace EE::Input
             return filteredValue;
         };
 
-        m_controllerState.m_analogInputFiltered[ControllerInputState::Direction::Left] = calculateFilteredValue( m_controllerState.m_analogInputRaw[ControllerInputState::Direction::Left], m_settings.m_leftStickInnerDeadzone, m_settings.m_leftStickOuterDeadzone );
-        m_controllerState.m_analogInputFiltered[ControllerInputState::Direction::Right] = calculateFilteredValue( m_controllerState.m_analogInputRaw[ControllerInputState::Direction::Right], m_settings.m_rightStickInnerDeadzone, m_settings.m_rightStickOuterDeadzone );
+        //-------------------------------------------------------------------------
+
+        Float2 const leftRawValue = CalculateRawValue( leftValue, m_leftStickInvertY );
+        Float2 const leftFilteredValue = CalculateFilteredValue( leftValue, m_leftStickInnerDeadzone, m_leftStickOuterDeadzone );
+        SetValue( InputID::Controller_LeftStickHorizontal, leftRawValue.m_x, leftFilteredValue.m_x );
+        SetValue( InputID::Controller_LeftStickVertical, leftRawValue.m_y, leftFilteredValue.m_y );
+
+        //-------------------------------------------------------------------------
+
+        Float2 const rightRawValue = CalculateRawValue( rightValue, m_rightStickInvertY );
+        Float2 const rightFilteredValue = CalculateFilteredValue( rightValue, m_rightStickInnerDeadzone, m_rightStickOuterDeadzone );
+        SetValue( InputID::Controller_RightStickHorizontal, rightRawValue.m_x, rightFilteredValue.m_x );
+        SetValue( InputID::Controller_RightStickVertical, rightRawValue.m_y, rightFilteredValue.m_y );
+    }
+
+    void ControllerDevice::UpdateControllerButtonState( InputID ID, bool isDown )
+    {
+        // Do we need to generate a pressed signal?
+        if ( isDown )
+        {
+            if ( !IsHeldDown( ID ) )
+            {
+                Press( ID );
+            }
+        }
+        else // If the button is up, check if we need to generate a release signal
+        {
+            if ( IsHeldDown( ID ) )
+            {
+                Release( ID );
+            }
+        }
     }
 }

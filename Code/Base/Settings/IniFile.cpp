@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE
+namespace EE::Settings
 {
     IniFile::IniFile( FileSystem::Path const& filePath )
     {
@@ -15,6 +15,30 @@ namespace EE
     IniFile::IniFile()
     {
         m_pDictionary = dictionary_new( 0 );
+    }
+
+    IniFile::IniFile( IniFile&& rhs )
+    {
+        if ( m_pDictionary != nullptr )
+        {
+            iniparser_freedict( m_pDictionary );
+        }
+
+        m_pDictionary = rhs.m_pDictionary;
+        rhs.m_pDictionary = nullptr;
+    }
+
+    IniFile& IniFile::operator=( IniFile&& rhs )
+    {
+        if ( m_pDictionary != nullptr )
+        {
+            iniparser_freedict( m_pDictionary );
+        }
+
+        m_pDictionary = rhs.m_pDictionary;
+        rhs.m_pDictionary = nullptr;
+
+        return *this;
     }
 
     IniFile::~IniFile()
@@ -31,14 +55,19 @@ namespace EE
         return iniparser_find_entry( m_pDictionary, key ) > 0;
     }
 
-    void IniFile::SaveToFile( FileSystem::Path const& filePath ) const
+    bool IniFile::SaveToFile( FileSystem::Path const& filePath ) const
     {
         EE_ASSERT( IsValid() );
 
         FILE* pFile;
         pFile = fopen( filePath.c_str(), "w" );
-        iniparser_dump_ini( m_pDictionary, pFile );
-        fclose( pFile );
+        bool const wasFileOpened = pFile != nullptr;
+        if ( wasFileOpened )
+        {
+            iniparser_dump_ini( m_pDictionary, pFile );
+            fclose( pFile );
+        }
+        return wasFileOpened;
     }
 
     bool IniFile::TryGetBool( char const* key, bool& outValue ) const
@@ -130,7 +159,31 @@ namespace EE
         return iniparser_getstring( m_pDictionary, key, defaultValue.c_str() );
     }
 
+    String IniFile::GetStringOrDefault( char const* key, InlineString const& defaultValue ) const
+    {
+        EE_ASSERT( IsValid() );
+        return iniparser_getstring( m_pDictionary, key, defaultValue.c_str() );
+    }
+
     String IniFile::GetStringOrDefault( char const* key, char const* pDefaultValue ) const
+    {
+        EE_ASSERT( IsValid() );
+        return iniparser_getstring( m_pDictionary, key, pDefaultValue );
+    }
+
+    InlineString IniFile::GetInlineStringOrDefault( char const* key, String const& defaultValue ) const
+    {
+        EE_ASSERT( IsValid() );
+        return iniparser_getstring( m_pDictionary, key, defaultValue.c_str() );
+    }
+
+    InlineString IniFile::GetInlineStringOrDefault( char const* key, InlineString const& defaultValue ) const
+    {
+        EE_ASSERT( IsValid() );
+        return iniparser_getstring( m_pDictionary, key, defaultValue.c_str() );
+    }
+
+    InlineString IniFile::GetInlineStringOrDefault( char const* key, char const* pDefaultValue ) const
     {
         EE_ASSERT( IsValid() );
         return iniparser_getstring( m_pDictionary, key, pDefaultValue );

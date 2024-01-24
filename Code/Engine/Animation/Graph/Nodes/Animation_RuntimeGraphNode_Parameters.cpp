@@ -4,7 +4,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ControlParameterBoolNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ControlParameterBoolNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         CreateNode<ControlParameterBoolNode>( context, options );
     }
@@ -35,7 +35,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ControlParameterIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ControlParameterIDNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         CreateNode<ControlParameterIDNode>( context, options );
     }
@@ -66,7 +66,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ControlParameterFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ControlParameterFloatNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         CreateNode<ControlParameterFloatNode>( context, options );
     }
@@ -97,7 +97,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ControlParameterVectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ControlParameterVectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         CreateNode<ControlParameterVectorNode>( context, options );
     }
@@ -128,7 +128,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ControlParameterTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ControlParameterTargetNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         CreateNode<ControlParameterTargetNode>( context, options );
     }
@@ -159,7 +159,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterBoolNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VirtualParameterBoolNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VirtualParameterBoolNode>( context, options );
         context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
@@ -193,7 +193,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VirtualParameterIDNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VirtualParameterIDNode>( context, options );
         context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
@@ -227,7 +227,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VirtualParameterFloatNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VirtualParameterFloatNode>( context, options );
         context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
@@ -261,7 +261,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterVectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VirtualParameterVectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VirtualParameterVectorNode>( context, options );
         context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
@@ -295,7 +295,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VirtualParameterTargetNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VirtualParameterTargetNode>( context, options );
         context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
@@ -329,7 +329,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VirtualParameterBoneMaskNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VirtualParameterBoneMaskNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VirtualParameterBoneMaskNode>( context, options );
         context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );

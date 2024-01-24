@@ -85,7 +85,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        EE_REFLECT() Math::Easing::Type          m_easingType = Math::Easing::Type::Linear;
+        EE_REFLECT() Math::Easing::Operation     m_easing = Math::Easing::Operation::Linear;
         EE_REFLECT() float                       m_easeTime = 1.0f;
         EE_REFLECT() bool                        m_useStartValue = true; // Should we initialize this node to the input value or to the specified start value
         EE_REFLECT() float                       m_startValue = 0.0f; // Optional initialization value for this node
@@ -253,7 +253,7 @@ namespace EE::Animation::GraphNodes
         float                       m_defaultValue = 0.0f;
 
         EE_REFLECT( "Category" : "Easing" );
-        Math::Easing::Type          m_easingType = Math::Easing::Type::None;
+        Math::Easing::Operation     m_easing = Math::Easing::Operation::None;
 
         EE_REFLECT( "Category" : "Easing" );
         float                       m_easeTime = 0.3f;

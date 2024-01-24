@@ -697,7 +697,7 @@ namespace EE::Physics
             }
 
             // Update ragdoll
-            m_pPose->CalculateGlobalTransforms();
+            m_pPose->CalculateModelSpaceTransforms();
             if ( !updateContext.IsWorldPaused() )
             {
                 m_pRagdoll->Update( updateContext.GetDeltaTime(), worldTransform, m_pPose, m_initializeRagdollPose );
@@ -725,7 +725,7 @@ namespace EE::Physics
             }
 
             // Update mesh pose
-            m_pFinalPose->CalculateGlobalTransforms();
+            m_pFinalPose->CalculateModelSpaceTransforms();
             m_pMeshComponent->SetPose( m_pFinalPose );
             m_pMeshComponent->FinalizePose();
 

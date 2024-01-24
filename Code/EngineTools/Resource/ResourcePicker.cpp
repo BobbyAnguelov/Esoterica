@@ -17,11 +17,9 @@ namespace EE::Resource
 
     ResourcePicker::ResourcePicker( ToolsContext const& toolsContext, ResourceTypeID resourceTypeID, ResourceID const& resourceID )
         : m_toolsContext( toolsContext )
-        , m_resourceTypeID( resourceTypeID )
-        , m_resourceID( resourceID )
     {
-        GenerateResourceOptionsList();
-        GenerateFilteredOptionList();
+        SetRequiredResourceType( resourceTypeID );
+        SetResourceID( resourceID );
     }
 
     bool ResourcePicker::UpdateAndDraw()
@@ -33,7 +31,7 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         ResourceTypeID actualResourceTypeID = m_resourceTypeID;
-        bool validPath = true;
+        bool isValidPath = true;
 
         if ( m_resourceID.IsValid() )
         {
@@ -53,23 +51,30 @@ namespace EE::Resource
             {
                 if ( !m_toolsContext.m_pTypeRegistry->IsResourceTypeDerivedFrom( actualResourceTypeID, m_resourceTypeID ) )
                 {
-                    validPath = false;
+                    isValidPath = false;
                 }
             }
             else
             {
                 if ( !m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( actualResourceTypeID ) )
                 {
-                    validPath = false;
+                    isValidPath = false;
                 }
             }
 
             // Check if file exist
             //-------------------------------------------------------------------------
 
-            if ( validPath )
+            if ( isValidPath )
             {
-                validPath = m_toolsContext.m_pResourceDatabase->DoesResourceExist( m_resourceID );
+                if ( m_pCustomOptionProvider != nullptr )
+                {
+                    isValidPath = m_pCustomOptionProvider->ValidatePath( m_toolsContext, m_resourceID );
+                }
+                else
+                {
+                    isValidPath = m_toolsContext.m_pResourceDatabase->DoesResourceExist( m_resourceID );
+                }
             }
         }
 
@@ -111,7 +116,7 @@ namespace EE::Resource
                 float const totalPathWidgetWidth = contentRegionAvailableX - usedWidth - typeStrWidth;
                 float const textWidgetWidth = totalPathWidgetWidth - comboArrowWidth - style.ItemSpacing.x;
 
-                ImVec4 const pathColor = ( validPath ? ImGuiX::Style::s_colorText : Colors::Red ).ToFloat4();
+                ImVec4 const pathColor = ( isValidPath ? ImGuiX::Style::s_colorText : Colors::Red ).ToFloat4();
                 ImGui::PushStyleColor( ImGuiCol_Text, pathColor );
                 ImGui::SetNextItemWidth( textWidgetWidth );
                 String const& pathString = m_resourceID.ToString();
@@ -182,18 +187,18 @@ namespace EE::Resource
                         ImGuiX::ScopedFont const sfo( ImGuiX::Font::Medium );
 
                         ImGuiListClipper clipper;
-                        clipper.Begin( (int32_t) m_filteredResourceIDs.size() );
+                        clipper.Begin( (int32_t) m_filteredOptions.size() );
                         while ( clipper.Step() )
                         {
                             for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
                             {
-                                if ( ImGui::Selectable( m_filteredResourceIDs[i].c_str() + 7 ) )
+                                if ( ImGui::Selectable( m_filteredOptions[i].c_str() + 7 ) )
                                 {
-                                    m_resourceID = m_filteredResourceIDs[i];
+                                    m_resourceID = m_filteredOptions[i];
                                     valueUpdated = true;
                                     ImGui::CloseCurrentPopup();
                                 }
-                                ImGuiX::ItemTooltip( m_filteredResourceIDs[i].c_str() );
+                                ImGuiX::ItemTooltip( m_filteredOptions[i].c_str() );
                             }
                         }
                         clipper.End();
@@ -209,15 +214,15 @@ namespace EE::Resource
             //-------------------------------------------------------------------------
 
             {
-                ImGui::BeginDisabled( !validPath );
-
                 // Open Resource
                 ImGui::SameLine( 0, itemSpacingX );
+                ImGui::BeginDisabled( !isValidPath );
                 if ( ImGui::Button( EE_ICON_OPEN_IN_NEW "##Open", g_buttonSize ) )
                 {
                     m_toolsContext.TryOpenResource( m_resourceID );
                 }
                 ImGuiX::ItemTooltip( "Open Resource" );
+                ImGui::EndDisabled();
 
                 // Options
                 ImGui::SameLine( 0, itemSpacingX );
@@ -226,8 +231,6 @@ namespace EE::Resource
                     ImGui::OpenPopup( "##ResourcePickerOptions" );
                 }
                 ImGuiX::ItemTooltip( "Options" );
-
-                ImGui::EndDisabled();
             }
 
             // Options Context Menu
@@ -281,26 +284,35 @@ namespace EE::Resource
 
     void ResourcePicker::GenerateResourceOptionsList()
     {
-        m_allResourceIDs.clear();
+        m_generatedOptions.clear();
 
-        // Restrict options to specified resource type ID
-        if ( m_resourceTypeID.IsValid() )
+        if ( m_pCustomOptionProvider != nullptr )
         {
+            EE_ASSERT( m_resourceTypeID.IsValid() );
             EE_ASSERT( m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( m_resourceTypeID ) );
-
-            for ( auto const& resourceID : m_toolsContext.m_pResourceDatabase->GetAllResourcesOfType( m_resourceTypeID ) )
-            {
-                m_allResourceIDs.emplace_back( resourceID );
-            }
+            m_pCustomOptionProvider->GenerateOptions( m_toolsContext, m_generatedOptions );
         }
-        else // All resource options are valid
+        else
         {
-            for ( auto const& resourceListPair : m_toolsContext.m_pResourceDatabase->GetAllResources() )
+            // Restrict options to specified resource type ID
+            if ( m_resourceTypeID.IsValid() )
             {
-                for ( auto const& resourceRecord : resourceListPair.second )
+                EE_ASSERT( m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( m_resourceTypeID ) );
+
+                for ( auto const& resourceID : m_toolsContext.m_pResourceDatabase->GetAllResourcesOfType( m_resourceTypeID ) )
                 {
-                    EE_ASSERT( resourceRecord->m_resourceID.IsValid() );
-                    m_allResourceIDs.emplace_back( resourceRecord->m_resourceID );
+                    m_generatedOptions.emplace_back( resourceID );
+                }
+            }
+            else // All resource options are valid
+            {
+                for ( auto const& resourceListPair : m_toolsContext.m_pResourceDatabase->GetAllResources() )
+                {
+                    for ( auto const& resourceRecord : resourceListPair.second )
+                    {
+                        EE_ASSERT( resourceRecord->m_resourceID.IsValid() );
+                        m_generatedOptions.emplace_back( resourceRecord->m_resourceID );
+                    }
                 }
             }
         }
@@ -310,28 +322,47 @@ namespace EE::Resource
     {
         if ( m_filterWidget.HasFilterSet() )
         {
-            m_filteredResourceIDs.clear();
+            m_filteredOptions.clear();
 
-            for ( auto const& resourceID : m_allResourceIDs )
+            for ( auto const& resourceID : m_generatedOptions )
             {
                 String lowercasePath = resourceID.GetResourcePath().GetString();
                 lowercasePath.make_lower();
 
                 if ( m_filterWidget.MatchesFilter( lowercasePath ) )
                 {
-                    m_filteredResourceIDs.emplace_back( resourceID );
+                    m_filteredOptions.emplace_back( resourceID );
                 }
             }
         }
         else
         {
-            m_filteredResourceIDs = m_allResourceIDs;
+            m_filteredOptions = m_generatedOptions;
         }
     }
 
     void ResourcePicker::SetRequiredResourceType( ResourceTypeID resourceTypeID )
     {
         m_resourceTypeID = resourceTypeID;
+
+        // Check if we have a custom option provider for this type
+        //-------------------------------------------------------------------------
+
+        OptionProvider* pCurrentProvider = OptionProvider::s_pHead;
+        while ( pCurrentProvider != nullptr )
+        {
+            if ( m_resourceTypeID == pCurrentProvider->GetApplicableResourceTypeID() )
+            {
+                m_pCustomOptionProvider = pCurrentProvider;
+                break;
+            }
+
+            pCurrentProvider = pCurrentProvider->GetNextItem();
+        }
+
+        // Generate options
+        //-------------------------------------------------------------------------
+
         GenerateResourceOptionsList();
         GenerateFilteredOptionList();
     }
@@ -422,11 +453,11 @@ namespace EE::Resource
         bool valueUpdated = false;
 
         FileSystem::Path filePath;
-        bool validPath = false;
+        bool isValidPath = false;
         if ( m_resourcePath.IsValid() )
         {
             filePath = m_resourcePath.ToFileSystemPath( m_rawResourceDirectoryPath );
-            validPath = filePath.Exists();
+            isValidPath = filePath.Exists();
         }
 
         //-------------------------------------------------------------------------
@@ -447,7 +478,7 @@ namespace EE::Resource
                 // Resource path
                 ImGui::SetNextItemWidth( contentRegionAvailableX - usedWidth );
                 String const& resourcePathStr = m_resourcePath.GetString();
-                ImGui::PushStyleColor( ImGuiCol_Text, validPath ? ImGuiX::Style::s_colorText : Colors::Red );
+                ImGui::PushStyleColor( ImGuiCol_Text, isValidPath ? ImGuiX::Style::s_colorText : Colors::Red );
                 ImGui::InputText( "##DataPath", const_cast<char*>( resourcePathStr.c_str() ), resourcePathStr.length(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
                 ImGui::PopStyleColor();
 

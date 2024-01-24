@@ -2,6 +2,7 @@
 #include "EngineTools/Resource/ResourceCompiler.h"
 #include "CompiledResourceDatabase.h"
 #include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Settings/SettingsRegistry.h"
 
 //-------------------------------------------------------------------------
 
@@ -53,23 +54,27 @@ namespace EE::Resource
 
     public:
 
-        ResourceCompilerApplication( CommandLineArgumentParser& argParser, ResourceSettings const& settings );
+        ResourceCompilerApplication();
         ~ResourceCompilerApplication();
+
+        bool Initialize( CommandLineArgumentParser& argParser, FileSystem::Path const& iniFilePath );
+        void Shutdown();
 
         CompilationResult Run();
 
     private:
 
         bool BuildCompileDependencyTree( ResourceID const& resourceID );
-        bool TryReadCompileDependencies( ResourceID const& resourceID, TVector<ResourcePath>& outDependencies ) const;
+        bool TryReadCompileDependencies( ResourceID const& resourceID, TVector<ResourcePath>& outDependencies );
         bool FillCompileDependencyNode( CompileDependencyNode* pNode, ResourcePath const& resourceID );
 
     private:
 
         TypeSystem::TypeRegistry                m_typeRegistry;
+        Settings::SettingsRegistry              m_settingsRegistry;
         CompiledResourceDatabase                m_compiledResourceDB;
         CompilerRegistry*                       m_pCompilerRegistry = nullptr;
-        CompileContext                          m_compileContext;
+        CompileContext*                         m_pCompileContext = nullptr;
         bool                                    m_forceCompilation = false;
 
         TVector<ResourceID>                     m_uniqueCompileDependencies;

@@ -10,19 +10,19 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void LayerBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void LayerBlendNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<LayerBlendNode>( context, options );
         context.SetNodePtrFromIndex( m_baseNodeIdx, pNode->m_pBaseLayerNode );
 
-        pNode->m_layers.reserve( m_layerSettings.size() );
-        for ( auto const& layerSettings : m_layerSettings )
+        pNode->m_layers.reserve( m_layerDefinition.size() );
+        for ( auto const& layerDefinition : m_layerDefinition )
         {
             Layer& pLayer = pNode->m_layers.emplace_back();
-            context.SetNodePtrFromIndex( layerSettings.m_inputNodeIdx, pLayer.m_pInputNode );
-            context.SetOptionalNodePtrFromIndex( layerSettings.m_weightValueNodeIdx, pLayer.m_pWeightValueNode );
-            context.SetOptionalNodePtrFromIndex( layerSettings.m_rootMotionWeightValueNodeIdx, pLayer.m_pRootMotionWeightValueNode );
-            context.SetOptionalNodePtrFromIndex( layerSettings.m_boneMaskValueNodeIdx, pLayer.m_pBoneMaskValueNode );
+            context.SetNodePtrFromIndex( layerDefinition.m_inputNodeIdx, pLayer.m_pInputNode );
+            context.SetOptionalNodePtrFromIndex( layerDefinition.m_weightValueNodeIdx, pLayer.m_pWeightValueNode );
+            context.SetOptionalNodePtrFromIndex( layerDefinition.m_rootMotionWeightValueNodeIdx, pLayer.m_pRootMotionWeightValueNode );
+            context.SetOptionalNodePtrFromIndex( layerDefinition.m_boneMaskValueNodeIdx, pLayer.m_pBoneMaskValueNode );
         }
     }
 
@@ -65,7 +65,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        auto pSettings = GetSettings<LayerBlendNode>();
+        auto pDefinition = GetDefinition<LayerBlendNode>();
         int32_t const numLayers = (int32_t) m_layers.size();
         for ( auto i = 0; i < numLayers; i++ )
         {
@@ -73,7 +73,7 @@ namespace EE::Animation::GraphNodes
 
             // Initialize input node
             // Only initialize the start time for synchronized layers
-            if ( pSettings->m_layerSettings[i].m_isSynchronized )
+            if ( pDefinition->m_layerDefinition[i].m_isSynchronized )
             {
                 m_layers[i].m_pInputNode->Initialize( context, initialTime );
             }
@@ -85,9 +85,9 @@ namespace EE::Animation::GraphNodes
                 {
                     for ( auto const& layerInfo : pLayerInitializationData->m_updateRanges )
                     {
-                        if ( layerInfo.first == i )
+                        if ( layerInfo.m_layerIdx == i )
                         {
-                            layerInitTime = layerInfo.second.m_startTime;
+                            layerInitTime = layerInfo.m_syncTimeRange.m_startTime;
                             break;
                         }
                     }
@@ -188,7 +188,7 @@ namespace EE::Animation::GraphNodes
     void LayerBlendNode::UpdateLayers( GraphContext& context, GraphPoseNodeResult& nodeResult )
     {
         EE_ASSERT( context.IsValid() && IsValid() );
-        auto pSettings = GetSettings<LayerBlendNode>();
+        auto pDefinition = GetDefinition<LayerBlendNode>();
 
         SyncTrackTime const baseStartTime = m_pBaseLayerNode->GetSyncTrack().GetTime( m_pBaseLayerNode->GetPreviousTime() );
         SyncTrackTime const baseEndTime = m_pBaseLayerNode->GetSyncTrack().GetTime( m_pBaseLayerNode->GetCurrentTime() );
@@ -232,7 +232,7 @@ namespace EE::Animation::GraphNodes
             #endif
 
             // If we're not a state machine setup the layer context here
-            if ( !pSettings->m_layerSettings[i].m_isStateMachineLayer )
+            if ( !pDefinition->m_layerDefinition[i].m_isStateMachineLayer )
             {
                 // Layer Weight
                 if ( m_layers[i].m_pWeightValueNode != nullptr )
@@ -261,9 +261,9 @@ namespace EE::Animation::GraphNodes
             // Always update SM layers as the transitions need to be evaluated
             // SM layers will calculate the final layer weight and store it in the layer context
             GraphPoseNodeResult layerResult;
-            if ( pSettings->m_layerSettings[i].m_isStateMachineLayer || context.m_pLayerContext->m_layerWeight > 0.0f )
+            if ( pDefinition->m_layerDefinition[i].m_isStateMachineLayer || context.m_pLayerContext->m_layerWeight > 0.0f )
             {
-                if ( pSettings->m_layerSettings[i].m_isSynchronized )
+                if ( pDefinition->m_layerDefinition[i].m_isSynchronized )
                 {
                     layerResult = m_layers[i].m_pInputNode->Update( context, &layerUpdateRange );
                 }
@@ -283,7 +283,7 @@ namespace EE::Animation::GraphNodes
                 // Create a blend task if the layer is enabled
                 if ( m_layers[i].m_weight > 0 )
                 {
-                    PoseBlendMode poseBlendMode = pSettings->m_layerSettings[i].m_blendMode;
+                    PoseBlendMode poseBlendMode = pDefinition->m_layerDefinition[i].m_blendMode;
 
                     // We cannot perform a global blend without a bone mask
                     if ( poseBlendMode == PoseBlendMode::GlobalSpace && !context.m_pLayerContext->m_layerMaskTaskList.HasTasks() )
@@ -318,7 +318,7 @@ namespace EE::Animation::GraphNodes
                     }
 
                     // Blend root motion
-                    if ( !pSettings->m_onlySampleBaseRootMotion )
+                    if ( !pDefinition->m_onlySampleBaseRootMotion )
                     {
                         RootMotionBlendMode const rootMotionBlendMode = ( poseBlendMode == PoseBlendMode::Additive ) ? RootMotionBlendMode::Additive : RootMotionBlendMode::Blend;
                         float const rootMotionWeight = m_layers[i].m_weight * context.m_pLayerContext->m_rootMotionLayerWeight;
@@ -344,7 +344,7 @@ namespace EE::Animation::GraphNodes
                     context.m_pSampledEventsBuffer->MarkEventsAsIgnored( layerResult.m_sampledEventRange );
 
                     // Remove any registered pose tasks
-                    EE_ASSERT( pSettings->m_layerSettings[i].m_isStateMachineLayer ); // Cannot occur for local layers
+                    EE_ASSERT( pDefinition->m_layerDefinition[i].m_isStateMachineLayer ); // Cannot occur for local layers
                     context.m_pTaskSystem->RollbackToTaskIndexMarker( taskMarker );
 
                     // Remove any root motion debug records
@@ -365,7 +365,7 @@ namespace EE::Animation::GraphNodes
                 context.m_pSampledEventsBuffer->UpdateWeights( layerEventRange, m_layers[i].m_weight );
 
                 // Mark events as ignored if requested
-                if ( pSettings->m_layerSettings[i].m_ignoreEvents )
+                if ( pDefinition->m_layerDefinition[i].m_ignoreEvents )
                 {
                     context.m_pSampledEventsBuffer->MarkEventsAsIgnored( layerEventRange );
                 }
@@ -412,20 +412,20 @@ namespace EE::Animation::GraphNodes
         PoseNode::RestoreGraphState( inState );
     }
 
-    void LayerBlendNode::GetSyncUpdateRangesForUnsynchronizedLayers( TInlineVector<TPair<int8_t, SyncTrackTimeRange>, 5>& outLayerUpdateRanges ) const
+    void LayerBlendNode::GetSyncUpdateRangesForUnsynchronizedLayers( TInlineVector<GraphLayerSyncInfo, 5>& outLayerSyncInfos ) const
     {
-        auto pSettings = GetSettings<LayerBlendNode>();
+        auto pDefinition = GetDefinition<LayerBlendNode>();
         int8_t const numLayers = (int8_t) m_layers.size();
         for ( int8_t i = 0; i < numLayers; i++ )
         {
-            if ( m_layers[i].m_weight > 0.0f && !pSettings->m_layerSettings[i].m_isSynchronized )
+            if ( m_layers[i].m_weight > 0.0f && !pDefinition->m_layerDefinition[i].m_isSynchronized )
             {
                 auto const& layerSyncTrack = m_layers[i].m_pInputNode->GetSyncTrack();
                 Percentage const prevTime = m_layers[i].m_pInputNode->GetPreviousTime();
                 Percentage const currentTime = m_layers[i].m_pInputNode->GetCurrentTime();
                 if ( prevTime != 0.0f && currentTime != 0.0f )
                 {
-                    outLayerUpdateRanges.emplace_back( i, SyncTrackTimeRange( layerSyncTrack.GetTime( prevTime ), layerSyncTrack.GetTime( currentTime ) ) );
+                    outLayerSyncInfos.emplace_back( i, SyncTrackTimeRange( layerSyncTrack.GetTime( prevTime ), layerSyncTrack.GetTime( currentTime ) ) );
                 }
             }
         }

@@ -15,8 +15,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t BoneMaskToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        BoneMaskNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<BoneMaskNode>( this, pSettings );
+        BoneMaskNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<BoneMaskNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             if ( !m_maskID.IsValid() )
@@ -25,10 +25,10 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
 
-            pSettings->m_boneMaskID = m_maskID;
+            pDefinition->m_boneMaskID = m_maskID;
         }
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void BoneMaskToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -59,14 +59,14 @@ namespace EE::Animation::GraphNodes
 
     int16_t FixedWeightBoneMaskToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FixedWeightBoneMaskNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FixedWeightBoneMaskNode>( this, pSettings );
+        FixedWeightBoneMaskNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FixedWeightBoneMaskNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_boneWeight = m_boneWeight;
+            pDefinition->m_boneWeight = m_boneWeight;
         }
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void FixedWeightBoneMaskToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -89,8 +89,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t BoneMaskBlendToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        BoneMaskBlendNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<BoneMaskBlendNode>( this, pSettings );
+        BoneMaskBlendNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<BoneMaskBlendNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -99,7 +99,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_blendWeightValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_blendWeightValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -120,7 +120,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_sourceMaskNodeIdx = compiledNodeIdx;
+                    pDefinition->m_sourceMaskNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -141,7 +141,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_targetMaskNodeIdx = compiledNodeIdx;
+                    pDefinition->m_targetMaskNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -155,7 +155,7 @@ namespace EE::Animation::GraphNodes
             }
         }
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -164,7 +164,7 @@ namespace EE::Animation::GraphNodes
         : FlowToolsNode()
     {
         CreateOutputPin( "Result", GraphValueType::BoneMask, true );
-        CreateInputPin( "Parameter", GraphValueType::ID );
+        CreateInputPin( "ID", GraphValueType::ID );
         CreateInputPin( "Default Mask", GraphValueType::BoneMask );
         CreateInputPin( "Mask 0", GraphValueType::BoneMask );
 
@@ -173,8 +173,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t BoneMaskSelectorToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        BoneMaskSelectorNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<BoneMaskSelectorNode>( this, pSettings );
+        BoneMaskSelectorNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<BoneMaskSelectorNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             // Parameter
@@ -186,7 +186,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pParameterNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_parameterValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_parameterValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -208,7 +208,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pDefaultMaskNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_defaultMaskNodeIdx = compiledNodeIdx;
+                    pDefinition->m_defaultMaskNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -230,7 +230,7 @@ namespace EE::Animation::GraphNodes
                     auto compiledNodeIdx = pOptionNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_maskNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_maskNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -270,16 +270,16 @@ namespace EE::Animation::GraphNodes
             // Set parameter values
             //-------------------------------------------------------------------------
 
-            pSettings->m_parameterValues.clear();
-            pSettings->m_parameterValues.insert( pSettings->m_parameterValues.begin(), m_parameterValues.begin(), m_parameterValues.begin() + numDynamicOptions );
+            pDefinition->m_parameterValues.clear();
+            pDefinition->m_parameterValues.insert( pDefinition->m_parameterValues.begin(), m_parameterValues.begin(), m_parameterValues.begin() + numDynamicOptions );
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_switchDynamically = m_switchDynamically;
-            pSettings->m_blendTime = m_blendTime;
+            pDefinition->m_switchDynamically = m_switchDynamically;
+            pDefinition->m_blendTime = m_blendTime;
         }
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     TInlineString<100> BoneMaskSelectorToolsNode::GetNewDynamicInputPinName() const

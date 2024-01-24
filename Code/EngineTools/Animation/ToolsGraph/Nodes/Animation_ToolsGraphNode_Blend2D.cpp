@@ -18,51 +18,50 @@ namespace EE::Animation::GraphNodes
             auto windowPos = ImGui::GetWindowPos();
             auto windowSize = ImGui::GetWindowSize();
 
-            float minX = FLT_MAX, minY = FLT_MAX, maxX = -FLT_MAX, maxY = -FLT_MAX;
-
-            for ( auto& point : blendSpace.m_inputValues )
-            {
-                minX = Math::Min( point.m_x, minX );
-                maxX = Math::Max( point.m_x, maxX );
-                minY = Math::Min( point.m_y, minY );
-                maxY = Math::Max( point.m_y, maxY );
-            }
-
-            FloatRange horizontalViewRange = FloatRange( minX, maxX );
-            float const dilationAmountX = horizontalViewRange.GetLength() / 5;
-            horizontalViewRange.m_begin -= dilationAmountX;
-            horizontalViewRange.m_end += dilationAmountX;
-
-            FloatRange verticalViewRange = FloatRange( minY, maxY );
-            float const dilationAmountY = verticalViewRange.GetLength() / 5;
-            verticalViewRange.m_begin -= dilationAmountY;
-            verticalViewRange.m_end += dilationAmountY;
-
-            //-------------------------------------------------------------------------
-
             bool const validTriangulation = !blendSpace.m_indices.empty();
             Color const color = validTriangulation ? Colors::Green : Colors::Red;
 
-            InlineString str;
+            // Calculate points
+            //-------------------------------------------------------------------------
+
             TInlineVector<ImVec2, 20> screenPoints;
-            for ( auto i = 0u; i < blendSpace.m_inputValues.size(); i++ )
+            FloatRange horizontalViewRange;
+            FloatRange verticalViewRange;
+
+            if ( blendSpace.GetNumPoints() > 0 )
             {
-                auto& point = blendSpace.m_inputValues[i];
+                float minX = FLT_MAX, minY = FLT_MAX, maxX = -FLT_MAX, maxY = -FLT_MAX;
 
-                auto pFont = ImGuiX::GetFont( ImGuiX::Font::Tiny );
-                str.clear();
-                str.append_sprintf( "%d : %.1f, %.1f", i, blendSpace.m_inputValues[i].m_x, blendSpace.m_inputValues[i].m_y );
-                ImVec2 const labelSize = pFont->CalcTextSizeA( pFont->FontSize, FLT_MAX, -1.0f, str.c_str() );
+                for ( auto& point : blendSpace.m_points )
+                {
+                    minX = Math::Min( point.m_x, minX );
+                    maxX = Math::Max( point.m_x, maxX );
+                    minY = Math::Min( point.m_y, minY );
+                    maxY = Math::Max( point.m_y, maxY );
+                }
 
-                ImVec2 screenPos;
-                screenPos.x = windowPos.x + ( horizontalViewRange.GetPercentageThrough( point.m_x ) * windowSize.x );
-                screenPos.y = windowPos.y + ( ( 1.0f - verticalViewRange.GetPercentageThrough( point.m_y ) ) * windowSize.y );
+                horizontalViewRange = FloatRange( minX, maxX );
+                float const dilationAmountX = horizontalViewRange.GetLength() / 5;
+                horizontalViewRange.m_begin -= dilationAmountX;
+                horizontalViewRange.m_end += dilationAmountX;
 
-                pDrawList->AddCircleFilled( screenPos, 5.0f, color );
-                pDrawList->AddText( pFont, pFont->FontSize, screenPos + ImVec2( labelSize.x / -2.0f, 2.5f ), Colors::White, str.c_str() );
-                screenPoints.emplace_back( screenPos );
+                verticalViewRange = FloatRange( minY, maxY );
+                float const dilationAmountY = verticalViewRange.GetLength() / 5;
+                verticalViewRange.m_begin -= dilationAmountY;
+                verticalViewRange.m_end += dilationAmountY;
+
+                InlineString str;
+                for ( auto i = 0u; i < blendSpace.m_points.size(); i++ )
+                {
+                    auto& point = blendSpace.m_points[i];
+                    ImVec2 screenPos;
+                    screenPos.x = windowPos.x + ( horizontalViewRange.GetPercentageThrough( point.m_x ) * windowSize.x );
+                    screenPos.y = windowPos.y + ( ( 1.0f - verticalViewRange.GetPercentageThrough( point.m_y ) ) * windowSize.y );
+                    screenPoints.emplace_back( screenPos );
+                }
             }
 
+            // Draw Triangulation
             //-------------------------------------------------------------------------
 
             if ( validTriangulation )
@@ -86,7 +85,30 @@ namespace EE::Animation::GraphNodes
                     pDrawList->AddLine( screenPoints[i0], screenPoints[i1], Colors::GreenYellow );
                 }
             }
+            else
+            {
+                ImVec2 const textSize = ImGui::CalcTextSize( "Invalid" );
+                ImVec2 const textPos = windowPos + ImVec2( ( windowSize.x - textSize.x ) / 2, ( windowSize.y - textSize.y ) / 2 );
+                pDrawList->AddText( textPos, Colors::Red, "Invalid" );
+            }
 
+            // Draw Points
+            //-------------------------------------------------------------------------
+
+            InlineString pointLabel;
+            for ( auto i = 0u; i < blendSpace.m_points.size(); i++ )
+            {
+                auto& point = blendSpace.m_points[i];
+
+                auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
+                pointLabel = blendSpace.m_pointIDs[i].IsValid() ? blendSpace.m_pointIDs[i].c_str() : "Input";
+                ImVec2 const labelSize = pFont->CalcTextSizeA( pFont->FontSize, FLT_MAX, -1.0f, pointLabel.c_str() );
+
+                pDrawList->AddCircleFilled( screenPoints[i], 5.0f, color );
+                pDrawList->AddText( pFont, pFont->FontSize, screenPoints[i] + ImVec2( labelSize.x / -2.0f, 6.f ), Colors::White, pointLabel.c_str() );
+            }
+
+            // Draw debug point
             //-------------------------------------------------------------------------
 
             if ( pDebugPoint != nullptr )
@@ -106,16 +128,18 @@ namespace EE::Animation::GraphNodes
 
 namespace EE::Animation::GraphNodes
 {
-    void Blend2DToolsNode::BlendSpace::AddInput()
+    void Blend2DToolsNode::BlendSpace::AddPoint()
     {
-        m_inputValues.emplace_back( Float2::Zero );
+        m_points.emplace_back( Float2::Zero );
+        m_pointIDs.emplace_back( StringID() );
         GenerateTriangulation();
     }
 
-    void Blend2DToolsNode::BlendSpace::RemoveInput( int32_t idx )
+    void Blend2DToolsNode::BlendSpace::RemovePoint( int32_t idx )
     {
-        EE_ASSERT( idx >= 0 && idx < m_inputValues.size() );
-        m_inputValues.erase( m_inputValues.begin() + idx );
+        EE_ASSERT( idx >= 0 && idx < m_points.size() );
+        m_points.erase( m_points.begin() + idx );
+        m_pointIDs.erase( m_pointIDs.begin() + idx );
         GenerateTriangulation();
     }
 
@@ -126,7 +150,7 @@ namespace EE::Animation::GraphNodes
         m_indices.clear();
         m_hullIndices.clear();
 
-        if ( m_inputValues.size() < 3 )
+        if ( m_points.size() < 3 )
         {
             return triangulationSucceeded;
         }
@@ -134,7 +158,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         IDelaBella2<float>* pIdb = IDelaBella2<float>::Create();
-        int verts = pIdb->Triangulate( (int32_t) m_inputValues.size(), &m_inputValues[0].m_x, &m_inputValues[0].m_y, sizeof(Float2));
+        int verts = pIdb->Triangulate( (int32_t) m_points.size(), &m_points[0].m_x, &m_points[0].m_y, sizeof(Float2));
         triangulationSucceeded = verts > 0;
 
         // if positive, all ok 
@@ -176,14 +200,19 @@ namespace EE::Animation::GraphNodes
 
     bool Blend2DToolsNode::BlendSpace::operator!=( BlendSpace const& rhs )
     {
-        if ( rhs.m_inputValues.size() != m_inputValues.size() )
+        if ( rhs.m_points.size() != m_points.size() )
         {
             return true;
         }
 
-        for ( size_t i = 0; i < m_inputValues.size(); i++ )
+        for ( size_t i = 0; i < m_points.size(); i++ )
         {
-            if ( m_inputValues[i] != rhs.m_inputValues[i] )
+            if ( m_points[i] != rhs.m_points[i] )
+            {
+                return true;
+            }
+
+            if ( m_pointIDs[i] != rhs.m_pointIDs[i] )
             {
                 return true;
             }
@@ -203,15 +232,6 @@ namespace EE::Animation::GraphNodes
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "X", GraphValueType::Float );
         CreateInputPin( "Y", GraphValueType::Float );
-        CreateInputPin( "Input 0", GraphValueType::Pose );
-        CreateInputPin( "Input 1", GraphValueType::Pose );
-        CreateInputPin( "Input 2", GraphValueType::Pose );
-
-        //-------------------------------------------------------------------------
-
-        m_blendSpace.AddInput();
-        m_blendSpace.AddInput();
-        m_blendSpace.AddInput();
     }
 
     void Blend2DToolsNode::SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue )
@@ -222,8 +242,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t Blend2DToolsNode::Compile( GraphCompilationContext & context ) const
     {
-        Blend2DNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<Blend2DNode>( this, pSettings );
+        Blend2DNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<Blend2DNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             // Validate blendspace
@@ -252,7 +272,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pParameterNode0->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputParameterNodeIdx0 = compiledNodeIdx;
+                    pDefinition->m_inputParameterNodeIdx0 = compiledNodeIdx;
                 }
                 else
                 {
@@ -271,7 +291,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pParameterNode1->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputParameterNodeIdx1 = compiledNodeIdx;
+                    pDefinition->m_inputParameterNodeIdx1 = compiledNodeIdx;
                 }
                 else
                 {
@@ -295,7 +315,7 @@ namespace EE::Animation::GraphNodes
                     int16_t const compiledNodeIdx = pSourceNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_sourceNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_sourceNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -309,77 +329,83 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
-            // Common Settings
+            // Common Definition
             //-------------------------------------------------------------------------
 
-            for ( auto const& point : m_blendSpace.m_inputValues )
+            for ( auto const& point : m_blendSpace.m_points )
             {
-                pSettings->m_values.emplace_back( point );
+                pDefinition->m_values.emplace_back( point );
             }
 
             for ( auto const& index : m_blendSpace.m_indices )
             {
-                pSettings->m_indices.emplace_back( index );
+                pDefinition->m_indices.emplace_back( index );
             }
 
             for ( auto const& index : m_blendSpace.m_hullIndices )
             {
-                pSettings->m_hullIndices.emplace_back( index );
+                pDefinition->m_hullIndices.emplace_back( index );
             }
         }
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void Blend2DToolsNode::OnDynamicPinCreation( UUID pinID )
     {
-        m_blendSpace.AddInput();
+        m_blendSpace.AddPoint();
+        UpdateDynamicPins();
     }
 
     void Blend2DToolsNode::OnDynamicPinDestruction( UUID pinID )
     {
         int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
         EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
-        m_blendSpace.RemoveInput( pinToBeRemovedIdx - 3 );
-
-        // Rename Pins
-        //-------------------------------------------------------------------------
-
-        int32_t newPinIdx = 0;
-        int32_t const numOptions = GetNumInputPins();
-        for ( auto i = 2; i < numOptions; i++ )
-        {
-            if ( i == pinToBeRemovedIdx )
-            {
-                continue;
-            }
-
-            TInlineString<100> newPinName;
-            newPinName.sprintf( "Input %d", newPinIdx );
-            GetInputPin( i )->m_name = newPinName;
-            newPinIdx++;
-        }
-    }
-
-    TInlineString<100> Blend2DToolsNode::GetNewDynamicInputPinName() const
-    {
-        return TInlineString<100>( TInlineString<100>::CtorSprintf(), "Input %d", GetNumInputPins() - 3 );
+        int32_t const pointIdx = pinToBeRemovedIdx - 2;
+        m_blendSpace.RemovePoint( pointIdx );
     }
 
     void Blend2DToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
     {
-        Float2 debugPoint;
-        Float2* pDebugPoint = nullptr;
+        Float2* pActualDebugPoint = nullptr; // This is done to let the visualization know if we have a point or not
+        Float2 debugPointStorage;
 
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         int16_t const runtimeNodeIdx = pGraphNodeContext->HasDebugData() ? pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() ) : InvalidIndex;
         if ( runtimeNodeIdx != InvalidIndex )
         {
-            debugPoint = pGraphNodeContext->GetBlend2DParameter( runtimeNodeIdx );
-            pDebugPoint = &debugPoint;
+            auto pBlendNode = static_cast<GraphNodes::Blend2DNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
+            if ( pBlendNode->IsInitialized() )
+            {
+                debugPointStorage = pBlendNode->GetParameter();
+                pActualDebugPoint = &debugPointStorage;
+            }
         }
 
-        DrawBlendSpaceVisualization( m_blendSpace, ImVec2( 200, 200 ), pDebugPoint );
+        DrawBlendSpaceVisualization( m_blendSpace, ImVec2( 200, 200 ), pActualDebugPoint );
+    }
+
+    void Blend2DToolsNode::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
+    {
+        FlowToolsNode::PostPropertyEdit( pPropertyEdited );
+
+        if ( pPropertyEdited->m_ID == StringID( "m_blendSpace" ) )
+        {
+            UpdateDynamicPins();
+        }
+    }
+
+    void Blend2DToolsNode::UpdateDynamicPins()
+    {
+        int32_t const numPins = GetNumInputPins();
+        EE_ASSERT( numPins == ( m_blendSpace.GetNumPoints() + 2 ) );
+        for ( int32_t i = 2; i < numPins; i++ )
+        {
+            VisualGraph::Flow::Pin* pInputPin = GetInputPin( i );
+            int32_t const pointIdx = i - 2;
+            StringID const& pointID = m_blendSpace.m_pointIDs[pointIdx];
+            pInputPin->m_name.sprintf( "%s (%.2f, %.2f)", pointID.IsValid() ? pointID.c_str() : "Input", m_blendSpace.m_points[pointIdx].m_x, m_blendSpace.m_points[pointIdx].m_y );
+        }
     }
 }
 
@@ -389,6 +415,8 @@ namespace EE::Animation::GraphNodes
 {
     class BlendSpaceEditor final : public PG::PropertyEditor
     {
+        constexpr static uint32_t const s_bufferSize = 64;
+
     public:
 
         using PropertyEditor::PropertyEditor;
@@ -399,24 +427,46 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        void UpdateBuffers()
+        {
+            int32_t const numPoints = m_value_cached.GetNumPoints();
+
+            m_IDBuffers.resize( numPoints );
+            for ( int32_t i = 0; i < numPoints; i++ )
+            {
+                m_IDBuffers[i].resize( s_bufferSize );
+                if ( m_value_cached.m_pointIDs[i].IsValid() )
+                {
+                    char const* const pIDString = m_value_cached.m_pointIDs[i].c_str();
+                    memcpy( m_IDBuffers[i].data(), pIDString, strlen( pIDString ) );
+                }
+                else
+                {
+                    Memory::MemsetZero( m_IDBuffers[i].data(), s_bufferSize );
+                }
+            }
+        }
+
         virtual void UpdatePropertyValue() override
         {
-            auto pSettings = reinterpret_cast<Blend2DToolsNode::BlendSpace*>( m_pPropertyInstance );
-            *pSettings = m_value_imgui;
+            auto pDefinition = reinterpret_cast<Blend2DToolsNode::BlendSpace*>( m_pPropertyInstance );
+            *pDefinition = m_value_imgui;
             m_value_cached = m_value_imgui;
+            UpdateBuffers();
         }
 
         virtual void ResetWorkingCopy() override
         {
-            auto pSettings = reinterpret_cast<Blend2DToolsNode::BlendSpace*>( m_pPropertyInstance );
-            m_value_imgui = *pSettings;
-            m_value_cached = *pSettings;
+            auto pDefinition = reinterpret_cast<Blend2DToolsNode::BlendSpace*>( m_pPropertyInstance );
+            m_value_imgui = *pDefinition;
+            m_value_cached = *pDefinition;
+            UpdateBuffers();
         }
 
         virtual void HandleExternalUpdate() override
         {
-            auto pSettings = reinterpret_cast<Blend2DToolsNode::BlendSpace*>( m_pPropertyInstance );
-            if ( *pSettings != m_value_cached )
+            auto pDefinition = reinterpret_cast<Blend2DToolsNode::BlendSpace*>( m_pPropertyInstance );
+            if ( *pDefinition != m_value_cached )
             {
                 ResetWorkingCopy();
             }
@@ -424,21 +474,49 @@ namespace EE::Animation::GraphNodes
 
         virtual bool InternalUpdateAndDraw() override
         {
-            bool valueChanged = false;
+            bool valueUpdated = false;
 
             // Point editors
             //-------------------------------------------------------------------------
 
-            for ( auto i = 0; i < m_value_imgui.m_inputValues.size(); i++ )
+            int32_t const numPoints = m_value_imgui.GetNumPoints();
+            for ( auto i = 0; i < numPoints; i++ )
             {
                 ImGui::PushID( i );
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Input %d: ", i );
+
+                // ID
+                //-------------------------------------------------------------------------
+
+                ImGui::Text( "ID" );
                 ImGui::SameLine();
-                if ( ImGuiX::InputFloat2( "i", m_value_imgui.m_inputValues[i] ) )
+
+                bool IDUpdated = false;
+                ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x / 3 );
+                if ( ImGui::InputText( "##StringInput", m_IDBuffers[i].data(), s_bufferSize, ImGuiInputTextFlags_EnterReturnsTrue) )
+                {
+                    IDUpdated = true;
+                }
+
+                if ( ImGui::IsItemDeactivatedAfterEdit() )
+                {
+                    IDUpdated = true;
+                }
+
+                if ( IDUpdated )
+                {
+                    m_value_imgui.m_pointIDs[i] = StringID( m_IDBuffers[i].data() );
+                    valueUpdated = true;
+                }
+
+                // Value
+                //-------------------------------------------------------------------------
+
+                ImGui::SameLine();
+                if ( ImGuiX::InputFloat2( "i", m_value_imgui.m_points[i] ) )
                 {
                     m_value_imgui.GenerateTriangulation();
-                    valueChanged = true;
+                    valueUpdated = true;
                 }
                 ImGui::PopID();
             }
@@ -450,13 +528,14 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            return valueChanged;
+            return valueUpdated;
         }
 
     private:
 
-        Blend2DToolsNode::BlendSpace        m_value_imgui;
-        Blend2DToolsNode::BlendSpace        m_value_cached;
+        Blend2DToolsNode::BlendSpace                        m_value_imgui;
+        Blend2DToolsNode::BlendSpace                        m_value_cached;
+        TVector<TInlineVector<char, s_bufferSize>>          m_IDBuffers;
     };
 
     //-------------------------------------------------------------------------

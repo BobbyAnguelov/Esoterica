@@ -82,6 +82,5 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    #define EE_DECLARE_GLOBAL_REGISTRY( T ) friend TGlobalRegistryBase<T>; static T* s_pHead; static T* s_pTail;
-    #define EE_GLOBAL_REGISTRY( T ) T* T::s_pHead = nullptr; T* T::s_pTail = nullptr;
+    #define EE_GLOBAL_REGISTRY( T ) friend TGlobalRegistryBase<T>; inline static T* s_pHead = nullptr; inline static T* s_pTail = nullptr;
 }

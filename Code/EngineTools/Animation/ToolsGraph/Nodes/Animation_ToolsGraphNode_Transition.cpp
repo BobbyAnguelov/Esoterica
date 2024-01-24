@@ -206,7 +206,14 @@ namespace EE::Animation::GraphNodes
                 auto const runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( pTransition->GetID() );
                 if ( runtimeNodeIdx != InvalidIndex && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
                 {
-                    m_transitionProgress = Percentage( Math::Max( pGraphNodeContext->GetTransitionProgress( runtimeNodeIdx ), 0.001f ) );
+                    float progress = 0.0f;
+                    auto pTransitionNode = static_cast<GraphNodes::TransitionNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
+                    if ( pTransitionNode->IsInitialized() )
+                    {
+                        progress = pTransitionNode->GetProgressPercentage();
+                    }
+
+                    m_transitionProgress = Percentage( Math::Max( progress, 0.001f ) );
                     isAnyChildActive = true;
                     break;
                 }

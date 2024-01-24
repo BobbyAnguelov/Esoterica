@@ -5,11 +5,11 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void SpeedScaleNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void SpeedScaleNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<SpeedScaleNode>( context, options );
         context.SetNodePtrFromIndex( m_scaleValueNodeIdx, pNode->m_pScaleValueNode );
-        PassthroughNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
+        PassthroughNode::Definition::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 
     void SpeedScaleNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -19,8 +19,8 @@ namespace EE::Animation::GraphNodes
         PassthroughNode::InitializeInternal( context, initialTime );
         m_pScaleValueNode->Initialize( context );
 
-        auto pSettings = GetSettings<SpeedScaleNode>();
-        m_blendWeight = ( pSettings->m_blendInTime > 0.0f ) ? 0.0f : 1.0f;
+        auto pDefinition = GetDefinition<SpeedScaleNode>();
+        m_blendWeight = ( pDefinition->m_blendInTime > 0.0f ) ? 0.0f : 1.0f;
     }
 
     void SpeedScaleNode::ShutdownInternal( GraphContext& context )
@@ -69,10 +69,10 @@ namespace EE::Animation::GraphNodes
                 }
 
                 // Perform blend
-                auto pSettings = GetSettings<SpeedScaleNode>();
-                if ( pSettings->m_blendInTime > 0.0f && m_blendWeight < 1.0f )
+                auto pDefinition = GetDefinition<SpeedScaleNode>();
+                if ( pDefinition->m_blendInTime > 0.0f && m_blendWeight < 1.0f )
                 {
-                    float const blendWeightDelta = context.m_deltaTime / pSettings->m_blendInTime;
+                    float const blendWeightDelta = context.m_deltaTime / pDefinition->m_blendInTime;
                     m_blendWeight = Math::Clamp( m_blendWeight + blendWeightDelta, 0.0f, 1.0f );
                     speedScale = Math::Lerp( 1.0f, speedScale, m_blendWeight );
                 }
@@ -128,11 +128,11 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void DurationScaleNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void DurationScaleNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<DurationScaleNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_durationValueNodeIdx, pNode->m_pDurationValueNode );
-        PassthroughNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
+        PassthroughNode::Definition::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 
     void DurationScaleNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -185,7 +185,7 @@ namespace EE::Animation::GraphNodes
             if ( m_pChildNode->IsValid() )
             {
                 // Get expected scale
-                float desiredDuration = ( m_pDurationValueNode != nullptr ) ? m_pDurationValueNode->GetValue<float>( context ) : GetSettings<DurationScaleNode>()->m_desiredDuration;
+                float desiredDuration = ( m_pDurationValueNode != nullptr ) ? m_pDurationValueNode->GetValue<float>( context ) : GetDefinition<DurationScaleNode>()->m_desiredDuration;
                 if ( desiredDuration < 0.0f )
                 {
                     desiredDuration = 0.0f;
@@ -241,7 +241,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void VelocityBasedSpeedScaleNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VelocityBasedSpeedScaleNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VelocityBasedSpeedScaleNode>( context, options );
         context.SetNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
@@ -255,8 +255,8 @@ namespace EE::Animation::GraphNodes
         PoseNode::InitializeInternal( context, initialTime );
         m_pDesiredVelocityValueNode->Initialize( context );
 
-        auto pSettings = GetSettings<SpeedScaleNode>();
-        m_blendWeight = ( pSettings->m_blendInTime > 0.0f ) ? 0.0f : 1.0f;
+        auto pDefinition = GetDefinition<SpeedScaleNode>();
+        m_blendWeight = ( pDefinition->m_blendInTime > 0.0f ) ? 0.0f : 1.0f;
 
         //-------------------------------------------------------------------------
 
@@ -380,10 +380,10 @@ namespace EE::Animation::GraphNodes
             // Blend
             //-------------------------------------------------------------------------
 
-            auto pSettings = GetSettings<VelocityBasedSpeedScaleNode>();
-            if ( pSettings->m_blendInTime > 0.0f && m_blendWeight < 1.0f )
+            auto pDefinition = GetDefinition<VelocityBasedSpeedScaleNode>();
+            if ( pDefinition->m_blendInTime > 0.0f && m_blendWeight < 1.0f )
             {
-                float const blendWeightDelta = context.m_deltaTime / pSettings->m_blendInTime;
+                float const blendWeightDelta = context.m_deltaTime / pDefinition->m_blendInTime;
                 m_blendWeight = Math::Clamp( m_blendWeight + blendWeightDelta, 0.0f, 1.0f );
                 speedMultiplier = Math::Lerp( 1.0f, speedMultiplier, m_blendWeight );
             }

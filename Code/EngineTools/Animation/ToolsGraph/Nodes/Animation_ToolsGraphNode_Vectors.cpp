@@ -14,8 +14,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t VectorInfoToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        VectorInfoNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<VectorInfoNode>( this, pSettings );
+        VectorInfoNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<VectorInfoNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -24,7 +24,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -39,9 +39,9 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_desiredInfo = m_desiredInfo;
+            pDefinition->m_desiredInfo = m_desiredInfo;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void VectorInfoToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -93,8 +93,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t VectorCreateToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        VectorCreateNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<VectorCreateNode>( this, pSettings );
+        VectorCreateNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<VectorCreateNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -103,7 +103,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputVectorValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputVectorValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -117,7 +117,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueXNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueXNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -131,7 +131,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueYNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueYNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -145,7 +145,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueZNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueZNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -153,7 +153,7 @@ namespace EE::Animation::GraphNodes
                 }
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -167,8 +167,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t VectorNegateToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        VectorNegateNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<VectorNegateNode>( this, pSettings );
+        VectorNegateNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<VectorNegateNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -177,7 +177,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -190,6 +190,6 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 }

@@ -1179,14 +1179,14 @@ namespace EE::Physics
     {
         EE_ASSERT( IsValid() );
         EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_skeleton.GetResourceID() );
-        EE_ASSERT( pPose->HasGlobalTransforms() );
+        EE_ASSERT( pPose->HasModelSpaceTransforms() );
 
         // Copy the global bone transforms here
         //-------------------------------------------------------------------------
 
         int32_t const numBones = pPose->GetNumBones();
         m_globalBoneTransforms.resize( numBones );
-        m_globalBoneTransforms = pPose->GetGlobalTransforms();
+        m_globalBoneTransforms = pPose->GetModelSpaceTransforms();
 
         //-------------------------------------------------------------------------
 
@@ -1201,7 +1201,7 @@ namespace EE::Physics
                 if ( !ragdollBodyTransform.isSane() )
                 {
                     invalidTransformDetected = true;
-                    pPose->ClearGlobalTransforms();
+                    pPose->ClearModelSpaceTransforms();
                     break;
                 }
 

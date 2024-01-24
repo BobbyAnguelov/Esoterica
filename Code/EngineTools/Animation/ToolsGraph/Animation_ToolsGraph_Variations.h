@@ -22,12 +22,6 @@ namespace EE::Animation
         // The default name for a graph variation
         static StringID const s_defaultVariationID;
 
-        // The delimiter character used to separate the graph name and the variation name for graph variation resources
-        constexpr static char const s_graphPathDelimiter = '@';
-
-        // Create a file path prefix for the graph variation resource (this is the path up to and including the delimiter )
-        static String GenerateResourceFilePathPrefix( FileSystem::Path const& graphPath );
-
         // Create a file path for the graph variation resource
         static String GenerateResourceFilePath( FileSystem::Path const& graphPath, StringID variationID );
 
@@ -35,10 +29,7 @@ namespace EE::Animation
         static String GetVariationNameFromResourceID( ResourceID const& resourceID );
 
         // Get the graph resource ID from either a graph or a graph variation resource ID
-        static ResourceID GetGraphResourceID( ResourceID const& resourceID );
-
-        // Create a graph variation file on disk
-        static bool TryCreateVariationFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourcePath, FileSystem::Path const& graphPath, StringID variationID );
+        static ResourceID GetGraphResourceID( ResourceID const& resourceID, StringID* pOutOptionalVariation = nullptr );
 
     public:
 

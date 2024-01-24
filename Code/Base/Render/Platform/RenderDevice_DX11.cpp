@@ -1,9 +1,9 @@
 #include "RenderDevice_DX11.h"
 #include "TextureLoader_Win32.h"
 #include "Base/Render/RenderCoreResources.h"
-#include "Base/IniFile.h"
+#include "Base/Render/Settings/GlobalSettings_Render.h"
 #include "Base/Profiling.h"
-
+#include "Base/Platform/Platform.h"
 
 //-------------------------------------------------------------------------
 
@@ -56,20 +56,11 @@ namespace EE::Render
         return m_pDevice != nullptr;
     }
 
-    bool RenderDevice::Initialize( IniFile const& iniFile )
+    bool RenderDevice::Initialize( RenderGlobalSettings const& settings )
     {
-        EE_ASSERT( iniFile.IsValid() );
-
-        m_resolution.m_x = iniFile.GetIntOrDefault( "Render:ResolutionX", 1280 );
-        m_resolution.m_y = iniFile.GetIntOrDefault( "Render:ResolutionX", 720 );
-        m_refreshRate = iniFile.GetFloatOrDefault( "Render:ResolutionX", 60 );
-        m_isFullscreen = iniFile.GetBoolOrDefault( "Render:Fullscreen", false );
-
-        //-------------------------------------------------------------------------
-
-        if ( m_resolution.m_x < 0 || m_resolution.m_y < 0 || m_refreshRate < 0 )
+        if ( settings.m_resolution.m_x < 0 || settings.m_resolution.m_y < 0 || settings.m_refreshRate < 0 )
         {
-            EE_LOG_ERROR( "Render", "Render Device", "Invalid render settings read from ini file." );
+            EE_LOG_ERROR( "Render", "Render Device", "Invalid render settings!" );
             return false;
         }
 
@@ -116,7 +107,7 @@ namespace EE::Render
         DXGI_SWAP_CHAIN_DESC swapChainDesc;
         EE::Memory::MemsetZero( &swapChainDesc, sizeof( swapChainDesc ) );
 
-        HWND pActiveWindow = GetActiveWindow();
+        HWND pActiveWindow = (HWND) Platform::GetMainWindowHandle();
         if ( pActiveWindow == nullptr )
         {
             return false;

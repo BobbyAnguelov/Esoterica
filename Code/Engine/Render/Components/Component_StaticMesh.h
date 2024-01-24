@@ -8,27 +8,9 @@
 
 namespace EE::Render
 {
-    enum class Mobility
-    {
-        EE_REFLECT_ENUM
-
-        Static = 0,
-        Dynamic = 1
-    };
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINE_API StaticMeshComponent final : public MeshComponent
     {
         EE_ENTITY_COMPONENT( StaticMeshComponent );
-
-        static TEvent<StaticMeshComponent*> s_mobilityChangedEvent; // Fired whenever we switch mobility 
-        static TEvent<StaticMeshComponent*> s_staticMobilityTransformUpdatedEvent; // Fired whenever a "static" component is moved
-
-    public:
-
-        inline static TEventHandle<StaticMeshComponent*> OnStaticMobilityTransformUpdated() { return s_staticMobilityTransformUpdatedEvent; }
-        inline static TEventHandle<StaticMeshComponent*> OnMobilityChanged() { return s_mobilityChangedEvent; }
 
     public:
 
@@ -58,18 +40,11 @@ namespace EE::Render
             return m_mesh.GetPtr();
         }
 
-        // Mobility
-        //-------------------------------------------------------------------------
-
-        inline Mobility GetMobility() const { return m_mobility; }
-        void ChangeMobility( Mobility newMobility );
-
         virtual TVector<TResourcePtr<Material>> const& GetDefaultMaterials() const override;
 
     protected:
 
         virtual OBB CalculateLocalBounds() const override final;
-        virtual void OnWorldTransformUpdated() override final;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
@@ -84,8 +59,5 @@ namespace EE::Render
 
         // The mesh resource for this component
         EE_REFLECT() TResourcePtr<StaticMesh>              m_mesh;
-
-        // Is this component expected to be static (immovable) or dynamic (allowed to move)
-        EE_REFLECT() Mobility                              m_mobility = Mobility::Static;
     };
 }

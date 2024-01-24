@@ -51,9 +51,9 @@ namespace EE::Player
     {
         // Calculate desired player displacement
         //-------------------------------------------------------------------------
-        auto const pControllerState = ctx.m_pInputState->GetControllerState();
+        auto const pControllerState = ctx.m_pInputSystem->GetController();
         EE_ASSERT( pControllerState != nullptr );
-        Vector const movementInputs = pControllerState->GetLeftAnalogStickValue();
+        Vector const movementInputs = pControllerState->GetLeftStickValue();
 
         auto const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
         auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();

@@ -17,6 +17,9 @@ namespace EE
 
         using Engine::Engine;
 
+        void RegisterTypes() override;
+        void UnregisterTypes() override;
+
         #if EE_DEVELOPMENT_TOOLS
         virtual void CreateToolsUI() { m_pToolsUI = EE::New<EngineDebugUI>(); }
         #endif

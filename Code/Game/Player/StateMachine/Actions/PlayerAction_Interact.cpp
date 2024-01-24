@@ -49,7 +49,7 @@ namespace EE::Player
         m_canInteract = true;
 
         // Check for input
-        if( ctx.m_pInputState->GetControllerState()->WasReleased( Input::ControllerButton::FaceButtonUp ) )
+        if( ctx.m_pInputSystem->GetController()->WasReleased( Input::InputID::Controller_FaceButtonUp ) )
         {
             // Create external controller
             m_pController = ctx.m_pAnimationController->TryCreateExternalGraphController<ExternalController>( StringID( "Interaction" ), ctx.m_pPlayerComponent->m_pAvailableInteraction, true );

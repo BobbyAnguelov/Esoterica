@@ -51,7 +51,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetWarpNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void TargetWarpNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<TargetWarpNode>( context, options );
         context.SetNodePtrFromIndex( m_clipReferenceNodeIdx, pNode->m_pClipReferenceNode );
@@ -195,7 +195,7 @@ namespace EE::Animation::GraphNodes
 
     void TargetWarpNode::SolveTranslationSection( GraphContext& context, WarpSection const& section, Transform const& startTransform, Transform const& endTransform )
     {
-        auto pSettings = GetSettings<TargetWarpNode>();
+        auto pDefinition = GetDefinition<TargetWarpNode>();
 
         EE_ASSERT( section.m_warpRule == TargetWarpRule::WarpXY || section.m_warpRule == TargetWarpRule::WarpXYZ );
 
@@ -231,7 +231,7 @@ namespace EE::Animation::GraphNodes
         }
 
         // If the distance to be covered is under the threshold, then just LERP as trying to fit a curve will look ugly
-        if ( !triggerFallback && desiredDistanceToCover <= pSettings->m_lerpFallbackDistanceThreshold )
+        if ( !triggerFallback && desiredDistanceToCover <= pDefinition->m_lerpFallbackDistanceThreshold )
         {
             triggerFallback = true;
 
@@ -285,7 +285,7 @@ namespace EE::Animation::GraphNodes
             if ( !triggerFallback )
             {
                 // Scale tangents - We use a half distance value clamped to the specified max length in the settings
-                float const scalingFactor = Math::Min( pSettings->m_maxTangentLength, endPoint.GetDistance3( startPoint ) / 2 );
+                float const scalingFactor = Math::Min( pDefinition->m_maxTangentLength, endPoint.GetDistance3( startPoint ) / 2 );
                 startTangent *= scalingFactor;
                 endTangent *= scalingFactor;
 
@@ -387,7 +387,7 @@ namespace EE::Animation::GraphNodes
             // Scale guide curve tangents
             //-------------------------------------------------------------------------
  
-            float const scalingFactor = Math::Min( pSettings->m_maxTangentLength, endPoint.GetDistance3( startPoint ) / 2 );
+            float const scalingFactor = Math::Min( pDefinition->m_maxTangentLength, endPoint.GetDistance3( startPoint ) / 2 );
             hermiteStartTangent *= scalingFactor;
             hermiteEndTangent *= scalingFactor;
 
@@ -712,7 +712,7 @@ namespace EE::Animation::GraphNodes
 
     void TargetWarpNode::GenerateWarpedRootMotion( GraphContext& context )
     {
-        auto pSettings = GetSettings<TargetWarpNode>();
+        auto pDefinition = GetDefinition<TargetWarpNode>();
 
         auto pAnimation = m_pClipReferenceNode->GetAnimation();
         EE_ASSERT( pAnimation != nullptr );
@@ -726,7 +726,7 @@ namespace EE::Animation::GraphNodes
         // Prepare for warping and handle start time
         //-------------------------------------------------------------------------
 
-        m_samplingMode = pSettings->m_samplingMode;
+        m_samplingMode = pDefinition->m_samplingMode;
 
         #if EE_DEVELOPMENT_TOOLS
         m_warpStartWorldTransform = m_useRecordedStartData ? m_warpStartWorldTransform : context.m_worldTransform;
@@ -985,7 +985,7 @@ namespace EE::Animation::GraphNodes
 
     bool TargetWarpNode::UpdateWarp( GraphContext& context )
     {
-        auto pSettings = GetSettings<TargetWarpNode>();
+        auto pDefinition = GetDefinition<TargetWarpNode>();
 
         //-------------------------------------------------------------------------
 
@@ -1001,7 +1001,7 @@ namespace EE::Animation::GraphNodes
         {
             if ( !TryReadTarget( context ) )
             {
-                m_internalState = pSettings->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Failed;
+                m_internalState = pDefinition->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Failed;
                 return false;
             }
         }
@@ -1034,18 +1034,18 @@ namespace EE::Animation::GraphNodes
             }
 
             Radians const deltaAngle = Quaternion::Distance( m_requestedWarpTarget.GetRotation(), previousRequestedTarget.GetRotation() );
-            bool shouldUpdate = deltaAngle > pSettings->m_targetUpdateAngleThresholdRadians;
+            bool shouldUpdate = deltaAngle > pDefinition->m_targetUpdateAngleThresholdRadians;
 
             if ( !shouldUpdate && m_translationXYSectionIdx != InvalidIndex )
             {
                 float const deltaDistanceXY = m_requestedWarpTarget.GetTranslation().GetDistance2( previousRequestedTarget.GetTranslation() );
-                shouldUpdate = deltaDistanceXY > pSettings->m_targetUpdateDistanceThreshold;
+                shouldUpdate = deltaDistanceXY > pDefinition->m_targetUpdateDistanceThreshold;
             }
 
             if ( !shouldUpdate && m_isTranslationAllowedZ )
             {
                 float const deltaDistanceZ = ( m_requestedWarpTarget.GetTranslation().GetSplatZ() - previousRequestedTarget.GetTranslation().GetSplatZ() ).ToFloat();
-                shouldUpdate = deltaDistanceZ > pSettings->m_targetUpdateDistanceThreshold;
+                shouldUpdate = deltaDistanceZ > pDefinition->m_targetUpdateDistanceThreshold;
             }
 
             // If no change, then reset the requested target back to the original value and return
@@ -1064,12 +1064,12 @@ namespace EE::Animation::GraphNodes
         if ( GenerateWarpInfo( context ) )
         {
             GenerateWarpedRootMotion( context );
-            m_internalState = pSettings->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Completed;
+            m_internalState = pDefinition->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Completed;
             return true;
         }
         else
         {
-            m_internalState = pSettings->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Failed;
+            m_internalState = pDefinition->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Failed;
             return false;
         }
     }
@@ -1097,12 +1097,12 @@ namespace EE::Animation::GraphNodes
             // If we are sampling accurately then we need to match the exact world space position each update
             if ( m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
             {
-                auto pSettings = GetSettings<TargetWarpNode>();
+                auto pDefinition = GetDefinition<TargetWarpNode>();
 
                 // Calculate error between current and expected position (only if the warp hasnt been updated this frame)
                 Transform const expectedTransform = m_warpedRootMotion.GetTransform( m_previousTime );
                 float const positionErrorSq = expectedTransform.GetTranslation().GetDistanceSquared3( context.m_worldTransform.GetTranslation() );
-                if ( positionErrorSq <= pSettings->m_samplingPositionErrorThresholdSq )
+                if ( positionErrorSq <= pDefinition->m_samplingPositionErrorThresholdSq )
                 {
                     result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
                 }

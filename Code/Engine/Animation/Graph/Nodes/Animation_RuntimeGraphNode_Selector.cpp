@@ -5,7 +5,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void SelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void SelectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<SelectorNode>( context, options );
 
@@ -149,7 +149,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void AnimationClipSelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void AnimationClipSelectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<AnimationClipSelectorNode>( context, options );
 
@@ -320,7 +320,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ParameterizedSelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ParameterizedSelectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<ParameterizedSelectorNode>( context, options );
 
@@ -443,7 +443,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ParameterizedAnimationClipSelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ParameterizedAnimationClipSelectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<ParameterizedAnimationClipSelectorNode>( context, options );
 

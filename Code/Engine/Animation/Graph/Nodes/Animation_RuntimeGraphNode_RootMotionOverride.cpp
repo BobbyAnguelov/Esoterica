@@ -6,14 +6,14 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void RootMotionOverrideNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void RootMotionOverrideNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<RootMotionOverrideNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_desiredMovingVelocityNodeIdx, pNode->m_pDesiredMovingVelocityNode );
         context.SetOptionalNodePtrFromIndex( m_desiredFacingDirectionNodeIdx, pNode->m_pDesiredFacingDirectionNode );
         context.SetOptionalNodePtrFromIndex( m_linearVelocityLimitNodeIdx, pNode->m_pLinearVelocityLimitNode );
         context.SetOptionalNodePtrFromIndex( m_angularVelocityLimitNodeIdx, pNode->m_pAngularVelocityLimitNode );
-        PassthroughNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
+        PassthroughNode::Definition::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 
     void RootMotionOverrideNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -79,7 +79,7 @@ namespace EE::Animation::GraphNodes
 
     float RootMotionOverrideNode::CalculateOverrideWeight( GraphContext& context )
     {
-        EE_ASSERT( GetSettings<RootMotionOverrideNode>()->m_overrideFlags.IsFlagSet( OverrideFlags::ListenForEvents ) );
+        EE_ASSERT( GetDefinition<RootMotionOverrideNode>()->m_overrideFlags.IsFlagSet( OverrideFlags::ListenForEvents ) );
 
         //-------------------------------------------------------------------------
 
@@ -215,8 +215,8 @@ namespace EE::Animation::GraphNodes
 
     void RootMotionOverrideNode::ModifyRootMotion( GraphContext& context, GraphPoseNodeResult& nodeResult )
     {
-        auto pSettings = GetSettings<RootMotionOverrideNode>();
-        EE_ASSERT( context.IsValid() && pSettings != nullptr );
+        auto pDefinition = GetDefinition<RootMotionOverrideNode>();
+        EE_ASSERT( context.IsValid() && pDefinition != nullptr );
 
         //-------------------------------------------------------------------------
 
@@ -225,21 +225,21 @@ namespace EE::Animation::GraphNodes
         // Move
         //-------------------------------------------------------------------------
 
-        bool isMoveModificationAllowed = m_pDesiredMovingVelocityNode != nullptr && pSettings->m_overrideFlags.AreAnyFlagsSet( OverrideFlags::AllowMoveX, OverrideFlags::AllowMoveX, OverrideFlags::AllowMoveX );
+        bool isMoveModificationAllowed = m_pDesiredMovingVelocityNode != nullptr && pDefinition->m_overrideFlags.AreAnyFlagsSet( OverrideFlags::AllowMoveX, OverrideFlags::AllowMoveX, OverrideFlags::AllowMoveX );
         if ( isMoveModificationAllowed )
         {
             Float3 const DesiredMovingVelocity = m_pDesiredMovingVelocityNode->GetValue<Vector>( context ).ToFloat3();
 
             // Override the request axes with the desired Move
             Float3 translation = nodeResult.m_rootMotionDelta.GetTranslation();
-            translation.m_x = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowMoveX ) ? DesiredMovingVelocity.m_x * context.m_deltaTime : translation.m_x;
-            translation.m_y = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowMoveY ) ? DesiredMovingVelocity.m_y * context.m_deltaTime : translation.m_y;
-            translation.m_z = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowMoveZ ) ? DesiredMovingVelocity.m_z * context.m_deltaTime : translation.m_z;
+            translation.m_x = pDefinition->m_overrideFlags.IsFlagSet( OverrideFlags::AllowMoveX ) ? DesiredMovingVelocity.m_x * context.m_deltaTime : translation.m_x;
+            translation.m_y = pDefinition->m_overrideFlags.IsFlagSet( OverrideFlags::AllowMoveY ) ? DesiredMovingVelocity.m_y * context.m_deltaTime : translation.m_y;
+            translation.m_z = pDefinition->m_overrideFlags.IsFlagSet( OverrideFlags::AllowMoveZ ) ? DesiredMovingVelocity.m_z * context.m_deltaTime : translation.m_z;
 
             Vector vTranslation( translation );
 
             // Apply max linear velocity limit
-            float maxLinearVelocity = pSettings->m_maxLinearVelocity;
+            float maxLinearVelocity = pDefinition->m_maxLinearVelocity;
             if ( m_pLinearVelocityLimitNode != nullptr )
             {
                 maxLinearVelocity = Math::Abs( m_pLinearVelocityLimitNode->GetValue<float>( context ) * 100 );
@@ -267,7 +267,7 @@ namespace EE::Animation::GraphNodes
             Vector desiredFacingCS = m_pDesiredFacingDirectionNode->GetValue<Vector>( context );
 
             // Remove pitch facing if this is not allowed
-            if ( !pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::AllowFacingPitch ) )
+            if ( !pDefinition->m_overrideFlags.IsFlagSet( OverrideFlags::AllowFacingPitch ) )
             {
                 desiredFacingCS = desiredFacingCS.Get2D();
             }
@@ -281,7 +281,7 @@ namespace EE::Animation::GraphNodes
                 Quaternion deltaRotation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, desiredFacingCS, Vector::WorldUp );
 
                 // Apply max angular velocity limit
-                float maxAngularVelocity = pSettings->m_maxAngularVelocity;
+                float maxAngularVelocity = pDefinition->m_maxAngularVelocity;
                 if ( m_pAngularVelocityLimitNode != nullptr )
                 {
                     maxAngularVelocity = Math::Abs( Math::DegreesToRadians * m_pAngularVelocityLimitNode->GetValue<float>( context ) );
@@ -305,7 +305,7 @@ namespace EE::Animation::GraphNodes
         // Perform Modification
         //-------------------------------------------------------------------------
 
-        float const overrideWeight = pSettings->m_overrideFlags.IsFlagSet( OverrideFlags::ListenForEvents ) ? CalculateOverrideWeight( context ) : 1.0f;
+        float const overrideWeight = pDefinition->m_overrideFlags.IsFlagSet( OverrideFlags::ListenForEvents ) ? CalculateOverrideWeight( context ) : 1.0f;
 
         // Leave original root motion intact
         if ( overrideWeight == 0.0f )

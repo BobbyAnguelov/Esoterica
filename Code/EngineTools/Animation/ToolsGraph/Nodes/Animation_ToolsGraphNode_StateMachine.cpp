@@ -64,11 +64,11 @@ namespace EE::Animation::GraphNodes
 
     int16_t StateMachineToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        StateMachineNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<StateMachineNode>( this, pSettings );
+        StateMachineNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<StateMachineNode>( this, pDefinition );
         if ( state != NodeCompilationState::NeedCompilation )
         {
-            return pSettings->m_nodeIdx;
+            return pDefinition->m_nodeIdx;
         }
 
         // Get all necessary nodes for compilation
@@ -97,9 +97,9 @@ namespace EE::Animation::GraphNodes
             auto pStateNode = stateNodes[i];
 
             // Compile state node
-            auto& stateSettings = pSettings->m_stateSettings.emplace_back();
-            stateSettings.m_stateNodeIdx = CompileState( context, pStateNode );
-            if ( stateSettings.m_stateNodeIdx == InvalidIndex )
+            auto& stateDefinition = pDefinition->m_stateDefinition.emplace_back();
+            stateDefinition.m_stateNodeIdx = CompileState( context, pStateNode );
+            if ( stateDefinition.m_stateNodeIdx == InvalidIndex )
             {
                 return InvalidIndex;
             }
@@ -108,15 +108,15 @@ namespace EE::Animation::GraphNodes
             auto pEntryConditionNode = pEntryConditionsConduit->GetEntryConditionNodeForState( pStateNode->GetID() );
             if ( pEntryConditionNode != nullptr )
             {
-                stateSettings.m_entryConditionNodeIdx = pEntryConditionNode->Compile( context );
-                if ( stateSettings.m_entryConditionNodeIdx == InvalidIndex )
+                stateDefinition.m_entryConditionNodeIdx = pEntryConditionNode->Compile( context );
+                if ( stateDefinition.m_entryConditionNodeIdx == InvalidIndex )
                 {
                     return InvalidIndex;
                 }
             }
 
             IDToStateIdxMap.insert( TPair<UUID, StateMachineNode::StateIndex>( pStateNode->GetID(), (StateMachineNode::StateIndex) i ) );
-            IDToCompiledNodeIdxMap.insert( TPair<UUID, int16_t>( pStateNode->GetID(), stateSettings.m_stateNodeIdx ) );
+            IDToCompiledNodeIdxMap.insert( TPair<UUID, int16_t>( pStateNode->GetID(), stateDefinition.m_stateNodeIdx ) );
         }
 
         // Compile all transitions
@@ -149,15 +149,15 @@ namespace EE::Animation::GraphNodes
                 auto pConditionNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 0 );
                 if ( pConditionNode != nullptr )
                 {
-                    auto& transitionSettings = pSettings->m_stateSettings[i].m_transitionSettings.emplace_back();
-                    transitionSettings.m_targetStateIdx = IDToStateIdxMap[endStateID];
+                    auto& transitionDefinition = pDefinition->m_stateDefinition[i].m_transitionDefinition.emplace_back();
+                    transitionDefinition.m_targetStateIdx = IDToStateIdxMap[endStateID];
 
                     // Compile transition node
                     //-------------------------------------------------------------------------
 
-                    transitionSettings.m_transitionNodeIdx = CompileTransition( context, pTransitionNode, IDToCompiledNodeIdxMap[endStateID] );
-                    transitionSettings.m_canBeForced = pTransitionNode->m_canBeForced;
-                    if ( transitionSettings.m_transitionNodeIdx == InvalidIndex )
+                    transitionDefinition.m_transitionNodeIdx = CompileTransition( context, pTransitionNode, IDToCompiledNodeIdxMap[endStateID] );
+                    transitionDefinition.m_canBeForced = pTransitionNode->m_canBeForced;
+                    if ( transitionDefinition.m_transitionNodeIdx == InvalidIndex )
                     {
                         return false;
                     }
@@ -165,13 +165,13 @@ namespace EE::Animation::GraphNodes
                     // Compile condition tree
                     //-------------------------------------------------------------------------
 
-                    TransitionNode::Settings* pCompiledTransitionSettings = nullptr;
-                    NodeCompilationState const state = context.GetSettings<TransitionNode>( pTransitionNode, pCompiledTransitionSettings );
+                    TransitionNode::Definition* pCompiledTransitionDefinition = nullptr;
+                    NodeCompilationState const state = context.GetDefinition<TransitionNode>( pTransitionNode, pCompiledTransitionDefinition );
                     EE_ASSERT( state == NodeCompilationState::AlreadyCompiled );
 
-                    context.BeginTransitionConditionsCompilation( pCompiledTransitionSettings->m_duration, pCompiledTransitionSettings->m_durationOverrideNodeIdx );
-                    transitionSettings.m_conditionNodeIdx = pConditionNode->Compile( context );
-                    if ( transitionSettings.m_conditionNodeIdx == InvalidIndex )
+                    context.BeginTransitionConditionsCompilation( pCompiledTransitionDefinition->m_duration, pCompiledTransitionDefinition->m_durationOverrideNodeIdx );
+                    transitionDefinition.m_conditionNodeIdx = pConditionNode->Compile( context );
+                    if ( transitionDefinition.m_conditionNodeIdx == InvalidIndex )
                     {
                         return false;
                     }
@@ -230,17 +230,17 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        pSettings->m_defaultStateIndex = IDToStateIdxMap[pStateMachineGraph->GetDefaultEntryStateID()];
+        pDefinition->m_defaultStateIndex = IDToStateIdxMap[pStateMachineGraph->GetDefaultEntryStateID()];
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     int16_t StateMachineToolsNode::CompileState( GraphCompilationContext& context, StateToolsNode const* pStateNode ) const
     {
         EE_ASSERT( pStateNode != nullptr );
 
-        StateNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<StateNode>( pStateNode, pSettings );
+        StateNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<StateNode>( pStateNode, pDefinition );
         EE_ASSERT( state == NodeCompilationState::NeedCompilation );
 
         //-------------------------------------------------------------------------
@@ -263,21 +263,21 @@ namespace EE::Animation::GraphNodes
             }
         };
 
-        ReflectStateEvents( pStateNode->m_events, pSettings->m_entryEvents );
-        ReflectStateEvents( pStateNode->m_entryEvents, pSettings->m_entryEvents );
+        ReflectStateEvents( pStateNode->m_events, pDefinition->m_entryEvents );
+        ReflectStateEvents( pStateNode->m_entryEvents, pDefinition->m_entryEvents );
 
-        ReflectStateEvents( pStateNode->m_events, pSettings->m_executeEvents );
-        ReflectStateEvents( pStateNode->m_executeEvents, pSettings->m_executeEvents );
+        ReflectStateEvents( pStateNode->m_events, pDefinition->m_executeEvents );
+        ReflectStateEvents( pStateNode->m_executeEvents, pDefinition->m_executeEvents );
 
-        ReflectStateEvents( pStateNode->m_events, pSettings->m_exitEvents );
-        ReflectStateEvents( pStateNode->m_exitEvents, pSettings->m_exitEvents );
+        ReflectStateEvents( pStateNode->m_events, pDefinition->m_exitEvents );
+        ReflectStateEvents( pStateNode->m_exitEvents, pDefinition->m_exitEvents );
 
         //-------------------------------------------------------------------------
 
         if ( pStateNode->IsOffState() )
         {
-            pSettings->m_childNodeIdx = InvalidIndex;
-            pSettings->m_isOffState = true;
+            pDefinition->m_childNodeIdx = InvalidIndex;
+            pDefinition->m_isOffState = true;
         }
         else
         {
@@ -292,8 +292,8 @@ namespace EE::Animation::GraphNodes
             auto pBlendTreeNode = pBlendTreeRoot->GetConnectedInputNode<FlowToolsNode>( 0 );
             if ( pBlendTreeNode != nullptr )
             {
-                pSettings->m_childNodeIdx = pBlendTreeNode->Compile( context );
-                if ( pSettings->m_childNodeIdx == InvalidIndex )
+                pDefinition->m_childNodeIdx = pBlendTreeNode->Compile( context );
+                if ( pDefinition->m_childNodeIdx == InvalidIndex )
                 {
                     return InvalidIndex;
                 }
@@ -310,8 +310,8 @@ namespace EE::Animation::GraphNodes
             auto pLayerWeightNode = pLayerData->GetConnectedInputNode<FlowToolsNode>( 0 );
             if ( pLayerWeightNode != nullptr )
             {
-                pSettings->m_layerWeightNodeIdx = pLayerWeightNode->Compile( context );
-                if ( pSettings->m_layerWeightNodeIdx == InvalidIndex )
+                pDefinition->m_layerWeightNodeIdx = pLayerWeightNode->Compile( context );
+                if ( pDefinition->m_layerWeightNodeIdx == InvalidIndex )
                 {
                     return InvalidIndex;
                 }
@@ -320,8 +320,8 @@ namespace EE::Animation::GraphNodes
             auto pLayerRootMotionWeightNode = pLayerData->GetConnectedInputNode<FlowToolsNode>( 1 );
             if ( pLayerRootMotionWeightNode != nullptr )
             {
-                pSettings->m_layerRootMotionWeightNodeIdx = pLayerRootMotionWeightNode->Compile( context );
-                if ( pSettings->m_layerRootMotionWeightNodeIdx == InvalidIndex )
+                pDefinition->m_layerRootMotionWeightNodeIdx = pLayerRootMotionWeightNode->Compile( context );
+                if ( pDefinition->m_layerRootMotionWeightNodeIdx == InvalidIndex )
                 {
                     return InvalidIndex;
                 }
@@ -330,8 +330,8 @@ namespace EE::Animation::GraphNodes
             auto pLayerMaskNode = pLayerData->GetConnectedInputNode<FlowToolsNode>( 2 );
             if ( pLayerMaskNode != nullptr )
             {
-                pSettings->m_layerBoneMaskNodeIdx = pLayerMaskNode->Compile( context );
-                if ( pSettings->m_layerBoneMaskNodeIdx == InvalidIndex )
+                pDefinition->m_layerBoneMaskNodeIdx = pLayerMaskNode->Compile( context );
+                if ( pDefinition->m_layerBoneMaskNodeIdx == InvalidIndex )
                 {
                     return InvalidIndex;
                 }
@@ -355,23 +355,23 @@ namespace EE::Animation::GraphNodes
                 }
             };
 
-            ReflectTimedStateEvents( pStateNode->m_timeRemainingEvents, pSettings->m_timedRemainingEvents );
-            ReflectTimedStateEvents( pStateNode->m_timeElapsedEvents, pSettings->m_timedElapsedEvents );
+            ReflectTimedStateEvents( pStateNode->m_timeRemainingEvents, pDefinition->m_timedRemainingEvents );
+            ReflectTimedStateEvents( pStateNode->m_timeElapsedEvents, pDefinition->m_timedElapsedEvents );
         }
 
         //-------------------------------------------------------------------------
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     int16_t StateMachineToolsNode::CompileTransition( GraphCompilationContext& context, TransitionToolsNode const* pTransitionNode, int16_t targetStateNodeIdx ) const
     {
         EE_ASSERT( pTransitionNode != nullptr );
-        TransitionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<TransitionNode>( pTransitionNode, pSettings );
+        TransitionNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<TransitionNode>( pTransitionNode, pDefinition );
         if ( state == NodeCompilationState::AlreadyCompiled )
         {
-            return pSettings->m_nodeIdx;
+            return pDefinition->m_nodeIdx;
         }
 
         //-------------------------------------------------------------------------
@@ -379,8 +379,8 @@ namespace EE::Animation::GraphNodes
         auto pDurationOverrideNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 1 );
         if ( pDurationOverrideNode != nullptr )
         {
-            pSettings->m_durationOverrideNodeIdx = pDurationOverrideNode->Compile( context );
-            if ( pSettings->m_durationOverrideNodeIdx == InvalidIndex )
+            pDefinition->m_durationOverrideNodeIdx = pDurationOverrideNode->Compile( context );
+            if ( pDefinition->m_durationOverrideNodeIdx == InvalidIndex )
             {
                 return InvalidIndex;
             }
@@ -389,8 +389,8 @@ namespace EE::Animation::GraphNodes
         auto pSyncEventOffsetOverrideNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 2 );
         if ( pSyncEventOffsetOverrideNode != nullptr )
         {
-            pSettings->m_syncEventOffsetOverrideNodeIdx = pSyncEventOffsetOverrideNode->Compile( context );
-            if ( pSettings->m_syncEventOffsetOverrideNodeIdx == InvalidIndex )
+            pDefinition->m_syncEventOffsetOverrideNodeIdx = pSyncEventOffsetOverrideNode->Compile( context );
+            if ( pDefinition->m_syncEventOffsetOverrideNodeIdx == InvalidIndex )
             {
                 return InvalidIndex;
             }
@@ -399,8 +399,8 @@ namespace EE::Animation::GraphNodes
         auto pStartBoneMaskNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 3 );
         if ( pStartBoneMaskNode != nullptr )
         {
-            pSettings->m_startBoneMaskNodeIdx = pStartBoneMaskNode->Compile( context );
-            if ( pSettings->m_startBoneMaskNodeIdx == InvalidIndex )
+            pDefinition->m_startBoneMaskNodeIdx = pStartBoneMaskNode->Compile( context );
+            if ( pDefinition->m_startBoneMaskNodeIdx == InvalidIndex )
             {
                 return InvalidIndex;
             }
@@ -417,8 +417,8 @@ namespace EE::Animation::GraphNodes
         {
             if ( pTransitionNode->m_timeMatchMode >= TransitionToolsNode::TimeMatchMode::MatchSyncEventID && pTransitionNode->m_timeMatchMode <= TransitionToolsNode::TimeMatchMode::MatchClosestSyncEventIDAndPercentage )
             {
-                pSettings->m_targetSyncIDNodeIdx = pTargetSyncIDNode->Compile( context );
-                if ( pSettings->m_targetSyncIDNodeIdx == InvalidIndex )
+                pDefinition->m_targetSyncIDNodeIdx = pTargetSyncIDNode->Compile( context );
+                if ( pDefinition->m_targetSyncIDNodeIdx == InvalidIndex )
                 {
                     return InvalidIndex;
                 }
@@ -431,17 +431,17 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        pSettings->m_targetStateNodeIdx = targetStateNodeIdx;
-        pSettings->m_blendWeightEasingType = pTransitionNode->m_blendWeightEasingType;
-        pSettings->m_rootMotionBlend = pTransitionNode->m_rootMotionBlend;
-        pSettings->m_duration = Math::Max( pTransitionNode->m_duration.ToFloat(), 0.0f );
-        pSettings->m_syncEventOffset = pTransitionNode->m_syncEventOffset;
-        pSettings->m_boneMaskBlendInTimePercentage = pTransitionNode->m_boneMaskBlendInTimePercentage.GetClamped( false );
+        pDefinition->m_targetStateNodeIdx = targetStateNodeIdx;
+        pDefinition->m_blendWeightEasingOp = pTransitionNode->m_blendWeightEasing;
+        pDefinition->m_rootMotionBlend = pTransitionNode->m_rootMotionBlend;
+        pDefinition->m_duration = Math::Max( pTransitionNode->m_duration.ToFloat(), 0.0f );
+        pDefinition->m_syncEventOffset = pTransitionNode->m_syncEventOffset;
+        pDefinition->m_boneMaskBlendInTimePercentage = pTransitionNode->m_boneMaskBlendInTimePercentage.GetClamped( false );
 
         //-------------------------------------------------------------------------
 
-        pSettings->m_transitionOptions.ClearAllFlags();
-        pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::ClampDuration, pTransitionNode->m_clampDurationToSource );
+        pDefinition->m_transitionOptions.ClearAllFlags();
+        pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::ClampDuration, pTransitionNode->m_clampDurationToSource );
 
         switch ( pTransitionNode->m_timeMatchMode )
         {
@@ -450,68 +450,68 @@ namespace EE::Animation::GraphNodes
 
             case TransitionToolsNode::TimeMatchMode::Synchronized:
             {
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::Synchronized, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::Synchronized, true );
             }
             break;
 
             case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventIndex:
             {
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventIndex, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventIndex, true );
             }
             break;
 
             case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventPercentage:
             {
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
             }
             break;
 
             case TransitionToolsNode::TimeMatchMode::MatchSourceSyncEventIndexAndPercentage:
             {
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventIndex, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventIndex, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
             }
             break;
 
             case TransitionToolsNode::TimeMatchMode::MatchSyncEventID:
             {
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
             }
             break;
 
             case TransitionToolsNode::TimeMatchMode::MatchSyncEventIDAndPercentage:
             {
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
             }
             break;
 
             case TransitionToolsNode::TimeMatchMode::MatchClosestSyncEventID:
             {
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::PreferClosestSyncEventID, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::PreferClosestSyncEventID, true );
             }
             break;
 
             case TransitionToolsNode::TimeMatchMode::MatchClosestSyncEventIDAndPercentage:
             {
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
-                pSettings->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::PreferClosestSyncEventID, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventID, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSyncEventPercentage, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::PreferClosestSyncEventID, true );
             }
             break;
         }
 
         //-------------------------------------------------------------------------
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void StateMachineToolsNode::SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue )

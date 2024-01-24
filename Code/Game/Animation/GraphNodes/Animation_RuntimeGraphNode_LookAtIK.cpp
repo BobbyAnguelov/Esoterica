@@ -7,10 +7,10 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void LookAtIKNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void LookAtIKNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<LookAtIKNode>( context, options );
-        PassthroughNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
+        PassthroughNode::Definition::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
         context.SetNodePtrFromIndex( m_targetNodeIdx, pNode->m_pTargetValueNode );
     }
 

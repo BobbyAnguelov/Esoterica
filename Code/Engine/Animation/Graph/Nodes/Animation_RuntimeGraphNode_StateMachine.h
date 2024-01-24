@@ -18,7 +18,7 @@ namespace EE::Animation::GraphNodes
 
         using StateIndex = int16_t;
 
-        struct TransitionSettings
+        struct TransitionDefinition
         {
             EE_SERIALIZE( m_targetStateIdx, m_transitionNodeIdx, m_conditionNodeIdx, m_canBeForced );
 
@@ -28,21 +28,21 @@ namespace EE::Animation::GraphNodes
             bool                                                    m_canBeForced = false;
         };
 
-        struct StateSettings
+        struct StateDefinition
         {
-            EE_SERIALIZE( m_stateNodeIdx, m_entryConditionNodeIdx, m_transitionSettings );
+            EE_SERIALIZE( m_stateNodeIdx, m_entryConditionNodeIdx, m_transitionDefinition );
 
             int16_t                                                 m_stateNodeIdx = InvalidIndex;
             int16_t                                                 m_entryConditionNodeIdx = InvalidIndex;
-            TInlineVector<TransitionSettings, 5>                    m_transitionSettings;
+            TInlineVector<TransitionDefinition, 5>                    m_transitionDefinition;
         };
 
         //-------------------------------------------------------------------------
 
-        struct EE_ENGINE_API Settings : public PoseNode::Settings
+        struct EE_ENGINE_API Definition : public PoseNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_stateSettings, m_defaultStateIndex );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_stateDefinition, m_defaultStateIndex );
 
         public:
 
@@ -50,7 +50,7 @@ namespace EE::Animation::GraphNodes
 
         public:
 
-            TInlineVector<StateSettings, 5>                         m_stateSettings;
+            TInlineVector<StateDefinition, 5>                         m_stateDefinition;
             StateIndex                                              m_defaultStateIndex = InvalidIndex;
         };
 

@@ -19,12 +19,12 @@ namespace EE::Player
         EE_PROFILE_FUNCTION_GAMEPLAY();
 
         auto pInputSystem = ctx.GetSystem<Input::InputSystem>();
-        auto const pControllerState = pInputSystem->GetControllerState();
+        auto const pControllerState = pInputSystem->GetController();
 
         // Update camera rotation
         //-------------------------------------------------------------------------
 
-        Vector cameraInputs = pControllerState->GetRightAnalogStickValue();
+        Vector cameraInputs = pControllerState->GetRightStickValue();
         Radians const maxAngularVelocityForThisFrame = Math::Pi * ctx.GetDeltaTime();
         cameraInputs *= (float) maxAngularVelocityForThisFrame;
         m_pCamera->AdjustOrbitAngle( cameraInputs.GetX(), cameraInputs.GetY() );

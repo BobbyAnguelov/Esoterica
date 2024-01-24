@@ -4,12 +4,12 @@
 
 namespace EE::Animation
 {
-    void GraphNode::Settings::Load( Serialization::BinaryInputArchive& archive )
+    void GraphNode::Definition::Load( Serialization::BinaryInputArchive& archive )
     {
         archive.Serialize( m_nodeIdx );
     }
 
-    void GraphNode::Settings::Save( Serialization::BinaryOutputArchive& archive ) const
+    void GraphNode::Definition::Save( Serialization::BinaryOutputArchive& archive ) const
     {
         archive.Serialize( m_nodeIdx );
     }

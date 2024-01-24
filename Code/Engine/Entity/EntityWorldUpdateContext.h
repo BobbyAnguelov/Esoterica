@@ -9,10 +9,11 @@ namespace EE
 {
     class EntityWorldSystem;
     class EntityWorld;
-    namespace Input { class InputState; }
     namespace Render { class Viewport; }
     namespace EntityModel{ class EntityMap; }
+    namespace Settings { class ISettings; }
     namespace Drawing { class DrawingSystem; class DrawContext; }
+    namespace TypeSystem { class TypeInfo; }
 
     //-------------------------------------------------------------------------
 
@@ -50,14 +51,17 @@ namespace EE
         // Get the viewport for this world
         Render::Viewport const* GetViewport() const;
 
-        // Get the input state for this world
-        Input::InputState const* GetInputState() const;
-
         // Get the debug drawing context for this world - threadsafe
         #if EE_DEVELOPMENT_TOOLS
         [[nodiscard]] Drawing::DrawContext GetDrawingContext() const;
         [[nodiscard]] Drawing::DrawingSystem* GetDebugDrawingSystem() const;
         #endif
+
+        // Get world settings
+        template<typename T> T* GetSettings() { return TryCast<T>( GetSettings( T::s_pTypeInfo ) ); }
+
+        // Get world settings
+        template<typename T> T const* GetSettings() const { return TryCast<T>( const_cast<EntityWorldUpdateContext*>( this )->GetSettings( T::s_pTypeInfo ) ); }
 
     private:
 
@@ -69,6 +73,8 @@ namespace EE
         explicit EntityWorldUpdateContext( EntityWorldUpdateContext&& ) = delete;
         EntityWorldUpdateContext& operator=( EntityWorldUpdateContext const& ) = delete;
         EntityWorldUpdateContext& operator=( EntityWorldUpdateContext&& ) = delete;
+
+        Settings::ISettings* GetSettings( TypeSystem::TypeInfo const* pTypeInfo );
 
     private:
 

@@ -16,8 +16,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t AnimationClipToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        AnimationClipNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<AnimationClipNode>( this, pSettings );
+        AnimationClipNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<AnimationClipNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pShouldPlayInReverseNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -26,7 +26,7 @@ namespace EE::Animation::GraphNodes
                 auto compiledNodeIdx = pShouldPlayInReverseNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_playInReverseValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_playInReverseValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -42,7 +42,7 @@ namespace EE::Animation::GraphNodes
                 auto compiledNodeIdx = pResetTimeNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_resetTimeValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_resetTimeValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -52,10 +52,10 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
-            pSettings->m_sampleRootMotion = m_sampleRootMotion;
-            pSettings->m_allowLooping = m_allowLooping;
+            pDefinition->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
+            pDefinition->m_sampleRootMotion = m_sampleRootMotion;
+            pDefinition->m_allowLooping = m_allowLooping;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 }

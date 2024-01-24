@@ -338,8 +338,25 @@ namespace EE::Animation
     void ToolsGraphDefinition::SaveToJson( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const
     {
         writer.StartObject();
+
+        // Descriptor Data
+        //-------------------------------------------------------------------------
+
         writer.Key( Serialization::s_typeIDKey );
         writer.String( GraphResourceDescriptor::GetStaticTypeID().c_str() );
+
+        writer.Key( "m_variations" );
+        writer.StartArray();
+
+        for ( auto const& variation : m_variationHierarchy.GetAllVariations() )
+        {
+            writer.String( variation.m_ID.c_str() );
+        }
+
+        writer.EndArray();
+
+        // Graph Data
+        //-------------------------------------------------------------------------
 
         writer.Key( "GraphDefinition" );
         writer.StartObject();

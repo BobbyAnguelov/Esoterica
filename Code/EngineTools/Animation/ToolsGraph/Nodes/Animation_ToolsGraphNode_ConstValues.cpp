@@ -14,13 +14,13 @@ namespace EE::Animation::GraphNodes
 
     int16_t ConstBoolToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ConstBoolNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<ConstBoolNode>( this, pSettings );
+        ConstBoolNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<ConstBoolNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_value = m_value;
+            pDefinition->m_value = m_value;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void ConstBoolToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
@@ -40,12 +40,12 @@ namespace EE::Animation::GraphNodes
 
     int16_t ConstIDToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ConstIDNode::Settings* pSettings = nullptr;
-        if ( context.GetSettings<ConstIDNode>( this, pSettings ) == NodeCompilationState::NeedCompilation )
+        ConstIDNode::Definition* pDefinition = nullptr;
+        if ( context.GetDefinition<ConstIDNode>( this, pDefinition ) == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_value = m_value;
+            pDefinition->m_value = m_value;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void ConstIDToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
@@ -65,12 +65,12 @@ namespace EE::Animation::GraphNodes
 
     int16_t ConstFloatToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ConstFloatNode::Settings* pSettings = nullptr;
-        if ( context.GetSettings<ConstFloatNode>( this, pSettings ) == NodeCompilationState::NeedCompilation )
+        ConstFloatNode::Definition* pDefinition = nullptr;
+        if ( context.GetDefinition<ConstFloatNode>( this, pDefinition ) == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_value = m_value;
+            pDefinition->m_value = m_value;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void ConstFloatToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
@@ -90,12 +90,12 @@ namespace EE::Animation::GraphNodes
 
     int16_t ConstVectorToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ConstVectorNode::Settings* pSettings = nullptr;
-        if ( context.GetSettings<ConstVectorNode>( this, pSettings ) == NodeCompilationState::NeedCompilation )
+        ConstVectorNode::Definition* pDefinition = nullptr;
+        if ( context.GetDefinition<ConstVectorNode>( this, pDefinition ) == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_value = m_value;
+            pDefinition->m_value = m_value;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void ConstVectorToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
@@ -115,12 +115,12 @@ namespace EE::Animation::GraphNodes
 
     int16_t ConstTargetToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ConstTargetNode::Settings* pSettings = nullptr;
-        if ( context.GetSettings<ConstTargetNode>( this, pSettings ) == NodeCompilationState::NeedCompilation )
+        ConstTargetNode::Definition* pDefinition = nullptr;
+        if ( context.GetDefinition<ConstTargetNode>( this, pDefinition ) == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_value = Target( m_value );
+            pDefinition->m_value = Target( m_value );
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void ConstTargetToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )

@@ -25,10 +25,12 @@ namespace EE::Animation
 
         inline bool IsValid() const { return m_variationID.IsValid() && m_skeleton.IsLoaded(); }
 
+        inline StringID GetVariationID() const { return m_variationID; }
+
         inline Skeleton const* GetPrimarySkeleton() const { return m_skeleton.GetPtr(); }
 
         template<typename T>
-        inline T const* GetResource( int16_t const& slotIdx ) const
+        inline T const* GetResource( int16_t slotIdx ) const
         {
             EE_ASSERT( slotIdx >= 0 && slotIdx < m_resources.size() );
             if ( m_resources[slotIdx].IsSet() )

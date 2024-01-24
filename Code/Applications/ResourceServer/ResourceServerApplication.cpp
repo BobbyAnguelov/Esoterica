@@ -6,7 +6,7 @@
 #include "Base/FileSystem/FileSystemUtils.h"
 #include "Base/Imgui/Platform/ImguiPlatform_win32.h"
 #include "Base/Platform/PlatformUtils_Win32.h"
-#include "Base/IniFile.h"
+#include "Base/Settings/IniFile.h"
 #include <tchar.h>
 #include <shobjidl_core.h>
 
@@ -254,14 +254,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         FileSystem::Path const iniFilePath = FileSystem::GetCurrentProcessPath().Append( "Esoterica.ini" );
-        IniFile iniFile( iniFilePath );
-        if ( !iniFile.IsValid() )
-        {
-            InlineString const errorMessage( InlineString::CtorSprintf(), "Failed to load settings from INI file: %s", iniFilePath.c_str() );
-            return FatalError( errorMessage.c_str() );
-        }
-
-        if ( !m_resourceServer.Initialize( iniFile ) )
+        if ( !m_resourceServer.Initialize( iniFilePath ) )
         {
             return FatalError( "Resource server failed to initialize!" );
         }
@@ -381,7 +374,7 @@ int APIENTRY _tWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpC
     HANDLE pSingletonMutex = CreateMutex( NULL, TRUE, "Esoterica Resource Server" );
     if ( GetLastError() == ERROR_ALREADY_EXISTS )
     {
-        MessageBox( GetActiveWindow(), "Only a single instance of the Resource Server is allowed to run!", "Fatal Error Occurred!", MB_OK | MB_ICONERROR );
+        MessageBox( nullptr, "Only a single instance of the Resource Server is allowed to run!", "Fatal Error Occurred!", MB_OK | MB_ICONERROR );
         return -1;
     }
 

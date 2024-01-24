@@ -57,11 +57,11 @@ namespace EE::Animation
             archive << typeDescriptors;
 
             typeDescriptors.CalculateCollectionRequirements( *m_pTypeRegistry );
-            TypeSystem::TypeDescriptorCollection::InstantiateStaticCollection( *m_pTypeRegistry, typeDescriptors, pGraphDef->m_nodeSettings );
+            TypeSystem::TypeDescriptorCollection::InstantiateStaticCollection( *m_pTypeRegistry, typeDescriptors, pGraphDef->m_nodeDefinitions );
 
-            for ( auto pSettings : pGraphDef->m_nodeSettings )
+            for ( auto pNodeDefinition : pGraphDef->m_nodeDefinitions )
             {
-                pSettings->Load( archive );
+                pNodeDefinition->Load( archive );
             }
 
             //-------------------------------------------------------------------------
@@ -151,7 +151,7 @@ namespace EE::Animation
             auto pGraphDef = pResourceRecord->GetResourceData<GraphDefinition>();
             if ( pGraphDef != nullptr )
             {
-                TypeSystem::TypeDescriptorCollection::DestroyStaticCollection( pGraphDef->m_nodeSettings );
+                TypeSystem::TypeDescriptorCollection::DestroyStaticCollection( pGraphDef->m_nodeDefinitions );
             }
         }
 

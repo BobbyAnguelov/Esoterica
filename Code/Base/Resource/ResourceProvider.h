@@ -2,11 +2,7 @@
 
 #include "Base/_Module/API.h"
 #include "ResourceID.h"
-#include "ResourceSettings.h"
-
-//-------------------------------------------------------------------------
-
-namespace EE { class IniFile; }
+#include "Settings/GlobalSettings_Resource.h"
 
 //-------------------------------------------------------------------------
 
@@ -27,7 +23,7 @@ namespace EE::Resource
 
     public:
 
-        ResourceProvider( ResourceSettings const& settings ) : m_settings( settings ) {}
+        ResourceProvider( ResourceGlobalSettings const& settings ) : m_settings( settings ) {}
         ResourceProvider( ResourceProvider const& ) = delete;
         virtual ~ResourceProvider() {}
 
@@ -36,7 +32,7 @@ namespace EE::Resource
         virtual void Shutdown() {}
 
         // Get general resource settings
-        ResourceSettings const& GetSettings() const { return m_settings; }
+        ResourceGlobalSettings const& GetSettings() const { return m_settings; }
 
         // The resource provider update function
         virtual void Update() {};
@@ -58,6 +54,6 @@ namespace EE::Resource
 
     protected:
 
-        ResourceSettings const m_settings;
+        ResourceGlobalSettings const m_settings;
     };
 }

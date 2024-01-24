@@ -124,7 +124,7 @@ namespace EE::TypeSystem
         bool                                    m_isAbstract = false;
 
         #if EE_DEVELOPMENT_TOOLS
-        bool                                    m_isForDevelopmentUseOnly = false;      // Whether this property only exists in development builds
+        bool                                    m_isForDevelopmentUseOnly = false;      // Whether this type only exists in development builds
         String                                  m_friendlyName;
         String                                  m_category;
         #endif

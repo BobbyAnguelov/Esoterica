@@ -7,7 +7,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void StateNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void StateNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<StateNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_childNodeIdx, pNode->m_pChildNode );
@@ -70,7 +70,7 @@ namespace EE::Animation::GraphNodes
     void StateNode::ShutdownInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
-        auto pStateSettings = GetSettings<StateNode>();
+        auto pStateDefinition = GetDefinition<StateNode>();
 
         //-------------------------------------------------------------------------
 
@@ -120,7 +120,7 @@ namespace EE::Animation::GraphNodes
     void StateNode::SampleStateEvents( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
-        auto pStateSettings = GetSettings<StateNode>();
+        auto pStateDefinition = GetDefinition<StateNode>();
 
         // Sample Fixed Stage Events
         //-------------------------------------------------------------------------
@@ -129,7 +129,7 @@ namespace EE::Animation::GraphNodes
 
         if ( m_isFirstStateUpdate || ( m_transitionState == TransitionState::TransitioningIn && isInActiveBranch ) )
         {
-            for ( auto const& entryEventID : pStateSettings->m_entryEvents )
+            for ( auto const& entryEventID : pStateDefinition->m_entryEvents )
             {
                 SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::Entry, entryEventID, isInActiveBranch );
 
@@ -140,7 +140,7 @@ namespace EE::Animation::GraphNodes
         }
         else if ( m_transitionState == TransitionState::None && isInActiveBranch )
         {
-            for ( auto const& executeEventID : pStateSettings->m_executeEvents )
+            for ( auto const& executeEventID : pStateDefinition->m_executeEvents )
             {
                 SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::FullyInState, executeEventID, isInActiveBranch );
 
@@ -151,7 +151,7 @@ namespace EE::Animation::GraphNodes
         }
         else if ( m_transitionState == TransitionState::TransitioningOut || !isInActiveBranch )
         {
-            for ( auto const& exitEventID : pStateSettings->m_exitEvents )
+            for ( auto const& exitEventID : pStateDefinition->m_exitEvents )
             {
                 SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::Exit, exitEventID, isInActiveBranch );
 
@@ -165,7 +165,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         Seconds const currentTimeElapsed( m_duration * m_currentTime.ToFloat() );
-        for ( auto const& timedEvent : pStateSettings->m_timedElapsedEvents )
+        for ( auto const& timedEvent : pStateDefinition->m_timedElapsedEvents )
         {
             if ( currentTimeElapsed >= timedEvent.m_timeValue )
             {
@@ -178,7 +178,7 @@ namespace EE::Animation::GraphNodes
         }
 
         Seconds const currentTimeRemaining = ( 1.0f - m_currentTime ) * m_duration;
-        for ( auto const& timedEvent : pStateSettings->m_timedRemainingEvents )
+        for ( auto const& timedEvent : pStateDefinition->m_timedRemainingEvents )
         {
             if ( currentTimeRemaining <= timedEvent.m_timeValue )
             {
@@ -208,8 +208,8 @@ namespace EE::Animation::GraphNodes
         // Update layer weights
         //-------------------------------------------------------------------------
 
-        auto pStateSettings = GetSettings<StateNode>();
-        if ( pStateSettings->m_isOffState )
+        auto pStateDefinition = GetDefinition<StateNode>();
+        if ( pStateDefinition->m_isOffState )
         {
             context.m_pLayerContext->m_layerWeight = 0.0f;
             context.m_pLayerContext->m_rootMotionLayerWeight = 0.0f;

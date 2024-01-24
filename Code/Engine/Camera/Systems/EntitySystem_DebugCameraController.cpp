@@ -2,6 +2,7 @@
 #include "Engine/Camera/Components/Component_DebugCamera.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Base/Input/InputSystem.h"
+#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 
@@ -34,6 +35,14 @@ namespace EE
 
     void DebugCameraController::Update( EntityWorldUpdateContext const& ctx )
     {
+        Seconds const deltaTime = ctx.GetRawDeltaTime();
+
+        auto pInputSystem = ctx.GetSystem<Input::InputSystem>();
+        EE_ASSERT( pInputSystem != nullptr );
+        auto const pKeyboardMouse = pInputSystem->GetKeyboardMouse();
+
+        //-------------------------------------------------------------------------
+
         if ( m_pCameraComponent == nullptr )
         {
             return;
@@ -44,41 +53,29 @@ namespace EE
             return;
         }
 
-        //-------------------------------------------------------------------------
-
-        EE_ASSERT( m_pCameraComponent != nullptr );
-
-        //-------------------------------------------------------------------------
-
-        Seconds const deltaTime = ctx.GetRawDeltaTime();
-        auto pInputSystem = ctx.GetSystem<Input::InputSystem>();
-        EE_ASSERT( pInputSystem != nullptr );
-
-        auto const pMouseState = pInputSystem->GetMouseState();
-        auto const pKeyboardState = pInputSystem->GetKeyboardState();
-
         // Speed Update
         //-------------------------------------------------------------------------
 
-        if ( pKeyboardState->IsAltHeldDown() )
+        if ( pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_LAlt ) || pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_RAlt ) )
         {
-            if ( pMouseState->WasReleased( Input::MouseButton::Middle ) )
+            if ( pKeyboardMouse->WasReleased( Input::InputID::Mouse_Middle ) )
             {
                 m_pCameraComponent->ResetMoveSpeed();
             }
             else
             {
-                m_pCameraComponent->AdjustMoveSpeed( pMouseState->GetWheelDelta() );
+                float const wheelDelta = pKeyboardMouse->GetValue( Input::InputID::Mouse_WheelVertical );
+                m_pCameraComponent->AdjustMoveSpeed( wheelDelta );
             }
         }
 
         // Position update
         //-------------------------------------------------------------------------
 
-        bool const fwdButton = pKeyboardState->IsHeldDown( Input::KeyboardButton::Key_W );
-        bool const backButton = pKeyboardState->IsHeldDown( Input::KeyboardButton::Key_S );
-        bool const leftButton = pKeyboardState->IsHeldDown( Input::KeyboardButton::Key_A );
-        bool const rightButton = pKeyboardState->IsHeldDown( Input::KeyboardButton::Key_D );
+        bool const fwdButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_W );
+        bool const backButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_S );
+        bool const leftButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_A );
+        bool const rightButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_D );
         bool const needsPositionUpdate = fwdButton || backButton || leftButton || rightButton;
 
         if ( needsPositionUpdate )
@@ -97,9 +94,9 @@ namespace EE
         // Orientation update
         //-------------------------------------------------------------------------
 
-        if ( pMouseState->IsHeldDown( Input::MouseButton::Right ) )
+        if ( pKeyboardMouse->IsHeldDown( Input::InputID::Mouse_Right ) )
         {
-            Vector const mouseDelta = pMouseState->GetMovementDelta();
+            Vector const mouseDelta( pKeyboardMouse->GetMouseDelta() );
             Float2 const directionDelta = ( mouseDelta.GetNegated() * g_mouseSensitivity ).ToFloat2();
             m_pCameraComponent->OrientCamera( deltaTime, directionDelta.m_x, directionDelta.m_y );
         }

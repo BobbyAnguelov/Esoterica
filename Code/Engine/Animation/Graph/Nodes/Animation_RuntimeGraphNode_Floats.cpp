@@ -6,7 +6,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void FloatSwitchNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatSwitchNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatSwitchNode>( context, options );
         context.SetNodePtrFromIndex( m_switchValueNodeIdx, pNode->m_pSwitchValueNode );
@@ -51,7 +51,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatRemapNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatRemapNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatRemapNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -74,13 +74,13 @@ namespace EE::Animation::GraphNodes
     void FloatRemapNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        auto pSettings = GetSettings<FloatRemapNode>();
+        auto pDefinition = GetDefinition<FloatRemapNode>();
 
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
             float const inputValue = m_pInputValueNode->GetValue<float>( context );
-            m_value = Math::RemapRange( inputValue, pSettings->m_inputRange.m_begin, pSettings->m_inputRange.m_end, pSettings->m_outputRange.m_begin, pSettings->m_outputRange.m_end );
+            m_value = Math::RemapRange( inputValue, pDefinition->m_inputRange.m_begin, pDefinition->m_inputRange.m_end, pDefinition->m_outputRange.m_begin, pDefinition->m_outputRange.m_end );
         }
 
         *reinterpret_cast<float*>( pOutValue ) = m_value;
@@ -88,7 +88,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatClampNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatClampNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatClampNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -111,13 +111,13 @@ namespace EE::Animation::GraphNodes
     void FloatClampNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        auto pSettings = GetSettings<FloatClampNode>();
+        auto pDefinition = GetDefinition<FloatClampNode>();
 
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
             auto const inputValue = m_pInputValueNode->GetValue<float>( context );
-            m_value = pSettings->m_clampRange.GetClampedValue( inputValue );
+            m_value = pDefinition->m_clampRange.GetClampedValue( inputValue );
         }
 
         *reinterpret_cast<float*>( pOutValue ) = m_value;
@@ -125,7 +125,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatAbsNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatAbsNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatAbsNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -161,7 +161,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatEaseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatEaseNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatEaseNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -171,14 +171,14 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
 
-        auto pSettings = GetSettings<FloatEaseNode>();
+        auto pDefinition = GetDefinition<FloatEaseNode>();
 
         FloatValueNode::InitializeInternal( context );
         m_pInputValueNode->Initialize( context );
 
-        if ( pSettings->m_useStartValue )
+        if ( pDefinition->m_useStartValue )
         {
-            m_easeRange = FloatRange( pSettings->m_startValue );
+            m_easeRange = FloatRange( pDefinition->m_startValue );
         }
         else
         {
@@ -199,7 +199,7 @@ namespace EE::Animation::GraphNodes
     void FloatEaseNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        auto pSettings = GetSettings<FloatEaseNode>();
+        auto pDefinition = GetDefinition<FloatEaseNode>();
 
         if ( !WasUpdated( context ) )
         {
@@ -226,8 +226,8 @@ namespace EE::Animation::GraphNodes
                 m_currentEaseTime += context.m_deltaTime;
 
                 // Calculate the new value, based on the percentage through the blend calculated by the easing function
-                float const T = Math::Clamp( m_currentEaseTime / pSettings->m_easeTime, 0.0f, 1.0f );
-                float const blendValue = Math::Easing::EvaluateEasingFunction( pSettings->m_easingType, T ) * m_easeRange.GetLength();
+                float const T = Math::Clamp( m_currentEaseTime / pDefinition->m_easeTime, 0.0f, 1.0f );
+                float const blendValue = Math::Easing::Evaluate( pDefinition->m_easingOp, T ) * m_easeRange.GetLength();
                 m_currentValue = m_easeRange.m_begin + blendValue;
             }
         }
@@ -255,7 +255,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatCurveNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatCurveNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatCurveNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -278,14 +278,14 @@ namespace EE::Animation::GraphNodes
     void FloatCurveNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        auto pSettings = GetSettings<FloatCurveNode>();
+        auto pDefinition = GetDefinition<FloatCurveNode>();
 
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
 
             float const inputTargetValue = m_pInputValueNode->GetValue<float>( context );
-            m_currentValue = pSettings->m_curve.Evaluate( inputTargetValue );
+            m_currentValue = pDefinition->m_curve.Evaluate( inputTargetValue );
         }
 
         *reinterpret_cast<float*>( pOutValue ) = m_currentValue;
@@ -293,7 +293,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatMathNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatMathNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatMathNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdxA, pNode->m_pValueNodeA );
@@ -327,7 +327,7 @@ namespace EE::Animation::GraphNodes
     void FloatMathNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pValueNodeA != nullptr );
-        auto FloatNodeSettings = GetSettings<FloatMathNode>();
+        auto FloatNodeDefinition = GetDefinition<FloatMathNode>();
 
         if ( !WasUpdated( context ) )
         {
@@ -344,11 +344,11 @@ namespace EE::Animation::GraphNodes
             }
             else
             {
-                valueB = FloatNodeSettings->m_valueB;
+                valueB = FloatNodeDefinition->m_valueB;
             }
 
             // Calculate Result
-            switch ( FloatNodeSettings->m_operator )
+            switch ( FloatNodeDefinition->m_operator )
             {
                 case Operator::Add:
                 {
@@ -387,7 +387,7 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            if ( FloatNodeSettings->m_returnAbsoluteResult )
+            if ( FloatNodeDefinition->m_returnAbsoluteResult )
             {
                 m_value = Math::Abs( m_value );
             }
@@ -398,7 +398,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatComparisonNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatComparisonNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatComparisonNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -436,16 +436,16 @@ namespace EE::Animation::GraphNodes
     void FloatComparisonNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        auto pSettings = GetSettings<FloatComparisonNode>();
+        auto pDefinition = GetDefinition<FloatComparisonNode>();
 
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
 
             float const a = m_pInputValueNode->GetValue<float>( context );
-            float const b = ( m_pComparandValueNode != nullptr ) ? m_pComparandValueNode->GetValue<float>( context ) : pSettings->m_comparisonValue;
+            float const b = ( m_pComparandValueNode != nullptr ) ? m_pComparandValueNode->GetValue<float>( context ) : pDefinition->m_comparisonValue;
 
-            switch ( pSettings->m_comparison )
+            switch ( pDefinition->m_comparison )
             {
                 case Comparison::GreaterThanEqual:
                 m_result = a >= b;
@@ -456,7 +456,7 @@ namespace EE::Animation::GraphNodes
                 break;
 
                 case Comparison::NearEqual:
-                m_result = Math::IsNearEqual( a, b, pSettings->m_epsilon );
+                m_result = Math::IsNearEqual( a, b, pDefinition->m_epsilon );
                 break;
 
                 case Comparison::GreaterThan:
@@ -474,7 +474,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatRangeComparisonNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatRangeComparisonNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatRangeComparisonNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -498,13 +498,13 @@ namespace EE::Animation::GraphNodes
     void FloatRangeComparisonNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        auto pSettings = GetSettings<FloatRangeComparisonNode>();
+        auto pDefinition = GetDefinition<FloatRangeComparisonNode>();
 
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
             float const value = m_pInputValueNode->GetValue<float>( context );
-            m_result = pSettings->m_isInclusiveCheck ? pSettings->m_range.ContainsInclusive( value ) : pSettings->m_range.ContainsExclusive( value );
+            m_result = pDefinition->m_isInclusiveCheck ? pDefinition->m_range.ContainsInclusive( value ) : pDefinition->m_range.ContainsExclusive( value );
         }
 
         *( (bool*) pOutValue ) = m_result;
@@ -512,7 +512,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatAngleMathNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatAngleMathNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatAngleMathNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -535,7 +535,7 @@ namespace EE::Animation::GraphNodes
     void FloatAngleMathNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        auto pSettings = GetSettings<FloatAngleMathNode>();
+        auto pDefinition = GetDefinition<FloatAngleMathNode>();
 
         if ( !WasUpdated( context ) )
         {
@@ -543,7 +543,7 @@ namespace EE::Animation::GraphNodes
             
             float const inputValue = m_pInputValueNode->GetValue<float>( context );
 
-            switch ( pSettings->m_operation )
+            switch ( pDefinition->m_operation )
             {
                 case Operation::ClampTo180:
                 {
@@ -579,7 +579,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FloatSelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FloatSelectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatSelectorNode>( context, options );
         for ( auto nodeIdx : m_conditionNodeIndices )
@@ -612,7 +612,7 @@ namespace EE::Animation::GraphNodes
     void FloatSelectorNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() );
-        auto pSettings = GetSettings<FloatSelectorNode>();
+        auto pDefinition = GetDefinition<FloatSelectorNode>();
 
         if ( !WasUpdated( context ) )
         {
@@ -621,13 +621,13 @@ namespace EE::Animation::GraphNodes
             // Select value
             //-------------------------------------------------------------------------
 
-            float inputTargetValue = pSettings->m_defaultValue;
+            float inputTargetValue = pDefinition->m_defaultValue;
             int32_t const numConditions = (int32_t) m_conditionNodes.size();
             for ( int32_t i = 0; i < numConditions; i++ )
             {
                 if ( m_conditionNodes[i]->GetValue<bool>(context) )
                 {
-                    inputTargetValue = pSettings->m_values[i];
+                    inputTargetValue = pDefinition->m_values[i];
                     break;
                 }
             }
@@ -635,7 +635,7 @@ namespace EE::Animation::GraphNodes
             // Perform easing
             //-------------------------------------------------------------------------
 
-            if ( pSettings->m_easingType != Math::Easing::Type::None )
+            if ( pDefinition->m_easingOp != Math::Easing::Operation::None )
             {
                 if ( Math::IsNearEqual( m_currentValue, inputTargetValue, 0.01f ) )
                 {
@@ -657,8 +657,8 @@ namespace EE::Animation::GraphNodes
                     m_currentEaseTime += context.m_deltaTime;
 
                     // Calculate the new value, based on the percentage through the blend calculated by the easing function
-                    float const T = Math::Clamp( m_currentEaseTime / pSettings->m_easeTime, 0.0f, 1.0f );
-                    float const blendValue = Math::Easing::EvaluateEasingFunction( pSettings->m_easingType, T ) * m_easeRange.GetLength();
+                    float const T = Math::Clamp( m_currentEaseTime / pDefinition->m_easeTime, 0.0f, 1.0f );
+                    float const blendValue = Math::Easing::Evaluate( pDefinition->m_easingOp, T ) * m_easeRange.GetLength();
                     m_currentValue = m_easeRange.m_begin + blendValue;
                 }
             }

@@ -134,6 +134,9 @@ namespace EE::ImGuiX
     // Toggle button
     EE_BASE_API bool FlatToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), Color const& onColor = ImGuiX::Style::s_colorAccent0, Color const& offColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) );
 
+    // Button that creates a drop down menu once clicked
+    EE_BASE_API void DropDownButton( char const* pLabel, TFunction<void()> const& contextMenuCallback, ImVec2 const& size = ImVec2( 0, 0 ) );
+
     // Draw an arrow between two points
     EE_BASE_API void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, Color const& color, float arrowWidth, float arrowHeadWidth = 5.0f );
 
@@ -145,11 +148,17 @@ namespace EE::ImGuiX
 
     //-------------------------------------------------------------------------
 
-    EE_BASE_API bool InputFloat2( char const* pID, Float2& value, float width = -1, bool readOnly = false );
-    EE_BASE_API bool InputFloat3( char const* pID, Float3& value, float width = -1, bool readOnly = false );
-    EE_BASE_API bool InputFloat4( char const* pID, Float4& value, float width = -1, bool readOnly = false );
+    EE_BASE_API bool InputFloat2( char const* pID, Float2& value, float width = -1 );
+    EE_BASE_API bool InputFloat3( char const* pID, Float3& value, float width = -1 );
+    EE_BASE_API bool InputFloat4( char const* pID, Float4& value, float width = -1 );
 
-    EE_BASE_API bool InputTransform( char const* pID, Transform& value, float width = -1, bool readOnly = false );
+    EE_BASE_API bool InputTransform( char const* pID, Transform& value, float width = -1 );
+
+    EE_BASE_API void DrawFloat2( Float2 const& value, float width = -1 );
+    EE_BASE_API void DrawFloat3( Float3 const& value, float width = -1 );
+    EE_BASE_API void DrawFloat4( Float4 const& value, float width = -1 );
+
+    EE_BASE_API void DrawTransform( Transform const& value, float width = -1 );
 
     //-------------------------------------------------------------------------
 

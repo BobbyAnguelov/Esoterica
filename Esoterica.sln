@@ -56,18 +56,17 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "5. Property Sheets", "5. Pr
 		Code\PropertySheets\SuperLuminal.props = Code\PropertySheets\SuperLuminal.props
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "6. Docs", "6. Docs", "{B55AC5BF-0153-4FCB-B9E7-2F58B628B51E}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "7. Docs", "7. Docs", "{B55AC5BF-0153-4FCB-B9E7-2F58B628B51E}"
 	ProjectSection(SolutionItems) = preProject
-		README.md = README.md
 		CodingGuidelines.md = CodingGuidelines.md
+		README.md = README.md
 		ToDo_Engine.md = ToDo_Engine.md
 	EndProjectSection
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "7. Misc", "7. Misc", "{8E9AF613-7A92-4B6D-A33D-E1C858BBAD9B}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "6. Misc", "6. Misc", "{8E9AF613-7A92-4B6D-A33D-E1C858BBAD9B}"
 	ProjectSection(SolutionItems) = preProject
 		Code\.editorconfig = Code\.editorconfig
 		Code\cpp.hint = Code\cpp.hint
-		Code\Esoterica.ini = Code\Esoterica.ini
 		Code\Esoterica.natvis = Code\Esoterica.natvis
 	EndProjectSection
 EndProject

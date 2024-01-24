@@ -37,10 +37,10 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        struct EE_ENGINE_API Settings : public PoseNode::Settings
+        struct EE_ENGINE_API Definition : public PoseNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_childNodeIdx, m_entryEvents, m_executeEvents, m_exitEvents, m_timedRemainingEvents, m_timedElapsedEvents, m_layerBoneMaskNodeIdx, m_layerRootMotionWeightNodeIdx,  m_layerWeightNodeIdx, m_isOffState );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_childNodeIdx, m_entryEvents, m_executeEvents, m_exitEvents, m_timedRemainingEvents, m_timedElapsedEvents, m_layerBoneMaskNodeIdx, m_layerRootMotionWeightNodeIdx,  m_layerWeightNodeIdx, m_isOffState );
 
         public:
 
@@ -70,7 +70,7 @@ namespace EE::Animation::GraphNodes
         // State info
         inline float GetElapsedTimeInState() const { return m_elapsedTimeInState; }
         inline SampledEventRange GetSampledEventRange() const { return m_sampledEventRange; }
-        inline bool IsOffState() const { return GetSettings<StateNode>()->m_isOffState; }
+        inline bool IsOffState() const { return GetDefinition<StateNode>()->m_isOffState; }
 
         // Transitions
         inline void SetTransitioningState( TransitionState newState ) { m_transitionState = newState; }

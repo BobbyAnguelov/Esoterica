@@ -68,7 +68,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ParameterizedBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ParameterizedBlendNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         EE_ASSERT( options == InstantiationOptions::NodeAlreadyCreated );
 
@@ -311,6 +311,13 @@ namespace EE::Animation::GraphNodes
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
+    void ParameterizedBlendNode::GetDebugInfo( int16_t& outSourceIdx0, int16_t& outSourceIdx1, float& outBlendweight ) const
+    {
+        outSourceIdx0 = ( m_bsr.m_pSource0 != nullptr ) ? m_bsr.m_pSource0->GetNodeIndex() : InvalidIndex;
+        outSourceIdx1 = ( m_bsr.m_pSource1 != nullptr ) ? m_bsr.m_pSource1->GetNodeIndex() : InvalidIndex;
+        outBlendweight = m_bsr.m_blendWeight;
+    }
+
     void ParameterizedBlendNode::RecordGraphState( RecordedGraphState& outState )
     {
         PoseNode::RecordGraphState( outState );
@@ -361,19 +368,19 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void Blend1DNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void Blend1DNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<Blend1DNode>( context, options );
-        ParameterizedBlendNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
+        ParameterizedBlendNode::Definition::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
         pNode->m_parameterization = m_parameterization;
     }
 
     //-------------------------------------------------------------------------
 
-    void VelocityBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void VelocityBlendNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<VelocityBlendNode>( context, options );
-        ParameterizedBlendNode::Settings::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
+        ParameterizedBlendNode::Definition::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
     }
 
     void VelocityBlendNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )

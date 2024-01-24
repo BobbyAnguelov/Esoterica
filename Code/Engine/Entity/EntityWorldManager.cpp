@@ -168,25 +168,6 @@ namespace EE
                 continue;
             }
 
-            // Reflect input state
-            //-------------------------------------------------------------------------
-
-            if ( context.GetUpdateStage() == UpdateStage::FrameStart )
-            {
-                auto pPlayerManager = pWorld->GetWorldSystem<PlayerManager>();
-                auto pWorldInputState = pWorld->GetInputState();
-
-                if ( pPlayerManager->IsPlayerEnabled() )
-                {
-                    auto pInputSystem = context.GetSystem<Input::InputSystem>();
-                    pInputSystem->ReflectState( context.GetDeltaTime(), pWorld->GetTimeScale(), *pWorldInputState );
-                }
-                else
-                {
-                    pWorldInputState->Clear();
-                }
-            }
-
             // Run world updates
             //-------------------------------------------------------------------------
 

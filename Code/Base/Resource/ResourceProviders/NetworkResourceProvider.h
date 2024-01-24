@@ -11,7 +11,7 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Resource
 {
-    class ResourceSettings;
+    class ResourceGlobalSettings;
 
     //-------------------------------------------------------------------------
 
@@ -20,7 +20,7 @@ namespace EE::Resource
 
     public:
 
-        NetworkResourceProvider( ResourceSettings const& settings ) : ResourceProvider( settings ) {}
+        NetworkResourceProvider( ResourceGlobalSettings const& settings ) : ResourceProvider( settings ) {}
         virtual bool IsReady() const override final;
 
     private:

@@ -7,6 +7,7 @@
 #include "Engine/Entity/EntityMap.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Threading/TaskSystem.h"
+#include "Base/Input/InputSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -70,6 +71,13 @@ namespace EE
         }
         else if ( auto pPlayerComponent = TryCast<Player::PlayerComponent>( pComponent ) )
         {
+            // Shutdown input registry
+            auto pInputRegistry = m_player.m_pPlayerComponent->GetInputRegistry();
+            if ( pInputRegistry->IsInitialized() )
+            {
+                pInputRegistry->Shutdown();
+            }
+
             // Remove the player
             if ( m_player.m_entityID == pEntity->GetID() )
             {
@@ -142,12 +150,16 @@ namespace EE
         if ( ctx.GetUpdateStage() == UpdateStage::FrameStart )
         {
             // Spawn players in game worlds
+            //-------------------------------------------------------------------------
+
             if ( ctx.IsGameWorld() && !m_hasSpawnedPlayer )
             {
                 m_hasSpawnedPlayer = TrySpawnPlayer( ctx );
             }
 
             // Handle players state changes
+            //-------------------------------------------------------------------------
+
             if ( m_registeredPlayerStateChanged )
             {
                 // Only automatically switch to player in game worlds
@@ -157,6 +169,20 @@ namespace EE
                 }
 
                 m_registeredPlayerStateChanged = false;
+            }
+
+            // Run input system
+            //-------------------------------------------------------------------------
+
+            if ( m_player.m_pPlayerComponent != nullptr )
+            {
+                auto pInputRegistry = m_player.m_pPlayerComponent->GetInputRegistry();
+                if ( !pInputRegistry->IsInitialized() )
+                {
+                    pInputRegistry->Initialize( ctx.GetSystem<Input::InputSystem>() );
+                }
+
+                pInputRegistry->Update();
             }
         }
         // HACK

@@ -4,7 +4,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void AndNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void AndNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<AndNode>( context, options );
 
@@ -65,7 +65,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void OrNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void OrNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<OrNode>( context, options );
 
@@ -126,7 +126,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void NotNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void NotNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<NotNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );

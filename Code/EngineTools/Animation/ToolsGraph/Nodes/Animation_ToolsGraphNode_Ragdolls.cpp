@@ -22,8 +22,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t PoweredRagdollToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        PoweredRagdollNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<PoweredRagdollNode>( this, pSettings );
+        PoweredRagdollNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<PoweredRagdollNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -32,7 +32,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_childNodeIdx = compiledNodeIdx;
+                    pDefinition->m_childNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -53,7 +53,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_physicsBlendWeightNodeIdx = compiledNodeIdx;
+                    pDefinition->m_physicsBlendWeightNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -70,7 +70,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pImpulseOriginNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inpulseOriginVectorNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inpulseOriginVectorNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -85,7 +85,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pImpulseForceNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inpulseForceVectorNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inpulseForceVectorNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -105,12 +105,12 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
-            pSettings->m_profileID = m_profileID;
-            pSettings->m_physicsBlendWeight = m_physicsBlendWeight;
-            pSettings->m_isGravityEnabled = m_isGravityEnabled;
+            pDefinition->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
+            pDefinition->m_profileID = m_profileID;
+            pDefinition->m_physicsBlendWeight = m_physicsBlendWeight;
+            pDefinition->m_isGravityEnabled = m_isGravityEnabled;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     ResourceTypeID PoweredRagdollToolsNode::GetSlotResourceTypeID() const
@@ -135,8 +135,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t SimulatedRagdollToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        SimulatedRagdollNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<SimulatedRagdollNode>( this, pSettings );
+        SimulatedRagdollNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<SimulatedRagdollNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             if ( !m_entryProfileID.IsValid() )
@@ -160,7 +160,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pEntryNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_entryNodeIdx = compiledNodeIdx;
+                    pDefinition->m_entryNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -184,7 +184,7 @@ namespace EE::Animation::GraphNodes
                     int16_t const compiledNodeIdx = pExitOptionNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_exitOptionNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_exitOptionNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -193,7 +193,7 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
-            if ( !pSettings->m_exitOptionNodeIndices.empty() )
+            if ( !pDefinition->m_exitOptionNodeIndices.empty() )
             {
                 if ( !m_exitProfileID.IsValid() )
                 {
@@ -204,12 +204,12 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
-            pSettings->m_entryProfileID = m_entryProfileID;
-            pSettings->m_simulatedProfileID = m_simulatedProfileID;
-            pSettings->m_exitProfileID = m_exitProfileID;
+            pDefinition->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
+            pDefinition->m_entryProfileID = m_entryProfileID;
+            pDefinition->m_simulatedProfileID = m_simulatedProfileID;
+            pDefinition->m_exitProfileID = m_exitProfileID;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     ResourceTypeID SimulatedRagdollToolsNode::GetSlotResourceTypeID() const

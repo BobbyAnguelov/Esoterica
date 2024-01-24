@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "Engine/Physics/PhysicsSettings.h"
+#include "Engine/Physics/PhysicsCollision.h"
 #include "Engine/Physics/PhysicsMaterial.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
 #include "Base/Types/Event.h"

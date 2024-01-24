@@ -18,12 +18,12 @@ namespace EE::Animation
 
     void GraphCompilationContext::Reset()
     {
-        for ( auto pSettings : m_nodeSettings )
+        for ( auto pDefinition : m_nodeDefinitions )
         {
-            EE::Delete( pSettings );
+            EE::Delete( pDefinition );
         }
 
-        m_nodeSettings.clear();
+        m_nodeDefinitions.clear();
 
         //-------------------------------------------------------------------------
 
@@ -44,12 +44,12 @@ namespace EE::Animation
         m_nodeMemoryOffsets.clear();
     }
 
-    void GraphCompilationContext::TryAddPersistentNode( VisualGraph::BaseNode const* pNode, GraphNode::Settings* pSettings )
+    void GraphCompilationContext::TryAddPersistentNode( VisualGraph::BaseNode const* pNode, GraphNode::Definition* pDefinition )
     {
         auto pFlowNode = TryCast<GraphNodes::FlowToolsNode>( pNode );
         if ( pFlowNode != nullptr && pFlowNode->IsPersistentNode() )
         {
-            m_persistentNodeIndices.emplace_back( pSettings->m_nodeIdx );
+            m_persistentNodeIndices.emplace_back( pDefinition->m_nodeIdx );
         }
     }
 
@@ -118,7 +118,7 @@ namespace EE::Animation
         // Fill runtime definition
         //-------------------------------------------------------------------------
 
-        m_runtimeGraph.m_nodeSettings = m_context.m_nodeSettings;
+        m_runtimeGraph.m_nodeDefinitions = m_context.m_nodeDefinitions;
         m_runtimeGraph.m_persistentNodeIndices = m_context.m_persistentNodeIndices;
         m_runtimeGraph.m_instanceNodeStartOffsets = m_context.m_nodeMemoryOffsets;
         m_runtimeGraph.m_instanceRequiredMemory = m_context.m_currentNodeMemoryOffset;

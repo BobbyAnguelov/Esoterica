@@ -14,8 +14,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t CachedBoolToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        CachedBoolNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<CachedBoolNode>( this, pSettings );
+        CachedBoolNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<CachedBoolNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -24,7 +24,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -39,10 +39,10 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_mode = m_mode;
+            pDefinition->m_mode = m_mode;
         }
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void CachedBoolToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -61,8 +61,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t CachedIDToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        CachedIDNode::Settings* pSettings = nullptr;
-        if ( context.GetSettings<CachedIDNode>( this, pSettings ) == NodeCompilationState::NeedCompilation )
+        CachedIDNode::Definition* pDefinition = nullptr;
+        if ( context.GetDefinition<CachedIDNode>( this, pDefinition ) == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
             if ( pInputNode != nullptr )
@@ -70,7 +70,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -85,9 +85,9 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_mode = m_mode;
+            pDefinition->m_mode = m_mode;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void CachedIDToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -106,8 +106,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t CachedFloatToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        CachedFloatNode::Settings* pSettings = nullptr;
-        if ( context.GetSettings<CachedFloatNode>( this, pSettings ) == NodeCompilationState::NeedCompilation )
+        CachedFloatNode::Definition* pDefinition = nullptr;
+        if ( context.GetDefinition<CachedFloatNode>( this, pDefinition ) == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
             if ( pInputNode != nullptr )
@@ -115,7 +115,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -130,9 +130,9 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_mode = m_mode;
+            pDefinition->m_mode = m_mode;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void CachedFloatToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -151,8 +151,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t CachedVectorToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        CachedVectorNode::Settings* pSettings = nullptr;
-        if ( context.GetSettings<CachedVectorNode>( this, pSettings ) == NodeCompilationState::NeedCompilation )
+        CachedVectorNode::Definition* pDefinition = nullptr;
+        if ( context.GetDefinition<CachedVectorNode>( this, pDefinition ) == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
             if ( pInputNode != nullptr )
@@ -160,7 +160,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -175,9 +175,9 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_mode = m_mode;
+            pDefinition->m_mode = m_mode;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void CachedVectorToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -196,8 +196,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t CachedTargetToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        CachedTargetNode::Settings* pSettings = nullptr;
-        if ( context.GetSettings<CachedTargetNode>( this, pSettings ) == NodeCompilationState::NeedCompilation )
+        CachedTargetNode::Definition* pDefinition = nullptr;
+        if ( context.GetDefinition<CachedTargetNode>( this, pDefinition ) == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
             if ( pInputNode != nullptr )
@@ -205,7 +205,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -220,9 +220,9 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_mode = m_mode;
+            pDefinition->m_mode = m_mode;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void CachedTargetToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )

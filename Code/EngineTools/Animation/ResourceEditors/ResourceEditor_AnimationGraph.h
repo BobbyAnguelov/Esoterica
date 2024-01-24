@@ -31,6 +31,7 @@ namespace EE::Animation
         class ParameterReferenceToolsNode;
         class IDControlParameterToolsNode;
         class TargetControlParameterToolsNode;
+        class ChildGraphToolsNode;
     }
 
     //-------------------------------------------------------------------------
@@ -325,6 +326,7 @@ namespace EE::Animation
         inline bool IsViewingMainGraph() const { return m_loadedGraphStack.empty(); }
         
         inline ToolsGraphDefinition* GetCurrentlyViewedGraphDefinition() { return m_loadedGraphStack.empty() ? &GetEditedGraphData()->m_graphDefinition : &m_loadedGraphStack.back()->m_graphDefinition; }
+        
         inline ToolsGraphDefinition const* GetCurrentlyViewedGraphDefinition() const { return m_loadedGraphStack.empty() ? &GetEditedGraphData()->m_graphDefinition : &m_loadedGraphStack.back()->m_graphDefinition; }
 
         // Get the stack index for the specified node!

@@ -19,8 +19,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t RootMotionOverrideToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        RootMotionOverrideNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<RootMotionOverrideNode>( this, pSettings );
+        RootMotionOverrideNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<RootMotionOverrideNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -29,7 +29,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_childNodeIdx = compiledNodeIdx;
+                    pDefinition->m_childNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -60,7 +60,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pMovingVelocityNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_desiredMovingVelocityNodeIdx = compiledNodeIdx;
+                    pDefinition->m_desiredMovingVelocityNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -75,7 +75,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pFacingNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_desiredFacingDirectionNodeIdx = compiledNodeIdx;
+                    pDefinition->m_desiredFacingDirectionNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -91,7 +91,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_linearVelocityLimitNodeIdx = compiledNodeIdx;
+                    pDefinition->m_linearVelocityLimitNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -107,7 +107,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_angularVelocityLimitNodeIdx = compiledNodeIdx;
+                    pDefinition->m_angularVelocityLimitNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -117,15 +117,15 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_maxLinearVelocity = m_maxLinearVelocity;
-            pSettings->m_maxAngularVelocity = m_maxAngularVelocity;
+            pDefinition->m_maxLinearVelocity = m_maxLinearVelocity;
+            pDefinition->m_maxAngularVelocity = m_maxAngularVelocity;
 
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowMoveX, m_overrideMoveDirX );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowMoveY, m_overrideMoveDirY );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowMoveZ, m_overrideMoveDirZ );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowFacingPitch, m_allowPitchForFacing );
-            pSettings->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::ListenForEvents, m_listenForRootMotionEvents );
+            pDefinition->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowMoveX, m_overrideMoveDirX );
+            pDefinition->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowMoveY, m_overrideMoveDirY );
+            pDefinition->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowMoveZ, m_overrideMoveDirZ );
+            pDefinition->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::AllowFacingPitch, m_allowPitchForFacing );
+            pDefinition->m_overrideFlags.SetFlag( RootMotionOverrideNode::OverrideFlags::ListenForEvents, m_listenForRootMotionEvents );
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 }

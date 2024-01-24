@@ -12,9 +12,9 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public PoseNode::Settings
+        struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
+            EE_REFLECT_TYPE( Definition );
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
         };
 
@@ -31,9 +31,9 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public PoseNode::Settings
+        struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
+            EE_REFLECT_TYPE( Definition );
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
         };
 
@@ -50,10 +50,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public PoseNode::Settings
+        struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_poseTimeValueNodeIdx, m_dataSlotIndex, m_inputTimeRemapRange, m_userSpecifiedTime, m_useFramesAsInput );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_poseTimeValueNodeIdx, m_dataSlotIndex, m_inputTimeRemapRange, m_userSpecifiedTime, m_useFramesAsInput );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 

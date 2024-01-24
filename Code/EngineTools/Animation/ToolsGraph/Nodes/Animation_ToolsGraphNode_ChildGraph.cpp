@@ -17,13 +17,13 @@ namespace EE::Animation::GraphNodes
 
     int16_t ChildGraphToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ChildGraphNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<ChildGraphNode>( this, pSettings );
+        ChildGraphNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<ChildGraphNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_childGraphIdx = context.RegisterChildGraphNode( pSettings->m_nodeIdx, GetID() );
+            pDefinition->m_childGraphIdx = context.RegisterChildGraphNode( pDefinition->m_nodeIdx, GetID() );
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     ResourceTypeID ChildGraphToolsNode::GetSlotResourceTypeID() const

@@ -17,7 +17,7 @@ namespace EE::Resource
         EE_ASSERT( m_pResourceProvider == nullptr && !IsBusy() && m_resourceRecords.empty() );
     }
 
-    ResourceSettings const& ResourceSystem::GetSettings() const
+    ResourceGlobalSettings const& ResourceSystem::GetSettings() const
     {
         return m_pResourceProvider->GetSettings();
     }

@@ -56,7 +56,7 @@ namespace EE
             // The window name
             String                                                                          m_name;
 
-            // The function to call to draw this window. Args: EntityWorldUpdateContext const& context, bool isFocused
+            // The function to call to draw this window. Args: EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData
             TFunction<void( EntityWorldUpdateContext const&, bool, uint64_t )>              m_drawFunction;
 
             // Window Transparency

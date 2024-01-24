@@ -41,7 +41,7 @@ namespace EE::Import
         }
     }
 
-    void ImportedSkeleton::CalculateGlobalTransforms()
+    void ImportedSkeleton::CalculateModelSpaceTransforms()
     {
         EE_ASSERT( !m_bones.empty() );
         m_bones[0].m_globalTransform = m_bones[0].m_localTransform;

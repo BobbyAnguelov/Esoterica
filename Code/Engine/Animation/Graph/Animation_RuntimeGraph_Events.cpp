@@ -25,6 +25,11 @@ namespace EE::Animation
     {
         m_sampledEvents.clear();
         m_numAnimEventsSampled = m_numStateEventsSampled = 0;
+
+        #if EE_DEVELOPMENT_TOOLS
+        EE_ASSERT( m_debugGraphPath.empty() );
+        m_eventDebugGraphPaths.clear();
+        #endif
     }
 
     //-------------------------------------------------------------------------
@@ -225,4 +230,23 @@ namespace EE::Animation
         newEventRange.m_endIdx = (uint16_t) m_sampledEvents.size();
         return newEventRange;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    InlineString SampledEventDebugPath::GetFlattenedPath() const
+    {
+        InlineString pathStr;
+
+        for ( auto const& element : m_path )
+        {
+            pathStr.append_sprintf( "%s/", element.m_pathString.c_str() );
+        }
+
+        if( !pathStr.empty() )
+        {
+            pathStr.pop_back();
+        }
+
+        return pathStr;
+    }
+    #endif
 }

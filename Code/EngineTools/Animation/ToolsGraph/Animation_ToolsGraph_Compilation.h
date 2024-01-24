@@ -65,29 +65,29 @@ namespace EE::Animation
 
         // Try to get the runtime settings for a node in the graph, will return whether this node was already compiled or still needs compilation
         template<typename T>
-        NodeCompilationState GetSettings( VisualGraph::BaseNode const* pNode, typename T::Settings*& pOutSettings )
+        NodeCompilationState GetDefinition( VisualGraph::BaseNode const* pNode, typename T::Definition*& pOutDefinition )
         {
             auto foundIter = m_nodeIDToIndexMap.find( pNode->GetID() );
             if ( foundIter != m_nodeIDToIndexMap.end() )
             {
-                pOutSettings = (typename T::Settings*) m_nodeSettings[foundIter->second];
+                pOutDefinition = (typename T::Definition*) m_nodeDefinitions[foundIter->second];
                 return NodeCompilationState::AlreadyCompiled;
             }
 
             //-------------------------------------------------------------------------
 
-            EE_ASSERT( m_nodeSettings.size() < 0xFFFF );
-            pOutSettings = EE::New<typename T::Settings>();
-            m_nodeSettings.emplace_back( pOutSettings );
+            EE_ASSERT( m_nodeDefinitions.size() < 0xFFFF );
+            pOutDefinition = EE::New<typename T::Definition>();
+            m_nodeDefinitions.emplace_back( pOutDefinition );
             m_compiledNodePaths.emplace_back( pNode->GetStringPathFromRoot() );
-            pOutSettings->m_nodeIdx = int16_t( m_nodeSettings.size() ) - 1;
+            pOutDefinition->m_nodeIdx = int16_t( m_nodeDefinitions.size() ) - 1;
 
             // Add to map
-            m_nodeIDToIndexMap.insert( TPair<UUID, int16_t>( pNode->GetID(), pOutSettings->m_nodeIdx ) );
-            m_nodeIndexToIDMap.insert( TPair<int16_t, UUID >( pOutSettings->m_nodeIdx, pNode->GetID() ) );
+            m_nodeIDToIndexMap.insert( TPair<UUID, int16_t>( pNode->GetID(), pOutDefinition->m_nodeIdx ) );
+            m_nodeIndexToIDMap.insert( TPair<int16_t, UUID >( pOutDefinition->m_nodeIdx, pNode->GetID() ) );
 
             // Add to persistent nodes list
-            TryAddPersistentNode( pNode, pOutSettings );
+            TryAddPersistentNode( pNode, pOutDefinition );
 
             // Update instance requirements
             m_graphInstanceRequiredAlignment = Math::Max( m_graphInstanceRequiredAlignment, (uint32_t) alignof( T ) );
@@ -200,7 +200,7 @@ namespace EE::Animation
 
     private:
 
-        void TryAddPersistentNode( VisualGraph::BaseNode const* pNode, GraphNode::Settings* pSettings );
+        void TryAddPersistentNode( VisualGraph::BaseNode const* pNode, GraphNode::Definition* pDefinition );
 
     private:
 
@@ -209,7 +209,7 @@ namespace EE::Animation
         THashMap<int16_t, UUID>                         m_nodeIndexToIDMap;
         TVector<int16_t>                                m_persistentNodeIndices;
         TVector<String>                                 m_compiledNodePaths;
-        TVector<GraphNode::Settings*>                   m_nodeSettings;
+        TVector<GraphNode::Definition*>                   m_nodeDefinitions;
         TVector<uint32_t>                               m_nodeMemoryOffsets;
         uint32_t                                        m_currentNodeMemoryOffset = 0;
         uint32_t                                        m_graphInstanceRequiredAlignment = alignof( bool );

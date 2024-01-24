@@ -5,11 +5,6 @@
 
 namespace EE::Render
 {
-    TEvent<StaticMeshComponent*> StaticMeshComponent::s_staticMobilityTransformUpdatedEvent;
-    TEvent<StaticMeshComponent*> StaticMeshComponent::s_mobilityChangedEvent;
-
-    //-------------------------------------------------------------------------
-
     OBB StaticMeshComponent::CalculateLocalBounds() const
     {
         if ( HasMeshResourceSet() )
@@ -22,26 +17,6 @@ namespace EE::Render
         else
         {
             return MeshComponent::CalculateLocalBounds();
-        }
-    }
-
-    void StaticMeshComponent::ChangeMobility( Mobility newMobility )
-    {
-        if ( newMobility != m_mobility )
-        {
-            m_mobility = newMobility;
-            s_mobilityChangedEvent.Execute( this );
-        }
-    }
-
-    void StaticMeshComponent::OnWorldTransformUpdated()
-    {
-        if( IsInitialized() )
-        {
-            if ( m_mobility == Mobility::Static )
-            {
-                s_staticMobilityTransformUpdatedEvent.Execute( this );
-            }
         }
     }
 

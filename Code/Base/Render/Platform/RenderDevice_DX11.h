@@ -9,12 +9,12 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE { class IniFile; }
-
-//-------------------------------------------------------------------------
-
 namespace EE::Render
 {
+    class RenderGlobalSettings;
+
+    //-------------------------------------------------------------------------
+
     class EE_BASE_API RenderDevice
     {
 
@@ -26,7 +26,7 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         bool IsInitialized() const;
-        bool Initialize( IniFile const& iniFile );
+        bool Initialize( RenderGlobalSettings const& settings );
         bool Initialize();
         void Shutdown();
 

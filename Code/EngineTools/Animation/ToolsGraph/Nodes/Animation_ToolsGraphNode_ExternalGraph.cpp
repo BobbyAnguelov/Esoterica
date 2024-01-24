@@ -23,13 +23,13 @@ namespace EE::Animation::GraphNodes
 
     int16_t ExternalGraphToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ExternalGraphNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<ExternalGraphNode>( this, pSettings );
+        ExternalGraphNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<ExternalGraphNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            context.RegisterExternalGraphSlotNode( pSettings->m_nodeIdx, StringID( GetName() ) );
+            context.RegisterExternalGraphSlotNode( pDefinition->m_nodeIdx, StringID( GetName() ) );
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void ExternalGraphToolsNode::SetName( String const& newName )

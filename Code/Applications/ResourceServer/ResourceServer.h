@@ -4,10 +4,11 @@
 #include "ResourceCompilationRequest.h"
 #include "EngineTools/Core/FileSystem/FileSystemWatcher.h"
 #include "Base/Network/IPC/IPCMessageServer.h"
-#include "Base/Resource/ResourceSettings.h"
+#include "Base/Resource/Settings/GlobalSettings_Resource.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Threading/TaskSystem.h"
 #include "Base/Threading/Threading.h"
+#include "Base/Settings/SettingsRegistry.h"
 
 //-------------------------------------------------------------------------
 // The network resource server
@@ -44,20 +45,20 @@ namespace EE::Resource
 
     public:
 
-        ResourceServer() = default;
+        ResourceServer();
         ~ResourceServer();
 
-        bool Initialize( IniFile const& iniFile );
+        bool Initialize( FileSystem::Path const& iniFilePath );
         void Shutdown();
         void Update();
 
         bool IsBusy() const;
 
         inline String const& GetErrorMessage() const { return m_errorMessage; }
-        inline String const& GetNetworkAddress() const { return m_settings.m_resourceServerNetworkAddress; }
-        inline uint16_t GetNetworkPort() const { return m_settings.m_resourceServerPort; }
-        inline FileSystem::Path const& GetRawResourceDir() const { return m_settings.m_rawResourcePath; }
-        inline FileSystem::Path const& GetCompiledResourceDir() const { return m_settings.m_compiledResourcePath; }
+        inline String const& GetNetworkAddress() const { return m_pSettings->m_resourceServerNetworkAddress; }
+        inline uint16_t GetNetworkPort() const { return m_pSettings->m_resourceServerPort; }
+        inline FileSystem::Path const& GetRawResourceDir() const { return m_pSettings->m_rawResourcePath; }
+        inline FileSystem::Path const& GetCompiledResourceDir() const { return m_pSettings->m_compiledResourcePath; }
 
         // Compilers and Compilation
         //-------------------------------------------------------------------------
@@ -124,13 +125,14 @@ namespace EE::Resource
 
         Network::IPC::Server                                        m_networkServer;
         TypeSystem::TypeRegistry                                    m_typeRegistry;
+        Settings::SettingsRegistry                                  m_settingsRegistry;
         TaskSystem                                                  m_taskSystem = TaskSystem( Threading::GetProcessorInfo().m_numLogicalCores );
         CompilerRegistry*                                           m_pCompilerRegistry = nullptr;
         String                                                      m_errorMessage;
         bool                                                        m_cleanupRequested = false;
 
         // Settings
-        ResourceSettings                                            m_settings;
+        ResourceGlobalSettings const*                               m_pSettings = nullptr;
 
         // Compilation Requests
         TVector<CompilationRequest*>                                m_requests;

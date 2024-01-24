@@ -6,7 +6,7 @@
 
 namespace EE::Resource
 {
-    class ResourceSettings;
+    class ResourceGlobalSettings;
 
     //-------------------------------------------------------------------------
 
@@ -15,7 +15,7 @@ namespace EE::Resource
 
     public:
 
-        PackagedResourceProvider( ResourceSettings const& settings ) : ResourceProvider( settings ) {}
+        PackagedResourceProvider( ResourceGlobalSettings const& settings ) : ResourceProvider( settings ) {}
         virtual bool IsReady() const override final;
 
     private:

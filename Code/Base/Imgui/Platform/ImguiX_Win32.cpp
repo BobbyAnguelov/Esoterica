@@ -134,7 +134,7 @@ namespace EE::ImGuiX
 
         //-------------------------------------------------------------------------
 
-        auto hwnd = GetActiveWindow();
+        HWND hwnd = (HWND) ImGui::GetWindowViewport()->PlatformHandleRaw;
 
         // Minimize
         //-------------------------------------------------------------------------

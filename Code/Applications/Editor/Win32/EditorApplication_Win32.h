@@ -24,7 +24,7 @@ namespace EE
         virtual void RegisterTypes() override;
         virtual void UnregisterTypes() override;
 
-        virtual bool InitializeToolsModulesAndSystems( ModuleContext& moduleContext, IniFile const& iniFile );
+        virtual bool InitializeToolsModulesAndSystems( ModuleContext& moduleContext );
         virtual void ShutdownToolsModulesAndSystems( ModuleContext& moduleContext );
 
         virtual void CreateToolsUI();

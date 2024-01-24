@@ -3,12 +3,13 @@
 #include "Base/Imgui/ImguiSystem.h"
 #include "Base/ThirdParty/imgui/imgui.h"
 #include "Base/Input/InputSystem.h"
+#include "Base/Application/Platform/Application_Win32.h"
+#include "Base/Platform/Platform.h"
 #include "Base/Platform/PlatformUtils_Win32.h"
 #include "Base/Memory/Memory.h"
 #include <windows.h>
 #include <windowsx.h>
 #include <tchar.h>
-#include "Base/Application/Platform/Application_Win32.h"
 
 //-------------------------------------------------------------------------
 
@@ -947,7 +948,7 @@ namespace EE::ImGuiX
 
         auto pBackendData = EE::New<Platform::ImGui_ImplWin32_Data>();
 
-        pBackendData->hWnd = GetActiveWindow();
+        pBackendData->hWnd = (HWND) EE::Platform::GetMainWindowHandle();
         pBackendData->WantUpdateHasGamepad = true;
         pBackendData->WantUpdateMonitors = true;
         pBackendData->LastMouseCursor = ImGuiMouseCursor_COUNT;

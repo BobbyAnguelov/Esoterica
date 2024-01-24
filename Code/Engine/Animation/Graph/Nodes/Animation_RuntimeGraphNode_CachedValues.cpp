@@ -4,7 +4,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void CachedBoolNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void CachedBoolNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<CachedBoolNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -16,8 +16,8 @@ namespace EE::Animation::GraphNodes
 
         m_pInputValueNode->Initialize( context );
 
-        auto pSettings = GetSettings<CachedBoolNode>();
-        if ( pSettings->m_mode == CachedValueMode::OnEntry )
+        auto pDefinition = GetDefinition<CachedBoolNode>();
+        if ( pDefinition->m_mode == CachedValueMode::OnEntry )
         {
             m_value = m_pInputValueNode->GetValue<bool>( context );
             m_hasCachedValue = true;
@@ -40,7 +40,7 @@ namespace EE::Animation::GraphNodes
 
         if ( !m_hasCachedValue )
         {
-            EE_ASSERT( GetSettings<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
+            EE_ASSERT( GetDefinition<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
 
             if ( context.m_branchState == BranchState::Inactive )
             {
@@ -79,7 +79,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void CachedIDNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<CachedIDNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -91,8 +91,8 @@ namespace EE::Animation::GraphNodes
 
         m_pInputValueNode->Initialize( context );
 
-        auto pSettings = GetSettings<CachedIDNode>();
-        if ( pSettings->m_mode == CachedValueMode::OnEntry )
+        auto pDefinition = GetDefinition<CachedIDNode>();
+        if ( pDefinition->m_mode == CachedValueMode::OnEntry )
         {
             m_value = m_pInputValueNode->GetValue<StringID>( context );
             m_hasCachedValue = true;
@@ -115,7 +115,7 @@ namespace EE::Animation::GraphNodes
 
         if ( !m_hasCachedValue )
         {
-            EE_ASSERT( GetSettings<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
+            EE_ASSERT( GetDefinition<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
 
             if ( context.m_branchState == BranchState::Inactive )
             {
@@ -154,7 +154,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedFloatNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void CachedFloatNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<CachedFloatNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -167,8 +167,8 @@ namespace EE::Animation::GraphNodes
         m_pInputValueNode->Initialize( context );
 
         // Cache on entry
-        auto pSettings = GetSettings<CachedFloatNode>();
-        if ( pSettings->m_mode == CachedValueMode::OnEntry )
+        auto pDefinition = GetDefinition<CachedFloatNode>();
+        if ( pDefinition->m_mode == CachedValueMode::OnEntry )
         {
             m_value = m_pInputValueNode->GetValue<float>( context );
             m_hasCachedValue = true;
@@ -193,7 +193,7 @@ namespace EE::Animation::GraphNodes
 
             if ( !m_hasCachedValue )
             {
-                EE_ASSERT( GetSettings<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
+                EE_ASSERT( GetDefinition<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
 
                 // Should we stop updating the current value
                 if ( context.m_branchState == BranchState::Inactive )
@@ -234,7 +234,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedVectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void CachedVectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<CachedVectorNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -246,8 +246,8 @@ namespace EE::Animation::GraphNodes
 
         m_pInputValueNode->Initialize( context );
 
-        auto pSettings = GetSettings<CachedVectorNode>();
-        if ( pSettings->m_mode == CachedValueMode::OnEntry )
+        auto pDefinition = GetDefinition<CachedVectorNode>();
+        if ( pDefinition->m_mode == CachedValueMode::OnEntry )
         {
             m_value = m_pInputValueNode->GetValue<Vector>( context );
             m_hasCachedValue = true;
@@ -270,7 +270,7 @@ namespace EE::Animation::GraphNodes
 
         if ( !m_hasCachedValue )
         {
-            EE_ASSERT( GetSettings<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
+            EE_ASSERT( GetDefinition<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
 
             if ( context.m_branchState == BranchState::Inactive )
             {
@@ -309,7 +309,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CachedTargetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void CachedTargetNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<CachedTargetNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -321,8 +321,8 @@ namespace EE::Animation::GraphNodes
 
         m_pInputValueNode->Initialize( context );
 
-        auto pSettings = GetSettings<CachedTargetNode>();
-        if ( pSettings->m_mode == CachedValueMode::OnEntry )
+        auto pDefinition = GetDefinition<CachedTargetNode>();
+        if ( pDefinition->m_mode == CachedValueMode::OnEntry )
         {
             m_value = m_pInputValueNode->GetValue<Target>( context );
             m_hasCachedValue = true;
@@ -345,7 +345,7 @@ namespace EE::Animation::GraphNodes
 
         if ( !m_hasCachedValue )
         {
-            EE_ASSERT( GetSettings<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
+            EE_ASSERT( GetDefinition<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
 
             if ( context.m_branchState == BranchState::Inactive )
             {

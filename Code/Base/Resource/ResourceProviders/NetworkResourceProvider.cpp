@@ -1,6 +1,6 @@
 #include "NetworkResourceProvider.h"
 #include "Base/Resource/ResourceRequest.h"
-#include "Base/Resource/ResourceSettings.h"
+#include "Base/Resource/Settings/GlobalSettings_Resource.h"
 #include "Base/Serialization/BinarySerialization.h"
 #include "Base/FileSystem/FileSystem.h"
 #include "Base/Profiling.h"

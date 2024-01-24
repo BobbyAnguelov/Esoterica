@@ -1,12 +1,13 @@
 #ifdef _WIN32
 #include "Application_Win32.h"
-#include "Base/IniFile.h"
+#include "Base/Settings/IniFile.h"
 #include "Base/Imgui/Platform/ImguiPlatform_Win32.h"
 #include "Base/Platform/PlatformUtils_Win32.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/FileSystem/FileSystemUtils.h"
 #include "Base/Math/Rectangle.h"
 #include "Base/Logging/LoggingSystem.h"
+#include "Base/Platform/Platform.h"
 
 #include <dwmapi.h>
 #include <windowsx.h>
@@ -88,13 +89,14 @@ namespace EE
 
     Win32Application::~Win32Application()
     {
+        Platform::ClearMainWindowHandle();
         ::DestroyWindow( m_windowHandle );
         ::UnregisterClass( m_windowClass.lpszClassName, m_windowClass.hInstance );
     }
 
     bool Win32Application::FatalError( String const& error )
     {
-        MessageBox( GetActiveWindow(), error.c_str(), "Fatal Error Occurred!", MB_OK | MB_ICONERROR );
+        MessageBox( m_windowHandle, error.c_str(), "Fatal Error Occurred!", MB_OK | MB_ICONERROR );
         return false;
     }
 
@@ -177,6 +179,8 @@ namespace EE
         {
             return false;
         }
+
+        Platform::SetMainWindowHandle( m_windowHandle );
 
         //-------------------------------------------------------------------------
 
@@ -335,10 +339,8 @@ namespace EE
                 {
                     RequestApplicationExit();
                 }
-                else
-                {
-                    return 0;
-                }
+
+                return 0;
             }
             break;
 
@@ -368,7 +370,7 @@ namespace EE
     void Win32Application::ReadLayoutSettings()
     {
         FileSystem::Path const layoutIniFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + ".layout.ini";
-        IniFile layoutIni( layoutIniFilePath );
+        Settings::IniFile layoutIni( layoutIniFilePath );
         if ( !layoutIni.IsValid() )
         {
             return;
@@ -405,7 +407,7 @@ namespace EE
 
     void Win32Application::WriteLayoutSettings()
     {
-        IniFile layoutIni;
+        Settings::IniFile layoutIni;
         if ( layoutIni.IsValid() )
         {
             WINDOWPLACEMENT wndPlacement;

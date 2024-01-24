@@ -207,13 +207,13 @@ namespace EE::Animation
             int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
             for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
-                Transform const& sourceTransform = pSourcePose->m_localTransforms[boneIdx];
-                Transform const& targetTransform = pTargetPose->m_localTransforms[boneIdx];
-                Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
-                Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
+                Transform const& sourceTransform = pSourcePose->m_parentSpaceTransforms[boneIdx];
+                Transform const& targetTransform = pTargetPose->m_parentSpaceTransforms[boneIdx];
+                Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
+                Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
             }
 
-            pResultPose->ClearGlobalTransforms();
+            pResultPose->ClearModelSpaceTransforms();
         }
 
         //-------------------------------------------------------------------------
@@ -258,14 +258,14 @@ namespace EE::Animation
                 }
                 else // Perform Blend
                 {
-                    Transform const& sourceTransform = pSourcePose->m_localTransforms[boneIdx];
-                    Transform const& targetTransform = pTargetPose->m_localTransforms[boneIdx];
-                    Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), boneBlendWeight ) );
-                    Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), boneBlendWeight ) );
+                    Transform const& sourceTransform = pSourcePose->m_parentSpaceTransforms[boneIdx];
+                    Transform const& targetTransform = pTargetPose->m_parentSpaceTransforms[boneIdx];
+                    Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), boneBlendWeight ) );
+                    Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), boneBlendWeight ) );
                 }
             }
 
-            pResultPose->ClearGlobalTransforms();
+            pResultPose->ClearModelSpaceTransforms();
         }
 
         //-------------------------------------------------------------------------
@@ -302,13 +302,13 @@ namespace EE::Animation
             int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
             for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
-                Transform const& sourceTransform = pSourcePose->m_localTransforms[boneIdx];
+                Transform const& sourceTransform = pSourcePose->m_parentSpaceTransforms[boneIdx];
                 Transform const& targetTransform = referencePose[boneIdx];
-                Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
-                Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
+                Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
+                Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
             }
 
-            pResultPose->ClearGlobalTransforms();
+            pResultPose->ClearModelSpaceTransforms();
         }
 
         //-------------------------------------------------------------------------
@@ -346,12 +346,12 @@ namespace EE::Animation
             for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
                 Transform const& sourceTransform = referencePose[boneIdx];
-                Transform const& targetTransform = pTargetPose->m_localTransforms[boneIdx];
-                Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
-                Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
+                Transform const& targetTransform = pTargetPose->m_parentSpaceTransforms[boneIdx];
+                Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
+                Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
             }
 
-            pResultPose->ClearGlobalTransforms();
+            pResultPose->ClearModelSpaceTransforms();
         }
 
         //-------------------------------------------------------------------------
@@ -379,12 +379,12 @@ namespace EE::Animation
             for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
                 Transform const& sourceTransform = referencePose[boneIdx];
-                Transform const& targetTransform = pAdditivePose->m_localTransforms[boneIdx];
-                Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], AdditiveBlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
-                Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], AdditiveBlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
+                Transform const& targetTransform = pAdditivePose->m_parentSpaceTransforms[boneIdx];
+                Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], AdditiveBlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
+                Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], AdditiveBlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
             }
 
-            pResultPose->ClearGlobalTransforms();
+            pResultPose->ClearModelSpaceTransforms();
         }
 
         //-------------------------------------------------------------------------

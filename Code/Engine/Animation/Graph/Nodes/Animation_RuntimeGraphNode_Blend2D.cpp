@@ -12,7 +12,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void Blend2DNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void Blend2DNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<Blend2DNode>( context, options );
         context.SetNodePtrFromIndex( m_inputParameterNodeIdx0, pNode->m_pInputParameterNode0 );
@@ -112,7 +112,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        auto pSettings = GetSettings<Blend2DNode>();
+        auto pDefinition = GetDefinition<Blend2DNode>();
 
         Float2 const point( m_pInputParameterNode0->GetValue<float>( context ), m_pInputParameterNode1->GetValue<float>( context ) );
 
@@ -126,16 +126,16 @@ namespace EE::Animation::GraphNodes
 
         bool enclosingTriangleFound = false;
 
-        int32_t const numIndices = (int32_t) pSettings->m_indices.size();
+        int32_t const numIndices = (int32_t) pDefinition->m_indices.size();
 
         for ( int32_t i = 0; i < numIndices; i += 3 )
         {
-            uint8_t i0 = pSettings->m_indices[i];
-            uint8_t i1 = pSettings->m_indices[i + 1];
-            uint8_t i2 = pSettings->m_indices[i + 2];
-            Vector const& a = pSettings->m_values[i0];
-            Vector const& b = pSettings->m_values[i1];
-            Vector const& c = pSettings->m_values[i2];
+            uint8_t i0 = pDefinition->m_indices[i];
+            uint8_t i1 = pDefinition->m_indices[i + 1];
+            uint8_t i2 = pDefinition->m_indices[i + 2];
+            Vector const& a = pDefinition->m_values[i0];
+            Vector const& b = pDefinition->m_values[i1];
+            Vector const& c = pDefinition->m_values[i2];
 
             // Check if we are inside this triangle, if we are, then calculate the result and early out
             Float3 bcc;
@@ -188,13 +188,13 @@ namespace EE::Animation::GraphNodes
             Edge closestEdge;
 
             // Hull has the first index duplicated at the end
-            int32_t const numHullPoints = (int32_t) pSettings->m_hullIndices.size();
+            int32_t const numHullPoints = (int32_t) pDefinition->m_hullIndices.size();
             for ( int32_t i = 1; i < numHullPoints; i++ )
             {
-                uint8_t const idx0 = pSettings->m_hullIndices[i-1];
-                uint8_t const idx1 = pSettings->m_hullIndices[i];
+                uint8_t const idx0 = pDefinition->m_hullIndices[i-1];
+                uint8_t const idx1 = pDefinition->m_hullIndices[i];
 
-                Edge edge( pSettings->m_values[idx0], pSettings->m_values[idx1] );
+                Edge edge( pDefinition->m_values[idx0], pDefinition->m_values[idx1] );
                 edge.m_startHullIdx = i - 1;
                 edge.m_scalarProjection = edge.m_segment.ScalarProjectionOnSegment( point );
 
@@ -220,8 +220,8 @@ namespace EE::Animation::GraphNodes
 
             float const weight = closestEdge.m_scalarProjection / closestEdge.m_segment.GetLength();
 
-            m_bsr.m_pSource0 = m_sourceNodes[pSettings->m_hullIndices[closestEdge.m_startHullIdx]];
-            m_bsr.m_pSource1 = m_sourceNodes[pSettings->m_hullIndices[closestEdge.m_startHullIdx + 1]];
+            m_bsr.m_pSource0 = m_sourceNodes[pDefinition->m_hullIndices[closestEdge.m_startHullIdx]];
+            m_bsr.m_pSource1 = m_sourceNodes[pDefinition->m_hullIndices[closestEdge.m_startHullIdx + 1]];
             m_bsr.m_pSource2 = nullptr;
             m_bsr.m_blendWeightBetween0And1 = weight;
             m_bsr.m_blendWeightBetween1And2 = 0.0f;

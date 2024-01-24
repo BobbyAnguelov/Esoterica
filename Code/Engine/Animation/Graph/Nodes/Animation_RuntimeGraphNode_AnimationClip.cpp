@@ -10,7 +10,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void AnimationClipNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void AnimationClipNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<AnimationClipNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_playInReverseValueNodeIdx, pNode->m_pPlayInReverseValueNode );
@@ -37,7 +37,7 @@ namespace EE::Animation::GraphNodes
     void AnimationClipNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         AnimationClipReferenceNode::InitializeInternal( context, initialTime );
-        auto pSettings = GetSettings<AnimationClipNode>();
+        auto pDefinition = GetDefinition<AnimationClipNode>();
 
         // Try to create play in reverse node
         if ( m_pPlayInReverseValueNode != nullptr )
@@ -59,7 +59,7 @@ namespace EE::Animation::GraphNodes
             #endif
         }
 
-        m_shouldSampleRootMotion = pSettings->m_sampleRootMotion;
+        m_shouldSampleRootMotion = pDefinition->m_sampleRootMotion;
         m_shouldPlayInReverse = false;
     }
 
@@ -149,8 +149,8 @@ namespace EE::Animation::GraphNodes
             {
                 Percentage const deltaPercentage = Percentage( context.m_deltaTime / m_duration );
 
-                auto pSettings = GetSettings<AnimationClipNode>();
-                if ( !pSettings->m_allowLooping )
+                auto pDefinition = GetDefinition<AnimationClipNode>();
+                if ( !pDefinition->m_allowLooping )
                 {
                     // We might have come from a sync update so ensure the previous time is set to the normalized current time
                     m_previousTime = m_currentTime;

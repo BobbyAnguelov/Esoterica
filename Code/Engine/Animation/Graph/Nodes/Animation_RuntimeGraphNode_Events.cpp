@@ -26,7 +26,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void IDEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void IDEventConditionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<IDEventConditionNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -65,19 +65,19 @@ namespace EE::Animation::GraphNodes
 
     bool IDEventConditionNode::TryMatchTags( GraphContext& context ) const
     {
-        auto pNodeSettings = GetSettings<IDEventConditionNode>();
-        int32_t const numEventIDs = (int32_t) pNodeSettings->m_eventIDs.size();
+        auto pNodeDefinition = GetDefinition<IDEventConditionNode>();
+        int32_t const numEventIDs = (int32_t) pNodeDefinition->m_eventIDs.size();
         auto foundIDs = EE_STACK_ARRAY_ALLOC( bool, numEventIDs );
         Memory::MemsetZero( foundIDs, sizeof( bool ) * numEventIDs );
 
         // Perform search
         //-------------------------------------------------------------------------
 
-        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pNodeSettings->m_rules );
-        bool const ignoreInactiveEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-        bool const searchAnimEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchBothStateAndAnimEvents ) || pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchOnlyAnimEvents );
-        bool const searchStateEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchBothStateAndAnimEvents ) || pNodeSettings->m_rules.IsFlagSet( EventConditionRules::SearchOnlyStateEvents );
-        bool const operatorOr = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::OperatorOr );
+        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pNodeDefinition->m_rules );
+        bool const ignoreInactiveEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+        bool const searchAnimEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchBothStateAndAnimEvents ) || pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchOnlyAnimEvents );
+        bool const searchStateEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchBothStateAndAnimEvents ) || pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchOnlyStateEvents );
+        bool const operatorOr = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::OperatorOr );
 
         for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
         {
@@ -122,7 +122,7 @@ namespace EE::Animation::GraphNodes
                 // Check against the set of events we need to match
                 for ( auto t = 0; t < numEventIDs; t++ )
                 {
-                    if ( pNodeSettings->m_eventIDs[t] == foundID )
+                    if ( pNodeDefinition->m_eventIDs[t] == foundID )
                     {
                         // If we are using an 'or' operator, we can early out here
                         if ( operatorOr )
@@ -153,134 +153,31 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void StateEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void IDEventNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<StateEventConditionNode>( context, options );
+        auto pNode = CreateNode<IDEventNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
-    void StateEventConditionNode::InitializeInternal( GraphContext& context )
+    void IDEventNode::InitializeInternal( GraphContext& context )
     {
-        BoolValueNode::InitializeInternal( context );
+        IDValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
             EE_ASSERT( m_pSourceStateNode->IsInitialized() );
         }
 
-        m_result = false;
+        m_value.Clear();
     }
 
-    void StateEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    void IDEventNode::ShutdownInternal( GraphContext& context )
+    {
+        IDValueNode::ShutdownInternal( context );
+    }
+
+    void IDEventNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
-
-        // Is the Result up to date?
-        if ( !WasUpdated( context ) )
-        {
-            MarkNodeActive( context );
-            m_result = TryMatchTags( context );
-        }
-
-        // Set Result
-        *( (bool*) pOutValue ) = m_result;
-    }
-
-    bool StateEventConditionNode::TryMatchTags( GraphContext& context ) const
-    {
-        auto pNodeSettings = GetSettings<StateEventConditionNode>();
-        int32_t const numConditions = (int32_t) pNodeSettings->m_conditions.size();
-        auto foundIDs = EE_STACK_ARRAY_ALLOC( bool, numConditions );
-        Memory::MemsetZero( foundIDs, sizeof( bool ) * numConditions );
-
-        // Perform search
-        //-------------------------------------------------------------------------
-
-        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pNodeSettings->m_rules );
-        bool const ignoreInactiveEvents = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-        bool const operatorOr = pNodeSettings->m_rules.IsFlagSet( EventConditionRules::OperatorOr );
-
-        for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
-        {
-            SampledEvent const& sampledEvent = context.m_pSampledEventsBuffer->GetEvent( i );
-
-            if ( sampledEvent.IsIgnored() )
-            {
-                continue;
-            }
-
-            // Skip events from inactive branch if so requested
-            if ( ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch() )
-            {
-                continue;
-            }
-
-            // Only check state events
-            if ( sampledEvent.IsAnimationEvent() )
-            {
-                continue;
-            }
-
-            //-------------------------------------------------------------------------
-
-            StringID const foundID = sampledEvent.GetStateEventID();
-            if ( foundID.IsValid() )
-            {
-                // Check against the set of events we need to match
-                for ( auto t = 0; t < numConditions; t++ )
-                {
-                    auto const& condition = pNodeSettings->m_conditions[t];
-                    if ( condition.m_eventID == foundID && DoesStateEventTypesMatchCondition( condition.m_eventTypeCondition, sampledEvent.GetStateEventType() ) )
-                    {
-                        // If we have an 'or' operator we can early out here
-                        if ( operatorOr )
-                        {
-                            return true;
-                        }
-                        else
-                        {
-                            foundIDs[t] = true;
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
-        // Ensure that all events have been found
-        for ( auto t = 0; t < numConditions; t++ )
-        {
-            if ( !foundIDs[t] )
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    //-------------------------------------------------------------------------
-
-    void GenericEventPercentageThroughNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
-    {
-        auto pNode = CreateNode<GenericEventPercentageThroughNode>( context, options );
-        context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
-    }
-
-    void GenericEventPercentageThroughNode::InitializeInternal( GraphContext& context )
-    {
-        FloatValueNode::InitializeInternal( context );
-        if ( m_pSourceStateNode != nullptr )
-        {
-            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
-        }
-
-        m_result = false;
-    }
-
-    void GenericEventPercentageThroughNode::GetValueInternal( GraphContext& context, void* pOutValue )
-    {
-        EE_ASSERT( context.IsValid() && pOutValue != nullptr );
-        auto pSettings = GetSettings<GenericEventPercentageThroughNode>();
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )
@@ -290,13 +187,15 @@ namespace EE::Animation::GraphNodes
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
+            StringID foundEventID;
             float foundPercentageThrough = 0.0f;
             float highestWeightFound = -1.0f;
             bool eventFound = false;
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pSettings->m_rules );
-            bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-            bool const preferHigherWeight = pSettings->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
+            auto pDefinition = GetDefinition<IDEventNode>();
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
+            bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            bool const preferHigherWeight = pDefinition->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
 
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
@@ -316,7 +215,119 @@ namespace EE::Animation::GraphNodes
 
                 if ( auto pEvent = pSampledEvent->TryGetEvent<IDEvent>() )
                 {
-                    if ( pSettings->m_eventID != pEvent->GetID() )
+                    bool updateEvent = false;
+
+                    // If we already have a found event then apply priority rule
+                    if ( eventFound )
+                    {
+                        if ( preferHigherWeight )
+                        {
+                            if ( pSampledEvent->GetWeight() >= highestWeightFound )
+                            {
+                                updateEvent = true;
+                            }
+                        }
+                        else // Prefer higher percentage through
+                        {
+                            if ( pSampledEvent->GetPercentageThrough().ToFloat() >= foundPercentageThrough )
+                            {
+                                updateEvent = true;
+                            }
+                        }
+                    }
+                    else // Just update the found data
+                    {
+                        updateEvent = true;
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    if ( updateEvent )
+                    {
+                        foundEventID = pEvent->GetID();
+                        eventFound = true;
+                        foundPercentageThrough = pSampledEvent->GetPercentageThrough().ToFloat();
+                        highestWeightFound = pSampledEvent->GetWeight();
+                    }
+                }
+            }
+
+            // Set the value based on the search
+            //-------------------------------------------------------------------------
+
+            if ( eventFound )
+            {
+                m_value = foundEventID;
+            }
+            else
+            {
+                m_value = pDefinition->m_defaultValue;
+            }
+        }
+
+        // Set Result
+        *( (StringID*) pOutValue ) = m_value;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void IDEventPercentageThroughNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<IDEventPercentageThroughNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+    }
+
+    void IDEventPercentageThroughNode::InitializeInternal( GraphContext& context )
+    {
+        FloatValueNode::InitializeInternal( context );
+        if ( m_pSourceStateNode != nullptr )
+        {
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+        }
+
+        m_result = false;
+    }
+
+    void IDEventPercentageThroughNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() && pOutValue != nullptr );
+
+        // Is the Result up to date?
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
+            //-------------------------------------------------------------------------
+
+            float foundPercentageThrough = 0.0f;
+            float highestWeightFound = -1.0f;
+            bool eventFound = false;
+
+            auto pDefinition = GetDefinition<IDEventPercentageThroughNode>();
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
+            bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            bool const preferHigherWeight = pDefinition->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
+
+            for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
+            {
+                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                {
+                    continue;
+                }
+
+                // Skip events from inactive branch if so requested
+                if ( ignoreInactiveEvents && !pSampledEvent->IsFromActiveBranch() )
+                {
+                    continue;
+                }
+
+                //-------------------------------------------------------------------------
+
+                if ( auto pEvent = pSampledEvent->TryGetEvent<IDEvent>() )
+                {
+                    if ( pDefinition->m_eventID != pEvent->GetID() )
                     {
                         continue;
                     }
@@ -375,7 +386,114 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FootEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void StateEventConditionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<StateEventConditionNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
+    }
+
+    void StateEventConditionNode::InitializeInternal( GraphContext& context )
+    {
+        BoolValueNode::InitializeInternal( context );
+        if ( m_pSourceStateNode != nullptr )
+        {
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+        }
+
+        m_result = false;
+    }
+
+    void StateEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() && pOutValue != nullptr );
+
+        // Is the Result up to date?
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+            m_result = TryMatchTags( context );
+        }
+
+        // Set Result
+        *( (bool*) pOutValue ) = m_result;
+    }
+
+    bool StateEventConditionNode::TryMatchTags( GraphContext& context ) const
+    {
+        auto pNodeDefinition = GetDefinition<StateEventConditionNode>();
+        int32_t const numConditions = (int32_t) pNodeDefinition->m_conditions.size();
+        auto foundIDs = EE_STACK_ARRAY_ALLOC( bool, numConditions );
+        Memory::MemsetZero( foundIDs, sizeof( bool ) * numConditions );
+
+        // Perform search
+        //-------------------------------------------------------------------------
+
+        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pNodeDefinition->m_rules );
+        bool const ignoreInactiveEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+        bool const operatorOr = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::OperatorOr );
+
+        for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
+        {
+            SampledEvent const& sampledEvent = context.m_pSampledEventsBuffer->GetEvent( i );
+
+            if ( sampledEvent.IsIgnored() )
+            {
+                continue;
+            }
+
+            // Skip events from inactive branch if so requested
+            if ( ignoreInactiveEvents && !sampledEvent.IsFromActiveBranch() )
+            {
+                continue;
+            }
+
+            // Only check state events
+            if ( sampledEvent.IsAnimationEvent() )
+            {
+                continue;
+            }
+
+            //-------------------------------------------------------------------------
+
+            StringID const foundID = sampledEvent.GetStateEventID();
+            if ( foundID.IsValid() )
+            {
+                // Check against the set of events we need to match
+                for ( auto t = 0; t < numConditions; t++ )
+                {
+                    auto const& condition = pNodeDefinition->m_conditions[t];
+                    if ( condition.m_eventID == foundID && DoesStateEventTypesMatchCondition( condition.m_eventTypeCondition, sampledEvent.GetStateEventType() ) )
+                    {
+                        // If we have an 'or' operator we can early out here
+                        if ( operatorOr )
+                        {
+                            return true;
+                        }
+                        else
+                        {
+                            foundIDs[t] = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Ensure that all events have been found
+        for ( auto t = 0; t < numConditions; t++ )
+        {
+            if ( !foundIDs[t] )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void FootEventConditionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FootEventConditionNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -395,7 +513,7 @@ namespace EE::Animation::GraphNodes
     void FootEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
-        auto pSettings = GetSettings<FootEventConditionNode>();
+        auto pDefinition = GetDefinition<FootEventConditionNode>();
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )
@@ -408,8 +526,8 @@ namespace EE::Animation::GraphNodes
             bool eventFound = false;
             m_result = false;
 
-            bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pSettings->m_rules );
+            bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
@@ -429,7 +547,7 @@ namespace EE::Animation::GraphNodes
                 if ( auto pEvent = pSampledEvent->TryGetEvent<FootEvent>() )
                 {
                     auto const foot = pEvent->GetFootPhase();
-                    switch ( pSettings->m_phaseCondition )
+                    switch ( pDefinition->m_phaseCondition )
                     {
                         case FootEvent::PhaseCondition::LeftFootDown:
                         {
@@ -489,7 +607,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FootstepEventPercentageThroughNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FootstepEventPercentageThroughNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FootstepEventPercentageThroughNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -509,7 +627,7 @@ namespace EE::Animation::GraphNodes
     void FootstepEventPercentageThroughNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
-        auto pSettings = GetSettings<FootstepEventPercentageThroughNode>();
+        auto pDefinition = GetDefinition<FootstepEventPercentageThroughNode>();
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )
@@ -519,14 +637,14 @@ namespace EE::Animation::GraphNodes
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
-            bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-            bool const preferHigherWeight = pSettings->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
+            bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            bool const preferHigherWeight = pDefinition->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
 
             float foundPercentageThrough = 0.0f;
             float highestWeightFound = -1.0f;
             bool eventFound = false;
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pSettings->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
@@ -546,7 +664,7 @@ namespace EE::Animation::GraphNodes
                 if ( auto pEvent = pSampledEvent->TryGetEvent<FootEvent>() )
                 {
                     auto const foot = pEvent->GetFootPhase();
-                    switch ( pSettings->m_phaseCondition )
+                    switch ( pDefinition->m_phaseCondition )
                     {
                         case FootEvent::PhaseCondition::LeftFootDown:
                         {
@@ -657,7 +775,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FootstepEventIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FootstepEventIDNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FootstepEventIDNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -677,7 +795,7 @@ namespace EE::Animation::GraphNodes
     void FootstepEventIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
-        auto pSettings = GetSettings<FootstepEventPercentageThroughNode>();
+        auto pDefinition = GetDefinition<FootstepEventPercentageThroughNode>();
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )
@@ -687,15 +805,15 @@ namespace EE::Animation::GraphNodes
             // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
             //-------------------------------------------------------------------------
 
-            bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-            bool const preferHigherWeight = pSettings->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
+            bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            bool const preferHigherWeight = pDefinition->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
 
             float foundPercentageThrough = 0.0f;
             float highestWeightFound = -1.0f;
             StringID foundID;
             bool eventFound = false;
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pSettings->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
@@ -759,10 +877,9 @@ namespace EE::Animation::GraphNodes
         *( (StringID*) pOutValue ) = m_result;
     }
 
-
     //-------------------------------------------------------------------------
 
-    void SyncEventIndexConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void SyncEventIndexConditionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<SyncEventIndexConditionNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -778,7 +895,7 @@ namespace EE::Animation::GraphNodes
     void SyncEventIndexConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
-        auto pSettings = GetSettings<SyncEventIndexConditionNode>();
+        auto pDefinition = GetDefinition<SyncEventIndexConditionNode>();
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )
@@ -786,17 +903,17 @@ namespace EE::Animation::GraphNodes
             auto const& sourceStateSyncTrack = m_pSourceStateNode->GetSyncTrack();
             auto currentSyncTime = sourceStateSyncTrack.GetTime( m_pSourceStateNode->GetCurrentTime() );
 
-            switch ( pSettings->m_triggerMode )
+            switch ( pDefinition->m_triggerMode )
             {
                 case TriggerMode::ExactlyAtEventIndex:
                 {
-                    m_result = ( currentSyncTime.m_eventIdx == pSettings->m_syncEventIdx );
+                    m_result = ( currentSyncTime.m_eventIdx == pDefinition->m_syncEventIdx );
                 }
                 break;
 
                 case TriggerMode::GreaterThanEqualToEventIndex:
                 {
-                    m_result = ( currentSyncTime.m_eventIdx >= pSettings->m_syncEventIdx );
+                    m_result = ( currentSyncTime.m_eventIdx >= pDefinition->m_syncEventIdx );
                 }
                 break;
             }
@@ -810,7 +927,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CurrentSyncEventIDNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void CurrentSyncEventIDNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<CurrentSyncEventIDNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -842,7 +959,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CurrentSyncEventIndexNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void CurrentSyncEventIndexNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<CurrentSyncEventIndexNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -874,7 +991,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void CurrentSyncEventPercentageThroughNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void CurrentSyncEventPercentageThroughNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<CurrentSyncEventPercentageThroughNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -906,7 +1023,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TransitionEventConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void TransitionEventConditionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<TransitionEventConditionNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -926,7 +1043,7 @@ namespace EE::Animation::GraphNodes
     void TransitionEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
-        auto pSettings = GetSettings<TransitionEventConditionNode>();
+        auto pDefinition = GetDefinition<TransitionEventConditionNode>();
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )
@@ -937,12 +1054,12 @@ namespace EE::Animation::GraphNodes
             //-------------------------------------------------------------------------
 
             bool eventFound = false;
-            TransitionMarker markerFound = TransitionMarker::AllowTransition;
+            TransitionRule markerFound = TransitionRule::AllowTransition;
 
-            bool const ignoreInactiveEvents = pSettings->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-            bool const preferHigherWeight = pSettings->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
+            bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            bool const preferHigherWeight = pDefinition->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pSettings->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
@@ -959,13 +1076,13 @@ namespace EE::Animation::GraphNodes
 
                 if ( auto pEvent = pSampledEvent->TryGetEvent<TransitionEvent>() )
                 {
-                    if ( pSettings->m_markerIDToMatch != pEvent->GetMarkerID() )
+                    if ( pDefinition->m_requireRuleID != pEvent->GetOptionalID() )
                     {
                        continue;
                     }
 
                     eventFound = true;
-                    auto const eventMarker = pEvent->GetMarker();
+                    auto const eventMarker = pEvent->GetRule();
 
                     // We return the most restrictive marker found
                     if ( eventMarker > markerFound )
@@ -982,22 +1099,22 @@ namespace EE::Animation::GraphNodes
 
             if ( eventFound )
             {
-                switch ( pSettings->m_markerCondition )
+                switch ( pDefinition->m_ruleCondition )
                 {
-                    case TransitionMarkerCondition::AnyAllowed:
-                    m_result = ( markerFound != TransitionMarker::BlockTransition );
+                    case TransitionRuleCondition::AnyAllowed:
+                    m_result = ( markerFound != TransitionRule::BlockTransition );
                     break;
 
-                    case TransitionMarkerCondition::FullyAllowed:
-                    m_result = ( markerFound == TransitionMarker::AllowTransition );
+                    case TransitionRuleCondition::FullyAllowed:
+                    m_result = ( markerFound == TransitionRule::AllowTransition );
                     break;
 
-                    case TransitionMarkerCondition::ConditionallyAllowed:
-                    m_result = ( markerFound == TransitionMarker::ConditionallyAllowTransition );
+                    case TransitionRuleCondition::ConditionallyAllowed:
+                    m_result = ( markerFound == TransitionRule::ConditionallyAllowTransition );
                     break;
 
-                    case TransitionMarkerCondition::Blocked:
-                    m_result = ( markerFound == TransitionMarker::BlockTransition );
+                    case TransitionRuleCondition::Blocked:
+                    m_result = ( markerFound == TransitionRule::BlockTransition );
                     break;
                 }
             }

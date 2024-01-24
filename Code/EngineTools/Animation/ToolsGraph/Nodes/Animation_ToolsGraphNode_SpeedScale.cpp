@@ -16,8 +16,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t SpeedScaleToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        SpeedScaleNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<SpeedScaleNode>( this, pSettings );
+        SpeedScaleNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<SpeedScaleNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -26,7 +26,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_childNodeIdx = compiledNodeIdx;
+                    pDefinition->m_childNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -47,7 +47,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_scaleValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_scaleValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -62,9 +62,9 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_blendInTime = m_blendInTime;
+            pDefinition->m_blendInTime = m_blendInTime;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -79,8 +79,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t DurationScaleToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        DurationScaleNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<DurationScaleNode>( this, pSettings );
+        DurationScaleNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<DurationScaleNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -89,7 +89,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_childNodeIdx = compiledNodeIdx;
+                    pDefinition->m_childNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -110,7 +110,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_durationValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_durationValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -129,8 +129,8 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        pSettings->m_desiredDuration = m_desiredDuration;
-        return pSettings->m_nodeIdx;
+        pDefinition->m_desiredDuration = m_desiredDuration;
+        return pDefinition->m_nodeIdx;
     }
 
     void DurationScaleToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -156,8 +156,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t VelocityBasedSpeedScaleToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        VelocityBasedSpeedScaleNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<VelocityBasedSpeedScaleNode>( this, pSettings );
+        VelocityBasedSpeedScaleNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<VelocityBasedSpeedScaleNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -166,7 +166,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_childNodeIdx = compiledNodeIdx;
+                    pDefinition->m_childNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -187,7 +187,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_desiredVelocityValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_desiredVelocityValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -202,8 +202,8 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_blendInTime = m_blendTime;
+            pDefinition->m_blendInTime = m_blendTime;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 }

@@ -253,41 +253,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    InlineString AnimationDebugView::ResolveEventDebugPath( GraphInstance const* pGraphInstance, int32_t sampledEventIdx )
-    {
-        SampledEventsBuffer const& sampledEvents = pGraphInstance->GetSampledEvents();
-        SampledEvent const& sampledEvent = sampledEvents.GetEvent( sampledEventIdx );
-
-        //-------------------------------------------------------------------------
-
-        InlineString pathStr;
-
-        GraphInstance const* pFinalGraphInstance = pGraphInstance;
-
-        // Resolve debug path to the final graph instance
-        TInlineVector<int16_t, 5> const& graphDebugPath = sampledEvents.m_eventDebugGraphPaths[sampledEventIdx];
-        if ( !graphDebugPath.empty() )
-        {
-            for ( int16_t pathNodeIdx : graphDebugPath )
-            {
-                pathStr.append_sprintf( "%s/", pFinalGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( pathNodeIdx ).c_str() );
-                pFinalGraphInstance = pFinalGraphInstance->GetChildOrExternalGraphDebugInstance( pathNodeIdx );
-
-                // This should only ever happen if we detach an external graph directly after updating a graph instance and before drawing this debug display
-                if ( pFinalGraphInstance == nullptr )
-                {
-                    pathStr.append( "UNKNOWN GRAPH" );
-                    return pathStr;
-                }
-            }
-        }
-
-        // Add node name
-        pathStr += pFinalGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( sampledEvent.GetSourceNodeIndex() ).c_str();
-        return pathStr;
-    }
-
-    void AnimationDebugView::DrawSampledAnimationEventsView( GraphInstance* pGraphInstance )
+    void AnimationDebugView::DrawSampledAnimationEventsView( GraphInstance* pGraphInstance, TFunction<void( SampledEventDebugPath const& )> const& navigateToNodeFunc )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
         {
@@ -333,6 +299,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
                 if ( sampledEvent.IsFromActiveBranch() )
                 {
                     ImGui::TextColored( Colors::Lime.ToFloat4(), EE_ICON_SOURCE_BRANCH_CHECK );
@@ -371,8 +338,19 @@ namespace EE::Animation
                 ImGuiX::TextTooltip( debugString.c_str() );
 
                 ImGui::TableNextColumn();
-                InlineString const sourcePath = ResolveEventDebugPath( pGraphInstance, i );
-                ImGui::Text( sourcePath.c_str() );
+                SampledEventDebugPath const path = pGraphInstance->GetSampledEventDebugPath( i );
+                InlineString const sourcePath = path.GetFlattenedPath();
+                if ( navigateToNodeFunc != nullptr )
+                {
+                    if ( ImGuiX::FlatButton( sourcePath.c_str() ) )
+                    {
+                        navigateToNodeFunc( path );
+                    }
+                }
+                else
+                {
+                    ImGui::Text( sourcePath.c_str() );
+                }
                 ImGuiX::TextTooltip( sourcePath.c_str() );
             }
 
@@ -385,7 +363,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawSampledStateEventsView( GraphInstance* pGraphInstance )
+    void AnimationDebugView::DrawSampledStateEventsView( GraphInstance* pGraphInstance, TFunction<void( SampledEventDebugPath const& )> const& navigateToNodeFunc )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
         {
@@ -431,6 +409,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
                 if ( sampledEvent.IsFromActiveBranch() )
                 {
                     ImGui::TextColored( Colors::Lime.ToFloat4(), EE_ICON_SOURCE_BRANCH_CHECK );
@@ -472,8 +451,19 @@ namespace EE::Animation
                 }
 
                 ImGui::TableNextColumn();
-                InlineString const sourcePath = ResolveEventDebugPath( pGraphInstance, i );
-                ImGui::Text( sourcePath.c_str() );
+                SampledEventDebugPath const path = pGraphInstance->GetSampledEventDebugPath( i );
+                InlineString const sourcePath = path.GetFlattenedPath();
+                if ( navigateToNodeFunc != nullptr )
+                {
+                    if ( ImGuiX::FlatButton( sourcePath.c_str() ) )
+                    {
+                        navigateToNodeFunc( path );
+                    }
+                }
+                else
+                {
+                    ImGui::Text( sourcePath.c_str() );
+                }
                 ImGuiX::TextTooltip( sourcePath.c_str() );
             }
 
@@ -486,7 +476,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawCombinedSampledEventsView( GraphInstance* pGraphInstance )
+    void AnimationDebugView::DrawCombinedSampledEventsView( GraphInstance* pGraphInstance, TFunction<void( SampledEventDebugPath const& )> const& navigateToNodeFunc )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
         {
@@ -496,8 +486,8 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        DrawSampledAnimationEventsView( pGraphInstance );
-        DrawSampledStateEventsView( pGraphInstance );
+        DrawSampledAnimationEventsView( pGraphInstance, navigateToNodeFunc );
+        DrawSampledStateEventsView( pGraphInstance, navigateToNodeFunc );
     }
 
     //-------------------------------------------------------------------------

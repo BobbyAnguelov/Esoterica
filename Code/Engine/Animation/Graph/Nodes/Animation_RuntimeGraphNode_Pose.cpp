@@ -8,7 +8,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ZeroPoseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ZeroPoseNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         CreateNode<ZeroPoseNode>( context, options );
     }
@@ -34,7 +34,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ReferencePoseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ReferencePoseNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         CreateNode<ReferencePoseNode>( context, options );
     }
@@ -60,7 +60,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void AnimationPoseNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void AnimationPoseNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<AnimationPoseNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_poseTimeValueNodeIdx, pNode->m_pPoseTimeValue );
@@ -132,17 +132,17 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            auto pSettings = GetSettings<AnimationPoseNode>();
-            float timeValue = ( m_pPoseTimeValue != nullptr ) ? m_pPoseTimeValue->GetValue<float>( context ) : pSettings->m_userSpecifiedTime;
+            auto pDefinition = GetDefinition<AnimationPoseNode>();
+            float timeValue = ( m_pPoseTimeValue != nullptr ) ? m_pPoseTimeValue->GetValue<float>( context ) : pDefinition->m_userSpecifiedTime;
 
             // Optional Remap
-            if ( pSettings->m_inputTimeRemapRange.IsSet() )
+            if ( pDefinition->m_inputTimeRemapRange.IsSet() )
             {
-                timeValue = pSettings->m_inputTimeRemapRange.GetPercentageThroughClamped( timeValue );
+                timeValue = pDefinition->m_inputTimeRemapRange.GetPercentageThroughClamped( timeValue );
             }
 
             // Convert to percentage
-            if ( pSettings->m_useFramesAsInput )
+            if ( pDefinition->m_useFramesAsInput )
             {
                 timeValue = timeValue / ( m_pAnimation->GetNumFrames() - 1 );
             }

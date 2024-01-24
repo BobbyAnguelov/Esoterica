@@ -79,6 +79,12 @@ namespace EE::FileSystem
         // Append a string to the end of the path. Optional specify if we should add a path delimiter at the end of the appended string
         inline Path& Append( String const& pathString, bool asDirectory = false ) { return Append( pathString.c_str(), asDirectory ); }
 
+        // Get this path with the specified string appended
+        inline Path GetAppended( char const* pPathString, bool asDirectory = false ) const { Path p = *this; p.Append( pPathString, asDirectory ); return p; }
+
+        // Get this path with the specified string appended
+        inline Path GetAppended( String const& pathString, bool asDirectory = false ) const { return GetAppended( pathString.c_str(), asDirectory ); }
+
         inline Path& operator+=( char const* pPathString ) { return Append( pPathString ); }
         inline Path operator+( char const* pPathString ) const { return Path( m_fullpath ).Append( pPathString ); }
         inline Path& operator+=( String const& pathString ) { return Append( pathString.c_str() ); }

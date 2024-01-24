@@ -1,14 +1,18 @@
 #pragma once
 
-#include "DebugView.h"
+#include "Engine/DebugViews/DebugView.h"
 #include "Base/Input/InputDevices/InputDevice_Controller.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE { class PlayerManager; }
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Input
 {
-    class ControllerInputDevice;
+    class ControllerDevice;
     class InputSystem;
 
     //-------------------------------------------------------------------------
@@ -28,11 +32,13 @@ namespace EE::Input
         virtual void DrawMenu( EntityWorldUpdateContext const& context ) override;
         virtual void Update( EntityWorldUpdateContext const& context ) override;
 
-        void DrawControllerState( ControllerInputDevice const& controllerState );
+        void DrawVirtualInputState( EntityWorldUpdateContext const& context );
+        void DrawControllerState( EntityWorldUpdateContext const& context, ControllerDevice const& controllerState );
 
     private:
 
         InputSystem*                                    m_pInputSystem = nullptr;
+        PlayerManager*                                  m_pPlayerManager = nullptr;
         int32_t                                         m_numControllers = 0;
     };
 }

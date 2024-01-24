@@ -21,8 +21,8 @@ namespace EE::TypeSystem::Reflection
         {
             HeaderTimestamp( HeaderID ID, uint64_t timestamp ) : m_ID( ID ), m_timestamp( timestamp ) {}
 
-            HeaderID    m_ID;
-            uint64_t         m_timestamp;
+            HeaderID                        m_ID;
+            uint64_t                        m_timestamp;
         };
 
     public:
@@ -35,13 +35,14 @@ namespace EE::TypeSystem::Reflection
 
     private:
 
-        bool LogError( char const* pErrorFormat, ... ) const;
+        bool LogError( char const* pFormat, ... ) const;
+        void LogWarning( char const* pFormat, ... ) const;
+
         bool ParseProject( FileSystem::Path const& prjPath );
 
         HeaderProcessResult ProcessHeaderFile( FileSystem::Path const& filePath, String& exportMacro, TVector<String>& headerFileContents );
         uint64_t CalculateHeaderChecksum( FileSystem::Path const& engineIncludePath, FileSystem::Path const& filePath );
 
-        bool UpToDateCheck();
         bool ReflectRegisteredHeaders();
         bool WriteTypeData();
 

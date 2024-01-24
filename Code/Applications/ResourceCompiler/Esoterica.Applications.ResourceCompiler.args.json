@@ -3,8 +3,12 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
-      "Id": "3ddf372e-8ad8-4e0f-9172-741510aab22d",
-      "Command": "-compile data://player/player_locomotion@default.agv"
+      "Id": "a8475e1e-a91f-4234-b7dd-2b83403e8fc3",
+      "Command": "-compile data://player/playergraph@default.agv"
+    },
+    {
+      "Id": "4399bc33-52c8-41c1-b7c5-840f37872acd",
+      "Command": "-compile data://physics/physicsmaterials.pmdb"
     },
     {
       "Id": "e7a145ad-0cf9-474d-a41d-4f0ad9fb93b6",
@@ -36,7 +40,7 @@
     },
     {
       "Id": "9a2b7146-3a7b-4e5e-b3c8-7d7d7bc1fc1d",
-      "Command": "-compile data://editor/floor/floor.txtr"
+      "Command": "-compile data://demo/demograph.ag/default.agv"
     },
     {
       "Id": "30e1850b-75a6-47ae-86d4-0cf753a84acd",

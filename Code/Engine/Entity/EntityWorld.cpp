@@ -1,5 +1,6 @@
 #include "EntityWorld.h"
 #include "EntityWorldUpdateContext.h"
+#include "EntityWorldSettings.h"
 #include "Base/Resource/ResourceSystem.h"
 #include "Base/Profiling.h"
 #include "Base/TypeSystem/TypeRegistry.h"
@@ -88,6 +89,19 @@ namespace EE
             }
         }
 
+        // Create World Settings
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( m_pSettingsRegistry == nullptr );
+        m_pSettingsRegistry = systemsRegistry.GetSystem<Settings::SettingsRegistry>();
+        m_pSettingsRegistry->CreateGroup( m_worldID.m_value );
+
+        TVector<TypeSystem::TypeInfo const*> settingsTypes = m_loadingContext.m_pTypeRegistry->GetAllDerivedTypes( IEntityWorldSettings::GetStaticTypeID(), false, false, false );
+        for ( auto pTypeInfo : settingsTypes )
+        {
+            m_pSettingsRegistry->CreateSettings( m_worldID.m_value, pTypeInfo );
+        }
+
         // Create and initialize the persistent map
         //-------------------------------------------------------------------------
 
@@ -116,6 +130,12 @@ namespace EE
         {
             UpdateLoading();
         }
+
+        // Destroy all settings
+        //-------------------------------------------------------------------------
+
+        m_pSettingsRegistry->DestroyGroup( m_worldID.m_value );
+        m_pSettingsRegistry = nullptr;
 
         // Shutdown all world systems
         //-------------------------------------------------------------------------

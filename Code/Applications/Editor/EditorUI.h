@@ -36,7 +36,7 @@ namespace EE
         public:
 
             ResourceID          m_resourceID;
-            EditorTool*          m_pEditorTool = nullptr;
+            EditorTool*         m_pEditorTool = nullptr;
             Type                m_type = ResourceEditor;
         };
 
@@ -107,6 +107,22 @@ namespace EE
         // Copy the layout from one editor tool to the other
         void ToolLayoutCopy( EditorTool* pSourceTool );
 
+        // Check if the tool is currently open
+        template<typename T>
+        inline bool IsToolOpen() const
+        {
+            static_assert( std::is_base_of<EE::EditorTool, T>::value, "T is not derived from EditorTool" );
+            for ( auto pEditorTool : m_editorTools )
+            {
+                if ( pEditorTool->GetUniqueTypeID() == T::s_toolTypeID )
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         // Get the first created editor tool of a specified type
         template<typename T>
         inline T* GetTool() const
@@ -131,10 +147,25 @@ namespace EE
 
             if ( T::s_isSingleton )
             {
+                // Check for already created tools
                 auto pExistingTool = GetTool<T>();
                 if( pExistingTool != nullptr )
                 {
                     return pExistingTool;
+                }
+
+                // Check for already queued creation request
+                for ( auto const& creationRequest : m_editorToolCreationRequests )
+                {
+                    if ( creationRequest.m_pEditorTool == nullptr )
+                    {
+                        continue;
+                    }
+
+                    if ( creationRequest.m_pEditorTool->GetUniqueTypeID() == T::s_toolTypeID )
+                    {
+                        return static_cast<T*>( creationRequest.m_pEditorTool );
+                    }
                 }
             }
 

@@ -154,6 +154,66 @@ namespace EE::VisualGraph::Flow
 
     //-------------------------------------------------------------------------
 
+    template<size_t N>
+    static void ReorderPinArray( TVector<UUID> const& newOrder, TInlineVector<Pin, N>& pins )
+    {
+        // Create unique order list
+        //-------------------------------------------------------------------------
+
+        TInlineVector<UUID, N> uniqueOrder;
+        for ( int32_t i = 0; i < newOrder.size(); i++ )
+        {
+            VectorEmplaceBackUnique( uniqueOrder, newOrder[i] );
+        }
+
+        // Find all pins that we need to re-order
+        //-------------------------------------------------------------------------
+
+        TInlineVector<int32_t, N> pinsToReorder;
+
+        for ( int32_t pinIdx = 0; pinIdx < pins.size(); pinIdx++ )
+        {
+            if ( VectorContains( uniqueOrder, pins[pinIdx].m_ID ) )
+            {
+                pinsToReorder.emplace_back( pinIdx );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        TInlineVector<Pin, N> reorderedList;
+        reorderedList.resize( pinsToReorder.size() );
+
+        for ( int32_t i = 0; i < pinsToReorder.size(); i++ )
+        {
+            int32_t const pinIdx = pinsToReorder[i];
+            UUID const& pinID = pins[pinIdx].m_ID;
+            int32_t const newIdx = VectorFindIndex( uniqueOrder, pinID );
+            reorderedList[newIdx] = pins[pinIdx];
+        }
+
+        // Update order
+        //-------------------------------------------------------------------------
+
+        for ( int32_t i = 0; i < pinsToReorder.size(); i++ )
+        {
+            int32_t const pinIdx = pinsToReorder[i];
+            pins[pinIdx] = reorderedList[i];
+        }
+    }
+
+    void Node::ReorderInputPins( TVector<UUID> const& newOrder )
+    {
+        ReorderPinArray( newOrder, m_inputPins );
+    }
+
+    void Node::ReorderOutputPins( TVector<UUID> const& newOrder )
+    {
+        ReorderPinArray( newOrder, m_outputPins );
+    }
+
+    //-------------------------------------------------------------------------
+
     Flow::Node* Node::GetConnectedInputNode( int32_t inputPinIdx ) const
     {
         EE_ASSERT( inputPinIdx >= 0 && inputPinIdx < m_inputPins.size() );
@@ -180,6 +240,11 @@ namespace EE::VisualGraph::Flow
             pin.m_name = pinObjectValue[Pin::s_nameKey].GetString();
             pin.m_type = StringID( pinObjectValue[Pin::s_typeKey].GetString() );
             pin.m_isDynamic = pinObjectValue[Pin::s_dynamicKey].GetBool();
+
+            if ( pinObjectValue.HasMember( Pin::s_userDataKey ) )
+            {
+                pin.m_userData = pinObjectValue[Pin::s_userDataKey].GetUint64();
+            }
         }
 
         //-------------------------------------------------------------------------
@@ -193,6 +258,11 @@ namespace EE::VisualGraph::Flow
             pin.m_name = pinObjectValue[Pin::s_nameKey].GetString();
             pin.m_type = StringID( pinObjectValue[Pin::s_typeKey].GetString() );
             pin.m_allowMultipleOutConnections = pinObjectValue[Pin::s_allowMultipleConnectionsKey].GetBool();
+
+            if ( pinObjectValue.HasMember( Pin::s_userDataKey ) )
+            {
+                pin.m_userData = pinObjectValue[Pin::s_userDataKey].GetUint64();
+            }
         }
 
         // Default pins
@@ -264,6 +334,12 @@ namespace EE::VisualGraph::Flow
             writer.Key( Pin::s_dynamicKey );
             writer.Bool( pin.m_isDynamic );
 
+            if ( pin.m_userData != 0 )
+            {
+                writer.Key( Pin::s_userDataKey );
+                writer.Uint64( pin.m_userData );
+            }
+
             writer.EndObject();
         }
         writer.EndArray();
@@ -286,6 +362,12 @@ namespace EE::VisualGraph::Flow
 
             writer.Key( Pin::s_typeKey );
             writer.String( pin.m_type.IsValid() ? pin.m_type.c_str() : "" );
+
+            if ( pin.m_userData != 0 )
+            {
+                writer.Key( Pin::s_userDataKey );
+                writer.Uint64( pin.m_userData );
+            }
 
             writer.Key( Pin::s_allowMultipleConnectionsKey );
             writer.Bool( pin.m_allowMultipleOutConnections );
@@ -503,6 +585,20 @@ namespace EE::VisualGraph
             {
                 EE_ASSERT( connection.m_pEndNode == GetNodeForPinID( pinID ) );
                 return connection.m_pStartNode;
+            }
+        }
+
+        return nullptr;
+    }
+
+    Flow::Connection const* FlowGraph::GetConnectionForInputPin( UUID const& pinID ) const
+    {
+        for ( auto const& connection : m_connections )
+        {
+            if ( connection.m_endPinID == pinID )
+            {
+                EE_ASSERT( connection.m_pEndNode == GetNodeForPinID( pinID ) );
+                return &connection;
             }
         }
 

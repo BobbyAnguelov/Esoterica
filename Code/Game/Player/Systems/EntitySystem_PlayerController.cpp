@@ -55,6 +55,7 @@ namespace EE::Player
         {
             EE_ASSERT( m_actionContext.m_pPlayerComponent == nullptr );
             m_actionContext.m_pPlayerComponent = pPlayerComponent;
+            m_actionContext.m_pInputRegistry = pPlayerComponent->GetInputRegistry();
         }
 
         else if ( auto pCharacterMeshComponent = TryCast<Render::CharacterMeshComponent>( pComponent ) )
@@ -100,6 +101,7 @@ namespace EE::Player
         {
             EE_ASSERT( m_actionContext.m_pPlayerComponent == pPlayerComponent );
             m_actionStateMachine.ForceStopAllRunningActions();
+            m_actionContext.m_pInputRegistry = nullptr;
             m_actionContext.m_pPlayerComponent = nullptr;
         }
 
@@ -138,7 +140,7 @@ namespace EE::Player
 
         TScopedGuardValue const contextGuardValue( m_actionContext.m_pEntityWorldUpdateContext, &ctx );
         TScopedGuardValue const physicsSystemGuard( m_actionContext.m_pPhysicsWorld, ctx.GetWorldSystem<Physics::PhysicsWorldSystem>()->GetWorld() );
-        TScopedGuardValue const inputStateGuardValue( m_actionContext.m_pInputState, ctx.GetInputState() );
+        TScopedGuardValue<Input::InputSystem const*> const inputStateGuardValue( m_actionContext.m_pInputSystem, ctx.GetSystem<Input::InputSystem>() );
 
         if ( !m_actionContext.IsValid() )
         {

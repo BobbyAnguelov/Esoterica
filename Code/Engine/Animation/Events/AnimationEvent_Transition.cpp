@@ -30,17 +30,17 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    char const* GetTransitionMarkerName( TransitionMarker marker )
+    char const* GetTransitionRuleName( TransitionRule marker )
     {
         return g_markerNames[(int32_t) marker];
     }
 
-    char const* GetTransitionMarkerConditionName( TransitionMarkerCondition markerCondition )
+    char const* GetTransitionRuleConditionName( TransitionRuleCondition markerCondition )
     {
         return g_markerConditionNames[(int32_t) markerCondition];
     }
 
-    Color GetTransitionMarkerColor( TransitionMarker marker )
+    Color GetTransitionMarkerColor( TransitionRule marker )
     {
         return g_markerColors[(int32_t) marker];
     }

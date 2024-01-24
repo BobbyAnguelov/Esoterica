@@ -148,11 +148,9 @@
     <ClCompile Include="Clang\ClangVisitors_Macro.cpp" />
     <ClCompile Include="Clang\ClangVisitors_Structure.cpp" />
     <ClCompile Include="Clang\ClangVisitors_TranslationUnit.cpp" />
-    <ClCompile Include="CodeGenerators\CodeGenerator_CPP.cpp" />
-    <ClCompile Include="CodeGenerators\CodeGenerator_CPP_Type.cpp" />
+    <ClCompile Include="CodeGenerator.cpp" />
     <ClCompile Include="Database\ReflectionDatabase.cpp" />
     <ClCompile Include="Database\ReflectionDataTypes.cpp" />
-    <ClCompile Include="CodeGenerators\CodeGenerator_CPP_Enum.cpp" />
     <ClCompile Include="ReflectorSettingsAndUtils.cpp" />
     <ClCompile Include="Reflector.cpp" />
   </ItemGroup>
@@ -164,9 +162,7 @@
     <ClInclude Include="Clang\ClangVisitors_Macro.h" />
     <ClInclude Include="Clang\ClangVisitors_Structure.h" />
     <ClInclude Include="Clang\ClangVisitors_TranslationUnit.h" />
-    <ClInclude Include="CodeGenerators\CodeGenerator_CPP.h" />
-    <ClInclude Include="CodeGenerators\CodeGenerator_CPP_Type.h" />
-    <ClInclude Include="CodeGenerators\CodeGenerator_CPP_Enum.h" />
+    <ClInclude Include="CodeGenerator.h" />
     <ClInclude Include="Database\ReflectionDatabase.h" />
     <ClInclude Include="Database\ReflectionDataTypes.h" />
     <ClInclude Include="Database\ReflectionProjectTypes.h" />

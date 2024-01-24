@@ -7,6 +7,7 @@
 #include "Engine/Render/Components/Component_Lights.h"
 #include "Engine/Render/Components/Component_EnvironmentMaps.h"
 #include "Engine/Render/Shaders/EngineShaders.h"
+#include "Engine/Render/Settings/WorldSettings_Render.h"
 #include "Base/Render/RenderCoreResources.h"
 #include "Base/Render/RenderViewport.h"
 #include "Base/Drawing/DebugDrawing.h"
@@ -17,17 +18,10 @@
 namespace EE::Render
 {
     void RendererWorldSystem::InitializeSystem( SystemRegistry const& systemRegistry )
-    {
-        m_staticMeshMobilityChangedEventBinding = StaticMeshComponent::OnMobilityChanged().Bind( [this] ( StaticMeshComponent* pMeshComponent ) { OnStaticMeshMobilityUpdated( pMeshComponent ); } );
-        m_staticMeshStaticTransformUpdatedEventBinding = StaticMeshComponent::OnStaticMobilityTransformUpdated().Bind( [this] ( StaticMeshComponent* pMeshComponent ) { OnStaticMobilityComponentTransformUpdated( pMeshComponent ); } );
-    }
+    {}
 
     void RendererWorldSystem::ShutdownSystem()
     {
-        // Unbind mobility change handler and remove from various lists
-        StaticMeshComponent::OnStaticMobilityTransformUpdated().Unbind( m_staticMeshStaticTransformUpdatedEventBinding );
-        StaticMeshComponent::OnMobilityChanged().Unbind( m_staticMeshMobilityChangedEventBinding );
-
         EE_ASSERT( m_registeredStaticMeshComponents.empty() );
         EE_ASSERT( m_registeredSkeletalMeshComponents.empty() );
         EE_ASSERT( m_skeletalMeshGroups.empty() );
@@ -141,52 +135,16 @@ namespace EE::Render
         // Add to appropriate sub-list
         if ( pMeshComponent->HasMeshResourceSet() )
         {
-            if ( pMeshComponent->GetMobility() == Mobility::Dynamic )
-            {
-                m_dynamicStaticMeshComponents.Add( pMeshComponent );
-            }
-            else
-            {
-                m_staticStaticMeshComponents.Add( pMeshComponent );
-                m_staticMobilityTree.InsertBox( pMeshComponent->GetWorldBounds().GetAABB(), pMeshComponent );
-            }
+            m_staticMeshComponents.Add( pMeshComponent );
         }
     }
 
     void RendererWorldSystem::UnregisterStaticMeshComponent( Entity const* pEntity, StaticMeshComponent* pMeshComponent )
     {
-        // Unregistrations occur at the start of the frame
-        // The world might be paused so we might leave an invalid component in this array
-        m_visibleStaticMeshComponents.clear();
-
         if ( pMeshComponent->HasMeshResourceSet() )
         {
-            // Remove from any transform update lists
-            int32_t const staticMobilityTransformListIdx = VectorFindIndex( m_staticMobilityTransformUpdateList, pMeshComponent );
-            if ( staticMobilityTransformListIdx != InvalidIndex )
-            {
-                m_staticMobilityTransformUpdateList.erase_unsorted( m_staticMobilityTransformUpdateList.begin() + staticMobilityTransformListIdx );
-            }
-
-            // Get the real mobility of the component
-            Mobility realMobility = pMeshComponent->GetMobility();
-            int32_t const mobilityListIdx = VectorFindIndex( m_mobilityUpdateList, pMeshComponent );
-            if ( mobilityListIdx != InvalidIndex )
-            {
-                realMobility = ( realMobility == Mobility::Dynamic ) ? Mobility::Static : Mobility::Dynamic;
-                m_mobilityUpdateList.erase_unsorted( m_mobilityUpdateList.begin() + mobilityListIdx );
-            }
-
             // Remove from the relevant runtime list
-            if ( realMobility == Mobility::Dynamic )
-            {
-                m_dynamicStaticMeshComponents.Remove( pMeshComponent->GetID() );
-            }
-            else
-            {
-                m_staticStaticMeshComponents.Remove( pMeshComponent->GetID() );
-                m_staticMobilityTree.RemoveBox( pMeshComponent );
-            }
+            m_staticMeshComponents.Remove( pMeshComponent->GetID() );
         }
 
         // Remove record
@@ -249,68 +207,16 @@ namespace EE::Render
         EE_ASSERT( ( ctx.GetUpdateStage() == UpdateStage::Paused ) ? ctx.IsWorldPaused() : true );
 
         //-------------------------------------------------------------------------
-        // Mobility Updates
-        //-------------------------------------------------------------------------
-
-        for ( auto pMeshComponent : m_mobilityUpdateList )
-        {
-            Mobility const mobility = pMeshComponent->GetMobility();
-
-            // Convert from static to dynamic
-            if ( mobility == Mobility::Dynamic )
-            {
-                m_staticMobilityTree.RemoveBox( pMeshComponent );
-                m_staticStaticMeshComponents.Remove( pMeshComponent->GetID() );
-                m_dynamicStaticMeshComponents.Add( pMeshComponent );
-            }
-            else // Convert from dynamic to static
-            {
-                m_dynamicStaticMeshComponents.Remove( pMeshComponent->GetID() );
-                m_staticStaticMeshComponents.Add( pMeshComponent );
-                m_staticMobilityTree.InsertBox( pMeshComponent->GetWorldBounds().GetAABB(), pMeshComponent );
-            }
-        }
-
-        m_mobilityUpdateList.clear();
-
-        //-------------------------------------------------------------------------
-
-        for ( auto pMeshComponent : m_staticMobilityTransformUpdateList )
-        {
-            if ( ctx.IsGameWorld() )
-            {
-                EE_LOG_ENTITY_ERROR( pMeshComponent, "Render", "Someone moved a mesh with static mobility: %s with entity ID %u. This should not be done!", pMeshComponent->GetNameID().c_str(), pMeshComponent->GetEntityID().m_value );
-            }
-
-            m_staticMobilityTree.RemoveBox( pMeshComponent );
-            m_staticMobilityTree.InsertBox( pMeshComponent->GetWorldBounds().GetAABB(), pMeshComponent );
-        }
-
-        m_staticMobilityTransformUpdateList.clear();
-
-        //-------------------------------------------------------------------------
         // Culling
         //-------------------------------------------------------------------------
 
         AABB const viewBounds = ctx.GetViewport()->GetViewVolume().GetAABB();
 
         m_visibleStaticMeshComponents.clear();
-        {
-            EE_PROFILE_SCOPE_RENDER( "Static Mesh AABB Cull" );
-            m_staticMobilityTree.FindOverlaps( viewBounds, m_visibleStaticMeshComponents );
 
-            for ( int32_t i = int32_t( m_visibleStaticMeshComponents.size() ) - 1; i >= 0 ; i-- )
-            {
-                if ( !m_visibleStaticMeshComponents[i]->IsVisible() )
-                {
-                    m_visibleStaticMeshComponents.erase_unsorted( m_visibleStaticMeshComponents.begin() + i );
-                }
-            }
-        }
-
-        for ( auto pMeshComponent : m_dynamicStaticMeshComponents )
+        for ( auto const& pMeshComponent : m_staticMeshComponents )
         {
-            EE_PROFILE_SCOPE_RENDER( "Static Mesh Dynamic Cull" );
+            EE_PROFILE_SCOPE_RENDER( "Static Mesh Cull" );
 
             if ( pMeshComponent->IsVisible() && viewBounds.Overlaps( pMeshComponent->GetWorldBounds() ) )
             {
@@ -318,13 +224,11 @@ namespace EE::Render
             }
         }
 
-        //-------------------------------------------------------------------------
-
         m_visibleSkeletalMeshComponents.clear();
 
         for ( auto const& meshGroup : m_skeletalMeshGroups )
         {
-            EE_PROFILE_SCOPE_RENDER( "Skeletal Mesh Dynamic Cull" );
+            EE_PROFILE_SCOPE_RENDER( "Skeletal Mesh Cull" );
 
             for ( auto pMeshComponent : meshGroup.m_components )
             {
@@ -340,9 +244,12 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
+
+        auto const* pRenderSettings = ctx.GetSettings<Render::RenderWorldSettings>();
+
         Drawing::DrawContext drawCtx = ctx.GetDrawingContext();
 
-        if ( m_showStaticMeshBounds )
+        if ( pRenderSettings->m_showStaticMeshBounds )
         {
             for ( auto const& pMeshComponent : m_registeredStaticMeshComponents )
             {
@@ -361,7 +268,7 @@ namespace EE::Render
 
         for ( auto const& pMeshComponent : m_registeredSkeletalMeshComponents )
         {
-            if ( m_showSkeletalMeshBounds )
+            if ( pRenderSettings->m_showSkeletalMeshBounds )
             {
                 if ( pMeshComponent->IsVisible() )
                 {
@@ -375,50 +282,16 @@ namespace EE::Render
                 }
             }
 
-            if ( m_showSkeletalMeshBones )
+            if ( pRenderSettings->m_showSkeletalMeshBones )
             {
                 pMeshComponent->DrawPose( drawCtx );
             }
 
-            if ( m_showSkeletalMeshBindPoses )
+            if ( pRenderSettings->m_showSkeletalMeshBindPoses )
             {
                 pMeshComponent->GetMesh()->DrawBindPose( drawCtx, pMeshComponent->GetWorldTransform() );
             }
         }
         #endif
-    }
-
-    //-------------------------------------------------------------------------
-
-    void RendererWorldSystem::OnStaticMeshMobilityUpdated( StaticMeshComponent* pComponent )
-    {
-        EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() );
-
-        if ( m_registeredStaticMeshComponents.HasItemForID( pComponent->GetID() ) )
-        {
-            Threading::ScopeLock lock( m_mobilityUpdateListLock );
-            EE_ASSERT( !VectorContains( m_mobilityUpdateList, pComponent ) );
-            m_mobilityUpdateList.emplace_back( pComponent );
-        }
-    }
-
-    void RendererWorldSystem::OnStaticMobilityComponentTransformUpdated( StaticMeshComponent* pComponent )
-    {
-        EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() );
-        EE_ASSERT( pComponent->GetMobility() == Mobility::Static );
-
-        if ( !pComponent->HasMeshResourceSet() )
-        {
-            return;
-        }
-
-        if ( m_registeredStaticMeshComponents.HasItemForID( pComponent->GetID() ) )
-        {
-            Threading::ScopeLock lock( m_mobilityUpdateListLock );
-            if ( !VectorContains( m_staticMobilityTransformUpdateList, pComponent ) )
-            {
-                m_staticMobilityTransformUpdateList.emplace_back( pComponent );
-            }
-        }
     }
 }

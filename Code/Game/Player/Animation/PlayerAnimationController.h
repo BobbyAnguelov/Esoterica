@@ -82,7 +82,7 @@ namespace EE::Player
         // Generic Transition Info
         //-------------------------------------------------------------------------
 
-        inline bool HasTransitionMarker() const { return !m_transitionMarkers.empty(); }
+        inline bool HasTransitionEvent() const { return !m_transitionEvents.empty(); }
 
         bool IsAnyTransitionAllowed( StringID specificID ) const { return IsTransitionFullyAllowed( specificID ) || IsTransitionConditionallyAllowed( specificID ); }
         bool IsTransitionFullyAllowed( StringID specificID ) const;
@@ -205,6 +205,6 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        TVector<Animation::SampledTransitionMarker>         m_transitionMarkers;
+        TVector<Animation::TransitionEvent const*>          m_transitionEvents;
     };
 }

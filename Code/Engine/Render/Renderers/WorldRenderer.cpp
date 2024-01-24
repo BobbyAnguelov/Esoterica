@@ -5,6 +5,7 @@
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Render/Shaders/EngineShaders.h"
 #include "Engine/Render/Systems/WorldSystem_Renderer.h"
+#include "Engine/Render/Settings/WorldSettings_Render.h"
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Entity/EntityWorld.h"
@@ -878,8 +879,9 @@ namespace EE::Render
 
         renderData.m_lightData.m_lightingFlags = lightingFlags;
 
-        #if EE_DEVELOPMENT_TOOLS
-        renderData.m_lightData.m_lightingFlags = renderData.m_lightData.m_lightingFlags | ( (int32_t) pWorldSystem->GetVisualizationMode() << (int32_t) RendererWorldSystem::VisualizationMode::BitShift );
+        #if EE_DEVELOPMENT_TOOLS 
+        auto* pRenderSettings = pWorld->GetMutableSettings<Render::RenderWorldSettings>();
+        renderData.m_lightData.m_lightingFlags = renderData.m_lightData.m_lightingFlags | ( (int32_t) pRenderSettings->m_visualizationMode << (int32_t) DebugVisualizationMode::BitShift );
         #endif
 
         //-------------------------------------------------------------------------

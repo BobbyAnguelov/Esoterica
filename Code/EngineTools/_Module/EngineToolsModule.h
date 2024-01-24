@@ -8,17 +8,13 @@
 
 namespace EE
 {
-    class IniFile;
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINETOOLS_API EngineToolsModule
     {
         EE_REFLECT_MODULE;
 
     public:
 
-        bool InitializeModule( ModuleContext& context, IniFile const& iniFile );
+        bool InitializeModule( ModuleContext& context );
         void ShutdownModule( ModuleContext& context );
     };
 }

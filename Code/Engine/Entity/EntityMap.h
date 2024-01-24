@@ -184,7 +184,7 @@ namespace EE
 
         private:
 
-            EntityMapID                                 m_ID = UUID::GenerateID(); // ID is always regenerated at creation time, do not rely on the ID being the same for a map on different runs
+            EntityMapID                                 m_ID = EntityMapID::GenerateID(); // ID is always regenerated at creation time, do not rely on the ID being the same for a map on different runs
             Threading::RecursiveMutex                   m_mutex;
             TResourcePtr<SerializedEntityMap>           m_pMapDesc;
             TVector<Entity*>                            m_entities;

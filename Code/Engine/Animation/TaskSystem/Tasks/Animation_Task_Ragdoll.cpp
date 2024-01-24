@@ -21,7 +21,7 @@ namespace EE::Animation::Tasks
         //EE_PROFILE_FUNCTION_ANIMATION();
 
         auto pSourceBuffer = TransferDependencyPoseBuffer( context, 0 );
-        pSourceBuffer->GetPrimaryPose()->CalculateGlobalTransforms();
+        pSourceBuffer->GetPrimaryPose()->CalculateModelSpaceTransforms();
         m_pRagdoll->Update( context.m_deltaTime, context.m_worldTransform, pSourceBuffer->GetPrimaryPose(), m_initOption == InitializeBodies );
         MarkTaskComplete( context );
     }
@@ -52,7 +52,7 @@ namespace EE::Animation::Tasks
         {
             auto pResultBuffer = GetNewPoseBuffer( context );
             auto pPrimaryPose = pResultBuffer->GetPrimaryPose();
-            pPrimaryPose->CalculateGlobalTransforms();
+            pPrimaryPose->CalculateModelSpaceTransforms();
             m_pRagdoll->GetPose( context.m_worldTransform, pPrimaryPose );
         }
         else // Potentially blend the poses
@@ -64,7 +64,7 @@ namespace EE::Animation::Tasks
             // Overwrite it with the physics pose
             if ( Math::IsNearEqual( m_physicsBlendWeight, 1.0f, Math::LargeEpsilon ) )
             {
-                pPrimaryPose->CalculateGlobalTransforms();
+                pPrimaryPose->CalculateModelSpaceTransforms();
                 m_pRagdoll->GetPose( context.m_worldTransform, pPrimaryPose );
             }
             else if ( m_physicsBlendWeight > Math::LargeEpsilon )
@@ -74,7 +74,7 @@ namespace EE::Animation::Tasks
                 int8_t const tmpBufferIdx = GetTemporaryPoseBuffer( context, pTempBuffer );
                 EE_ASSERT( pTempBuffer != nullptr );
                 Pose* pTempPrimaryPose = pTempBuffer->GetPrimaryPose();
-                pTempPrimaryPose->CalculateGlobalTransforms();
+                pTempPrimaryPose->CalculateModelSpaceTransforms();
 
                 // Get the ragdoll pose and blend it with the animation pose
                 m_pRagdoll->GetPose( context.m_worldTransform, pTempPrimaryPose );

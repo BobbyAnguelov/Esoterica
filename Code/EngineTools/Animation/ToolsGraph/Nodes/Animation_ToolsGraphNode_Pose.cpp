@@ -14,9 +14,9 @@ namespace EE::Animation::GraphNodes
 
     int16_t ZeroPoseToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ZeroPoseNode::Settings* pSettings = nullptr;
-        context.GetSettings<ZeroPoseNode>( this, pSettings );
-        return pSettings->m_nodeIdx;
+        ZeroPoseNode::Definition* pDefinition = nullptr;
+        context.GetDefinition<ZeroPoseNode>( this, pDefinition );
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -29,9 +29,9 @@ namespace EE::Animation::GraphNodes
 
     int16_t ReferencePoseToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ReferencePoseNode::Settings* pSettings = nullptr;
-        context.GetSettings<ReferencePoseNode>( this, pSettings );
-        return pSettings->m_nodeIdx;
+        ReferencePoseNode::Definition* pDefinition = nullptr;
+        context.GetDefinition<ReferencePoseNode>( this, pDefinition );
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -45,8 +45,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t AnimationPoseToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        AnimationPoseNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<AnimationPoseNode>( this, pSettings );
+        AnimationPoseNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<AnimationPoseNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pTimeParameterNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -55,7 +55,7 @@ namespace EE::Animation::GraphNodes
                 auto compiledNodeIdx = pTimeParameterNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_poseTimeValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_poseTimeValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -65,12 +65,12 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_dataSlotIndex = context.RegisterDataSlotNode( GetID() );
-            pSettings->m_inputTimeRemapRange = m_inputTimeRemapRange;
-            pSettings->m_userSpecifiedTime = m_fixedTimeValue;
-            pSettings->m_useFramesAsInput = m_useFramesAsInput;
+            pDefinition->m_dataSlotIndex = context.RegisterDataSlotNode( GetID() );
+            pDefinition->m_inputTimeRemapRange = m_inputTimeRemapRange;
+            pDefinition->m_userSpecifiedTime = m_fixedTimeValue;
+            pDefinition->m_useFramesAsInput = m_useFramesAsInput;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     bool AnimationPoseToolsNode::DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )

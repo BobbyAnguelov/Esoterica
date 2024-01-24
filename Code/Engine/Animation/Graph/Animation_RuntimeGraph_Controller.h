@@ -47,7 +47,7 @@ namespace EE::Animation
                     if ( m_index == InvalidIndex )
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        EE_LOG_WARNING( "Animation", pController->GetName(), "Failed to bind to control parameter (%s): parameter not found. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetResourceID().c_str() );
+                        EE_LOG_WARNING( "Animation", pController->GetName(), "Failed to bind to control parameter (%s): parameter not found. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetGraphVariation()->GetResourceID().c_str() );
                         #endif
 
                         return false;
@@ -57,7 +57,7 @@ namespace EE::Animation
                     if ( pController->m_pGraphInstance->GetControlParameterType( m_index ) != ValueTypeValidation<ParameterType>::Type )
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        EE_LOG_WARNING( "Animation", pController->GetName(), "Failed to bind to control parameter (%s): type mismatch. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetResourceID().c_str() );
+                        EE_LOG_WARNING( "Animation", pController->GetName(), "Failed to bind to control parameter (%s): type mismatch. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetGraphVariation()->GetResourceID().c_str() );
                         #endif
 
                         m_index = InvalidIndex;
@@ -245,6 +245,5 @@ namespace EE::Animation
 
         GraphComponent*                                 m_pGraphComponent = nullptr;
         TInlineVector<ExternalGraphController*, 6>      m_externalGraphControllers;
-        TInlineVector<SampledTransitionMarker, 10>      m_sampledtransitionMarkers;
     };
 }

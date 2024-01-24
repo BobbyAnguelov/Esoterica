@@ -17,9 +17,9 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public PoseNode::Settings
+        struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
+            EE_REFLECT_TYPE( Definition );
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
         };
 
@@ -27,7 +27,7 @@ namespace EE::Animation::GraphNodes
 
         virtual ~ExternalGraphNode();
 
-        void AttachGraphInstance( GraphContext& context, GraphInstance* pExternalGraphInstance );
+        void AttachExternalGraphInstance( GraphContext& context, GraphInstance* pExternalGraphInstance );
         void DetachExternalGraphInstance( GraphContext& context );
 
     private:

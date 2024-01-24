@@ -1,73 +1,16 @@
 #include "EngineModule.h"
+#include "Engine/ModuleContext.h"
+#include "Engine/Console/Console.h"
 #include "Engine/Entity/EntityLog.h"
 #include "Engine/Navmesh/NavPower.h"
 #include "Engine/Physics/Physics.h"
-#include "Base/Resource/ResourceProviders/NetworkResourceProvider.h"
-#include "Base/Resource/ResourceProviders/PackagedResourceProvider.h"
-#include "Base/Network/NetworkSystem.h"
-
-//-------------------------------------------------------------------------
-
-#ifdef _WIN32
-#include "Base/Platform/PlatformUtils_Win32.h"
-#endif
+#include "Base/Resource/ResourceSystem.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
-    namespace
-    {
-        constexpr static char const* const g_physicsMaterialDatabaseResourceID = "data://Physics/PhysicsMaterials.pmdb";
-    }
-
-    //-------------------------------------------------------------------------
-
-    #if EE_DEVELOPMENT_TOOLS
-    bool EnsureResourceServerIsRunning( FileSystem::Path const& resourceServerExecutablePath )
-    {
-        #if _WIN32
-        bool shouldStartResourceServer = false;
-
-        // If the resource server is not running then start it
-        String const resourceServerExecutableName = resourceServerExecutablePath.GetFilename();
-        uint32_t const resourceServerProcessID = Platform::Win32::GetProcessID( resourceServerExecutableName.c_str() );
-        shouldStartResourceServer = ( resourceServerProcessID == 0 );
-
-        // Ensure we are running the correct build of the resource server
-        if ( !shouldStartResourceServer )
-        {
-            String const resourceServerPath = Platform::Win32::GetProcessPath( resourceServerProcessID );
-            if ( !resourceServerPath.empty() )
-            {
-                FileSystem::Path const resourceServerProcessPath = FileSystem::Path( resourceServerPath ).GetParentDirectory();
-                FileSystem::Path const applicationDirectoryPath = FileSystem::Path( Platform::Win32::GetCurrentModulePath() ).GetParentDirectory();
-
-                if ( resourceServerProcessPath != applicationDirectoryPath )
-                {
-                    Platform::Win32::KillProcess( resourceServerProcessID );
-                    shouldStartResourceServer = true;
-                }
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        // Try to start the resource server
-        if ( shouldStartResourceServer )
-        {
-            FileSystem::Path const applicationDirectoryPath = FileSystem::Path( Platform::Win32::GetCurrentModulePath() ).GetParentDirectory();
-            return Platform::Win32::StartProcess( resourceServerExecutablePath.c_str() ) != 0;
-        }
-
-        return true;
-        #else
-        return false;
-        #endif
-    }
-    #endif
+    constexpr static char const* const g_physicsMaterialDatabaseResourceID = "data://Physics/PhysicsMaterials.pmdb";
 
     //-------------------------------------------------------------------------
 
@@ -78,74 +21,17 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    bool EngineModule::InitializeCoreSystems( IniFile const& iniFile )
+    bool EngineModule::InitializeModule( ModuleContext& context )
     {
-        #if EE_DEVELOPMENT_TOOLS
-        EntityModel::InitializeLogQueue();
-        #endif
-
-        if ( !Network::NetworkSystem::Initialize() )
-        {
-            EE_LOG_ERROR( "Render", nullptr, "Failed to initialize network system" );
-            return false;
-        }
-
-        // Create and initialize resource provider
         //-------------------------------------------------------------------------
-
-        Resource::ResourceSettings settings;
-        if ( !settings.ReadSettings( iniFile ) )
-        {
-            EE_LOG_ERROR( "Resource Provider", nullptr, "Failed to read resource settings from ini file!" );
-            return false;
-        }
-
-        #if EE_DEVELOPMENT_TOOLS
-        {
-            if ( !EnsureResourceServerIsRunning( settings.m_resourceServerExecutablePath ) )
-            {
-                EE_LOG_ERROR( "Resource Provider", nullptr, "Couldn't start resource server (%s)!", settings.m_resourceServerExecutablePath.c_str() );
-                return false;
-            }
-
-            m_pResourceProvider = EE::New<Resource::NetworkResourceProvider>( settings );
-        }
-        #else
-        {
-            m_pResourceProvider = EE::New<Resource::PackagedResourceProvider>( settings );
-        }
-        #endif
-
-        if ( m_pResourceProvider == nullptr )
-        {
-            EE_LOG_ERROR( "Resource", nullptr, "Failed to create resource provider" );
-            return false;
-        }
-
-        if ( !m_pResourceProvider->Initialize() )
-        {
-            EE_LOG_ERROR( "Resource", nullptr, "Failed to intialize resource provider" );
-            EE::Delete( m_pResourceProvider );
-            return false;
-        }
-
-        // Create and initialize render device
-        //-------------------------------------------------------------------------
-
-        m_pRenderDevice = EE::New<Render::RenderDevice>();
-        if ( !m_pRenderDevice->Initialize( iniFile ) )
-        {
-            EE_LOG_ERROR( "Render", nullptr, "Failed to create render device" );
-            EE::Delete( m_pRenderDevice );
-            return false;
-        }
-
         // Initialize core systems
         //-------------------------------------------------------------------------
 
-        m_taskSystem.Initialize();
-        m_resourceSystem.Initialize( m_pResourceProvider );
-        m_inputSystem.Initialize();
+        #if EE_DEVELOPMENT_TOOLS
+        m_pConsole = EE::New<Console>( *context.m_pSettingsRegistry );
+        EntityModel::InitializeLogQueue();
+        #endif
+
         Physics::Core::Initialize();
         m_physicsMaterialRegistry.Initialize();
 
@@ -153,14 +39,11 @@ namespace EE
         Navmesh::NavPower::Initialize();
         #endif
 
-        #if EE_DEVELOPMENT_TOOLS
-        m_imguiSystem.Initialize( m_pRenderDevice, &m_inputSystem, true );
-        #endif
-
+        //-------------------------------------------------------------------------
         // Initialize and register renderers
         //-------------------------------------------------------------------------
 
-        if ( m_worldRenderer.Initialize( m_pRenderDevice ) )
+        if ( m_worldRenderer.Initialize( context.m_pRenderDevice ) )
         {
             m_rendererRegistry.RegisterRenderer( &m_worldRenderer );
         }
@@ -171,7 +54,7 @@ namespace EE
         }
 
         #if EE_DEVELOPMENT_TOOLS
-        if ( m_debugRenderer.Initialize( m_pRenderDevice ) )
+        if ( m_debugRenderer.Initialize( context.m_pRenderDevice ) )
         {
             m_rendererRegistry.RegisterRenderer( &m_debugRenderer );
         }
@@ -181,7 +64,7 @@ namespace EE
             return false;
         }
 
-        if ( m_imguiRenderer.Initialize( m_pRenderDevice ) )
+        if ( m_imguiRenderer.Initialize( context.m_pRenderDevice ) )
         {
             m_rendererRegistry.RegisterRenderer( &m_imguiRenderer );
         }
@@ -191,7 +74,7 @@ namespace EE
             return false;
         }
 
-        if ( m_physicsRenderer.Initialize( m_pRenderDevice ) )
+        if ( m_physicsRenderer.Initialize( context.m_pRenderDevice ) )
         {
             m_rendererRegistry.RegisterRenderer( &m_physicsRenderer );
         }
@@ -202,19 +85,119 @@ namespace EE
         }
         #endif
 
+        //-------------------------------------------------------------------------
+        // Register systems
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        context.m_pSystemRegistry->RegisterSystem( m_pConsole );
+        #endif
+
+        context.m_pSystemRegistry->RegisterSystem( &m_entityWorldManager );
+        context.m_pSystemRegistry->RegisterSystem( &m_rendererRegistry );
+        context.m_pSystemRegistry->RegisterSystem( &m_physicsMaterialRegistry );
+
+        //-------------------------------------------------------------------------
+        // Register resource loaders
+        //-------------------------------------------------------------------------
+
+        m_entityCollectionLoader.SetTypeRegistryPtr( context.m_pTypeRegistry );
+        context.m_pResourceSystem->RegisterResourceLoader( &m_entityCollectionLoader );
+
+        //-------------------------------------------------------------------------
+
+        m_renderMeshLoader.SetRenderDevicePtr( context.m_pRenderDevice );
+        m_shaderLoader.SetRenderDevicePtr( context.m_pRenderDevice );
+        m_textureLoader.SetRenderDevicePtr( context.m_pRenderDevice );
+
+        context.m_pResourceSystem->RegisterResourceLoader( &m_renderMeshLoader );
+        context.m_pResourceSystem->RegisterResourceLoader( &m_shaderLoader );
+        context.m_pResourceSystem->RegisterResourceLoader( &m_textureLoader );
+        context.m_pResourceSystem->RegisterResourceLoader( &m_materialLoader );
+
+        //-------------------------------------------------------------------------
+
+        m_animationClipLoader.SetTypeRegistryPtr( context.m_pTypeRegistry );
+        m_graphLoader.SetTypeRegistryPtr( context.m_pTypeRegistry );
+
+        context.m_pResourceSystem->RegisterResourceLoader( &m_skeletonLoader );
+        context.m_pResourceSystem->RegisterResourceLoader( &m_animationClipLoader );
+        context.m_pResourceSystem->RegisterResourceLoader( &m_graphLoader );
+
+        //-------------------------------------------------------------------------
+
+        m_physicsMaterialLoader.SetMaterialRegistryPtr( &m_physicsMaterialRegistry );
+
+        context.m_pResourceSystem->RegisterResourceLoader( &m_physicsCollisionMeshLoader );
+        context.m_pResourceSystem->RegisterResourceLoader( &m_physicsMaterialLoader );
+        context.m_pResourceSystem->RegisterResourceLoader( &m_physicsRagdollLoader );
+
+        //-------------------------------------------------------------------------
+
+        context.m_pResourceSystem->RegisterResourceLoader( &m_navmeshLoader );
+
         return true;
     }
 
-    void EngineModule::ShutdownCoreSystems()
+    void EngineModule::ShutdownModule( ModuleContext& context )
     {
-        EE_ASSERT( !m_moduleInitialized );
+        //-------------------------------------------------------------------------
+        // Unregister resource loaders
+        //-------------------------------------------------------------------------
 
-        bool const coreSystemsInitialized = m_pRenderDevice != nullptr;
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_navmeshLoader );
 
+        //-------------------------------------------------------------------------
+
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_physicsRagdollLoader );
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_physicsMaterialLoader );
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_physicsCollisionMeshLoader );
+
+        m_physicsMaterialLoader.ClearMaterialRegistryPtr();
+        m_physicsMaterialRegistry.Shutdown();
+
+        //-------------------------------------------------------------------------
+
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_animationClipLoader );
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_graphLoader );
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_skeletonLoader );
+
+        m_animationClipLoader.ClearTypeRegistryPtr();
+        m_graphLoader.ClearTypeRegistryPtr();
+
+        //-------------------------------------------------------------------------
+
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_renderMeshLoader );
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_shaderLoader );
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_textureLoader );
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_materialLoader );
+
+        m_renderMeshLoader.ClearRenderDevicePtr();
+        m_shaderLoader.ClearRenderDevicePtr();
+        m_textureLoader.ClearRenderDevice();
+
+        //-------------------------------------------------------------------------
+
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_entityCollectionLoader );
+        m_entityCollectionLoader.ClearTypeRegistryPtr();
+
+        //-------------------------------------------------------------------------
+        // Unregister systems
+        //-------------------------------------------------------------------------
+
+        context.m_pSystemRegistry->UnregisterSystem( &m_physicsMaterialRegistry );
+        context.m_pSystemRegistry->UnregisterSystem( &m_rendererRegistry );
+        context.m_pSystemRegistry->UnregisterSystem( &m_entityWorldManager );
+
+        #if EE_DEVELOPMENT_TOOLS
+        context.m_pSystemRegistry->UnregisterSystem( m_pConsole );
+        #endif
+
+        //-------------------------------------------------------------------------
         // Unregister and shutdown renderers
         //-------------------------------------------------------------------------
 
-        if ( m_pRenderDevice != nullptr )
+        if ( context.m_pRenderDevice != nullptr )
         {
             #if EE_DEVELOPMENT_TOOLS
             if ( m_physicsRenderer.IsInitialized() )
@@ -243,167 +226,21 @@ namespace EE
             m_worldRenderer.Shutdown();
         }
 
+        //-------------------------------------------------------------------------
         // Shutdown core systems
         //-------------------------------------------------------------------------
 
-        if ( coreSystemsInitialized )
-        {
-            #if EE_DEVELOPMENT_TOOLS
-            m_imguiSystem.Shutdown();
-            #endif
+        #if EE_ENABLE_NAVPOWER
+        Navmesh::NavPower::Shutdown();
+        #endif
 
-            #if EE_ENABLE_NAVPOWER
-            Navmesh::NavPower::Shutdown();
-            #endif
-
-            m_physicsMaterialRegistry.Shutdown();
-            Physics::Core::Shutdown();
-            m_inputSystem.Shutdown();
-            m_resourceSystem.Shutdown();
-            m_taskSystem.Shutdown();
-        }
-
-        // Destroy render device and resource provider
-        //-------------------------------------------------------------------------
-
-        if ( m_pRenderDevice != nullptr )
-        {
-            m_pRenderDevice->Shutdown();
-            EE::Delete( m_pRenderDevice );
-        }
-
-        if ( m_pResourceProvider != nullptr )
-        {
-            m_pResourceProvider->Shutdown();
-            EE::Delete( m_pResourceProvider );
-        }
-
-        Network::NetworkSystem::Shutdown();
+        m_physicsMaterialRegistry.Shutdown();
+        Physics::Core::Shutdown();
 
         #if EE_DEVELOPMENT_TOOLS
+        EE::Delete( m_pConsole );
         EntityModel::ShutdownLogQueue();
         #endif
-    }
-
-    //-------------------------------------------------------------------------
-
-    bool EngineModule::InitializeModule()
-    {
-        EE_ASSERT( m_pRenderDevice != nullptr );
-
-        // Register systems
-        //-------------------------------------------------------------------------
-
-        m_systemRegistry.RegisterSystem( &m_typeRegistry );
-        m_systemRegistry.RegisterSystem( &m_taskSystem );
-        m_systemRegistry.RegisterSystem( &m_resourceSystem );
-        m_systemRegistry.RegisterSystem( &m_inputSystem );
-        m_systemRegistry.RegisterSystem( &m_entityWorldManager );
-        m_systemRegistry.RegisterSystem( &m_rendererRegistry );
-        m_systemRegistry.RegisterSystem( &m_physicsMaterialRegistry );
-
-        // Register resource loaders
-        //-------------------------------------------------------------------------
-
-        m_entityCollectionLoader.SetTypeRegistryPtr( &m_typeRegistry );
-        m_resourceSystem.RegisterResourceLoader( &m_entityCollectionLoader );
-
-        //-------------------------------------------------------------------------
-
-        m_renderMeshLoader.SetRenderDevicePtr( m_pRenderDevice );
-        m_shaderLoader.SetRenderDevicePtr( m_pRenderDevice );
-        m_textureLoader.SetRenderDevicePtr( m_pRenderDevice );
-
-        m_resourceSystem.RegisterResourceLoader( &m_renderMeshLoader );
-        m_resourceSystem.RegisterResourceLoader( &m_shaderLoader );
-        m_resourceSystem.RegisterResourceLoader( &m_textureLoader );
-        m_resourceSystem.RegisterResourceLoader( &m_materialLoader );
-
-        //-------------------------------------------------------------------------
-
-        m_animationClipLoader.SetTypeRegistryPtr( &m_typeRegistry );
-        m_graphLoader.SetTypeRegistryPtr( &m_typeRegistry );
-
-        m_resourceSystem.RegisterResourceLoader( &m_skeletonLoader );
-        m_resourceSystem.RegisterResourceLoader( &m_animationClipLoader );
-        m_resourceSystem.RegisterResourceLoader( &m_graphLoader );
-
-        //-------------------------------------------------------------------------
-
-        m_physicsMaterialLoader.SetMaterialRegistryPtr( &m_physicsMaterialRegistry );
-
-        m_resourceSystem.RegisterResourceLoader( &m_physicsCollisionMeshLoader );
-        m_resourceSystem.RegisterResourceLoader( &m_physicsMaterialLoader );
-        m_resourceSystem.RegisterResourceLoader( &m_physicsRagdollLoader );
-
-        //-------------------------------------------------------------------------
-
-        m_resourceSystem.RegisterResourceLoader( &m_navmeshLoader );
-
-        //-------------------------------------------------------------------------
-
-        m_moduleInitialized = true;
-
-        return true;
-    }
-
-    void EngineModule::ShutdownModule()
-    {
-        EE_ASSERT( m_pRenderDevice != nullptr );
-
-        // Unregister resource loaders
-        //-------------------------------------------------------------------------
-
-        m_resourceSystem.UnregisterResourceLoader( &m_navmeshLoader );
-
-        //-------------------------------------------------------------------------
-
-        m_resourceSystem.UnregisterResourceLoader( &m_physicsRagdollLoader );
-        m_resourceSystem.UnregisterResourceLoader( &m_physicsMaterialLoader );
-        m_resourceSystem.UnregisterResourceLoader( &m_physicsCollisionMeshLoader );
-
-        m_physicsMaterialLoader.ClearMaterialRegistryPtr();
-        m_physicsMaterialRegistry.Shutdown();
-
-        //-------------------------------------------------------------------------
-
-        m_resourceSystem.UnregisterResourceLoader( &m_animationClipLoader );
-        m_resourceSystem.UnregisterResourceLoader( &m_graphLoader );
-        m_resourceSystem.UnregisterResourceLoader( &m_skeletonLoader );
-
-        m_animationClipLoader.ClearTypeRegistryPtr();
-        m_graphLoader.ClearTypeRegistryPtr();
-
-        //-------------------------------------------------------------------------
-
-        m_resourceSystem.UnregisterResourceLoader( &m_renderMeshLoader );
-        m_resourceSystem.UnregisterResourceLoader( &m_shaderLoader );
-        m_resourceSystem.UnregisterResourceLoader( &m_textureLoader );
-        m_resourceSystem.UnregisterResourceLoader( &m_materialLoader );
-
-        m_renderMeshLoader.ClearRenderDevicePtr();
-        m_shaderLoader.ClearRenderDevicePtr();
-        m_textureLoader.ClearRenderDevice();
-
-        //-------------------------------------------------------------------------
-
-        m_resourceSystem.UnregisterResourceLoader( &m_entityCollectionLoader );
-        m_entityCollectionLoader.ClearTypeRegistryPtr();
-
-        // Unregister systems
-        //-------------------------------------------------------------------------
-
-        m_systemRegistry.UnregisterSystem( &m_physicsMaterialRegistry );
-        m_systemRegistry.UnregisterSystem( &m_rendererRegistry );
-        m_systemRegistry.UnregisterSystem( &m_entityWorldManager );
-        m_systemRegistry.UnregisterSystem( &m_inputSystem );
-        m_systemRegistry.UnregisterSystem( &m_resourceSystem );
-        m_systemRegistry.UnregisterSystem( &m_taskSystem );
-        m_systemRegistry.UnregisterSystem( &m_typeRegistry );
-
-        //-------------------------------------------------------------------------
-
-        m_moduleInitialized = false;
     }
 
     //-------------------------------------------------------------------------

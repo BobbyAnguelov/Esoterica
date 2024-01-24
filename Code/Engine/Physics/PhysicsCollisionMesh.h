@@ -1,6 +1,6 @@
 #pragma once
 
-#include "PhysicsSettings.h"
+#include "PhysicsCollision.h"
 #include "PhysicsMaterial.h"
 #include "Base/Resource/IResource.h"
 #include "Base/Math/BoundingVolumes.h"

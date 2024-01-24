@@ -483,7 +483,7 @@ namespace EE::Animation
 
             // Primary Pose
             pPoseBuffer->m_poses[0].DrawDebug( drawingContext, m_taskContext.m_worldTransform );
-            Task::DrawSecondaryPoses( drawingContext, m_taskContext.m_worldTransform, pPoseBuffer );
+            Task::DrawSecondaryPoses( drawingContext, m_taskContext.m_worldTransform, m_taskContext.m_skeletonLOD, pPoseBuffer, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
         }
         else // Draw Tree
         {
@@ -507,13 +507,13 @@ namespace EE::Animation
                     for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
                     {
                         Blender::ApplyAdditiveToReferencePose( m_taskContext.m_skeletonLOD, &pPoseBuffer->m_poses[poseIdx], 1.0f, nullptr, &pPoseBuffer->m_poses[poseIdx] );
-                        pPoseBuffer->m_poses[poseIdx].CalculateGlobalTransforms();
+                        pPoseBuffer->m_poses[poseIdx].CalculateModelSpaceTransforms();
                     }
                 }
 
                 //-------------------------------------------------------------------------
 
-                m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], pPoseBuffer, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
+                m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], m_taskContext.m_skeletonLOD, pPoseBuffer, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
                 drawingContext.DrawText3D( taskTransforms[i].GetTranslation(), m_tasks[i]->GetDebugText().c_str(), m_tasks[i]->GetDebugColor(), Drawing::FontSmall, Drawing::AlignMiddleCenter );
 
                 for ( auto& dependencyIdx : m_tasks[i]->GetDependencyIndices() )

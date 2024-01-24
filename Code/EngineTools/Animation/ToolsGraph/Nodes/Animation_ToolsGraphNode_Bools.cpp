@@ -16,8 +16,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t AndToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        AndNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<AndNode>( this, pSettings );
+        AndNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<AndNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             int32_t const numInputs = GetNumInputPins();
@@ -30,7 +30,7 @@ namespace EE::Animation::GraphNodes
                     auto compiledNodeIdx = pConnectedNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -41,13 +41,13 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            if ( pSettings->m_conditionNodeIndices.empty() )
+            if ( pDefinition->m_conditionNodeIndices.empty() )
             {
                 context.LogError( this, "All inputs on 'And' node disconnected" );
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -62,8 +62,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t OrToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        OrNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<OrNode>( this, pSettings );
+        OrNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<OrNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             int32_t const numInputs = GetNumInputPins();
@@ -76,7 +76,7 @@ namespace EE::Animation::GraphNodes
                     auto compiledNodeIdx = pConnectedNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -87,13 +87,13 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            if ( pSettings->m_conditionNodeIndices.empty() )
+            if ( pDefinition->m_conditionNodeIndices.empty() )
             {
                 context.LogError( this, "All inputs on 'Or' node disconnected" );
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -107,16 +107,16 @@ namespace EE::Animation::GraphNodes
 
     int16_t NotToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        NotNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<NotNode>( this, pSettings );
+        NotNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<NotNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             // Set input node
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
             if ( pInputNode != nullptr )
             {
-                pSettings->m_inputValueNodeIdx = pInputNode->Compile( context );
-                if ( pSettings->m_inputValueNodeIdx == InvalidIndex )
+                pDefinition->m_inputValueNodeIdx = pInputNode->Compile( context );
+                if ( pDefinition->m_inputValueNodeIdx == InvalidIndex )
                 {
                     return InvalidIndex;
                 }
@@ -127,6 +127,6 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 }

@@ -10,7 +10,7 @@ namespace EE::Player
 {
     bool AimOverlayAction::TryStartInternal( ActionContext const& ctx )
     {
-        if ( ctx.m_pInputState->GetControllerState()->GetLeftTriggerValue() >= 0.2f )
+        if ( ctx.m_pInputSystem->GetController()->GetValue( Input::InputID::Controller_LeftTrigger ) >= 0.2f )
         {
             return true;
         }
@@ -32,7 +32,7 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        if ( ctx.m_pInputState->GetControllerState()->GetLeftTriggerValue() < 0.2f )
+        if ( ctx.m_pInputSystem->GetController()->GetValue( Input::InputID::Controller_LeftTrigger ) < 0.2f )
         {
             return Status::Completed;
         }

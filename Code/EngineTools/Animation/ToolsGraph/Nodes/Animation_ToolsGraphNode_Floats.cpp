@@ -14,8 +14,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatRemapToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatRemapNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatRemapNode>( this, pSettings );
+        FloatRemapNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatRemapNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -24,7 +24,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -39,10 +39,10 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_inputRange = m_inputRange;
-            pSettings->m_outputRange = m_outputRange;
+            pDefinition->m_inputRange = m_inputRange;
+            pDefinition->m_outputRange = m_outputRange;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void FloatRemapToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -62,8 +62,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatClampToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatClampNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatClampNode>( this, pSettings );
+        FloatClampNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatClampNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -72,7 +72,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -87,9 +87,9 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_clampRange = m_clampRange;
+            pDefinition->m_clampRange = m_clampRange;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void FloatClampToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -115,8 +115,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatAbsToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatAbsNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatAbsNode>( this, pSettings );
+        FloatAbsNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatAbsNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -125,7 +125,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -138,7 +138,7 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -152,11 +152,11 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatEaseToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatEaseNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatEaseNode>( this, pSettings );
+        FloatEaseNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatEaseNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            if ( m_easingType == Math::Easing::Type::None )
+            if ( m_easing == Math::Easing::Operation::None )
             {
                 context.LogError( this, "No easing type selected!" );
                 return InvalidIndex;
@@ -170,7 +170,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -185,17 +185,17 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_easingType = m_easingType;
-            pSettings->m_easeTime = m_easeTime;
-            pSettings->m_useStartValue = m_useStartValue;
-            pSettings->m_startValue = m_startValue;
+            pDefinition->m_easingOp = m_easing;
+            pDefinition->m_easeTime = m_easeTime;
+            pDefinition->m_useStartValue = m_useStartValue;
+            pDefinition->m_startValue = m_startValue;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void FloatEaseToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        ImGui::Text( Math::Easing::GetName( m_easingType ) );
+        ImGui::Text( Math::Easing::GetName( m_easing ) );
         ImGui::Text( "Ease Time: %.2fs", m_easeTime );
 
         if ( m_useStartValue )
@@ -215,8 +215,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatCurveToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatCurveNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatCurveNode>( this, pSettings );
+        FloatCurveNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatCurveNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -225,7 +225,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -240,9 +240,9 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_curve = m_curve;
+            pDefinition->m_curve = m_curve;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -257,8 +257,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatMathToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatMathNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatMathNode>( this, pSettings );
+        FloatMathNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatMathNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNodeA = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -267,7 +267,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNodeA->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdxA = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdxA = compiledNodeIdx;
                 }
                 else
                 {
@@ -288,7 +288,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNodeB->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdxB = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdxB = compiledNodeIdx;
                 }
                 else
                 {
@@ -298,11 +298,11 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_returnAbsoluteResult = m_returnAbsoluteResult;
-            pSettings->m_operator = m_operator;
-            pSettings->m_valueB = m_valueB;
+            pDefinition->m_returnAbsoluteResult = m_returnAbsoluteResult;
+            pDefinition->m_operator = m_operator;
+            pDefinition->m_valueB = m_valueB;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void FloatMathToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -357,8 +357,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatComparisonToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatComparisonNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatComparisonNode>( this, pSettings );
+        FloatComparisonNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatComparisonNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -367,7 +367,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -388,7 +388,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pValueNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_comparandValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_comparandValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -398,11 +398,11 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_comparison = m_comparison;
-            pSettings->m_epsilon = m_epsilon;
-            pSettings->m_comparisonValue = m_comparisonValue;
+            pDefinition->m_comparison = m_comparison;
+            pDefinition->m_epsilon = m_epsilon;
+            pDefinition->m_comparisonValue = m_comparisonValue;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void FloatComparisonToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -440,8 +440,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatRangeComparisonToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatRangeComparisonNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatRangeComparisonNode>( this, pSettings );
+        FloatRangeComparisonNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatRangeComparisonNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -450,7 +450,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -465,10 +465,10 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_range = m_range;
-            pSettings->m_isInclusiveCheck = m_isInclusiveCheck;
+            pDefinition->m_range = m_range;
+            pDefinition->m_isInclusiveCheck = m_isInclusiveCheck;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void FloatRangeComparisonToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -496,8 +496,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatSwitchToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatSwitchNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatSwitchNode>( this, pSettings );
+        FloatSwitchNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatSwitchNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -506,7 +506,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_switchValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_switchValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -527,7 +527,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_trueValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_trueValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -548,7 +548,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_falseValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_falseValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -561,7 +561,7 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -575,8 +575,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatAngleMathToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatAngleMathNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatAngleMathNode>( this, pSettings );
+        FloatAngleMathNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatAngleMathNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -585,7 +585,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -599,9 +599,9 @@ namespace EE::Animation::GraphNodes
             }
         }
 
-        pSettings->m_operation = m_operation;
+        pDefinition->m_operation = m_operation;
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -618,8 +618,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t FloatSelectorToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FloatSelectorNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FloatSelectorNode>( this, pSettings );
+        FloatSelectorNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatSelectorNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             int32_t const numOptions = GetNumInputPins();
@@ -631,8 +631,8 @@ namespace EE::Animation::GraphNodes
                     int16_t const compiledNodeIdx = pInputNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
-                        pSettings->m_values.emplace_back( m_pinValues[i] );
+                        pDefinition->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_values.emplace_back( m_pinValues[i] );
                     }
                     else
                     {
@@ -649,11 +649,11 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        pSettings->m_defaultValue = m_defaultValue;
-        pSettings->m_easeTime = m_easeTime;
-        pSettings->m_easingType = m_easingType;
+        pDefinition->m_defaultValue = m_defaultValue;
+        pDefinition->m_easeTime = m_easeTime;
+        pDefinition->m_easingOp = m_easing;
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     TInlineString<100> FloatSelectorToolsNode::GetNewDynamicInputPinName() const

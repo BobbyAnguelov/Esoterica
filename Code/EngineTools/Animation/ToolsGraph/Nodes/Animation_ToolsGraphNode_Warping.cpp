@@ -18,8 +18,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t OrientationWarpToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        OrientationWarpNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<OrientationWarpNode>( this, pSettings );
+        OrientationWarpNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<OrientationWarpNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -28,7 +28,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_clipReferenceNodeIdx = compiledNodeIdx;
+                    pDefinition->m_clipReferenceNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -66,8 +66,8 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pDirectionNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_targetValueNodeIdx = compiledNodeIdx;
-                    pSettings->m_isOffsetNode = false;
+                    pDefinition->m_targetValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_isOffsetNode = false;
                 }
                 else
                 {
@@ -79,8 +79,8 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pOffsetNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_targetValueNodeIdx = compiledNodeIdx;
-                    pSettings->m_isOffsetNode = true;
+                    pDefinition->m_targetValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_isOffsetNode = true;
                 }
                 else
                 {
@@ -90,10 +90,10 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_isOffsetRelativeToCharacter = ( m_offsetType == OffsetType::RelativeToCharacter );
-            pSettings->m_samplingMode = m_samplingMode;
+            pDefinition->m_isOffsetRelativeToCharacter = ( m_offsetType == OffsetType::RelativeToCharacter );
+            pDefinition->m_samplingMode = m_samplingMode;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     bool OrientationWarpToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
@@ -119,8 +119,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t TargetWarpToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        TargetWarpNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<TargetWarpNode>( this, pSettings );
+        TargetWarpNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<TargetWarpNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -129,7 +129,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_clipReferenceNodeIdx = compiledNodeIdx;
+                    pDefinition->m_clipReferenceNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -150,7 +150,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_targetValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_targetValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -166,15 +166,15 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        pSettings->m_allowTargetUpdate = m_allowTargetUpdate;
-        pSettings->m_samplingMode = m_samplingMode;
-        pSettings->m_samplingPositionErrorThresholdSq = Math::Sqr( m_samplingPositionErrorThreshold );
-        pSettings->m_maxTangentLength = m_maxTangentLength;
-        pSettings->m_lerpFallbackDistanceThreshold = m_lerpFallbackDistanceThreshold;
-        pSettings->m_targetUpdateDistanceThreshold = m_targetUpdateDistanceThreshold;
-        pSettings->m_targetUpdateAngleThresholdRadians = m_targetUpdateAngleThreshold.ToRadians().ToFloat();
+        pDefinition->m_allowTargetUpdate = m_allowTargetUpdate;
+        pDefinition->m_samplingMode = m_samplingMode;
+        pDefinition->m_samplingPositionErrorThresholdSq = Math::Sqr( m_samplingPositionErrorThreshold );
+        pDefinition->m_maxTangentLength = m_maxTangentLength;
+        pDefinition->m_lerpFallbackDistanceThreshold = m_lerpFallbackDistanceThreshold;
+        pDefinition->m_targetUpdateDistanceThreshold = m_targetUpdateDistanceThreshold;
+        pDefinition->m_targetUpdateAngleThresholdRadians = m_targetUpdateAngleThreshold.ToRadians().ToFloat();
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     bool TargetWarpToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const

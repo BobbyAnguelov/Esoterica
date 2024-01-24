@@ -9,10 +9,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_ENGINE_API Settings final : public BoolValueNode::Settings
+        struct EE_ENGINE_API Definition final : public BoolValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( BoolValueNode::Settings, m_inputValueNodeIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( BoolValueNode::Definition, m_inputValueNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -53,10 +53,10 @@ namespace EE::Animation::GraphNodes
             DeltaOrientationZ, // The difference in orientation between the character and the target orientation (assumes target is in worldspace)
         };
 
-        struct EE_ENGINE_API Settings final : public TargetValueNode::Settings
+        struct EE_ENGINE_API Definition final : public TargetValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( TargetValueNode::Settings, m_inputValueNodeIdx, m_isWorldSpaceTarget, m_infoType );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( TargetValueNode::Definition, m_inputValueNodeIdx, m_isWorldSpaceTarget, m_infoType );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -84,10 +84,10 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        struct EE_ENGINE_API Settings final : public TargetValueNode::Settings
+        struct EE_ENGINE_API Definition final : public TargetValueNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( TargetValueNode::Settings, m_inputValueNodeIdx, m_isBoneSpaceOffset, m_rotationOffset, m_translationOffset );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( TargetValueNode::Definition, m_inputValueNodeIdx, m_isBoneSpaceOffset, m_rotationOffset, m_translationOffset );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 

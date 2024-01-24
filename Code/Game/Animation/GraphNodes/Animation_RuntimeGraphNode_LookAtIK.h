@@ -11,10 +11,10 @@ namespace EE::Animation::GraphNodes
     {
     public:
 
-        struct EE_GAME_API Settings final : public PassthroughNode::Settings
+        struct EE_GAME_API Definition final : public PassthroughNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PassthroughNode::Settings, m_targetNodeIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PassthroughNode::Definition, m_targetNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 

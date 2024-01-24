@@ -15,7 +15,7 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void Task::DrawSecondaryPoses( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer )
+    void Task::DrawSecondaryPoses( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled )
     {
         Pose const* pPrimaryPose = &pRecordedPoseBuffer->m_poses[0];
         Skeleton const* pPrimarySkeleton = pPrimaryPose->GetSkeleton();
@@ -38,16 +38,16 @@ namespace EE::Animation
             }
 
             // Draw pose
-            pSecondaryPose->DrawDebug( drawingContext, poseWorldTransform, pSecondaryPose->IsPoseSet() ? Colors::Cyan : Colors::LightGray.GetAlphaVersion( 0.25f ), 3.0f );
+            pSecondaryPose->DrawDebug( drawingContext, poseWorldTransform, lod, pSecondaryPose->IsPoseSet() ? Colors::Cyan : Colors::LightGray.GetAlphaVersion( 0.25f ), 3.0f, isDetailedViewEnabled );
         }
     }
 
     //-------------------------------------------------------------------------
 
-    void Task::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
+    void Task::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
     {
-        pRecordedPoseBuffer->m_poses[0].DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f );
-        DrawSecondaryPoses( drawingContext, worldTransform, pRecordedPoseBuffer );
+        pRecordedPoseBuffer->m_poses[0].DrawDebug( drawingContext, worldTransform, lod, GetDebugColor(), 3.0f, isDetailedViewEnabled );
+        DrawSecondaryPoses( drawingContext, worldTransform, lod, pRecordedPoseBuffer, isDetailedViewEnabled );
     }
     #endif
 }

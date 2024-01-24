@@ -5,7 +5,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void IsTargetSetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void IsTargetSetNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<IsTargetSetNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -41,7 +41,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetInfoNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void TargetInfoNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<TargetInfoNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pTargetNode );
@@ -64,7 +64,7 @@ namespace EE::Animation::GraphNodes
     void TargetInfoNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pTargetNode != nullptr );
-        auto pSettings = GetSettings<TargetInfoNode>();
+        auto pDefinition = GetDefinition<TargetInfoNode>();
 
         if ( !WasUpdated( context ) )
         {
@@ -80,7 +80,7 @@ namespace EE::Animation::GraphNodes
                 // If we have a valid transform, update the internal value
                 if ( bIsValidTransform )
                 {
-                    if ( pSettings->m_isWorldSpaceTarget )
+                    if ( pDefinition->m_isWorldSpaceTarget )
                     {
                         inputTargetTransform = inputTargetTransform * context.m_worldTransformInverse;
                     }
@@ -88,7 +88,7 @@ namespace EE::Animation::GraphNodes
                     //-------------------------------------------------------------------------
                     // NB: Target transform is in character space
 
-                    switch ( pSettings->m_infoType )
+                    switch ( pDefinition->m_infoType )
                     {
                     case Info::AngleHorizontal:
                     {
@@ -188,7 +188,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TargetOffsetNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void TargetOffsetNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<TargetOffsetNode>( context, options );
         context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
@@ -218,8 +218,8 @@ namespace EE::Animation::GraphNodes
 
             if ( m_value.IsTargetSet() )
             {
-                auto pSettings = GetSettings<TargetOffsetNode>();
-                m_value.SetOffsets( pSettings->m_rotationOffset, pSettings->m_translationOffset, pSettings->m_isBoneSpaceOffset );
+                auto pDefinition = GetDefinition<TargetOffsetNode>();
+                m_value.SetOffsets( pDefinition->m_rotationOffset, pDefinition->m_translationOffset, pDefinition->m_isBoneSpaceOffset );
             }
             else
             {

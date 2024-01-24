@@ -33,7 +33,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        struct LayerSettings
+        struct LayerDefinition
         {
             EE_SERIALIZE( m_inputNodeIdx, m_weightValueNodeIdx, m_boneMaskValueNodeIdx, m_rootMotionWeightValueNodeIdx, m_isSynchronized, m_ignoreEvents, m_isStateMachineLayer, m_blendMode );
 
@@ -49,16 +49,16 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        struct EE_ENGINE_API Settings : public PoseNode::Settings
+        struct EE_ENGINE_API Definition : public PoseNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_baseNodeIdx, m_onlySampleBaseRootMotion, m_layerSettings );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_baseNodeIdx, m_onlySampleBaseRootMotion, m_layerDefinition );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                                         m_baseNodeIdx = InvalidIndex;
             bool                                            m_onlySampleBaseRootMotion = true;
-            TInlineVector<LayerSettings, 3>                 m_layerSettings;
+            TInlineVector<LayerDefinition, 3>                 m_layerDefinition;
         };
 
         struct Layer
@@ -77,7 +77,7 @@ namespace EE::Animation::GraphNodes
 
         #if EE_DEVELOPMENT_TOOLS
         inline float GetLayerWeight( int32_t layerIdx ) const { return m_layers[layerIdx].m_weight; }
-        void GetSyncUpdateRangesForUnsynchronizedLayers( TInlineVector<TPair<int8_t, SyncTrackTimeRange>, 5>& outLayerUpdateRanges ) const;
+        void GetSyncUpdateRangesForUnsynchronizedLayers( TInlineVector<GraphLayerSyncInfo, 5>& outLayerSyncInfos ) const;
         #endif
 
     private:

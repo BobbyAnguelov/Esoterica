@@ -50,7 +50,7 @@ namespace EE::TypeSystem::Reflection
         //-------------------------------------------------------------------------
 
         bool HasMetaData() const { return !m_metaData.empty(); }
-        void ParseMetaData();
+        bool ParseMetaData();
 
     public:
 

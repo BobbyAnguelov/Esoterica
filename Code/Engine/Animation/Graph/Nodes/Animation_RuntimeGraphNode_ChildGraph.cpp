@@ -8,7 +8,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void ChildGraphNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ChildGraphNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<ChildGraphNode>( context, options );
         pNode->m_pGraphInstance = context.m_childGraphInstances[m_childGraphIdx];
@@ -41,7 +41,8 @@ namespace EE::Animation::GraphNodes
                     else
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        context.LogWarning( "Mismatch parameter type for child graph '%s', parent type: '%s', child type: '%s'", pNode->m_pGraphInstance->GetDefinitionResourceID().c_str(), GetNameForValueType( parentParamType ), GetNameForValueType( childParamType ) );
+                        GraphVariation const* pGraphVariation = pNode->m_pGraphInstance->GetGraphVariation();
+                        context.LogWarning( "Mismatch parameter type for child graph '%s', parent type: '%s', child type: '%s'", pGraphVariation->GetDefinition()->GetResourceID().c_str(), GetNameForValueType( parentParamType ), GetNameForValueType( childParamType ) );
                         #endif 
                     }
                 }

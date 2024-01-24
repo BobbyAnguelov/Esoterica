@@ -2,6 +2,7 @@
 #include "Base/Encoding/Hash.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
+#include "Engine/Input/VirtualInputRegistry.h"
 
 #if EE_DEVELOPMENT_TOOLS
 #include "imgui.h"
@@ -13,7 +14,7 @@ namespace EE
 {
     class EntityComponent;
     namespace Physics { class CharacterComponent; class PhysicsWorld; }
-    namespace Input { class InputState; }
+    namespace Input { class InputSystem; }
     namespace Animation { class GraphController; }
 }
 
@@ -65,7 +66,8 @@ namespace EE::Player
     public:
 
         EntityWorldUpdateContext const*             m_pEntityWorldUpdateContext = nullptr;
-        Input::InputState const*                    m_pInputState = nullptr;
+        Input::InputSystem const*                   m_pInputSystem = nullptr; // REMOVE ONCE ALL CODE HAS BEEN REFACTORED
+        Input::VirtualInputRegistry*                m_pInputRegistry = nullptr;
         Physics::PhysicsWorld*                      m_pPhysicsWorld = nullptr;
 
         MainPlayerComponent*                        m_pPlayerComponent = nullptr;

@@ -22,20 +22,15 @@
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderShader.h"
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderTexture.h"
 
-#include "Base/Imgui/ImguiX.h"
-#include "Base/Input/InputSystem.h"
-#include "Base/Imgui/ImguiSystem.h"
-#include "Base/Render/RenderDevice.h"
-#include "Base/Resource/ResourceProvider.h"
-#include "Base/Resource/ResourceSystem.h"
-#include "Base/TypeSystem/TypeRegistry.h"
-#include "Base/Threading/TaskSystem.h"
-#include "Base/Systems.h"
-
 //-------------------------------------------------------------------------
 
 namespace EE
 {
+    struct ModuleContext;
+    class Console;
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINE_API EngineModule final
     {
         EE_REFLECT_MODULE;
@@ -44,11 +39,8 @@ namespace EE
 
     public:
 
-        bool InitializeCoreSystems( IniFile const& iniFile );
-        void ShutdownCoreSystems();
-
-        bool InitializeModule();
-        void ShutdownModule();
+        bool InitializeModule( ModuleContext& context );
+        void ShutdownModule( ModuleContext& context );
 
         //-------------------------------------------------------------------------
 
@@ -59,38 +51,15 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        inline SystemRegistry* GetSystemRegistry() { return &m_systemRegistry; }
-        inline TaskSystem* GetTaskSystem() { return &m_taskSystem; }
-        inline TypeSystem::TypeRegistry* GetTypeRegistry() { return &m_typeRegistry; }
-        inline Input::InputSystem* GetInputSystem() { return &m_inputSystem; }
-        inline Resource::ResourceSystem* GetResourceSystem() { return &m_resourceSystem; }
-        inline Render::RenderDevice* GetRenderDevice() { return m_pRenderDevice; }
+        inline Console* GetConsole() { return m_pConsole; }
         inline EntityWorldManager* GetEntityWorldManager() { return &m_entityWorldManager; }
         inline Render::RendererRegistry* GetRendererRegistry() { return &m_rendererRegistry; }
 
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        inline ImGuiX::ImguiSystem* GetImguiSystem() { return &m_imguiSystem; }
-        #endif
-
     private:
 
-        bool                                            m_moduleInitialized = false;
-
-        // System
-        TaskSystem                                      m_taskSystem = TaskSystem( Threading::GetProcessorInfo().m_numPhysicalCores - 1 );
-        TypeSystem::TypeRegistry                        m_typeRegistry;
-        SystemRegistry                                  m_systemRegistry;
-        Input::InputSystem                              m_inputSystem;
-
-        // Resource
-        Resource::ResourceProvider*                     m_pResourceProvider = nullptr;
-        Resource::ResourceSystem                        m_resourceSystem = Resource::ResourceSystem( m_taskSystem );
-
-        // ImGui
+        // Console
         #if EE_DEVELOPMENT_TOOLS
-        ImGuiX::ImguiSystem                             m_imguiSystem;
+        Console*                                        m_pConsole = nullptr;
         #endif
 
         // Entity
@@ -98,7 +67,6 @@ namespace EE
         EntityModel::EntityCollectionLoader             m_entityCollectionLoader;
 
         // Rendering
-        Render::RenderDevice*                           m_pRenderDevice = nullptr;
         Render::MeshLoader                              m_renderMeshLoader;
         Render::ShaderLoader                            m_shaderLoader;
         Render::TextureLoader                           m_textureLoader;

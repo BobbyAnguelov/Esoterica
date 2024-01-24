@@ -26,7 +26,7 @@ namespace EE::Render
         Viewport() = default;
         Viewport( Int2 const& topLeft, Int2 const& size, Math::ViewVolume const& viewVolume = Math::ViewVolume() );
 
-        inline bool IsValid() const { return m_ID.IsValid() && ( m_size.m_x > 0 && m_size.m_y > 0 ) && ( m_topLeftPosition.m_x >= 0 && m_topLeftPosition.m_y >= 0 ); }
+        inline bool IsValid() const { return m_ID.IsValid() && ( m_size.m_x > 0 && m_size.m_y > 0 ); }
         inline UUID const& GetID() const { return m_ID; }
 
         //-------------------------------------------------------------------------

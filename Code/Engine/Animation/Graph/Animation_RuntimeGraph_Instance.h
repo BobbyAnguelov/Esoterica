@@ -75,7 +75,6 @@ namespace EE::Animation
 
         inline GraphVariation const* GetGraphVariation() const { return m_pGraphVariation; }
         inline StringID const& GetVariationID() const { return m_pGraphVariation->m_dataSet.m_variationID; }
-        inline ResourceID const& GetResourceID() const { return m_pGraphVariation->GetResourceID(); }
         inline ResourceID const& GetDefinitionResourceID() const { return m_pGraphVariation->m_pGraphDefinition->GetResourceID(); }
 
         // Returns the list of all resource LUTs used by this instance: the graph def + all connected external graphs
@@ -168,7 +167,7 @@ namespace EE::Animation
 
         inline bool IsValidNodeIndex( int16_t nodeIdx ) const 
         {
-            return nodeIdx < m_pGraphVariation->m_pGraphDefinition->m_nodeSettings.size();
+            return nodeIdx < m_pGraphVariation->m_pGraphDefinition->m_nodeDefinitions.size();
         }
 
         // Control Parameters
@@ -356,6 +355,9 @@ namespace EE::Animation
 
         // Get the current active layer states - to be promoted to a full-runtime feature at some point, requires moving active node tracking out of debug
         void GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges );
+
+        // Get sampled event debug path
+        SampledEventDebugPath GetSampledEventDebugPath( int32_t sampledEventIdx ) const;
 
         // Get the runtime log for this graph instance
         TVector<GraphLogEntry> const& GetLog() const { return m_log; }

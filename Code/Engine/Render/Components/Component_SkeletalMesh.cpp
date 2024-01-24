@@ -132,7 +132,7 @@ namespace EE::Render
         EE_ASSERT( IsInitialized() );
         EE_ASSERT( HasMeshResourceSet() && HasSkeletonResourceSet() );
         EE_ASSERT( !m_animToMeshBoneMap.empty() );
-        EE_ASSERT( pPose != nullptr && pPose->HasGlobalTransforms() );
+        EE_ASSERT( pPose != nullptr && pPose->HasModelSpaceTransforms() );
 
         int32_t const numAnimBones = pPose->GetNumBones();
         for ( auto animBoneIdx = 0; animBoneIdx < numAnimBones; animBoneIdx++ )
@@ -153,7 +153,7 @@ namespace EE::Render
         if ( HasSkeletonResourceSet() )
         {
             Animation::Pose referencePose( m_skeleton.GetPtr() );
-            referencePose.CalculateGlobalTransforms();
+            referencePose.CalculateModelSpaceTransforms();
             SetPose( &referencePose );
         }
         else

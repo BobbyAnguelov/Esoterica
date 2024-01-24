@@ -14,8 +14,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t IsTargetSetToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        IsTargetSetNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<IsTargetSetNode>( this, pSettings );
+        IsTargetSetNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<IsTargetSetNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -24,7 +24,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -37,7 +37,7 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -51,8 +51,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t TargetInfoToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        TargetInfoNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<TargetInfoNode>( this, pSettings );
+        TargetInfoNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<TargetInfoNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -61,7 +61,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -76,10 +76,10 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_isWorldSpaceTarget = m_isWorldSpaceTarget;
-            pSettings->m_infoType = m_infoType;
+            pDefinition->m_isWorldSpaceTarget = m_isWorldSpaceTarget;
+            pDefinition->m_infoType = m_infoType;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void TargetInfoToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -162,8 +162,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t TargetOffsetToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        TargetOffsetNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<TargetOffsetNode>( this, pSettings );
+        TargetOffsetNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<TargetOffsetNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -172,7 +172,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -187,10 +187,10 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_isBoneSpaceOffset = m_isBoneSpaceOffset;
-            pSettings->m_rotationOffset = m_rotationOffset;
-            pSettings->m_translationOffset = m_translationOffset;
+            pDefinition->m_isBoneSpaceOffset = m_isBoneSpaceOffset;
+            pDefinition->m_rotationOffset = m_rotationOffset;
+            pDefinition->m_translationOffset = m_translationOffset;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 }

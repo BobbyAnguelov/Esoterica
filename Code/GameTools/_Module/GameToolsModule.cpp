@@ -4,7 +4,7 @@
 
 namespace EE
 {
-    bool GameToolsModule::InitializeModule( ModuleContext& context, IniFile const& iniFile )
+    bool GameToolsModule::InitializeModule( ModuleContext& context )
     {
         return true;
     }

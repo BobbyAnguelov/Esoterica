@@ -36,6 +36,7 @@ namespace EE::VisualGraph
             constexpr static char const* const s_nameKey = "Name";
             constexpr static char const* const s_typeKey = "Type";
             constexpr static char const* const s_dynamicKey = "IsDynamic";
+            constexpr static char const* const s_userDataKey = "UserData";
             constexpr static char const* const s_allowMultipleConnectionsKey = "AllowMultipleConnections";
 
         public:
@@ -52,6 +53,7 @@ namespace EE::VisualGraph
                 m_position = Float2::Zero;
                 m_size = Float2( -1, -1 );
             }
+
         public:
 
             UUID                    m_ID = UUID::GenerateID();
@@ -60,6 +62,7 @@ namespace EE::VisualGraph
             Direction               m_direction;
             Float2                  m_position = Float2( 0, 0 ); // Updated each frame ( rendered window space )
             Float2                  m_size = Float2( -1, -1 ); // Updated each frame ( rendered window space ) - used to render offset correctly;
+            uint64_t                m_userData = 0; // Optional user data that can be useful in various tools scenarios
             bool                    m_isDynamic = false; // Only relevant for input pins
             bool                    m_allowMultipleOutConnections = false; // Only relevant for output pins
         };
@@ -76,6 +79,8 @@ namespace EE::VisualGraph
             friend GraphView;
 
             EE_REFLECT_TYPE( Node );
+
+        private:
 
             constexpr static char const* const  s_inputPinsKey = "InputPins";
             constexpr static char const* const  s_outputPinsKey = "OutputPins";
@@ -130,6 +135,10 @@ namespace EE::VisualGraph
             // Get the index for a specific input pin via ID
             int32_t GetInputPinIndex( UUID const& pinID ) const;
 
+            // Try to reorder the input pins based on the supplied order
+            // This is a complex reorder, in that only the specified pins will be reordered and the remaining pins will remain untouched
+            void ReorderInputPins( TVector<UUID> const& newOrder );
+
             // Output Pins
             //-------------------------------------------------------------------------
 
@@ -166,9 +175,14 @@ namespace EE::VisualGraph
             // Get the index for a specific output pin via ID
             int32_t GetOutputPinIndex( UUID const& pinID ) const;
 
+            // Try to reorder the output pins based on the supplied order
+            // This is a complex reorder, in that only the specified pins will be reordered and the remaining pins will remain untouched
+            void ReorderOutputPins( TVector<UUID> const& newOrder );
+
             // Connections
             //-------------------------------------------------------------------------
 
+            // Get the node connected to the specified input pin
             Flow::Node* GetConnectedInputNode( int32_t inputPinIdx ) const;
 
             template<typename T>
@@ -192,6 +206,7 @@ namespace EE::VisualGraph
             virtual Color GetPinColor( Pin const& pin ) const { return 0x888888FF; }
 
         protected:
+
             virtual void ResetCalculatedNodeSizes() override;
 
             virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;
@@ -256,6 +271,10 @@ namespace EE::VisualGraph
 
         public:
 
+            inline bool IsValid() const { return m_pStartNode != nullptr && m_pEndNode != nullptr && m_startPinID.IsValid() && m_endPinID.IsValid(); }
+
+        public:
+
             UUID                        m_ID = UUID::GenerateID(); // Transient ID that is only needed for identification in the UI
             Node*                       m_pStartNode = nullptr;
             UUID                        m_startPinID;
@@ -309,6 +328,8 @@ namespace EE::VisualGraph
         void BreakAllConnectionsForNode( UUID const& nodeID );
 
         Flow::Node* GetConnectedNodeForInputPin( UUID const& pinID ) const;
+
+        Flow::Connection const* GetConnectionForInputPin( UUID const& pinID ) const;
 
         void GetConnectedOutputNodes( Flow::Node const* pOriginalStartNode, Flow::Node const* pNode, TInlineVector<Flow::Node const*, 10>& connectedNodes ) const;
 

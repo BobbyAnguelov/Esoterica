@@ -67,7 +67,7 @@ namespace EE::PG
 
     class EE_ENGINETOOLS_API PropertyGridEditorFactory : public TGlobalRegistryBase<PropertyGridEditorFactory>
     {
-        EE_DECLARE_GLOBAL_REGISTRY( PropertyGridEditorFactory );
+        EE_GLOBAL_REGISTRY( PropertyGridEditorFactory );
 
     public:
 

@@ -3,7 +3,7 @@
 #include "Engine/_Module/API.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/Entity/EntityComponent.h"
-#include "Engine/Physics/PhysicsSettings.h"
+#include "Engine/Physics/PhysicsCollision.h"
 #include "Base/Types/Color.h"
 #include "Base/TypeSystem/ReflectedType.h"
 #include "Base/Math/Transform.h"

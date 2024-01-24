@@ -85,7 +85,7 @@ namespace EE::Animation
         CreateToolWindow( "Timeline", [this] ( UpdateContext const& context, bool isFocused ) { DrawTimelineWindow( context, isFocused ); }, ImVec2( 0, 0 ), true );
         CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDetailsWindow( context, isFocused ); } );
         CreateToolWindow( "Clip Browser", [this] ( UpdateContext const& context, bool isFocused ) { DrawClipBrowser( context, isFocused ); } );
-        CreateToolWindow( "Track Data", [this] ( UpdateContext const& context, bool isFocused ) { DrawTrackDataWindow( context, isFocused ); } );
+        CreateToolWindow( "Bone Hierarchy", [this] ( UpdateContext const& context, bool isFocused ) { DrawHierarchyWindow( context, isFocused ); } );
     }
 
     void AnimationClipEditor::Shutdown( UpdateContext const& context )
@@ -184,6 +184,7 @@ namespace EE::Animation
             m_timelineEditor.SetLength( (float) m_editedResource->GetNumFrames() - 1 );
             m_timelineEditor.SetTimeUnitConversionFactor( m_editedResource->IsSingleFrameAnimation() ? 30 : m_editedResource->GetFPS() );
             CreatePreviewEntity();
+            CreateSkeletonTree();
         }
     }
 
@@ -195,6 +196,8 @@ namespace EE::Animation
             {
                 DestroyPreviewEntity();
             }
+
+            DestroySkeletonTree();
         }
     }
 
@@ -223,13 +226,20 @@ namespace EE::Animation
                 Pose const* pPose = m_pAnimationComponent->GetPrimaryPose();
                 if ( pPose != nullptr )
                 {
-                    TBitFlags<Pose::DrawFlags> drawFlags;
-                    if ( m_shouldDrawBoneNames )
+                    if ( !m_isolateSelectedBones || m_selectedBoneIDs.empty() )
                     {
-                        drawFlags.SetFlag( Pose::DrawFlags::DrawBoneNames );
+                        pPose->DrawDebug( drawingCtx, m_characterTransform, m_skeletonLOD, Colors::HotPink, 3.0f, m_shouldDrawBoneNames, nullptr );
                     }
+                    else
+                    {
+                        TVector<int32_t> boneFilter;
+                        for ( StringID selectedBoneID : m_selectedBoneIDs )
+                        {
+                            boneFilter.emplace_back( pPose->GetSkeleton()->GetBoneIndex( selectedBoneID ) );
+                        }
 
-                    pPose->DrawDebug( drawingCtx, m_characterTransform, Colors::HotPink, 3.0f, nullptr, drawFlags );
+                        pPose->DrawDebug( drawingCtx, m_characterTransform, m_skeletonLOD, Colors::HotPink, 3.0f, m_shouldDrawBoneNames, nullptr, boneFilter );
+                    }
                 }
 
                 // Draw the secondary animation poses
@@ -238,7 +248,7 @@ namespace EE::Animation
                 {
                     Pose const* pSecondaryPose = m_pAnimationComponent->GetSecondaryPoses()[i];
                     Transform const secondaryPoseTransform = m_secondarySkeletonAttachmentSocketIDs.empty() ? m_characterTransform : m_pMeshComponent->GetAttachmentSocketTransform( m_secondarySkeletonAttachmentSocketIDs[i] );
-                    pSecondaryPose->DrawDebug( drawingCtx, secondaryPoseTransform, Colors::Cyan, 3.0f, nullptr );
+                    pSecondaryPose->DrawDebug( drawingCtx, secondaryPoseTransform, m_skeletonLOD, Colors::Cyan, 3.0f, m_shouldDrawBoneNames, nullptr );
                 }
             }
 
@@ -431,66 +441,56 @@ namespace EE::Animation
         }
     }
 
-    void AnimationClipEditor::DrawTrackDataWindow( UpdateContext const& context, bool isFocused )
+    void AnimationClipEditor::DrawHierarchyWindow( UpdateContext const& context, bool isFocused )
     {
-        auto DrawTransform = [] ( Transform transform )
+        if ( !IsResourceLoaded() )
         {
-            Vector const& translation = transform.GetTranslation();
-            Quaternion const& rotation = transform.GetRotation();
-            EulerAngles const angles = rotation.ToEulerAngles();
-            Float4 const quatValues = rotation.ToFloat4();
-
-            ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-            ImGui::Text( "Rot (Quat): X: %.3f, Y: %.3f, Z: %.3f, W: %.3f", quatValues.m_x, quatValues.m_y, quatValues.m_z, quatValues.m_w );
-            ImGui::Text( "Rot (Euler): X: %.3f, Y: %.3f, Z: %.3f", angles.m_x.ToDegrees().ToFloat(), angles.m_y.ToDegrees().ToFloat(), angles.m_z.ToDegrees().ToFloat() );
-            ImGui::Text( "Trans: X: %.3f, Y: %.3f, Z: %.3f", translation.GetX(), translation.GetY(), translation.GetZ() );
-            ImGui::Text( "Scl: %.3f", transform.GetScale() );
-        };
+            ImGui::Text( "Nothing to show!" );
+            return;
+        }
 
         //-------------------------------------------------------------------------
 
-        if ( IsResourceLoaded() )
+        if ( ImGui::Button( EE_ICON_SKULL" Open Skeleton", ImVec2( -1, 0 ) ) )
         {
-            // There may be a frame delay between the UI and the entity system creating the pose
-            Pose const* pPose = m_pAnimationComponent->GetPrimaryPose();
-            if ( pPose != nullptr )
+            Skeleton const* pSkeleton = m_editedResource.GetPtr()->GetSkeleton();
+            m_pToolsContext->TryOpenResource( pSkeleton->GetResourceID() );
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGuiX::Checkbox( "Draw Bone Names", &m_shouldDrawBoneNames );
+        ImGui::SameLine();
+        ImGuiX::Checkbox( "Isolate Selected Bones", &m_isolateSelectedBones );
+        ImGui::SameLine();
+        ImGuiX::Checkbox( "Show Transforms", &m_showHierarchyTransforms );
+
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginChild( "Table", ImVec2( ImGui::GetContentRegionAvail().x, -1 ), ImGuiChildFlags_AutoResizeY ) )
+        {
+            static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
+            if ( ImGui::BeginTable( "BoneTreeTable", m_showHierarchyTransforms ? 3 : 1, flags ) )
             {
-                if ( ImGui::BeginTable( "TrackDataTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg ) )
+                // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
+                ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+
+                if ( m_showHierarchyTransforms )
                 {
-                    ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_WidthStretch );
-                    ImGui::TableSetupColumn( "Transform", ImGuiTableColumnFlags_WidthStretch );
-                    ImGui::TableHeadersRow();
-
-                    //-------------------------------------------------------------------------
-
-                    Skeleton const* pSkeleton = pPose->GetSkeleton();
-                    int32_t const numBones = pSkeleton->GetNumBones();
-
-                    ImGuiListClipper clipper;
-                    clipper.Begin( numBones );
-                    while ( clipper.Step() )
-                    {
-                        for ( int boneIdx = clipper.DisplayStart; boneIdx < clipper.DisplayEnd; boneIdx++ )
-                        {
-                            Transform const& boneTransform = ( boneIdx == 0 ) ? m_editedResource->GetRootTransform( m_pAnimationComponent->GetAnimTime() ) : pPose->GetGlobalTransform( boneIdx );
-
-                            ImGui::TableNextColumn();
-                            ImGui::Text( "%d. %s", boneIdx, pSkeleton->GetBoneID( boneIdx ).c_str() );
-
-                            ImGui::TableNextColumn();
-                            DrawTransform( boneTransform );
-                        }
-                    }
-                    clipper.End();
-
-                    ImGui::EndTable();
+                    ImGui::TableSetupColumn( "Bone Space", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+                    ImGui::TableSetupColumn( "World Space", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
                 }
+
+                ImGui::TableHeadersRow();
+
+                //-------------------------------------------------------------------------
+
+                DrawSkeletonTreeRow( m_pSkeletonTreeRoot );
+
+                ImGui::EndTable();
             }
         }
-        else
-        {
-            ImGui::Text( "Nothing to show!" );
-        }
+        ImGui::EndChild();
     }
 
     void AnimationClipEditor::DrawDetailsWindow( UpdateContext const& context, bool isFocused )
@@ -501,6 +501,166 @@ namespace EE::Animation
     void AnimationClipEditor::DrawClipBrowser( UpdateContext const& context, bool isFocused )
     {
         m_animationClipBrowser.Draw( context, isFocused );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void AnimationClipEditor::CreateSkeletonTree()
+    {
+        TVector<BoneInfo*> boneInfos;
+
+        // Create all infos
+        Skeleton const* pSkeleton = m_editedResource.GetPtr()->GetSkeleton();
+        int32_t const numBones = pSkeleton->GetNumBones();
+        for ( auto i = 0; i < numBones; i++ )
+        {
+            auto& pBoneInfo = boneInfos.emplace_back( EE::New<BoneInfo>() );
+            pBoneInfo->m_boneIdx = i;
+        }
+
+        // Create hierarchy
+        for ( auto i = 1; i < numBones; i++ )
+        {
+            int32_t const parentBoneIdx = pSkeleton->GetParentBoneIndex( i );
+            EE_ASSERT( parentBoneIdx != InvalidIndex );
+            boneInfos[parentBoneIdx]->m_children.emplace_back( boneInfos[i] );
+        }
+
+        // Set root
+        m_pSkeletonTreeRoot = boneInfos[0];
+    }
+
+    void AnimationClipEditor::DestroySkeletonTree()
+    {
+        if ( m_pSkeletonTreeRoot != nullptr )
+        {
+            m_pSkeletonTreeRoot->DestroyChildren();
+            EE::Delete( m_pSkeletonTreeRoot );
+        }
+    }
+
+    void AnimationClipEditor::DrawSkeletonTreeRow( BoneInfo* pBone )
+    {
+        EE_ASSERT( pBone != nullptr );
+
+        Skeleton const* pSkeleton = m_editedResource.GetPtr()->GetSkeleton();
+        int32_t const boneIdx = pBone->m_boneIdx;
+        StringID const currentBoneID = pSkeleton->GetBoneID( boneIdx );
+        bool const isSelected = VectorContains( m_selectedBoneIDs, currentBoneID );
+
+        Color rowColor = ImGuiX::Style::s_colorText;
+
+        if ( isSelected )
+        {
+            rowColor = ImGuiX::Style::s_colorAccent0;
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::TableNextRow();
+
+        //-------------------------------------------------------------------------
+        // Draw Label
+        //-------------------------------------------------------------------------
+
+        bool const isHighLOD = pSkeleton->IsBoneHighLOD( boneIdx );
+        InlineString const boneLabel( InlineString::CtorSprintf(), "%d. %s", boneIdx, currentBoneID.c_str() );
+
+        ImGui::TableNextColumn();
+
+        int32_t treeNodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+        if ( pBone->m_children.empty() )
+        {
+            treeNodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
+        }
+
+        if ( isSelected )
+        {
+            treeNodeFlags |= ImGuiTreeNodeFlags_Selected;
+        }
+
+        ImGui::SetNextItemOpen( pBone->m_isExpanded );
+        ImGui::AlignTextToFramePadding();
+        ImGui::PushStyleColor( ImGuiCol_Text, rowColor );
+        pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
+
+        // Handle bone selection
+        if ( ImGui::IsItemClicked() )
+        {
+            // Multi-select
+            if ( ImGui::IsKeyDown( ImGuiMod_Ctrl ) )
+            {
+                // Remove from selection
+                if ( VectorContains( m_selectedBoneIDs, currentBoneID ) )
+                {
+                    m_selectedBoneIDs.erase_first( currentBoneID );
+                }
+                else // Add to selection
+                {
+                    m_selectedBoneIDs.emplace_back( currentBoneID );
+                }
+            }
+            else // Single selection
+            {
+                m_selectedBoneIDs.clear();
+                m_selectedBoneIDs.emplace_back( currentBoneID );
+            }
+        }
+
+        ImGui::PopStyleColor();
+
+        //-------------------------------------------------------------------------
+        // Draw Transforms
+        //-------------------------------------------------------------------------
+
+        if ( m_showHierarchyTransforms )
+        {
+            Pose const* pPose = m_pAnimationComponent->GetPrimaryPose();
+
+            ImGui::TableNextColumn();
+
+            if ( pPose != nullptr )
+            {
+                Transform boneTransform = ( boneIdx == 0 ) ? m_editedResource->GetRootTransform( m_pAnimationComponent->GetAnimTime() ) : pPose->GetTransform( boneIdx );
+                ImGuiX::DrawTransform( boneTransform );
+            }
+
+            ImGui::TableNextColumn();
+
+            if ( pPose != nullptr && boneIdx != 0 )
+            {
+                Transform boneTransform = pPose->GetGlobalTransform( boneIdx );
+                ImGuiX::DrawTransform( boneTransform );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+        // Draw Context Menu
+        //-------------------------------------------------------------------------
+
+        InlineString const contextMenuID( InlineString::CtorSprintf(), "##%s_ctx", currentBoneID.c_str() );
+        if ( ImGui::BeginPopupContextItem( contextMenuID.c_str() ) )
+        {
+            if ( ImGui::MenuItem( EE_ICON_IDENTIFIER" Copy Bone ID" ) )
+            {
+                ImGui::SetClipboardText( currentBoneID.c_str() );
+            }
+
+            ImGui::EndPopup();
+        }
+
+        //-------------------------------------------------------------------------
+        // Draw Children
+        //-------------------------------------------------------------------------
+
+        if ( pBone->m_isExpanded )
+        {
+            for ( BoneInfo* pChildBone : pBone->m_children )
+            {
+                DrawSkeletonTreeRow( pChildBone );
+            }
+            ImGui::TreePop();
+        }
     }
 
     //-------------------------------------------------------------------------

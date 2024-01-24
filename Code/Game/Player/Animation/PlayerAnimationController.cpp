@@ -99,9 +99,9 @@ namespace EE::Player
 
     bool AnimationController::IsTransitionFullyAllowed( StringID specificID ) const
     {
-        for ( auto const& sampledMarker : m_transitionMarkers )
+        for ( auto const& pSampledEvent : m_transitionEvents )
         {
-            if ( sampledMarker.m_ID == specificID && sampledMarker.m_marker == Animation::TransitionMarker::AllowTransition )
+            if ( pSampledEvent->GetOptionalID() == specificID && pSampledEvent->GetRule() == Animation::TransitionRule::AllowTransition )
             {
                 return true;
             }
@@ -112,9 +112,9 @@ namespace EE::Player
 
     bool AnimationController::IsTransitionConditionallyAllowed( StringID specificID ) const
     {
-        for ( auto const& sampledMarker : m_transitionMarkers )
+        for ( auto const& pSampledEvent : m_transitionEvents )
         {
-            if ( sampledMarker.m_ID == specificID && sampledMarker.m_marker == Animation::TransitionMarker::ConditionallyAllowTransition )
+            if ( pSampledEvent->GetOptionalID() == specificID && pSampledEvent->GetRule() == Animation::TransitionRule::ConditionallyAllowTransition )
             {
                 return true;
             }
@@ -129,7 +129,7 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        m_transitionMarkers.clear();
+        m_transitionEvents.clear();
 
         //-------------------------------------------------------------------------
 
@@ -158,7 +158,7 @@ namespace EE::Player
                 {
                     if ( auto pTransitionEvent = sampledEvent.TryGetEvent<Animation::TransitionEvent>() )
                     {
-                        m_transitionMarkers.emplace_back( pTransitionEvent->GetMarker(), pTransitionEvent->GetMarkerID() );
+                        m_transitionEvents.emplace_back( pTransitionEvent );
                     }
                 }
             }

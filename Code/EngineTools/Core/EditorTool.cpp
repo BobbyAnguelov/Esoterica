@@ -14,7 +14,7 @@
 #include "Engine/Physics/PhysicsWorld.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Resource/ResourceSystem.h"
-#include "Base/Resource/ResourceSettings.h"
+#include "Base/Resource/Settings/GlobalSettings_Resource.h"
 #include "Base/Serialization/JsonSerialization.h"
 #include "Base/Serialization/TypeSerialization.h"
 #include "Base/Types/ScopedValue.h"
@@ -1259,10 +1259,6 @@ namespace EE
 
 namespace EE
 {
-    EE_GLOBAL_REGISTRY( ResourceEditorFactory );
-
-    //-------------------------------------------------------------------------
-
     class GenericResourceEditor : public EditorTool
     {
         EE_EDITOR_TOOL( GenericResourceEditor );

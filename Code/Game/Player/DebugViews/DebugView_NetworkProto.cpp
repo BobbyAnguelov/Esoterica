@@ -429,18 +429,18 @@ namespace EE::Player
             auto drawContext = context.GetDrawingContext();
 
             // Server Pose
-            m_actualPoses[m_updateFrameIdx].DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::LimeGreen, 4.0f );
+            m_actualPoses[m_updateFrameIdx].DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Animation::Skeleton::LOD::High, Colors::LimeGreen, 4.0f );
 
             // Parameter Pose
             if ( m_showParameterPose )
             {
-                m_replicatedPoses[m_updateFrameIdx].DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::HotPink, 4.0f );
+                m_replicatedPoses[m_updateFrameIdx].DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Animation::Skeleton::LOD::High, Colors::HotPink, 4.0f );
             }
 
             // Task Pose
             if ( m_showTaskPose && m_pGeneratedPose != nullptr )
             {
-                m_pGeneratedPose->DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Colors::Orange, 4.0f );
+                m_pGeneratedPose->DrawDebug( drawContext, nextRecordedFrameData.m_characterWorldTransform, Animation::Skeleton::LOD::High, Colors::Orange, 4.0f );
             }
         }
     }

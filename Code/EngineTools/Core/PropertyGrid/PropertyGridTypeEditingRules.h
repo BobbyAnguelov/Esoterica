@@ -59,7 +59,7 @@ namespace EE::PG
 
     class EE_ENGINETOOLS_API TypeEditingRulesFactory : public TGlobalRegistryBase<TypeEditingRulesFactory>
     {
-        EE_DECLARE_GLOBAL_REGISTRY( TypeEditingRulesFactory );
+        EE_GLOBAL_REGISTRY( TypeEditingRulesFactory );
 
     public:
 

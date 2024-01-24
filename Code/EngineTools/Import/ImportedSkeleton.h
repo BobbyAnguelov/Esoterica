@@ -54,7 +54,7 @@ namespace EE::Import
     protected:
 
         void CalculateLocalTransforms();
-        void CalculateGlobalTransforms();
+        void CalculateModelSpaceTransforms();
 
     protected:
 

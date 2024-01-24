@@ -2,7 +2,6 @@
 
 #include "Animation_TaskPosePool.h"
 #include "Base/Types/Color.h"
-#include "Base/Utils/GlobalRegistryBase.h"
 #include "Base/TypeSystem/ReflectedType.h"
 #include "Base/Types/Function.h"
 
@@ -58,7 +57,7 @@ namespace EE::Animation
     public:
 
         #if EE_DEVELOPMENT_TOOLS
-        static void DrawSecondaryPoses( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer );
+        static void DrawSecondaryPoses( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled );
         #endif
 
     public:
@@ -102,7 +101,7 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         virtual String GetDebugText() const { return String(); }
         virtual Color GetDebugColor() const { return Colors::White; }
-        virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const;
+        virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const;
         #endif
 
     protected:

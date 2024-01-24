@@ -10,7 +10,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void TransitionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void TransitionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<TransitionNode>( context, options );
         context.SetNodePtrFromIndex( m_targetStateNodeIdx, pNode->m_pTargetNode );
@@ -18,7 +18,6 @@ namespace EE::Animation::GraphNodes
         context.SetOptionalNodePtrFromIndex( m_syncEventOffsetOverrideNodeIdx, pNode->m_pEventOffsetOverrideNode );
         context.SetOptionalNodePtrFromIndex( m_startBoneMaskNodeIdx, pNode->m_pStartBoneMaskNode );
         context.SetOptionalNodePtrFromIndex( m_targetSyncIDNodeIdx, pNode->m_pTargetSyncIDNode );
-        
     }
 
     GraphPoseNodeResult TransitionNode::StartTransitionFromState( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, StateNode* pSourceState, bool startCachingSourcePose )
@@ -53,7 +52,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult TransitionNode::InitializeTargetStateAndUpdateTransition( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult sourceNodeResult )
     {
-        auto pSettings = GetSettings<TransitionNode>();
+        auto pDefinition = GetDefinition<TransitionNode>();
 
         //-------------------------------------------------------------------------
 
@@ -100,7 +99,7 @@ namespace EE::Animation::GraphNodes
         SyncTrackTimeRange targetUpdateRange;
         GraphPoseNodeResult targetNodeResult;
 
-        if ( pSettings->IsSynchronized() || pUpdateRange != nullptr )
+        if ( pDefinition->IsSynchronized() || pUpdateRange != nullptr )
         {
             EE_ASSERT( m_pSourceNode != nullptr );
             SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
@@ -123,7 +122,7 @@ namespace EE::Animation::GraphNodes
                 }
                 else
                 {
-                    m_syncEventOffset = Math::Floor( pSettings->m_syncEventOffset );
+                    m_syncEventOffset = Math::Floor( pDefinition->m_syncEventOffset );
                 }
             }
             else
@@ -151,7 +150,7 @@ namespace EE::Animation::GraphNodes
             #endif
 
             // Calculate transition duration
-            if ( pSettings->ShouldClampTransitionLength() )
+            if ( pDefinition->ShouldClampTransitionLength() )
             {
                 // Calculate the real end of the source state i.e. the percentage through for the end of the last sync event
                 SyncTrackTime const sourceRealEndSyncTime = sourceSyncTrack.GetEndTime();
@@ -173,7 +172,7 @@ namespace EE::Animation::GraphNodes
                 Seconds const sourceDuration = m_pSourceNode->GetDuration();
                 if ( sourceDuration > 0.0f )
                 {
-                    Percentage const sourceTransitionDuration = Percentage( pSettings->m_duration / m_pSourceNode->GetDuration() );
+                    Percentage const sourceTransitionDuration = Percentage( pDefinition->m_duration / m_pSourceNode->GetDuration() );
                     bool const shouldClamp = deltaBetweenCurrentTimeAndRealEndTime < sourceTransitionDuration;
 
                     // Calculate the target end position for this transition
@@ -210,11 +209,11 @@ namespace EE::Animation::GraphNodes
             }
             else
             {
-                m_syncEventOffset = pSettings->m_syncEventOffset;
+                m_syncEventOffset = pDefinition->m_syncEventOffset;
             }
 
             // If we have a sync offset or we need to match the source state time, we need to create a target state initial time
-            bool const shouldMatchSourceTime = pSettings->ShouldMatchSourceTime();
+            bool const shouldMatchSourceTime = pDefinition->ShouldMatchSourceTime();
             if ( shouldMatchSourceTime || !Math::IsNearZero( m_syncEventOffset ) )
             {
                 SyncTrackTime targetStartEventSyncTime;
@@ -226,11 +225,11 @@ namespace EE::Animation::GraphNodes
                     SyncTrackTime sourceFromSyncTime = sourceSyncTrack.GetTime( m_pSourceNode->GetCurrentTime() );
 
                     // Set the matching event index if required
-                    if ( pSettings->ShouldMatchSyncEventIndex() )
+                    if ( pDefinition->ShouldMatchSyncEventIndex() )
                     {
                         targetStartEventSyncTime.m_eventIdx = sourceFromSyncTime.m_eventIdx;
                     }
-                    else if ( pSettings->ShouldMatchSyncEventID() )
+                    else if ( pDefinition->ShouldMatchSyncEventID() )
                     {
                         // Get the sync event ID to match
                         StringID eventIDToMatch;
@@ -252,13 +251,13 @@ namespace EE::Animation::GraphNodes
                             // If it becomes a headache - initialize it here and then conditionally initialize later... Our init time and update time will not match so that might be a problem for some nodes, but this option should be rarely used
                             m_pTargetNode->Initialize( context, targetStartEventSyncTime );
                             SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
-                            targetStartEventSyncTime.m_eventIdx = pSettings->ShouldPreferClosestSyncEventID() ? targetSyncTrack.GetClosestEventIndexForID( sourceFromSyncTime, eventIDToMatch ) : targetSyncTrack.GetEventIndexForID( eventIDToMatch );
+                            targetStartEventSyncTime.m_eventIdx = pDefinition->ShouldPreferClosestSyncEventID() ? targetSyncTrack.GetClosestEventIndexForID( sourceFromSyncTime, eventIDToMatch ) : targetSyncTrack.GetEventIndexForID( eventIDToMatch );
                             m_pTargetNode->Shutdown( context );
                         }
                     }
 
                     // Should we keep the source "From" percentage through
-                    if ( pSettings->ShouldMatchSyncEventPercentage() )
+                    if ( pDefinition->ShouldMatchSyncEventPercentage() )
                     {
                         targetStartEventSyncTime.m_percentageThrough = sourceFromSyncTime.m_percentageThrough;
                     }
@@ -304,7 +303,7 @@ namespace EE::Animation::GraphNodes
             #endif
 
             // Should we clamp how long the transition is active for?
-            if ( pSettings->ShouldClampTransitionLength() )
+            if ( pDefinition->ShouldClampTransitionLength() )
             {
                 Seconds const sourceDuration = m_pSourceNode->GetDuration();
                 if ( sourceDuration > 0.0f )
@@ -333,7 +332,7 @@ namespace EE::Animation::GraphNodes
         // Update internal time and events
         //-------------------------------------------------------------------------
 
-        if ( pSettings->IsSynchronized() || pUpdateRange != nullptr )
+        if ( pDefinition->IsSynchronized() || pUpdateRange != nullptr )
         {
             // Create the blended sync track
             SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
@@ -365,12 +364,10 @@ namespace EE::Animation::GraphNodes
     void TransitionNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         PoseNode::InitializeInternal( context, initialTime );
-        auto pSettings = GetSettings<TransitionNode>();
+        auto pDefinition = GetDefinition<TransitionNode>();
         m_syncEventOffset = 0;
-        m_boneMask = BoneMask( context.m_pSkeleton );
 
         // Reset transition duration and progress
-        Seconds transitionDuration = pSettings->m_duration;
         if ( m_pDurationOverrideNode != nullptr )
         {
             m_pDurationOverrideNode->Initialize( context );
@@ -379,7 +376,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            m_transitionLength = pSettings->m_duration;
+            m_transitionLength = pDefinition->m_duration;
         }
 
         m_transitionProgress = 0.0f;
@@ -538,31 +535,31 @@ namespace EE::Animation::GraphNodes
 
     void TransitionNode::RegisterPoseTasksAndUpdateRootMotion( GraphContext& context, GraphPoseNodeResult const& sourceResult, GraphPoseNodeResult const& targetResult, GraphPoseNodeResult& outResult )
     {
-        auto pSettings = GetSettings<TransitionNode>();
+        auto pDefinition = GetDefinition<TransitionNode>();
 
         if ( sourceResult.HasRegisteredTasks() && targetResult.HasRegisteredTasks() )
         {
-            outResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult.m_rootMotionDelta, targetResult.m_rootMotionDelta, m_blendWeight, pSettings->m_rootMotionBlend );
+            outResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult.m_rootMotionDelta, targetResult.m_rootMotionDelta, m_blendWeight, pDefinition->m_rootMotionBlend );
 
             float poseBlendWeight = m_blendWeight;
             BoneMaskTaskList* pBoneMaskTaskList = nullptr;
 
             if ( m_pStartBoneMaskNode != nullptr )
             {
-                EE_ASSERT( pSettings->m_boneMaskBlendInTimePercentage > 0.0f && pSettings->m_boneMaskBlendInTimePercentage <= 1.0f );
+                EE_ASSERT( pDefinition->m_boneMaskBlendInTimePercentage > 0.0f && pDefinition->m_boneMaskBlendInTimePercentage <= 1.0f );
 
                 // Blend weights
                 //-------------------------------------------------------------------------
 
                 float boneMaskBlendWeight = 0.0f;
-                if ( m_transitionProgress >= pSettings->m_boneMaskBlendInTimePercentage )
+                if ( m_transitionProgress >= pDefinition->m_boneMaskBlendInTimePercentage )
                 {
                     poseBlendWeight = 1.0f;
-                    boneMaskBlendWeight = ( m_transitionProgress - pSettings->m_boneMaskBlendInTimePercentage ) / ( 1.0f - pSettings->m_boneMaskBlendInTimePercentage );
+                    boneMaskBlendWeight = ( m_transitionProgress - pDefinition->m_boneMaskBlendInTimePercentage ) / ( 1.0f - pDefinition->m_boneMaskBlendInTimePercentage );
                 }
                 else
                 {
-                    poseBlendWeight = m_transitionProgress / pSettings->m_boneMaskBlendInTimePercentage;
+                    poseBlendWeight = m_transitionProgress / pDefinition->m_boneMaskBlendInTimePercentage;
                     boneMaskBlendWeight = 0.0f;
                 }
 
@@ -657,7 +654,7 @@ namespace EE::Animation::GraphNodes
     GraphPoseNodeResult TransitionNode::Update( GraphContext& context, SyncTrackTimeRange const* pExternallySuppliedUpdateRange )
     {
         EE_ASSERT( IsInitialized() && m_pSourceNode != nullptr && m_pSourceNode->IsInitialized() && !IsComplete( context ) );
-        auto pSettings = GetSettings<TransitionNode>();
+        auto pDefinition = GetDefinition<TransitionNode>();
 
         MarkNodeActive( context );
 
@@ -675,7 +672,7 @@ namespace EE::Animation::GraphNodes
         }
         else // No parent sync time so calculate the desired update range
         {
-            if ( !IsSourceACachedPose() && pSettings->IsSynchronized() )
+            if ( !IsSourceACachedPose() && pDefinition->IsSynchronized() )
             {
                 shouldRunSyncUpdate = true;
 
@@ -703,7 +700,7 @@ namespace EE::Animation::GraphNodes
         }
 
         // Calculate the percentage complete over the clamped sync track range
-        if ( shouldRunSyncUpdate && pSettings->ShouldClampTransitionLength() )
+        if ( shouldRunSyncUpdate && pDefinition->ShouldClampTransitionLength() )
         {
             float const eventDistance = m_syncTrack.CalculatePercentageCovered( updateRange );
             m_transitionProgress = m_transitionProgress + ( eventDistance / m_transitionLength );
@@ -750,7 +747,7 @@ namespace EE::Animation::GraphNodes
                 sourceUpdateRange.m_endTime = SyncTrackTime( updateRange.m_endTime.m_eventIdx - syncEventOffset, updateRange.m_endTime.m_percentageThrough );
 
                 // Ensure that we actually clamp the end time to the end of the source node
-                if ( pSettings->ShouldClampTransitionLength() && m_transitionProgress == 1.0f )
+                if ( pDefinition->ShouldClampTransitionLength() && m_transitionProgress == 1.0f )
                 {
                     sourceUpdateRange.m_endTime.m_eventIdx = sourceUpdateRange.m_startTime.m_eventIdx;
                     sourceUpdateRange.m_endTime.m_percentageThrough = 1.0f;

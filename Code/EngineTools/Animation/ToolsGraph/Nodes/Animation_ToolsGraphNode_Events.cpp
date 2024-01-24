@@ -13,8 +13,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t IDEventConditionToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        IDEventConditionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<IDEventConditionNode>( this, pSettings );
+        IDEventConditionNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<IDEventConditionNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             if ( m_eventIDs.empty() )
@@ -23,17 +23,17 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
 
-            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            pDefinition->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
 
             // IDs
             //-------------------------------------------------------------------------
 
-            pSettings->m_eventIDs.clear();
+            pDefinition->m_eventIDs.clear();
             for ( auto const& ID : m_eventIDs )
             {
                 if ( ID.IsValid() )
                 {
-                    pSettings->m_eventIDs.emplace_back( ID );
+                    pDefinition->m_eventIDs.emplace_back( ID );
                 }
                 else
                 {
@@ -45,21 +45,21 @@ namespace EE::Animation::GraphNodes
             // Set rules
             //-------------------------------------------------------------------------
 
-            pSettings->m_rules.ClearAllFlags();
-            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
-            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+            pDefinition->m_rules.ClearAllFlags();
+            pDefinition->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pDefinition->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
 
             switch ( m_operator )
             {
                 case EventConditionOperator::Or : 
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::OperatorOr );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::OperatorOr );
                 }
                 break;
 
                 case EventConditionOperator::And :
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::OperatorAnd );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::OperatorAnd );
                 }
                 break;
             }
@@ -68,24 +68,24 @@ namespace EE::Animation::GraphNodes
             {
                 case SearchRule::OnlySearchAnimEvents:
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::SearchOnlyAnimEvents, true );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::SearchOnlyAnimEvents, true );
                 }
                 break;
 
                 case SearchRule::OnlySearchStateEvents:
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::SearchOnlyStateEvents, true );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::SearchOnlyStateEvents, true );
                 }
                 break;
 
                 case SearchRule::SearchAll:
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::SearchBothStateAndAnimEvents, true );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::SearchBothStateAndAnimEvents, true );
                 }
                 break;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void IDEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -182,6 +182,143 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    IDEventToolsNode::IDEventToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Result", GraphValueType::ID, true );
+    }
+
+    int16_t IDEventToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        IDEventNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<IDEventNode>( this, pDefinition );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            pDefinition->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            pDefinition->m_defaultValue = m_defaultValue;
+
+            // Set rules
+            //-------------------------------------------------------------------------
+
+            pDefinition->m_rules.ClearAllFlags();
+            pDefinition->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pDefinition->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+
+            switch ( m_priorityRule )
+            {
+                case EventPriorityRule::HighestWeight:
+                {
+                    pDefinition->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
+                }
+                break;
+
+                case EventPriorityRule::HighestPercentageThrough:
+                {
+                    pDefinition->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
+                }
+                break;
+            }
+        }
+        return pDefinition->m_nodeIdx;
+    }
+
+    void IDEventToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        if ( m_priorityRule == EventPriorityRule::HighestPercentageThrough )
+        {
+            ImGui::Text( "Prefer Highest Event %" );
+        }
+        else
+        {
+            ImGui::Text( "Prefer Highest Event Weight" );
+        }
+
+        if ( m_limitSearchToSourceState )
+        {
+            ImGui::Text( "Only checks source state" );
+        }
+
+        if ( m_ignoreInactiveBranchEvents )
+        {
+            ImGui::Text( "Inactive events ignored" );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    IDEventPercentageThroughToolsNode::IDEventPercentageThroughToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Result", GraphValueType::Float, true );
+    }
+
+    int16_t IDEventPercentageThroughToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        IDEventPercentageThroughNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<IDEventPercentageThroughNode>( this, pDefinition );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            pDefinition->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            pDefinition->m_eventID = m_eventID;
+
+            // Set rules
+            //-------------------------------------------------------------------------
+
+            pDefinition->m_rules.ClearAllFlags();
+            pDefinition->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pDefinition->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+
+            switch ( m_priorityRule )
+            {
+                case EventPriorityRule::HighestWeight:
+                {
+                    pDefinition->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
+                }
+                break;
+
+                case EventPriorityRule::HighestPercentageThrough:
+                {
+                    pDefinition->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
+                }
+                break;
+            }
+        }
+        return pDefinition->m_nodeIdx;
+    }
+
+    void IDEventPercentageThroughToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    {
+        if ( m_eventID.IsValid() )
+        {
+            ImGui::Text( "Event ID: %s", m_eventID.c_str() );
+        }
+        else
+        {
+            ImGui::TextColored( Colors::Red.ToFloat4(), "Event ID: Invalid" );
+        }
+
+        if ( m_limitSearchToSourceState )
+        {
+            ImGui::Text( "Only checks source state" );
+        }
+
+        if ( m_ignoreInactiveBranchEvents )
+        {
+            ImGui::Text( "Inactive events ignored" );
+        }
+
+        if ( m_priorityRule == EventPriorityRule::HighestPercentageThrough )
+        {
+            ImGui::Text( "Prefer Highest Event %" );
+        }
+        else
+        {
+            ImGui::Text( "Prefer Highest Event Weight" );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     StateEventConditionToolsNode::StateEventConditionToolsNode()
         : FlowToolsNode()
     {
@@ -192,8 +329,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t StateEventConditionToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        StateEventConditionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<StateEventConditionNode>( this, pSettings );
+        StateEventConditionNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<StateEventConditionNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             if ( m_conditions.empty() )
@@ -202,17 +339,17 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
 
-            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            pDefinition->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
 
             // Conditions
             //-------------------------------------------------------------------------
 
-            pSettings->m_conditions.clear();
+            pDefinition->m_conditions.clear();
             for ( auto const& condition : m_conditions )
             {
                 if ( condition.m_eventID.IsValid() )
                 {
-                    StateEventConditionNode::Condition& runtimeCondition = pSettings->m_conditions.emplace_back();
+                    StateEventConditionNode::Condition& runtimeCondition = pDefinition->m_conditions.emplace_back();
                     runtimeCondition.m_eventID = condition.m_eventID;
                     runtimeCondition.m_eventTypeCondition = condition.m_type;
                 }
@@ -226,26 +363,26 @@ namespace EE::Animation::GraphNodes
             // Set rules
             //-------------------------------------------------------------------------
 
-            pSettings->m_rules.ClearAllFlags();
-            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
-            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+            pDefinition->m_rules.ClearAllFlags();
+            pDefinition->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pDefinition->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
 
             switch ( m_operator )
             {
                 case EventConditionOperator::Or:
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::OperatorOr );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::OperatorOr );
                 }
                 break;
 
                 case EventConditionOperator::And:
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::OperatorAnd );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::OperatorAnd );
                 }
                 break;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void StateEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -317,79 +454,6 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    GenericEventPercentageThroughToolsNode::GenericEventPercentageThroughToolsNode()
-        : FlowToolsNode()
-    {
-        CreateOutputPin( "Result", GraphValueType::Float, true );
-    }
-
-    int16_t GenericEventPercentageThroughToolsNode::Compile( GraphCompilationContext& context ) const
-    {
-        GenericEventPercentageThroughNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<GenericEventPercentageThroughNode>( this, pSettings );
-        if ( state == NodeCompilationState::NeedCompilation )
-        {
-            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
-            pSettings->m_eventID = m_eventID;
-
-            // Set rules
-            //-------------------------------------------------------------------------
-
-            pSettings->m_rules.ClearAllFlags();
-            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
-            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
-
-            switch ( m_priorityRule )
-            {
-                case EventPriorityRule::HighestWeight:
-                {
-                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
-                }
-                break;
-
-                case EventPriorityRule::HighestPercentageThrough:
-                {
-                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
-                }
-                break;
-            }
-        }
-        return pSettings->m_nodeIdx;
-    }
-
-    void GenericEventPercentageThroughToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
-    {
-        if ( m_eventID.IsValid() )
-        {
-            ImGui::Text( "Event ID: %s", m_eventID.c_str());
-        }
-        else
-        {
-            ImGui::TextColored( Colors::Red.ToFloat4(), "Event ID: Invalid" );
-        }
-
-        if ( m_limitSearchToSourceState )
-        {
-            ImGui::Text( "Only checks source state" );
-        }
-
-        if ( m_ignoreInactiveBranchEvents )
-        {
-            ImGui::Text( "Inactive events ignored" );
-        }
-
-        if ( m_priorityRule == EventPriorityRule::HighestPercentageThrough )
-        {
-            ImGui::Text( "Prefer Highest Event %" );
-        }
-        else
-        {
-            ImGui::Text( "Prefer Highest Event Weight" );
-        }
-    }
-
-    //-------------------------------------------------------------------------
-
     FootEventConditionToolsNode::FootEventConditionToolsNode()
         : FlowToolsNode()
     {
@@ -398,21 +462,21 @@ namespace EE::Animation::GraphNodes
 
     int16_t FootEventConditionToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FootEventConditionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FootEventConditionNode>( this, pSettings );
+        FootEventConditionNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FootEventConditionNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
-            pSettings->m_phaseCondition = m_phaseCondition;
+            pDefinition->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            pDefinition->m_phaseCondition = m_phaseCondition;
 
             // Set rules
             //-------------------------------------------------------------------------
 
-            pSettings->m_rules.ClearAllFlags();
-            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
-            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+            pDefinition->m_rules.ClearAllFlags();
+            pDefinition->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pDefinition->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void FootEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -440,36 +504,36 @@ namespace EE::Animation::GraphNodes
 
     int16_t FootstepEventPercentageThroughToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FootstepEventPercentageThroughNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FootstepEventPercentageThroughNode>( this, pSettings );
+        FootstepEventPercentageThroughNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FootstepEventPercentageThroughNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
-            pSettings->m_phaseCondition = m_phaseCondition;
+            pDefinition->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            pDefinition->m_phaseCondition = m_phaseCondition;
 
             // Set rules
             //-------------------------------------------------------------------------
 
-            pSettings->m_rules.ClearAllFlags();
-            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
-            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+            pDefinition->m_rules.ClearAllFlags();
+            pDefinition->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pDefinition->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
 
             switch ( m_priorityRule )
             {
                 case EventPriorityRule::HighestWeight:
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
                 }
                 break;
 
                 case EventPriorityRule::HighestPercentageThrough:
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
                 }
                 break;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void FootstepEventPercentageThroughToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -506,35 +570,35 @@ namespace EE::Animation::GraphNodes
 
     int16_t FootstepEventIDToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        FootstepEventIDNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<FootstepEventIDNode>( this, pSettings );
+        FootstepEventIDNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FootstepEventIDNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            pDefinition->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
 
             // Set rules
             //-------------------------------------------------------------------------
 
-            pSettings->m_rules.ClearAllFlags();
-            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
-            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+            pDefinition->m_rules.ClearAllFlags();
+            pDefinition->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pDefinition->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
 
             switch ( m_priorityRule )
             {
                 case EventPriorityRule::HighestWeight:
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
                 }
                 break;
 
                 case EventPriorityRule::HighestPercentageThrough:
                 {
-                    pSettings->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
+                    pDefinition->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
                 }
                 break;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -547,8 +611,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t SyncEventIndexConditionToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        SyncEventIndexConditionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<SyncEventIndexConditionNode>( this, pSettings );
+        SyncEventIndexConditionNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<SyncEventIndexConditionNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             if ( m_syncEventIdx == InvalidIndex )
@@ -559,11 +623,11 @@ namespace EE::Animation::GraphNodes
 
             EE_ASSERT( context.IsCompilingConduit() );
 
-            pSettings->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
-            pSettings->m_triggerMode = m_triggerMode;
-            pSettings->m_syncEventIdx = m_syncEventIdx;
+            pDefinition->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
+            pDefinition->m_triggerMode = m_triggerMode;
+            pDefinition->m_syncEventIdx = m_syncEventIdx;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void SyncEventIndexConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -588,14 +652,14 @@ namespace EE::Animation::GraphNodes
 
     int16_t CurrentSyncEventIDToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        CurrentSyncEventIDNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<CurrentSyncEventIDNode>( this, pSettings );
+        CurrentSyncEventIDNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<CurrentSyncEventIDNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             EE_ASSERT( context.IsCompilingConduit() );
-            pSettings->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
+            pDefinition->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -608,15 +672,15 @@ namespace EE::Animation::GraphNodes
 
     int16_t CurrentSyncEventIndexToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        CurrentSyncEventIndexNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<CurrentSyncEventIndexNode>( this, pSettings );
+        CurrentSyncEventIndexNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<CurrentSyncEventIndexNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             EE_ASSERT( context.IsCompilingConduit() );
 
-            pSettings->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
+            pDefinition->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -629,15 +693,15 @@ namespace EE::Animation::GraphNodes
 
     int16_t CurrentSyncEventPercentageThroughToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        CurrentSyncEventPercentageThroughNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<CurrentSyncEventPercentageThroughNode>( this, pSettings );
+        CurrentSyncEventPercentageThroughNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<CurrentSyncEventPercentageThroughNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             EE_ASSERT( context.IsCompilingConduit() );
 
-            pSettings->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
+            pDefinition->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -650,18 +714,18 @@ namespace EE::Animation::GraphNodes
 
     int16_t TransitionEventConditionToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        TransitionEventConditionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<TransitionEventConditionNode>( this, pSettings );
+        TransitionEventConditionNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<TransitionEventConditionNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
-            pSettings->m_markerCondition = m_markerCondition;
+            pDefinition->m_sourceStateNodeIdx = context.IsCompilingConduit() ? context.GetConduitSourceStateIndex() : InvalidIndex;
+            pDefinition->m_ruleCondition = m_ruleCondition;
             
             if ( m_matchOnlySpecificMarkerID )
             {
                 if ( m_markerIDToMatch.IsValid() )
                 {
-                    pSettings->m_markerIDToMatch = m_markerIDToMatch;
+                    pDefinition->m_requireRuleID = m_markerIDToMatch;
                 }
                 else
                 {
@@ -671,22 +735,22 @@ namespace EE::Animation::GraphNodes
             }
             else
             {
-                pSettings->m_markerIDToMatch = StringID();
+                pDefinition->m_requireRuleID = StringID();
             }
 
             // Set rules
             //-------------------------------------------------------------------------
 
-            pSettings->m_rules.ClearAllFlags();
-            pSettings->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
-            pSettings->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+            pDefinition->m_rules.ClearAllFlags();
+            pDefinition->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pDefinition->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void TransitionEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
     {
-        ImGui::Text( GetTransitionMarkerConditionName( m_markerCondition ) );
+        ImGui::Text( GetTransitionRuleConditionName( m_ruleCondition ) );
 
         if ( m_limitSearchToSourceState )
         {

@@ -16,8 +16,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t LookAtIKToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        LookAtIKNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<LookAtIKNode>( this, pSettings );
+        LookAtIKNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<LookAtIKNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -26,7 +26,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_childNodeIdx = compiledNodeIdx;
+                    pDefinition->m_childNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -47,7 +47,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pTargetNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_targetNodeIdx = compiledNodeIdx;
+                    pDefinition->m_targetNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -60,6 +60,6 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 }

@@ -179,7 +179,7 @@ namespace EE::Import::gltf
             if ( ImportedSkeleton.GetNumBones() > 0 )
             {
                 ImportedSkeleton.m_bones[0].m_localTransform = sceneCtx.ApplyUpAxisCorrection( ImportedSkeleton.m_bones[0].m_localTransform );
-                ImportedSkeleton.CalculateGlobalTransforms();
+                ImportedSkeleton.CalculateModelSpaceTransforms();
             }
         }
 
@@ -832,7 +832,7 @@ namespace EE::Import::gltf
                     {
                         ImportedSkeleton.CalculateLocalTransforms();
                         ImportedSkeleton.m_bones[0].m_localTransform = sceneCtx.ApplyUpAxisCorrection( ImportedSkeleton.m_bones[0].m_localTransform );
-                        ImportedSkeleton.CalculateGlobalTransforms();
+                        ImportedSkeleton.CalculateModelSpaceTransforms();
                     }
 
                     for ( auto pMeshData : skins[0].m_meshes )

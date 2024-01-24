@@ -626,7 +626,7 @@ namespace EE
 
     class EE_ENGINETOOLS_API ResourceEditorFactory : public TGlobalRegistryBase<ResourceEditorFactory>
     {
-        EE_DECLARE_GLOBAL_REGISTRY( ResourceEditorFactory );
+        EE_GLOBAL_REGISTRY( ResourceEditorFactory );
 
     public:
 

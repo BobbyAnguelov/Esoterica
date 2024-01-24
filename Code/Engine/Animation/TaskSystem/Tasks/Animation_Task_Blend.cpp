@@ -38,23 +38,10 @@ namespace EE::Animation::Tasks
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void BlendTaskBase::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
+    void BlendTaskBase::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
     {
-        TBitFlags<Pose::DrawFlags> drawFlags;
-        if ( isDetailedViewEnabled )
-        {
-            if ( m_debugBoneMask.IsValid() )
-            {
-                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneWeights );
-            }
-            else
-            {
-                drawFlags.SetFlag( Pose::DrawFlags::DrawBoneNames );
-            }
-        }
-
-        pRecordedPoseBuffer->m_poses[0].DrawDebug( drawingContext, worldTransform, GetDebugColor(), 3.0f, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr, drawFlags );
-        DrawSecondaryPoses( drawingContext, worldTransform, pRecordedPoseBuffer );
+        pRecordedPoseBuffer->m_poses[0].DrawDebug( drawingContext, worldTransform, lod, GetDebugColor(), 3.0f, isDetailedViewEnabled, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr );
+        DrawSecondaryPoses( drawingContext, worldTransform, lod, pRecordedPoseBuffer, isDetailedViewEnabled );
     }
     #endif
 

@@ -20,7 +20,7 @@ namespace EE::Resource
     class ResourceProvider;
     class ResourceLoader;
     class ResourceRequest;
-    class ResourceSettings;
+    class ResourceGlobalSettings;
 
     //-------------------------------------------------------------------------
 
@@ -70,7 +70,7 @@ namespace EE::Resource
         ~ResourceSystem();
 
         inline bool IsInitialized() const { return m_pResourceProvider != nullptr; }
-        ResourceSettings const& GetSettings() const;
+        ResourceGlobalSettings const& GetSettings() const;
         void Initialize( ResourceProvider* pResourceProvider );
         void Shutdown();
 

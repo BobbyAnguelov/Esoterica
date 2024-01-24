@@ -43,14 +43,14 @@ namespace EE::Animation
         layerRotations.resize( numBones );
         resultRotations.resize( numBones );
 
-        baseRotations[0] = pBasePose->m_localTransforms[0].GetRotation();
-        layerRotations[0] = pLayerPose->m_localTransforms[0].GetRotation();
+        baseRotations[0] = pBasePose->m_parentSpaceTransforms[0].GetRotation();
+        layerRotations[0] = pLayerPose->m_parentSpaceTransforms[0].GetRotation();
 
         for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
         {
             int32_t const parentIdx = parentIndices[boneIdx];
-            baseRotations[boneIdx] = pBasePose->m_localTransforms[boneIdx].GetRotation() * baseRotations[parentIdx];
-            layerRotations[boneIdx] = pLayerPose->m_localTransforms[boneIdx].GetRotation() * layerRotations[parentIdx];
+            baseRotations[boneIdx] = pBasePose->m_parentSpaceTransforms[boneIdx].GetRotation() * baseRotations[parentIdx];
+            layerRotations[boneIdx] = pLayerPose->m_parentSpaceTransforms[boneIdx].GetRotation() * layerRotations[parentIdx];
         }
 
         // Blend the root separately - local space blend
@@ -59,12 +59,12 @@ namespace EE::Animation
         auto boneBlendWeight = pBoneMask->GetWeight( 0 );
         if ( boneBlendWeight != 0.0f )
         {
-            Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[0], BlendFunction::BlendTranslationAndScale( pBasePose->m_localTransforms[0].GetTranslationAndScale(), pLayerPose->m_localTransforms[0].GetTranslationAndScale(), boneBlendWeight ) );
-            resultRotations[0] = BlendFunction::BlendRotation( pBasePose->m_localTransforms[0].GetRotation(), pLayerPose->m_localTransforms[0].GetRotation(), boneBlendWeight );
+            Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[0], BlendFunction::BlendTranslationAndScale( pBasePose->m_parentSpaceTransforms[0].GetTranslationAndScale(), pLayerPose->m_parentSpaceTransforms[0].GetTranslationAndScale(), boneBlendWeight ) );
+            resultRotations[0] = BlendFunction::BlendRotation( pBasePose->m_parentSpaceTransforms[0].GetRotation(), pLayerPose->m_parentSpaceTransforms[0].GetRotation(), boneBlendWeight );
         }
         else
         {
-            resultRotations[0] = pBasePose->m_localTransforms[0].GetRotation();
+            resultRotations[0] = pBasePose->m_parentSpaceTransforms[0].GetRotation();
         }
 
         // Blend global space poses together and convert back to local space
@@ -85,7 +85,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
                 // Translation blending is done in local space
 
-                Transform::DirectlySetTranslationScale( pResultPose->m_localTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( pBasePose->m_localTransforms[boneIdx].GetTranslationAndScale(), pLayerPose->m_localTransforms[boneIdx].GetTranslationAndScale(), boneBlendWeight ) );
+                Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( pBasePose->m_parentSpaceTransforms[boneIdx].GetTranslationAndScale(), pLayerPose->m_parentSpaceTransforms[boneIdx].GetTranslationAndScale(), boneBlendWeight ) );
 
                 // Blend Rotation
                 //-------------------------------------------------------------------------
@@ -95,7 +95,7 @@ namespace EE::Animation
                 // Convert blended global space rotation to local space for the result pose
                 int32_t const parentIdx = parentIndices[boneIdx];
                 Quaternion const localRotation = Quaternion::Delta( resultRotations[parentIdx], resultRotations[boneIdx] );
-                Transform::DirectlySetRotation( pResultPose->m_localTransforms[boneIdx], localRotation );
+                Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], localRotation );
             }
         }
 
@@ -103,7 +103,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         LocalBlend<BlendFunction>( skeletonLOD, pBasePose, pResultPose, layerWeight, pResultPose, false );
-        pResultPose->ClearGlobalTransforms();
+        pResultPose->ClearModelSpaceTransforms();
         pResultPose->m_state = Pose::State::Pose;
     }
 }

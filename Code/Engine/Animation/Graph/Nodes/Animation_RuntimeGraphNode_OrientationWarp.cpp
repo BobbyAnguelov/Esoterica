@@ -5,7 +5,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void OrientationWarpNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void OrientationWarpNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<OrientationWarpNode>( context, options );
         context.SetNodePtrFromIndex( m_clipReferenceNodeIdx, pNode->m_pClipReferenceNode );
@@ -136,13 +136,13 @@ namespace EE::Animation::GraphNodes
         // Calculate the target direction we need to align to
         Vector targetDirCS;
 
-        auto pNodeSettings = GetSettings<OrientationWarpNode>();
-        if ( pNodeSettings->m_isOffsetNode )
+        auto pNodeDefinition = GetDefinition<OrientationWarpNode>();
+        if ( pNodeDefinition->m_isOffsetNode )
         {
             Radians const offset = m_pTargetValueNode->GetValue<float>( context ) * Math::DegreesToRadians;
             Quaternion const offsetRotation( AxisAngle( Float3::WorldUp, offset ) );
 
-            if ( pNodeSettings->m_isOffsetRelativeToCharacter )
+            if ( pNodeDefinition->m_isOffsetRelativeToCharacter )
             {
                 targetDirCS = offsetRotation.RotateVector( Vector::WorldForward );
             }
@@ -247,8 +247,8 @@ namespace EE::Animation::GraphNodes
 
             if ( m_warpedRootMotion.IsValid() )
             {
-                auto pNodeSettings = GetSettings<OrientationWarpNode>();
-                if ( pNodeSettings->m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
+                auto pNodeDefinition = GetDefinition<OrientationWarpNode>();
+                if ( pNodeDefinition->m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
                 {
                     result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
                 }

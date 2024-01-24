@@ -46,21 +46,37 @@ namespace EE
         inline ResourceID( char const* pPath ) : m_path( pPath ) { OnPathChanged(); }
 
         inline bool IsValid() const { return m_path.IsValid() && m_type.IsValid(); }
-        inline bool IsPathSet() const { return m_path.IsValid(); }
-        inline uint32_t GetPathID() const { return m_path.GetID(); }
-
-        inline ResourcePath const& GetResourcePath() const { return m_path; }
-        inline ResourceTypeID GetResourceTypeID() const { return m_type; }
-        inline String GetFileNameWithoutExtension() const { EE_ASSERT( m_path.IsValid() ); return m_path.GetFileNameWithoutExtension(); }
-
         inline void Clear() { m_path.Clear(); m_type.Clear(); }
 
+        // Resource Info
+        //-------------------------------------------------------------------------
+
+        inline ResourceTypeID GetResourceTypeID() const { return m_type; }
+
+        // Path Info
+        //-------------------------------------------------------------------------
+
+        inline bool IsPathSet() const { return m_path.IsValid(); }
+        inline uint32_t GetPathID() const { return m_path.GetID(); }
+        inline ResourcePath const& GetResourcePath() const { return m_path; }
+        inline String GetFileNameWithoutExtension() const { EE_ASSERT( m_path.IsValid() ); return m_path.GetFileNameWithoutExtension(); }
+
+        // Sub-resources
+        //-------------------------------------------------------------------------
+
+        inline bool IsSubResourceID() const { return m_path.IsSubResourcePath(); }
+        inline ResourceID GetParentResourceID() const { ResourcePath const parentResourcePath = m_path.GetParentResourcePath(); return parentResourcePath.IsValid() ? ResourceID( eastl::move( parentResourcePath ) ) : ResourceID(); }
+        inline ResourcePath GetParentResourcePath() const { return m_path.GetParentResourcePath(); }
+        inline ResourceTypeID GetParentResourceTypeID() const { return GetParentResourceID().GetResourceTypeID(); }
+
+        // Conversion
         //-------------------------------------------------------------------------
 
         inline String const& ToString() const { return m_path.GetString(); }
         inline FileSystem::Path ToFileSystemPath( FileSystem::Path const& rawResourceDirectoryPath ) const { return m_path.ToFileSystemPath( rawResourceDirectoryPath ); }
         inline char const* c_str() const { return m_path.c_str(); }
 
+        // Operators
         //-------------------------------------------------------------------------
 
         inline bool operator==( ResourceID const& rhs ) const { return m_path == rhs.m_path; }

@@ -16,8 +16,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t IDComparisonToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        IDComparisonNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<IDComparisonNode>( this, pSettings );
+        IDComparisonNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<IDComparisonNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -26,7 +26,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -41,11 +41,11 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_comparison = m_comparison;
-            pSettings->m_comparisionIDs.clear();
-            pSettings->m_comparisionIDs.insert( pSettings->m_comparisionIDs.begin(), m_IDs.begin(), m_IDs.end() );
+            pDefinition->m_comparison = m_comparison;
+            pDefinition->m_comparisionIDs.clear();
+            pDefinition->m_comparisionIDs.insert( pDefinition->m_comparisionIDs.begin(), m_IDs.begin(), m_IDs.end() );
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void IDComparisonToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
@@ -116,8 +116,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t IDToFloatToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        IDToFloatNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<IDToFloatNode>( this, pSettings );
+        IDToFloatNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<IDToFloatNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             if ( m_mappings.empty() )
@@ -138,7 +138,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -153,17 +153,17 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_defaultValue = m_defaultValue;
+            pDefinition->m_defaultValue = m_defaultValue;
 
             for ( auto const& mapping : m_mappings )
             {
-                pSettings->m_IDs.emplace_back( mapping.m_ID );
-                pSettings->m_values.emplace_back( mapping.m_value );
+                pDefinition->m_IDs.emplace_back( mapping.m_ID );
+                pDefinition->m_values.emplace_back( mapping.m_value );
             }
 
-            EE_ASSERT( pSettings->m_IDs.size() == pSettings->m_values.size() );
+            EE_ASSERT( pDefinition->m_IDs.size() == pDefinition->m_values.size() );
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void IDToFloatToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )

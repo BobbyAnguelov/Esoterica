@@ -106,6 +106,7 @@ namespace EE::FileSystem
 
         m_fullpath += pPathString;
         m_fullpath = GetFullPathString( m_fullpath.c_str() );
+        m_isDirectoryPath = m_fullpath[m_fullpath.length() - 1] == Settings::s_pathDelimiter;
 
         if ( asDirectory && !IsDirectoryPath() )
         {

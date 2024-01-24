@@ -5,6 +5,68 @@
 
 namespace EE
 {
+    struct SubResourcePathUtils
+    {
+        inline bool IsValid() const { return !m_parentExtension.empty() && m_parentExtension.length() <= 4; }
+
+        bool DecomposePathString( String const& pathStr )
+        {
+            // Check for path delimiter
+            m_lastPathDelimiterIndex = pathStr.rfind( ResourcePath::s_pathDelimiter );
+            if ( m_lastPathDelimiterIndex == String::npos )
+            {
+                return false;
+            }
+
+            // Check for directory path
+            if ( m_lastPathDelimiterIndex == pathStr.length() - 1 )
+            {
+                return false;
+            }
+
+            // If we found a parent, create the substring for it and get the extension
+            m_parentPath = InlineString( pathStr.c_str(), m_lastPathDelimiterIndex );
+            m_childResourceFilename = &pathStr[m_lastPathDelimiterIndex + 1];
+            size_t const extIdx = FileSystem::FindExtensionStartIdx( m_parentPath.c_str(), ResourcePath::s_pathDelimiter );
+
+            // If no extension found, parent is likely a directory
+            if ( extIdx == String::npos )
+            {
+                return false;
+            }
+
+            // Ensure extension is less than 4 characters since resource types use a 4CC type ID
+            m_parentExtension = InlineString( &m_parentPath[extIdx] );
+            return IsValid();
+        }
+
+        void GenerateFilePath( String& outPath )
+        {
+            EE_ASSERT( IsValid() );
+
+            size_t const parentPathPortionLength = m_parentPath.length() - m_parentExtension.length() - 1; // parent length without extension and delimiter
+            outPath.resize( parentPathPortionLength + m_childResourceFilename.length() + 1 ); // Add back delimiter and child resource name
+
+            // Copy parent path without extension and null terminator
+            memcpy( outPath.data(), m_parentPath.data(), ( parentPathPortionLength ) * sizeof( m_parentPath[0] ) );
+
+            // Set delimiter
+            outPath[parentPathPortionLength] = ResourcePath::s_subResourceFilePathDelimiter;
+
+            // Copy child resource name with null terminator
+            memcpy( outPath.data() + parentPathPortionLength + 1, m_childResourceFilename.data(), m_childResourceFilename.length() * sizeof( m_parentPath[0] ) );
+        }
+
+    public:
+
+        InlineString    m_parentPath;
+        InlineString    m_parentExtension;
+        InlineString    m_childResourceFilename;
+        size_t          m_lastPathDelimiterIndex = String::npos;
+    };
+
+    //-------------------------------------------------------------------------
+
     // Extremely naive data path validation function, this is definitely not robust!
     bool ResourcePath::IsValidPath( char const* pPath )
     {
@@ -49,11 +111,24 @@ namespace EE
     {
         EE_ASSERT( rawResourceDirectoryPath.IsValid() && rawResourceDirectoryPath.IsDirectoryPath() && resourcePath.IsValid() );
 
+        //-------------------------------------------------------------------------
+
         // Replace slashes and remove prefix
         String tempPath( rawResourceDirectoryPath );
         tempPath += resourcePath.m_path.substr( 7 );
-        eastl::replace( tempPath.begin(), tempPath.end(), ResourcePath::s_pathDelimiter, FileSystem::Settings::s_pathDelimiter );
 
+        // Check if it's a sub-resource path
+        if ( resourcePath.IsFile() )
+        {
+            SubResourcePathUtils spu;
+            if ( spu.DecomposePathString( tempPath ) )
+            {
+                spu.GenerateFilePath( tempPath );
+            }
+        }
+
+        // Finalize path
+        eastl::replace( tempPath.begin(), tempPath.end(), ResourcePath::s_pathDelimiter, FileSystem::Settings::s_pathDelimiter );
         FileSystem::GetCorrectCaseForPath( tempPath.c_str(), tempPath );
 
         return FileSystem::Path( tempPath );
@@ -207,6 +282,27 @@ namespace EE
         }
 
         return pathDepth;
+    }
+
+    bool ResourcePath::IsSubResourcePath() const
+    {
+        EE_ASSERT( IsValid() );
+        SubResourcePathUtils spu;
+        return spu.DecomposePathString( m_path );
+    }
+
+    ResourcePath ResourcePath::GetParentResourcePath() const
+    {
+        EE_ASSERT( IsValid() );
+
+        ResourcePath parentResourcePath;
+        SubResourcePathUtils spu;
+        if ( spu.DecomposePathString( m_path ) )
+        {
+            parentResourcePath = ResourcePath( spu.m_parentPath.c_str() );
+        }
+
+        return parentResourcePath;
     }
 
     char const* ResourcePath::GetExtension() const

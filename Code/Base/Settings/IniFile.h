@@ -8,25 +8,26 @@ struct _dictionary_;
 
 //-------------------------------------------------------------------------
 
-namespace EE
+namespace EE::FileSystem { class Path; }
+
+//-------------------------------------------------------------------------
+
+namespace EE::Settings
 {
-    namespace FileSystem { class Path; }
-
-    //-------------------------------------------------------------------------
-
     class EE_BASE_API IniFile
     {
 
     public:
 
         IniFile();
+        IniFile( IniFile&& rhs );
         IniFile( FileSystem::Path const& filePath );
         ~IniFile();
 
-        IniFile& operator=( IniFile const& ) = default;
+        IniFile& operator=( IniFile&& rhs );
 
         inline bool IsValid() const { return m_pDictionary != nullptr; }
-        void SaveToFile( FileSystem::Path const& filePath ) const;
+        bool SaveToFile( FileSystem::Path const& filePath ) const;
         bool HasEntry( char const* key ) const;
 
         //-------------------------------------------------------------------------
@@ -41,7 +42,11 @@ namespace EE
         int32_t GetIntOrDefault( char const* key, int32_t defaultValue ) const;
         uint32_t GetUIntOrDefault( char const* key, uint32_t defaultValue ) const;
         String GetStringOrDefault( char const* key, String const& defaultValue ) const;
+        String GetStringOrDefault( char const* key, InlineString const& defaultValue ) const;
         String GetStringOrDefault( char const* key, char const* pDefaultValue ) const;
+        InlineString GetInlineStringOrDefault( char const* key, String const& defaultValue ) const;
+        InlineString GetInlineStringOrDefault( char const* key, InlineString const& defaultValue ) const;
+        InlineString GetInlineStringOrDefault( char const* key, char const* pDefaultValue ) const;
         float GetFloatOrDefault( char const* key, float defaultValue ) const;
 
         //-------------------------------------------------------------------------
@@ -53,6 +58,11 @@ namespace EE
         void SetFloat( char const* key, float value );
         void SetString( char const* key, char const* pString );
         void SetString( char const* key, String const& string );
+
+    private:
+
+        IniFile( IniFile const& ) = delete;
+        IniFile& operator=( IniFile const& ) = delete;
 
     private:
 

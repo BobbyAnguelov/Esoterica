@@ -196,8 +196,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t LayerBlendToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        LayerBlendNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<LayerBlendNode>( this, pSettings );
+        LayerBlendNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<LayerBlendNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             // Compile Base
@@ -209,7 +209,7 @@ namespace EE::Animation::GraphNodes
                 auto compiledNodeIdx = pBaseNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_baseNodeIdx = compiledNodeIdx;
+                    pDefinition->m_baseNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -222,7 +222,7 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
 
-            pSettings->m_onlySampleBaseRootMotion = m_onlySampleBaseRootMotion;
+            pDefinition->m_onlySampleBaseRootMotion = m_onlySampleBaseRootMotion;
 
             // Compile Layers
             //-------------------------------------------------------------------------
@@ -233,12 +233,12 @@ namespace EE::Animation::GraphNodes
             {
                 if ( auto pLocalLayerNode = GetConnectedInputNode<LocalLayerToolsNode>( i ) )
                 {
-                    auto& layerSettings = pSettings->m_layerSettings.emplace_back();
+                    auto& layerDefinition = pDefinition->m_layerDefinition.emplace_back();
 
-                    layerSettings.m_isSynchronized = pLocalLayerNode->m_isSynchronized;
-                    layerSettings.m_ignoreEvents = pLocalLayerNode->m_ignoreEvents;
-                    layerSettings.m_blendMode = pLocalLayerNode->m_blendMode;
-                    layerSettings.m_isStateMachineLayer = false;
+                    layerDefinition.m_isSynchronized = pLocalLayerNode->m_isSynchronized;
+                    layerDefinition.m_ignoreEvents = pLocalLayerNode->m_ignoreEvents;
+                    layerDefinition.m_blendMode = pLocalLayerNode->m_blendMode;
+                    layerDefinition.m_isStateMachineLayer = false;
 
                     // Compile layer node
                     auto pInputNode = pLocalLayerNode->GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -247,7 +247,7 @@ namespace EE::Animation::GraphNodes
                         int16_t const inputNodeIdx = pInputNode->Compile( context );
                         if ( inputNodeIdx != InvalidIndex )
                         {
-                            layerSettings.m_inputNodeIdx = inputNodeIdx;
+                            layerDefinition.m_inputNodeIdx = inputNodeIdx;
                             atLeastOneLayerCompiled = true;
                         }
                         else
@@ -268,7 +268,7 @@ namespace EE::Animation::GraphNodes
                         auto compiledWeightNodeIdx = pWeightValueNode->Compile( context );
                         if ( compiledWeightNodeIdx != InvalidIndex )
                         {
-                            layerSettings.m_weightValueNodeIdx = compiledWeightNodeIdx;
+                            layerDefinition.m_weightValueNodeIdx = compiledWeightNodeIdx;
                         }
                         else
                         {
@@ -282,7 +282,7 @@ namespace EE::Animation::GraphNodes
                         auto compiledRootMotionWeightNodeIdx = pRootMotionWeightValueNode->Compile( context );
                         if ( compiledRootMotionWeightNodeIdx != InvalidIndex )
                         {
-                            layerSettings.m_rootMotionWeightValueNodeIdx = compiledRootMotionWeightNodeIdx;
+                            layerDefinition.m_rootMotionWeightValueNodeIdx = compiledRootMotionWeightNodeIdx;
                         }
                         else
                         {
@@ -296,7 +296,7 @@ namespace EE::Animation::GraphNodes
                         auto compiledBoneMaskValueNodeIdx = pMaskValueNode->Compile( context );
                         if ( compiledBoneMaskValueNodeIdx != InvalidIndex )
                         {
-                            layerSettings.m_boneMaskValueNodeIdx = compiledBoneMaskValueNodeIdx;
+                            layerDefinition.m_boneMaskValueNodeIdx = compiledBoneMaskValueNodeIdx;
                         }
                         else
                         {
@@ -305,7 +305,7 @@ namespace EE::Animation::GraphNodes
                     }
                     else // No Mask
                     {
-                        if ( layerSettings.m_blendMode == PoseBlendMode::GlobalSpace )
+                        if ( layerDefinition.m_blendMode == PoseBlendMode::GlobalSpace )
                         {
                             context.LogError( this, "Bone Masks are not optional for global blends!" );
                             return InvalidIndex;
@@ -318,12 +318,12 @@ namespace EE::Animation::GraphNodes
 
                 else if ( auto pStateMachineLayerNode = GetConnectedInputNode<StateMachineLayerToolsNode>( i ) )
                 {
-                    auto& layerSettings = pSettings->m_layerSettings.emplace_back();
+                    auto& layerDefinition = pDefinition->m_layerDefinition.emplace_back();
 
-                    layerSettings.m_isSynchronized = pStateMachineLayerNode->m_isSynchronized;
-                    layerSettings.m_ignoreEvents = pStateMachineLayerNode->m_ignoreEvents;
-                    layerSettings.m_blendMode = pStateMachineLayerNode->m_blendMode;
-                    layerSettings.m_isStateMachineLayer = true;
+                    layerDefinition.m_isSynchronized = pStateMachineLayerNode->m_isSynchronized;
+                    layerDefinition.m_ignoreEvents = pStateMachineLayerNode->m_ignoreEvents;
+                    layerDefinition.m_blendMode = pStateMachineLayerNode->m_blendMode;
+                    layerDefinition.m_isStateMachineLayer = true;
 
                     // Compile layer state machine
                     auto pStateMachineNode = pStateMachineLayerNode->GetConnectedInputNode<StateMachineToolsNode>( 0 );
@@ -332,7 +332,7 @@ namespace EE::Animation::GraphNodes
                         auto compiledStateMachineNodeIdx = pStateMachineNode->Compile( context );
                         if ( compiledStateMachineNodeIdx != InvalidIndex )
                         {
-                            layerSettings.m_inputNodeIdx = compiledStateMachineNodeIdx;
+                            layerDefinition.m_inputNodeIdx = compiledStateMachineNodeIdx;
                             atLeastOneLayerCompiled = true;
                         }
                         else
@@ -356,7 +356,7 @@ namespace EE::Animation::GraphNodes
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void LayerBlendToolsNode::PreDrawUpdate( VisualGraph::UserContext* pUserContext )
@@ -372,7 +372,15 @@ namespace EE::Animation::GraphNodes
             {
                 if ( auto pStateMachineLayerNode = GetConnectedInputNode<StateMachineLayerToolsNode>( i ) )
                 {
-                    pStateMachineLayerNode->m_runtimeDebugLayerWeight = pGraphNodeContext->GetLayerWeight( runtimeNodeIdx, i - 1 );
+                    auto pLayerNode = static_cast<GraphNodes::LayerBlendNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
+                    if ( pLayerNode->IsInitialized() )
+                    {
+                        pStateMachineLayerNode->m_runtimeDebugLayerWeight = pLayerNode->GetLayerWeight( i - 1 );
+                    }
+                    else
+                    {
+                        pStateMachineLayerNode->m_runtimeDebugLayerWeight = 0.0f;
+                    }
                 }
             }
         }

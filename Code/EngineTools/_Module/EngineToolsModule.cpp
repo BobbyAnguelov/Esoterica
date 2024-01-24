@@ -4,7 +4,7 @@
 
 namespace EE
 {
-    bool EngineToolsModule::InitializeModule( ModuleContext& context, IniFile const& iniFile )
+    bool EngineToolsModule::InitializeModule( ModuleContext& context )
     {
         return true;
     }

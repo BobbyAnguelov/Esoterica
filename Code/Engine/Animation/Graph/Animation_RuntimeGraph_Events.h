@@ -78,7 +78,6 @@ namespace EE::Animation
             , m_isFromActiveBranch( isFromActiveBranch )
             , m_isIgnored( false )
             , m_isStateEvent( true )
-            //, m_sourceNodeIdx( sourceNodeIdx )
         {
             EE_ASSERT( eventID.IsValid() );
             m_stateData.m_ID = eventID;
@@ -90,7 +89,6 @@ namespace EE::Animation
             , m_isFromActiveBranch( isFromActiveBranch )
             , m_isIgnored( false )
             , m_isStateEvent( false )
-            //, m_sourceNodeIdx( sourceNodeIdx )
         {
             EE_ASSERT( pEvent != nullptr );
             EE_ASSERT( percentageThrough >= 0 && percentageThrough <= 1.0f );
@@ -364,4 +362,27 @@ namespace EE::Animation
         TVector<TInlineVector<int16_t, 5>>          m_eventDebugGraphPaths;
         #endif
     };
+
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    struct SampledEventDebugPath
+    {
+        struct Element
+        {
+            InlineString                m_pathString;
+            int16_t                     m_nodeIdx;
+        };
+
+    public:
+
+        inline bool IsValid() const { return !m_path.empty(); }
+
+        InlineString GetFlattenedPath() const;
+
+    public:
+
+        TInlineVector<Element, 10>      m_path;
+    };
+    #endif
 }

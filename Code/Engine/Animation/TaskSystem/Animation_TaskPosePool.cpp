@@ -28,7 +28,7 @@ namespace EE::Animation
     {
         for ( Pose& pose : m_poses )
         {
-            pose.CalculateGlobalTransforms();
+            pose.CalculateModelSpaceTransforms();
         }
     }
 

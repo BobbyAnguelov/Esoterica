@@ -10,8 +10,6 @@
 
 namespace EE::Input
 {
-    class InputState;
-
     //-------------------------------------------------------------------------
     // Input System
     //-------------------------------------------------------------------------
@@ -21,116 +19,51 @@ namespace EE::Input
     {
         friend class InputDebugView;
 
+        constexpr static int32_t const s_maxControllers = 2;
+
     public:
 
         EE_SYSTEM( InputSystem );
-
-        static MouseInputState const s_emptyMouseState;
-        static KeyboardInputState const s_emptyKeyboardState;
-        static ControllerInputState const s_emptyControllerState;
 
     public:
 
         bool Initialize();
         void Shutdown();
         void Update( Seconds deltaTime );
-        void ClearFrameState();
+
+        // Message Processing
+        //-------------------------------------------------------------------------
+
+        // Called before we process any new input messages
+        void PrepareForNewMessages();
+
+        // Forwards input messages to the various devices
         void ForwardInputMessageToInputDevices( GenericMessage const& inputMessage );
+
+        // Input Devices
+        //-------------------------------------------------------------------------
+
+        inline TInlineVector<InputDevice*, 5> const& GetInputDevices() const { return m_inputDevices; }
 
         // Keyboard & Mouse
         //-------------------------------------------------------------------------
 
-        inline bool HasConnectedKeyboardAndMouse() { return GetKeyboardMouseDevice() != nullptr; }
-
-        inline MouseInputState const* GetMouseState() const
-        {
-            if ( auto pDevice = GetKeyboardMouseDevice() )
-            {
-                return &pDevice->GetMouseState();
-            }
-
-            return &s_emptyMouseState;
-        }
-
-        inline KeyboardInputState const* GetKeyboardState() const
-        {
-            if ( auto pDevice = GetKeyboardMouseDevice() )
-            {
-                return &pDevice->GetKeyboardState();
-            }
-
-            return &s_emptyKeyboardState;
-        }
+        bool HasConnectedKeyboardAndMouse() const { return m_keyboardMouse.IsConnected(); }
+        KeyboardMouseDevice const* GetKeyboardMouse() const { return &m_keyboardMouse; }
 
         // Controllers
         //-------------------------------------------------------------------------
 
         uint32_t GetNumConnectedControllers() const;
-
-        inline ControllerInputState const* GetControllerState( uint32_t controllerIdx = 0 ) const
-        {
-            if ( auto pDevice = GetControllerDevice( controllerIdx ) )
-            {
-                return &pDevice->GetControllerState();
-            }
-
-            return &s_emptyControllerState;
-        }
-
-        // Reflection
-        //-------------------------------------------------------------------------
-
-        void ReflectState( Seconds const deltaTime, float timeScale, InputState& outReflectedState ) const;
+        inline bool HasConnectedController() const { return GetNumConnectedControllers() > 0; }
+        inline bool IsControllerConnected( int32_t controllerIdx ) const;
+        ControllerDevice const* GetController( uint32_t controllerIdx = 0 ) const;
+        ControllerDevice const* GetFirstController() const;
 
     private:
 
-        KeyboardMouseInputDevice const* GetKeyboardMouseDevice() const;
-        ControllerInputDevice const* GetControllerDevice( uint32_t controllerIdx = 0 ) const;
-
-    private:
-
-        TVector<InputDevice*>       m_inputDevices;
-    };
-
-    //-------------------------------------------------------------------------
-    // Input State
-    //-------------------------------------------------------------------------
-    // A copy of the input state, used to contextually manage input state per system/world/etc...
-
-    class EE_BASE_API InputState
-    {
-        friend class InputSystem;
-
-    public:
-
-        InputState() = default;
-
-        void Clear();
-
-        EE_FORCE_INLINE MouseInputState const* GetMouseState() const
-        {
-            return &m_mouseState;
-        }
-
-        EE_FORCE_INLINE KeyboardInputState const* GetKeyboardState() const
-        {
-            return &m_keyboardState;
-        }
-
-        EE_FORCE_INLINE ControllerInputState const* GetControllerState( uint32_t controllerIdx = 0 ) const
-        {
-            if ( controllerIdx < m_controllerStates.size() )
-            {
-                return &m_controllerStates[controllerIdx];
-            }
-
-            return &InputSystem::s_emptyControllerState;
-        }
-
-    private:
-
-        MouseInputState                             m_mouseState;
-        KeyboardInputState                          m_keyboardState;
-        TInlineVector<ControllerInputState, 4>      m_controllerStates;
+        KeyboardMouseDevice                 m_keyboardMouse;
+        ControllerDevice*                   m_controllers[s_maxControllers];
+        TInlineVector<InputDevice*, 5>      m_inputDevices;
     };
 }

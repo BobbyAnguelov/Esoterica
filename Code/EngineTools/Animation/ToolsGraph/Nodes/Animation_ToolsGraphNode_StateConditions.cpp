@@ -13,13 +13,13 @@ namespace EE::Animation::GraphNodes
 
     int16_t StateCompletedConditionToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        StateCompletedConditionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<StateCompletedConditionNode>( this, pSettings );
+        StateCompletedConditionNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<StateCompletedConditionNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            pSettings->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
-            pSettings->m_transitionDuration = context.GetCompiledTransitionDuration();
-            pSettings->m_transitionDurationOverrideNodeIdx = context.GetCompiledTransitionDurationOverrideIdx();
+            pDefinition->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
+            pDefinition->m_transitionDuration = context.GetCompiledTransitionDuration();
+            pDefinition->m_transitionDurationOverrideNodeIdx = context.GetCompiledTransitionDurationOverrideIdx();
         }
         else // Encountered this node twice during compilation
         {
@@ -27,7 +27,7 @@ namespace EE::Animation::GraphNodes
             return InvalidIndex;
         }
 
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
@@ -41,8 +41,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t TimeConditionToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        TimeConditionNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<TimeConditionNode>( this, pSettings );
+        TimeConditionNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<TimeConditionNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
@@ -51,7 +51,7 @@ namespace EE::Animation::GraphNodes
                 int16_t const compiledNodeIdx = pInputNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_inputValueNodeIdx = compiledNodeIdx;
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -61,12 +61,12 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pSettings->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
-            pSettings->m_comparand = m_comparand;
-            pSettings->m_type = m_type;
-            pSettings->m_operator = m_operator;
+            pDefinition->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
+            pDefinition->m_comparand = m_comparand;
+            pDefinition->m_type = m_type;
+            pDefinition->m_operator = m_operator;
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     void TimeConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )

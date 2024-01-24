@@ -16,7 +16,7 @@ namespace EE::Animation
     class AnimationGraphCompiler final : public Resource::Compiler
     {
         EE_REFLECT_TYPE( AnimationGraphCompiler );
-        constexpr static const int32_t s_version = 66;
+        constexpr static const int32_t s_version = 67;
 
     public:
 
@@ -28,7 +28,6 @@ namespace EE::Animation
 
         virtual bool IsInputFileRequired() const override { return false; }
 
-        bool TryToGenerateAnimGraphVariationFile( Resource::CompileContext const& ctx ) const;
         Resource::CompilationResult CompileGraphDefinition( Resource::CompileContext const& ctx ) const;
         Resource::CompilationResult CompileGraphVariation( Resource::CompileContext const& ctx ) const;
         bool LoadAndCompileGraph( FileSystem::Path const& graphFilePath, ToolsGraphDefinition& editorGraph, GraphDefinitionCompiler& definitionCompiler ) const;

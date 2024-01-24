@@ -3,14 +3,6 @@
   "Id": "c6d6c2bd-89a1-41f2-b27d-3e87b8b678a5",
   "Items": [
     {
-      "Id": "09051c7e-873c-4c3d-9ce2-e8c296a546c0",
-      "Command": "-clean"
-    },
-    {
-      "Id": "bf41c024-1973-450d-96fb-59e02b0c9eef",
-      "Command": "-rebuild"
-    },
-    {
       "Id": "d61405fc-6c2e-4339-a10f-439bf32393ae",
       "Command": "-s D:\\Esoterica\\Esoterica.sln"
     }

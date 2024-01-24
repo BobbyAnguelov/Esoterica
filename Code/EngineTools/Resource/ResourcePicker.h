@@ -2,6 +2,7 @@
 #include "EngineTools/_Module/API.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Resource/ResourceID.h"
+#include "Base/Utils/GlobalRegistryBase.h"
 
 //-------------------------------------------------------------------------
 
@@ -14,9 +15,27 @@ namespace EE::Resource
     class ResourceDatabase;
 
     //-------------------------------------------------------------------------
+    // Resource ID Picker
+    //-------------------------------------------------------------------------
 
     class EE_ENGINETOOLS_API ResourcePicker final
     {
+    public:
+
+        // Implement this if you want to generate a custom list of options for a given resource type
+        class EE_ENGINETOOLS_API OptionProvider : public TGlobalRegistryBase<OptionProvider>
+        {
+            EE_GLOBAL_REGISTRY( OptionProvider );
+
+            friend class ResourcePicker;
+
+        public:
+
+            virtual ~OptionProvider() = default;
+            virtual ResourceTypeID GetApplicableResourceTypeID() const = 0;
+            virtual void GenerateOptions( ToolsContext const& m_toolsContext, TVector<ResourceID>& outOptions ) const = 0;
+            virtual bool ValidatePath( ToolsContext const& m_toolsContext, ResourceID const& resourceID ) const = 0;
+        };
 
     public:
 
@@ -54,11 +73,14 @@ namespace EE::Resource
         ResourceTypeID              m_resourceTypeID; // The type of resource we should pick from
         ResourceID                  m_resourceID;
         ImGuiX::FilterWidget        m_filterWidget;
-        TVector<ResourceID>         m_allResourceIDs;
-        TVector<ResourceID>         m_filteredResourceIDs;
+        TVector<ResourceID>         m_generatedOptions;
+        TVector<ResourceID>         m_filteredOptions;
+        OptionProvider*             m_pCustomOptionProvider = nullptr;
         bool                        m_isComboOpen = false;
     };
 
+    //-------------------------------------------------------------------------
+    // Resource Path Picker
     //-------------------------------------------------------------------------
 
     class EE_ENGINETOOLS_API ResourcePathPicker final

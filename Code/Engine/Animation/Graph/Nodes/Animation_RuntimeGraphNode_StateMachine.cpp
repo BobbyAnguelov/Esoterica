@@ -5,25 +5,25 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void StateMachineNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void StateMachineNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<StateMachineNode>( context, options );
 
-        for ( auto& stateSettings : m_stateSettings )
+        for ( auto& stateDefinition : m_stateDefinition )
         {
             StateInfo& state = pNode->m_states.emplace_back();
-            context.SetNodePtrFromIndex( stateSettings.m_stateNodeIdx, state.m_pStateNode );
-            context.SetOptionalNodePtrFromIndex( stateSettings.m_entryConditionNodeIdx, state.m_pEntryConditionNode );
+            context.SetNodePtrFromIndex( stateDefinition.m_stateNodeIdx, state.m_pStateNode );
+            context.SetOptionalNodePtrFromIndex( stateDefinition.m_entryConditionNodeIdx, state.m_pEntryConditionNode );
 
-            for ( auto& transitionSettings : stateSettings.m_transitionSettings )
+            for ( auto& transitionDefinition : stateDefinition.m_transitionDefinition )
             {
                 TransitionInfo& transition = state.m_transitions.emplace_back();
-                transition.m_targetStateIdx = transitionSettings.m_targetStateIdx;
-                transition.m_canBeForced = transitionSettings.m_canBeForced;
+                transition.m_targetStateIdx = transitionDefinition.m_targetStateIdx;
+                transition.m_canBeForced = transitionDefinition.m_canBeForced;
                 state.m_hasForceableTransitions |= transition.m_canBeForced;
 
-                context.SetNodePtrFromIndex( transitionSettings.m_transitionNodeIdx, transition.m_pTransitionNode );
-                context.SetNodePtrFromIndex( transitionSettings.m_conditionNodeIdx, transition.m_pConditionNode );
+                context.SetNodePtrFromIndex( transitionDefinition.m_transitionNodeIdx, transition.m_pTransitionNode );
+                context.SetNodePtrFromIndex( transitionDefinition.m_conditionNodeIdx, transition.m_pConditionNode );
             }
         }
     }
@@ -51,9 +51,9 @@ namespace EE::Animation::GraphNodes
     StateMachineNode::StateIndex StateMachineNode::SelectDefaultState( GraphContext& context ) const
     {
         EE_ASSERT( context.IsValid() );
-        auto pSettings = GetSettings<StateMachineNode>();
+        auto pDefinition = GetDefinition<StateMachineNode>();
 
-        StateIndex selectedStateIndex = pSettings->m_defaultStateIndex;
+        StateIndex selectedStateIndex = pDefinition->m_defaultStateIndex;
         auto const numStates = (int16_t) m_states.size();
 
         // NOTE: we need to initialize all conditions in advance to ensure that the value caching works

@@ -26,6 +26,26 @@ namespace EE::Animation
     {
         EE_EDITOR_TOOL( AnimationClipEditor );
 
+        struct BoneInfo
+        {
+            inline void DestroyChildren()
+            {
+                for ( auto& pChild : m_children )
+                {
+                    pChild->DestroyChildren();
+                    EE::Delete( pChild );
+                }
+
+                m_children.clear();
+            }
+
+        public:
+
+            int32_t                         m_boneIdx;
+            TInlineVector<BoneInfo*, 5>     m_children;
+            bool                            m_isExpanded = true;
+        };
+
     public:
 
         AnimationClipEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
@@ -55,12 +75,16 @@ namespace EE::Animation
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_RUN_FAST; }
         void DrawTimelineWindow( UpdateContext const& context, bool isFocused );
-        void DrawTrackDataWindow( UpdateContext const& context, bool isFocused );
+        void DrawHierarchyWindow( UpdateContext const& context, bool isFocused );
         void DrawDetailsWindow( UpdateContext const& context, bool isFocused );
         void DrawClipBrowser( UpdateContext const& context, bool isFocused );
 
         void CreatePreviewEntity();
         void DestroyPreviewEntity();
+
+        void CreateSkeletonTree();
+        void DestroySkeletonTree();
+        void DrawSkeletonTreeRow( BoneInfo* pBoneInfo );
 
         virtual void OnDescriptorUnload() override;
         virtual void OnDescriptorLoadCompleted() override;
@@ -81,6 +105,11 @@ namespace EE::Animation
         EventBindingID                  m_propertyGridPostEditEventBindingID;
 
         AnimationClipBrowser            m_animationClipBrowser;
+
+        BoneInfo*                       m_pSkeletonTreeRoot = nullptr;
+        TVector<StringID>               m_selectedBoneIDs;
+        bool                            m_isolateSelectedBones = true;
+        bool                            m_showHierarchyTransforms = true;
 
         Transform                       m_characterTransform = Transform::Identity;
         ResourceID                      m_previewMeshOverride;

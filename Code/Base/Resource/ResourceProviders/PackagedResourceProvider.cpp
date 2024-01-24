@@ -1,7 +1,6 @@
 #include "PackagedResourceProvider.h"
 #include "Base/Resource/ResourceRequest.h"
-#include "Base/Resource/ResourceSettings.h"
-
+#include "Base/Resource/Settings/GlobalSettings_Resource.h"
 
 //-------------------------------------------------------------------------
 

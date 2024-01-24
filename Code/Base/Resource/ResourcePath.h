@@ -11,6 +11,12 @@
 // Always relative to the data directory (data://)
 // Note!!!  Resource paths are case-insensitive. 
 //          It is up to users on case sensitive file systems to ensure that there wont be two files that a resource path can resolve to
+//
+// We support the concept of sub-resource paths i.e. data://parentResource.pr/childResource.ch
+// This allows us to specify resources that dont have source descriptor files, for example: navmeshes, graph variations, etc...
+// When converting to file system paths, the subresources will be converted as follows:
+//  -> <path to parent> + <parent resource name without extension> + <sub-resource delimiter> + <sub-resource name with extension>
+//  e.g., data://parentResource.pr/childResource.ch -> c:\data\parentResource_childResource.ch
 
 namespace EE
 {
@@ -34,6 +40,7 @@ namespace EE
         constexpr static char const* s_pathPrefix = "data://";
         constexpr static int32_t const s_pathPrefixLength = 7;
         constexpr static char const s_pathDelimiter = '/';
+        constexpr static char const s_subResourceFilePathDelimiter = '_';
 
         static bool IsValidPath( char const* pPath );
         static bool IsValidPath( String const& path ) { return IsValidPath( path.c_str() ); }
@@ -79,6 +86,15 @@ namespace EE
 
         // Is this a directory path
         inline bool IsDirectory() const { EE_ASSERT( IsValid() ); return ( m_path.back() == s_pathDelimiter ); }
+
+        // Sub-Resources
+        //-------------------------------------------------------------------------
+
+        // Is this potentially a sub-resource path (i.e. a path within a resource)
+        bool IsSubResourcePath() const;
+
+        // Get the path to the parent resource (this will return an invalid path for non sub-resource paths)
+        ResourcePath GetParentResourcePath() const;
 
         // Extension
         //-------------------------------------------------------------------------

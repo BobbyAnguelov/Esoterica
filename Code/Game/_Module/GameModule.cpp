@@ -9,7 +9,7 @@ namespace EE
 
     }
 
-    bool GameModule::InitializeModule( ModuleContext& context, IniFile const& iniFile )
+    bool GameModule::InitializeModule( ModuleContext& context )
     {
         return true;
     }

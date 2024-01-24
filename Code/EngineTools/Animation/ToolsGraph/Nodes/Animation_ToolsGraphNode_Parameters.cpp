@@ -21,41 +21,41 @@ namespace EE::Animation::GraphNodes
         {
             case GraphValueType::Bool:
             {
-                GraphNodes::ControlParameterBoolNode::Settings* pSettings = nullptr;
-                context.GetSettings<GraphNodes::ControlParameterBoolNode>( this, pSettings );
-                return pSettings->m_nodeIdx;
+                GraphNodes::ControlParameterBoolNode::Definition* pDefinition = nullptr;
+                context.GetDefinition<GraphNodes::ControlParameterBoolNode>( this, pDefinition );
+                return pDefinition->m_nodeIdx;
             }
             break;
 
             case GraphValueType::ID:
             {
-                GraphNodes::ControlParameterIDNode::Settings* pSettings = nullptr;
-                context.GetSettings<GraphNodes::ControlParameterIDNode>( this, pSettings );
-                return pSettings->m_nodeIdx;
+                GraphNodes::ControlParameterIDNode::Definition* pDefinition = nullptr;
+                context.GetDefinition<GraphNodes::ControlParameterIDNode>( this, pDefinition );
+                return pDefinition->m_nodeIdx;
             }
             break;
 
             case GraphValueType::Float:
             {
-                GraphNodes::ControlParameterFloatNode::Settings* pSettings = nullptr;
-                context.GetSettings<GraphNodes::ControlParameterFloatNode>( this, pSettings );
-                return pSettings->m_nodeIdx;
+                GraphNodes::ControlParameterFloatNode::Definition* pDefinition = nullptr;
+                context.GetDefinition<GraphNodes::ControlParameterFloatNode>( this, pDefinition );
+                return pDefinition->m_nodeIdx;
             }
             break;
 
             case GraphValueType::Vector:
             {
-                GraphNodes::ControlParameterVectorNode::Settings* pSettings = nullptr;
-                context.GetSettings<GraphNodes::ControlParameterVectorNode>( this, pSettings );
-                return pSettings->m_nodeIdx;
+                GraphNodes::ControlParameterVectorNode::Definition* pDefinition = nullptr;
+                context.GetDefinition<GraphNodes::ControlParameterVectorNode>( this, pDefinition );
+                return pDefinition->m_nodeIdx;
             }
             break;
 
             case GraphValueType::Target:
             {
-                GraphNodes::ControlParameterTargetNode::Settings* pSettings = nullptr;
-                context.GetSettings<GraphNodes::ControlParameterTargetNode>( this, pSettings );
-                return pSettings->m_nodeIdx;
+                GraphNodes::ControlParameterTargetNode::Definition* pDefinition = nullptr;
+                context.GetDefinition<GraphNodes::ControlParameterTargetNode>( this, pDefinition );
+                return pDefinition->m_nodeIdx;
             }
             break;
 

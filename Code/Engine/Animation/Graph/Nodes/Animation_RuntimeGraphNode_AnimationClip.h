@@ -24,10 +24,10 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        struct EE_ENGINE_API Settings final : public PoseNode::Settings
+        struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
-            EE_REFLECT_TYPE( Settings );
-            EE_SERIALIZE_GRAPHNODESETTINGS( PoseNode::Settings, m_playInReverseValueNodeIdx, m_resetTimeValueNodeIdx, m_sampleRootMotion, m_allowLooping, m_dataSlotIdx );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_playInReverseValueNodeIdx, m_resetTimeValueNodeIdx, m_sampleRootMotion, m_allowLooping, m_dataSlotIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -46,7 +46,7 @@ namespace EE::Animation::GraphNodes
 
         virtual AnimationClip const* GetAnimation() const final { EE_ASSERT( IsValid() ); return m_pAnimation; }
         virtual void DisableRootMotionSampling() final { EE_ASSERT( IsValid() ); m_shouldSampleRootMotion = false; }
-        virtual bool IsLooping() const final { return GetSettings<AnimationClipNode>()->m_allowLooping; }
+        virtual bool IsLooping() const final { return GetDefinition<AnimationClipNode>()->m_allowLooping; }
 
         virtual SyncTrack const& GetSyncTrack() const override { EE_ASSERT( IsValid() ); return m_pAnimation->GetSyncTrack(); }
 

@@ -21,31 +21,12 @@
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Base/FileSystem/FileSystemUtils.h"
 #include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Input/InputSystem.h"
 #include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 // Widgets
 //-------------------------------------------------------------------------
-
-namespace EE::ImGuiX
-{
-    void DropDownButton( char const* pLabel, TFunction<void()> const& contextMenuCallback, ImVec2 size = ImVec2( 0, 0 ) )
-    {
-        EE_ASSERT( pLabel != nullptr );
-
-        float const buttonStartPosX = ImGui::GetCursorPosX();
-        ImGui::Button( pLabel, size );
-        float const buttonEndPosY = ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y;
-        ImGui::SetNextWindowPos( ImGui::GetWindowPos() + ImVec2( buttonStartPosX, buttonEndPosY ) );
-
-        InlineString const contextMenuLabel( InlineString::CtorSprintf(), "%s##ContextMenu", pLabel );
-        if ( ImGui::BeginPopupContextItem( contextMenuLabel.c_str(), ImGuiPopupFlags_MouseButtonLeft ) )
-        {
-            contextMenuCallback();
-            ImGui::EndPopup();
-        }
-    }
-}
 
 namespace EE::Animation
 {
@@ -529,35 +510,39 @@ namespace EE::Animation
                 }
                 else // Stick Control
                 {
-                    auto pInputState = context.GetSystem<Input::InputSystem>()->GetControllerState( 0 );
-                    Vector const stickValue = ( m_controlMode == ControlMode::LeftStick ) ? pInputState->GetLeftAnalogStickValue() : pInputState->GetRightAnalogStickValue();
-
-                    if ( !stickValue.IsNearZero2() )
+                    auto pInputSystem = context.GetSystem<Input::InputSystem>();
+                    if ( pInputSystem->IsControllerConnected( 0 ) )
                     {
+                        auto pInputState = pInputSystem->GetController( 0 );
+                        Vector const stickValue = ( m_controlMode == ControlMode::LeftStick ) ? pInputState->GetLeftStickValue() : pInputState->GetRightStickValue();
 
-                        Vector direction;
-                        float length;
-                        stickValue.ToDirectionAndLength2( direction, length );
+                        if ( !stickValue.IsNearZero2() )
+                        {
+
+                            Vector direction;
+                            float length;
+                            stickValue.ToDirectionAndLength2( direction, length );
                         
-                        // Invert y to match screen coords (+Y is down)
-                        direction.SetY( -direction.GetY() );
+                            // Invert y to match screen coords (+Y is down)
+                            direction.SetY( -direction.GetY() );
 
-                        // Clamp to control area if we are outside it
-                        if ( length > 1 )
-                        {
-                            visualValue = direction * s_circleRadius;
+                            // Clamp to control area if we are outside it
+                            if ( length > 1 )
+                            {
+                                visualValue = direction * s_circleRadius;
+                            }
+                            else // If we are within the control area
+                            {
+                                visualValue = direction * length * s_circleRadius;
+                            }
                         }
-                        else // If we are within the control area
+                        else
                         {
-                            visualValue = direction * length * s_circleRadius;
+                            visualValue = ImVec2( 0, 0 );
                         }
-                    }
-                    else
-                    {
-                        visualValue = ImVec2( 0, 0 );
-                    }
 
-                    shouldUpdateParameterValue = true;
+                        shouldUpdateParameterValue = true;
+                    }
                 }
 
                 // Draw Circle and Editing Dot
@@ -1806,51 +1791,6 @@ namespace EE::Animation
         {
             auto const definitionExtension = GraphDefinition::GetStaticResourceTypeID().ToString();
             EE_ASSERT( m_graphFilePath.IsValid() && m_graphFilePath.MatchesExtension( definitionExtension.c_str() ) );
-
-            // Create list of valid descriptor
-            //-------------------------------------------------------------------------
-
-            TVector<FileSystem::Path> validVariations;
-
-            auto const& variationHierarchy = GetEditedGraphData()->m_graphDefinition.GetVariationHierarchy();
-            for ( auto const& variation : variationHierarchy.GetAllVariations() )
-            {
-                validVariations.emplace_back( Variation::GenerateResourceFilePath( m_graphFilePath, variation.m_ID ) );
-            }
-
-            // Delete all invalid descriptors for this graph
-            //-------------------------------------------------------------------------
-
-            auto const variationExtension = GraphVariation::GetStaticResourceTypeID().ToString();
-            TVector<FileSystem::Path> allVariationFiles;
-            if ( FileSystem::GetDirectoryContents( m_graphFilePath.GetParentDirectory(), allVariationFiles, FileSystem::DirectoryReaderOutput::OnlyFiles, FileSystem::DirectoryReaderMode::DontExpand, { variationExtension.c_str() } ) )
-            {
-                String const variationPathPrefix = Variation::GenerateResourceFilePathPrefix( m_graphFilePath );
-                for ( auto const& variationFilePath : allVariationFiles )
-                {
-                    if ( variationFilePath.GetFullPath().find( variationPathPrefix.c_str() ) != String::npos )
-                    {
-                        if ( !VectorContains( validVariations, variationFilePath ) )
-                        {
-                            FileSystem::EraseFile( variationFilePath );
-                        }
-                    }
-                }
-            }
-
-            // Generate all variation descriptors
-            //-------------------------------------------------------------------------
-
-            for ( auto const& variation : variationHierarchy.GetAllVariations() )
-            {
-                if ( !Variation::TryCreateVariationFile( *m_pToolsContext->m_pTypeRegistry, m_pToolsContext->GetRawResourceDirectory(), m_graphFilePath, variation.m_ID ) )
-                {
-                    InlineString const str( InlineString::CtorSprintf(), "Failed to create variation file - %s", Variation::GenerateResourceFilePath( m_graphFilePath, variation.m_ID ).c_str() );
-                    pfd::message( "Error Saving!", str.c_str(), pfd::choice::ok, pfd::icon::error ).result();
-                    return false;
-                }
-            }
-
             ClearDirty();
             return true;
         }
@@ -2074,6 +2014,33 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        auto NavigateToSourceNode = [this] ( SampledEventDebugPath const& path )
+        {
+            ClearGraphStack();
+
+            int32_t const numElements = (int32_t) path.m_path.size();
+            for ( int32_t i = 0; i < numElements; i++ )
+            {
+                UUID const nodeID = m_userContext.GetGraphNodeUUID( path.m_path[i].m_nodeIdx );
+                auto pVisualNode = m_loadedGraphStack.back()->GetRootGraph()->FindNode( nodeID, true );
+                EE_ASSERT( pVisualNode != nullptr );
+
+                if ( i == numElements - 1 )
+                {
+                    NavigateTo( pVisualNode );
+                }
+                else // Child Graph
+                {
+                    auto pChildGraphNode = Cast<GraphNodes::ChildGraphToolsNode>( pVisualNode );
+                    ResourceID const childGraphResourceID = pChildGraphNode->GetResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
+                    EE_ASSERT( childGraphResourceID.IsValid() && childGraphResourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
+                    PushOnGraphStack( pChildGraphNode, childGraphResourceID );
+                }
+            }
+        };
+
+        //-------------------------------------------------------------------------
+
         bool const showDebugData = IsDebugging() && m_pDebugGraphInstance != nullptr && m_pDebugGraphInstance->IsInitialized();
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Pose Tasks" ) )
@@ -2106,7 +2073,7 @@ namespace EE::Animation
         {
             if ( showDebugData )
             {
-                AnimationDebugView::DrawSampledAnimationEventsView( m_pDebugGraphInstance );
+                AnimationDebugView::DrawSampledAnimationEventsView( m_pDebugGraphInstance, NavigateToSourceNode );
             }
             else
             {
@@ -2119,7 +2086,7 @@ namespace EE::Animation
         {
             if ( showDebugData )
             {
-                AnimationDebugView::DrawSampledStateEventsView( m_pDebugGraphInstance );
+                AnimationDebugView::DrawSampledStateEventsView( m_pDebugGraphInstance, NavigateToSourceNode );
             }
             else
             {

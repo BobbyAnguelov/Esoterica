@@ -5,7 +5,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void BoneMaskNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void BoneMaskNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<BoneMaskNode>( context, options );
         int32_t const maskIdx = context.m_pDataSet->GetPrimarySkeleton()->GetBoneMaskIndex( m_boneMaskID );
@@ -41,7 +41,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FixedWeightBoneMaskNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void FixedWeightBoneMaskNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FixedWeightBoneMaskNode>( context, options );
         pNode->m_taskList = BoneMaskTaskList( BoneMaskTask( m_boneWeight ) );
@@ -64,7 +64,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void BoneMaskBlendNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void BoneMaskBlendNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<BoneMaskBlendNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceMaskNodeIdx, pNode->m_pSourceBoneMask );
@@ -122,7 +122,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void BoneMaskSelectorNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void BoneMaskSelectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<BoneMaskSelectorNode>( context, options );
 
@@ -215,8 +215,8 @@ namespace EE::Animation::GraphNodes
             // Perform selection
             //-------------------------------------------------------------------------
 
-            auto pSettings = GetSettings<BoneMaskSelectorNode>();
-            if ( pSettings->m_switchDynamically )
+            auto pDefinition = GetDefinition<BoneMaskSelectorNode>();
+            if ( pDefinition->m_switchDynamically )
             {
                 // Only try to select a new mask if we are not blending
                 if ( !m_isBlending )
@@ -242,7 +242,7 @@ namespace EE::Animation::GraphNodes
             if ( m_isBlending )
             {
                 m_currentTimeInBlend += context.m_deltaTime;
-                float const blendWeight = m_currentTimeInBlend / pSettings->m_blendTime;
+                float const blendWeight = m_currentTimeInBlend / pDefinition->m_blendTime;
 
                 // If the blend is complete, then update the selected mask index
                 if ( blendWeight >= 1.0f )

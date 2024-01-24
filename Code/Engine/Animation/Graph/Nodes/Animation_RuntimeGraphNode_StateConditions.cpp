@@ -5,7 +5,7 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void StateCompletedConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void StateCompletedConditionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<StateCompletedConditionNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -40,12 +40,12 @@ namespace EE::Animation::GraphNodes
     void StateCompletedConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
-        auto pSettings = GetSettings<StateCompletedConditionNode>();
+        auto pDefinition = GetDefinition<StateCompletedConditionNode>();
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )
         {
-            float transitionDuration = pSettings->m_transitionDuration;
+            float transitionDuration = pDefinition->m_transitionDuration;
             if ( m_pDurationOverrideNode != nullptr )
             {
                 transitionDuration = m_pDurationOverrideNode->GetValue<float>( context );
@@ -64,7 +64,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TimeConditionNode::Settings::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void TimeConditionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<TimeConditionNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
@@ -81,13 +81,13 @@ namespace EE::Animation::GraphNodes
     void TimeConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() );
-        auto pSettings = GetSettings<TimeConditionNode>();
+        auto pDefinition = GetDefinition<TimeConditionNode>();
 
         //-------------------------------------------------------------------------
 
-        auto DoComparision = [pSettings] ( float a, float b )
+        auto DoComparision = [pDefinition] ( float a, float b )
         {
-            switch ( pSettings->m_operator )
+            switch ( pDefinition->m_operator )
             {   
                 case Operator::LessThan:
                 {
@@ -125,9 +125,9 @@ namespace EE::Animation::GraphNodes
         {
             MarkNodeActive( context );
 
-            float const comparisonValue = ( m_pInputValueNode != nullptr ) ? m_pInputValueNode->GetValue<float>( context ) : pSettings->m_comparand;
+            float const comparisonValue = ( m_pInputValueNode != nullptr ) ? m_pInputValueNode->GetValue<float>( context ) : pDefinition->m_comparand;
 
-            switch ( pSettings->m_type )
+            switch ( pDefinition->m_type )
             {
                 case ComparisonType::PercentageThroughState:
                 {

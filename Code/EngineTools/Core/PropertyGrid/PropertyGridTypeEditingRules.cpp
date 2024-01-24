@@ -4,10 +4,6 @@
 
 namespace EE::PG
 {
-    EE_GLOBAL_REGISTRY( TypeEditingRulesFactory );
-
-    //-------------------------------------------------------------------------
-
     TypeEditingRules* TypeEditingRulesFactory::TryCreateRules( ToolsContext const* pToolsContext, IReflectedType* pTypeInstance )
     {
         auto pCurrentFactory = s_pHead;

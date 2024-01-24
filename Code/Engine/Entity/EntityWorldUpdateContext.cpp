@@ -34,6 +34,11 @@ namespace EE
         EE_ASSERT( m_deltaTime >= 0.0f );
     }
 
+    Settings::ISettings* EntityWorldUpdateContext::GetSettings( TypeSystem::TypeInfo const* pTypeInfo )
+    {
+        return m_pWorld->GetSettings( pTypeInfo );
+    }
+
     EntityWorldSystem* EntityWorldUpdateContext::GetWorldSystem( uint32_t worldSystemID ) const
     {
         return m_pWorld->GetWorldSystem( worldSystemID );
@@ -47,11 +52,6 @@ namespace EE
     Render::Viewport const* EntityWorldUpdateContext::GetViewport() const
     {
         return m_pWorld->GetViewport();
-    }
-
-    Input::InputState const* EntityWorldUpdateContext::GetInputState() const
-    {
-        return m_pWorld->GetInputState();
     }
 
     float EntityWorldUpdateContext::GetTimeScale() const

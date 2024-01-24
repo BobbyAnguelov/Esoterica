@@ -159,8 +159,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t SelectorToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        SelectorNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<SelectorNode>( this, pSettings );
+        SelectorNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<SelectorNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             int32_t const numOptions = GetNumInputPins();
@@ -178,7 +178,7 @@ namespace EE::Animation::GraphNodes
                     auto compiledNodeIdx = pOptionNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_optionNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_optionNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -197,7 +197,7 @@ namespace EE::Animation::GraphNodes
                     auto compiledNodeIdx = pConditionNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -211,25 +211,25 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
-            EE_ASSERT( pSettings->m_optionNodeIndices.size() == pSettings->m_conditionNodeIndices.size() );
+            EE_ASSERT( pDefinition->m_optionNodeIndices.size() == pDefinition->m_conditionNodeIndices.size() );
 
             //-------------------------------------------------------------------------
 
-            if ( pSettings->m_optionNodeIndices.empty() )
+            if ( pDefinition->m_optionNodeIndices.empty() )
             {
                 context.LogError( this, "No inputs on selector" );
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------
 
     int16_t AnimationClipSelectorToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        AnimationClipSelectorNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<AnimationClipSelectorNode>( this, pSettings );
+        AnimationClipSelectorNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<AnimationClipSelectorNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             int32_t const numOptions = GetNumInputPins();
@@ -247,7 +247,7 @@ namespace EE::Animation::GraphNodes
                     auto compiledNodeIdx = pOptionNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_optionNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_optionNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -266,7 +266,7 @@ namespace EE::Animation::GraphNodes
                     auto compiledNodeIdx = pConditionNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -280,17 +280,17 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
-            EE_ASSERT( pSettings->m_optionNodeIndices.size() == pSettings->m_conditionNodeIndices.size() );
+            EE_ASSERT( pDefinition->m_optionNodeIndices.size() == pDefinition->m_conditionNodeIndices.size() );
 
             //-------------------------------------------------------------------------
 
-            if ( pSettings->m_optionNodeIndices.empty() )
+            if ( pDefinition->m_optionNodeIndices.empty() )
             {
                 context.LogError( this, "No inputs on selector" );
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     bool AnimationClipSelectorToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
@@ -317,8 +317,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t ParameterizedSelectorToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ParameterizedSelectorNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<ParameterizedSelectorNode>( this, pSettings );
+        ParameterizedSelectorNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<ParameterizedSelectorNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             // Compile Parameter
@@ -330,7 +330,7 @@ namespace EE::Animation::GraphNodes
                 auto compiledNodeIdx = pParameterNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_parameterNodeIdx = compiledNodeIdx;
+                    pDefinition->m_parameterNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -355,7 +355,7 @@ namespace EE::Animation::GraphNodes
                     auto compiledNodeIdx = pOptionNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_optionNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_optionNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -371,13 +371,13 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            if ( pSettings->m_optionNodeIndices.empty() )
+            if ( pDefinition->m_optionNodeIndices.empty() )
             {
                 context.LogError( this, "No inputs on selector" );
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     TInlineString<100> ParameterizedSelectorToolsNode::GetNewDynamicInputPinName() const
@@ -433,8 +433,8 @@ namespace EE::Animation::GraphNodes
 
     int16_t ParameterizedAnimationClipSelectorToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        ParameterizedAnimationClipSelectorNode::Settings* pSettings = nullptr;
-        NodeCompilationState const state = context.GetSettings<ParameterizedAnimationClipSelectorNode>( this, pSettings );
+        ParameterizedAnimationClipSelectorNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<ParameterizedAnimationClipSelectorNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             // Compile Parameter
@@ -446,7 +446,7 @@ namespace EE::Animation::GraphNodes
                 auto compiledNodeIdx = pParameterNode->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
-                    pSettings->m_parameterNodeIdx = compiledNodeIdx;
+                    pDefinition->m_parameterNodeIdx = compiledNodeIdx;
                 }
                 else
                 {
@@ -471,7 +471,7 @@ namespace EE::Animation::GraphNodes
                     auto compiledNodeIdx = pOptionNode->Compile( context );
                     if ( compiledNodeIdx != InvalidIndex )
                     {
-                        pSettings->m_optionNodeIndices.emplace_back( compiledNodeIdx );
+                        pDefinition->m_optionNodeIndices.emplace_back( compiledNodeIdx );
                     }
                     else
                     {
@@ -487,13 +487,13 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            if ( pSettings->m_optionNodeIndices.empty() )
+            if ( pDefinition->m_optionNodeIndices.empty() )
             {
                 context.LogError( this, "No inputs on selector" );
                 return InvalidIndex;
             }
         }
-        return pSettings->m_nodeIdx;
+        return pDefinition->m_nodeIdx;
     }
 
     TInlineString<100> ParameterizedAnimationClipSelectorToolsNode::GetNewDynamicInputPinName() const

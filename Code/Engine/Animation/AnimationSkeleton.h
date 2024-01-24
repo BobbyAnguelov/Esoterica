@@ -96,6 +96,15 @@ namespace EE::Animation
             return m_boneIDs[boneIdx];
         }
 
+        // Get the LOD for a specific bone
+        inline LOD GetBoneLOD( int32_t boneIdx ) const { return ( boneIdx > m_numBonesToSampleAtLowLOD ) ? LOD::High : LOD::Low; }
+
+        // Will this bone be in a high LOD pose
+        inline bool IsBoneHighLOD( int32_t boneIdx ) const { return boneIdx > m_numBonesToSampleAtLowLOD; }
+
+        // Will this bone be in a low LOD pose
+        inline bool IsBoneLowLOD( int32_t boneIdx ) const { return boneIdx <= m_numBonesToSampleAtLowLOD; }
+
         // Pose info
         //-------------------------------------------------------------------------
 

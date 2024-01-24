@@ -5,8 +5,31 @@
 
 namespace EE
 {
+    // Serializable Entity Map ID
+    //-------------------------------------------------------------------------
+
     using EntityMapID = UUID;
-    using EntityWorldID = UUID;
+
+    //-------------------------------------------------------------------------
+
+    struct EntityWorldID
+    {
+        static EntityWorldID Generate();
+
+    public:
+
+        EntityWorldID() = default;
+        explicit EntityWorldID( uint64_t v ) : m_value( v ) { EE_ASSERT( v != 0 ); }
+
+        EE_FORCE_INLINE bool IsValid() const { return m_value != 0; }
+        EE_FORCE_INLINE void Clear() { m_value = 0; }
+        EE_FORCE_INLINE bool operator==( EntityWorldID const& rhs ) const { return m_value == rhs.m_value; }
+        EE_FORCE_INLINE bool operator!=( EntityWorldID const& rhs ) const { return m_value != rhs.m_value; }
+
+    public:
+
+        uint64_t m_value = 0;
+    };
 
     //-------------------------------------------------------------------------
 
@@ -55,6 +78,12 @@ namespace EE
 
 namespace eastl
 {
+    template <>
+    struct hash<EE::EntityWorldID>
+    {
+        EE_FORCE_INLINE eastl_size_t operator()( EE::EntityWorldID const& t ) const { return t.m_value; }
+    };
+
     template <>
     struct hash<EE::EntityID>
     {

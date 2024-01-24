@@ -5,22 +5,19 @@
 
 namespace EE::Input
 {
-    MouseInputState const InputSystem::s_emptyMouseState = MouseInputState();
-    KeyboardInputState const InputSystem::s_emptyKeyboardState = KeyboardInputState();
-    ControllerInputState const InputSystem::s_emptyControllerState = ControllerInputState();
-
-    //-------------------------------------------------------------------------
-
     bool InputSystem::Initialize()
     {
-        // Create a keyboard and mouse device
-        m_inputDevices.emplace_back( EE::New<KeyboardMouseInputDevice>() );
+        m_inputDevices.emplace_back( &m_keyboardMouse );
 
         // Create a single controller for now
         //-------------------------------------------------------------------------
         // TODO: build a controller manager that can detect and automatically create controllers
 
-        m_inputDevices.emplace_back( EE::New<XBoxControllerInputDevice>( 0 ) );
+        for ( int32_t i = 0; i < s_maxControllers; i++ )
+        {
+            m_controllers[i] = EE::New<XBoxControllerInputDevice>( i );
+            m_inputDevices.emplace_back( m_controllers[i] );
+        }
 
         //-------------------------------------------------------------------------
 
@@ -37,25 +34,31 @@ namespace EE::Input
         for ( auto& pInputDevice : m_inputDevices )
         {
             pInputDevice->Shutdown();
-            EE::Delete( pInputDevice );
         }
 
         m_inputDevices.clear();
+
+        //-------------------------------------------------------------------------
+
+        for ( int32_t i = 0; i < s_maxControllers; i++ )
+        {
+            EE::Delete( m_controllers[i] );
+        }
     }
 
     void InputSystem::Update( Seconds deltaTime )
     {
         for ( auto pInputDevice : m_inputDevices )
         {
-            pInputDevice->UpdateState( deltaTime );
+            pInputDevice->Update( deltaTime );
         }
     }
 
-    void InputSystem::ClearFrameState()
+    void InputSystem::PrepareForNewMessages()
     {
         for ( auto pInputDevice : m_inputDevices )
         {
-            pInputDevice->ClearFrameState();
+            pInputDevice->PrepareForNewMessages();
         }
     }
 
@@ -69,91 +72,42 @@ namespace EE::Input
 
     //-------------------------------------------------------------------------
 
-    KeyboardMouseInputDevice const* InputSystem::GetKeyboardMouseDevice() const
-    {
-        for ( auto pDevice : m_inputDevices )
-        {
-            if ( pDevice->GetDeviceCategory() == DeviceCategory::KeyboardMouse )
-            {
-                return static_cast<KeyboardMouseInputDevice*>( pDevice );
-            }
-        }
-
-        return nullptr;
-    }
-
-    //-------------------------------------------------------------------------
-
     uint32_t InputSystem::GetNumConnectedControllers() const
     {
-        uint32_t numControllers = 0;
-        for ( auto pDevice : m_inputDevices )
+        uint32_t numConnectedControllers = 0;
+        for ( int32_t i = 0; i < s_maxControllers; i++ )
         {
-            if ( pDevice->GetDeviceCategory() == DeviceCategory::Controller )
+            if ( m_controllers[i]->IsConnected() )
             {
-                auto pController = static_cast<ControllerInputDevice*>( pDevice );
-                if ( pController->IsConnected() )
-                {
-                    numControllers++;
-                }
+                numConnectedControllers++;
             }
         }
 
-        return numControllers;
+        return numConnectedControllers;
     }
 
-    ControllerInputDevice const* InputSystem::GetControllerDevice( uint32_t controllerIdx ) const
+    bool InputSystem::IsControllerConnected( int32_t controllerIdx ) const
     {
-        uint32_t currentControllerIdx = 0;
-        for ( auto pDevice : m_inputDevices )
+        EE_ASSERT( controllerIdx < s_maxControllers );
+        return m_controllers[controllerIdx]->IsConnected();
+    }
+
+    ControllerDevice const* InputSystem::GetController( uint32_t controllerIdx ) const
+    {
+        EE_ASSERT( controllerIdx < s_maxControllers );
+        return m_controllers[controllerIdx];
+    }
+
+    ControllerDevice const* InputSystem::GetFirstController() const
+    {
+        for ( int32_t i = 0; i < s_maxControllers; i++ )
         {
-            if ( pDevice->GetDeviceCategory() == DeviceCategory::Controller )
+            if ( m_controllers[i]->IsConnected() )
             {
-                auto pController = static_cast<ControllerInputDevice*>( pDevice );
-                if ( pController->IsConnected() )
-                {
-                    if ( controllerIdx == currentControllerIdx )
-                    {
-                        return static_cast<ControllerInputDevice*>( pDevice );
-                    }
-                    else
-                    {
-                        controllerIdx++;
-                    }
-                }
+                return m_controllers[i];
             }
         }
 
         return nullptr;
-    }
-
-    void InputSystem::ReflectState( Seconds const deltaTime, float timeScale, InputState& outReflectedState ) const
-    {
-        outReflectedState.m_mouseState.ReflectFrom( deltaTime, timeScale, *GetMouseState() );
-        outReflectedState.m_keyboardState.ReflectFrom( deltaTime, timeScale, *GetKeyboardState() );
-
-        uint32_t const numControllerStates = GetNumConnectedControllers();
-        if ( outReflectedState.m_controllerStates.size() != numControllerStates )
-        {
-            outReflectedState.m_controllerStates.resize( numControllerStates );
-        }
-
-        for ( auto i = 0u; i < numControllerStates; i++ )
-        {
-            outReflectedState.m_controllerStates[i].ReflectFrom( deltaTime, timeScale, *GetControllerState( i ) );
-        }
-    }
-
-    //-------------------------------------------------------------------------
-
-    void InputState::Clear()
-    {
-        m_mouseState.Clear();
-        m_keyboardState.Clear();
-
-        for ( auto& controllerState : m_controllerStates )
-        {
-            controllerState.Clear();
-        }
     }
 }

@@ -1,4 +1,5 @@
 #include "EngineDebugUI.h"
+#include "Engine/Console/Console.h"
 #include "Engine/DebugViews/DebugView.h"
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/Entity/EntityWorld.h"
@@ -211,6 +212,15 @@ namespace EE
 
     void EngineDebugUI::Menu::Draw( EntityWorldUpdateContext const& context )
     {
+        auto pConsole = context.GetSystem<Console>();
+        bool isConsoleOpen = pConsole->IsVisible();
+        if ( ImGui::MenuItem( "Console", nullptr, &isConsoleOpen, !isConsoleOpen ) )
+        {
+            pConsole->SetVisible( isConsoleOpen );
+        }
+
+        //-------------------------------------------------------------------------
+
         for ( auto& childMenu : m_childMenus )
         {
             EE_ASSERT( !childMenu.IsEmpty() );
@@ -666,14 +676,14 @@ namespace EE
     {
         auto pInputSystem = context.GetSystem<Input::InputSystem>();
         EE_ASSERT( pInputSystem != nullptr );
-        auto const pKeyboardState = pInputSystem->GetKeyboardState();
+        auto const pKeyboardMouse = pInputSystem->GetKeyboardMouse();
 
         // Enable/disable debug overlay
         //-------------------------------------------------------------------------
 
         if ( !m_isInEditorPreviewMode )
         {
-            if ( pKeyboardState->WasReleased( Input::KeyboardButton::Key_Tilde ) )
+            if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_Tilde ) )
             {
                 m_debugOverlayEnabled = !m_debugOverlayEnabled;
             }
@@ -682,27 +692,27 @@ namespace EE
         // Time Controls
         //-------------------------------------------------------------------------
 
-        if ( pKeyboardState->WasReleased( Input::KeyboardButton::Key_Pause ) )
+        if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_Pause ) )
         {
             ToggleWorldPause();
         }
 
-        if ( pKeyboardState->WasReleased( Input::KeyboardButton::Key_PageUp ) )
+        if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_PageUp ) )
         {
             SetWorldTimeScale( m_timeScale + 0.1f );
         }
 
-        if ( pKeyboardState->WasReleased( Input::KeyboardButton::Key_PageDown ) )
+        if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_PageDown ) )
         {
             SetWorldTimeScale( m_timeScale - 0.1f );
         }
 
-        if ( pKeyboardState->WasReleased( Input::KeyboardButton::Key_Home ) )
+        if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_Home ) )
         {
             ResetWorldTimeScale();
         }
 
-        if ( pKeyboardState->WasReleased( Input::KeyboardButton::Key_End ) )
+        if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_End ) )
         {
             RequestWorldTimeStep();
         }

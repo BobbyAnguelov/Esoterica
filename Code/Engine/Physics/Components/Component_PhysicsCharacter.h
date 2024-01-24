@@ -2,7 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
-#include "Engine/Physics/PhysicsSettings.h"
+#include "Engine/Physics/PhysicsCollision.h"
 #include "Engine/Physics/PhysicsQuery.h"
 #include "Base/Time/Time.h"
 #include "Base/Time/Timers.h"

@@ -7,6 +7,7 @@
 #include "EngineTools/Core/CategoryTree.h"
 #include "Base/Types/HashMap.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Blend2D.h"
+#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Blend1D.h"
 
 
 //-------------------------------------------------------------------------
@@ -74,47 +75,17 @@ namespace EE::Animation
         // Get a pose node's debug information
         PoseNodeDebugInfo GetPoseNodeDebugInfo( int16_t runtimeNodeIdx ) const;
 
+        // Get the runtime instance of a node for debug purposes
+        GraphNode const* GetNodeDebugInstance( int16_t runtimeNodeIdx ) const
+        {
+            return m_pGraphInstance->GetNodeDebugInstance( runtimeNodeIdx );
+        }
+
         // Get the value of a given runtime value node
         template<typename T>
-        inline T GetRuntimeNodeDebugValue( int16_t runtimeNodeIdx ) const
+        inline T GetNodeValue( int16_t runtimeNodeIdx ) const
         {
             return m_pGraphInstance->GetRuntimeNodeDebugValue<T>( runtimeNodeIdx );
-        }
-
-        // Get layer weight from a given runtime layer blend node
-        inline float GetLayerWeight( int16_t runtimeNodeIdx, int32_t layerIdx ) const
-        {
-            auto pLayerNode = static_cast<GraphNodes::LayerBlendNode const*>( m_pGraphInstance->GetNodeDebugInstance( runtimeNodeIdx ) );
-            if( pLayerNode->IsInitialized() )
-            {
-                return pLayerNode->GetLayerWeight( layerIdx );
-            }
-
-            return 0.0f;
-        }
-
-        // Get layer weight from a given runtime layer blend node
-        inline Float2 GetBlend2DParameter( int16_t runtimeNodeIdx ) const
-        {
-            auto pLayerNode = static_cast<GraphNodes::Blend2DNode const*>( m_pGraphInstance->GetNodeDebugInstance( runtimeNodeIdx ) );
-            if ( pLayerNode->IsInitialized() )
-            {
-                return pLayerNode->GetParameter();
-            }
-
-            return Float2::Zero;
-        }
-
-        // Get transition progress
-        inline float GetTransitionProgress( int16_t runtimeNodeIdx ) const
-        {
-            auto pTransitionNode = static_cast<GraphNodes::TransitionNode const*>( m_pGraphInstance->GetNodeDebugInstance( runtimeNodeIdx ) );
-            if ( pTransitionNode->IsInitialized() )
-            {
-                return pTransitionNode->GetProgressPercentage();
-            }
-
-            return 0.0f;
         }
 
     public:

@@ -24,21 +24,13 @@
     <ClCompile Include="Clang\ClangVisitors_TranslationUnit.cpp">
       <Filter>Clang</Filter>
     </ClCompile>
-    <ClCompile Include="CodeGenerators\CodeGenerator_CPP.cpp">
-      <Filter>CodeGenerators</Filter>
-    </ClCompile>
-    <ClCompile Include="CodeGenerators\CodeGenerator_CPP_Type.cpp">
-      <Filter>CodeGenerators</Filter>
-    </ClCompile>
-    <ClCompile Include="CodeGenerators\CodeGenerator_CPP_Enum.cpp">
-      <Filter>CodeGenerators</Filter>
-    </ClCompile>
     <ClCompile Include="Database\ReflectionDatabase.cpp">
       <Filter>Database</Filter>
     </ClCompile>
     <ClCompile Include="Database\ReflectionDataTypes.cpp">
       <Filter>Database</Filter>
     </ClCompile>
+    <ClCompile Include="CodeGenerator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Reflector.h" />
@@ -67,15 +59,6 @@
     <ClInclude Include="Clang\ClangVisitors_TranslationUnit.h">
       <Filter>Clang</Filter>
     </ClInclude>
-    <ClInclude Include="CodeGenerators\CodeGenerator_CPP.h">
-      <Filter>CodeGenerators</Filter>
-    </ClInclude>
-    <ClInclude Include="CodeGenerators\CodeGenerator_CPP_Type.h">
-      <Filter>CodeGenerators</Filter>
-    </ClInclude>
-    <ClInclude Include="CodeGenerators\CodeGenerator_CPP_Enum.h">
-      <Filter>CodeGenerators</Filter>
-    </ClInclude>
     <ClInclude Include="Database\ReflectionDatabase.h">
       <Filter>Database</Filter>
     </ClInclude>
@@ -85,6 +68,7 @@
     <ClInclude Include="Database\ReflectionProjectTypes.h">
       <Filter>Database</Filter>
     </ClInclude>
+    <ClInclude Include="CodeGenerator.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Resources">
@@ -92,9 +76,6 @@
     </Filter>
     <Filter Include="Clang">
       <UniqueIdentifier>{6638ab7f-1c6b-4079-a1c7-e3577d3e6f20}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="CodeGenerators">
-      <UniqueIdentifier>{2e4b0447-c482-44ff-9122-8f02193dd4f6}</UniqueIdentifier>
     </Filter>
     <Filter Include="Database">
       <UniqueIdentifier>{282c0b75-2ea6-4f31-a337-5dbf14c15e6b}</UniqueIdentifier>

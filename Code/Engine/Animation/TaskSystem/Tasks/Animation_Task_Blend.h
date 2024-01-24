@@ -24,7 +24,7 @@ namespace EE::Animation::Tasks
 
         #if EE_DEVELOPMENT_TOOLS
         virtual Color GetDebugColor() const override final { return Colors::Lime; }
-        virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const override final;
+        virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const override final;
         #endif
 
     protected:

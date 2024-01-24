@@ -145,7 +145,7 @@ namespace EE::Animation
                 Blender::ApplyAdditiveToReferencePose( m_skeletonLOD, m_pPose, 1.0f, nullptr, m_pPose );
             }
 
-            m_pPose->CalculateGlobalTransforms();
+            m_pPose->CalculateModelSpaceTransforms();
 
             // Sample secondary animations
             //-------------------------------------------------------------------------
@@ -154,7 +154,7 @@ namespace EE::Animation
             for ( int32_t i = 0; i < numChildAnimations; i++ )
             {
                 m_pAnimation->GetSecondaryAnimations()[i]->GetPose( m_animTime, m_secondaryPoses[i], m_skeletonLOD );
-                m_secondaryPoses[i]->CalculateGlobalTransforms();
+                m_secondaryPoses[i]->CalculateModelSpaceTransforms();
             }
 
             // Sample root motion

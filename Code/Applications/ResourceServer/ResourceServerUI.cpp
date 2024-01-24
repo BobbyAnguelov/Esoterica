@@ -133,18 +133,19 @@ namespace EE::Resource
 
             ImGuiX::ScopedFont const BigScopedFont( ImGuiX::Font::Small );
 
-            if ( ImGui::BeginTable( "Requests", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, tableHeight ) ) )
+            if ( ImGui::BeginTable( "Requests", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, tableHeight ) ) )
             {
                 auto const& requests = m_resourceServer.GetRequests();
 
                 //-------------------------------------------------------------------------
 
                 ImGui::TableSetupColumn( "##Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
-                ImGui::TableSetupColumn( "Client", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 110 );
-                ImGui::TableSetupColumn( "Origin", ImGuiTableColumnFlags_WidthStretch );
-                ImGui::TableSetupColumn( "Destination", ImGuiTableColumnFlags_WidthStretch );
                 ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
+                ImGui::TableSetupColumn( "ID", ImGuiTableColumnFlags_WidthStretch );
                 ImGui::TableSetupColumn( "Compile", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 60 );
+                ImGui::TableSetupColumn( "Origin", ImGuiTableColumnFlags_WidthStretch );
+                ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch );
+                ImGui::TableSetupColumn( "Destination", ImGuiTableColumnFlags_WidthStretch );
                 ImGui::TableSetupScrollFreeze( 0, 1 );
 
                 //-------------------------------------------------------------------------
@@ -176,7 +177,7 @@ namespace EE::Resource
 
                         //-------------------------------------------------------------------------
 
-                        ImGui::TableSetColumnIndex( 0 );
+                        ImGui::TableNextColumn();
                         switch ( pRequest->GetStatus() )
                         {
                             case CompilationRequest::Status::Pending:
@@ -238,12 +239,31 @@ namespace EE::Resource
 
                         //-------------------------------------------------------------------------
 
-                        ImGui::TableSetColumnIndex( 1 );
+                        auto const resourceTypeStr = pRequest->GetResourceID().GetResourceTypeID().ToString();
+                        ImGui::TableNextColumn();
+                        ImGui::Text( "%s", resourceTypeStr.c_str() );
+                        HandleContextMenuOpening();
+
+                        //-------------------------------------------------------------------------
+
+                        ImGui::TableNextColumn();
+                        ImGui::Text( pRequest->m_resourceID.c_str() );
+                        HandleContextMenuOpening();
+
+                        //-------------------------------------------------------------------------
+
+                        ImGui::TableNextColumn();
+                        ImGui::Text( "%.3fms", pRequest->GetCompilationElapsedTime().ToFloat() );
+                        HandleContextMenuOpening();
+
+                        //-------------------------------------------------------------------------
+
+                        ImGui::TableNextColumn();
                         switch ( pRequest->m_origin )
                         {
                             case CompilationRequest::Origin::External :
                             {
-                                ImGui::Text( "%llu", pRequest->GetClientID() );
+                                ImGui::Text( "Client: %llu", pRequest->GetClientID() );
                             }
                             break;
 
@@ -271,13 +291,13 @@ namespace EE::Resource
 
                         //-------------------------------------------------------------------------
 
-                        ImGui::TableSetColumnIndex( 2 );
+                        ImGui::TableNextColumn();
                         ImGui::TextColored( itemColor, pRequest->GetSourceFilePath().c_str() );
                         HandleContextMenuOpening();
 
                         //-------------------------------------------------------------------------
 
-                        ImGui::TableSetColumnIndex( 3 );
+                        ImGui::TableNextColumn();
                         bool const isItemSelected = ( pRequest == m_pSelectedRequest );
                         if ( ImGui::Selectable( pRequest->GetDestinationFilePath().c_str(), isItemSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap, ImVec2( 0, 0 ) ) )
                         {
@@ -286,19 +306,6 @@ namespace EE::Resource
                                 m_pSelectedRequest = pRequest;
                             }
                         }
-                        HandleContextMenuOpening();
-
-                        //-------------------------------------------------------------------------
-
-                        auto const resourceTypeStr = pRequest->GetResourceID().GetResourceTypeID().ToString();
-                        ImGui::TableSetColumnIndex( 4 );
-                        ImGui::Text( "%s", resourceTypeStr.c_str() );
-                        HandleContextMenuOpening();
-
-                        //-------------------------------------------------------------------------
-
-                        ImGui::TableSetColumnIndex( 5 );
-                        ImGui::Text( "%.3fms", pRequest->GetCompilationElapsedTime().ToFloat() );
                         HandleContextMenuOpening();
 
                         ImGui::PopID();

@@ -6,8 +6,8 @@
 #include "EntityMap.h"
 #include "Base/Render/RenderViewport.h"
 #include "Base/Types/Arrays.h"
+#include "Base/Settings/SettingsRegistry.h"
 #include "Base/Drawing/DebugDrawingSystem.h"
-#include "Base/Input/InputSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -16,6 +16,8 @@ namespace EE
     class TaskSystem;
     class UpdateContext;
     class DebugView;
+
+    namespace Settings { class SettingsRegistry; }
 
     //-------------------------------------------------------------------------
 
@@ -67,14 +69,26 @@ namespace EE
         inline T* GetWorldSystem() const { return reinterpret_cast<T*>( GetWorldSystem( T::s_entitySystemID ) ); }
 
         //-------------------------------------------------------------------------
-        // Input
+        // Settings
         //-------------------------------------------------------------------------
-        // Each world has it's own input state which is affected by the state of the player controller as well the time scale/pause/etc...
-        // Each system can choose whether to use the global input state or the per world state depending on the needs
-        // e.g., gameplay will likely need to use the world input state, whereas UI and menus will use the global input state
 
-        Input::InputState const* GetInputState() const { return &m_inputState; }
-        Input::InputState* GetInputState() { return &m_inputState; }
+        // Get world settings
+        template<typename T> T* GetSettings() { return m_pSettingsRegistry->GetSettings<T>( m_worldID.m_value ); }
+
+        // Get world settings
+        template<typename T> T* GetMutableSettings() const { return const_cast<EntityWorld*>( this )->GetSettings<T>(); }
+
+        // Get world settings
+        template<typename T> T const* GetSettings() const { return const_cast<EntityWorld*>( this )->GetSettings<T>(); }
+
+        // Get world settings
+        Settings::ISettings* GetSettings( TypeSystem::TypeInfo const* pTypeInfo ) { return m_pSettingsRegistry->GetSettings( m_worldID.m_value, pTypeInfo ); }
+
+        // Get world settings
+        Settings::ISettings* GetMutableSettings( TypeSystem::TypeInfo const* pTypeInfo ) const { return const_cast<EntityWorld*>( this )->GetSettings( pTypeInfo ); }
+
+        // Get world settings
+        Settings::ISettings const* GetSettings( TypeSystem::TypeInfo const* pTypeInfo ) const { return const_cast<EntityWorld*>( this )->GetSettings( pTypeInfo ); }
 
         //-------------------------------------------------------------------------
         // Time Management
@@ -272,9 +286,9 @@ namespace EE
 
     private:
 
-        EntityWorldID                                                           m_worldID = UUID::GenerateID();
+        EntityWorldID                                                           m_worldID = EntityWorldID::Generate();
         TaskSystem*                                                             m_pTaskSystem = nullptr;
-        Input::InputState                                                       m_inputState;
+        Settings::SettingsRegistry*                                             m_pSettingsRegistry = nullptr;
         EntityModel::LoadingContext                                             m_loadingContext;
         EntityModel::InitializationContext                                      m_initializationContext;
         TVector<EntityWorldSystem*>                                             m_worldSystems;

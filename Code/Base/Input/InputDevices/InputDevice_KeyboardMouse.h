@@ -1,22 +1,33 @@
 #pragma once
 
 #include "Base/Input/InputDevice.h"
-#include "Base/Input/InputStates/InputState_Mouse.h"
-#include "Base/Input/InputStates/InputState_Keyboard.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Input
 {
-    class KeyboardMouseInputDevice : public InputDevice
+    //-------------------------------------------------------------------------
+    // Keyboard Mouse Device
+    //-------------------------------------------------------------------------
+
+    class KeyboardMouseDevice : public InputDevice
     {
 
     public:
 
-        KeyboardMouseInputDevice() = default;
+        KeyboardMouseDevice() = default;
 
-        inline MouseInputState const& GetMouseState() const { return m_mouseState; }
-        inline KeyboardInputState const& GetKeyboardState() const { return m_keyboardState; }
+        void SetMouseSensitivity( Float2 sensitivity );
+        void SetMouseSensitivity( float sensitivity ) { SetMouseSensitivity( Float2( sensitivity ) ); }
+        inline Float2 GetMouseSensitivity() const { return Float2( m_sensitivity.m_x, Math::Abs( m_sensitivity.m_y ) ); }
+
+        void SetMouseInverted( bool isInverted );
+        inline bool IsMouseInverted() const { return m_invertY; }
+
+        inline Float2 GetMouseDelta() const { return Float2( GetValue( InputID::Mouse_DeltaMovementHorizontal ), GetValue( InputID::Mouse_DeltaMovementVertical ) ); }
+
+        // Get the char key pressed this frame. If no key pressed, this returns 0;
+        inline uint8_t GetCharKeyPressed() const { return m_charKeyPressed; }
 
     private:
 
@@ -25,13 +36,20 @@ namespace EE::Input
         virtual void Initialize() override final;
         virtual void Shutdown() override final;
 
-        virtual void UpdateState( Seconds deltaTime ) override final;
-        virtual void ClearFrameState( ResetType resetType = ResetType::Partial ) override final;
+        virtual void Update( Seconds deltaTime ) override;
+
+        virtual void PrepareForNewMessages() override final;
         virtual void ProcessMessage( GenericMessage const& message ) override final;
+
+        virtual void Clear() override;
 
     private:
 
-        MouseInputState                                         m_mouseState;
-        KeyboardInputState                                      m_keyboardState;
+        Float2                              m_sensitivity = Float2::One;
+        bool                                m_invertY = false;
+
+        uint8_t                             m_charKeyPressed = 0;
+        Int2                                m_position = Float2::Zero;
+        Float2                              m_movementDelta = Float2::Zero;
     };
 }

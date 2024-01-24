@@ -2159,8 +2159,6 @@ namespace EE::PG
     // Factory
     //-------------------------------------------------------------------------
 
-    EE_GLOBAL_REGISTRY( PropertyGridEditorFactory );
-
     PropertyEditor* PropertyGridEditorFactory::TryCreateEditor( PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* pPropertyInstance )
     {
         EE_ASSERT( propertyInfo.IsValid() );

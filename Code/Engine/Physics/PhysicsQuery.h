@@ -1,6 +1,6 @@
 #pragma once
 #include "Engine/_Module/API.h"
-#include "Engine/Physics/PhysicsSettings.h"
+#include "Engine/Physics/PhysicsCollision.h"
 #include "Engine/Entity/EntityIDs.h"
 #include "Base/Math/Vector.h"
 

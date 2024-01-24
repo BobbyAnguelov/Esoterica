@@ -2,6 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Entity/EntityComponent.h"
+#include "Engine/Input/VirtualInputRegistry.h"
 
 //-------------------------------------------------------------------------
 // Player Component
@@ -22,8 +23,12 @@ namespace EE::Player
         inline bool IsPlayerEnabled() const { return m_isEnabled; }
         inline void SetPlayerEnabled( bool isEnabled ) { m_isEnabled = isEnabled; }
 
+        inline Input::VirtualInputRegistry* GetInputRegistry() { return &m_inputRegistry; }
+        inline Input::VirtualInputRegistry const* GetInputRegistry() const { return &m_inputRegistry; }
+
     private:
 
-        bool m_isEnabled = true;
+        Input::VirtualInputRegistry     m_inputRegistry;
+        bool                            m_isEnabled = true;
     };
 }

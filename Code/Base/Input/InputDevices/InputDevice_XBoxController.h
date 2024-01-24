@@ -4,27 +4,23 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE
+namespace EE::Input
 {
-    namespace Input
+    class XBoxControllerInputDevice : public ControllerDevice
     {
-        class XBoxControllerInputDevice : public ControllerInputDevice
-        {
-            friend class InputSystem;
 
-        public:
+    public:
 
-            XBoxControllerInputDevice( uint32_t hardwareControllerIdx ) : m_hardwareControllerIdx( hardwareControllerIdx ) {}
+        XBoxControllerInputDevice( uint32_t hardwareControllerIdx ) : m_hardwareControllerIdx( hardwareControllerIdx ) {}
 
-        private:
+    private:
 
-            virtual void Initialize() override final;
-            virtual void Shutdown() override final;
-            virtual void UpdateState( Seconds deltaTime ) override final;
+        virtual void Initialize() override final;
+        virtual void Shutdown() override final;
+        virtual void Update( Seconds deltaTime ) override final;
 
-        private:
+    private:
 
-            uint32_t m_hardwareControllerIdx = 0xFFFFFFFF;
-        };
-    }
+        uint32_t m_hardwareControllerIdx = 0xFFFFFFFF;
+    };
 }

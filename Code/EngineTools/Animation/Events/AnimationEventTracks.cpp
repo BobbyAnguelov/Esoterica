@@ -116,13 +116,13 @@ namespace EE::Animation
     InlineString TransitionEventTrack::GetItemLabel( Timeline::TrackItem const* pItem ) const
     {
         auto pAnimEvent = GetAnimEvent<TransitionEvent>( pItem );
-        return GetTransitionMarkerName( pAnimEvent->GetMarker() );
+        return GetTransitionRuleName( pAnimEvent->GetRule() );
     }
 
     Color TransitionEventTrack::GetItemColor( Timeline::TrackItem const * pItem ) const
     {
         auto pAnimEvent = GetAnimEvent<TransitionEvent>( pItem );
-        return GetTransitionMarkerColor( pAnimEvent->GetMarker() );
+        return GetTransitionMarkerColor( pAnimEvent->GetRule() );
     }
 
     //-------------------------------------------------------------------------

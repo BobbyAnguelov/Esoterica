@@ -8,6 +8,7 @@
 #include "EngineTools/Logging/Tools/EditorTool_SystemLog.h"
 #include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "EngineTools/Core/ToolsEmbeddedResources.inl"
+#include "Engine/Console/Console.h"
 #include "Engine/ToolsUI/EngineDebugUI.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldManager.h"
@@ -15,7 +16,7 @@
 #include "Engine/Render/DebugViews/DebugView_Render.h"
 #include "Base/Imgui/ImguiImageCache.h"
 #include "Base/Resource/ResourceSystem.h"
-#include "Base/Resource/ResourceSettings.h"
+#include "Base/Resource/Settings/GlobalSettings_Resource.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/ThirdParty/implot/implot.h"
 #include "Base/Logging/LoggingSystem.h"
@@ -149,9 +150,11 @@ namespace EE
 
     bool EditorUI::TryOpenResource( ResourceID const& resourceID ) const
     {
-        if ( resourceID.IsValid() )
+        ResourceID const finalResourceID = ( resourceID.IsSubResourceID() ) ? resourceID.GetParentResourceID() : resourceID;
+
+        if ( finalResourceID.IsValid() )
         {
-            const_cast<EditorUI*>( this )->QueueCreateTool( resourceID );
+            const_cast<EditorUI*>( this )->QueueCreateTool( finalResourceID );
             return true;
         }
 
@@ -168,7 +171,8 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        pResourceBrowser->TryFindAndSelectResource( resourceID );
+        ResourceID const finalResourceID =  ( resourceID.IsSubResourceID() ) ? resourceID.GetParentResourceID() : resourceID;
+        pResourceBrowser->TryFindAndSelectResource( finalResourceID );
         return true;
     }
 
@@ -235,6 +239,13 @@ namespace EE
 
         if ( ImGui::BeginMenu( "System" ) )
         {
+            auto pConsole = m_pSystemRegistry->GetSystem<Console>();
+            bool isConsoleOpen = pConsole->IsVisible();
+            if ( ImGui::MenuItem( "Console", nullptr, &isConsoleOpen, !isConsoleOpen ) )
+            {
+                pConsole->SetVisible( isConsoleOpen );
+            }
+
             bool isLogOpen = GetTool<SystemLogEditorTool>() != nullptr;
             if ( ImGui::MenuItem( "System Log", nullptr, &isLogOpen, !isLogOpen ) )
             {
@@ -764,6 +775,12 @@ namespace EE
     {
         EE_ASSERT( pEditorTool != nullptr );
         EE_ASSERT( m_pMapEditor != pEditorTool );
+
+        for ( EditorTool* pToolAlreadyBeingDestroyed : m_editorToolDestructionRequests )
+        {
+            EE_ASSERT( pToolAlreadyBeingDestroyed != pEditorTool );
+        }
+
         m_editorToolDestructionRequests.emplace_back( pEditorTool );
     }
 

@@ -31,7 +31,7 @@ namespace EE::Resource
 
     struct EE_ENGINETOOLS_API CompileContext
     {
-        CompileContext( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& compiledResourceDirectoryPath, ResourceID const& resourceToCompile, bool isCompilingForShippingBuild );
+        CompileContext( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& compiledResourceDirectoryPath, ResourceID const& resourceToCompile, bool isCompilingForPackagedBuild );
 
         bool IsValid() const;
 

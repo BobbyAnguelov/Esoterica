@@ -131,6 +131,12 @@ namespace EE::Resource
         // Try to get an entry for a resource ID
         EE_FORCE_INLINE FileEntry const* GetFileEntry( ResourceID const& resourceID ) const { return GetFileEntry( resourceID.GetResourcePath() ); }
 
+        // Get a list of all known resource file entries of the specified type
+        TVector<FileEntry const*> GetAllFileEntriesOfType( ResourceTypeID resourceTypeID, bool includeDerivedTypes = false ) const;
+
+        // Get a list of all known resource of the specified type
+        TVector<FileEntry const*> GetAllFileEntriesOfTypeFiltered( ResourceTypeID resourceTypeID, TFunction<bool( ResourceDescriptor const* )> const& filter, bool includeDerivedTypes = false ) const;
+
         // Check if this is a existing resource
         bool DoesResourceExist( ResourceID const& resourceID ) const;
 

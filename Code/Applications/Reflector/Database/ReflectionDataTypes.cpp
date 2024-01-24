@@ -69,11 +69,19 @@ namespace EE::TypeSystem::Reflection
         return name;
     }
 
-    void ReflectedProperty::ParseMetaData()
+    bool ReflectedProperty::ParseMetaData()
     {
+        m_category.clear();
+        m_description.clear();
+        m_isToolsReadOnly = false;
+        m_showInRestrictedMode = false;
+        m_customEditorID.Clear();
+
+        //-------------------------------------------------------------------------
+
         if ( !HasMetaData() )
         {
-            return;
+            return true;
         }
 
         //-------------------------------------------------------------------------
@@ -116,6 +124,8 @@ namespace EE::TypeSystem::Reflection
                 m_customEditorID = StringID( pEditorID );
             }
         }
+
+        return isValidJson;
     }
 
     //-------------------------------------------------------------------------

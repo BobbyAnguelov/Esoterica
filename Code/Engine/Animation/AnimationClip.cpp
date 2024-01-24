@@ -13,7 +13,7 @@ namespace EE::Animation
         EE_ASSERT( pOutPose != nullptr && pOutPose->GetSkeleton() == m_skeleton.GetPtr() );
         EE_ASSERT( frameTime.GetFrameIndex() < m_numFrames );
 
-        pOutPose->ClearGlobalTransforms();
+        pOutPose->ClearModelSpaceTransforms();
 
         //-------------------------------------------------------------------------
 
@@ -78,7 +78,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Read the lower frame pose into the output pose
-        ReadCompressedPose( frameTime.GetLowerBoundFrameIndex(), pOutPose->m_localTransforms.data() );
+        ReadCompressedPose( frameTime.GetLowerBoundFrameIndex(), pOutPose->m_parentSpaceTransforms.data() );
 
         // If we're not exactly at a key frame we need to read the upper frame pose and blend
         if ( !frameTime.IsExactlyAtKeyFrame() )
@@ -90,7 +90,7 @@ namespace EE::Animation
             float const percentageThrough = frameTime.GetPercentageThrough().ToFloat();
             for ( auto i = 0; i < numBones; i++ )
             {
-                pOutPose->m_localTransforms[i] = Transform::FastSlerp( pOutPose->m_localTransforms[i], tmpPose[i], percentageThrough );
+                pOutPose->m_parentSpaceTransforms[i] = Transform::FastSlerp( pOutPose->m_parentSpaceTransforms[i], tmpPose[i], percentageThrough );
             }
         }
 
