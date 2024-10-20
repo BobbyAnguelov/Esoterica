@@ -17,42 +17,44 @@ namespace EE::Player
             isOnCooldown = !m_CooldownTimer.Update( ctx.GetDeltaTime() );
         }
 
-        bool isThumbstickLeftDown = ctx.m_pInputSystem->GetController()->WasPressed( Input::InputID::Controller_ThumbstickLeft ) || ctx.m_pInputSystem->GetController()->IsHeldDown( Input::InputID::Controller_ThumbstickLeft );
-        bool isThumbstickRightDown = ctx.m_pInputSystem->GetController()->WasPressed( Input::InputID::Controller_ThumbstickRight ) || ctx.m_pInputSystem->GetController()->IsHeldDown( Input::InputID::Controller_ThumbstickRight );
-        if ( !isOnCooldown && isThumbstickLeftDown && isThumbstickRightDown )
+        if ( !isOnCooldown && ctx.m_pInput->m_ghostMode.WasPressed() )
         {
             ctx.m_pCharacterComponent->EnableGhostMode( true );
-            m_hackTimer.Reset();
             return true;
         }
 
         return false;
     }
 
-    Action::Status GhostModeAction::UpdateInternal( ActionContext const& ctx )
+    Action::Status GhostModeAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
     {
-        auto const pControllerState = ctx.m_pInputSystem->GetController();
-        EE_ASSERT( pControllerState != nullptr );
-
         // Calculate desired player displacement
         //-------------------------------------------------------------------------
+        
         auto const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector();
         auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector();
-        Vector const movementInputs = pControllerState->GetLeftStickValue();
+        Vector const movementInputs = ctx.m_pInput->m_move.GetValue();
         Vector const forward = camFwd * movementInputs.GetSplatY();
         Vector const right = camRight * movementInputs.GetSplatX();
         Vector desiredVelocity = ( forward + right ) * speed;
         Quaternion const deltaOrientation = Quaternion::Identity;
 
-        float const zDelta = ( pControllerState->GetValue( Input::InputID::Controller_RightTrigger ) - pControllerState->GetValue( Input::InputID::Controller_LeftTrigger ) ) * speed;
+        // Z Movement
+        //-------------------------------------------------------------------------
+
+        float const zDelta = ( ctx.m_pInput->m_ghostModeMoveUp.GetValue() - ctx.m_pInput->m_ghostModeMoveDown.GetValue() ) * speed;
         desiredVelocity.SetZ( desiredVelocity.GetZ() + zDelta );
 
-        if( ctx.m_pInputSystem->GetController()->WasReleased( Input::InputID::Controller_ShoulderRight ) )
+        // Speed adjustment
+        //-------------------------------------------------------------------------
+
+        if( ctx.m_pInput->m_ghostModeIncreaseSpeed.IsHeld() )
         {
             speed += 2.5f;
             speed = Math::Min( 40.0f, speed );
         }
-        else if( ctx.m_pInputSystem->GetController()->WasReleased( Input::InputID::Controller_ShoulderLeft ) )
+
+        if( ctx.m_pInput->m_ghostModeDecreaseSpeed.IsHeld() )
         {
             speed -= 2.5f;
             speed = Math::Max( 2.5f, speed );
@@ -67,15 +69,11 @@ namespace EE::Player
 
         ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::GhostMode );
         ctx.m_pAnimationController->SetAbilityDesiredMovement( ctx.GetDeltaTime(), desiredVelocity, camFwd.GetNormalized2() );
-        
-        bool isThumbstickLeftDown = ctx.m_pInputSystem->GetController()->WasPressed( Input::InputID::Controller_ThumbstickLeft ) || ctx.m_pInputSystem->GetController()->IsHeldDown( Input::InputID::Controller_ThumbstickLeft );
-        bool isThumbstickRightDown = ctx.m_pInputSystem->GetController()->WasPressed( Input::InputID::Controller_ThumbstickRight ) || ctx.m_pInputSystem->GetController()->IsHeldDown( Input::InputID::Controller_ThumbstickRight );
-        if( m_hackTimer.GetElapsedTimeSeconds() > 0.5f && isThumbstickLeftDown && isThumbstickRightDown )
+
+        if( !isFirstUpdate && ctx.m_pInput->m_ghostMode.WasPressed() )
         {
             return Status::Completed;
         }
-
-        m_hackTimer.Update( ctx.GetDeltaTime() );
 
         return Status::Uninterruptible;
     }

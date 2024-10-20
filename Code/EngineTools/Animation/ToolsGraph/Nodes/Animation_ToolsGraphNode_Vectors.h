@@ -14,12 +14,11 @@ namespace EE::Animation::GraphNodes
 
         VectorInfoToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Vector Info"; }
         virtual char const* GetCategory() const override { return "Values/Vector"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 
@@ -36,10 +35,9 @@ namespace EE::Animation::GraphNodes
 
         VectorCreateToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Vector; }
         virtual char const* GetTypeName() const override { return "Vector Create"; }
         virtual char const* GetCategory() const override { return "Values/Vector"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
@@ -53,10 +51,9 @@ namespace EE::Animation::GraphNodes
 
         VectorNegateToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Vector; }
         virtual char const* GetTypeName() const override { return "Vector Negate"; }
         virtual char const* GetCategory() const override { return "Values/Vector"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 }

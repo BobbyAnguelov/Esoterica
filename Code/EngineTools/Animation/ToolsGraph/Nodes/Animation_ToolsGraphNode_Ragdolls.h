@@ -13,7 +13,6 @@ namespace EE::Animation::GraphNodes
 
         PoweredRagdollToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Powered Ragdoll"; }
         virtual char const* GetCategory() const override { return "Animation/Physics"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
@@ -39,7 +38,6 @@ namespace EE::Animation::GraphNodes
 
         SimulatedRagdollToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Simulated Ragdoll"; }
         virtual char const* GetCategory() const override { return "Animation/Physics"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
@@ -53,7 +51,7 @@ namespace EE::Animation::GraphNodes
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override { return "Exit Option"; }
         virtual StringID GetDynamicInputPinValueType() const override { return GetPinTypeForValueType( GraphValueType::Pose ); }
-        virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
+        virtual bool IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const override;
 
     private:
 

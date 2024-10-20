@@ -148,25 +148,36 @@ namespace EE::Animation
     {
         Transform result;
 
-        if ( blendWeight <= 0.0f || blendMode == RootMotionBlendMode::IgnoreTarget )
+        if ( blendMode == RootMotionBlendMode::IgnoreTarget )
         {
             result = source;
         }
-        else if ( blendWeight >= 1.0f || blendMode == RootMotionBlendMode::IgnoreSource )
+        else if ( blendMode == RootMotionBlendMode::IgnoreSource )
         {
             result = target;
         }
         else
         {
-            if ( blendMode == RootMotionBlendMode::Additive )
+            if ( blendWeight <= 0.0f )
             {
-                result.SetRotation( AdditiveBlendFunction::BlendRotation( source.GetRotation(), target.GetRotation(), blendWeight ) );
-                result.SetTranslationAndScale( AdditiveBlendFunction::BlendTranslationAndScale( source.GetTranslation(), target.GetTranslation(), blendWeight ).GetWithW1() );
+                result = source;
             }
-            else // Regular blend
+            else if ( blendWeight >= 1.0f )
             {
-                result.SetRotation( BlendFunction::BlendRotation( source.GetRotation(), target.GetRotation(), blendWeight ) );
-                result.SetTranslationAndScale( BlendFunction::BlendTranslationAndScale( source.GetTranslation(), target.GetTranslation(), blendWeight ).GetWithW1() );
+                result = target;
+            }
+            else
+            {
+                if ( blendMode == RootMotionBlendMode::Additive )
+                {
+                    result.SetRotation( AdditiveBlendFunction::BlendRotation( source.GetRotation(), target.GetRotation(), blendWeight ) );
+                    result.SetTranslationAndScale( AdditiveBlendFunction::BlendTranslationAndScale( source.GetTranslation(), target.GetTranslation(), blendWeight ).GetWithW1() );
+                }
+                else // Regular blend
+                {
+                    result.SetRotation( BlendFunction::BlendRotation( source.GetRotation(), target.GetRotation(), blendWeight ) );
+                    result.SetTranslationAndScale( BlendFunction::BlendTranslationAndScale( source.GetTranslation(), target.GetTranslation(), blendWeight ).GetWithW1() );
+                }
             }
         }
 
@@ -298,7 +309,7 @@ namespace EE::Animation
         }
         else // Blend
         {
-            TVector<Transform> const& referencePose = pSourcePose->GetSkeleton()->GetLocalReferencePose();
+            TVector<Transform> const& referencePose = pSourcePose->GetSkeleton()->GetParentSpaceReferencePose();
             int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
             for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
@@ -341,7 +352,7 @@ namespace EE::Animation
         }
         else // Blend
         {
-            TVector<Transform> const& referencePose = pTargetPose->GetSkeleton()->GetLocalReferencePose();
+            TVector<Transform> const& referencePose = pTargetPose->GetSkeleton()->GetParentSpaceReferencePose();
             int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
             for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {
@@ -374,7 +385,7 @@ namespace EE::Animation
         }
         else // Blend
         {
-            TVector<Transform> const& referencePose = pAdditivePose->GetSkeleton()->GetLocalReferencePose();
+            TVector<Transform> const& referencePose = pAdditivePose->GetSkeleton()->GetParentSpaceReferencePose();
             int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
             for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
             {

@@ -1,10 +1,9 @@
 #include "ResourceCompiler_AnimationClip.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
-#include "EngineTools/Animation/Events/AnimationEventTimeline.h"
 #include "EngineTools/Import/Importer.h"
 #include "EngineTools/Import/ImportedAnimation.h"
-#include "EngineTools/Core/Timeline/Timeline.h"
+#include "EngineTools/Timeline/Timeline.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Base/Resource/ResourcePtr.h"
@@ -12,6 +11,7 @@
 #include "Base/Serialization/BinarySerialization.h"
 #include "Base/Math/MathUtils.h"
 #include "Base/Time/Timers.h"
+#include "Base/TypeSystem/TypeDescriptors.h"
 #include <eastl/sort.h>
 
 //-------------------------------------------------------------------------
@@ -27,9 +27,9 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     AnimationClipCompiler::AnimationClipCompiler()
-        : Resource::Compiler( "AnimationCompiler", s_version )
+        : Resource::Compiler( "AnimationCompiler" )
     {
-        m_outputTypes.push_back( AnimationClip::GetStaticResourceTypeID() );
+        AddOutputType<AnimationClip>();
     }
 
     Resource::CompilationResult AnimationClipCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -43,9 +43,8 @@ namespace EE::Animation
         // Read descriptor
         //-------------------------------------------------------------------------
 
-        rapidjson::Document descriptorDocument;
         AnimationClipResourceDescriptor resourceDescriptor;
-        if ( !TryLoadResourceDescriptor( ctx.m_inputFilePath, resourceDescriptor, &descriptorDocument ) )
+        if ( !TryLoadResourceDescriptor( ctx.m_inputFilePath, resourceDescriptor ) )
         {
             return Resource::CompilationResult::Failure;
         }
@@ -184,7 +183,7 @@ namespace EE::Animation
         AnimationClipEventData eventData;
         {
             ScopedTimer<PlatformClock> timer( timeTaken );
-            result = CombineResultCode( result, ReadEventsData( ctx, descriptorDocument, *ImportedAnimationPtr, eventData ) );
+            result = CombineResultCode( result, ProcessEventsData( ctx, resourceDescriptor, *ImportedAnimationPtr, eventData ) );
             if ( result == Resource::CompilationResult::Failure )
             {
                 return Error( "Failed to read animation events!" );
@@ -195,7 +194,7 @@ namespace EE::Animation
         // Serialize animation data
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, AnimationClip::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        Resource::ResourceHeader hdr( AnimationClip::s_version, AnimationClip::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         hdr.AddInstallDependency( resourceDescriptor.m_skeleton.GetResourceID() );
 
         // Add secondary animation skeletons as install dependencies
@@ -234,7 +233,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    Resource::CompilationResult AnimationClipCompiler::ReadImportedAnimation( ResourcePath const& skeletonPath, ResourcePath const& animationPath, TUniquePtr<Import::ImportedAnimation>& outAnimation, String const& animationName ) const
+    Resource::CompilationResult AnimationClipCompiler::ReadImportedAnimation( DataPath const& skeletonPath, DataPath const& animationPath, TUniquePtr<Import::ImportedAnimation>& outAnimation, String const& animationName ) const
     {
         Timer<PlatformClock> timer;
         EE_ASSERT( outAnimation == nullptr );
@@ -251,7 +250,7 @@ namespace EE::Animation
         }
 
         FileSystem::Path skeletonFilePath;
-        if ( !ConvertResourcePathToFilePath( skeletonResourceDescriptor.m_skeletonPath, skeletonFilePath ) )
+        if ( !ConvertDataPathToFilePath( skeletonResourceDescriptor.m_skeletonPath, skeletonFilePath ) )
         {
             return Error( "Invalid skeleton FBX data path: %s", skeletonResourceDescriptor.m_skeletonPath.GetString().c_str() );
         }
@@ -271,7 +270,7 @@ namespace EE::Animation
         timer.Start();
 
         FileSystem::Path animationFilePath;
-        if ( !ConvertResourcePathToFilePath( animationPath, animationFilePath ) )
+        if ( !ConvertDataPathToFilePath( animationPath, animationFilePath ) )
         {
             return Error( "Invalid animation data path: %s", animationPath.c_str() );
         }
@@ -326,21 +325,26 @@ namespace EE::Animation
         {
             EE_ASSERT( !isSecondaryAnimation );
 
+            if( !resourceDescriptor.m_additiveBaseAnimation.GetResourcePath().IsValid() )
+            {
+                return Error( "Additive (RelativeToClip): No base animation clip set!" );
+            }
+
             AnimationClipResourceDescriptor baseAnimResourceDescriptor;
             if ( !TryLoadResourceDescriptor( resourceDescriptor.m_additiveBaseAnimation.GetResourcePath(), baseAnimResourceDescriptor ) )
             {
-                return Error( "Failed to load base animation descriptor!" );
+                return Error( "Additive (RelativeToClip): Failed to load base animation descriptor!" );
             }
 
             if ( baseAnimResourceDescriptor.m_skeleton != resourceDescriptor.m_skeleton )
             {
-                return Error( "Base additive animation skeleton does not match animation! Expected: %s, instead got: %s", resourceDescriptor.m_skeleton.GetResourcePath().c_str(), baseAnimResourceDescriptor.m_skeleton.GetResourcePath().c_str() );
+                return Error( "Additive (RelativeToClip): Base additive animation skeleton does not match animation! Expected: %s, instead got: %s", resourceDescriptor.m_skeleton.GetResourcePath().c_str(), baseAnimResourceDescriptor.m_skeleton.GetResourcePath().c_str() );
             }
 
             TUniquePtr<Import::ImportedAnimation> pBaseImportedAnimation = nullptr;
             if ( ReadImportedAnimation( baseAnimResourceDescriptor.m_skeleton.GetResourcePath(), baseAnimResourceDescriptor.m_animationPath, pBaseImportedAnimation ) == Resource::CompilationResult::Failure )
             {
-                return Error( "Failed to load base animation data!" );
+                return Error( "Additive (RelativeToClip): Failed to load base animation data!" );
             }
 
             rawAnimData.MakeAdditiveRelativeToAnimation( *pBaseImportedAnimation.get() );
@@ -385,12 +389,12 @@ namespace EE::Animation
         // Get the Z value for the root on the first frame, use this as the starting point for the root motion track
         auto& rootMotion = pImportedAnimation->GetRootMotion();
         float const flatZ = rootMotion.front().GetTranslation().GetZ();
-        float const offsetZ = ( rootMotion.front().GetTranslation() - sourceBoneTrackData.m_globalTransforms[0].GetTranslation() ).GetZ();
+        float const offsetZ = ( rootMotion.front().GetTranslation() - sourceBoneTrackData.m_modelSpaceTransforms[0].GetTranslation() ).GetZ();
 
         int32_t const numFrames = pImportedAnimation->GetNumFrames();
         for ( auto i = 0; i < numFrames; i++ )
         {
-            Transform const& rootMotionTransform = sourceBoneTrackData.m_globalTransforms[i];
+            Transform const& rootMotionTransform = sourceBoneTrackData.m_modelSpaceTransforms[i];
 
             // Calculate root orientation
             Quaternion orientation = rootMotionTransform.GetRotation() * preRotation;
@@ -411,7 +415,7 @@ namespace EE::Animation
             }
 
             // Set root position
-            rootTrackData.m_globalTransforms[i] = Transform( orientation, translation );
+            rootTrackData.m_modelSpaceTransforms[i] = Transform( orientation, translation );
         }
 
         // Regenerate the local transforms taking into account the new root position
@@ -723,21 +727,9 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    Resource::CompilationResult AnimationClipCompiler::ReadEventsData( Resource::CompileContext const& ctx, rapidjson::Document const& document, Import::ImportedAnimation const& rawAnimData, AnimationClipEventData& outEventData ) const
+    Resource::CompilationResult AnimationClipCompiler::ProcessEventsData( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, Import::ImportedAnimation const& rawAnimData, AnimationClipEventData& outEventData ) const
     {
-        EE_ASSERT( document.IsObject() );
-
         Resource::CompilationResult result = Resource::CompilationResult::Success;
-
-        // Read event track data
-        //-------------------------------------------------------------------------
-
-        EventTimeline eventTimeline( *m_pTypeRegistry );
-        if ( !eventTimeline.Serialize( *m_pTypeRegistry, document ) )
-        {
-            result = Error( "Malformed event track data" );
-            return result;
-        }
 
         float const lastFrameIdx = float( rawAnimData.GetNumFrames() - 1 );
         FloatRange const animationTimeRange( 0, lastFrameIdx );
@@ -748,22 +740,22 @@ namespace EE::Animation
 
         int32_t numSyncTracks = 0;
 
-        TVector<Event*> events;
-        for ( Timeline::Track* pTrack : eventTimeline.GetTracks() )
+        TVector<TTypeInstance<Event>> events;
+        for ( TTypeInstance<Timeline::Track> const& track : resourceDescriptor.m_events.GetTracks() )
         {
-            auto trackStatus = pTrack->GetValidationStatus( trackContext );
+            auto trackStatus = track->GetValidationStatus( trackContext );
 
             //-------------------------------------------------------------------------
 
             if ( trackStatus == Timeline::Track::Status::HasErrors )
             {
-                if ( pTrack->IsRenameable() )
+                if ( track->IsRenameable() )
                 {
-                    result = Warning( "Invalid animation event track (%s - %s) encountered!", pTrack->GetName(), pTrack->GetTypeName() );
+                    result = Warning( "Invalid animation event track (%s - %s) encountered!", track->GetName(), track->GetTypeName() );
                 }
                 else
                 {
-                    result = Warning( "Invalid animation event track (%s) encountered!", pTrack->GetTypeName() );
+                    result = Warning( "Invalid animation event track (%s) encountered!", track->GetTypeName() );
                 }
 
                 // Skip invalid tracks
@@ -774,32 +766,34 @@ namespace EE::Animation
 
             if ( trackStatus == Timeline::Track::Status::HasWarnings )
             {
-                if ( pTrack->IsRenameable() )
+                if ( track->IsRenameable() )
                 {
-                    result = Warning( "Animation event track (Track: %s, Type: %s) has warnings: %s", pTrack->GetName(), pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
+                    result = Warning( "Animation event track (Track: %s, Type: %s) has warnings: %s", track->GetName(), track->GetTypeName(), track->GetStatusMessage().c_str() );
                 }
                 else
                 {
-                    result = Warning( "Animation event track (%s) has warnings: %s", pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
+                    result = Warning( "Animation event track (%s) has warnings: %s", track->GetTypeName(), track->GetStatusMessage().c_str() );
                 }
             }
 
             //-------------------------------------------------------------------------
 
-            auto pEventTrack = Cast<EventTrack>( pTrack );
+            auto pEventTrack = Cast<EventTrack>( track.Get() );
 
             if ( pEventTrack->IsSyncTrack() )
             {
                 numSyncTracks++;
             }
 
-            for ( auto const pItem : pTrack->GetItems() )
-            {
-                auto pEvent = Cast<Event>( pItem->GetData() );
+            Seconds const clipDuration = rawAnimData.GetDuration();
 
+            for ( TTypeInstance<Timeline::TrackItem> const& item : track->GetItems() )
+            {
+                EventTrackItem const* pEventItem = Cast<EventTrackItem>( item.Get() );
+                Event const* pEvent = pEventItem->GetEvent();
                 if ( !pEvent->IsValid() )
                 {
-                    result = Warning( "Animation event track (%s) has warnings: %s", pTrack->GetTypeName(), pTrack->GetStatusMessage().c_str() );
+                    result = Warning( "Animation event track (%s) has warnings: %s", track->GetTypeName(), track->GetStatusMessage().c_str() );
                     continue;
                 }
 
@@ -807,7 +801,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 // Ignore any event entirely outside the animation time range
-                FloatRange eventTimeRange = pItem->GetTimeRange();
+                FloatRange eventTimeRange = item->GetTimeRange();
                 if ( !animationTimeRange.Overlaps( eventTimeRange ) )
                 {
                     result = Warning( "Event detected outside animation time range, event will be ignored" );
@@ -825,16 +819,18 @@ namespace EE::Animation
                 }
 
                 // Set event time (in Seconds) and add new event
-                pEvent->m_startTime = ( eventTimeRange.m_begin / lastFrameIdx ) * rawAnimData.GetDuration();
-                pEvent->m_duration = ( eventTimeRange.GetLength() / lastFrameIdx ) * rawAnimData.GetDuration();
-                events.emplace_back( pEvent );
+                TTypeInstance<Event>& eventInstance = events.emplace_back();
+                eventInstance.CopyFrom( pEvent );
+                eventInstance->m_startTime = ( eventTimeRange.m_begin / lastFrameIdx ) * clipDuration;
+                eventInstance->m_duration = ( eventTimeRange.GetLength() / lastFrameIdx ) * clipDuration;
 
                 // Create sync event
                 //-------------------------------------------------------------------------
 
                 if ( pEventTrack->IsSyncTrack() && numSyncTracks == 1 )
                 {
-                    outEventData.m_syncEventMarkers.emplace_back( SyncTrack::EventMarker( Percentage( pEvent->GetStartTime() / rawAnimData.GetDuration() ), pEvent->GetSyncEventID() ) );
+                    Seconds const startTime = eventInstance->m_startTime / clipDuration;
+                    outEventData.m_syncEventMarkers.emplace_back( SyncTrack::EventMarker( Percentage( startTime.ToFloat() ), pEvent->GetSyncEventID() ) );
                 }
             }
         }
@@ -847,16 +843,16 @@ namespace EE::Animation
         // Transfer sorted events
         //-------------------------------------------------------------------------
 
-        auto sortPredicate = [] ( Event* const& pEventA, Event* const& pEventB )
+        auto sortPredicate = [] ( TTypeInstance<Event> const& eventA, TTypeInstance<Event> const& eventB )
         {
-            return pEventA->GetStartTime() < pEventB->GetStartTime();
+            return eventA->GetStartTime() < eventA->GetStartTime();
         };
 
         eastl::sort( events.begin(), events.end(), sortPredicate );
 
-        for ( auto const& pEvent : events )
+        for ( TTypeInstance<Event>& event : events )
         {
-            outEventData.m_collection.m_descriptors.emplace_back( TypeSystem::TypeDescriptor( *m_pTypeRegistry, pEvent ) );
+            outEventData.m_collection.m_descriptors.emplace_back( TypeSystem::TypeDescriptor( *m_pTypeRegistry, event.Get() ) );
         }
 
         eastl::sort( outEventData.m_syncEventMarkers.begin(), outEventData.m_syncEventMarkers.end() );
@@ -871,10 +867,9 @@ namespace EE::Animation
         // Try read descriptor
         //-------------------------------------------------------------------------
 
-        FileSystem::Path const descriptorFilePath = resourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
-        rapidjson::Document descriptorDocument;
+        FileSystem::Path const descriptorFilePath = resourceID.GetFileSystemPath( m_sourceDataDirectoryPath );
         AnimationClipResourceDescriptor resourceDescriptor;
-        if ( !TryLoadResourceDescriptor( descriptorFilePath, resourceDescriptor, &descriptorDocument ) )
+        if ( !TryLoadResourceDescriptor( descriptorFilePath, resourceDescriptor ) )
         {
             Error( "Failed to read resource descriptor file: %s", descriptorFilePath.c_str() );
             return false;
@@ -894,21 +889,13 @@ namespace EE::Animation
         // Try read event tracks
         //-------------------------------------------------------------------------
 
-        EventTimeline eventTimeline( *m_pTypeRegistry );
-        if ( !eventTimeline.Serialize( *m_pTypeRegistry, descriptorDocument ) )
+        for ( TTypeInstance<Timeline::Track> const& track : resourceDescriptor.m_events.GetTracks() )
         {
-            Error( "Malformed event track data" );
-            return false;
-        }
-
-        //-------------------------------------------------------------------------
-
-        for ( Timeline::Track* pTrack : eventTimeline.GetTracks() )
-        {
-            for ( auto const pItem : pTrack->GetItems() )
+            for ( TTypeInstance<Timeline::TrackItem> const& item : track->GetItems() )
             {
-                IReflectedType* pEventInstance = pItem->GetData();
-                pEventInstance->GetTypeInfo()->GetReferencedResources( pEventInstance, outReferencedResources );
+                EventTrackItem const* pEventItem = Cast<EventTrackItem>( item.Get() );
+                Event const* pEvent = pEventItem->GetEvent();
+                pEvent->GetTypeInfo()->GetReferencedResources( pEvent, outReferencedResources );
             }
         }
 

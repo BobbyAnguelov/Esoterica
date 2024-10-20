@@ -14,7 +14,11 @@ namespace EE::Animation
     class GraphInstance;
     class TaskSystem;
     class RootMotionDebugger;
-    struct SampledEventDebugPath;
+    struct DebugPath;
+
+    //-------------------------------------------------------------------------
+
+    using NavigateToSourceFunc = TFunction<void( DebugPath const& )>;
 
     //-------------------------------------------------------------------------
 
@@ -37,17 +41,16 @@ namespace EE::Animation
     public:
 
         static void DrawGraphControlParameters( GraphInstance* pGraphInstance );
-        static void DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance );
-        static void DrawGraphActiveTasksDebugView( TaskSystem* pTaskSystem );
-        static void DrawRootMotionDebugView( GraphInstance* pGraphInstance );
-        static void DrawSampledAnimationEventsView( GraphInstance* pGraphInstance, TFunction<void( SampledEventDebugPath const& )> const& navigateToNodeFunc = TFunction<void( SampledEventDebugPath const& )>() );
-        static void DrawSampledStateEventsView( GraphInstance* pGraphInstance, TFunction<void( SampledEventDebugPath const&)> const& navigateToNodeFunc = TFunction<void( SampledEventDebugPath const& )>() );
-        static void DrawCombinedSampledEventsView( GraphInstance* pGraphInstance, TFunction<void( SampledEventDebugPath const& )> const& navigateToNodeFunc = TFunction<void( SampledEventDebugPath const& )>() );
+        static void DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
+        static void DrawRootMotionDebugView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
+
+        static void DrawSampledAnimationEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
+        static void DrawSampledStateEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
+        static void DrawCombinedSampledEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
 
     private:
 
-        static void DrawTaskTreeRow( TaskSystem* pTaskSystem, TaskIndex currentTaskIdx );
-        static void DrawRootMotionRow( GraphInstance* pGraphInstance, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx );
+        static void DrawRootMotionRow( GraphInstance* pGraphInstance, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx, NavigateToSourceFunc const& navigateToNodeFunc );
 
     public:
 

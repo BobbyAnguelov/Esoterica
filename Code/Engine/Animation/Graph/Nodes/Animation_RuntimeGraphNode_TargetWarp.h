@@ -53,13 +53,13 @@ namespace EE::Animation::GraphNodes
 
             int16_t                             m_clipReferenceNodeIdx = InvalidIndex;
             int16_t                             m_targetValueNodeIdx = InvalidIndex;
+            RootMotionData::SamplingMode        m_samplingMode = RootMotionData::SamplingMode::Delta;
+            bool                                m_allowTargetUpdate = false;
             float                               m_samplingPositionErrorThresholdSq = 0.0f; // The threshold at which we switch from accurate to inaccurate sampling
             float                               m_maxTangentLength = 1.25f;
             float                               m_lerpFallbackDistanceThreshold = 0.1f;
             float                               m_targetUpdateDistanceThreshold = 0.1f;
             float                               m_targetUpdateAngleThresholdRadians = Math::DegreesToRadians * 5.0f;
-            RootMotionData::SamplingMode        m_samplingMode = RootMotionData::SamplingMode::Delta;
-            bool                                m_allowTargetUpdate = false;
         };
 
     private:

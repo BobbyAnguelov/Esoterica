@@ -45,8 +45,8 @@ namespace EE::Render
         ImGuiID bottomDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.5f, nullptr, &topDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), topDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), topDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomDockID );
     }
 
@@ -65,9 +65,9 @@ namespace EE::Render
         }
         else
         {
-            if ( IsDescriptorLoaded() )
+            if ( IsDataFileLoaded() )
             {
-                m_pDescriptorPropertyGrid->DrawGrid();
+                m_pDataFilePropertyGrid->UpdateAndDraw();
             }
         }
     }

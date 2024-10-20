@@ -45,8 +45,6 @@ namespace EE::Animation::GraphNodes
             m_duration = 0;
             m_shouldUpdateWarp = false;
         }
-
-        EE_ASSERT( m_duration != 0.0f );
     }
 
     void OrientationWarpNode::ShutdownInternal( GraphContext& context )
@@ -153,7 +151,7 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            targetDirCS = m_pTargetValueNode->GetValue<Vector>( context );
+            targetDirCS = m_pTargetValueNode->GetValue<Float3>( context );
 
             if ( targetDirCS.IsNearZero3() )
             {

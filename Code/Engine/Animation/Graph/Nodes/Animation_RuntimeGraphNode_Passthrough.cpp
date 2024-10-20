@@ -76,8 +76,6 @@ namespace EE::Animation::GraphNodes
             result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
 
-        EE_ASSERT( m_duration != 0.0f );
-
         return result;
     }
 }

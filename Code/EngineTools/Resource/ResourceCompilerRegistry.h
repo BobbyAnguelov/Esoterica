@@ -38,7 +38,7 @@ namespace EE::Resource
         {
             auto pCompiler = GetCompilerForResourceType( typeID );
             EE_ASSERT( pCompiler != nullptr );
-            return pCompiler->GetVersion();
+            return pCompiler->GetVersion( typeID );
         }
 
     private:

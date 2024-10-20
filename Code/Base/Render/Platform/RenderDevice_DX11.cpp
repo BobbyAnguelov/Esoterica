@@ -41,9 +41,9 @@ namespace EE::Render
 
     RenderDevice::~RenderDevice()
     {
-        EE_ASSERT( RenderContext::s_pDepthTestingReadOnly == nullptr );
+        /*EE_ASSERT( RenderContext::s_pDepthTestingReadOnly == nullptr );
         EE_ASSERT( RenderContext::s_pDepthTestingOff == nullptr );
-        EE_ASSERT( RenderContext::s_pDepthTestingOn == nullptr );
+        EE_ASSERT( RenderContext::s_pDepthTestingOn == nullptr );*/
         EE_ASSERT( !m_immediateContext.IsValid() );
 
         EE_ASSERT( !m_primaryWindow.IsValid() );
@@ -51,7 +51,7 @@ namespace EE::Render
         EE_ASSERT( m_pDevice == nullptr );
     }
 
-    bool RenderDevice::IsInitialized() const
+    bool RenderDevice::WasInitialized() const
     {
         return m_pDevice != nullptr;
     }
@@ -284,7 +284,7 @@ namespace EE::Render
     {
         EE_PROFILE_FUNCTION_RENDER();
 
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
 
         // Show rendered frame, and clear buffers
         m_immediateContext.Present( m_primaryWindow );
@@ -411,7 +411,7 @@ namespace EE::Render
 
     void RenderDevice::CreateShader( Shader& shader )
     {
-        EE_ASSERT( IsInitialized() && !shader.IsValid() );
+        EE_ASSERT( WasInitialized() && !shader.IsValid() );
 
         if ( shader.GetPipelineStage() == PipelineStage::Vertex )
         {
@@ -462,7 +462,7 @@ namespace EE::Render
 
     void RenderDevice::DestroyShader( Shader& shader )
     {
-        EE_ASSERT( IsInitialized() && shader.IsValid() && shader.GetPipelineStage() != PipelineStage::None );
+        EE_ASSERT( WasInitialized() && shader.IsValid() && shader.GetPipelineStage() != PipelineStage::None );
 
         if ( shader.GetPipelineStage() == PipelineStage::Vertex )
         {
@@ -498,7 +498,7 @@ namespace EE::Render
 
     void RenderDevice::CreateBuffer( RenderBuffer& buffer, void const* pInitializationData )
     {
-        EE_ASSERT( IsInitialized() && !buffer.IsValid() );
+        EE_ASSERT( WasInitialized() && !buffer.IsValid() );
 
         D3D11_BUFFER_DESC bufferDesc;
         EE::Memory::MemsetZero( &bufferDesc, sizeof( D3D11_BUFFER_DESC ) );
@@ -566,7 +566,7 @@ namespace EE::Render
 
     void RenderDevice::DestroyBuffer( RenderBuffer& buffer )
     {
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
 
         if ( buffer.IsValid() )
         {
@@ -659,7 +659,7 @@ namespace EE::Render
 
     void RenderDevice::CreateShaderInputBinding( VertexShader const& shader, VertexLayoutDescriptor const& vertexLayoutDesc, ShaderInputBindingHandle& inputBinding )
     {
-        EE_ASSERT( IsInitialized() && shader.GetPipelineStage() == PipelineStage::Vertex && vertexLayoutDesc.IsValid() );
+        EE_ASSERT( WasInitialized() && shader.GetPipelineStage() == PipelineStage::Vertex && vertexLayoutDesc.IsValid() );
 
         bool bindingSucceeded = true;
         TVector<D3D11_INPUT_ELEMENT_DESC> inputLayout;
@@ -704,7 +704,7 @@ namespace EE::Render
 
     void RenderDevice::DestroyShaderInputBinding( ShaderInputBindingHandle& inputBinding )
     {
-        EE_ASSERT( IsInitialized() && inputBinding.IsValid() );
+        EE_ASSERT( WasInitialized() && inputBinding.IsValid() );
         ( (ID3D11InputLayout*) inputBinding.m_pData )->Release();
         inputBinding.Reset();
     }
@@ -713,7 +713,7 @@ namespace EE::Render
 
     void RenderDevice::CreateRasterizerState( RasterizerState& state )
     {
-        EE_ASSERT( IsInitialized() && !state.IsValid() );
+        EE_ASSERT( WasInitialized() && !state.IsValid() );
 
         D3D11_RASTERIZER_DESC rdesc;
         EE::Memory::MemsetZero( &rdesc, sizeof( D3D11_RASTERIZER_DESC ) );
@@ -740,7 +740,7 @@ namespace EE::Render
 
     void RenderDevice::DestroyRasterizerState( RasterizerState& state )
     {
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
         EE_ASSERT( state.IsValid() );
         ( (ID3D11RasterizerState*) state.m_resourceHandle.m_pData )->Release();
         state.m_resourceHandle.Reset();
@@ -793,7 +793,7 @@ namespace EE::Render
 
     void RenderDevice::CreateBlendState( BlendState& state )
     {
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
 
         D3D11_BLEND_DESC blendDesc;
         EE::Memory::MemsetZero( &blendDesc, sizeof( D3D11_BLEND_DESC ) );
@@ -828,7 +828,7 @@ namespace EE::Render
 
     void RenderDevice::DestroyBlendState( BlendState& state )
     {
-        EE_ASSERT( IsInitialized() && state.IsValid() );
+        EE_ASSERT( WasInitialized() && state.IsValid() );
         ( (ID3D11BlendState*) state.m_resourceHandle.m_pData )->Release();
         state.m_resourceHandle.Reset();
     }
@@ -846,7 +846,7 @@ namespace EE::Render
 
     void RenderDevice::CreateRawTexture( Texture& texture, uint8_t const* pRawData, size_t rawDataSize )
     {
-        EE_ASSERT( IsInitialized() && !texture.IsValid() );
+        EE_ASSERT( WasInitialized() && !texture.IsValid() );
 
         // Create texture
         //-------------------------------------------------------------------------
@@ -901,7 +901,7 @@ namespace EE::Render
 
     void RenderDevice::CreateDDSTexture( Texture& texture, uint8_t const* pRawData, size_t rawDataSize )
     {
-        EE_ASSERT( IsInitialized() && !texture.IsValid() );
+        EE_ASSERT( WasInitialized() && !texture.IsValid() );
 
         ID3D11Resource* pResource = nullptr;
         ID3D11ShaderResourceView* pTextureSRV = nullptr;
@@ -925,7 +925,7 @@ namespace EE::Render
 
     void RenderDevice::CreateTexture( Texture& texture, DataFormat format, Int2 dimensions, uint32_t usage )
     {
-        EE_ASSERT( IsInitialized() && !texture.IsValid() );
+        EE_ASSERT( WasInitialized() && !texture.IsValid() );
 
         texture.m_dimensions = dimensions;
 
@@ -1046,7 +1046,7 @@ namespace EE::Render
 
     void RenderDevice::DestroyTexture( Texture& texture )
     {
-        EE_ASSERT( IsInitialized() && texture.IsValid() );
+        EE_ASSERT( WasInitialized() && texture.IsValid() );
 
         auto pTexture = (ID3D11Texture2D*) texture.m_textureHandle.m_pData;
         pTexture->Release();
@@ -1146,7 +1146,7 @@ namespace EE::Render
 
     void RenderDevice::CreateSamplerState( SamplerState& state )
     {
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
 
         D3D11_SAMPLER_DESC samplerDesc;
         EE::Memory::MemsetZero( &samplerDesc, sizeof( D3D11_SAMPLER_DESC ) );
@@ -1166,7 +1166,7 @@ namespace EE::Render
 
     void RenderDevice::DestroySamplerState( SamplerState& state )
     {
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
         EE_ASSERT( state.IsValid() );
         ( (ID3D11SamplerState*) state.m_resourceHandle.m_pData )->Release();
         state.m_resourceHandle.Reset();
@@ -1176,7 +1176,7 @@ namespace EE::Render
 
     void RenderDevice::CreateRenderTarget( RenderTarget& renderTarget, Int2 const& dimensions, bool createPickingTarget )
     {
-        EE_ASSERT( IsInitialized() && !renderTarget.IsValid() );
+        EE_ASSERT( WasInitialized() && !renderTarget.IsValid() );
         EE_ASSERT( dimensions.m_x >= 0 && dimensions.m_y >= 0 );
         CreateTexture( renderTarget.m_RT, DataFormat::UNorm_R8G8B8A8, dimensions, USAGE_SRV | USAGE_RT_DS );
         CreateTexture( renderTarget.m_DS, DataFormat::Float_X32, dimensions, USAGE_RT_DS );
@@ -1190,7 +1190,7 @@ namespace EE::Render
 
     void RenderDevice::ResizeRenderTarget( RenderTarget& renderTarget, Int2 const& newDimensions )
     {
-        EE_ASSERT( IsInitialized() && renderTarget.IsValid() );
+        EE_ASSERT( WasInitialized() && renderTarget.IsValid() );
         bool const createPickingRT = renderTarget.HasPickingRT();
         DestroyRenderTarget( renderTarget );
         CreateRenderTarget( renderTarget, newDimensions, createPickingRT );
@@ -1198,7 +1198,7 @@ namespace EE::Render
 
     void RenderDevice::DestroyRenderTarget( RenderTarget& renderTarget )
     {
-        EE_ASSERT( IsInitialized() && renderTarget.IsValid() );
+        EE_ASSERT( WasInitialized() && renderTarget.IsValid() );
         DestroyTexture( renderTarget.m_RT );
         DestroyTexture( renderTarget.m_DS );
 
@@ -1211,7 +1211,7 @@ namespace EE::Render
 
     PickingID RenderDevice::ReadBackPickingID( RenderTarget const& renderTarget, Int2 const& pixelCoords )
     {
-        EE_ASSERT( IsInitialized() && renderTarget.IsValid() );
+        EE_ASSERT( WasInitialized() && renderTarget.IsValid() );
         
         PickingID pickingID;
 

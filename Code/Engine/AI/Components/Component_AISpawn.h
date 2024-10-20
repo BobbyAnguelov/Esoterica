@@ -16,7 +16,7 @@ namespace EE::AI
 
         inline AISpawnComponent() = default;
 
-        inline EntityModel::SerializedEntityCollection const* GetEntityCollectionDesc() const
+        inline EntityModel::EntityCollection const* GetEntityCollectionDesc() const
         {
             if ( !m_AIEntityDesc.IsSet() )
             {
@@ -28,6 +28,6 @@ namespace EE::AI
 
     private:
 
-        EE_REFLECT() TResourcePtr<EntityModel::SerializedEntityCollection>    m_AIEntityDesc;
+        EE_REFLECT() TResourcePtr<EntityModel::EntityCollection>    m_AIEntityDesc;
     };
 }

@@ -71,8 +71,8 @@ namespace EE
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void HotReload_UnloadEntities( TVector<Resource::ResourceRequesterID> const& usersToReload );
-        void HotReload_ReloadEntities();
+        void HotReload_UnloadEntities( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload );
+        void HotReload_ReloadEntities( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload );
         #endif
 
     private:

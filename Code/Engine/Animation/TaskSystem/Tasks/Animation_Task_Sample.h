@@ -13,7 +13,7 @@ namespace EE::Animation::Tasks
 
     public:
 
-        SampleTask( TaskSourceID sourceID, AnimationClip const* pAnimation, Percentage time );
+        SampleTask( AnimationClip const* pAnimation, Percentage time );
         virtual void Execute( TaskContext const& context ) override;
 
         virtual bool AllowsSerialization() const override { return true; }
@@ -21,13 +21,15 @@ namespace EE::Animation::Tasks
         virtual void Deserialize( TaskSerializer& serializer ) override;
 
         #if EE_DEVELOPMENT_TOOLS
+        virtual char const* GetDebugName() const override { return "Sample"; }
+        virtual InlineString GetDebugTextInfo() const override;
         virtual Color GetDebugColor() const override { return Colors::Yellow; }
-        virtual String GetDebugText() const override;
+        virtual float GetDebugProgressOrWeight() const override{ return m_time.ToFloat(); }
         #endif
 
     private:
 
-        SampleTask() : Task( 0xFF ) {}
+        SampleTask() : Task() {}
 
     private:
 

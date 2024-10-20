@@ -27,14 +27,12 @@ namespace EE
     {
         struct LoadingContext;
         struct InitializationContext;
-        class SerializedEntityCollection;
+        class EntityCollection;
 
         //-------------------------------------------------------------------------
 
         class EE_ENGINE_API EntityMap
         {
-            friend struct Serializer;
-
             enum class Status
             {
                 LoadFailed = -1,
@@ -83,7 +81,7 @@ namespace EE
             bool UpdateLoadingAndStateChanges( LoadingContext const& loadingContext, InitializationContext& initializationContext );
 
             // Do we have any pending entity addition or removal requests?
-            inline bool HasPendingAddOrRemoveRequests() const { return ( m_entitiesToLoad.size() + m_entitiesToRemove.size() ) > 0; }
+            bool HasPendingAddOrRemoveRequests() const;
 
             bool IsLoading() const { return m_status == Status::Loading; }
             inline bool IsLoaded() const { return m_status == Status::Loaded; }
@@ -119,7 +117,7 @@ namespace EE
             // Instantiates and adds an entity collection to the map
             // Additionally allows you to offset all the entities via the supplied offset transform
             // Takes 1 frame to be fully added
-            void AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, SerializedEntityCollection const& entityCollectionDesc, Transform const& offsetTransform = Transform::Identity, TVector<Entity*>* pOutCreatedEntities = nullptr );
+            void AddEntityCollection( TaskSystem* pTaskSystem, TypeSystem::TypeRegistry const& typeRegistry, EntityCollection const& entityCollectionDesc, Transform const& offsetTransform = Transform::Identity, TVector<Entity*>* pOutCreatedEntities = nullptr );
 
             // Add a newly created entity to the map - Transfers ownership of the entity to the map
             void AddEntity( Entity* pEntity );
@@ -154,6 +152,40 @@ namespace EE
                 return ( iter != m_entityNameLookupMap.end() ) ? iter->second : nullptr;
             }
 
+            // Get all components of a given type
+            // Note: this is extremely slow
+            template<typename T>
+            void GetAllComponentsOfType( TInlineVector<T*, 20>& outComponents )
+            {
+                for ( auto pEntity : m_entities )
+                {
+                    for ( auto pComponent : pEntity->GetComponents() )
+                    {
+                        if ( T* pTypedComponent = TryCast<T>( pComponent ) )
+                        {
+                            outComponents.emplace_back( pTypedComponent );
+                        }
+                    }
+                }
+            }
+
+            // Get all components of a given type
+            // Note: this is extremely slow
+            template<typename T>
+            void GetAllComponentsOfType( TInlineVector<T const*, 20>& outComponents ) const
+            {
+                for ( auto pEntity : m_entities )
+                {
+                    for ( auto pComponent : pEntity->GetComponents() )
+                    {
+                        if ( T const* pTypedComponent = TryCast<T>( pComponent ) )
+                        {
+                            outComponents.emplace_back( pTypedComponent );
+                        }
+                    }
+                }
+            }
+
             // This function will shutdown and unload the entity, allowing its components' properties to be edited safely!
             void BeginComponentEdit( LoadingContext const& loadingContext, InitializationContext& initializationContext, EntityID const& entityID );
 
@@ -161,10 +193,10 @@ namespace EE
             void EndComponentEdit( LoadingContext const& loadingContext, InitializationContext& initializationContext, EntityID const& entityID );
 
             // Shutdown and unload all entities that are affected by the hot-reload
-            void HotReload_UnloadEntities( LoadingContext const& loadingContext, InitializationContext& initializationContext, TVector<Resource::ResourceRequesterID> const& usersToReload );
+            void HotReload_UnloadEntities( LoadingContext const& loadingContext, InitializationContext& initializationContext, TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload );
 
             // Load all entities unloaded due to the hot-reload
-            void HotReload_ReloadEntities( LoadingContext const& loadingContext );
+            void HotReload_ReloadEntities( LoadingContext const& loadingContext, TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload );
             #endif
 
         private:
@@ -186,7 +218,7 @@ namespace EE
 
             EntityMapID                                 m_ID = EntityMapID::GenerateID(); // ID is always regenerated at creation time, do not rely on the ID being the same for a map on different runs
             Threading::RecursiveMutex                   m_mutex;
-            TResourcePtr<SerializedEntityMap>           m_pMapDesc;
+            TResourcePtr<EntityMapDescriptor>           m_pMapDesc;
             TVector<Entity*>                            m_entities;
             THashMap<EntityID, Entity*>                 m_entityIDLookupMap;
             TVector<Entity*>                            m_entitiesCurrentlyLoading;

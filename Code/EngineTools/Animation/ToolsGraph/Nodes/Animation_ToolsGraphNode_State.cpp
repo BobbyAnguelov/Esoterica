@@ -10,7 +10,7 @@
 namespace EE::Animation::GraphNodes
 {
     StateLayerDataToolsNode::StateLayerDataToolsNode()
-        : FlowToolsNode()
+        : ResultToolsNode()
     {
         CreateInputPin( "Layer Weight", GraphValueType::Float );
         CreateInputPin( "Root Motion Weight", GraphValueType::Float );
@@ -19,33 +19,38 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    StateToolsNode::StateToolsNode()
+        : NodeGraph::StateNode()
+    {
+        SharedConstructor();
+    }
+
     StateToolsNode::StateToolsNode( StateType type )
-        : m_type( type )
+        : NodeGraph::StateNode()
+        , m_type( type )
     {
         if ( m_type == StateType::OffState )
         {
             m_name = "Off";
         }
+
+        SharedConstructor();
     }
 
-    void StateToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    void StateToolsNode::SharedConstructor()
     {
-        VisualGraph::SM::State::Initialize( pParent );
-
-        auto pBlendTree = EE::New<FlowGraph>( GraphType::BlendTree );
+        auto pBlendTree = CreateChildGraph<FlowGraph>( GraphType::BlendTree );
         pBlendTree->CreateNode<PoseResultToolsNode>();
-        SetChildGraph( pBlendTree );
 
-        auto pValueTree = EE::New<FlowGraph>( GraphType::ValueTree );
+        auto pValueTree = CreateSecondaryGraph<FlowGraph>( GraphType::ValueTree );
         pValueTree->CreateNode<StateLayerDataToolsNode>();
-        SetSecondaryGraph( pValueTree );
 
         // Create a state machine if this is a state machine state
         if ( m_type == StateType::StateMachineState )
         {
             auto pStateMachineNode = pBlendTree->CreateNode<StateMachineToolsNode>();
-            
-            auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+
+            auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
             EE_ASSERT( resultNodes.size() == 1 );
             auto pBlendTreeResultNode = resultNodes[0];
 
@@ -64,6 +69,11 @@ namespace EE::Animation::GraphNodes
             break;
 
             case StateType::BlendTreeState:
+            {
+                return Colors::MediumSlateBlue;
+            }
+            break;
+
             case StateType::StateMachineState:
             {
                 return Colors::DarkCyan;
@@ -71,41 +81,26 @@ namespace EE::Animation::GraphNodes
             break;
         }
 
-        return VisualGraph::SM::State::GetTitleBarColor();
+        return NodeGraph::StateNode::GetTitleBarColor();
     }
 
-    void StateToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
+    NodeGraph::BaseGraph* StateToolsNode::GetNavigationTarget()
     {
-        if ( IsBlendTreeState() )
-        {
-            auto pChildGraph = GetChildGraph();
-            if ( pChildGraph != nullptr )
-            {
-                pUserContext->NavigateTo( pChildGraph );
-            }
-        }
-        else // Skip the blend tree
-        {
-            auto resultNodes = GetChildGraph()->FindAllNodesOfType<StateMachineToolsNode>();
-            if ( resultNodes.size() == 0 )
-            {
-                // Off-state so do nothing!
-            }
-            else
-            {
-                EE_ASSERT( resultNodes.size() == 1 );
-                auto pStateMachineNode = resultNodes[0];
+        NodeGraph::BaseGraph* pTargetGraph = GetChildGraph();
 
-                auto pChildGraph = pStateMachineNode->GetChildGraph();
-                if ( pChildGraph != nullptr )
-                {
-                    pUserContext->NavigateTo( pChildGraph );
-                }
+        if ( IsStateMachineState() )
+        {
+            auto stateMachineNodes = GetChildGraph()->FindAllNodesOfType<StateMachineToolsNode>();
+            if ( stateMachineNodes.size() == 1 )
+            {
+                pTargetGraph = stateMachineNodes[0]->GetChildGraph();
             }
         }
+
+        return pTargetGraph;
     }
 
-    void StateToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos )
+    void StateToolsNode::DrawContextMenuOptions( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos )
     {
         if ( m_type == StateType::BlendTreeState && CanConvertToStateMachineState() )
         {
@@ -155,7 +150,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void StateToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void StateToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         float const scaledVerticalGap = 6.0f * ctx.m_viewScaleFactor;
         float const scaledExtraSpacing = 2.0f * ctx.m_viewScaleFactor;
@@ -165,7 +160,7 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        auto DrawStateTypeWindow = [&] ( VisualGraph::DrawContext const& ctx, Color iconColor, Color fontColor, float width, char const* pIcon, char const* pLabel )
+        auto DrawStateTypeWindow = [&] ( NodeGraph::DrawContext const& ctx, Color iconColor, Color fontColor, float width, char const* pIcon, char const* pLabel )
         {
             BeginDrawInternalRegion( ctx );
 
@@ -361,7 +356,7 @@ namespace EE::Animation::GraphNodes
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + scaledVerticalGap );
     }
 
-    bool StateToolsNode::IsActive( VisualGraph::UserContext* pUserContext ) const
+    bool StateToolsNode::IsActive( NodeGraph::UserContext* pUserContext ) const
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
@@ -390,7 +385,7 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( m_type == StateType::StateMachineState );
 
-        VisualGraph::ScopedNodeModification const snm( this );
+        NodeGraph::ScopedNodeModification const snm( this );
         m_type = StateType::BlendTreeState;
     }
 
@@ -398,13 +393,13 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( m_type == StateType::BlendTreeState );
 
-        auto const& childNodes = GetChildGraph()->GetNodes();
+        TInlineVector<BaseNode const*, 30> const childNodes = GetChildGraph()->GetNodes();
         if ( childNodes.size() != 2 )
         {
             return false;
         }
 
-        auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
         if ( resultNodes.size() != 1 )
         {
             return false;
@@ -424,13 +419,13 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( m_type == StateType::BlendTreeState );
         EE_ASSERT( CanConvertToStateMachineState() );
 
-        VisualGraph::ScopedNodeModification const snm( this );
+        NodeGraph::ScopedNodeModification const snm( this );
         m_type = StateType::StateMachineState;
     }
 
     void StateToolsNode::OnShowNode()
     {
-        VisualGraph::SM::State::OnShowNode();
+        NodeGraph::StateNode::OnShowNode();
 
         // State machine states, never show the state machine node so we need to call that function here, to ensure that any code needing to be run is!
         if ( m_type == StateType::StateMachineState )
@@ -495,7 +490,15 @@ namespace EE::Animation::GraphNodes
 
         if ( foundMatch )
         {
-            VisualGraph::ScopedNodeModification snm( this );
+            NodeGraph::ScopedNodeModification snm( this );
+
+            for ( auto& ID : m_events )
+            {
+                if ( ID == oldID )
+                {
+                    ID = newID;
+                }
+            }
 
             for ( auto& ID : m_entryEvents )
             {

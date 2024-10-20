@@ -8,6 +8,7 @@
 #include "Base/Settings/SettingsRegistry.h"
 #include "Base/Resource/ResourceSystem.h"
 #include "Base/Render/RenderDevice.h"
+#include "Base/Application/Module.h"
 
 #if EE_DEVELOPMENT_TOOLS
 #include "Base/Imgui/ImguiSystem.h"
@@ -17,7 +18,7 @@
 
 namespace EE
 {
-    class EE_BASE_API BaseModule
+    class EE_BASE_API BaseModule : public Module
     {
         EE_REFLECT_MODULE;
 
@@ -25,8 +26,10 @@ namespace EE
 
         BaseModule();
 
-        bool InitializeModule();
-        void ShutdownModule();
+        ModuleContext GetModuleContext() const;
+
+        virtual bool InitializeModule( ModuleContext const& context ) override;
+        virtual void ShutdownModule( ModuleContext const& context ) override;
 
         //-------------------------------------------------------------------------
 
@@ -35,7 +38,7 @@ namespace EE
         inline TypeSystem::TypeRegistry* GetTypeRegistry() { return &m_typeRegistry; }
         inline Input::InputSystem* GetInputSystem() { return &m_inputSystem; }
         inline Resource::ResourceSystem* GetResourceSystem() { return &m_resourceSystem; }
-        inline Render::RenderDevice* GetRenderDevice() { return m_pRenderDevice; }
+        inline Render::RenderDevice* GetRenderDevice() { return &m_renderDevice; }
         inline Settings::SettingsRegistry* GetSettingsRegistry() { return &m_settingsRegistry; }
 
         #if EE_DEVELOPMENT_TOOLS
@@ -51,7 +54,7 @@ namespace EE
         Input::InputSystem                              m_inputSystem;
         Resource::ResourceSystem                        m_resourceSystem;
         Resource::ResourceProvider*                     m_pResourceProvider = nullptr;
-        Render::RenderDevice*                           m_pRenderDevice = nullptr;
+        Render::RenderDevice                            m_renderDevice;
 
         #if EE_DEVELOPMENT_TOOLS
         ImGuiX::ImguiSystem                             m_imguiSystem;

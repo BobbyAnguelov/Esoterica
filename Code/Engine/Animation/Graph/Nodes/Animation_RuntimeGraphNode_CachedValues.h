@@ -44,7 +44,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         BoolValueNode*              m_pInputValueNode = nullptr;
-        bool                        m_value;
+        bool                        m_value = false;
         bool                        m_hasCachedValue = false;
     };
 
@@ -114,7 +114,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         FloatValueNode*             m_pInputValueNode = nullptr;
-        float                       m_value;
+        float                       m_value = 0.0f;
         bool                        m_hasCachedValue = false;
     };
 
@@ -149,7 +149,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         VectorValueNode*            m_pInputValueNode = nullptr;
-        Vector                      m_value;
+        Float3                      m_value;
         bool                        m_hasCachedValue = false;
     };
 

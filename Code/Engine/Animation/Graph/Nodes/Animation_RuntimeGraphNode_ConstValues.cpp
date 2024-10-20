@@ -11,6 +11,11 @@ namespace EE::Animation::GraphNodes
 
     void ConstBoolNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
         *( (bool*) pOutValue ) = GetDefinition<ConstBoolNode>()->m_value;
     }
 
@@ -23,6 +28,11 @@ namespace EE::Animation::GraphNodes
 
     void ConstIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
         *( (StringID*) pOutValue ) = GetDefinition<ConstIDNode>()->m_value;
     }
 
@@ -35,6 +45,11 @@ namespace EE::Animation::GraphNodes
 
     void ConstFloatNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
         *( (float*) pOutValue ) = GetDefinition<ConstFloatNode>()->m_value;
     }
 
@@ -47,7 +62,12 @@ namespace EE::Animation::GraphNodes
 
     void ConstVectorNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
-        *( (Vector*) pOutValue ) = GetDefinition<ConstVectorNode>()->m_value;
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
+        *( (Float3*) pOutValue ) = GetDefinition<ConstVectorNode>()->m_value;
     }
 
     //-------------------------------------------------------------------------
@@ -59,6 +79,11 @@ namespace EE::Animation::GraphNodes
 
     void ConstTargetNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+        }
+
         *( (Target*) pOutValue ) = GetDefinition<ConstTargetNode>()->m_value;
     }
 }

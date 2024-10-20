@@ -12,6 +12,7 @@
 #include "Engine/Animation/ResourceLoaders/ResourceLoader_AnimationSkeleton.h"
 #include "Engine/Animation/ResourceLoaders/ResourceLoader_AnimationClip.h"
 #include "Engine/Animation/ResourceLoaders/ResourceLoader_AnimationGraph.h"
+#include "Engine/Animation/ResourceLoaders/ResourceLoader_IKRig.h"
 #include "Engine/Navmesh/ResourceLoaders/ResourceLoader_Navmesh.h"
 #include "Engine/Render/RendererRegistry.h"
 #include "Engine/Render/Renderers/WorldRenderer.h"
@@ -21,37 +22,36 @@
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderMesh.h"
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderShader.h"
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderTexture.h"
+#include "Engine/Console/Console.h"
+#include "Base/Application/Module.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
     struct ModuleContext;
-    class Console;
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API EngineModule final
+    class EE_ENGINE_API EngineModule final : public Module
     {
         EE_REFLECT_MODULE;
 
-        static void GetListOfAllRequiredModuleResources( TVector<ResourceID>& outResourceIDs );
-
     public:
 
-        bool InitializeModule( ModuleContext& context );
-        void ShutdownModule( ModuleContext& context );
+        virtual bool InitializeModule( ModuleContext const& context ) override;
+        virtual void ShutdownModule( ModuleContext const& context ) override;
 
         //-------------------------------------------------------------------------
 
-        // Resource Loading
-        void LoadModuleResources( Resource::ResourceSystem& resourceSystem );
-        bool VerifyModuleResourceLoadingComplete();
-        void UnloadModuleResources( Resource::ResourceSystem& resourceSystem );
+        virtual TInlineVector<Resource::ResourcePtr*, 4> GetModuleResources() const override;
 
         //-------------------------------------------------------------------------
 
-        inline Console* GetConsole() { return m_pConsole; }
+        #if EE_DEVELOPMENT_TOOLS
+        inline Console* GetConsole() { return &m_console; }
+        #endif
+
         inline EntityWorldManager* GetEntityWorldManager() { return &m_entityWorldManager; }
         inline Render::RendererRegistry* GetRendererRegistry() { return &m_rendererRegistry; }
 
@@ -59,7 +59,7 @@ namespace EE
 
         // Console
         #if EE_DEVELOPMENT_TOOLS
-        Console*                                        m_pConsole = nullptr;
+        Console                                         m_console;
         #endif
 
         // Entity
@@ -83,13 +83,14 @@ namespace EE
         Animation::SkeletonLoader                       m_skeletonLoader;
         Animation::AnimationClipLoader                  m_animationClipLoader;
         Animation::GraphLoader                          m_graphLoader;
+        Animation::IKRigLoader                          m_IKRigLoader;
 
         // Physics
         Physics::CollisionMeshLoader                    m_physicsCollisionMeshLoader;
         Physics::PhysicsMaterialDatabaseLoader          m_physicsMaterialLoader;
         Physics::RagdollLoader                          m_physicsRagdollLoader;
         Physics::MaterialRegistry                       m_physicsMaterialRegistry;
-        TResourcePtr<Physics::MaterialDatabase>         m_physicsMaterialDB;
+        TResourcePtr<Physics::MaterialDatabase>         m_physicsMaterialDB = ResourceID( "data://Physics/PhysicsMaterials.pmdb" );
 
         #if EE_DEVELOPMENT_TOOLS
         Physics::PhysicsRenderer                        m_physicsRenderer;

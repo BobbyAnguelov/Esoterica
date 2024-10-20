@@ -30,7 +30,7 @@ namespace EE::EntityModel
 
         void CreateNewMap();
         void SelectAndLoadMap();
-        void LoadMap( TResourcePtr<EntityModel::SerializedEntityMap> const& mapToLoad );
+        void LoadMap( TResourcePtr<EntityModel::EntityMapDescriptor> const& mapToLoad );
         void SaveMap();
         void SaveMapAs();
 
@@ -47,7 +47,7 @@ namespace EE::EntityModel
 
         EntityMap* GetEditedMap() const;
 
-        virtual bool SupportsSaving() const override { return true; }
+        virtual bool IsEditingFile( DataPath const& dataPath ) const override { return m_loadedMap.GetResourcePath() == dataPath; }
         virtual bool SaveData() override;
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_EARTH; }

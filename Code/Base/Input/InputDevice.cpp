@@ -10,23 +10,23 @@ namespace EE::Input
         {
             case Signal::None:
             {
-                if ( m_state == State::Pressed )
+                if ( m_state == InputState::Pressed )
                 {
-                    m_state = State::Held;
+                    m_state = InputState::Held;
                 }
-                else if ( m_state == State::Released )
+                else if ( m_state == InputState::Released )
                 {
-                    m_state = State::None;
-                    m_value = m_rawValue = 0.0f;
+                    m_state = InputState::None;
+                    m_value = 0.0f;
                 }
             }
             break;
 
             case Signal::Pressed:
             {
-                if ( m_state == State::None || m_state == State::Released )
+                if ( m_state == InputState::None || m_state == InputState::Released )
                 {
-                    m_state = State::Pressed;
+                    m_state = InputState::Pressed;
                 }
 
                 m_signal = Signal::None;
@@ -35,19 +35,19 @@ namespace EE::Input
 
             case Signal::Released:
             {
-                if ( m_state == State::Pressed || m_state == State::Held )
+                if ( m_state == InputState::Pressed || m_state == InputState::Held )
                 {
-                    m_state = State::Released;
+                    m_state = InputState::Released;
                 }
 
                 m_signal = Signal::None;
-                m_value = m_rawValue = 0.0f;
+                m_value = 0.0f;
             }
             break;
 
             case Signal::Impulse:
             {
-                m_state = State::Pressed;
+                m_state = InputState::Pressed;
                 m_signal = Signal::Released;
             }
         }
@@ -59,7 +59,6 @@ namespace EE::Input
     {
         LogicalInput& input = m_inputs[(int32_t) ID];
         input.m_signal = LogicalInput::Signal::Pressed;
-        input.m_rawValue = 1.0f;
         input.m_value = 1.0f;
     }
 
@@ -67,49 +66,28 @@ namespace EE::Input
     {
         LogicalInput& input = m_inputs[(int32_t) ID];
         input.m_signal = LogicalInput::Signal::Pressed;
-        input.m_rawValue = value;
         input.m_value = value;
-    }
-
-    void InputDevice::Press( InputID ID, float rawValue, float filteredValue )
-    {
-        LogicalInput& input = m_inputs[(int32_t) ID];
-        input.m_signal = LogicalInput::Signal::Pressed;
-        input.m_rawValue = rawValue;
-        input.m_value = filteredValue;
     }
 
     void InputDevice::ApplyImpulse( InputID ID, float value )
     {
         LogicalInput& input = m_inputs[(int32_t) ID];
         input.m_signal = LogicalInput::Signal::Impulse;
-        input.m_rawValue = value;
         input.m_value = value;
     }
 
     void InputDevice::SetValue( InputID ID, float value )
     {
         LogicalInput& input = m_inputs[(int32_t) ID];
-        input.m_state = LogicalInput::State::None;
+        input.m_state = InputState::None;
         input.m_signal = LogicalInput::Signal::None;
-        input.m_rawValue = value;
         input.m_value = value;
-    }
-
-    void InputDevice::SetValue( InputID ID, float rawValue, float filteredValue )
-    {
-        LogicalInput& input = m_inputs[(int32_t) ID];
-        input.m_state = LogicalInput::State::None;
-        input.m_signal = LogicalInput::Signal::None;
-        input.m_rawValue = rawValue;
-        input.m_value = filteredValue;
     }
 
     void InputDevice::Release( InputID ID )
     {
         LogicalInput& input = m_inputs[(int32_t) ID];
         input.m_signal = LogicalInput::Signal::Released;
-        input.m_rawValue = 0.0f;
         input.m_value = 0.0f;
     }
 

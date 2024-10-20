@@ -43,12 +43,13 @@ namespace EE::Animation
 
         // Offsets
         //-------------------------------------------------------------------------
+        // Only make sense for bone targets
 
-        inline bool HasOffsets() const { return m_hasOffsets; }
-        inline Quaternion GetRotationOffset() const { EE_ASSERT( m_isSet && m_hasOffsets ); return m_transform.GetRotation(); }
-        inline Vector GetTranslationOffset() const { EE_ASSERT( m_isSet && m_hasOffsets ); return m_transform.GetTranslation(); }
-        inline bool IsUsingBoneSpaceOffsets() const { return m_isUsingBoneSpaceOffsets; }
-        inline bool IsUsingWorldSpaceOffsets() const { return !m_isUsingBoneSpaceOffsets; }
+        inline bool HasOffsets() const { EE_ASSERT( m_isBoneTarget ); return m_hasOffsets; }
+        inline Quaternion GetRotationOffset() const { EE_ASSERT( m_isSet && m_isBoneTarget && m_hasOffsets ); return m_transform.GetRotation(); }
+        inline Vector GetTranslationOffset() const { EE_ASSERT( m_isSet && m_isBoneTarget && m_hasOffsets ); return m_transform.GetTranslation(); }
+        inline bool IsUsingBoneSpaceOffsets() const { EE_ASSERT( m_isBoneTarget ); return m_isUsingBoneSpaceOffsets; }
+        inline bool IsUsingWorldSpaceOffsets() const { EE_ASSERT( m_isBoneTarget ); return !m_isUsingBoneSpaceOffsets; }
 
         // Set an offset for a bone target - user specifies if the offsets are in world space or bone space
         inline void SetOffsets( Quaternion const& rotationOffset, Vector const& translationOffset, bool useBoneSpaceOffsets = true )
@@ -70,7 +71,7 @@ namespace EE::Animation
 
         inline Transform const& GetTransform() const
         {
-            EE_ASSERT( m_isSet && !IsBoneTarget() );
+            EE_ASSERT( m_isSet && !m_isBoneTarget );
             return m_transform;
         }
 

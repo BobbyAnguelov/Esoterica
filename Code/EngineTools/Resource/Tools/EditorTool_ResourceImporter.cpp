@@ -1,9 +1,8 @@
 #include "EditorTool_ResourceImporter.h"
-#include "EngineTools/Resource/ResourceDatabase.h"
 #include "EngineTools/Resource/ResourceImportSettings.h"
+#include "EngineTools/FileSystem/FileRegistry.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "EngineTools/Core/CommonDialogs.h"
-#include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
+#include "EngineTools/Core/Dialogs.h"
 #include "Engine/Render/Mesh/StaticMesh.h"
 #include "Engine/Render/Mesh/SkeletalMesh.h"
 #include "Engine/Animation/AnimationSkeleton.h"
@@ -42,7 +41,7 @@ namespace EE::Resource
             return m_descriptor.m_animationPath.IsValid();
         }
 
-        virtual void UpdateDescriptorInternal( ResourcePath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
+        virtual void UpdateDescriptorInternal( DataPath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
         {
             bool const validSelection = !selectedItems.empty() && selectedItems[0]->GetTypeID() == Import::ImportableAnimation::GetStaticTypeID();
             if ( !validSelection )
@@ -74,7 +73,7 @@ namespace EE::Resource
             return m_descriptor.m_skeletonPath.IsValid();
         }
 
-        virtual void UpdateDescriptorInternal( ResourcePath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
+        virtual void UpdateDescriptorInternal( DataPath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
         {
             bool const validSelection = !selectedItems.empty() && selectedItems[0]->GetTypeID() == Import::ImportableSkeleton::GetStaticTypeID();
             if ( !validSelection )
@@ -106,7 +105,7 @@ namespace EE::Resource
             return m_descriptor.m_path.IsValid();
         }
 
-        virtual void UpdateDescriptorInternal( ResourcePath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
+        virtual void UpdateDescriptorInternal( DataPath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
         {
             bool const validSelection = !selectedItems.empty() && selectedItems[0]->GetTypeID() == Import::ImportableImage::GetStaticTypeID();
             if ( !validSelection )
@@ -133,12 +132,12 @@ namespace EE::Resource
 
         virtual bool IsVisible() const override
         {
-            return Cast<Render::MeshResourceDescriptor>( GetDescriptor() )->m_meshPath.IsValid();
+            return Cast<Render::MeshResourceDescriptor>( GetDataFile() )->m_meshPath.IsValid();
         }
 
-        virtual void UpdateDescriptorInternal( ResourcePath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
+        virtual void UpdateDescriptorInternal( DataPath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
         {
-            auto pMeshDescriptor = Cast<Render::MeshResourceDescriptor>( GetDescriptor() );
+            auto pMeshDescriptor = Cast<Render::MeshResourceDescriptor>( GetDataFile() );
 
             bool validSelection = !selectedItems.empty() && selectedItems[0]->GetTypeID() == Import::ImportableMesh::GetStaticTypeID();
 
@@ -212,7 +211,7 @@ namespace EE::Resource
 
             //-------------------------------------------------------------------------
 
-            auto* pMeshDescriptor = Cast<Render::MeshResourceDescriptor>( GetDescriptor() );
+            auto* pMeshDescriptor = Cast<Render::MeshResourceDescriptor>( GetDataFile() );
             pMeshDescriptor->m_materials.clear();
 
             EE_ASSERT( descriptorSavePath.IsValid() && descriptorSavePath.IsFilePath() );
@@ -236,11 +235,11 @@ namespace EE::Resource
                         TrySaveDescriptorToDisk( materialPath );
                     }
 
-                    pMeshDescriptor->m_materials.emplace_back( ResourcePath::FromFileSystemPath( m_pToolsContext->GetRawResourceDirectory(), materialPath ) );
+                    pMeshDescriptor->m_materials.emplace_back( DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), materialPath ) );
                 }
                 else
                 {
-                    pMeshDescriptor->m_materials.emplace_back( ResourcePath() );
+                    pMeshDescriptor->m_materials.emplace_back( DataPath() );
                 }
             };
 
@@ -273,7 +272,7 @@ namespace EE::Resource
 
         virtual void PostSaveDescriptor( FileSystem::Path const descriptorSavePath ) override
         {
-            auto* pMeshDescriptor = Cast<Render::MeshResourceDescriptor>( GetDescriptor() );
+            auto* pMeshDescriptor = Cast<Render::MeshResourceDescriptor>( GetDataFile() );
             pMeshDescriptor->m_materials.clear();
         }
 
@@ -293,7 +292,7 @@ namespace EE::Resource
         }
 
         virtual char const* GetName() override { return "Skeletal Mesh"; }
-        virtual ResourceDescriptor const* GetDescriptor() const override { return &m_descriptor; }
+        virtual ResourceDescriptor const* GetDataFile() const override { return &m_descriptor; }
 
     protected:
 
@@ -311,7 +310,7 @@ namespace EE::Resource
         }
 
         virtual char const* GetName() override { return "Static Mesh"; }
-        virtual ResourceDescriptor const* GetDescriptor() const override { return &m_descriptor; }
+        virtual ResourceDescriptor const* GetDataFile() const override { return &m_descriptor; }
 
     protected:
 
@@ -329,7 +328,7 @@ namespace EE::Resource
             return m_descriptor.m_sourcePath.IsValid();
         }
 
-        virtual void UpdateDescriptorInternal( ResourcePath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
+        virtual void UpdateDescriptorInternal( DataPath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
         {
             bool const validSelection = !selectedItems.empty() && selectedItems[0]->GetTypeID() == Import::ImportableMesh::GetStaticTypeID();
             if ( !validSelection )
@@ -370,7 +369,7 @@ namespace EE::Resource
 
     public:
 
-        ImporterTreeItem( TreeListViewItem* pParent, ToolsContext const& toolsContext, Resource::ResourceDatabase::DirectoryEntry const* pDirectoryEntry )
+        ImporterTreeItem( TreeListViewItem* pParent, ToolsContext const& toolsContext, FileRegistry::DirectoryInfo const* pDirectoryEntry )
             : TreeListViewItem( pParent )
             , m_toolsContext( toolsContext )
             , m_nameID( pDirectoryEntry->m_filePath.GetDirectoryName() )
@@ -392,12 +391,12 @@ namespace EE::Resource
 
             for ( auto pChildFile : pDirectoryEntry->m_files )
             {
-                if ( pChildFile->HasDescriptor() )
+                if ( pChildFile->HasLoadedDataFile() )
                 {
                     continue;
                 }
 
-                TInlineString<6> const extension = pChildFile->m_filePath.GetExtensionAsString();
+                FileSystem::Extension const extension = pChildFile->m_filePath.GetExtensionAsString();
                 if ( extension.empty() )
                 {
                     continue;
@@ -411,13 +410,13 @@ namespace EE::Resource
 
         }
 
-        ImporterTreeItem( TreeListViewItem* pParent, ToolsContext const& toolsContext, Resource::ResourceDatabase::FileEntry const* pFileEntry )
+        ImporterTreeItem( TreeListViewItem* pParent, ToolsContext const& toolsContext, FileRegistry::FileInfo const* pFileEntry )
             : TreeListViewItem( pParent )
             , m_toolsContext( toolsContext )
             , m_nameID( pFileEntry->m_filePath.GetFilename() )
             , m_path( pFileEntry->m_filePath )
-            , m_resourcePath( pFileEntry->m_resourceID.GetResourcePath() )
-            , m_resourceTypeID( pFileEntry->m_isRegisteredResourceType ? pFileEntry->m_resourceID.GetResourceTypeID() : ResourceTypeID() )
+            , m_resourcePath( pFileEntry->m_dataPath )
+            , m_resourceTypeID( pFileEntry->IsResourceDescriptorFile() ? ResourceTypeID( pFileEntry->m_extensionFourCC ) : ResourceTypeID() )
             , m_type( Type::File )
         {
             EE_ASSERT( m_path.IsValid() );
@@ -458,7 +457,7 @@ namespace EE::Resource
             {
                 displayName.sprintf( EE_ICON_FOLDER" %s", GetNameID().c_str() );
             }
-            else if ( IsResourceFile() )
+            else if ( IsResourceDescriptorFile() )
             {
                 displayName.sprintf( EE_ICON_FILE" %s", GetNameID().c_str() );
             }
@@ -476,15 +475,15 @@ namespace EE::Resource
         inline bool IsFile() const { return m_type == Type::File; }
         inline bool IsDirectory() const { return m_type == Type::Directory; }
         inline FileSystem::Path const& GetFilePath() const { return m_path; }
-        inline ResourcePath const& GetResourcePath() const { return m_resourcePath; }
+        inline DataPath const& GetResourcePath() const { return m_resourcePath; }
 
         // Resource Info
         //-------------------------------------------------------------------------
 
         inline bool IsRawFile() const { return IsFile() && !m_resourceTypeID.IsValid(); }
-        inline bool IsResourceFile() const { return IsFile() && m_resourceTypeID.IsValid(); }
-        inline ResourceID GetResourceID() const { EE_ASSERT( IsResourceFile() ); return ResourceID( m_resourcePath ); }
-        inline ResourceTypeID const& GetResourceTypeID() const { EE_ASSERT( IsResourceFile() ); return m_resourceTypeID; }
+        inline bool IsResourceDescriptorFile() const { return IsFile() && m_resourceTypeID.IsValid(); }
+        inline ResourceID GetResourceID() const { EE_ASSERT( IsResourceDescriptorFile() ); return ResourceID( m_resourcePath ); }
+        inline ResourceTypeID const& GetResourceTypeID() const { EE_ASSERT( IsResourceDescriptorFile() ); return m_resourceTypeID; }
 
         template<typename T>
         inline bool IsResourceOfType() const
@@ -513,7 +512,7 @@ namespace EE::Resource
             }
             else // Files
             {
-                if ( IsResourceFile() )
+                if ( IsResourceDescriptorFile() )
                 {
                     m_toolsContext.TryOpenResource( GetResourceID() );
                 }
@@ -530,7 +529,7 @@ namespace EE::Resource
         ToolsContext const&                     m_toolsContext;
         StringID                                m_nameID;
         FileSystem::Path                        m_path;
-        ResourcePath                            m_resourcePath;
+        DataPath                            m_resourcePath;
         ResourceTypeID                          m_resourceTypeID;
         Type                                    m_type;
     };
@@ -567,7 +566,7 @@ namespace EE::Resource
         m_treeview.SetFlag( TreeListView::UseSmallFont, false );
         m_treeview.SetFlag( TreeListView::SortTree, true );
 
-        m_resourceDatabaseUpdateEventBindingID = m_pToolsContext->m_pResourceDatabase->OnFileSystemCacheUpdated().Bind( [this] () { OnResourceDatabaseUpdated(); } );
+        m_resourceDatabaseUpdateEventBindingID = m_pToolsContext->m_pFileRegistry->OnFileSystemCacheUpdated().Bind( [this] () { OnResourceDatabaseUpdated(); } );
 
         // Create import settings
         //-------------------------------------------------------------------------
@@ -596,7 +595,7 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         m_selectedFile.Clear();
-        m_pToolsContext->m_pResourceDatabase->OnFileSystemCacheUpdated().Unbind( m_resourceDatabaseUpdateEventBindingID );
+        m_pToolsContext->m_pFileRegistry->OnFileSystemCacheUpdated().Unbind( m_resourceDatabaseUpdateEventBindingID );
     }
 
     void ResourceImporterEditorTool::Initialize( UpdateContext const& context )
@@ -612,7 +611,7 @@ namespace EE::Resource
 
     void ResourceImporterEditorTool::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
-        if ( m_pToolsContext->m_pResourceDatabase->IsBuildingCaches() )
+        if ( m_pToolsContext->m_pFileRegistry->IsBuildingCaches() )
         {
             return;
         }
@@ -638,14 +637,14 @@ namespace EE::Resource
 
         if ( m_selectedFile.IsSet() )
         {
-            m_selectedFile.m_dependentResources = m_pToolsContext->m_pResourceDatabase->GetAllDependentResources( m_selectedFile.m_resourcePath );
+            m_selectedFile.m_dependentResources = m_pToolsContext->m_pFileRegistry->GetAllDependentResources( m_selectedFile.m_resourcePath );
         }
     }
 
     void ResourceImporterEditorTool::RebuildTreeView( TreeListViewItem* pRootItem )
     {
-        EE_ASSERT( m_pToolsContext->m_pResourceDatabase->IsFileSystemCacheBuilt() );
-        auto pDataDirectory = m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryEntry();
+        EE_ASSERT( m_pToolsContext->m_pFileRegistry->IsFileSystemCacheBuilt() );
+        auto pDataDirectory = m_pToolsContext->m_pFileRegistry->GetRawResourceDirectoryEntry();
 
         //-------------------------------------------------------------------------
 
@@ -661,7 +660,7 @@ namespace EE::Resource
         for ( auto pChildFile : pDataDirectory->m_files )
         {
             // Ignore all resource files
-            if ( !pChildFile->HasDescriptor() && Import::IsImportableFileType( pChildFile->m_filePath.GetExtension() ) )
+            if ( !pChildFile->HasLoadedDescriptor() && Import::IsImportableFileType( pChildFile->m_filePath.GetExtension() ) )
             {
                 pRootItem->CreateChild<ImporterTreeItem>( *m_pToolsContext, pChildFile );
             }
@@ -701,10 +700,10 @@ namespace EE::Resource
             m_selectedFile.m_resourcePath = pSelectedFileItem->GetResourcePath();
             m_selectedFile.m_filePath = pSelectedFileItem->GetFilePath();
             m_selectedFile.m_extension = m_selectedFile.m_filePath.GetExtension();
-            m_selectedFile.m_dependentResources = m_pToolsContext->m_pResourceDatabase->GetAllDependentResources( pSelectedFileItem->GetResourcePath() );
+            m_selectedFile.m_dependentResources = m_pToolsContext->m_pFileRegistry->GetAllDependentResources( pSelectedFileItem->GetResourcePath() );
 
             Import::InspectorContext ctx;
-            ctx.m_rawResourceDirectoryPath = m_pToolsContext->GetRawResourceDirectory();
+            ctx.m_sourceDataDirectoryPath = m_pToolsContext->GetSourceDataDirectory();
             ctx.m_warningDelegate = [this] ( char const* pWarningStr ) { m_selectedFile.m_warnings.append( pWarningStr ); };
             ctx.m_errorDelegate = [this] ( char const* pErrorStr ) { m_selectedFile.m_errors.append( pErrorStr ); };
 
@@ -837,17 +836,17 @@ namespace EE::Resource
     void ResourceImporterEditorTool::DrawImporterWindow( UpdateContext const& context, bool isFocused )
     {
         // Draw progress bar
-        if ( m_pToolsContext->m_pResourceDatabase->IsBuildingCaches() )
+        if ( m_pToolsContext->m_pFileRegistry->IsBuildingCaches() )
         {
             ImGui::AlignTextToFramePadding();
-            ImGui::Text( m_pToolsContext->m_pResourceDatabase->IsFileSystemCacheBuilt() ? "Building Descriptor Cache: " : "Building File System Cache: " );
+            ImGui::Text( m_pToolsContext->m_pFileRegistry->IsFileSystemCacheBuilt() ? "Building Descriptor Cache: " : "Building File System Cache: " );
             ImGui::SameLine();
-            ImGui::ProgressBar( m_pToolsContext->m_pResourceDatabase->GetProgress() );
+            ImGui::ProgressBar( m_pToolsContext->m_pFileRegistry->GetProgress() );
         }
 
         //-------------------------------------------------------------------------
 
-        if ( !m_pToolsContext->m_pResourceDatabase->IsFileSystemCacheBuilt() )
+        if ( !m_pToolsContext->m_pFileRegistry->IsFileSystemCacheBuilt() )
         {
             return;
         }
@@ -1049,14 +1048,14 @@ namespace EE::Resource
 
                         ImGui::TableNextColumn();
                         {
-                            if ( ImGuiX::ColoredIconButton( Colors::DarkOrange, Colors::White, Colors::White, EE_ICON_FILE_FIND_OUTLINE, "Browse To", ImVec2( 100, 0 ) ) )
+                            if ( ImGuiX::IconButtonColored( EE_ICON_FILE_FIND_OUTLINE, "Browse To", Colors::DarkOrange, Colors::White, Colors::White, ImVec2( 100, 0 ) ) )
                             {
                                 m_pToolsContext->TryFindInResourceBrowser( ResourceID( path ) );
                             }
 
                             ImGui::SameLine();
 
-                            if ( ImGuiX::ColoredIconButton( Colors::Green, Colors::White, Colors::White, EE_ICON_OPEN_IN_NEW, "Open", ImVec2( 100, 0 ) ) )
+                            if ( ImGuiX::IconButtonColored( EE_ICON_OPEN_IN_NEW, "Open", Colors::Green, Colors::White, Colors::White, ImVec2( 100, 0 ) ) )
                             {
                                 m_pToolsContext->TryOpenResource( ResourceID( path ) );
                             }
@@ -1197,7 +1196,7 @@ namespace EE::Resource
 
     void ResourceImporterEditorTool::DrawImportSettings( UpdateContext const& context )
     {
-        ResourcePath createdDescriptorPath;
+        DataPath createdDescriptorPath;
 
         m_pActiveSettings = nullptr;
 

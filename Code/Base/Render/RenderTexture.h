@@ -33,7 +33,7 @@ namespace EE::Render
         TextureAddressMode      m_addressModeV = TextureAddressMode::Wrap;
         TextureAddressMode      m_addressModeW = TextureAddressMode::Wrap;
         Float4                  m_borderColor = Float4(0.0f);
-        uint32_t                  m_maxAnisotropyValue = 1;
+        uint32_t                m_maxAnisotropyValue = 1;
         float                   m_LODBias = 0;
         float                   m_minLOD = -FLT_MAX;
         float                   m_maxLOD = FLT_MAX;
@@ -54,8 +54,8 @@ namespace EE::Render
         friend class TextureCompiler;
         friend class TextureLoader;
 
-        EE_RESOURCE( 'txtr', "Render Texture" );
-        EE_SERIALIZE( m_format, m_rawData );
+        EE_RESOURCE( 'txtr', "Render Texture", 12, true );
+        EE_SERIALIZE( m_format );
 
     public:
 
@@ -92,7 +92,6 @@ namespace EE::Render
         ViewDSHandle            m_depthStencilView;
         Int2                    m_dimensions = Int2(0, 0);
         TextureFormat           m_format;
-        Blob                    m_rawData; // Temporary storage for the raw data used during installation, cleared when installation completes
     };
 
     //-------------------------------------------------------------------------
@@ -107,7 +106,7 @@ namespace EE::Render
         friend class TextureCompiler;
         friend class TextureLoader;
 
-        EE_RESOURCE( 'cbmp', "Render Cubemap Texture" );
+        EE_RESOURCE( 'cbmp', "Render Cubemap Texture", Texture::s_version, true );
         EE_SERIALIZE( EE_SERIALIZE_BASE( Texture ) );
 
     public:

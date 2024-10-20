@@ -26,7 +26,7 @@ namespace EE
 
         static void CustomAssert( char const* pMessage )
         {
-            EE_HALT();
+            EE_TRACE_HALT( pMessage );
         }
 
         void Initialize()

@@ -1,5 +1,5 @@
 #include "ReflectionDataTypes.h"
-#include "Base/ThirdParty/rapidjson/document.h"
+#include "Base/Utils/StringKeyValueParser.h"
 
 //-------------------------------------------------------------------------
 
@@ -49,83 +49,141 @@ namespace EE::TypeSystem::Reflection
         return nullptr;
     }
 
-    String ReflectedProperty::GetFriendlyName() const
+    void ReflectedProperty::GenerateMetaData( InlineString& outWarnings )
     {
-        String name = m_name;
-        StringUtils::ReplaceAllOccurrencesInPlace( name, "m_", "" );
+        outWarnings.clear();
 
-        if ( name.empty() )
-        {
-            return m_name;
-        }
+        m_metaData.m_flags.ClearAllFlags();
+        m_metaData.m_keyValues.clear();
 
-        if ( name.length() > 1 && name[0] == 'p' && isupper( name[1] ) )
-        {
-            name = name.substr( 1, name.length() - 1 );
-        }
-
-        GenerateFriendlyName( name );
-
-        return name;
-    }
-
-    bool ReflectedProperty::ParseMetaData()
-    {
-        m_category.clear();
-        m_description.clear();
-        m_isToolsReadOnly = false;
-        m_showInRestrictedMode = false;
-        m_customEditorID.Clear();
-
+        // Generate friendly name
         //-------------------------------------------------------------------------
 
-        if ( !HasMetaData() )
+        m_reflectedFriendlyName = m_name;
+        StringUtils::ReplaceAllOccurrencesInPlace( m_reflectedFriendlyName, "m_", "" );
+
+        if ( !m_reflectedFriendlyName.empty() )
         {
-            return true;
+            if ( m_reflectedFriendlyName.length() > 1 && m_reflectedFriendlyName[0] == 'p' && isupper( m_reflectedFriendlyName[1] ) )
+            {
+                m_reflectedFriendlyName = m_reflectedFriendlyName.substr( 1, m_reflectedFriendlyName.length() - 1 );
+            }
+
+            GenerateFriendlyName( m_reflectedFriendlyName );
+        }
+        else
+        {
+            m_reflectedFriendlyName = m_name;
         }
 
+        // Create entries for name and category
         //-------------------------------------------------------------------------
 
-        rapidjson::Document document;
-        document.Parse( m_metaData.data() );
-        bool const isValidJson = ( document.GetParseError() == rapidjson::kParseErrorNone );
-        if ( isValidJson )
         {
-            auto metaDataObject = document.GetObject();
+            PropertyMetadata::KV& nameKV = m_metaData.m_keyValues.emplace_back();
+            nameKV.m_key = PropertyMetadata::Flag::FriendlyName;
+            nameKV.m_value = m_reflectedFriendlyName;
+            m_metaData.m_flags.SetFlag( nameKV.m_key );
 
-            auto const categoryValueIter = metaDataObject.FindMember( "Category" );
-            if ( categoryValueIter != metaDataObject.MemberEnd() )
+            PropertyMetadata::KV& descKV = m_metaData.m_keyValues.emplace_back();
+            descKV.m_key = PropertyMetadata::Flag::Description;
+            descKV.m_value = m_reflectedDescription;
+            m_metaData.m_flags.SetFlag( descKV.m_key );
+        }
+
+        // Parse the supplied meta data string
+        //-------------------------------------------------------------------------
+
+        KeyValueParser const parser( m_rawMetaDataStr.data() );
+        for ( KeyValueParser::KV const& rawKV : parser.m_keyValues )
+        {
+            bool foundCoreMetaFlag = false;
+
+            for ( int32_t i = 0; i < PropertyMetadata::s_numFlags; i++ )
             {
-                m_category = categoryValueIter->value.GetString();
+                PropertyMetadata::Flag const flag = (PropertyMetadata::Flag) i;
+
+                // If we detect a key with a known value
+                if ( rawKV.m_key.comparei( PropertyMetadata::s_flagStrings[i] ) == 0 )
+                {
+                    foundCoreMetaFlag = true;
+
+                    PropertyMetadata::KV* pMetaKV = nullptr;
+
+                    if ( flag == PropertyMetadata::Flag::FriendlyName )
+                    {
+                        pMetaKV = &m_metaData.m_keyValues[0];
+                    }
+                    else if ( flag == PropertyMetadata::Flag::Description )
+                    {
+                        pMetaKV = &m_metaData.m_keyValues[1];
+                    }
+                    else
+                    {
+                        pMetaKV = &m_metaData.m_keyValues.emplace_back();
+                    }
+
+                    // Set data
+                    //-------------------------------------------------------------------------
+
+                    pMetaKV->m_key = (PropertyMetadata::Flag) i;
+                    pMetaKV->m_value = rawKV.m_value;
+
+                    // Validation
+                    //-------------------------------------------------------------------------\
+
+                    switch ( flag )
+                    {
+                        case PropertyMetadata::Flag::Min:
+                        case PropertyMetadata::Flag::Max:
+                        {
+                            if ( pMetaKV->m_value.empty() )
+                            {
+                                outWarnings.append( "    * Min/Max meta flags require a value to be set!\n" );
+                            }
+                            else
+                            {
+                                char *pEnd = nullptr;
+                                std::strtof( rawKV.m_value.c_str(), &pEnd );
+                                if ( pEnd == rawKV.m_value.c_str() )
+                                {
+                                    outWarnings.append( "    * Min/Max meta flags require a numeric value to be set!\n" );
+                                }
+                            }
+                        }
+                        break;
+
+                        default:
+                        {}
+                        break;
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    m_metaData.m_flags.SetFlag( flag );
+                }
             }
 
-            auto const descriptionValueIter = metaDataObject.FindMember( "Description" );
-            if ( descriptionValueIter != metaDataObject.MemberEnd() )
-            {
-                m_description = descriptionValueIter->value.GetString();
-            }
+            // Handle unknown meta data
+            //-------------------------------------------------------------------------
 
-            auto const toolsReadOnlyValueIter = metaDataObject.FindMember( "IsToolsReadOnly" );
-            if ( toolsReadOnlyValueIter != metaDataObject.MemberEnd() )
+            if ( !foundCoreMetaFlag )
             {
-                m_isToolsReadOnly = toolsReadOnlyValueIter->value.GetBool();
-            }
+                // Set data
+                //-------------------------------------------------------------------------
 
-            auto const showAsStaticArrayValueIter = metaDataObject.FindMember( "ShowAsStaticArray" );
-            if ( showAsStaticArrayValueIter != metaDataObject.MemberEnd() )
-            {
-                m_showInRestrictedMode = showAsStaticArrayValueIter->value.GetBool();
-            }
-
-            auto const customEditorValueIter = metaDataObject.FindMember( "CustomEditor" );
-            if ( customEditorValueIter != metaDataObject.MemberEnd() )
-            {
-                char const* pEditorID = customEditorValueIter->value.GetString();
-                m_customEditorID = StringID( pEditorID );
+                PropertyMetadata::KV& customMetaKV = m_metaData.m_keyValues.emplace_back();
+                customMetaKV.m_key = PropertyMetadata::Flag::Unknown;
+                customMetaKV.m_keyValue = rawKV.m_key;
+                customMetaKV.m_value = rawKV.m_value;
             }
         }
 
-        return isValidJson;
+        // Escape description str
+        //-------------------------------------------------------------------------
+
+        PropertyMetadata::KV& descKV = m_metaData.m_keyValues[PropertyMetadata::Flag::Description];
+        StringUtils::ReplaceAllOccurrencesInPlace( descKV.m_value, "\"", "\\\"" );
     }
 
     //-------------------------------------------------------------------------
@@ -172,6 +230,18 @@ namespace EE::TypeSystem::Reflection
         String friendlyName = m_name;
         GenerateFriendlyName( friendlyName );
         return friendlyName;
+    }
+
+    String ReflectedType::GetInternalNamespace() const
+    {
+        String ns = m_namespace.c_str() + 4;
+
+        if ( StringUtils::EndsWith( ns, "::" ) )
+        {
+            ns = ns.substr( 0, ns.length() - 2 );
+        }
+
+        return ns;
     }
 
     String ReflectedType::GetCategory() const
@@ -221,12 +291,7 @@ namespace EE::TypeSystem::Reflection
     {
         for ( auto& propertyDesc : m_properties )
         {
-            if ( propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
-            {
-                return true;
-            }
-
-            if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
+            if ( propertyDesc.IsResourcePtrProperty() )
             {
                 return true;
             }
@@ -300,6 +365,59 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
         
+        m_friendlyName = registrationStr.substr( resourceFriendlyNameStartIdx + 1, resourceFriendlyNameEndIdx - resourceFriendlyNameStartIdx - 1 );
+
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool ReflectedDataFileType::TryParseDataFileRegistrationMacroString( String const& registrationStr )
+    {
+        // Skip the first part of the string since this is the typename for data file
+        size_t searchStartIdx = 0;
+        searchStartIdx = registrationStr.find( ',', searchStartIdx );
+
+        // Generate type ID string and get friendly name
+        size_t const extensionStartIdx = registrationStr.find( '\'', searchStartIdx );
+        if ( extensionStartIdx == String::npos )
+        {
+            return false;
+        }
+
+        size_t const extensionEndIdx = registrationStr.find( '\'', extensionStartIdx + 1 );
+        if ( extensionEndIdx == String::npos )
+        {
+            return false;
+        }
+
+        size_t const resourceFriendlyNameStartIdx = registrationStr.find( '"', extensionEndIdx + 1 );
+        if ( resourceFriendlyNameStartIdx == String::npos )
+        {
+            return false;
+        }
+
+        size_t const resourceFriendlyNameEndIdx = registrationStr.find( '"', resourceFriendlyNameStartIdx + 1 );
+        if ( resourceFriendlyNameEndIdx == String::npos )
+        {
+            return false;
+        }
+
+        EE_ASSERT( extensionStartIdx != extensionEndIdx );
+        EE_ASSERT( resourceFriendlyNameStartIdx != resourceFriendlyNameEndIdx );
+
+        //-------------------------------------------------------------------------
+
+        String const extensionString = registrationStr.substr( extensionStartIdx + 1, extensionEndIdx - extensionStartIdx - 1 );
+        if ( FourCC::IsValidLowercase( extensionString.c_str() ) )
+        {
+            m_extensionFourCC = FourCC::FromString( extensionString.c_str() );
+        }
+        else
+        {
+            return false;
+        }
+
         m_friendlyName = registrationStr.substr( resourceFriendlyNameStartIdx + 1, resourceFriendlyNameEndIdx - resourceFriendlyNameStartIdx - 1 );
 
         return true;

@@ -7,19 +7,13 @@
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Math/MathUtils.h"
+#include "Base/Utils/TreeLayout.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Animation
 {
-    namespace
-    {
-        static StringID const g_controlParameterWindowID( "ControlParam" );
-        static StringID const g_tasksWindowID( "Tasks" );
-        static StringID const g_eventsWindowID( "Events" );
-    }
-
     void AnimationDebugView::DrawGraphControlParameters( GraphInstance* pGraphInstance )
     {
         if ( ImGui::BeginTable( "ControlParametersTable", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
@@ -72,7 +66,7 @@ namespace EE::Animation
 
                     case GraphValueType::Vector:
                     {
-                        Vector const value = pGraphInstance->GetControlParameterValue<Vector>( i );
+                        Float3 const value = pGraphInstance->GetControlParameterValue<Float3>( i );
                         stringValue = Math::ToString( value );
                     }
                     break;
@@ -117,32 +111,9 @@ namespace EE::Animation
         }
     }
 
-    //-------------------------------------------------------------------------
-
-    void AnimationDebugView::DrawTaskTreeRow( TaskSystem* pTaskSystem, TaskIndex currentTaskIdx )
+    void AnimationDebugView::DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc )
     {
-        static const char* const stageLabels[] = { "ERROR!", "Pre-Physics", "Post-Physics" };
-
-        auto pTask = pTaskSystem->m_tasks[currentTaskIdx];
-        InlineString const rowLabel( InlineString::CtorSprintf(), "%s - %s", stageLabels[(int32_t) pTask->GetActualUpdateStage()], pTask->GetDebugText().c_str() );
-
-        ImGui::SetNextItemOpen( true );
-        ImGui::PushStyleColor( ImGuiCol_Text, pTask->GetDebugColor().ToFloat4() );
-        if ( ImGui::TreeNode( rowLabel.c_str() ) )
-        {
-            for ( auto taskIdx : pTask->GetDependencyIndices() )
-            {
-                DrawTaskTreeRow( pTaskSystem, taskIdx );
-            }
-
-            ImGui::TreePop();
-        }
-        ImGui::PopStyleColor();
-    }
-
-    void AnimationDebugView::DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance )
-    {
-        if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
+        if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
             ImGui::Text( "No animation task debug to Show!" );
             return;
@@ -150,11 +121,6 @@ namespace EE::Animation
 
         // Always use the task system from the context as this is guaranteed to be set
         auto pTaskSystem = pGraphInstance->m_graphContext.m_pTaskSystem;
-        DrawGraphActiveTasksDebugView( pTaskSystem );
-    }
-
-    void AnimationDebugView::DrawGraphActiveTasksDebugView( TaskSystem* pTaskSystem )
-    {
         if ( pTaskSystem == nullptr )
         {
             return;
@@ -166,75 +132,242 @@ namespace EE::Animation
             return;
         }
 
-        TaskIndex const finalTask = (TaskIndex) pTaskSystem->m_tasks.size() - 1;
-        DrawTaskTreeRow( pTaskSystem, finalTask );
+        //-------------------------------------------------------------------------
+
+        ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
+
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4, 0 ) );
+        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 4 ) );
+
+        constexpr static float const itemVerticalSpacing = 16;
+        constexpr static float const itemHorizontalSpacing = 8;
+        float const itemWindowHeight = ( ImGui::GetTextLineHeight() * 3 ) + ( ImGui::GetStyle().ItemSpacing.y * 2 ) + ( ImGui::GetStyle().WindowPadding.y * 2 );
+
+        // Layout the nodes
+        //-------------------------------------------------------------------------
+
+        int32_t const numTasks = (int32_t) pTaskSystem->m_tasks.size();
+        TreeLayout layout;
+        layout.m_nodes.resize( numTasks );
+
+        for ( int32_t i = 0; i < numTasks; i++ )
+        {
+            auto pTask = pTaskSystem->m_tasks[i];
+            layout.m_nodes[i].m_pItem = pTask;
+            layout.m_nodes[i].m_width = itemHorizontalSpacing + Math::Max( ImGui::CalcTextSize( pTask->GetDebugName() ).x, ImGui::CalcTextSize( pTask->GetDebugTextInfo().c_str() ).x ) + ( ImGui::GetStyle().WindowPadding.x * 2 );
+            layout.m_nodes[i].m_height = itemWindowHeight;
+
+            int32_t const numDependencies = pTask->GetNumDependencies();
+            if ( numDependencies > 0 )
+            {
+                for ( int32_t j = 0; j < numDependencies; j++ )
+                {
+                    layout.m_nodes[i].m_children.emplace_back( &layout.m_nodes[pTask->GetDependencyIndices()[j]] );
+                }
+            }
+        }
+
+        layout.PerformLayout( Float2( 6.0f, itemVerticalSpacing ), Float2::Zero );
+
+        // Draw Visualization
+        //-------------------------------------------------------------------------
+
+        ImVec2 const windowSize( Math::Max( ImGui::GetContentRegionAvail().x, layout.m_dimensions.m_x ), layout.m_dimensions.m_y + itemWindowHeight );
+        if ( ImGui::BeginChild( "TL", windowSize, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_ResizeY, ImGuiWindowFlags_HorizontalScrollbar ) )
+        {
+            ImVec2 const offset = ImVec2( windowSize.x / 2, itemWindowHeight / 2 );
+            ImVec2 const windowPos = ImGui::GetWindowPos();
+            ImVec2 const windowScrollOffset = ImVec2( ImGui::GetScrollX(), ImGui::GetScrollY() );
+            ImVec2 const windowPosWithAllOffsets = windowPos + offset - windowScrollOffset;
+            ImDrawList* pDrawList = ImGui::GetWindowDrawList();
+
+            // Draw lines
+            //-------------------------------------------------------------------------
+
+            for ( auto& node : layout.m_nodes )
+            {
+                ImVec2 const nodeScreenPos = windowPosWithAllOffsets + node.m_position;
+                int32_t const numDependencies = node.GetNumChildren();
+                for ( int32_t j = 0; j < numDependencies; j++ )
+                {
+                    ImVec2 const childScreenPos = windowPosWithAllOffsets + node.m_children[j]->m_position;
+                    pDrawList->AddLine( nodeScreenPos, childScreenPos, Colors::Lime, 2.0f );
+                }
+            }
+
+            // Draw items
+            //-------------------------------------------------------------------------
+
+            ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, 5 );
+
+            for ( int8_t i = 0; i < numTasks; i++ )
+            {
+                auto const& node = layout.m_nodes[i];
+;               auto pTask = ( Task const* ) node.m_pItem;
+
+                DebugPath const path = pGraphInstance->ResolveTaskDebugPath( i );
+                InlineString const sourcePath = path.GetFlattenedPath();
+
+                // Calculate item size
+                //-------------------------------------------------------------------------
+
+                InlineString const debugInfo = pTask->GetDebugTextInfo();
+                float const itemWindowWidth = Math::Max( ImGui::CalcTextSize( pTask->GetDebugName() ).x, ImGui::CalcTextSize( debugInfo.c_str() ).x ) + ( ImGui::GetStyle().WindowPadding.x * 2 );
+                ImVec2 const itemSize( itemWindowWidth, itemWindowHeight );
+                ImVec2 const itemHalfSize( itemSize / 2 );
+
+                // Draw item
+                //-------------------------------------------------------------------------
+
+                ImGui::SetCursorPos( offset - itemHalfSize + node.m_position );
+                ImGui::PushID( &node );
+                ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray2 );
+                if ( ImGui::BeginChild( "child", itemSize, ImGuiChildFlags_AlwaysUseWindowPadding ) )
+                {
+                    auto pLocalDrawList = ImGui::GetWindowDrawList();
+
+                    // Draw Task Name
+                    //-------------------------------------------------------------------------
+
+                    ImGui::TextColored( pTask->GetDebugColor().ToFloat4(), pTask->GetDebugName() );
+
+                    // Draw Debug Info
+                    //-------------------------------------------------------------------------
+
+                    if ( !debugInfo.empty() )
+                    {
+                        ImGui::Text( pTask->GetDebugTextInfo().c_str() );
+                    }
+
+                    // Draw weight/progress
+                    //-------------------------------------------------------------------------
+
+                    float const weight = pTask->GetDebugProgressOrWeight();
+                    constexpr static float const textMargins = 2.0f;
+                    ImVec2 const barStartPos = ImGui::GetWindowPos() + ImGui::GetCursorPos() + ImVec2( 0, 2 );
+                    ImVec2 const barEndPos = barStartPos + ImVec2( ImGui::GetContentRegionAvail().x * weight, ImGui::GetTextLineHeight() - 2 );
+                    Color const startColor = Color::EvaluateRedGreenGradient( 0.0f, false );
+                    Color const color = Color::EvaluateRedGreenGradient( weight, false );
+                    pLocalDrawList->AddRectFilled( barStartPos, barEndPos, color );
+
+                    ImGui::SetCursorPosX( ImGui::GetCursorPosX() + textMargins );
+                    ImGui::TextColored( Colors::Black.ToFloat4(), "%.2f", pTask->GetDebugProgressOrWeight());
+
+                    // Navigation
+                    //-------------------------------------------------------------------------
+
+                    if ( ImGui::IsWindowHovered() )
+                    {
+                        ImGui::SetTooltip( sourcePath.c_str() );
+
+                        if ( navigateToNodeFunc != nullptr )
+                        {
+                            ImGui::SetMouseCursor( ImGuiMouseCursor_Hand );
+                            if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
+                            {
+                                navigateToNodeFunc( path );
+                            }
+                        }
+                    }
+                }
+                ImGui::EndChild();
+                ImGui::PopStyleColor();
+                ImGui::PopID();
+            }
+
+            ImGui::PopStyleVar();
+        }
+        ImGui::EndChild();
+
+        //-------------------------------------------------------------------------
+
+        ImGui::PopStyleVar( 2 );
     }
 
     //-------------------------------------------------------------------------
 
-    void AnimationDebugView::DrawRootMotionRow( GraphInstance* pGraphInstance, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx )
+    void AnimationDebugView::DrawRootMotionRow( GraphInstance* pGraphInstance, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx, NavigateToSourceFunc const& navigateToNodeFunc )
     {
-        static char const* const actionTypes[] = { "Error", "Sample", "External Graph", "Modify", "Blend" };
-
         RootMotionDebugger::RecordedAction const* pAction = nullptr;
-
-        InlineString rowLabel;
         if ( currentActionIdx != InvalidIndex )
         {
             pAction = &pRootMotionRecorder->GetRecordedActions()[currentActionIdx];
-            String const& nodePath = pGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( pAction->m_nodeIdx );
-            rowLabel.sprintf( "%s - %s", actionTypes[(int32_t) pAction->m_actionType], nodePath.c_str() );
-        }
-        else
-        {
-            rowLabel = "No root motion action registered";
         }
 
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextItemOpen( true );
-        ImGuiX::PushFont( ImGuiX::Font::MediumBold );
-        if ( ImGui::TreeNode( rowLabel.c_str() ) )
+        ImGui::TableNextRow();
+
+        if ( pAction != nullptr )
         {
-            ImGui::PopFont();
+            DebugPath const path = pGraphInstance->ResolveRootMotionDebugPath( currentActionIdx );
+            InlineString const sourcePath = path.GetFlattenedPath();
 
-            ImGui::Indent( 20.0f );
-            ImGuiX::PushFont( ImGuiX::Font::Small );
-            if ( pAction != nullptr )
-            {
-                Float3 vR = pAction->m_rootMotionDelta.GetRotation().ToEulerAngles().GetAsDegrees();
-                InlineString const tR( InlineString::CtorSprintf(), "x=%.3f, y=%.3f, z=%.3f", vR.m_x, vR.m_y, vR.m_z );
-
-                Vector vT = pAction->m_rootMotionDelta.GetTranslation();
-                InlineString const tT( InlineString::CtorSprintf(), "x=%f, y=%f, z=%f", vT.GetX(), vT.GetY(), vT.GetZ() );
-
-                ImGui::Text( "R: %s, T: %s", tR.c_str(), tT.c_str() );
-            }
-            else
-            {
-                ImGui::Text( "No Root Motion" );
-            }
-
-            ImGui::PopFont();
-            ImGui::Unindent( 20.0f );
+            ImGui::TableNextColumn();
+            InlineString const nodeName( InlineString::CtorSprintf(), "%s##%d_%s", RootMotionDebugger::s_actionTypeLabels[(int32_t) pAction->m_actionType], currentActionIdx, sourcePath.c_str());
+            ImGui::AlignTextToFramePadding();
+            uint32_t const nodeFlags = ImGuiTreeNodeFlags_SpanAllColumns | ( pAction->m_dependencies.empty() ? ImGuiTreeNodeFlags_Bullet : 0 );
+            ImGui::SetNextItemOpen( true );
+            ImGui::PushStyleColor( ImGuiCol_Text, RootMotionDebugger::s_actionTypeColors[(int32_t) pAction->m_actionType] );
+            bool isRowOpen = ImGui::TreeNodeEx( nodeName.c_str(), nodeFlags );
+            ImGui::PopStyleColor();
 
             //-------------------------------------------------------------------------
 
-            if ( pAction != nullptr )
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            Float3 vR = pAction->m_rootMotionDelta.GetRotation().ToEulerAngles().GetAsDegrees();
+            ImGuiX::DrawFloat3( vR );
+
+            //-------------------------------------------------------------------------
+
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            Vector vT = pAction->m_rootMotionDelta.GetTranslation();
+            ImGuiX::DrawFloat3( vT );
+
+            //-------------------------------------------------------------------------
+
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            float const length = vT.GetLength3();
+            ImGui::Text( "%.4f", length );
+
+            //-------------------------------------------------------------------------
+
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            if ( navigateToNodeFunc != nullptr )
             {
-                for ( auto taskIdx : pAction->m_dependencies )
+                if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN ) )
                 {
-                    DrawRootMotionRow( pGraphInstance, pRootMotionRecorder, taskIdx );
+                    navigateToNodeFunc( path );
                 }
+                ImGuiX::ItemTooltip( sourcePath.c_str() );
             }
 
-            ImGui::TreePop();
+            //-------------------------------------------------------------------------
+
+            if ( isRowOpen )
+            {
+                for ( int16_t dependencyIdx : pAction->m_dependencies )
+                {
+                    DrawRootMotionRow( pGraphInstance, pRootMotionRecorder, dependencyIdx, navigateToNodeFunc );
+                }
+
+                ImGui::TreePop();
+            }
+        }
+        else
+        {
+            ImGui::TableNextColumn();
+            ImGui::Text( "No Root Motion" );
         }
     }
 
-    void AnimationDebugView::DrawRootMotionDebugView( GraphInstance* pGraphInstance )
+    void AnimationDebugView::DrawRootMotionDebugView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc )
     {
-        if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
+        if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
             ImGui::Text( "No root motion debug to Show!" );
             return;
@@ -243,7 +376,22 @@ namespace EE::Animation
         RootMotionDebugger const* pRootMotionRecorder = pGraphInstance->GetRootMotionDebugger();
         if ( pRootMotionRecorder->HasRecordedActions() )
         {
-            DrawRootMotionRow( pGraphInstance, pRootMotionRecorder, pRootMotionRecorder->GetLastActionIndex() );
+            static ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg;
+            ImGui::PushStyleVar( ImGuiStyleVar_IndentSpacing, 20 );
+            if ( ImGui::BeginTable( "RM Debug", 5, flags ) )
+            {
+                ImGui::TableSetupColumn( "Operation", ImGuiTableColumnFlags_WidthStretch );
+                ImGui::TableSetupColumn( "Rotation", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 250 );
+                ImGui::TableSetupColumn( "Translation", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 250 );
+                ImGui::TableSetupColumn( "Length", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 60 );
+                ImGui::TableSetupColumn( "", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
+                ImGui::TableHeadersRow();
+
+                DrawRootMotionRow( pGraphInstance, pRootMotionRecorder, pRootMotionRecorder->GetLastActionIndex(), navigateToNodeFunc );
+
+                ImGui::EndTable();
+            }
+            ImGui::PopStyleVar();
         }
         else
         {
@@ -253,9 +401,9 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void AnimationDebugView::DrawSampledAnimationEventsView( GraphInstance* pGraphInstance, TFunction<void( SampledEventDebugPath const& )> const& navigateToNodeFunc )
+    void AnimationDebugView::DrawSampledAnimationEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc )
     {
-        if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
+        if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
             ImGui::Text( "Nothing to Show!" );
             return;
@@ -272,11 +420,11 @@ namespace EE::Animation
         if ( ImGui::BeginTable( "AnimEventsTable", 6, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
         {
             ImGui::TableSetupColumn( "Branch", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
-            ImGui::TableSetupColumn( "Ignored", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
+            ImGui::TableSetupColumn( "Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
             ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
             ImGui::TableSetupColumn( "%", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
             ImGui::TableSetupColumn( "Event", ImGuiTableColumnFlags_WidthStretch, 0.5f );
-            ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch, 0.5f );
+            ImGui::TableSetupColumn( "", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
             ImGui::TableHeadersRow();
 
             //-------------------------------------------------------------------------
@@ -326,10 +474,10 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
-                ImGui::Text( "%.2f", sampledEvent.GetWeight() );
+                ImGui::TextColored( Color::EvaluateRedGreenGradient( sampledEvent.GetWeight() ).ToFloat4(), "%.2f", sampledEvent.GetWeight() );
 
                 ImGui::TableNextColumn();
-                ImGui::Text( "%.1f", sampledEvent.GetPercentageThrough().ToFloat() * 100 );
+                ImGui::TextColored( Color::EvaluateRedGreenGradient( sampledEvent.GetPercentageThrough().ToFloat() ).ToFloat4(), "%.1f", sampledEvent.GetPercentageThrough().ToFloat() * 100 );
 
                 ImGui::TableNextColumn();
                 Event const* pEvent = sampledEvent.GetEvent();
@@ -338,20 +486,21 @@ namespace EE::Animation
                 ImGuiX::TextTooltip( debugString.c_str() );
 
                 ImGui::TableNextColumn();
-                SampledEventDebugPath const path = pGraphInstance->GetSampledEventDebugPath( i );
+                DebugPath const path = pGraphInstance->ResolveSampledEventDebugPath( i );
                 InlineString const sourcePath = path.GetFlattenedPath();
                 if ( navigateToNodeFunc != nullptr )
                 {
-                    if ( ImGuiX::FlatButton( sourcePath.c_str() ) )
+                    if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN ) )
                     {
                         navigateToNodeFunc( path );
                     }
+                    ImGuiX::ItemTooltip( sourcePath.c_str() );
                 }
                 else
                 {
-                    ImGui::Text( sourcePath.c_str() );
+                    ImGui::Text( EE_ICON_INFORMATION );
+                    ImGuiX::TextTooltip( sourcePath.c_str() );
                 }
-                ImGuiX::TextTooltip( sourcePath.c_str() );
             }
 
             ImGui::EndTable();
@@ -363,9 +512,9 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawSampledStateEventsView( GraphInstance* pGraphInstance, TFunction<void( SampledEventDebugPath const& )> const& navigateToNodeFunc )
+    void AnimationDebugView::DrawSampledStateEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc )
     {
-        if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
+        if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
             ImGui::Text( "Nothing to Show!" );
             return;
@@ -385,7 +534,7 @@ namespace EE::Animation
             ImGui::TableSetupColumn( "Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
             ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40 );
             ImGui::TableSetupColumn( "Event", ImGuiTableColumnFlags_WidthStretch, 0.5f );
-            ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch, 0.5f );
+            ImGui::TableSetupColumn( "", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
             ImGui::TableHeadersRow();
 
             //-------------------------------------------------------------------------
@@ -436,7 +585,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
-                ImGui::Text( "%.2f", sampledEvent.GetWeight() );
+                ImGui::TextColored( Color::EvaluateRedGreenGradient( sampledEvent.GetWeight() ).ToFloat4(), "%.2f", sampledEvent.GetWeight() );
 
                 ImGui::TableNextColumn();
                 {
@@ -451,20 +600,21 @@ namespace EE::Animation
                 }
 
                 ImGui::TableNextColumn();
-                SampledEventDebugPath const path = pGraphInstance->GetSampledEventDebugPath( i );
+                DebugPath const path = pGraphInstance->ResolveSampledEventDebugPath( i );
                 InlineString const sourcePath = path.GetFlattenedPath();
                 if ( navigateToNodeFunc != nullptr )
                 {
-                    if ( ImGuiX::FlatButton( sourcePath.c_str() ) )
+                    if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN ) )
                     {
                         navigateToNodeFunc( path );
                     }
+                    ImGuiX::ItemTooltip( sourcePath.c_str() );
                 }
                 else
                 {
-                    ImGui::Text( sourcePath.c_str() );
+                    ImGui::Text( EE_ICON_INFORMATION );
+                    ImGuiX::TextTooltip( sourcePath.c_str() );
                 }
-                ImGuiX::TextTooltip( sourcePath.c_str() );
             }
 
             if ( !hasStateEvent )
@@ -476,9 +626,9 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawCombinedSampledEventsView( GraphInstance* pGraphInstance, TFunction<void( SampledEventDebugPath const& )> const& navigateToNodeFunc )
+    void AnimationDebugView::DrawCombinedSampledEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc )
     {
-        if ( pGraphInstance == nullptr || !pGraphInstance->IsInitialized() )
+        if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
             ImGui::Text( "Nothing to Show!" );
             return;
@@ -537,6 +687,13 @@ namespace EE::Animation
 
     void AnimationDebugView::DrawMenu( EntityWorldUpdateContext const& context )
     {
+        static StringID const controlParameterWindowID( "ControlParam" );
+        static StringID const tasksWindowID( "Tasks" );
+        static StringID const eventsWindowID( "Events" );
+
+        //-------------------------------------------------------------------------
+
+
         InlineString componentName;
         for ( GraphComponent* pGraphComponent : m_pAnimationWorldSystem->m_graphComponents )
         {
@@ -555,7 +712,7 @@ namespace EE::Animation
 
                 if ( ImGui::MenuItem( "Show Control Parameters" ) )
                 {
-                    auto pTaskWindowForComponent = GetDebugWindow( g_controlParameterWindowID, pGraphComponent->GetID().m_value );
+                    auto pTaskWindowForComponent = GetDebugWindow( controlParameterWindowID, pGraphComponent->GetID().m_value );
                     if ( pTaskWindowForComponent != nullptr )
                     {
                         pTaskWindowForComponent->m_isOpen = true;
@@ -564,7 +721,7 @@ namespace EE::Animation
                     {
                         InlineString windowName( InlineString::CtorSprintf(), "Control Parameters: %s", componentName.c_str() );
                         m_windows.emplace_back( windowName.c_str(), [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData ) { DrawControlParameterWindow( context, isFocused, userData ); } );
-                        m_windows.back().m_typeID = g_controlParameterWindowID;
+                        m_windows.back().m_typeID = controlParameterWindowID;
                         m_windows.back().m_userData = pGraphComponent->GetID().m_value;
                         m_windows.back().m_isOpen = true;
                     }
@@ -572,7 +729,7 @@ namespace EE::Animation
 
                 if ( ImGui::MenuItem( "Show Sampled Events" ) )
                 {
-                    auto pTaskWindowForComponent = GetDebugWindow( g_eventsWindowID, pGraphComponent->GetID().m_value );
+                    auto pTaskWindowForComponent = GetDebugWindow( eventsWindowID, pGraphComponent->GetID().m_value );
                     if ( pTaskWindowForComponent != nullptr )
                     {
                         pTaskWindowForComponent->m_isOpen = true;
@@ -581,7 +738,7 @@ namespace EE::Animation
                     {
                         InlineString windowName( InlineString::CtorSprintf(), "Sampled Events: %s", componentName.c_str() );
                         m_windows.emplace_back( windowName.c_str(), [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData ) { DrawEventsWindow( context, isFocused, userData ); } );
-                        m_windows.back().m_typeID = g_eventsWindowID;
+                        m_windows.back().m_typeID = eventsWindowID;
                         m_windows.back().m_userData = pGraphComponent->GetID().m_value;
                         m_windows.back().m_isOpen = true;
                     }
@@ -624,7 +781,7 @@ namespace EE::Animation
 
                 if ( ImGui::MenuItem( "Show Active Tasks" ) )
                 {
-                    auto pTaskWindowForComponent = GetDebugWindow( g_tasksWindowID, pGraphComponent->GetID().m_value );
+                    auto pTaskWindowForComponent = GetDebugWindow( tasksWindowID, pGraphComponent->GetID().m_value );
                     if ( pTaskWindowForComponent != nullptr )
                     {
                         pTaskWindowForComponent->m_isOpen = true;
@@ -633,7 +790,7 @@ namespace EE::Animation
                     {
                         InlineString windowName( InlineString::CtorSprintf(), "Active Tasks: %s", componentName.c_str() );
                         m_windows.emplace_back( windowName.c_str(), [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t userData ) { DrawTasksWindow( context, isFocused, userData ); } );
-                        m_windows.back().m_typeID = g_tasksWindowID;
+                        m_windows.back().m_typeID = tasksWindowID;
                         m_windows.back().m_userData = pGraphComponent->GetID().m_value;
                         m_windows.back().m_isOpen = true;
                     }

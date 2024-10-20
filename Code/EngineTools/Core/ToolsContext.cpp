@@ -1,5 +1,5 @@
 #include "ToolsContext.h"
-#include "EngineTools/Resource/ResourceDatabase.h"
+#include "EngineTools/FileSystem/FileRegistry.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldManager.h"
 
@@ -7,8 +7,8 @@
 
 namespace EE
 {
-    FileSystem::Path const& ToolsContext::GetRawResourceDirectory() const { return m_pResourceDatabase->GetRawResourceDirectoryPath(); }
-    FileSystem::Path const& ToolsContext::GetCompiledResourceDirectory() const { return m_pResourceDatabase->GetCompiledResourceDirectoryPath(); }
+    FileSystem::Path const& ToolsContext::GetSourceDataDirectory() const { return m_pFileRegistry->GetSourceDataDirectoryPath(); }
+    FileSystem::Path const& ToolsContext::GetCompiledResourceDirectory() const { return m_pFileRegistry->GetCompiledResourceDirectoryPath(); }
 
     //-------------------------------------------------------------------------
 

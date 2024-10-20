@@ -1,6 +1,4 @@
 #include "EngineModule.h"
-#include "Engine/ModuleContext.h"
-#include "Engine/Console/Console.h"
 #include "Engine/Entity/EntityLog.h"
 #include "Engine/Navmesh/NavPower.h"
 #include "Engine/Physics/Physics.h"
@@ -10,25 +8,14 @@
 
 namespace EE
 {
-    constexpr static char const* const g_physicsMaterialDatabaseResourceID = "data://Physics/PhysicsMaterials.pmdb";
-
-    //-------------------------------------------------------------------------
-
-    void EngineModule::GetListOfAllRequiredModuleResources( TVector<ResourceID>& outResourceIDs )
-    {
-        outResourceIDs.emplace_back( ResourceID( g_physicsMaterialDatabaseResourceID ) );
-    }
-
-    //-------------------------------------------------------------------------
-
-    bool EngineModule::InitializeModule( ModuleContext& context )
+    bool EngineModule::InitializeModule( ModuleContext const& context )
     {
         //-------------------------------------------------------------------------
         // Initialize core systems
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        m_pConsole = EE::New<Console>( *context.m_pSettingsRegistry );
+        m_console.Initialize( *context.m_pSettingsRegistry );
         EntityModel::InitializeLogQueue();
         #endif
 
@@ -90,7 +77,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        context.m_pSystemRegistry->RegisterSystem( m_pConsole );
+        context.m_pSystemRegistry->RegisterSystem( &m_console );
         #endif
 
         context.m_pSystemRegistry->RegisterSystem( &m_entityWorldManager );
@@ -123,6 +110,7 @@ namespace EE
         context.m_pResourceSystem->RegisterResourceLoader( &m_skeletonLoader );
         context.m_pResourceSystem->RegisterResourceLoader( &m_animationClipLoader );
         context.m_pResourceSystem->RegisterResourceLoader( &m_graphLoader );
+        context.m_pResourceSystem->RegisterResourceLoader( &m_IKRigLoader );
 
         //-------------------------------------------------------------------------
 
@@ -139,7 +127,7 @@ namespace EE
         return true;
     }
 
-    void EngineModule::ShutdownModule( ModuleContext& context )
+    void EngineModule::ShutdownModule( ModuleContext const& context )
     {
         //-------------------------------------------------------------------------
         // Unregister resource loaders
@@ -158,8 +146,9 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        context.m_pResourceSystem->UnregisterResourceLoader( &m_animationClipLoader );
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_IKRigLoader );
         context.m_pResourceSystem->UnregisterResourceLoader( &m_graphLoader );
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_animationClipLoader );
         context.m_pResourceSystem->UnregisterResourceLoader( &m_skeletonLoader );
 
         m_animationClipLoader.ClearTypeRegistryPtr();
@@ -190,7 +179,7 @@ namespace EE
         context.m_pSystemRegistry->UnregisterSystem( &m_entityWorldManager );
 
         #if EE_DEVELOPMENT_TOOLS
-        context.m_pSystemRegistry->UnregisterSystem( m_pConsole );
+        context.m_pSystemRegistry->UnregisterSystem( &m_console );
         #endif
 
         //-------------------------------------------------------------------------
@@ -200,26 +189,26 @@ namespace EE
         if ( context.m_pRenderDevice != nullptr )
         {
             #if EE_DEVELOPMENT_TOOLS
-            if ( m_physicsRenderer.IsInitialized() )
+            if ( m_physicsRenderer.WasInitialized() )
             {
                 m_rendererRegistry.UnregisterRenderer( &m_physicsRenderer );
             }
             m_physicsRenderer.Shutdown();
 
-            if ( m_imguiRenderer.IsInitialized() )
+            if ( m_imguiRenderer.WasInitialized() )
             {
                 m_rendererRegistry.UnregisterRenderer( &m_imguiRenderer );
             }
             m_imguiRenderer.Shutdown();
 
-            if ( m_debugRenderer.IsInitialized() )
+            if ( m_debugRenderer.WasInitialized() )
             {
                 m_rendererRegistry.UnregisterRenderer( &m_debugRenderer );
             }
             m_debugRenderer.Shutdown();
             #endif
 
-            if ( m_worldRenderer.IsInitialized() )
+            if ( m_worldRenderer.WasInitialized() )
             {
                 m_rendererRegistry.UnregisterRenderer( &m_worldRenderer );
             }
@@ -238,27 +227,21 @@ namespace EE
         Physics::Core::Shutdown();
 
         #if EE_DEVELOPMENT_TOOLS
-        EE::Delete( m_pConsole );
+        m_console.Shutdown();
         EntityModel::ShutdownLogQueue();
         #endif
     }
 
     //-------------------------------------------------------------------------
 
-    void EngineModule::LoadModuleResources( Resource::ResourceSystem& resourceSystem )
+    TInlineVector<Resource::ResourcePtr*, 4> EngineModule::GetModuleResources() const
     {
-        m_physicsMaterialDB = ResourceID( g_physicsMaterialDatabaseResourceID );
         EE_ASSERT( m_physicsMaterialDB.IsSet() );
-        resourceSystem.LoadResource( m_physicsMaterialDB );
-    }
 
-    bool EngineModule::VerifyModuleResourceLoadingComplete()
-    {
-        return m_physicsMaterialDB.IsLoaded() && m_physicsMaterialDB->IsValid();
-    }
+        EngineModule* pMutableModule = const_cast<EngineModule*>( this );
 
-    void EngineModule::UnloadModuleResources( Resource::ResourceSystem& resourceSystem )
-    {
-        resourceSystem.UnloadResource( m_physicsMaterialDB );
+        TInlineVector<Resource::ResourcePtr*, 4> resources;
+        resources.emplace_back( &pMutableModule->m_physicsMaterialDB );
+        return resources;
     }
 }

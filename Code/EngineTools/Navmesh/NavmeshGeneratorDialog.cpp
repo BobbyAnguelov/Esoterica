@@ -1,8 +1,7 @@
 #include "NavmeshGeneratorDialog.h"
 #include "NavmeshGenerator.h"
-#include "EngineTools/Resource/ResourceDatabase.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
+#include "EngineTools/Core/Dialogs.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Base/Imgui/ImguiX.h"
@@ -11,7 +10,7 @@
 
 namespace EE::Navmesh
 {
-    NavmeshGeneratorDialog::NavmeshGeneratorDialog( ToolsContext const* pToolsContext, NavmeshBuildSettings const& initialBuildSettings, EntityModel::SerializedEntityCollection const& entityCollection, FileSystem::Path const& navmeshOutputPath )
+    NavmeshGeneratorDialog::NavmeshGeneratorDialog( ToolsContext const* pToolsContext, NavmeshBuildSettings const& initialBuildSettings, EntityModel::EntityCollection const& entityCollection, FileSystem::Path const& navmeshOutputPath )
         : m_pToolsContext( pToolsContext )
         , m_buildSettings( initialBuildSettings )
         , m_entityCollection( entityCollection )
@@ -19,7 +18,7 @@ namespace EE::Navmesh
         , m_propertyGrid( pToolsContext )
     {
         m_propertyGrid.SetTypeToEdit( &m_buildSettings );
-        m_propertyGrid.ExpandAllPropertyViews();
+        m_propertyGrid.ExpandAll();
     }
 
     NavmeshGeneratorDialog::~NavmeshGeneratorDialog()
@@ -42,11 +41,11 @@ namespace EE::Navmesh
             {
                 if ( state == NavmeshGenerator::State::CompletedSuccess )
                 {
-                    pfd::message( "Generation Complete", "Navmesh generated successfully!", pfd::choice::ok, pfd::icon::info ).result();
+                    MessageDialog::Info( "Generation Complete", "Navmesh generated successfully!" );
                 }
                 else
                 {
-                    pfd::message( "Generation Complete", "Navmesh generation failed! Please check system log for details!", pfd::choice::ok, pfd::icon::error ).result();
+                    MessageDialog::Error( "Generation Complete", "Navmesh generation failed! Please check system log for details!" );
                 }
 
                 EE::Delete( m_pGenerator );
@@ -77,16 +76,16 @@ namespace EE::Navmesh
             else // Build Settings
             {
                 #if EE_ENABLE_NAVPOWER
-                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Generate", ImVec2( -1, 0 ) ) )
+                if ( ImGuiX::ButtonColored( "Generate", Colors::Green, Colors::White, ImVec2( -1, 0 ) ) )
                 {
-                    m_pGenerator = EE::New<NavmeshGenerator>( *m_pToolsContext->m_pTypeRegistry, m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath(), m_navmeshOutputPath, m_entityCollection, m_buildSettings );
+                    m_pGenerator = EE::New<NavmeshGenerator>( *m_pToolsContext->m_pTypeRegistry, m_pToolsContext->GetSourceDataDirectory(), m_navmeshOutputPath, m_entityCollection, m_buildSettings );
                     m_pGenerator->GenerateAsync( *ctx.GetSystem<TaskSystem>() );
                 }
                 #endif
 
                 if ( ImGui::BeginChild( "PG", ImVec2( -1, 0 ) ) )
                 {
-                    m_propertyGrid.DrawGrid();
+                    m_propertyGrid.UpdateAndDraw();
                 }
                 ImGui::EndChild();
             }

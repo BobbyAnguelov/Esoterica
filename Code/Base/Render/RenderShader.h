@@ -15,7 +15,7 @@ namespace EE::Render
         friend class ShaderLoader;
 
         EE_SERIALIZE( m_cbuffers, m_resourceBindings, m_byteCode );
-        EE_RESOURCE( 'shdr', "Render Shader" );
+        EE_RESOURCE( 'shdr', "Render Shader", 1, false );
 
     public:
 
@@ -65,7 +65,7 @@ namespace EE::Render
 
     class EE_BASE_API PixelShader : public Shader
     {
-        EE_RESOURCE( 'psdr', "Pixel Shader" );
+        EE_RESOURCE( 'psdr', "Pixel Shader", Shader::s_version, false );
 
     public:
 
@@ -79,7 +79,7 @@ namespace EE::Render
 
     class EE_BASE_API GeometryShader : public Shader
     {
-        EE_RESOURCE( 'gsdr', "Geometry Shader" );
+        EE_RESOURCE( 'gsdr', "Geometry Shader", Shader::s_version, false );
 
     public:
 
@@ -93,8 +93,8 @@ namespace EE::Render
 
     class EE_BASE_API VertexShader : public Shader
     {
-        EE_SERIALIZE( EE_SERIALIZE_BASE( Shader ), m_vertexLayoutDesc );
-        EE_RESOURCE( 'vsdr', "Vertex Shader" );
+        EE_SERIALIZE( EE_SERIALIZE_BASE( Shader ), Shader::s_version, m_vertexLayoutDesc );
+        EE_RESOURCE( 'vsdr', "Vertex Shader", Shader::s_version, false );
 
         friend class RenderDevice;
         friend class ShaderCompiler;
@@ -115,7 +115,7 @@ namespace EE::Render
 
     class EE_BASE_API ComputeShader : public Shader
     {
-        EE_RESOURCE( 'csdr', "Compute Shader" );
+        EE_RESOURCE( 'csdr', "Compute Shader", Shader::s_version, false );
 
         friend class RenderDevice;
         friend class ShaderCompiler;

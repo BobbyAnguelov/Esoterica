@@ -184,15 +184,20 @@ namespace EE::Drawing
         // Complex Shapes
         //-------------------------------------------------------------------------
 
-        inline void DrawAxis( Transform const& worldTransform, float axisLength = 0.05f, float axisThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawAxis( Transform const& worldTransform, Color axisColor1, Color axisColor2, Color axisColor3, float axisLength = 0.05f, float axisThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
         {
             Vector const xAxis = worldTransform.GetAxisX().GetNormalized3() * axisLength;
             Vector const yAxis = worldTransform.GetAxisY().GetNormalized3() * axisLength;
             Vector const zAxis = worldTransform.GetAxisZ().GetNormalized3() * axisLength;
 
-            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + xAxis, Colors::Red, axisThickness, depthTestState, TTL );
-            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + yAxis, Colors::LimeGreen, axisThickness, depthTestState, TTL );
-            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + zAxis, Colors::Blue, axisThickness, depthTestState, TTL );
+            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + xAxis, axisColor1, axisThickness, depthTestState, TTL );
+            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + yAxis, axisColor2, axisThickness, depthTestState, TTL );
+            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + zAxis, axisColor3, axisThickness, depthTestState, TTL );
+        }
+
+        EE_FORCE_INLINE void DrawAxis( Transform const& worldTransform, float axisLength = 0.05f, float axisThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        {
+            DrawAxis( worldTransform, Colors::Red, Colors::Lime, Colors::Blue, axisLength, axisThickness,  depthTestState, TTL );
         }
 
         void DrawArrow( Float3 const& startPoint, Float3 const& endPoint, Float4 const& color, float thickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 );
@@ -212,6 +217,24 @@ namespace EE::Drawing
             Quaternion const orientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, Vector( direction ).GetNormalized3() );
             Transform const coneTransform( orientation, startPoint );
             DrawCone( coneTransform, coneAngle, length, color, thickness, depthTestState, TTL );
+        }
+
+        // Draw twist limit around a specified axis. The up axis defines the zero rotation value!
+        void DrawTwistLimits( Transform const& jointTransform, Axis twistAxis, Axis upAxis, Radians limitMin, Radians limitMax, Color color, float lineThickness, float limitSize = 0.1f );
+
+        // Draw twist limit around the default axes (twist = x and up = y). The up axis defines the zero rotation value!
+        EE_FORCE_INLINE void DrawTwistLimits( Transform const& jointTransform, Radians limitMin, Radians limitMax, Color color, float lineThickness, float limitSize = 0.1f )
+        {
+            DrawTwistLimits( jointTransform, Axis::X, Axis::Y, limitMin, limitMax, color, lineThickness, limitSize );
+        }
+
+        // Draw swing limits for two specified axes relative to a specified zero axis
+        void DrawSwingLimits( Transform const& jointTransform, Axis swingAxis1, Axis swingAxis2, Axis zeroAxis, Radians limit1, Radians limit2, Color color, float lineThickness, float limitSize = 0.2f );
+
+        // Draw swing limits for the default axes (Y, Z) relative to the default zero axis (X)
+        EE_FORCE_INLINE void DrawSwingLimits( Transform const& jointTransform, Radians limitY, Radians limitZ, Color color, float lineThickness, float limitSize = 0.2f )
+        {
+            DrawSwingLimits( jointTransform, Axis::Y, Axis::Z, Axis::X, limitY, limitZ, color, lineThickness, limitSize );
         }
 
     private:

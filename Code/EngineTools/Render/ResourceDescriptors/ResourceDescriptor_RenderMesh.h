@@ -25,7 +25,7 @@ namespace EE::Render
 
         virtual bool IsValid() const override { return m_meshPath.IsValid(); }
 
-        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
         {
             if ( m_meshPath.IsValid() )
             {
@@ -33,7 +33,7 @@ namespace EE::Render
             }
         }
 
-        virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Mesh::GetStaticResourceTypeID(); }
+        virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Mesh::GetStaticResourceTypeID(); }        
 
         virtual void Clear() override
         {
@@ -47,7 +47,7 @@ namespace EE::Render
 
         // The path to the mesh source file
         EE_REFLECT();
-        ResourcePath                            m_meshPath;
+        DataPath                                m_meshPath;
 
         // Optional: specifies the specific sub-meshes to compile, if this is not set, all sub-meshes contained in the source will be combined into a single mesh object
         EE_REFLECT();
@@ -69,7 +69,10 @@ namespace EE::Render
         EE_REFLECT_TYPE( StaticMeshResourceDescriptor );
 
         virtual bool IsUserCreateableDescriptor() const override { return true; }
+        virtual int32_t GetFileVersion() const override { return 0; }
+        virtual FileSystem::Extension GetExtension() const override final { return StaticMesh::GetStaticResourceTypeID().ToString(); }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return StaticMesh::GetStaticResourceTypeID(); }
+        virtual char const* GetFriendlyName() const override final { return StaticMesh::s_friendlyName; }
 
         virtual void Clear() override
         {
@@ -90,7 +93,10 @@ namespace EE::Render
     {
         EE_REFLECT_TYPE( SkeletalMeshResourceDescriptor );
 
+        virtual int32_t GetFileVersion() const override { return 0; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
+        virtual FileSystem::Extension GetExtension() const override final { return SkeletalMesh::GetStaticResourceTypeID().ToString(); }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return SkeletalMesh::GetStaticResourceTypeID(); }
+        virtual char const* GetFriendlyName() const override final { return SkeletalMesh::s_friendlyName; }
     };
 }

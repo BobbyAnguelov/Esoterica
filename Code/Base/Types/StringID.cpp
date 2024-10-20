@@ -9,56 +9,7 @@
 
 namespace EE
 {
-    class StringID_CustomAllocator
-    {
-    public:
-
-        EASTL_ALLOCATOR_EXPLICIT StringID_CustomAllocator( const char* pName = EASTL_NAME_VAL( EASTL_ALLOCATOR_DEFAULT_NAME ) ) {}
-        StringID_CustomAllocator( const StringID_CustomAllocator& x ) {}
-        StringID_CustomAllocator( const StringID_CustomAllocator& x, const char* pName ) {}
-        StringID_CustomAllocator& operator=( const StringID_CustomAllocator& x ) { return *this; }
-        const char* get_name() const { return "StringID"; }
-        void set_name( const char* pName ) {}
-
-        void* allocate( size_t n, int flags = 0 )
-        {
-            return allocate( n, EASTL_SYSTEM_ALLOCATOR_MIN_ALIGNMENT, 0, flags );
-        }
-
-        void* allocate( size_t n, size_t alignment, size_t offset, int flags = 0 )
-        {
-            size_t adjustedAlignment = ( alignment > EA_PLATFORM_PTR_SIZE ) ? alignment : EA_PLATFORM_PTR_SIZE;
-
-            void* p = new char[n + adjustedAlignment + EA_PLATFORM_PTR_SIZE];
-            void* pPlusPointerSize = (void*) ( (uintptr_t) p + EA_PLATFORM_PTR_SIZE );
-            void* pAligned = (void*) ( ( (uintptr_t) pPlusPointerSize + adjustedAlignment - 1 ) & ~( adjustedAlignment - 1 ) );
-
-            void** pStoredPtr = (void**) pAligned - 1;
-            EASTL_ASSERT( pStoredPtr >= p );
-            *( pStoredPtr ) = p;
-
-            EASTL_ASSERT( ( (size_t) pAligned & ~( alignment - 1 ) ) == (size_t) pAligned );
-            return pAligned;
-        }
-
-        void deallocate( void* p, size_t n )
-        {
-            if ( p != nullptr )
-            {
-                void* pOriginalAllocation = *( (void**) p - 1 );
-                delete[]( char* )pOriginalAllocation;
-            }
-        }
-    };
-
-    inline bool operator==( const StringID_CustomAllocator&, const StringID_CustomAllocator& ) { return true; }
-    inline bool operator!=( const StringID_CustomAllocator&, const StringID_CustomAllocator& ) { return false; }
-
-    //-------------------------------------------------------------------------
-
-    using CachedString = eastl::basic_string<char, StringID_CustomAllocator>;
-
-    class StringIDHashMap : public eastl::hash_map<uint32_t, CachedString, eastl::hash<uint32_t>, eastl::equal_to<uint32_t>, StringID_CustomAllocator>
+    class StringIDHashMap : public eastl::hash_map<uint64_t, String>
     {
     public:
       
@@ -67,34 +18,72 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    StringIDHashMap g_stringCache;
-    Threading::Mutex g_stringCacheMutex;
+    #if EE_DEVELOPMENT_TOOLS
+    StringID::DebuggerInfo*             StringID::s_pDebuggerInfo = nullptr;
+    #endif
 
-    // Natvis/Debugger info to print out human-readable strings
-    StringID::DebuggerInfo g_debuggerInfo;
-    EE::StringID::DebuggerInfo const* StringID::s_pDebuggerInfo = &g_debuggerInfo;
+    static Threading::Mutex*            g_pStringCacheMutex = nullptr;
+    static StringIDHashMap*             g_pStringCache = nullptr;
+
+    //-------------------------------------------------------------------------
+
+    void StringID::Initialize()
+    {
+        g_pStringCacheMutex = EE::New<Threading::Mutex>();
+        g_pStringCache = EE::New<StringIDHashMap>();
+
+        #if EE_DEVELOPMENT_TOOLS
+        s_pDebuggerInfo = EE::New<StringID::DebuggerInfo>();
+        #endif
+    }
+
+    void StringID::Shutdown()
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        EE::Delete( s_pDebuggerInfo );
+        #endif
+
+        EE::Delete( g_pStringCache);
+        EE::Delete( g_pStringCacheMutex );
+    }
 
     //-------------------------------------------------------------------------
 
     StringID::StringID( char const* pStr )
     {
+        // If this is nullptr then you are likely trying to statically allocate a stringID, this is not allowed and you need to use the "StaticStringID" type instead!
+        EE_ASSERT( g_pStringCacheMutex != nullptr ); 
+
         if ( pStr != nullptr && strlen( pStr ) > 0 )
         {
-            m_ID = Hash::GetHash32( pStr );
+            m_ID = Hash::GetHash64( pStr );
 
             // Cache the string
-            Threading::ScopeLock lock( g_stringCacheMutex );
-            auto iter = g_stringCache.find( m_ID );
-            if ( iter == g_stringCache.end() )
+            Threading::ScopeLock lock( *g_pStringCacheMutex );
+            auto iter = g_pStringCache->find( m_ID );
+            if ( iter == g_pStringCache->end() )
             {
-                g_stringCache[m_ID] = CachedString( pStr );
-                g_debuggerInfo.m_pBuckets = g_stringCache.GetBuckets();
-                g_debuggerInfo.m_numBuckets = g_stringCache.bucket_count();
+                ( *g_pStringCache )[m_ID] = String( pStr );
+
+                #if EE_DEVELOPMENT_TOOLS
+                s_pDebuggerInfo->m_pBuckets = g_pStringCache->GetBuckets();
+                s_pDebuggerInfo->m_numBuckets = g_pStringCache->bucket_count();
+                #endif
+            }
+            else
+            {
+                #if EE_DEVELOPMENT_TOOLS
+                EE_ASSERT( iter->second == pStr );
+                #endif
             }
         }
     }
 
     StringID::StringID( String const& str )
+        : StringID( str.c_str() )
+    {}
+
+    StringID::StringID( InlineString const& str )
         : StringID( str.c_str() )
     {}
 
@@ -107,15 +96,25 @@ namespace EE
 
         {
             // Get cached string
-            Threading::ScopeLock lock( g_stringCacheMutex );
-            auto iter = g_stringCache.find( m_ID );
-            if ( iter != g_stringCache.end() )
+            Threading::ScopeLock lock( *g_pStringCacheMutex );
+            auto iter = g_pStringCache->find( m_ID );
+            if ( iter != g_pStringCache->end() )
             {
                 return iter->second.c_str();
             }
         }
 
-        // ID likely directly created via uint32_t
+        // ID likely directly created via uint64_t
         return nullptr;
+    }
+
+    //-------------------------------------------------------------------------
+
+    StaticStringID::StaticStringID( char const* pStr )
+    {
+        EE_ASSERT( pStr != nullptr );
+        size_t const length = strlen( pStr );
+        EE_ASSERT( length < 64 );
+        memcpy( m_buffer, pStr, length);
     }
 }

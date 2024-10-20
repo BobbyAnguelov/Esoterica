@@ -1,6 +1,8 @@
 #include "ResourceEditor_AnimationClip.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
+#include "EngineTools/Timeline/TimelineEditor.h"
+#include "EngineTools/Core/Dialogs.h"
 #include "Engine/Animation/Components/Component_AnimationClipPlayer.h"
 #include "Engine/Animation/Systems/EntitySystem_Animation.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
@@ -9,7 +11,6 @@
 #include "Engine/UpdateContext.h"
 #include "Engine/Animation/AnimationPose.h"
 #include "Base/Math/MathUtils.h"
-#include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 
 //-------------------------------------------------------------------------
 
@@ -19,29 +20,25 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    AnimationClipEditor::AnimationClipEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-        : TResourceEditor<AnimationClip>( pToolsContext, pWorld, resourceID )
-        , m_eventTimeline( *pToolsContext->m_pTypeRegistry )
-        , m_timelineEditor( &m_eventTimeline, [this] () { BeginDescriptorModification(); }, [this] () { EndDescriptorModification(); } )
+    AnimationClipEditor::AnimationClipEditor( ToolsContext const* pToolsContext, ResourceID const& resourceID, EntityWorld* pWorld )
+        : TResourceEditor<AnimationClip>( pToolsContext, resourceID, pWorld )
         , m_propertyGrid( m_pToolsContext )
         , m_animationClipBrowser( pToolsContext )
     {
-        m_timelineEditor.SetLooping( true );
-
         //-------------------------------------------------------------------------
 
         auto const PreDescEdit = [this] ( PropertyEditInfo const& info )
         {
             EE_ASSERT( m_pActiveUndoableAction == nullptr );
-            EE_ASSERT( IsDescriptorLoaded() );
-            BeginDescriptorModification();
+            EE_ASSERT( IsDataFileLoaded() );
+            BeginDataFileModification();
         };
 
         auto const PostDescEdit = [this] ( PropertyEditInfo const& info )
         {
             EE_ASSERT( m_pActiveUndoableAction != nullptr );
-            EE_ASSERT( IsDescriptorLoaded() );
-            EndDescriptorModification();
+            EE_ASSERT( IsDataFileLoaded() );
+            EndDataFileModification();
         };
 
         m_propertyGridPreEditEventBindingID = m_propertyGrid.OnPreEdit().Bind( PreDescEdit );
@@ -62,10 +59,10 @@ namespace EE::Animation
         ImGui::DockBuilderSplitNode( bottomDockID, ImGuiDir_Right, 0.25f, &bottomRightDockID, &bottomLeftDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), topLeftDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), topLeftDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Timeline" ).c_str(), bottomLeftDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Track Data" ).c_str(), bottomRightDockID);
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomRightDockID);
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Hierarchy" ).c_str(), bottomRightDockID);
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomRightDockID);
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomRightDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Clip Browser" ).c_str(), topRightDockID);
     }
@@ -114,7 +111,7 @@ namespace EE::Animation
         m_pPreviewEntity->CreateSystem<AnimationSystem>();
         m_pPreviewEntity->AddComponent( m_pAnimationComponent );
 
-        // Create the primary mesh component
+        // Create the p[review mesh components
         auto pPrimarySkeleton = m_editedResource->GetSkeleton();
         if ( pPrimarySkeleton->GetPreviewMeshID().IsValid() )
         {
@@ -126,7 +123,6 @@ namespace EE::Animation
             m_pPreviewEntity->AddComponent( m_pMeshComponent );
 
             // If we have secondary anims then create the secondary preview components
-            m_secondarySkeletonAttachmentSocketIDs.clear();
             for ( auto pSecondaryAnimation : m_editedResource->GetSecondaryAnimations() )
             {
                 Skeleton const* pSecondarySkeleton = pSecondaryAnimation->GetSkeleton();
@@ -140,10 +136,17 @@ namespace EE::Animation
                     // Set attachment info and add to the entity
                     pSecondaryMeshComponent->SetWorldTransform( Transform::Identity );
                     pSecondaryMeshComponent->SetAttachmentSocketID( pSecondarySkeleton->GetPreviewAttachmentSocketID() );
-                    m_secondarySkeletonAttachmentSocketIDs.emplace_back( pSecondarySkeleton->GetPreviewAttachmentSocketID() );
                     m_pPreviewEntity->AddComponent( pSecondaryMeshComponent, m_pMeshComponent->GetID() );
                 }
             }
+        }
+
+        // Set up skeleton attachments
+        m_secondarySkeletonAttachmentSocketIDs.clear();
+        for ( auto pSecondaryAnimation : m_editedResource->GetSecondaryAnimations() )
+        {
+            Skeleton const* pSecondarySkeleton = pSecondaryAnimation->GetSkeleton();
+            m_secondarySkeletonAttachmentSocketIDs.emplace_back( pSecondarySkeleton->GetPreviewAttachmentSocketID() );
         }
 
         //-------------------------------------------------------------------------
@@ -161,19 +164,25 @@ namespace EE::Animation
         m_secondarySkeletonAttachmentSocketIDs.clear();
     }
 
-    void AnimationClipEditor::OnDescriptorUnload()
+    void AnimationClipEditor::OnDataFileUnload()
     {
+        EE::Delete( m_pTimelineEditor );
         m_propertyGrid.SetTypeToEdit( nullptr );
-        m_timelineEditor.SetLength( 0.0f );
         m_animationClipBrowser.SetSkeleton( ResourceID() );
     }
 
-    void AnimationClipEditor::OnDescriptorLoadCompleted()
+    void AnimationClipEditor::OnDataFileLoadCompleted()
     {
         m_characterPoseUpdateRequested = true;
-        if ( IsDescriptorLoaded() )
+
+        if ( IsDataFileLoaded() )
         {
-            m_animationClipBrowser.SetSkeleton( GetDescriptor<AnimationClipResourceDescriptor>()->m_skeleton.GetResourceID() );
+            m_animationClipBrowser.SetSkeleton( GetDataFile<AnimationClipResourceDescriptor>()->m_skeleton.GetResourceID() );
+
+            AnimationClipResourceDescriptor* pDescriptor = GetDataFile<AnimationClipResourceDescriptor>();
+            pDescriptor->m_events.FillAllowedTrackTypes( *m_pToolsContext->m_pTypeRegistry );
+            m_pTimelineEditor = EE::New<Timeline::TimelineEditor>( &pDescriptor->m_events, [this] () { BeginDataFileModification(); }, [this] () { EndDataFileModification(); } );
+            m_pTimelineEditor->SetLooping( true );
         }
     }
 
@@ -181,8 +190,10 @@ namespace EE::Animation
     {
         if ( pResourcePtr == &m_editedResource && m_editedResource.IsLoaded() )
         {
-            m_timelineEditor.SetLength( (float) m_editedResource->GetNumFrames() - 1 );
-            m_timelineEditor.SetTimeUnitConversionFactor( m_editedResource->IsSingleFrameAnimation() ? 30 : m_editedResource->GetFPS() );
+            EE_ASSERT( m_pTimelineEditor != nullptr );
+
+            m_pTimelineEditor->SetLength( (float) m_editedResource->GetNumFrames() - 1 );
+            m_pTimelineEditor->SetTimeUnitConversionFactor( m_editedResource->IsSingleFrameAnimation() ? 30 : m_editedResource->GetFPS() );
             CreatePreviewEntity();
             CreateSkeletonTree();
         }
@@ -203,7 +214,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void AnimationClipEditor::PreWorldUpdate( EntityWorldUpdateContext const& updateContext )
+    void AnimationClipEditor::WorldUpdate( EntityWorldUpdateContext const& updateContext )
     {
         if ( !IsResourceLoaded() )
         {
@@ -247,7 +258,25 @@ namespace EE::Animation
                 for ( int32_t i = 0; i < numSecondaryPoses; i++ )
                 {
                     Pose const* pSecondaryPose = m_pAnimationComponent->GetSecondaryPoses()[i];
-                    Transform const secondaryPoseTransform = m_secondarySkeletonAttachmentSocketIDs.empty() ? m_characterTransform : m_pMeshComponent->GetAttachmentSocketTransform( m_secondarySkeletonAttachmentSocketIDs[i] );
+
+                    Transform secondaryPoseTransform = m_characterTransform;
+                    if ( !m_secondarySkeletonAttachmentSocketIDs.empty() )
+                    {
+                        // If we have a mesh component use that for the attachment transform
+                        if ( m_pMeshComponent != nullptr )
+                        {
+                            m_pMeshComponent->GetAttachmentSocketTransform( m_secondarySkeletonAttachmentSocketIDs[i] );
+                        }
+                        else // Try use the bone transform from the primary pose
+                        {
+                            int32_t const boneIdx = pPose->GetSkeleton()->GetBoneIndex( m_secondarySkeletonAttachmentSocketIDs[i] );
+                            if ( boneIdx != InvalidIndex )
+                            {
+                                secondaryPoseTransform = pPose->GetModelSpaceTransform( boneIdx );
+                            }
+                        }
+                    }
+
                     pSecondaryPose->DrawDebug( drawingCtx, secondaryPoseTransform, m_skeletonLOD, Colors::Cyan, 3.0f, m_shouldDrawBoneNames, nullptr );
                 }
             }
@@ -274,7 +303,9 @@ namespace EE::Animation
             // Update pose and position
             //-------------------------------------------------------------------------
 
-            Percentage const percentageThroughAnimation = m_timelineEditor.GetPlayheadTimeAsPercentage();
+            EE_ASSERT( m_pTimelineEditor != nullptr );
+
+            Percentage const percentageThroughAnimation = m_pTimelineEditor->GetPlayheadTimeAsPercentage();
             if ( m_currentAnimTime != percentageThroughAnimation || m_characterPoseUpdateRequested )
             {
                 m_currentAnimTime = percentageThroughAnimation;
@@ -374,7 +405,7 @@ namespace EE::Animation
 
         auto PrintAnimDetails = [this] ( Color color )
         {
-            Percentage const currentTime = m_timelineEditor.GetPlayheadTimeAsPercentage();
+            Percentage const currentTime = m_pTimelineEditor->GetPlayheadTimeAsPercentage();
             uint32_t const numFrames = m_editedResource->GetNumFrames();
             FrameTime const frameTime = m_editedResource->GetFrameTime( currentTime );
 
@@ -383,8 +414,8 @@ namespace EE::Animation
             ImGui::Text( "Avg Angular Velocity: %.2f r/s", m_editedResource->GetAverageAngularVelocity().ToFloat() );
             ImGui::Text( "Distance Covered: %.2fm", m_editedResource->GetTotalRootMotionDelta().GetTranslation().GetLength3() );
             ImGui::Text( "Frame: %.2f/%d", frameTime.ToFloat(), numFrames - 1 );
-            ImGui::Text( "Time: %.2fs/%0.2fs", m_timelineEditor.GetPlayheadTimeAsPercentage().ToFloat() * m_editedResource->GetDuration(), m_editedResource->GetDuration().ToFloat() );
-            ImGui::Text( "Percentage: %.2f%%", m_timelineEditor.GetPlayheadTimeAsPercentage().ToFloat() * 100 );
+            ImGui::Text( "Time: %.2fs/%0.2fs", m_pTimelineEditor->GetPlayheadTimeAsPercentage().ToFloat() * m_editedResource->GetDuration(), m_editedResource->GetDuration().ToFloat() );
+            ImGui::Text( "Percentage: %.2f%%", m_pTimelineEditor->GetPlayheadTimeAsPercentage().ToFloat() * 100 );
 
             if ( m_editedResource->IsAdditive() )
             {
@@ -417,18 +448,21 @@ namespace EE::Animation
         }
         else
         {
+            EE_ASSERT( m_pTimelineEditor != nullptr );
+
             // Track editor and property grid
             //-------------------------------------------------------------------------
 
-            m_timelineEditor.UpdateAndDraw( GetEntityWorld()->GetTimeScale() * context.GetDeltaTime() );
+            m_pTimelineEditor->UpdateAndDraw( GetEntityWorld()->GetTimeScale() * context.GetDeltaTime() );
 
             // Handle selection changes
-            auto const& selectedItems = m_timelineEditor.GetSelectedItems();
+            auto const& selectedItems = m_pTimelineEditor->GetSelectedItems();
             if ( !selectedItems.empty() )
             {
-                if ( selectedItems.back()->GetData() != m_propertyGrid.GetEditedType() )
+                auto pEventItem = Cast<EventTrackItem>( selectedItems.back() );
+                if ( pEventItem->GetEvent() != m_propertyGrid.GetEditedType() )
                 {
-                    m_propertyGrid.SetTypeToEdit( selectedItems.back()->GetData() );
+                    m_propertyGrid.SetTypeToEdit( pEventItem->GetEvent() );
                 }
             }
             else // Clear property grid
@@ -495,7 +529,7 @@ namespace EE::Animation
 
     void AnimationClipEditor::DrawDetailsWindow( UpdateContext const& context, bool isFocused )
     {
-        m_propertyGrid.DrawGrid();
+        m_propertyGrid.UpdateAndDraw();
     }
 
     void AnimationClipEditor::DrawClipBrowser( UpdateContext const& context, bool isFocused )
@@ -629,7 +663,7 @@ namespace EE::Animation
 
             if ( pPose != nullptr && boneIdx != 0 )
             {
-                Transform boneTransform = pPose->GetGlobalTransform( boneIdx );
+                Transform boneTransform = pPose->GetModelSpaceTransform( boneIdx );
                 ImGuiX::DrawTransform( boneTransform );
             }
         }
@@ -667,10 +701,10 @@ namespace EE::Animation
 
     bool AnimationClipEditor::SaveData()
     {
-        auto const status = m_timelineEditor.GetTrackContainerValidationStatus();
+        Timeline::Track::Status const status = m_pTimelineEditor->GetTrackContainerValidationStatus();
         if ( status == Timeline::Track::Status::HasErrors )
         {
-            pfd::message( "Invalid Events", "This animation clip has one or more invalid event tracks. These events will not be available in the game!", pfd::choice::ok, pfd::icon::error ).result();
+            MessageDialog::Error( "Invalid Events", "This animation clip has one or more invalid event tracks. These events will not be available in the game!" );
         }
 
         if ( !TResourceEditor<AnimationClip>::SaveData() )
@@ -681,16 +715,6 @@ namespace EE::Animation
         m_propertyGrid.ClearDirty();
 
         return true;
-    }
-
-    void AnimationClipEditor::ReadCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue )
-    {
-        m_eventTimeline.Serialize( typeRegistry, descriptorObjectValue );
-    }
-
-    void AnimationClipEditor::WriteCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer )
-    {
-        static_cast<Timeline::TimelineData&>( m_eventTimeline ).Serialize( typeRegistry, writer );
     }
 
     void AnimationClipEditor::PreUndoRedo( UndoStack::Operation operation )

@@ -26,27 +26,19 @@ namespace EE::Animation
         "Right Phase"
     };
 
-    static StringID g_phaseIDs[4] =
-    {
-        StringID( g_phaseNames[0] ),
-        StringID( g_phaseNames[1] ),
-        StringID( g_phaseNames[2] ),
-        StringID( g_phaseNames[3] ),
-    };
-
-    static Color g_phaseColors[4] =
-    {
-        Colors::LightSkyBlue,
-        Colors::LightPink,
-        Colors::HotPink,
-        Colors::DeepSkyBlue,
-    };
-
     //-------------------------------------------------------------------------
 
     StringID FootEvent::GetSyncEventID() const
     {
-        return StringID( g_phaseIDs[(int32_t) m_phase] );
+        static StringID const phaseIDs[4] =
+        {
+            StringID( g_phaseNames[0] ),
+            StringID( g_phaseNames[1] ),
+            StringID( g_phaseNames[2] ),
+            StringID( g_phaseNames[3] ),
+        };
+
+        return StringID( phaseIDs[(int32_t) m_phase] );
     }
 
     #if EE_DEVELOPMENT_TOOLS
@@ -62,7 +54,15 @@ namespace EE::Animation
 
     Color FootEvent::GetPhaseColor( Phase phase )
     {
-        return g_phaseColors[(int32_t) phase];
+        static Color const phaseColors[4] =
+        {
+            Colors::LightSkyBlue,
+            Colors::LightPink,
+            Colors::HotPink,
+            Colors::DeepSkyBlue,
+        };
+
+        return phaseColors[(int32_t) phase];
     }
     #endif
 }

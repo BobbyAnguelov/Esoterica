@@ -14,7 +14,6 @@ namespace EE::Animation::GraphNodes
 
         ZeroPoseToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Zero Pose"; }
         virtual char const* GetCategory() const override { return "Animation/Poses"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
@@ -31,7 +30,6 @@ namespace EE::Animation::GraphNodes
 
         ReferencePoseToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Reference Pose"; }
         virtual char const* GetCategory() const override { return "Animation/Poses"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
@@ -48,16 +46,16 @@ namespace EE::Animation::GraphNodes
 
         AnimationPoseToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Animation Pose"; }
         virtual char const* GetCategory() const override { return "Animation/Poses"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual bool DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
 
         virtual char const* GetDefaultSlotName() const override { return "Pose"; }
         virtual ResourceTypeID GetSlotResourceTypeID() const override { return AnimationClip::GetStaticResourceTypeID(); }
         virtual bool IsDragAndDropTargetForResourceType( ResourceTypeID typeID ) const override { return false; }
+
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 

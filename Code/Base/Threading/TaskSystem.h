@@ -37,7 +37,7 @@ namespace EE
         TaskSystem( int32_t numWorkers );
         ~TaskSystem();
 
-        inline bool IsInitialized() const { return m_initialized; }
+        inline bool WasInitialized() const { return m_initialized; }
         void Initialize();
         void Shutdown();
 

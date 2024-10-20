@@ -8,7 +8,7 @@ namespace EE::FileSystem
     InputFileStream::InputFileStream( Path const& filePath )
     {
         EE_ASSERT( filePath.IsFilePath() );
-        if ( !FileSystem::Exists( filePath ) )
+        if ( !filePath.Exists() )
         {
             return;
         }

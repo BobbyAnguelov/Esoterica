@@ -41,8 +41,7 @@
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionSettings" />
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\..\PropertySheets\Esoterica.props" />
@@ -58,27 +57,26 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <NMakeBuildCommandLine>nmake -f Reflect.nmake PLATFORM=$(Platform) CONFIG=$(Configuration) EE_ROOT_DIR="$(EE_ROOT_DIR)\" EE_BUILD_DIR="$(EE_BUILD_DIR)\" OUT_DIR="$(OutDir)\"</NMakeBuildCommandLine>
-    <NMakeOutput>
-    </NMakeOutput>
+    <NMakeOutput />
     <NMakeCleanCommandLine>nmake clean -f Reflect.nmake PLATFORM=$(Platform) CONFIG=$(Configuration) EE_ROOT_DIR="$(EE_ROOT_DIR)\" EE_BUILD_DIR="$(EE_BUILD_DIR)\" OUT_DIR="$(OutDir)\"</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>WIN32;_DEBUG;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <NMakeReBuildCommandLine>nmake rebuild -f Reflect.nmake PLATFORM=$(Platform) CONFIG=$(Configuration) EE_ROOT_DIR="$(EE_ROOT_DIR)\" EE_BUILD_DIR="$(EE_BUILD_DIR)\" OUT_DIR="$(OutDir)\"</NMakeReBuildCommandLine>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <NMakeBuildCommandLine>nmake -f Reflect.nmake PLATFORM=$(Platform) CONFIG=$(Configuration) EE_ROOT_DIR="$(EE_ROOT_DIR)\" EE_BUILD_DIR="$(EE_BUILD_DIR)\" OUT_DIR="$(OutDir)\"</NMakeBuildCommandLine>
-    <NMakeOutput>
-    </NMakeOutput>
+    <NMakeOutput />
     <NMakeCleanCommandLine>nmake clean -f Reflect.nmake PLATFORM=$(Platform) CONFIG=$(Configuration) EE_ROOT_DIR="$(EE_ROOT_DIR)\" EE_BUILD_DIR="$(EE_BUILD_DIR)\" OUT_DIR="$(OutDir)\"</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>WIN32;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <NMakeReBuildCommandLine>nmake rebuild -f Reflect.nmake PLATFORM=$(Platform) CONFIG=$(Configuration) EE_ROOT_DIR="$(EE_ROOT_DIR)\" EE_BUILD_DIR="$(EE_BUILD_DIR)\" OUT_DIR="$(OutDir)\"</NMakeReBuildCommandLine>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">
     <NMakeBuildCommandLine>nmake -f Reflect.nmake PLATFORM=$(Platform) CONFIG=$(Configuration) EE_ROOT_DIR="$(EE_ROOT_DIR)\" EE_BUILD_DIR="$(EE_BUILD_DIR)\" OUT_DIR="$(OutDir)\"</NMakeBuildCommandLine>
     <NMakeOutput />
     <NMakeCleanCommandLine>nmake clean -f Reflect.nmake PLATFORM=$(Platform) CONFIG=$(Configuration) EE_ROOT_DIR="$(EE_ROOT_DIR)\" EE_BUILD_DIR="$(EE_BUILD_DIR)\" OUT_DIR="$(OutDir)\"</NMakeCleanCommandLine>
     <NMakePreprocessorDefinitions>WIN32;$(NMakePreprocessorDefinitions)</NMakePreprocessorDefinitions>
+    <NMakeReBuildCommandLine>nmake rebuild -f Reflect.nmake PLATFORM=$(Platform) CONFIG=$(Configuration) EE_ROOT_DIR="$(EE_ROOT_DIR)\" EE_BUILD_DIR="$(EE_BUILD_DIR)\" OUT_DIR="$(OutDir)\"</NMakeReBuildCommandLine>
   </PropertyGroup>
-  <ItemDefinitionGroup>
-  </ItemDefinitionGroup>
+  <ItemDefinitionGroup />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
-  <ImportGroup Label="ExtensionTargets">
-  </ImportGroup>
+  <ImportGroup Label="ExtensionTargets" />
 </Project>

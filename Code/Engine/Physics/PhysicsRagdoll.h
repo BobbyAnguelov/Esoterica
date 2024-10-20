@@ -132,7 +132,7 @@ namespace EE::Physics
 
     struct EE_ENGINE_API RagdollDefinition : public Resource::IResource
     {
-        EE_RESOURCE( 'rgdl', "Physics Ragdoll" );
+        EE_RESOURCE( 'rgdl', "Physics Ragdoll", 6, false );
         EE_SERIALIZE( m_skeleton, m_bodies, m_profiles );
 
     public:

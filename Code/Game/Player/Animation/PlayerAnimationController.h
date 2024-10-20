@@ -59,10 +59,11 @@ namespace EE::Player
 
     private:
 
-        static StringID const s_characterStateIDs[ (uint8_t) CharacterState::NumStates];
-        static StringID const s_locomotionStateIDs[ (uint8_t) LocomotionState::NumStates];
-        static StringID const s_inAirStateParameterIDs[(uint8_t) LocomotionState::NumStates];
-        static StringID const s_weaponStateIDs[ (uint8_t) WeaponState::NumStates];
+        static StaticStringID const s_characterStateIDs[ (uint8_t) CharacterState::NumStates];
+        static StaticStringID const s_locomotionStateIDs[ (uint8_t) LocomotionState::NumStates];
+        static StaticStringID const s_inAirStateParameterIDs[3];
+        static StaticStringID const s_weaponStateIDs[ (uint8_t) WeaponState::NumStates];
+        static StaticStringID const s_locomotionTransitionMarkerID;
 
     public:
 
@@ -160,9 +161,9 @@ namespace EE::Player
 
         ControlParameter<StringID>                          m_locomotionState = "Locomotion_State";
         ControlParameter<float>                             m_locomotionSpeed = "Locomotion_Speed";
-        ControlParameter<Vector>                            m_locomotionMoveDir = "Locomotion_MoveDirection";
-        ControlParameter<Vector>                            m_locomotionMoveVelocity = "Locomotion_MoveVelocity";
-        ControlParameter<Vector>                            m_locomotionFacing = "Locomotion_Facing";
+        ControlParameter<Float3>                            m_locomotionMoveDir = "Locomotion_MoveDirection";
+        ControlParameter<Float3>                            m_locomotionMoveVelocity = "Locomotion_MoveVelocity";
+        ControlParameter<Float3>                            m_locomotionFacing = "Locomotion_Facing";
         ControlParameter<bool>                              m_locomotionCrouchState = "Locomotion_IsCrouched";
         ControlParameter<bool>                              m_locomotionAutoSlidingState = "Locomotion_IsAutoSliding";
 
@@ -174,9 +175,9 @@ namespace EE::Player
 
         ControlParameter<StringID>                          m_inAirState = "InAir_State";
         ControlParameter<float>                             m_inAirSpeed = "InAir_Speed";
-        ControlParameter<Vector>                            m_inAirMoveDir = "InAir_MoveDirection";
-        ControlParameter<Vector>                            m_inAirMoveVelocity = "InAir_MoveVelocity";
-        ControlParameter<Vector>                            m_inAirFacing = "InAir_Facing";
+        ControlParameter<Float3>                            m_inAirMoveDir = "InAir_MoveDirection";
+        ControlParameter<Float3>                            m_inAirMoveVelocity = "InAir_MoveVelocity";
+        ControlParameter<Float3>                            m_inAirFacing = "InAir_Facing";
 
         // Weapons
         //-------------------------------------------------------------------------
@@ -194,9 +195,9 @@ namespace EE::Player
 
         ControlParameter<StringID>                          m_abilityState = "Ability_State";
         ControlParameter<float>                             m_abilitySpeed = "Ability_Speed";
-        ControlParameter<Vector>                            m_abilityMoveDir = "Ability_MoveDirection";
-        ControlParameter<Vector>                            m_abilityMoveVelocity = "Ability_MoveVelocity";
-        ControlParameter<Vector>                            m_abilityFacing = "Ability_Facing";
+        ControlParameter<Float3>                            m_abilityMoveDir = "Ability_MoveDirection";
+        ControlParameter<Float3>                            m_abilityMoveVelocity = "Ability_MoveVelocity";
+        ControlParameter<Float3>                            m_abilityFacing = "Ability_Facing";
 
         //-------------------------------------------------------------------------
 

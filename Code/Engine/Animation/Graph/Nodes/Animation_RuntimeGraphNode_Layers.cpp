@@ -286,7 +286,7 @@ namespace EE::Animation::GraphNodes
                     PoseBlendMode poseBlendMode = pDefinition->m_layerDefinition[i].m_blendMode;
 
                     // We cannot perform a global blend without a bone mask
-                    if ( poseBlendMode == PoseBlendMode::GlobalSpace && !context.m_pLayerContext->m_layerMaskTaskList.HasTasks() )
+                    if ( poseBlendMode == PoseBlendMode::ModelSpace && !context.m_pLayerContext->m_layerMaskTaskList.HasTasks() )
                     {
                         #if EE_DEVELOPMENT_TOOLS
                         context.LogWarning( GetNodeIndex(), "Attempting to perform a global blend without a bone mask! This is not supported so falling back to a local blend!" );
@@ -310,7 +310,7 @@ namespace EE::Animation::GraphNodes
                         }
                         break;
 
-                        case PoseBlendMode::GlobalSpace:
+                        case PoseBlendMode::ModelSpace:
                         {
                             nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::GlobalBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, context.m_pLayerContext->m_layerMaskTaskList );
                         }

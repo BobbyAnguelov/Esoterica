@@ -140,8 +140,8 @@ namespace EE::Animation::GraphNodes
 
         if ( m_pImpulseOriginValueNode != nullptr && m_pImpulseForceValueNode != nullptr )
         {
-            Vector const impulseOrigin = m_pImpulseOriginValueNode->GetValue<Vector>( context );
-            Vector const impulseForce = m_pImpulseForceValueNode->GetValue<Vector>( context );
+            Vector const impulseOrigin = m_pImpulseOriginValueNode->GetValue<Float3>( context );
+            Vector const impulseForce = m_pImpulseForceValueNode->GetValue<Float3>( context );
             if ( !impulseForce.IsNearZero3() )
             {
                 m_pRagdoll->ApplyImpulse( impulseOrigin, impulseForce );
@@ -151,12 +151,12 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         Tasks::RagdollSetPoseTask::InitOption const initOptions = m_isFirstUpdate ? Tasks::RagdollSetPoseTask::InitializeBodies : Tasks::RagdollSetPoseTask::DoNothing;
-        TaskIndex const setPoseTaskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollSetPoseTask>( m_pRagdoll, GetNodeIndex(), childResult.m_taskIdx, initOptions );
+        int8_t const setPoseTaskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollSetPoseTask>( GetNodeIndex(), m_pRagdoll, childResult.m_taskIdx, initOptions );
 
         //-------------------------------------------------------------------------
 
         float const physicsWeight = ( m_pBlendWeightValueNode != nullptr ) ? m_pBlendWeightValueNode->GetValue<float>( context ) : GetDefinition<PoweredRagdollNode>()->m_physicsBlendWeight;
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( m_pRagdoll, GetNodeIndex(), setPoseTaskIdx, physicsWeight );
+        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( GetNodeIndex(), m_pRagdoll, setPoseTaskIdx, physicsWeight );
         return result;
     }
 }

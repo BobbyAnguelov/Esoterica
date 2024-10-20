@@ -9,7 +9,6 @@ namespace EE::EntityModel
     class EntityMapCompiler final : public Resource::Compiler
     {
         EE_REFLECT_TYPE( EntityMapCompiler );
-        static const int32_t s_version = 3;
 
     public:
 

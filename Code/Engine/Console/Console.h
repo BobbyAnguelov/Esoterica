@@ -21,10 +21,13 @@ namespace EE
 
     public:
 
-        Console( Settings::SettingsRegistry& registry );
+        Console() = default;
+
+        void Initialize( Settings::SettingsRegistry& settingsRegistry );
+        void Shutdown();
 
         inline bool IsVisible() const { return m_isVisible; }
-        inline void SetVisible( bool isVisible ) { m_isVisible = isVisible; }\
+        inline void SetVisible( bool isVisible ) { m_isVisible = isVisible; }
 
         void Update( UpdateContext const& context );
 
@@ -37,7 +40,7 @@ namespace EE
 
         ImGuiX::FilterWidget            m_globalSettingsFilterWidget;
         ImGuiX::FilterWidget            m_worldSettingsFilterWidget;
-        Settings::SettingsRegistry&     m_registry;
+        Settings::SettingsRegistry*     m_pSettingsRegistry = nullptr;
         bool                            m_isVisible = false;
     };
 }

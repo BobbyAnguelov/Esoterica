@@ -52,7 +52,7 @@ namespace EE::Physics
     protected:
 
         // The collision mesh to load (can be either convex or concave)
-        EE_REFLECT( "Category" : "Body" )
+        EE_REFLECT( Category = "Body" )
         TResourcePtr<CollisionMesh>                     m_collisionMesh;
 
         // A local scale that doesnt propagate but that can allow for non-uniform scaling of shapes
@@ -60,7 +60,7 @@ namespace EE::Physics
         Float3                                          m_localScale = Float3::One;
 
         // Should we override the collision settings coming from the resource?
-        EE_REFLECT( "Category" : "Colliision" )
+        EE_REFLECT( Category = "Colliision" )
         bool                                            m_overrideCollisionSettings = false;
     };
 }

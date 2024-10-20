@@ -67,7 +67,7 @@ namespace EE::Animation::GraphNodes
             m_pGraphInstance->ResetGraphState( initialTime );
 
             auto pRootNode = const_cast<PoseNode*>( m_pGraphInstance->GetRootNode() );
-            EE_ASSERT( pRootNode->IsInitialized() );
+            EE_ASSERT( pRootNode->WasInitialized() );
             m_previousTime = pRootNode->GetCurrentTime();
             m_currentTime = pRootNode->GetCurrentTime();
             m_duration = pRootNode->GetDuration();
@@ -84,7 +84,7 @@ namespace EE::Animation::GraphNodes
         if ( m_pGraphInstance != nullptr )
         {
             auto pRootNode = const_cast<PoseNode*>( m_pGraphInstance->GetRootNode() );
-            EE_ASSERT( pRootNode->IsInitialized() );
+            EE_ASSERT( pRootNode->WasInitialized() );
             pRootNode->Shutdown( context );
         }
     }
@@ -96,7 +96,10 @@ namespace EE::Animation::GraphNodes
         if ( m_pGraphInstance != nullptr )
         {
             auto pRootNode = m_pGraphInstance->GetRootNode();
-            return pRootNode->GetSyncTrack();
+            if ( pRootNode->IsValid() )
+            {
+                return pRootNode->GetSyncTrack();
+            }
         }
 
         return SyncTrack::s_defaultTrack;
@@ -144,7 +147,7 @@ namespace EE::Animation::GraphNodes
 
                 case GraphValueType::Vector:
                 {
-                    m_pGraphInstance->SetControlParameterValue( childParamIdx, pParameter->GetValue<Vector>( context ) );
+                    m_pGraphInstance->SetControlParameterValue( childParamIdx, pParameter->GetValue<Float3>( context ) );
                 }
                 break;
 
@@ -184,7 +187,7 @@ namespace EE::Animation::GraphNodes
 
             // Push the current node idx into the event debug path
             #if EE_DEVELOPMENT_TOOLS
-            context.m_pSampledEventsBuffer->PushDebugGraphPathElement( GetNodeIndex() );
+            context.PushDebugPath( GetNodeIndex() );
             #endif
 
             // Evaluate child graph
@@ -199,14 +202,9 @@ namespace EE::Animation::GraphNodes
             // Update sampled event range
             result.m_sampledEventRange.m_endIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
 
-            // Transfer root motion debug
-            #if EE_DEVELOPMENT_TOOLS
-            context.GetRootMotionDebugger()->RecordGraphSource( GetNodeIndex(), result.m_rootMotionDelta );
-            #endif
-
             // Pop debug path element
             #if EE_DEVELOPMENT_TOOLS
-            context.m_pSampledEventsBuffer->PopDebugGraphPathElement();
+            context.PopDebugPath();
             #endif
         }
 

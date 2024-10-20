@@ -2,7 +2,8 @@
 
 #include "Engine/_Module/API.h"
 #include "EntityIDs.h"
-#include "EntityContexts.h"
+#include "EntityLoadingContext.h"
+#include "EntityInitializationContext.h"
 #include "Base/TypeSystem/ReflectedType.h"
 
 //-------------------------------------------------------------------------
@@ -14,7 +15,7 @@ namespace EE
         class EntityMapEditor;
         class EntityCollection;
         class EntityMap;
-        struct Serializer;
+        struct EntityDescriptor;
     }
 
     //-------------------------------------------------------------------------
@@ -25,7 +26,7 @@ namespace EE
 
         friend class Entity;
         friend class EntityWorld;
-        friend EntityModel::Serializer;
+        friend EntityModel::EntityDescriptor;
         friend EntityModel::EntityCollection;
         friend EntityModel::EntityMap;
 
@@ -58,7 +59,7 @@ namespace EE
         inline bool IsUnloaded() const { return m_status == Status::Unloaded; }
         inline bool IsLoading() const { return m_status == Status::Loading; }
         inline bool IsLoaded() const { return m_status == Status::Loaded; }
-        inline bool IsInitialized() const { return m_status == Status::Initialized; }
+        inline bool WasInitialized() const { return m_status == Status::Initialized; }
         inline Status GetStatus() const { return m_status; }
 
         // Do we allow multiple components of the same type per entity?
@@ -92,7 +93,7 @@ namespace EE
 
         ComponentID                                         m_ID = ComponentID::Generate();                 // The unique ID for this component
         EntityID                                            m_entityID;                                     // The ID of the entity that owns this component
-        EE_REFLECT( "IsToolsReadOnly" : true ) StringID     m_name;                                         // The name of the component
+        EE_REFLECT( ReadOnly ) StringID     m_name;                                         // The name of the component
         Status                                              m_status = Status::Unloaded;                    // Component status
         bool                                                m_isRegisteredWithEntity = false;               // Registered with its parent entity's local systems
         bool                                                m_isRegisteredWithWorld = false;                // Registered with the global systems in it's parent world

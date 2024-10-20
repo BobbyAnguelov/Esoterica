@@ -51,9 +51,9 @@ namespace EE::Navmesh
     public:
 
         using SpatialEntityComponent::SpatialEntityComponent;
-        NavmeshComponent( ResourceID const& navmeshResourceID ) : m_pNavmeshData( navmeshResourceID ) {}
+        NavmeshComponent( ResourceID const& navmeshResourceID ) : m_navmeshData( navmeshResourceID ) {}
 
-        inline bool HasNavmeshData() const { return m_pNavmeshData.IsLoaded() && m_pNavmeshData->IsValid(); }
+        inline bool HasNavmeshData() const { return m_navmeshData.IsLoaded() && m_navmeshData->IsValid(); }
 
         #if EE_DEVELOPMENT_TOOLS
         NavmeshBuildSettings const& GetBuildSettings() const { return m_buildSettings; }
@@ -67,7 +67,7 @@ namespace EE::Navmesh
         NavmeshBuildSettings                    m_buildSettings;
         #endif
 
-        EE_REFLECT( "IsToolsReadOnly" : true )
-        TResourcePtr<NavmeshData>               m_pNavmeshData;
+        EE_REFLECT( ReadOnly )
+        TResourcePtr<NavmeshData>               m_navmeshData;
     };
 }

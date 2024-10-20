@@ -392,7 +392,7 @@ namespace EE::Render
 
     void DebugRenderer::RenderWorld( Seconds const deltaTime, Viewport const& viewport, RenderTarget const& renderTarget, EntityWorld* pWorld )
     {
-        EE_ASSERT( IsInitialized() && Threading::IsMainThread() );
+        EE_ASSERT( WasInitialized() && Threading::IsMainThread() );
         EE_PROFILE_FUNCTION_RENDER();
 
         if ( !viewport.IsValid() )

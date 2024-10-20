@@ -12,9 +12,9 @@ using namespace physx;
 namespace EE::Physics
 {
     PhysicsMaterialDatabaseCompiler::PhysicsMaterialDatabaseCompiler()
-        : Resource::Compiler( "PhysicsMaterialCompiler", s_version )
+        : Resource::Compiler( "PhysicsMaterialCompiler" )
     {
-        m_outputTypes.push_back( MaterialDatabase::GetStaticResourceTypeID() );
+        AddOutputType<MaterialDatabase>();
     }
 
     Resource::CompilationResult PhysicsMaterialDatabaseCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -30,61 +30,50 @@ namespace EE::Physics
 
         MaterialDatabase db;
 
-        for ( ResourcePath const& libraryPath : resourceDescriptor.m_materialLibraries )
+        for ( DataPath const& libraryPath : resourceDescriptor.m_materialLibraries )
         {
             FileSystem::Path libraryFilePath;
-            if ( !ConvertResourcePathToFilePath( libraryPath, libraryFilePath ) )
+            if ( !ConvertDataPathToFilePath( libraryPath, libraryFilePath ) )
             {
                 return Error( "Failed to convert data path to filepath: %s", libraryPath.c_str() );
             }
 
             //-------------------------------------------------------------------------
 
-            Serialization::TypeArchiveReader typeReader( *m_pTypeRegistry );
-            if ( typeReader.ReadFromFile( libraryFilePath ) )
-            {
-                int32_t const numSerializedTypes = typeReader.GetNumSerializedTypes();
-                if ( numSerializedTypes == 0 )
-                {
-                    return Error( "Empty physics material library encountered: %s", libraryFilePath.c_str() );
-                }
-
-                for ( auto i = 0; i < numSerializedTypes; i++ )
-                {
-                    MaterialSettings material;
-                    typeReader >> material;
-
-                    // Validity check
-                    if ( !material.IsValid() )
-                    {
-                        return Error( "Invalid physics material encountered in library: %s", libraryFilePath.c_str() );
-                    }
-
-                    // Duplicate check
-                    auto DuplicateCheck = [] ( MaterialSettings const& materialSettings, StringID const& ID )
-                    {
-                        return materialSettings.m_ID == ID;
-                    };
-
-                    if ( eastl::find( db.m_materials.begin(), db.m_materials.end(), material.m_ID, DuplicateCheck ) != db.m_materials.end() )
-                    {
-                        return Error( "ResourceCompiler", "Duplicate physics material ID '%s' detected", material.m_ID.c_str() );
-                    }
-
-                    // Add valid material
-                    db.m_materials.emplace_back( material );
-                }
-            }
-            else
+            PhysicsMaterialLibrary materialLibrary;
+            if ( !IDataFile::TryReadFromFile( *m_pTypeRegistry, libraryFilePath, materialLibrary ) )
             {
                 return Error( "ResourceCompiler", "Failed to read physics material library file: %s", libraryFilePath.c_str() );
+            }
+
+            for ( auto const& material : materialLibrary.m_settings )
+            {
+                // Validity check
+                if ( !material.IsValid() )
+                {
+                    return Error( "Invalid physics material encountered in library: %s", libraryFilePath.c_str() );
+                }
+
+                // Duplicate check
+                auto DuplicateCheck = [] ( MaterialSettings const& materialSettings, StringID const& ID )
+                {
+                    return materialSettings.m_ID == ID;
+                };
+
+                if ( eastl::find( db.m_materials.begin(), db.m_materials.end(), material.m_ID, DuplicateCheck ) != db.m_materials.end() )
+                {
+                    return Error( "ResourceCompiler", "Duplicate physics material ID '%s' detected", material.m_ID.c_str() );
+                }
+
+                // Add valid material
+                db.m_materials.emplace_back( material );
             }
         }
 
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, MaterialDatabase::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        Resource::ResourceHeader hdr( MaterialDatabase::s_version, MaterialDatabase::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
 
         Serialization::BinaryOutputArchive archive;
         archive << hdr << db;

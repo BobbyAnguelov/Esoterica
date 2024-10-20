@@ -127,7 +127,7 @@ namespace EE::Animation
             {
                 Transform const& frameStartTransform = m_transforms[frameTime.GetFrameIndex()];
                 Transform const& frameEndTransform = m_transforms[frameTime.GetFrameIndex() + 1];
-                displacementTransform = Transform::Slerp( frameStartTransform, frameEndTransform, frameTime.GetPercentageThrough() );
+                displacementTransform = Transform::SLerp( frameStartTransform, frameEndTransform, frameTime.GetPercentageThrough() );
             }
         }
 

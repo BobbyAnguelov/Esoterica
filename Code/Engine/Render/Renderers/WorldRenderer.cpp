@@ -780,7 +780,7 @@ namespace EE::Render
 
     void WorldRenderer::RenderWorld( Seconds const deltaTime, Viewport const& viewport, RenderTarget const& renderTarget, EntityWorld* pWorld )
     {
-        EE_ASSERT( IsInitialized() && Threading::IsMainThread() );
+        EE_ASSERT( WasInitialized() && Threading::IsMainThread() );
         EE_PROFILE_FUNCTION_RENDER();
 
         if ( !viewport.IsValid() )
@@ -833,7 +833,7 @@ namespace EE::Render
                 lightingFlags |= LIGHTING_ENABLE_SKYLIGHT;
                 renderData.m_pSkyboxRadianceTexture = pGlobalEnvironmentMapComponent->GetSkyboxRadianceTexture();
                 renderData.m_pSkyboxTexture = pGlobalEnvironmentMapComponent->GetSkyboxTexture();
-                renderData.m_lightData.m_SunColorRoughnessOneLevel.SetW( Math::Max( Math::Floor( Math::Log2f( (float) renderData.m_pSkyboxRadianceTexture->GetDimensions().m_x ) ) - 1.0f, 0.0f ) );
+                renderData.m_lightData.m_SunColorRoughnessOneLevel.SetW( Math::Max( Math::Floor( Math::Log2( (float) renderData.m_pSkyboxRadianceTexture->GetDimensions().m_x ) ) - 1.0f, 0.0f ) );
                 renderData.m_lightData.m_SunDirIndirectIntensity.SetW( pGlobalEnvironmentMapComponent->GetSkyboxIntensity() );
                 renderData.m_lightData.m_manualExposure = pGlobalEnvironmentMapComponent->GetExposure();
             }

@@ -41,20 +41,49 @@ namespace EE
         using ScopeLock = std::lock_guard<Mutex>;
         using RecursiveScopeLock = std::lock_guard<RecursiveMutex>;
 
+        //-------------------------------------------------------------------------
         // Read/Write lock
+        //-------------------------------------------------------------------------
+
         class ReadWriteMutex
         {
         public:
 
-            inline void LockForWrite() { m_mutex.lock(); }
-            inline bool TryLockForWrite() { return m_mutex.try_lock(); }
+            EE_FORCE_INLINE void LockWrite() { m_mutex.lock(); }
+            EE_FORCE_INLINE bool TryLockWrite() { return m_mutex.try_lock(); }
+            EE_FORCE_INLINE void UnlockWrite() { m_mutex.unlock(); }
 
-            inline void LockForRead() { m_mutex.lock_shared(); }
-            inline bool TryLockForRead() { return m_mutex.try_lock_shared(); }
+            EE_FORCE_INLINE void LockRead() { m_mutex.lock_shared(); }
+            EE_FORCE_INLINE bool TryLockRead() { return m_mutex.try_lock_shared(); }
+            EE_FORCE_INLINE void UnlockRead() { m_mutex.unlock_shared(); }
 
         private:
 
             std::shared_mutex m_mutex;
+        };
+
+        class [[nodiscard]] ScopeLockRead
+        {
+        public:
+
+            ScopeLockRead( ReadWriteMutex& mutex ) : m_mutex( mutex ) { m_mutex.LockRead(); }
+            ~ScopeLockRead() { m_mutex.UnlockRead(); }
+
+        private:
+
+            ReadWriteMutex& m_mutex;
+        };
+
+        class [[nodiscard]] ScopeLockWrite
+        {
+        public:
+
+            ScopeLockWrite( ReadWriteMutex& mutex ) : m_mutex( mutex ) { m_mutex.LockWrite(); }
+            ~ScopeLockWrite() { m_mutex.UnlockWrite(); }
+
+        private:
+
+            ReadWriteMutex& m_mutex;
         };
 
         //-------------------------------------------------------------------------

@@ -53,10 +53,10 @@ namespace EE::Animation::GraphNodes
             DeltaOrientationZ, // The difference in orientation between the character and the target orientation (assumes target is in worldspace)
         };
 
-        struct EE_ENGINE_API Definition final : public TargetValueNode::Definition
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( TargetValueNode::Definition, m_inputValueNodeIdx, m_isWorldSpaceTarget, m_infoType );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_inputValueNodeIdx, m_isWorldSpaceTarget, m_infoType );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -73,8 +73,37 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        VectorValueNode*                m_pTargetNode = nullptr;
+        TargetValueNode*                m_pTargetNode = nullptr;
         float                           m_value = 0.0f;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API TargetPointNode final : public VectorValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Definition final : public VectorValueNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( VectorValueNode::Definition, m_inputValueNodeIdx, m_isWorldSpaceTarget );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
+            bool                        m_isWorldSpaceTarget = true;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        TargetValueNode*                m_pTargetNode = nullptr;
+        Vector                          m_value = Vector::Zero;
     };
 
     //-------------------------------------------------------------------------

@@ -47,13 +47,12 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status FallingAction::UpdateInternal( ActionContext const& ctx )
+    Action::Status FallingAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
     {
         // Calculate desired player displacement
         //-------------------------------------------------------------------------
-        auto const pControllerState = ctx.m_pInputSystem->GetController();
-        EE_ASSERT( pControllerState != nullptr );
-        Vector const movementInputs = pControllerState->GetLeftStickValue();
+    
+        Vector const movementInputs = ctx.m_pInput->m_move.GetValue();
 
         auto const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
         auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();

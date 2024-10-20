@@ -15,13 +15,14 @@
 namespace EE::Navmesh
 {
     NavmeshCompiler::NavmeshCompiler()
-        #if EE_ENABLE_NAVPOWER
-        : Resource::Compiler( "NavmeshCompiler", NavmeshGenerator::s_version )
-        #else
-        : Resource::Compiler( "NavmeshCompiler", 0 )
-        #endif
+        : Resource::Compiler( "NavmeshCompiler" )
     {
-        m_outputTypes.push_back( NavmeshData::GetStaticResourceTypeID() );
+        AddOutputType<NavmeshData>();
+    }
+
+    uint64_t NavmeshCompiler::CalculateAdvancedUpToDateHash( ResourceID resourceID ) const
+    {
+        return 0;
     }
 
     Resource::CompilationResult NavmeshCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -36,7 +37,7 @@ namespace EE::Navmesh
 
                 // Is we have a mismatched version, rebuild the source file
                 #if EE_ENABLE_NAVPOWER
-                if ( header.m_version != NavmeshGenerator::s_version )
+                if ( header.m_version != NavmeshData::s_version )
                 {
                     if ( GenerateNavmesh( ctx, true ) == Resource::CompilationResult::Failure )
                     {
@@ -87,13 +88,13 @@ namespace EE::Navmesh
             return Resource::CompilationResult::Failure;
         }
 
-        EntityModel::SerializedEntityMap serializedMap;
+        EntityModel::EntityMapDescriptor serializedMap;
 
         Milliseconds elapsedTime = 0.0f;
         {
             ScopedTimer<PlatformClock> timer( elapsedTime );
 
-            if ( !EntityModel::ReadSerializedEntityMapFromFile( *m_pTypeRegistry, mapPath, serializedMap ) )
+            if ( !EntityModel::ReadMapDescriptorFromFile( *m_pTypeRegistry, mapPath, serializedMap ) )
             {
                 Error( "Entity map file (%s) is malformed!", mapPath.c_str() );
                 return Resource::CompilationResult::Failure;
@@ -117,7 +118,7 @@ namespace EE::Navmesh
             Warning( "More than one navmesh component found in this map, this is not supported... Ignoring all components apart from the first found!" );
         }
 
-        auto pNavmeshComponent = navmeshComponents[0].m_pComponent->CreateTypeInstance<Navmesh::NavmeshComponent>( *m_pTypeRegistry );
+        auto pNavmeshComponent = navmeshComponents[0].m_pComponent->CreateType<Navmesh::NavmeshComponent>( *m_pTypeRegistry );
         EE_ASSERT( pNavmeshComponent != nullptr );
         Navmesh::NavmeshBuildSettings const buildSettings = pNavmeshComponent->GetBuildSettings();
         EE::Delete( pNavmeshComponent );
@@ -126,7 +127,7 @@ namespace EE::Navmesh
         //-------------------------------------------------------------------------
 
         #if EE_ENABLE_NAVPOWER
-        Navmesh::NavmeshGenerator generator( *m_pTypeRegistry, m_rawResourceDirectoryPath, updatePregeneratedNavmesh ? ctx.m_inputFilePath : ctx.m_outputFilePath, serializedMap, buildSettings );
+        Navmesh::NavmeshGenerator generator( *m_pTypeRegistry, m_sourceDataDirectoryPath, updatePregeneratedNavmesh ? ctx.m_inputFilePath : ctx.m_outputFilePath, serializedMap, buildSettings );
 
         {
             ScopedTimer<PlatformClock> timer( elapsedTime );

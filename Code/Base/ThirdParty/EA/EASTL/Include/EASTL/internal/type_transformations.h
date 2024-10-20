@@ -153,7 +153,7 @@ namespace eastl
 
 			struct int128_helper
 			{
-				#if EASTL_INT128_SUPPORTED && (defined(EA_COMPILER_GNUC) || defined(__clang__))
+				#if EASTL_GCC_STYLE_INT128_SUPPORTED
 					typedef __int128_t type;
 				#endif
 			};
@@ -168,7 +168,7 @@ namespace eastl
 			eastl::conditional_t<sizeof(T) <= sizeof(signed int), int_helper,
 			eastl::conditional_t<sizeof(T) <= sizeof(signed long), long_helper,
 			eastl::conditional_t<sizeof(T) <= sizeof(signed long long), longlong_helper,
-			#if EASTL_INT128_SUPPORTED && (defined(EA_COMPILER_GNUC) && defined(__clang__))
+			#if EASTL_GCC_STYLE_INT128_SUPPORTED
 				eastl::conditional_t<sizeof(T) <= sizeof(__int128_t), int128_helper,
 					no_type_helper
 				>
@@ -223,7 +223,7 @@ namespace eastl
 	template <> struct make_signed<unsigned long>            { typedef signed long            type; };
 	template <> struct make_signed<signed long long>         { typedef signed long long       type; };
 	template <> struct make_signed<unsigned long long>       { typedef signed long long       type; };
-	#if EASTL_INT128_SUPPORTED && (defined(EA_COMPILER_GNUC) || defined(__clang__))
+	#if EASTL_GCC_STYLE_INT128_SUPPORTED
 		template <> struct make_signed<__int128_t>           { typedef __int128_t			  type; };
 		template <> struct make_signed<__uint128_t>          { typedef __int128_t			  type; };
 	#endif
@@ -318,7 +318,7 @@ namespace eastl
 
 			struct int128_helper
 			{
-				#if EASTL_INT128_SUPPORTED && (defined(EA_COMPILER_GNUC) || defined(__clang__))
+				#if EASTL_GCC_STYLE_INT128_SUPPORTED
 					typedef __uint128_t type;
 				#endif
 			};
@@ -334,7 +334,7 @@ namespace eastl
 			eastl::conditional_t<sizeof(T) <= sizeof(unsigned int), int_helper,
 			eastl::conditional_t<sizeof(T) <= sizeof(unsigned long), long_helper,
 			eastl::conditional_t<sizeof(T) <= sizeof(unsigned long long), longlong_helper,
-			#if EASTL_INT128_SUPPORTED && (defined(EA_COMPILER_GNUC) && defined(__clang__))
+			#if EASTL_GCC_STYLE_INT128_SUPPORTED
 				eastl::conditional_t<sizeof(T) <= sizeof(__uint128_t), int128_helper,
 					no_type_helper
 				>
@@ -390,7 +390,7 @@ namespace eastl
 	template <> struct make_unsigned<unsigned long>          { typedef unsigned long            type; };
 	template <> struct make_unsigned<signed long long>       { typedef unsigned long long       type; };
 	template <> struct make_unsigned<unsigned long long>     { typedef unsigned long long       type; };
-	#if EASTL_INT128_SUPPORTED && (defined(EA_COMPILER_GNUC) || defined(__clang__))
+	#if EASTL_GCC_STYLE_INT128_SUPPORTED
 		template <> struct make_unsigned<__int128_t>         { typedef __uint128_t				type; };
 		template <> struct make_unsigned<__uint128_t>        { typedef __uint128_t				type; };
 	#endif
@@ -477,15 +477,33 @@ namespace eastl
 	// add_pointer
 	//
 	// Add pointer to a type.
-	// Provides the member typedef type which is the type T*. If T is a 
-	// reference type, then type is a pointer to the referred type. 
+	// Provides the member typedef type which is the type T*.
+	// 
+	// If T is a reference type,
+	//		type member is a pointer to the referred type.
+	// If T is an object type, a function type that is not cv- or ref-qualified,
+	// or a (possibly cv-qualified) void type,
+	//		type member is T*.
+	// Otherwise (T is a cv- or ref-qualified function type),
+	//		type member is T (ie. not a pointer).
 	//
+	// cv- and ref-qualified function types are invalid, which is why there is a specific clause for it.
+	// See https://cplusplus.github.io/LWG/issue2101 for more.
+	// 
 	///////////////////////////////////////////////////////////////////////
 
 	#define EASTL_TYPE_TRAIT_add_pointer_CONFORMANCE 1
 
-	template<class T>
-	struct add_pointer { typedef typename eastl::remove_reference<T>::type* type; };
+	namespace internal
+	{
+		template <typename T>
+		auto try_add_pointer(int) -> type_identity<typename std::remove_reference<T>::type*>;
+		template <typename T>
+		auto try_add_pointer(...) -> type_identity<T>;
+	}
+ 
+	template <typename T>
+	struct add_pointer : decltype(internal::try_add_pointer<T>(0)) {};
 
 	#if EASTL_VARIABLE_TEMPLATES_ENABLED
 		template <class T>

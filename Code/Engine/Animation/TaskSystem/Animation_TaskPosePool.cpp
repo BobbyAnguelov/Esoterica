@@ -24,7 +24,7 @@ namespace EE::Animation
         m_isUsed = false;
     }
 
-    void PoseBuffer::CalculateGlobalTransforms()
+    void PoseBuffer::CalculateModelSpaceTransforms()
     {
         for ( Pose& pose : m_poses )
         {

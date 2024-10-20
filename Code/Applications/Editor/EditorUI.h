@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineTools/Resource/ResourceDatabase.h"
+#include "EngineTools/FileSystem/FileRegistry.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "Engine/ToolsUI/IDevelopmentToolsUI.h"
 #include "Engine/DebugViews/DebugView_System.h"
@@ -20,24 +20,36 @@ namespace EE
 
     class EditorUI final : public ImGuiX::IDevelopmentToolsUI, public ToolsContext
     {
-        struct ToolCreationRequest
+        struct ToolOperation
         {
             enum Type
             {
-                MapEditor,
-                GamePreview,
-                ResourceEditor,
-                UninitializedTool,
+                CreateMapEditor,
+                CreateGamePreview,
+                OpenFile,
+                InitializeTool,
+                DestroyTool
             };
 
-            ToolCreationRequest() = default;
-            ToolCreationRequest( EditorTool* pEditorTool ) : m_pEditorTool( pEditorTool ), m_type( UninitializedTool ) { EE_ASSERT( m_pEditorTool != nullptr ); }
+            ToolOperation() = default;
+            
+            ToolOperation( EditorTool* pEditorTool, Type type ) : m_pEditorTool( pEditorTool ), m_type( type ) 
+            {
+                EE_ASSERT( m_pEditorTool != nullptr ); 
+                EE_ASSERT( m_type == InitializeTool || m_type == DestroyTool );
+            }
+
+            ToolOperation( DataPath const& path ) 
+                : m_path( path )
+            {
+                EE_ASSERT( path.IsValid() );
+            }
 
         public:
 
-            ResourceID          m_resourceID;
             EditorTool*         m_pEditorTool = nullptr;
-            Type                m_type = ResourceEditor;
+            Type                m_type = OpenFile;
+            DataPath            m_path;
         };
 
     public:
@@ -57,8 +69,8 @@ namespace EE
         virtual void EndFrame( UpdateContext const& context ) override final;
         virtual void Update( UpdateContext const& context ) override final;
         virtual EntityWorldManager* GetWorldManager() const override final { return m_pWorldManager; }
-        virtual bool TryOpenResource( ResourceID const& resourceID ) const override;
-        virtual bool TryFindInResourceBrowser( ResourceID const& resourceID ) const override;
+        virtual bool TryOpenDataFile( DataPath const& path ) const override;
+        virtual bool TryFindInResourceBrowser( DataPath const& path ) const override;
 
         // Title bar
         //-------------------------------------------------------------------------
@@ -69,13 +81,13 @@ namespace EE
         // Hot Reload
         //-------------------------------------------------------------------------
 
-        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded ) override;
-        virtual void HotReload_ReloadResources() override;
+        virtual void HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) override;
+        virtual void HotReload_ReloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) override;
 
         // Resource Management
         //-------------------------------------------------------------------------
 
-        void OnResourceDeleted( ResourceID const& resourceID );
+        void OnFileDeleted( DataPath const& dataPath );
 
         // Editor Tool Management
         //-------------------------------------------------------------------------
@@ -87,10 +99,7 @@ namespace EE
         void QueueDestroyTool( EditorTool* pEditorTool );
 
         // Tries to immediately create a editor tool
-        bool TryCreateTool( UpdateContext const& context, ToolCreationRequest const& request );
-
-        // Queues a editor tool creation request till the next update
-        void QueueCreateTool( ResourceID const& resourceID );
+        bool ExecuteToolOperation( UpdateContext const& context, ToolOperation& request );
 
         // Submit a editor tool so we can retrieve/update its docking location
         bool SubmitToolMainWindow( UpdateContext const& context, EditorTool* pEditorTool, ImGuiID editorDockspaceID );
@@ -155,7 +164,7 @@ namespace EE
                 }
 
                 // Check for already queued creation request
-                for ( auto const& creationRequest : m_editorToolCreationRequests )
+                for ( auto const& creationRequest : m_toolOperations )
                 {
                     if ( creationRequest.m_pEditorTool == nullptr )
                     {
@@ -172,17 +181,14 @@ namespace EE
             //-------------------------------------------------------------------------
 
             T* pEditorTool = EE::New<T>( eastl::forward<ConstructorParams>( params )... );
-            ToolCreationRequest& creationRequest = m_editorToolCreationRequests.emplace_back();
-            creationRequest.m_type = ToolCreationRequest::UninitializedTool;
+            ToolOperation& creationRequest = m_toolOperations.emplace_back();
+            creationRequest.m_type = ToolOperation::InitializeTool;
             creationRequest.m_pEditorTool = pEditorTool;
 
             return pEditorTool;
         }
 
-        // Misc
-        //-------------------------------------------------------------------------
-
-        void DrawUITestWindow();
+        bool IsToolQueuedForDestruction( EditorTool* pEditorTool ) const;
 
     private:
 
@@ -201,16 +207,16 @@ namespace EE
         bool                                            m_isUITestWindowOpen = false;
 
         // Resource Browser
-        Resource::ResourceDatabase                      m_resourceDB;
+        FileRegistry                                    m_fileRegistry;
         EventBindingID                                  m_resourceDeletedEventID;
         float                                           m_resourceBrowserViewWidth = 150;
 
         // Tools
         TVector<EditorTool*>                            m_editorTools;
-        TVector<ToolCreationRequest>                    m_editorToolCreationRequests;
-        TVector<EditorTool*>                            m_editorToolDestructionRequests;
+        mutable TVector<ToolOperation>                  m_toolOperations;
         void*                                           m_pLastActiveTool = nullptr;
         bool                                            m_hasOpenModalDialog = false;
+        String                                          m_focusTargetWindowName; // If this is set we need to switch focus to this window
 
         // Map Editor and Game Preview
         EntityModel::EntityMapEditor*                   m_pMapEditor = nullptr;

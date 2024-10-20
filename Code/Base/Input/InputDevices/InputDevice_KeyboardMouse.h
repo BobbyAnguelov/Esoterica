@@ -17,13 +17,6 @@ namespace EE::Input
 
         KeyboardMouseDevice() = default;
 
-        void SetMouseSensitivity( Float2 sensitivity );
-        void SetMouseSensitivity( float sensitivity ) { SetMouseSensitivity( Float2( sensitivity ) ); }
-        inline Float2 GetMouseSensitivity() const { return Float2( m_sensitivity.m_x, Math::Abs( m_sensitivity.m_y ) ); }
-
-        void SetMouseInverted( bool isInverted );
-        inline bool IsMouseInverted() const { return m_invertY; }
-
         inline Float2 GetMouseDelta() const { return Float2( GetValue( InputID::Mouse_DeltaMovementHorizontal ), GetValue( InputID::Mouse_DeltaMovementVertical ) ); }
 
         // Get the char key pressed this frame. If no key pressed, this returns 0;
@@ -31,7 +24,7 @@ namespace EE::Input
 
     private:
 
-        virtual DeviceCategory GetDeviceCategory() const override final { return DeviceCategory::KeyboardMouse; }
+        virtual DeviceType GetDeviceType() const override final { return DeviceType::KeyboardMouse; }
 
         virtual void Initialize() override final;
         virtual void Shutdown() override final;
@@ -44,9 +37,6 @@ namespace EE::Input
         virtual void Clear() override;
 
     private:
-
-        Float2                              m_sensitivity = Float2::One;
-        bool                                m_invertY = false;
 
         uint8_t                             m_charKeyPressed = 0;
         Int2                                m_position = Float2::Zero;

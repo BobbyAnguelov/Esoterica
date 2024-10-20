@@ -18,7 +18,7 @@ namespace EE::Physics
 {
     class EE_ENGINE_API CollisionMesh : public Resource::IResource
     {
-        EE_RESOURCE( 'pmsh', "Physics Collision Mesh" );
+        EE_RESOURCE( 'pmsh', "Physics Collision Mesh", 15, false );
         friend class CollisionMeshCompiler;
         friend class CollisionMeshLoader;
 

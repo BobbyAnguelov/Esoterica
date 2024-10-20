@@ -11,7 +11,7 @@ namespace EE::Navmesh
         m_loadableTypes.push_back( NavmeshData::GetStaticResourceTypeID() );
     }
 
-    bool NavmeshLoader::LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    bool NavmeshLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         auto pNavmeshData = EE::New<NavmeshData>();
         archive << *pNavmeshData;
@@ -19,8 +19,8 @@ namespace EE::Navmesh
         return true;
     }
 
-    void NavmeshLoader::UnloadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord ) const
+    void NavmeshLoader::UnloadInternal( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
     {
-        ResourceLoader::UnloadInternal( resID, pResourceRecord );
+        ResourceLoader::UnloadInternal( resourceID, pResourceRecord );
     }
 }

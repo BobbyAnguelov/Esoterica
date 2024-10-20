@@ -30,16 +30,13 @@ namespace EE::Player
         }
 
         bool const isDashAllowed = m_cooldownTimer.IsComplete() && ctx.m_pPlayerComponent->HasEnoughEnergy( g_dashEnergyCost );
-        if( isDashAllowed && ctx.m_pInputSystem->GetController()->WasPressed( Input::InputID::Controller_FaceButtonRight ) )
+        if( isDashAllowed && ctx.m_pInput->m_dash.WasPressed() )
         {
             ctx.m_pPlayerComponent->ConsumeEnergy( g_dashEnergyCost );
             ctx.m_pCharacterComponent->SetGravityMode( Physics::ControllerGravityMode::NoGravity );
 
-            auto const pControllerState = ctx.m_pInputSystem->GetController();
-            EE_ASSERT( pControllerState != nullptr );
-
             // Use last frame camera orientation
-            Vector movementInputs = pControllerState->GetLeftStickValue();
+            Vector movementInputs = ctx.m_pInput->m_move.GetValue();
 
             if ( movementInputs.GetLength2() > 0 )
             {
@@ -71,11 +68,8 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status DashAction::UpdateInternal( ActionContext const& ctx )
+    Action::Status DashAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
     {
-        auto const pControllerState = ctx.m_pInputSystem->GetController();
-        EE_ASSERT( pControllerState != nullptr );
-
         // Calculate desired player displacement
         //-------------------------------------------------------------------------
         Vector const desiredVelocity = m_dashDirection * ( g_dashDistance / g_dashDuration );

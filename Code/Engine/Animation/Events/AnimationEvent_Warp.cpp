@@ -7,7 +7,7 @@
 namespace EE::Animation
 {
     #if EE_DEVELOPMENT_TOOLS
-    Color GetDebugForWarpRule( TargetWarpRule rule )
+    Color GetDebugColorForWarpRule( TargetWarpRule rule )
     {
         Color color;
 

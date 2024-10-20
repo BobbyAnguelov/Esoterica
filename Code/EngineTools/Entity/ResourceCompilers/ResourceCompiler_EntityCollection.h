@@ -9,7 +9,6 @@ namespace EE::EntityModel
     class EntityCollectionCompiler final : public Resource::Compiler
     {
         EE_REFLECT_TYPE( EntityCollectionCompiler );
-        static const int32_t s_version = 7;
 
     public:
 

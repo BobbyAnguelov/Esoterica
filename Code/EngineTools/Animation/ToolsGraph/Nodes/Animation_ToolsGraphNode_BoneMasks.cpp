@@ -31,22 +31,11 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void BoneMaskToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void BoneMaskToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         DrawInternalSeparator( ctx );
 
         ImGui::Text( "Mask ID: %s", m_maskID.IsValid() ? m_maskID.c_str() : "NONE");
-    }
-
-    void BoneMaskToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
-    {
-        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
-        Variation const* pSelectedVariation = pGraphNodeContext->m_pVariationHierarchy->GetVariation( pGraphNodeContext->m_selectedVariationID );
-
-        if ( pSelectedVariation->m_skeleton.GetResourceID().IsValid() )
-        {
-            pUserContext->RequestOpenResource( pSelectedVariation->m_skeleton.GetResourceID() );
-        }
     }
 
     //-------------------------------------------------------------------------
@@ -69,7 +58,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FixedWeightBoneMaskToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void FixedWeightBoneMaskToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         DrawInternalSeparator( ctx );
 
@@ -286,16 +275,16 @@ namespace EE::Animation::GraphNodes
     {
         int32_t const numInputPins = GetNumInputPins();
         TInlineString<100> pinName;
-        pinName.sprintf( "Mask %d", numInputPins - 3 );
+        pinName.sprintf( "Mask %d", numInputPins - 2 );
         return pinName;
     }
 
-    void BoneMaskSelectorToolsNode::OnDynamicPinCreation( UUID pinID )
+    void BoneMaskSelectorToolsNode::OnDynamicPinCreation( UUID const& pinID )
     {
-        m_parameterValues.emplace_back();
+        m_parameterValues.emplace_back( GetInputPin( pinID )->m_name );
     }
 
-    void BoneMaskSelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
+    void BoneMaskSelectorToolsNode::PreDynamicPinDestruction( UUID const& pinID )
     {
         int32_t const pinIdx = GetInputPinIndex( pinID );
         EE_ASSERT( pinIdx != InvalidIndex );
@@ -310,28 +299,22 @@ namespace EE::Animation::GraphNodes
         {
             m_parameterValues.erase( m_parameterValues.begin() + optionIdx );
         }
+    }
 
-        // Rename Pins
-        //-------------------------------------------------------------------------
-
-        int32_t newPinIdx = 0;
+    void BoneMaskSelectorToolsNode::PostDynamicPinDestruction()
+    {
+        int32_t const numInputPins = GetNumInputPins();
         for ( auto i = 2; i < numInputPins; i++ )
         {
-            if ( i == pinIdx )
-            {
-                continue;
-            }
-
             TInlineString<100> newPinName;
-            newPinName.sprintf( "Mask %d", newPinIdx );
+            newPinName.sprintf( "Mask %d", i - 2 );
             GetInputPin( i )->m_name = newPinName;
-            newPinIdx++;
         }
     }
 
     void BoneMaskSelectorToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
     {
-        for ( auto const& ID : m_parameterValues )
+        for ( StringID const& ID : m_parameterValues )
         {
             outIDs.emplace_back( ID );
         }
@@ -340,7 +323,7 @@ namespace EE::Animation::GraphNodes
     void BoneMaskSelectorToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
     {
         bool foundMatch = false;
-        for ( auto const& ID : m_parameterValues )
+        for ( StringID const& ID : m_parameterValues )
         {
             if ( ID == oldID )
             {
@@ -351,14 +334,24 @@ namespace EE::Animation::GraphNodes
 
         if ( foundMatch )
         {
-            VisualGraph::ScopedNodeModification snm( this );
-            for ( auto& ID : m_parameterValues )
+            NodeGraph::ScopedNodeModification snm( this );
+            for ( StringID& ID : m_parameterValues )
             {
                 if ( ID == oldID )
                 {
                     ID = newID;
                 }
             }
+        }
+    }
+
+    void BoneMaskSelectorToolsNode::RefreshDynamicPins()
+    {
+        for ( int32_t i = 2; i < GetNumInputPins(); i++ )
+        {
+            NodeGraph::Pin* pInputPin = GetInputPin( i );
+            int32_t const optionIdx = i - 2;
+            pInputPin->m_name = m_parameterValues[optionIdx].IsValid() ? m_parameterValues[optionIdx].c_str() : "Invalid ID";
         }
     }
 }

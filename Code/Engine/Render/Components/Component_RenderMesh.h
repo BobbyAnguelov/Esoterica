@@ -81,7 +81,7 @@ namespace EE::Render
         // The final set of materials to use for this component
         TVector<Material const*>                                m_materials;
 
-        EE_REFLECT( "IsToolsReadOnly" : true );
+        EE_REFLECT( ReadOnly );
         uint64_t                                                m_sectionVisibilityMask = 0xFFFFFFFF;
 
         // Should this component be rendered

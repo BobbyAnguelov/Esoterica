@@ -1,8 +1,7 @@
 #pragma once
 
 #include "EngineTools/Animation/Events/AnimationEventTimeline.h"
-#include "EngineTools/Core/Timeline/TimelineEditor.h"
-#include "EngineTools/Core/PropertyGrid/PropertyGrid.h"
+#include "EngineTools/PropertyGrid/PropertyGrid.h"
 #include "EngineTools/Core/EditorTool.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Base/Time/Timers.h"
@@ -13,6 +12,11 @@
 namespace EE::Render
 {
     class SkeletalMeshComponent;
+}
+
+namespace EE::Timeline 
+{
+    class TimelineEditor;
 }
 
 namespace EE::Animation
@@ -48,7 +52,7 @@ namespace EE::Animation
 
     public:
 
-        AnimationClipEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
+        AnimationClipEditor( ToolsContext const* pToolsContext, ResourceID const& resourceID, EntityWorld* pWorld );
         ~AnimationClipEditor();
 
     private:
@@ -57,7 +61,7 @@ namespace EE::Animation
         virtual void Shutdown( UpdateContext const& context ) override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
 
-        virtual void PreWorldUpdate( EntityWorldUpdateContext const& updateContext ) override;
+        virtual void WorldUpdate( EntityWorldUpdateContext const& updateContext ) override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
         virtual void DrawMenu( UpdateContext const& context ) override;
@@ -68,8 +72,6 @@ namespace EE::Animation
 
         virtual bool SaveData() override;
 
-        virtual void ReadCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& descriptorObjectValue ) override;
-        virtual void WriteCustomDescriptorData( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) override;
         virtual void PreUndoRedo( UndoStack::Operation operation ) override;
 
         virtual bool HasTitlebarIcon() const override { return true; }
@@ -86,8 +88,8 @@ namespace EE::Animation
         void DestroySkeletonTree();
         void DrawSkeletonTreeRow( BoneInfo* pBoneInfo );
 
-        virtual void OnDescriptorUnload() override;
-        virtual void OnDescriptorLoadCompleted() override;
+        virtual void OnDataFileUnload() override;
+        virtual void OnDataFileLoadCompleted() override;
         virtual void OnResourceLoadCompleted( Resource::ResourcePtr* pResourcePtr ) override;
         virtual void OnResourceUnload( Resource::ResourcePtr* pResourcePtr ) override;
 
@@ -97,8 +99,7 @@ namespace EE::Animation
         AnimationClipPlayerComponent*   m_pAnimationComponent = nullptr;
         Render::SkeletalMeshComponent*  m_pMeshComponent = nullptr;
 
-        EventTimeline                   m_eventTimeline;
-        Timeline::TimelineEditor        m_timelineEditor;
+        Timeline::TimelineEditor*       m_pTimelineEditor = nullptr;
 
         PropertyGrid                    m_propertyGrid;
         EventBindingID                  m_propertyGridPreEditEventBindingID;

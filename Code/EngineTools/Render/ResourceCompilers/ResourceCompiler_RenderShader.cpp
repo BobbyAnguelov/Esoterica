@@ -167,10 +167,10 @@ namespace EE::Render
     //-------------------------------------------------------------------------
 
     Render::ShaderCompiler::ShaderCompiler()
-        : Resource::Compiler( "ShaderCompiler", s_version )
+        : Resource::Compiler( "ShaderCompiler" )
     {
-        m_outputTypes.push_back( VertexShader::GetStaticResourceTypeID() );
-        m_outputTypes.push_back( PixelShader::GetStaticResourceTypeID() );
+        AddOutputType<VertexShader>();
+        AddOutputType<PixelShader>();
     }
 
     Resource::CompilationResult Render::ShaderCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -211,13 +211,13 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         FileSystem::Path shaderFilePath;
-        if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_shaderPath, shaderFilePath ) )
+        if ( !ConvertDataPathToFilePath( resourceDescriptor.m_shaderPath, shaderFilePath ) )
         {
             return Error( "Invalid texture data path: %s", resourceDescriptor.m_shaderPath.c_str() );
         }
 
         Blob fileData;
-        if ( !FileSystem::LoadFile( shaderFilePath, fileData ) )
+        if ( !FileSystem::ReadBinaryFile( shaderFilePath, fileData ) )
         {
             return Error( "Failed to load specified shader file: %s", shaderFilePath.c_str() );
         }
@@ -284,12 +284,12 @@ namespace EE::Render
 
         if ( pShader->GetPipelineStage() == PipelineStage::Pixel )
         {
-            Resource::ResourceHeader hdr( s_version, PixelShader::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+            Resource::ResourceHeader hdr( PixelShader::s_version, PixelShader::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
             archive << hdr << *static_cast<PixelShader*>( pShader );
         }
         if ( pShader->GetPipelineStage() == PipelineStage::Vertex )
         {
-            Resource::ResourceHeader hdr( s_version, PixelShader::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+            Resource::ResourceHeader hdr( VertexShader::s_version, VertexShader::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
             archive << hdr << *static_cast<VertexShader*>( pShader );
         }
 

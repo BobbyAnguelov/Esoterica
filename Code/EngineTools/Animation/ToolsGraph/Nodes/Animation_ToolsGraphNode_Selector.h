@@ -1,12 +1,13 @@
 #pragma once
 
 #include "Animation_ToolsGraphNode_AnimationClip.h"
+#include "Animation_ToolsGraphNode_Result.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
-    class SelectorConditionToolsNode final : public FlowToolsNode
+    class SelectorConditionToolsNode final : public ResultToolsNode
     {
         EE_REFLECT_TYPE( SelectorConditionToolsNode );
 
@@ -16,13 +17,15 @@ namespace EE::Animation::GraphNodes
 
         SelectorConditionToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Conditions"; }
         virtual char const* GetCategory() const override { return "Conditions"; }
         virtual bool IsUserCreatable() const override { return false; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override { EE_UNREACHABLE_CODE(); return InvalidIndex; }
 
-        virtual bool DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
+    private:
+
+        virtual void RefreshDynamicPins() override;
     };
 
     //-------------------------------------------------------------------------
@@ -34,37 +37,31 @@ namespace EE::Animation::GraphNodes
     public:
 
         SelectorBaseToolsNode();
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        inline String const& GetPinLabel( int32_t pinIdx ) const { return m_optionLabels[pinIdx]; }
+        inline String const& GetOptionLabel( int32_t optionIdx ) const { return m_optionLabels[optionIdx]; }
 
     private:
 
-        virtual char const* GetName() const override { return m_name.c_str(); }
-
         virtual bool IsRenameable() const override { return true; }
-        virtual void SetName( String const& newName ) override { newName.empty() ? m_name = GetTypeName() : m_name.sprintf( "Selector: %s", newName.c_str() ); }
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetCategory() const override { return "Animation/Selectors"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
 
-        virtual bool DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin ) override;
-
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
-        virtual TInlineString<100> GetNewDynamicInputPinName() const override;
+        virtual TInlineString<100> GetNewDynamicInputPinName() const override { return "Option"; }
         virtual StringID GetDynamicInputPinValueType() const override { return GetPinTypeForValueType( GraphValueType::Pose ); }
-        virtual void OnDynamicPinCreation( UUID pinID ) override;
-        virtual void OnDynamicPinDestruction( UUID pinID ) override;
+        virtual void OnDynamicPinCreation( UUID const& pinID ) override;
+        virtual void PreDynamicPinDestruction( UUID const& pinID ) override;
 
-        void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue ) override;
+    protected:
+
+        virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
+
+        virtual void RefreshDynamicPins() override;
 
     private:
 
-        EE_REFLECT( "IsToolsReadOnly" : true );
-        String                      m_name = "Selector";
-
-        EE_REFLECT( "IsToolsReadOnly" : true );
+        EE_REFLECT( ShowAsStaticArray );
         TVector<String>             m_optionLabels;
     };
 
@@ -90,7 +87,7 @@ namespace EE::Animation::GraphNodes
 
         virtual char const* GetTypeName() const override { return "Clip Selector"; }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
+        virtual bool IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const override;
         virtual bool IsAnimationClipReferenceNode() const override { return true; }
     };
 
@@ -106,26 +103,26 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        virtual char const* GetName() const override { return m_name.c_str(); }
         virtual bool IsRenameable() const override { return true; }
-        virtual void SetName( String const& newName ) override { newName.empty() ? m_name = GetTypeName() : m_name.sprintf( "Selector: %s", newName.c_str() ); }
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Parameterized Selector"; }
         virtual char const* GetCategory() const override { return "Animation/Selectors"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
-        virtual TInlineString<100> GetNewDynamicInputPinName() const override;
+        virtual TInlineString<100> GetNewDynamicInputPinName() const override { return "Option"; }
         virtual StringID GetDynamicInputPinValueType() const override { return GetPinTypeForValueType( GraphValueType::Pose ); }
-        virtual void OnDynamicPinCreation( UUID pinID ) override;
-        virtual void OnDynamicPinDestruction( UUID pinID ) override;
+        virtual void OnDynamicPinCreation( UUID const& pinID ) override;
+        virtual void PreDynamicPinDestruction( UUID const& pinID ) override;
+
+        virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
+        virtual void RefreshDynamicPins() override;
 
     private:
 
-        EE_REFLECT( "IsToolsReadOnly" : true );
-        String                      m_name = "Parameterized Selector";
+        EE_REFLECT( ShowAsStaticArray );
+        TVector<String>             m_optionLabels;
     };
 
     //-------------------------------------------------------------------------
@@ -140,27 +137,27 @@ namespace EE::Animation::GraphNodes
 
     public:
 
-        virtual char const* GetName() const override { return m_name.c_str(); }
         virtual bool IsRenameable() const override { return true; }
-        virtual void SetName( String const& newName ) override { newName.empty() ? m_name = GetTypeName() : m_name.sprintf( "Selector: %s", newName.c_str() ); }
 
         virtual bool IsAnimationClipReferenceNode() const override { return true; }
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Parameterized Clip Selector"; }
         virtual char const* GetCategory() const override { return "Animation/Selectors"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
+        virtual bool IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const override;
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
-        virtual TInlineString<100> GetNewDynamicInputPinName() const override;
+        virtual TInlineString<100> GetNewDynamicInputPinName() const override { return "Option"; }
         virtual StringID GetDynamicInputPinValueType() const override { return GetPinTypeForValueType( GraphValueType::Pose ); }
-        virtual void OnDynamicPinCreation( UUID pinID ) override;
-        virtual void OnDynamicPinDestruction( UUID pinID ) override;
-        virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
+        virtual void OnDynamicPinCreation( UUID const& pinID ) override;
+        virtual void PreDynamicPinDestruction( UUID const& pinID ) override;
+
+        virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
+        virtual void RefreshDynamicPins() override;
 
     private:
 
-        EE_REFLECT( "IsToolsReadOnly" : true );
-        String                      m_name = "Parameterized Clip Selector";
+        EE_REFLECT( ShowAsStaticArray );
+        TVector<String>             m_optionLabels;
     };
 }

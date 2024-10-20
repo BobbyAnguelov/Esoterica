@@ -90,7 +90,7 @@
     <DisplayString>{m_fullpath}</DisplayString>
   </Type>
 
-  <Type Name="EE::ResourcePath">
+  <Type Name="EE::DataPath">
     <DisplayString>{m_path}</DisplayString>
   </Type>
 
@@ -120,6 +120,22 @@
       <Item Name="ID">m_resourceID</Item>
       <Item Name="Data">($T1*) m_pResourceRecord->m_pResource</Item>
       <Item Name="ResourceRecord">m_pResourceRecord</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="EE::TypeInstance">
+    <DisplayString Condition="m_pInstance == nullptr">Not Set</DisplayString>
+    <DisplayString Condition="m_pInstance != nullptr">{m_pInstance}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="m_pInstance != nullptr">m_pInstance</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name="EE::TTypeInstance&lt;*&gt;">
+    <DisplayString Condition="m_pInstance == nullptr">Not Set</DisplayString>
+    <DisplayString Condition="m_pInstance != nullptr">{m_pInstance}</DisplayString>
+    <Expand>
+      <ExpandedItem Condition="m_pInstance != nullptr">m_pInstance</ExpandedItem>
     </Expand>
   </Type>
 

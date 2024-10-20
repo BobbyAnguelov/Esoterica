@@ -52,6 +52,13 @@ namespace EE::TypeSystem::Reflection
     {
         clang::QualType const fieldQualType = ClangUtils::GetQualType( type );
 
+        // Check if this is a valid qualified type
+        if ( fieldQualType.isNull() )
+        {
+            String typeSpelling = ClangUtils::GetString( clang_getTypeSpelling( type ) );
+            return pContext->LogError( "Failed to qualify typename for member: %s in class: %s and of type: %s", info.m_name.c_str(), pType->m_name.c_str(), typeSpelling.c_str() );
+        }
+
         // Get typename
         if ( !ClangUtils::GetQualifiedNameForType( fieldQualType, info.m_name ) )
         {
@@ -152,17 +159,17 @@ namespace EE::TypeSystem::Reflection
                     CXString const commentString = clang_Cursor_getBriefCommentText( cr );
                     if ( commentString.data != nullptr )
                     {
-                        propertyDesc.m_description = clang_getCString( commentString );
-                        StringUtils::RemoveAllOccurrencesInPlace( propertyDesc.m_description, "\r" );
-                        propertyDesc.m_description.ltrim();
-                        propertyDesc.m_description.rtrim();
+                        propertyDesc.m_reflectedDescription = clang_getCString( commentString );
+                        StringUtils::RemoveAllOccurrencesInPlace( propertyDesc.m_reflectedDescription, "\r" );
+                        propertyDesc.m_reflectedDescription.ltrim();
+                        propertyDesc.m_reflectedDescription.rtrim();
                     }
                     clang_disposeString( commentString );
 
                     // If we dont have an explicit comment for the property, try to get it from the macro declaration
-                    if ( propertyDesc.m_description.empty() )
+                    if ( propertyDesc.m_reflectedDescription.empty() )
                     {
-                        propertyDesc.m_description = propertyReflectionMacro.m_macroComment;
+                        propertyDesc.m_reflectedDescription = propertyReflectionMacro.m_macroComment;
                     }
 
                     auto type = clang_getCursorType( cr );
@@ -206,7 +213,7 @@ namespace EE::TypeSystem::Reflection
                     // Additional processing for special types
                     //-------------------------------------------------------------------------
 
-                    if ( GetCoreTypeID( CoreTypeID::TVector ) == fieldTypeID )
+                    if ( GetCoreTypeID( CoreTypeID::TVector ) == fieldTypeID || GetCoreTypeID( CoreTypeID::TInlineVector ) == fieldTypeID )
                     {
                         // We need to flag this in advance as we are about to change the field type ID
                         propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsDynamicArray );
@@ -234,7 +241,7 @@ namespace EE::TypeSystem::Reflection
                     // If it is a templated type, we only support one level of specialization for exposed properties, so flatten the type
                     propertyDesc.m_typeName = fieldTypeInfo.m_name;
                     propertyDesc.m_typeID = fieldTypeID;
-                    propertyDesc.m_metaData = propertyReflectionMacro.m_macroContents;
+                    propertyDesc.m_rawMetaDataStr = propertyReflectionMacro.m_macroContents;
 
                     if ( !fieldTypeInfo.m_templateArgs.empty() )
                     {
@@ -256,10 +263,33 @@ namespace EE::TypeSystem::Reflection
                             return CXChildVisit_Break;
                         }
 
-                        if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr && propertyDesc.m_templateArgTypeName == "EE::Resource::IResource" )
+                        // Specific resource ptr
+                        if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
                         {
-                            pContext->LogError( "Generic resource pointers ( TResourcePtr<IResource> ) are not allowed to be exposed, please use a specific resource type instead! ( property: %s in class: %s )", propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
-                            return CXChildVisit_Break;
+                            propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsResourcePtr );
+
+                            if ( propertyDesc.m_templateArgTypeName == "EE::Resource::IResource" )
+                            {
+                                pContext->LogError( "Generic resource pointers ( TResourcePtr<IResource> ) are not allowed to be exposed, please use a specific resource type instead! ( property: %s in class: %s )", propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
+                                return CXChildVisit_Break;
+                            }
+                        }
+
+                        // Type Instance
+                        if ( propertyDesc.m_typeID == CoreTypeID::TypeInstance || propertyDesc.m_typeID == CoreTypeID::TTypeInstance )
+                        {
+                            propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsTypeInstance );
+
+                            if ( propertyDesc.m_typeID == CoreTypeID::TTypeInstance )
+                            {
+                                // Perform validation on the type for the instance
+                                ReflectedType const* pInstanceTypeDesc = pContext->m_pDatabase->GetType( propertyDesc.m_templateArgTypeName );
+                                if ( pInstanceTypeDesc == nullptr )
+                                {
+                                    pContext->LogError( "Unsupported type encountered: %s for TTypeInstance property: %s in class: %s", propertyDesc.m_typeName.c_str(), propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
+                                    return CXChildVisit_Break;
+                                }
+                            }
                         }
 
                         // Bit flags
@@ -275,13 +305,13 @@ namespace EE::TypeSystem::Reflection
                             ReflectedType const* pFlagTypeDesc = pContext->m_pDatabase->GetType( propertyDesc.m_templateArgTypeName );
                             if ( pFlagTypeDesc == nullptr || !pFlagTypeDesc->IsEnum() )
                             {
-                                pContext->LogError( "Unsupported type encountered: %s for bitflags property: %s in class: %s", propertyDesc.m_typeName.c_str(), propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
+                                pContext->LogError( "Unsupported type encountered: %s for bit-flags property: %s in class: %s", propertyDesc.m_typeName.c_str(), propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
                                 return CXChildVisit_Break;
                             }
                         }
 
                         // Arrays
-                        if ( propertyDesc.m_typeID == CoreTypeID::TVector )
+                        if ( propertyDesc.m_typeID == CoreTypeID::TVector || propertyDesc.m_typeID == CoreTypeID::TInlineVector )
                         {
                             pContext->LogError( "We dont support arrays of arrays. Property: %s in class: %s", propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
                             return CXChildVisit_Break;
@@ -349,7 +379,7 @@ namespace EE::TypeSystem::Reflection
         return CXChildVisit_Continue;
     }
 
-    CXChildVisitResult VisitStructure( ClangParserContext* pContext, CXCursor& cr, FileSystem::Path const& headerFilePath, HeaderID const headerID )
+    CXChildVisitResult VisitStructure( ClangParserContext* pContext, CXCursor& cr, FileSystem::Path const& headerFilePath, StringID const headerID )
     {
         auto cursorName = ClangUtils::GetCursorDisplayName( cr );
 
@@ -388,21 +418,20 @@ namespace EE::TypeSystem::Reflection
 
             //-------------------------------------------------------------------------
 
-            if ( macro.IsRegisteredResourceMacro() && !pContext->m_detectDevOnlyTypesAndProperties )
+            if ( macro.IsRegisteredResourceMacro() )
             {
-                // Register the resource
+                // Fill out the resource type data
                 ReflectedResourceType resource;
                 resource.m_typeID = pContext->GenerateTypeID( fullyQualifiedCursorName );
-
-                if ( !resource.TryParseResourceRegistrationMacroString( macro.m_macroContents ) )
-                {
-                    pContext->LogError( "Invalid macro registration string for resource detected (only lower case letters allow): %s", macro.m_macroContents.c_str() );
-                    return CXChildVisit_Break;
-                }
-
                 resource.m_headerID = headerID;
                 resource.m_className = cursorName;
                 resource.m_namespace = pContext->GetCurrentNamespace();
+
+                if ( !resource.TryParseResourceRegistrationMacroString( macro.m_macroContents ) )
+                {
+                    pContext->LogError( "Invalid macro registration string for resource detected (only lower case letters allowed in resource type ID): %s", macro.m_macroContents.c_str() );
+                    return CXChildVisit_Break;
+                }
 
                 pContext->m_pParentReflectedType = &resource;
                 clang_visitChildren( cr, VisitResourceStructureContents, pContext );
@@ -412,6 +441,7 @@ namespace EE::TypeSystem::Reflection
                     return CXChildVisit_Break;
                 }
 
+                // Verify the resource hierarchy
                 static TypeSystem::TypeID const resourceTypeID( Settings::g_baseResourceFullTypeName );
                 if ( !VectorContains( resource.m_parents, resourceTypeID ) )
                 {
@@ -419,14 +449,78 @@ namespace EE::TypeSystem::Reflection
                     return CXChildVisit_Break;
                 }
 
-                if ( !pContext->m_pDatabase->IsResourceRegistered( resource.m_resourceTypeID ) )
+                // Register resource info
+                //-------------------------------------------------------------------------
+
+                if ( pContext->m_detectDevOnlyTypesAndProperties )
                 {
-                    pContext->m_pDatabase->RegisterResource( &resource );
+                    if ( pContext->m_pDatabase->IsResourceRegistered( resource.m_resourceTypeID ) )
+                    {
+                        pContext->m_pDatabase->UpdateRegisteredResource( &resource );
+                    }
+                    else
+                    {
+                        pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", resource.m_resourceTypeID.ToString().c_str(), headerFilePath.c_str() );
+                        return CXChildVisit_Break;
+                    }
                 }
-                else // We do not allow multiple resources registered with the same ID
+                else // Register type
                 {
-                    pContext->LogError( "Duplicate resource type ID encountered: %s in file: %s", resource.m_resourceTypeID.ToString().c_str(), headerFilePath.c_str() );
+                    if ( !pContext->m_pDatabase->IsResourceRegistered( resource.m_resourceTypeID ) )
+                    {
+                        pContext->m_pDatabase->RegisterResource( &resource );
+                    }
+                    else // We do not allow multiple resources registered with the same ID
+                    {
+                        pContext->LogError( "Duplicate resource type ID encountered: %s in file: %s", resource.m_resourceTypeID.ToString().c_str(), headerFilePath.c_str() );
+                        return CXChildVisit_Break;
+                    }
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( macro.IsDataFileMacro() )
+            {
+                // Fill out the resource type data
+                ReflectedDataFileType dataFile;
+                dataFile.m_typeID = pContext->GenerateTypeID( fullyQualifiedCursorName );
+                dataFile.m_headerID = headerID;
+                dataFile.m_className = cursorName;
+                dataFile.m_namespace = pContext->GetCurrentNamespace();
+
+                if ( !dataFile.TryParseDataFileRegistrationMacroString( macro.m_macroContents ) )
+                {
+                    pContext->LogError( "Invalid macro registration string for data file detected (only lower case letters allowed in extension): %s", macro.m_macroContents.c_str() );
                     return CXChildVisit_Break;
+                }
+
+                // Register data file info
+                //-------------------------------------------------------------------------
+
+                if ( pContext->m_detectDevOnlyTypesAndProperties )
+                {
+                    if ( pContext->m_pDatabase->IsDataFileRegistered( dataFile.m_typeID ) )
+                    {
+                        pContext->m_pDatabase->UpdateRegisteredDataFile( &dataFile );
+                    }
+                    else
+                    {
+                        pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", dataFile.m_typeID.c_str(), headerFilePath.c_str() );
+                        return CXChildVisit_Break;
+                    }
+                }
+                else // Register type
+                {
+                    if ( !pContext->m_pDatabase->IsDataFileRegistered( dataFile.m_typeID ) )
+                    {
+                        pContext->m_pDatabase->RegisterDataFile( &dataFile );
+                    }
+                    else // We do not allow multiple resources registered with the same ID
+                    {
+                        pContext->LogError( "Duplicate data file ID encountered: %s in file: %s", dataFile.m_typeID.c_str(), headerFilePath.c_str() );
+                        return CXChildVisit_Break;
+                    }
                 }
             }
 
@@ -436,6 +530,23 @@ namespace EE::TypeSystem::Reflection
             {
                 auto cursorType = clang_getCursorType( cr );
                 auto* pRecordDecl = (clang::CXXRecordDecl*) cr.data[0];
+
+                // Macro Validation
+                String const userSuppliedTypeName = macro.GetReflectedTypeName();
+                if ( fullyQualifiedCursorName.find( userSuppliedTypeName ) == String::npos )
+                {
+                    if ( macro.IsDataFileMacro() )
+                    {
+                        pContext->LogError( "EE_DATA_FILE macro for %s has the wrong type listed: %s", fullyQualifiedCursorName.c_str(), userSuppliedTypeName.c_str() );
+                    }
+                    else
+                    {
+                        pContext->LogError( "EE_REFLECT_TYPE macro for %s has the wrong type listed: %s", fullyQualifiedCursorName.c_str(), userSuppliedTypeName.c_str() );
+                    }
+                    return CXChildVisit_Break;
+                }
+
+                //-------------------------------------------------------------------------
 
                 TypeID typeID = pContext->GenerateTypeID( fullyQualifiedCursorName );
                 ReflectedType classDescriptor( typeID, cursorName );
@@ -461,7 +572,33 @@ namespace EE::TypeSystem::Reflection
                     return CXChildVisit_Break;
                 }
 
-                pContext->m_pDatabase->RegisterType( &classDescriptor, pContext->m_detectDevOnlyTypesAndProperties );
+                // Register type
+                //-------------------------------------------------------------------------
+
+                if ( pContext->m_detectDevOnlyTypesAndProperties )
+                {
+                    if ( pContext->m_pDatabase->IsTypeRegistered( classDescriptor.m_ID ) )
+                    {
+                        pContext->m_pDatabase->UpdateRegisteredType( &classDescriptor );
+                    }
+                    else
+                    {
+                        pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", classDescriptor.m_ID.c_str(), headerID.c_str() );
+                        return CXChildVisit_Break;
+                    }
+                }
+                else // Register type
+                {
+                    if ( !pContext->m_pDatabase->IsTypeRegistered( classDescriptor.m_ID ) )
+                    {
+                        pContext->m_pDatabase->RegisterType( &classDescriptor );
+                    }
+                    else // We do not allow multiple resources registered with the same ID
+                    {
+                        pContext->LogError( "Duplicate type ID encountered: %s in file: %s", classDescriptor.m_ID.c_str(), headerID.c_str() );
+                        return CXChildVisit_Break;
+                    }
+                }
             }
         }
 

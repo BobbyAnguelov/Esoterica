@@ -14,7 +14,7 @@ namespace EE::Render
 {
     class EE_ENGINE_API Material : public Resource::IResource
     {
-        EE_RESOURCE( 'mtrl', "Render Material" );
+        EE_RESOURCE( 'mtrl', "Render Material", 1, false );
         friend class MaterialCompiler;
         friend class MaterialLoader;
 

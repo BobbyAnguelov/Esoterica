@@ -1,5 +1,5 @@
 #pragma once
-#include "EngineTools/Core/PropertyGrid/PropertyGrid.h"
+#include "EngineTools/PropertyGrid/PropertyGrid.h"
 #include "EngineTools/Import/RawFileInspector.h"
 #include "ResourceDescriptor.h"
 
@@ -27,15 +27,15 @@ namespace EE::Resource
         virtual bool IsVisible() const = 0;
 
         // Update the descriptor state using a specified source file and a set of selected importable items
-        void UpdateDescriptor( ResourcePath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems );
+        void UpdateDescriptor( DataPath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems );
 
         // Update and draw the settings - returns true if a new descriptor was created
-        bool UpdateAndDraw( ResourcePath& outCreatedDescriptorPath );
+        bool UpdateAndDraw( DataPath& outCreatedDescriptorPath );
 
     protected:
 
         // Update the descriptor
-        virtual void UpdateDescriptorInternal( ResourcePath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) = 0;
+        virtual void UpdateDescriptorInternal( DataPath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) = 0;
 
         // Do we have any extra import options
         virtual bool HasExtraOptions() const { return false; }
@@ -47,7 +47,7 @@ namespace EE::Resource
         virtual void DrawExtraOptions() {}
 
         // Get the descriptor
-        virtual ResourceDescriptor const* GetDescriptor() const = 0;
+        virtual ResourceDescriptor const* GetDataFile() const = 0;
 
         // Opportunity to run any operations just before we save the descriptor - returns false if something fails
         virtual bool PreSaveDescriptor( FileSystem::Path const descriptorSavePath ) { return true; }
@@ -56,7 +56,7 @@ namespace EE::Resource
         virtual void PostSaveDescriptor( FileSystem::Path const descriptorSavePath ) {}
 
         // Get the descriptor
-        inline ResourceDescriptor* GetDescriptor() { return const_cast<ResourceDescriptor*>( const_cast<ImportSettings const*>( this )->GetDescriptor() ); }
+        inline ResourceDescriptor* GetDataFile() { return const_cast<ResourceDescriptor*>( const_cast<ImportSettings const*>( this )->GetDataFile() ); }
 
         // Create the default resource path for the currently set source path (i.e. same path as source with an extension change)
         void GenerateDefaultDescriptorPath();
@@ -69,10 +69,10 @@ namespace EE::Resource
 
     protected:
 
-        ToolsContext const*                                 m_pToolsContext = nullptr;
-        PropertyGrid                                        m_propertyGrid;
-        ResourcePath                                        m_sourceResourcePath;
-        ResourcePath                                        m_defaultDescriptorResourcePath;
+        ToolsContext const*                             m_pToolsContext = nullptr;
+        PropertyGrid                                    m_propertyGrid;
+        DataPath                                        m_sourceResourcePath;
+        DataPath                                        m_defaultDescriptorResourcePath;
     };
 
     // Derived class binding import settings to a concrete descriptor
@@ -91,7 +91,7 @@ namespace EE::Resource
 
     protected:
 
-        virtual ResourceDescriptor const* GetDescriptor() const override { return &m_descriptor; }
+        virtual ResourceDescriptor const* GetDataFile() const override { return &m_descriptor; }
 
     protected:
 

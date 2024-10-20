@@ -2,6 +2,9 @@
 #include "Base\Esoterica.h"
 
 //-------------------------------------------------------------------------
+// Global Instance Registry Helper
+//-------------------------------------------------------------------------
+// Automatically generates a list of all created instances of this type
 
 namespace EE
 {

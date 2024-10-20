@@ -84,7 +84,7 @@ namespace EE::Animation
 
     class EE_ENGINE_API AnimationClip : public Resource::IResource
     {
-        EE_RESOURCE( 'anim', "Animation Clip" );
+        EE_RESOURCE( 'anim', "Animation Clip", 57, false );
         EE_SERIALIZE( m_skeleton, m_numFrames, m_duration, m_compressedPoseData, m_compressedPoseOffsets, m_trackCompressionSettings, m_rootMotion, m_isAdditive );
 
         friend class AnimationClipCompiler;

@@ -35,7 +35,7 @@ namespace EE::Animation::GraphNodes
         {
             MarkNodeActive( context );
 
-            Vector const inputVector = m_pInputValueNode->GetValue<Vector>( context );
+            Vector const inputVector = m_pInputValueNode->GetValue<Float3>( context );
             switch ( pDefinition->m_desiredInfo )
             {
                 case Info::X:
@@ -50,10 +50,6 @@ namespace EE::Animation::GraphNodes
                 m_value = inputVector.GetZ();
                 break;
 
-                case Info::W:
-                m_value = inputVector.GetW();
-                break;
-
                 case Info::Length:
                 {
                     m_value = inputVector.GetLength3();
@@ -65,13 +61,16 @@ namespace EE::Animation::GraphNodes
                 {
                     if ( !inputVector.IsNearZero3() )
                     {
-                        m_value = Math::GetYawAngleBetweenVectors( Vector::WorldForward, inputVector ).ToDegrees().ToFloat();
+                        Vector const normalizedInputVector = inputVector.GetNormalized3();
+                        m_value = Math::GetYawAngleBetweenNormalizedVectors( Vector::WorldForward, normalizedInputVector ).ToDegrees().ToFloat();
                     }
                     else
                     {
                         #if EE_DEVELOPMENT_TOOLS
                         context.LogWarning( GetNodeIndex(), "Zero input vector for info node!" );
                         #endif
+
+                        m_value = 0.0f;
                     }
                 }
                 break;
@@ -81,14 +80,16 @@ namespace EE::Animation::GraphNodes
                 {
                     if ( !inputVector.IsNearZero3() )
                     {
-                        EulerAngles const angles = Quaternion::FromRotationBetweenVectors( Vector::WorldForward, inputVector ).ToEulerAngles();
-                        m_value = angles.GetPitch().ToDegrees().ToFloat();
+                        Vector const normalizedInputVector = inputVector.GetNormalized3();
+                        m_value = Math::GetPitchAngleBetweenNormalizedVectors( Vector::WorldForward, normalizedInputVector ).ToDegrees().ToFloat();
                     }
                     else
                     {
                         #if EE_DEVELOPMENT_TOOLS
                         context.LogWarning( GetNodeIndex(), "Zero input vector for info node!" );
                         #endif
+
+                        m_value = 0.0f;
                     }
                 }
                 break;
@@ -169,32 +170,32 @@ namespace EE::Animation::GraphNodes
 
             if ( m_pInputVectorValueNode != nullptr )
             {
-                m_value = m_pInputVectorValueNode->GetValue<Vector>( context );
+                m_value = m_pInputVectorValueNode->GetValue<Float3>( context );
             }
             else
             {
-                m_value = Vector::Zero;
+                m_value = Float3::Zero;
             }
 
             //-------------------------------------------------------------------------
 
             if ( m_pInputXValueNode != nullptr )
             {
-                m_value.SetX( m_pInputXValueNode->GetValue<float>( context ) );
+                m_value.m_x = m_pInputXValueNode->GetValue<float>( context );
             }
 
             if ( m_pInputYValueNode != nullptr )
             {
-                m_value.SetY( m_pInputYValueNode->GetValue<float>( context ) );
+                m_value.m_y = m_pInputYValueNode->GetValue<float>( context );
             }
 
             if ( m_pInputZValueNode != nullptr )
             {
-                m_value.SetZ( m_pInputZValueNode->GetValue<float>( context ) );
+                m_value.m_z = m_pInputZValueNode->GetValue<float>( context );
             }
         }
 
-        *reinterpret_cast<Vector*>( pOutValue ) = m_value;
+        *reinterpret_cast<Float3*>( pOutValue ) = m_value;
     }
 
     //-------------------------------------------------------------------------
@@ -226,9 +227,9 @@ namespace EE::Animation::GraphNodes
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
-            m_value = m_pInputValueNode->GetValue<Vector>( context ).GetNegated();
+            m_value = Vector( m_pInputValueNode->GetValue<Float3>( context ) ).GetNegated().ToFloat3();
         }
 
-        *reinterpret_cast<Vector*>( pOutValue ) = m_value;
+        *reinterpret_cast<Float3*>( pOutValue ) = m_value;
     }
 }

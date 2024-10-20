@@ -50,7 +50,7 @@ namespace DirectX
 
     HRESULT CreateDDSTextureFromFile(
         _In_ ID3D11Device* d3dDevice,
-        _In_z_ const wchar_t* szFileName,
+        _In_z_ const wchar_t* szFilename,
         _Outptr_opt_ ID3D11Resource** texture,
         _Outptr_opt_ ID3D11ShaderResourceView** textureView,
         _In_ size_t maxsize = 0,
@@ -70,7 +70,7 @@ namespace DirectX
     HRESULT CreateDDSTextureFromFile(
         _In_ ID3D11Device* d3dDevice,
         _In_opt_ ID3D11DeviceContext* d3dContext,
-        _In_z_ const wchar_t* szFileName,
+        _In_z_ const wchar_t* szFilename,
         _Outptr_opt_ ID3D11Resource** texture,
         _Outptr_opt_ ID3D11ShaderResourceView** textureView,
         _In_ size_t maxsize = 0,
@@ -93,7 +93,7 @@ namespace DirectX
 
     HRESULT CreateDDSTextureFromFileEx(
         _In_ ID3D11Device* d3dDevice,
-        _In_z_ const wchar_t* szFileName,
+        _In_z_ const wchar_t* szFilename,
         _In_ size_t maxsize,
         _In_ D3D11_USAGE usage,
         _In_ unsigned int bindFlags,
@@ -123,7 +123,7 @@ namespace DirectX
     HRESULT CreateDDSTextureFromFileEx(
         _In_ ID3D11Device* d3dDevice,
         _In_opt_ ID3D11DeviceContext* d3dContext,
-        _In_z_ const wchar_t* szFileName,
+        _In_z_ const wchar_t* szFilename,
         _In_ size_t maxsize,
         _In_ D3D11_USAGE usage,
         _In_ unsigned int bindFlags,

@@ -16,4 +16,9 @@ namespace EE
         E,
         NE
     };
+
+    struct DragAndDrop
+    {
+        constexpr static char const* const s_filePayloadID = "ResourceFile";
+    };
 }

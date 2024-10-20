@@ -1,14 +1,14 @@
-#include "EngineTools/Resource/ResourcePicker.h"
+#include "EngineTools/Widgets/Pickers.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Variations.h"
-#include "EngineTools/Resource/ResourceDatabase.h"
+#include "EngineTools/FileSystem/FileRegistry.h"
 #include "EngineTools/Core/ToolsContext.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
-    class GraphVariationResourceOptionProvider : public Resource::ResourcePicker::OptionProvider
+    class GraphVariationResourceOptionProvider : public ResourcePicker::OptionProvider
     {
 
     public:
@@ -20,17 +20,17 @@ namespace EE::Animation
 
         virtual void GenerateOptions( ToolsContext const& m_toolsContext, TVector<ResourceID>& outOptions ) const override
         {
-            TInlineString<5> const resourceTypeIDString = GraphVariation::GetStaticResourceTypeID().ToString();
+            FileSystem::Extension const resourceTypeIDString = GraphVariation::GetStaticResourceTypeID().ToString();
 
-            TVector<Resource::ResourceDatabase::FileEntry const*> graphResources = m_toolsContext.m_pResourceDatabase->GetAllFileEntriesOfType( GraphDefinition::GetStaticResourceTypeID() );
+            TVector<FileRegistry::FileInfo const*> graphResources = m_toolsContext.m_pFileRegistry->GetAllResourceFileEntries( GraphDefinition::GetStaticResourceTypeID() );
             for ( auto const& fileEntry : graphResources )
             {
-                GraphResourceDescriptor const* pGraphDescriptor = Cast<GraphResourceDescriptor>( fileEntry->m_pDescriptor );
-                for ( StringID variationID : pGraphDescriptor->m_variations )
+                GraphResourceDescriptor const* pGraphDescriptor = Cast<GraphResourceDescriptor>( fileEntry->m_pDataFile );
+                TInlineVector<EE::StringID, 10> variationIDs = pGraphDescriptor->m_graphDefinition.GetVariationIDs();
+                for ( StringID variationID : variationIDs )
                 {
-                    FileSystem::Path const variationVirtualFilePath = Variation::GenerateResourceFilePath( fileEntry->m_filePath, variationID );
-                    ResourceID variationResourceID = ResourceID::FromFileSystemPath( m_toolsContext.GetRawResourceDirectory(), variationVirtualFilePath );
-                    outOptions.emplace_back( variationResourceID );
+                    DataPath const variationVirtualFilePath = Variation::GenerateResourceDataPath( m_toolsContext.GetSourceDataDirectory(), fileEntry->m_filePath, variationID );
+                    outOptions.emplace_back( variationVirtualFilePath );
                 }
             }
         }
@@ -47,7 +47,7 @@ namespace EE::Animation
                 return false;
             }
 
-            Resource::ResourceDatabase::FileEntry const* pGraphFileEntry = m_toolsContext.m_pResourceDatabase->GetFileEntry( graphResourceID );
+            FileRegistry::FileInfo const* pGraphFileEntry = m_toolsContext.m_pFileRegistry->GetFileEntry( graphResourceID );
             if ( pGraphFileEntry == nullptr )
             {
                 return false;
@@ -56,9 +56,11 @@ namespace EE::Animation
             // Case insensitive variation search
             //-------------------------------------------------------------------------
 
-            GraphResourceDescriptor const* pGraphDescriptor = Cast<GraphResourceDescriptor>( pGraphFileEntry->m_pDescriptor );
+            GraphResourceDescriptor const* pGraphDescriptor = Cast<GraphResourceDescriptor>( pGraphFileEntry->m_pDataFile );
             String const variationStr( variationID.c_str() );
-            for ( auto const& variation : pGraphDescriptor->m_variations )
+
+            TInlineVector<EE::StringID, 10> variationIDs = pGraphDescriptor->m_graphDefinition.GetVariationIDs();
+            for ( auto const& variation : variationIDs )
             {
                 int32_t const result = variationStr.comparei( variation.c_str() );
                 if ( result == 0 )

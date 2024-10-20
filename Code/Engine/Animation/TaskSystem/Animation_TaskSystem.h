@@ -3,6 +3,7 @@
 #include "Animation_Task.h"
 #include "Animation_TaskSerializer.h"
 #include "Engine/Animation/AnimationBoneMask.h"
+#include "Engine/Animation/AnimationDebug.h"
 
 //-------------------------------------------------------------------------
 
@@ -101,17 +102,22 @@ namespace EE::Animation
         inline TVector<Task*> const& GetRegisteredTasks() const { return m_tasks; }
 
         template< typename T, typename ... ConstructorParams >
-        inline TaskIndex RegisterTask( ConstructorParams&&... params )
+        inline int8_t RegisterTask( int64_t sourceID, ConstructorParams&&... params )
         {
             EE_ASSERT( m_tasks.size() < 0xFF );
+
+            #if EE_DEVELOPMENT_TOOLS
+            m_debugPathTracker.AddTrackedPath( sourceID );
+            #endif
+
             auto pNewTask = m_tasks.emplace_back( EE::New<T>( eastl::forward<ConstructorParams>( params )... ) );
             m_hasPhysicsDependency |= pNewTask->HasPhysicsDependency();
             m_needsUpdate = true;
-            return (TaskIndex) ( m_tasks.size() - 1 );
+            return (int8_t) ( m_tasks.size() - 1 );
         }
 
-        TaskIndex GetCurrentTaskIndexMarker() const { return (TaskIndex) m_tasks.size(); }
-        void RollbackToTaskIndexMarker( TaskIndex const marker );
+        int8_t GetCurrentTaskIndexMarker() const { return (int8_t) m_tasks.size(); }
+        void RollbackToTaskIndexMarker( int8_t const marker );
 
         // Task Serialization
         //-------------------------------------------------------------------------
@@ -127,11 +133,11 @@ namespace EE::Animation
 
         // Serialized the current executed tasks - NOTE: this can fail since some tasks (i.e. physics) cannot be serialized!
         // Only do this if there are no currently pending tasks!
-        bool SerializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob& outSerializedData ) const;
+        bool SerializeTasks( ResourceMappings const& resourceMappings, Blob& outSerializedData ) const;
 
         // Create a new set of tasks from a serialized set of data
         // Only do this if there are no registered tasks!
-        void DeserializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob const& inSerializedData );
+        void DeserializeTasks( ResourceMappings const& resourceMappings, Blob const& inSerializedData );
 
         // Debug
         //-------------------------------------------------------------------------
@@ -140,11 +146,26 @@ namespace EE::Animation
         void SetDebugMode( TaskSystemDebugMode mode );
         TaskSystemDebugMode GetDebugMode() const { return m_debugMode; }
         void DrawDebug( Drawing::DrawContext& drawingContext );
+
+        // Add a new path element to add extra information about the source of events (this should only be called from child/external graph nodes)
+        void PushBaseDebugPath( int16_t nodeIdx ) { m_debugPathTracker.PushBasePath( nodeIdx ); }
+
+        // Pop a path element from the current path
+        void PopBaseDebugPath() { m_debugPathTracker.PopBasePath(); }
+
+        // Do we currently have a debug path set?
+        inline bool HasDebugBasePathSet() const { return m_debugPathTracker.HasBasePath(); }
+
+        TInlineVector<int64_t, 5> const& GetTaskDebugPath( int8_t taskIdx ) const
+        {
+            EE_ASSERT( taskIdx >= 0 && taskIdx < m_tasks.size() );
+            return m_debugPathTracker.m_itemPaths[taskIdx];
+        }
         #endif
 
     private:
 
-        bool AddTaskChainToPrePhysicsList( TaskIndex taskIdx );
+        bool AddTaskChainToPrePhysicsList( int8_t taskIdx );
         void ExecuteTasks();
 
     private:
@@ -153,7 +174,7 @@ namespace EE::Animation
         PoseBufferPool                          m_posePool;
         BoneMaskPool                            m_boneMaskPool;
         TaskContext                             m_taskContext;
-        TInlineVector<TaskIndex, 16>            m_prePhysicsTaskIndices;
+        TInlineVector<int8_t, 16>            m_prePhysicsTaskIndices;
         PoseBuffer                              m_finalPoseBuffer;
         bool                                    m_hasPhysicsDependency = false;
         bool                                    m_hasCodependentPhysicsTasks = false;
@@ -169,6 +190,7 @@ namespace EE::Animation
 
         #if EE_DEVELOPMENT_TOOLS
         TaskSystemDebugMode                     m_debugMode = TaskSystemDebugMode::Off;
+        DebugPathTracker                        m_debugPathTracker;
         #endif
     };
 }

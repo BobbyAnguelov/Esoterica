@@ -1,9 +1,7 @@
 #include "ResourceEditor_MapEditor.h"
 #include "EngineTools/Navmesh/NavmeshGeneratorDialog.h"
-#include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
-#include "EngineTools/Core/CommonDialogs.h"
+#include "EngineTools/Core/Dialogs.h"
 #include "EngineTools/Entity/EntitySerializationTools.h"
-#include "Engine/Entity/EntitySerialization.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "Engine/Navmesh/DebugViews/DebugView_Navmesh.h"
@@ -41,8 +39,7 @@ namespace EE::EntityModel
         // Should we save the current map before unloading?
         if ( IsDirty() )
         {
-            pfd::message saveChangesMsg( m_loadedMap.c_str(), "You have unsaved changes! Do you want to save map?", pfd::choice::yes_no );
-            if ( saveChangesMsg.result() == pfd::button::yes )
+            if ( MessageDialog::Confirmation( Severity::Warning, "Unsaved Changes", "You have unsaved changes! Do you want to save map?" ) )
             {
                 Save();
             }
@@ -51,31 +48,27 @@ namespace EE::EntityModel
         // Get new map filename
         //-------------------------------------------------------------------------
 
-        auto const mapFilename = pfd::save_file( "Create New Map", m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath().c_str(), { "Map Files", "*.map" } ).result();
-        if ( mapFilename.empty() )
-        {
-            return;
-        }
+        FileDialog::Result result = FileDialog::Save( m_pToolsContext, EntityMapDescriptor::GetStaticResourceTypeID(), m_pToolsContext->m_pFileRegistry->GetSourceDataDirectoryPath().c_str() );
 
-        FileSystem::Path const mapFilePath( mapFilename.c_str() );
+        FileSystem::Path const mapFilePath( result.m_filePaths[0].c_str() );
         if ( FileSystem::Exists( mapFilePath ) )
         {
-            if ( pfd::message( "Confirm Overwrite", "Map file exists, should we overwrite it?", pfd::choice::yes_no, pfd::icon::error ).result() == pfd::button::no )
+            if ( !MessageDialog::Confirmation( Severity::Warning, "Confirm Overwrite", "Map file exists, should we overwrite it?" ) )
             {
                 return;
             }
         }
 
-        ResourceID const mapResourceID = GetResourcePath( mapFilePath );
+        ResourceID const mapResourceID = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), mapFilePath );
         if ( mapResourceID == m_loadedMap )
         {
-            pfd::message( "Error", "Cant override currently loaded map!", pfd::choice::ok, pfd::icon::error ).result();
+            MessageDialog::Error( "Error", "Cant override currently loaded map!" );
             return;
         }
 
-        if ( mapResourceID.GetResourceTypeID() != SerializedEntityMap::GetStaticResourceTypeID() )
+        if ( mapResourceID.GetResourceTypeID() != EntityMapDescriptor::GetStaticResourceTypeID() )
         {
-            pfd::message( "Error", "Invalid map extension provided! Maps need to have the .map extension!", pfd::choice::ok, pfd::icon::error ).result();
+            MessageDialog::Error( "Error", "Invalid map extension provided! Maps need to have the .map extension!" );
             return;
         }
 
@@ -88,32 +81,30 @@ namespace EE::EntityModel
         }
         else
         {
-            pfd::message( "Error", "Failed to create new map!", pfd::choice::ok, pfd::icon::error ).result();
+            MessageDialog::Error( "Error", "Failed to create new map!" );
         }
     }
 
     void EntityMapEditor::SelectAndLoadMap()
     {
-        auto const selectedMap = pfd::open_file( "Load Map", m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath().c_str(), { "Map Files", "*.map" }, pfd::opt::none ).result();
-        if ( selectedMap.empty() )
+        FileDialog::Result result = FileDialog::Load( m_pToolsContext, EntityMapDescriptor::GetStaticResourceTypeID() );
+        if ( !result )
         {
             return;
         }
 
-        FileSystem::Path const mapFilePath( selectedMap[0].c_str() );
-        ResourceID const mapToLoad = GetResourcePath( mapFilePath );
+        ResourceID const mapToLoad = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), result );
         LoadMap( mapToLoad );
     }
 
-    void EntityMapEditor::LoadMap( TResourcePtr<EntityModel::SerializedEntityMap> const& mapToLoad )
+    void EntityMapEditor::LoadMap( TResourcePtr<EntityModel::EntityMapDescriptor> const& mapToLoad )
     {
         if ( mapToLoad.GetResourceID() != m_loadedMap )
         {
             // Should we save the current map before unloading?
             if ( IsDirty() )
             {
-                pfd::message saveChangesMsg( m_loadedMap.c_str(), "You have unsaved changes! Do you want to save map?", pfd::choice::yes_no);
-                if ( saveChangesMsg.result() == pfd::button::yes )
+                if ( MessageDialog::Confirmation( Severity::Warning, "Unsaved Changes", "You have unsaved changes! Do you want to save map?" ) )
                 {
                     Save();
                 }
@@ -134,7 +125,7 @@ namespace EE::EntityModel
             // Load map
             m_loadedMap = mapToLoad.GetResourceID();
             m_editedMapID = m_pWorld->LoadMap( m_loadedMap );
-            SetDisplayName( m_loadedMap.GetResourcePath().GetFileNameWithoutExtension() );
+            SetDisplayName( m_loadedMap.GetResourcePath().GetFilenameWithoutExtension() );
         }
     }
 
@@ -154,8 +145,8 @@ namespace EE::EntityModel
         // Get new map filename
         //-------------------------------------------------------------------------
 
-        FileSystem::Path mapFilePath;
-        if ( !SaveDialog( "Map", mapFilePath, GetFileSystemPath( m_loadedMap ).GetParentDirectory().c_str(), "Map File" ) )
+        FileDialog::Result const result = FileDialog::Save( m_pToolsContext, EntityMapDescriptor::GetStaticResourceTypeID(), GetFileSystemPath( m_loadedMap ) );
+        if ( !result )
         {
             return;
         }
@@ -163,14 +154,14 @@ namespace EE::EntityModel
         // Write the map out to a new path and load it
         //-------------------------------------------------------------------------
 
-        if ( WriteMapToFile( *m_pToolsContext->m_pTypeRegistry, *pEditedMap, mapFilePath ) )
+        if ( WriteMapToFile( *m_pToolsContext->m_pTypeRegistry, *pEditedMap, result.m_filePaths[0] ) )
         {
-            ResourceID const mapResourcePath = GetResourcePath( mapFilePath );
+            ResourceID const mapResourcePath = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), result.m_filePaths[0] );
             LoadMap( mapResourcePath );
         }
         else
         {
-            pfd::message( "Error", "Failed to save file!", pfd::choice::ok, pfd::icon::error ).result();
+            MessageDialog::Error( "Error", "Failed to save file!" );
         }
     }
 
@@ -215,7 +206,7 @@ namespace EE::EntityModel
 
             ImGui::SeparatorText( EE_ICON_WALK" Navmesh" );
             
-            auto const& navmeshComponents = m_pWorld->GetAllRegisteredComponentsOfType<Navmesh::NavmeshComponent>();
+            auto const& navmeshComponents = m_pWorld->GetAllComponentsOfType<Navmesh::NavmeshComponent>();
             bool const hasNavmeshComponent = !navmeshComponents.empty();
 
             if ( !hasNavmeshComponent )
@@ -260,8 +251,8 @@ namespace EE::EntityModel
 
             ImGui::SeparatorText( EE_ICON_WALK" Navmesh" );
 
-            //auto pNavmeshWorldSystem = m_pWorld->GetWorldSystem<Navmesh::NavmeshWorldSystem>();
-            //Navmesh::NavmeshDebugView::DrawNavmeshRuntimeSettings( pNavmeshWorldSystem );
+            auto pNavmeshWorldSystem = m_pWorld->GetWorldSystem<Navmesh::NavmeshWorldSystem>();
+            Navmesh::NavmeshDebugView::DrawNavmeshRuntimeSettings( pNavmeshWorldSystem );
 
             //-------------------------------------------------------------------------
 
@@ -351,7 +342,7 @@ namespace EE::EntityModel
     void EntityMapEditor::CreateNavmeshComponent()
     {
         // Create the appropriate resource ID for the navmesh data
-        ResourcePath navmeshResourcePath = GetEditedMap()->GetMapResourceID().GetResourcePath();
+        DataPath navmeshResourcePath = GetEditedMap()->GetMapResourceID().GetResourcePath();
         navmeshResourcePath.ReplaceExtension( Navmesh::NavmeshData::GetStaticResourceTypeID().ToString().c_str() );
         ResourceID const navmeshResourceID( navmeshResourcePath );
 
@@ -366,7 +357,7 @@ namespace EE::EntityModel
         EE_ASSERT( m_pNavmeshGeneratorDialog == nullptr );
 
         // Try find navmesh component
-        auto const& navmeshComponents = m_pWorld->GetAllRegisteredComponentsOfType<Navmesh::NavmeshComponent>();
+        auto const& navmeshComponents = m_pWorld->GetAllComponentsOfType<Navmesh::NavmeshComponent>();
         if ( navmeshComponents.size() > 1 )
         {
             EE_LOG_WARNING( "Entity", "Map Editor", "Multiple navmesh components found in the map! This is not supported!" );
@@ -377,11 +368,11 @@ namespace EE::EntityModel
         // Navmesh Generation
         //-------------------------------------------------------------------------
 
-        FileSystem::Path navmeshFilePath = GetEditedMap()->GetMapResourceID().GetResourcePath().ToFileSystemPath( m_pToolsContext->m_pResourceDatabase->GetRawResourceDirectoryPath() );
+        FileSystem::Path navmeshFilePath = GetEditedMap()->GetMapResourceID().GetFileSystemPath( m_pToolsContext->m_pFileRegistry->GetSourceDataDirectoryPath() );
         navmeshFilePath.ReplaceExtension( Navmesh::NavmeshData::GetStaticResourceTypeID().ToString() );
 
-        SerializedEntityMap map;
-        Serializer::SerializeEntityMap( *m_pToolsContext->m_pTypeRegistry, GetEditedMap(), map );
+        EntityMapDescriptor map;
+        CreateEntityMapDescriptor( *m_pToolsContext->m_pTypeRegistry, GetEditedMap(), map );
         m_pNavmeshGeneratorDialog = EE::New<Navmesh::NavmeshGeneratorDialog>( m_pToolsContext, pNavmeshComponent->GetBuildSettings(), map, navmeshFilePath);
     }
 

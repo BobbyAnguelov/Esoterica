@@ -14,9 +14,12 @@ namespace EE::Render
         EE_REFLECT_TYPE( MaterialResourceDescriptor );
 
         virtual bool IsValid() const override { return m_albedoTexture.IsSet(); }
+        virtual int32_t GetFileVersion() const override { return 0; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Material::GetStaticResourceTypeID(); }
-        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override {}
+        virtual FileSystem::Extension GetExtension() const override final { return Material::GetStaticResourceTypeID().ToString(); }
+        virtual char const* GetFriendlyName() const override final { return Material::s_friendlyName; }
+        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override {}
 
         virtual void Clear() override
         {

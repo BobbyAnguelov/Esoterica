@@ -11,17 +11,20 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class ToolsGraphDefinition
+    class ToolsGraphDefinition final : public IReflectedType
     {
+        EE_REFLECT_TYPE( ToolsGraphDefinition );
 
     public:
 
-        ToolsGraphDefinition();
-        ~ToolsGraphDefinition();
+        ToolsGraphDefinition() = default;
 
-        inline bool IsValid() const { return m_pRootGraph != nullptr; }
-        inline FlowGraph* GetRootGraph() { return m_pRootGraph; }
-        inline FlowGraph const* GetRootGraph() const { return m_pRootGraph; }
+        // Resets the graph definition to a valid but empty graph
+        void CreateDefaultRootGraph();
+
+        inline bool IsValid() const { return m_rootGraph.IsSet(); }
+        inline FlowGraph* GetRootGraph() { return m_rootGraph.Get(); }
+        inline FlowGraph const* GetRootGraph() const { return m_rootGraph.Get(); }
 
         // Parameters
         //-------------------------------------------------------------------------
@@ -43,26 +46,18 @@ namespace EE::Animation
         Variation const* GetVariation( StringID variationID ) const { return m_variationHierarchy.GetVariation( variationID ); }
         Variation* GetVariation( StringID variationID ) { return m_variationHierarchy.GetVariation( variationID ); }
 
-        // Serialization
-        //-------------------------------------------------------------------------
-
-        // Load an existing graph
-        bool LoadFromJson( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphDescriptorObjectValue );
-
-        // Saves this graph
-        void SaveToJson( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const;
+        TInlineVector<StringID, 10> GetVariationIDs() const;
 
     private:
 
-        // Frees all memory and resets the internal state
-        void ResetInternalState();
-
-        // Resets the graph definition to a valid but empty graph
-        void ResetToDefaultState();
+        virtual void PostDeserialize() override;
 
     private:
 
-        FlowGraph*                                                      m_pRootGraph = nullptr;
+        EE_REFLECT()
+        TTypeInstance<FlowGraph>                                        m_rootGraph;
+
+        EE_REFLECT()
         VariationHierarchy                                              m_variationHierarchy;
     };
 }

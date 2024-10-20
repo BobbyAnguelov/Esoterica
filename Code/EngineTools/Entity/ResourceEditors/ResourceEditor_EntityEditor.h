@@ -1,9 +1,11 @@
 #pragma once
 
 #include "EngineTools/Core/EditorTool.h"
-#include "EngineTools/Core/Widgets/TreeListView.h"
+#include "EngineTools/Widgets/TreeListView.h"
+#include "EngineTools/Entity/ComponentVisualizer.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/Entity/Entity.h"
+#include "Base/Imgui/ImguiGizmo.h"
 
 //-------------------------------------------------------------------------
 // Entity Editor
@@ -62,8 +64,8 @@ namespace EE::EntityModel
 
     public:
 
-        explicit EntityEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
         explicit EntityEditor( ToolsContext const* pToolsContext, String const& displayName, EntityWorld* pWorld );
+        ~EntityEditor();
 
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
@@ -77,10 +79,12 @@ namespace EE::EntityModel
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
+        virtual bool SupportsSaving() const override { return true; }
         virtual bool AlwaysAllowSaving() const override { return true; }
         virtual void OnMousePick( Render::PickingID pickingID ) override;
         virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition ) override;
 
+        virtual void PreUndoRedo( UndoStack::Operation operation ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
         // Operations/Requests
@@ -165,6 +169,13 @@ namespace EE::EntityModel
         void ApplyTransformManipulation( Transform const& newTransform );
         void EndTransformManipulation( Transform const& newTransform );
 
+        // Component Visualizer
+        //-------------------------------------------------------------------------
+
+        void UpdateComponentVisualizer();
+        void PreVisualizerEdit( EntityComponent* pComponent );
+        void PostVisualizerEdit( EntityComponent* pComponent );
+
     protected:
 
         // All the entities requested for deletion in a frame, treated as a single operation
@@ -223,6 +234,7 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         PropertyGrid                                    m_propertyGrid;
+        PropertyGrid::VisualState                       m_propertyGridVisualState;
         EventBindingID                                  m_preEditPropertyBindingID;
         EventBindingID                                  m_postEditPropertyBindingID;
 
@@ -231,5 +243,7 @@ namespace EE::EntityModel
 
         TVector<TypeSystem::TypeInfo const*>            m_volumeTypes;
         TVector<TypeSystem::TypeInfo const*>            m_visualizedVolumeTypes;
+        TVector<ComponentVisualizer const*>             m_visualizerDefaultInstances;
+        ComponentVisualizer*                            m_pComponentVisualizer = nullptr;
     };
 }

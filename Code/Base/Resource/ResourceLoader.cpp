@@ -1,37 +1,68 @@
 #include "ResourceLoader.h"
 #include "ResourceHeader.h"
+#include "Base/FileSystem/FileSystem.h"
 #include "Base/Serialization/BinarySerialization.h"
-
+#include "Base/Time/Timers.h"
+#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Resource
 {
-    bool ResourceLoader::Load( ResourceID const& resourceID, Blob& rawData, ResourceRecord* pResourceRecord ) const
+    bool ResourceLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, ResourceRecord* pResourceRecord ) const
     {
+        // Read file and create archive
+        //-------------------------------------------------------------------------
+
+        Blob rawResourceData;
         Serialization::BinaryInputArchive archive;
-        archive.ReadFromBlob( rawData );
 
-        // Read resource header
-        Resource::ResourceHeader header;
-        archive << header;
-
-        #if EE_DEVELOPMENT_TOOLS
-        pResourceRecord->m_sourceResourceHash = header.m_sourceResourceHash;
-        #endif
-
-        // Set all install dependencies
-        pResourceRecord->m_installDependencyResourceIDs.reserve( header.m_installDependencies.size() );
-        for ( auto const& depResourceID : header.m_installDependencies )
         {
-            pResourceRecord->m_installDependencyResourceIDs.push_back( depResourceID );
+            EE_PROFILE_SCOPE_IO( "Read File" );
+
+            #if EE_DEVELOPMENT_TOOLS
+            ScopedTimer<PlatformClock> timer( pResourceRecord->m_fileReadTime );
+            #endif
+
+            if ( !FileSystem::ReadBinaryFile( resourcePath, rawResourceData ) )
+            {
+                EE_LOG_ERROR( "Resource", "Resource Loader", "Failed to read resource file (%s)", resourceID.c_str() );
+                return false;
+            }
+
+            archive.ReadFromBlob( rawResourceData );
         }
 
-        // Perform resource load
-        if ( !LoadInternal( resourceID, pResourceRecord, archive ) )
+        // Load contents from raw file data
+        //-------------------------------------------------------------------------
+
         {
-            EE_LOG_ERROR( "Resource", "Resource Loader", "Failed to load resource: %s", resourceID.c_str() );
-            return false;
+            EE_PROFILE_SCOPE_IO( "Deserialize File" );
+
+            #if EE_DEVELOPMENT_TOOLS
+            ScopedTimer<PlatformClock> timer( pResourceRecord->m_loadTime );
+            #endif
+
+            Resource::ResourceHeader header;
+            archive << header;
+
+            #if EE_DEVELOPMENT_TOOLS
+            pResourceRecord->m_sourceResourceHash = header.m_sourceResourceHash;
+            #endif
+
+            // Set all install dependencies
+            pResourceRecord->m_installDependencyResourceIDs.reserve( header.m_installDependencies.size() );
+            for ( auto const& depResourceID : header.m_installDependencies )
+            {
+                pResourceRecord->m_installDependencyResourceIDs.push_back( depResourceID );
+            }
+
+            // Perform resource load
+            if ( !Load( resourceID, resourcePath, pResourceRecord, archive ) )
+            {
+                EE_LOG_ERROR( "Resource", "Resource Loader", "Failed to load resource: %s", resourceID.c_str() );
+                return false;
+            }
         }
 
         // Loaders must always set a valid resource data ptr, even if the resource internally is invalid
@@ -41,7 +72,7 @@ namespace EE::Resource
         return true;
     }
 
-    InstallResult ResourceLoader::Install( ResourceID const& resourceID, ResourceRecord* pResourceRecord, InstallDependencyList const& installDependencies ) const
+    InstallResult ResourceLoader::Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, InstallDependencyList const& installDependencies, ResourceRecord* pResourceRecord ) const
     {
         EE_ASSERT( pResourceRecord != nullptr );
         pResourceRecord->m_pResource->m_resourceID = resourceID;

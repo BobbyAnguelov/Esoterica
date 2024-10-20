@@ -6,9 +6,16 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE
 {
-    Console::Console( Settings::SettingsRegistry& registry )
-        : m_registry( registry )
-    {}
+    void Console::Initialize( Settings::SettingsRegistry& settingsRegistry )
+    {
+        EE_ASSERT( m_pSettingsRegistry == nullptr );
+        m_pSettingsRegistry = &settingsRegistry;
+    }
+
+    void Console::Shutdown()
+    {
+        m_pSettingsRegistry = nullptr;
+    }
 
     void Console::Update( UpdateContext const& context )
     {
@@ -51,6 +58,13 @@ namespace EE
 
     void Console::DrawGlobalSettingsEditor()
     {
+        if( m_pSettingsRegistry == nullptr )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
         if ( ImGui::BeginTable( "Layout", 2, ImGuiTableFlags_Resizable, ImGui::GetContentRegionAvail() ) )
         {
             ImGui::TableSetupColumn( "Objects", ImGuiTableColumnFlags_WidthStretch );
@@ -69,9 +83,9 @@ namespace EE
 
             constexpr int32_t const buttonSize = 30;
             ImGui::SetCursorPosY( ImGui::GetCursorPosY() + ImGui::GetContentRegionAvail().y - buttonSize );
-            if ( ImGuiX::ColoredIconButton( Colors::Green, Colors::White, Colors::White, EE_ICON_FLOPPY, "Save To File", ImVec2( ImGui::GetContentRegionAvail().x - 24, buttonSize ), true ) )
+            if ( ImGuiX::IconButtonColored( EE_ICON_FLOPPY, "Save To File", Colors::Green, Colors::White, Colors::White, ImVec2( ImGui::GetContentRegionAvail().x - 24, buttonSize ), true ) )
             {
-                if ( m_registry.SaveGlobalSettingsToIniFile() )
+                if ( m_pSettingsRegistry->SaveGlobalSettingsToIniFile() )
                 {
                     ImGuiX::NotifySuccess( "Ini file saved!" );
                 }

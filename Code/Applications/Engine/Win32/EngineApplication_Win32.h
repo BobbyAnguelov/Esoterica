@@ -1,9 +1,10 @@
 #ifdef _WIN32
 #pragma once
 
-#include "Base/Application/Platform/Application_Win32.h"
-#include "Applications/EngineShared/Engine.h"
+#include "Game/_Module/GameModule.h"
+#include "Engine/Engine.h"
 #include "Engine/ToolsUI/EngineDebugUI.h"
+#include "Base/Application/Platform/Application_Win32.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,13 +16,13 @@ namespace EE
 
     public:
 
-        using Engine::Engine;
+        StandaloneEngine( TFunction<bool( EE::String const& error )>&& errorHandler );
 
         void RegisterTypes() override;
         void UnregisterTypes() override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual void CreateToolsUI() { m_pToolsUI = EE::New<EngineDebugUI>(); }
+        virtual void CreateDevelopmentToolsUI() override { m_pDevelopmentToolsUI = EE::New<EngineDebugUI>(); }
         #endif
     };
 

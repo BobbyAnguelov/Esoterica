@@ -8,17 +8,9 @@ namespace EE::Animation::GraphNodes
 {
     ExternalGraphToolsNode::ExternalGraphToolsNode()
         : FlowToolsNode()
-        , m_name( "External Graph" )
     {
         CreateOutputPin( "Pose", GraphValueType::Pose );
-    }
-
-    void ExternalGraphToolsNode::Initialize( VisualGraph::BaseGraph* pParentGraph )
-    {
-        FlowToolsNode::Initialize( pParentGraph );
-
-        EE_ASSERT( pParentGraph != nullptr );
-        m_name = GetUniqueSlotName( pParentGraph->GetRootGraph(), "External Graph" );
+        Rename( "External Graph" );
     }
 
     int16_t ExternalGraphToolsNode::Compile( GraphCompilationContext& context ) const
@@ -32,20 +24,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void ExternalGraphToolsNode::SetName( String const& newName )
-    {
-        EE_ASSERT( IsRenameable() );
-        if ( GetRootGraph() != nullptr )
-        {
-            m_name = GetUniqueSlotName( GetRootGraph(), newName );
-        }
-        else
-        {
-            m_name = newName;
-        }
-    }
-
-    void ExternalGraphToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void ExternalGraphToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         DrawInternalSeparator( ctx );
 
@@ -85,61 +64,31 @@ namespace EE::Animation::GraphNodes
         FlowToolsNode::DrawExtraControls( ctx, pUserContext );
     }
 
-    String ExternalGraphToolsNode::GetUniqueSlotName( VisualGraph::BaseGraph* pRootGraph, String const& desiredName )
+    String ExternalGraphToolsNode::CreateUniqueNodeName( String const& desiredName ) const
     {
-        EE_ASSERT( pRootGraph != nullptr && pRootGraph->IsRootGraph() );
-
-        // Ensure that the slot name is unique within the same graph
-        int32_t cnt = 0;
         String uniqueName = desiredName;
-        auto const externalSlotNodes = pRootGraph->FindAllNodesOfType<ExternalGraphToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Exact );
-        for ( int32_t i = 0; i < (int32_t) externalSlotNodes.size(); i++ )
-        {
-            if ( externalSlotNodes[i] == this )
-            {
-                continue;
-            }
 
-            if ( externalSlotNodes[i]->GetName() == uniqueName )
+        if ( HasParentGraph() )
+        {
+            // Ensure that the slot name is unique within the same graph
+            int32_t cnt = 0;
+            auto const externalSlotNodes = GetRootGraph()->FindAllNodesOfType<ExternalGraphToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Exact );
+            for ( int32_t i = 0; i < (int32_t) externalSlotNodes.size(); i++ )
             {
-                uniqueName = String( String::CtorSprintf(), "%s_%d", desiredName.c_str(), cnt );
-                cnt++;
-                i = 0;
+                if ( externalSlotNodes[i] == this )
+                {
+                    continue;
+                }
+
+                if ( externalSlotNodes[i]->GetName() == uniqueName )
+                {
+                    uniqueName = String( String::CtorSprintf(), "%s_%d", desiredName.c_str(), cnt );
+                    cnt++;
+                    i = -1;
+                }
             }
         }
 
         return uniqueName;
     }
-
-    void ExternalGraphToolsNode::PostPaste()
-    {
-        FlowToolsNode::PostPaste();
-        m_name = GetUniqueSlotName( GetRootGraph(), m_name );
-    }
-
-    void ExternalGraphToolsNode::OnDoubleClick( VisualGraph::UserContext* pUserContext )
-    {
-        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
-        if ( pGraphNodeContext->HasDebugData() )
-        {
-            int16_t runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
-            if ( runtimeNodeIdx != InvalidIndex )
-            {
-                StringID const SlotID( GetName() );
-                GraphInstance const* pConnectedGraphInstance = pGraphNodeContext->m_pGraphInstance->GetExternalGraphDebugInstance( SlotID );
-                if ( pConnectedGraphInstance != nullptr )
-                {
-                    pGraphNodeContext->RequestOpenResource( pConnectedGraphInstance->GetDefinitionResourceID() );
-                }
-            }
-        }
-    }
-
-    #if EE_DEVELOPMENT_TOOLS
-    void ExternalGraphToolsNode::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
-    {
-        FlowToolsNode::PostPropertyEdit( pPropertyEdited );
-        m_name = GetUniqueSlotName( GetRootGraph(), m_name );
-    }
-    #endif
 }

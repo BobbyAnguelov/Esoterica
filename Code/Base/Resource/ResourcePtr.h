@@ -33,7 +33,7 @@ namespace EE
             inline bool IsSet() const { return m_resourceID.IsValid(); }
 
             inline ResourceID const& GetResourceID() const { return m_resourceID; }
-            inline ResourcePath const& GetResourcePath() const { return m_resourceID.GetResourcePath(); }
+            inline DataPath const& GetResourcePath() const { return m_resourceID.GetResourcePath(); }
             inline ResourceTypeID GetResourceTypeID() const { return m_resourceID.GetResourceTypeID(); }
 
             inline void Clear()

@@ -21,8 +21,8 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    SkeletonEditor::SkeletonEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-        : TResourceEditor<Skeleton>( pToolsContext, pWorld, resourceID )
+    SkeletonEditor::SkeletonEditor( ToolsContext const* pToolsContext, ResourceID const& resourceID, EntityWorld* pWorld )
+        : TResourceEditor<Skeleton>( pToolsContext, resourceID, pWorld )
         , m_animationClipBrowser( pToolsContext )
     {}
 
@@ -41,11 +41,11 @@ namespace EE::Animation
         // Dock windows
         //-------------------------------------------------------------------------
 
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), viewportDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), viewportDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Skeleton" ).c_str(), leftDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Clip Browser" ).c_str(), rightDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Masks" ).c_str(), rightDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomRightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomRightDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Info" ).c_str(), bottomRightDockID );
     }
 
@@ -81,7 +81,7 @@ namespace EE::Animation
         if ( m_editedResource->GetPreviewMeshID().IsValid() )
         {
             m_pPreviewMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
-            m_pPreviewMeshComponent->SetSkeleton( GetDescriptorID() );
+            m_pPreviewMeshComponent->SetSkeleton( GetDataFilePath() );
             m_pPreviewMeshComponent->SetMesh( m_editedResource->GetPreviewMeshID() );
 
             m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
@@ -113,15 +113,15 @@ namespace EE::Animation
         }
     }
 
-    void SkeletonEditor::OnDescriptorLoadCompleted()
+    void SkeletonEditor::OnDataFileLoadCompleted()
     {
-        if ( IsDescriptorLoaded() )
+        if ( IsDataFileLoaded() )
         {
-            m_animationClipBrowser.SetSkeleton( GetDescriptorID() );
+            m_animationClipBrowser.SetSkeleton( GetDataFilePath() );
         }
     }
 
-    void SkeletonEditor::OnDescriptorUnload()
+    void SkeletonEditor::OnDataFileUnload()
     {
         m_animationClipBrowser.SetSkeleton( ResourceID() );
     }
@@ -236,7 +236,7 @@ namespace EE::Animation
 
             if ( IsEditingBoneMask() )
             {
-                if ( ImGuiX::ColoredButton( Colors::OrangeRed, Colors::White, "Stop Editing Bone Mask", ImVec2( -1, 0 ) ) )
+                if ( ImGuiX::ButtonColored( "Stop Editing Bone Mask", Colors::OrangeRed, Colors::White, ImVec2( -1, 0 ) ) )
                 {
                     StopEditingMask();
                 }
@@ -319,7 +319,7 @@ namespace EE::Animation
         }
         else if ( IsEditingBoneMask() )
         {
-            rowColor = BoneMask::GetColorForWeight( m_editedBoneWeights[boneIdx] );
+            rowColor = Color::EvaluateRedGreenGradient( m_editedBoneWeights[boneIdx] );
         }
 
         //-------------------------------------------------------------------------
@@ -335,7 +335,7 @@ namespace EE::Animation
 
         ImGui::TableNextColumn();
 
-        int32_t treeNodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+        int32_t treeNodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow;
         if ( pBone->m_children.empty() )
         {
             treeNodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
@@ -548,12 +548,12 @@ namespace EE::Animation
 
             ImGui::NewLine();
             ImGui::SeparatorText( "Local Transform" );
-            Transform const& localBoneTransform = pSkeleton->GetLocalReferencePose()[selectedBoneIdx];
+            Transform const& localBoneTransform = pSkeleton->GetParentSpaceReferencePose()[selectedBoneIdx];
             DrawTransform( localBoneTransform );
 
             ImGui::NewLine();
             ImGui::SeparatorText( "Global Transform" );
-            Transform const& globalBoneTransform = pSkeleton->GetGlobalReferencePose()[selectedBoneIdx];
+            Transform const& globalBoneTransform = pSkeleton->GetModelSpaceReferencePose()[selectedBoneIdx];
             DrawTransform( globalBoneTransform );
         }
     }
@@ -574,7 +574,7 @@ namespace EE::Animation
             int32_t const boneIdx = pSkeleton->GetBoneIndex( m_selectedBoneID );
             if ( boneIdx != InvalidIndex )
             {
-                Transform const globalBoneTransform = pSkeleton->GetBoneGlobalTransform( boneIdx );
+                Transform const globalBoneTransform = pSkeleton->GetBoneModelSpaceTransform( boneIdx );
                 drawingCtx.DrawAxis( globalBoneTransform, 0.25f, 3.0f );
 
                 Vector textLocation = globalBoneTransform.GetTranslation();
@@ -589,9 +589,9 @@ namespace EE::Animation
 
     void SkeletonEditor::ValidateLODSetup()
     {
-        EE_ASSERT( IsDescriptorLoaded() && IsResourceLoaded() );
+        EE_ASSERT( IsDataFileLoaded() && IsResourceLoaded() );
 
-        auto& highLODBones = GetDescriptor<SkeletonResourceDescriptor>()->m_highLODBones;
+        auto& highLODBones = GetDataFile<SkeletonResourceDescriptor>()->m_highLODBones;
         for ( int32_t i = 0; i < (int32_t) highLODBones.size(); i++ )
         {
             int32_t const highLODBoneIdx = m_editedResource->GetBoneIndex( highLODBones[i] );
@@ -620,16 +620,16 @@ namespace EE::Animation
 
     Skeleton::LOD SkeletonEditor::GetBoneLOD( StringID boneID ) const
     {
-        EE_ASSERT( IsDescriptorLoaded() );
-        return VectorContains( GetDescriptor<SkeletonResourceDescriptor>()->m_highLODBones, boneID ) ? Skeleton::LOD::High : Skeleton::LOD::Low;
+        EE_ASSERT( IsDataFileLoaded() );
+        return VectorContains( GetDataFile<SkeletonResourceDescriptor>()->m_highLODBones, boneID ) ? Skeleton::LOD::High : Skeleton::LOD::Low;
     }
 
     void SkeletonEditor::SetBoneHierarchyLOD( StringID boneID, Skeleton::LOD lod )
     {
-        EE_ASSERT( IsDescriptorLoaded() );
-        auto& highLODBones = GetDescriptor<SkeletonResourceDescriptor>()->m_highLODBones;
+        EE_ASSERT( IsDataFileLoaded() );
+        auto& highLODBones = GetDataFile<SkeletonResourceDescriptor>()->m_highLODBones;
 
-        ScopedDescriptorModification const sdm( this );
+        ScopedDataFileModification const sdm( this );
 
         int32_t const boneIdx = m_editedResource->GetBoneIndex( boneID );
         EE_ASSERT( boneIdx != InvalidIndex );
@@ -677,7 +677,7 @@ namespace EE::Animation
         EE_ASSERT( m_editedMaskIdx == InvalidIndex );
 
         BoneMaskDefinition* pEditedBoneMaskDefinition = nullptr;
-        auto pDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
         for ( auto i = 0; i < pDescriptor->m_boneMaskDefinitions.size(); i++ )
         {
             if ( pDescriptor->m_boneMaskDefinitions[i].m_ID == maskID )
@@ -723,17 +723,17 @@ namespace EE::Animation
 
     void SkeletonEditor::CreateBoneMask()
     {
-        EE_ASSERT( IsDescriptorLoaded() );
+        EE_ASSERT( IsDataFileLoaded() );
 
-        ScopedDescriptorModification const sdm( this );
-        auto pDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
+        ScopedDataFileModification const sdm( this );
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
         pDescriptor->m_boneMaskDefinitions.emplace_back( StringID( "Bone Mask" ) );
         GenerateUniqueBoneMaskName( (int32_t) pDescriptor->m_boneMaskDefinitions.size() - 1 );
     }
 
     void SkeletonEditor::DestroyBoneMask( StringID maskID )
     {
-        EE_ASSERT( IsDescriptorLoaded() );
+        EE_ASSERT( IsDataFileLoaded() );
 
         if ( IsEditingBoneMask() )
         {
@@ -742,8 +742,8 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        ScopedDescriptorModification const sdm( this );
-        auto pDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
+        ScopedDataFileModification const sdm( this );
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
         for ( auto iter = pDescriptor->m_boneMaskDefinitions.begin(); iter != pDescriptor->m_boneMaskDefinitions.end(); ++iter )
         {
             if ( iter->m_ID == maskID )
@@ -758,10 +758,10 @@ namespace EE::Animation
 
     void SkeletonEditor::RenameBoneMask( StringID oldID, StringID newID )
     {
-        EE_ASSERT( IsDescriptorLoaded() );
+        EE_ASSERT( IsDataFileLoaded() );
 
-        ScopedDescriptorModification const sdm( this );
-        auto pDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
+        ScopedDataFileModification const sdm( this );
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
         for ( auto i = 0; i < pDescriptor->m_boneMaskDefinitions.size(); i++ )
         {
             if ( pDescriptor->m_boneMaskDefinitions[i].m_ID == oldID )
@@ -778,10 +778,10 @@ namespace EE::Animation
     void SkeletonEditor::SetWeight( int32_t boneIdx, float weight )
     {
         EE_ASSERT( IsValidWeight( weight ) );
-        EE_ASSERT( IsDescriptorLoaded() );
+        EE_ASSERT( IsDataFileLoaded() );
         EE_ASSERT( IsEditingBoneMask() );
 
-        ScopedDescriptorModification const sm( this );
+        ScopedDataFileModification const sm( this );
         m_editedBoneWeights[boneIdx] = weight;
 
         ReflectWeightsToEditedBoneMask();
@@ -791,10 +791,10 @@ namespace EE::Animation
     void SkeletonEditor::SetAllChildWeights( int32_t parentBoneIdx, float weight, bool bIncludeParent )
     {
         EE_ASSERT( IsValidWeight( weight ) );
-        EE_ASSERT( IsDescriptorLoaded() );
+        EE_ASSERT( IsDataFileLoaded() );
         EE_ASSERT( IsEditingBoneMask() );
 
-        ScopedDescriptorModification const sm( this );
+        ScopedDataFileModification const sm( this );
 
         if ( bIncludeParent )
         {
@@ -817,11 +817,11 @@ namespace EE::Animation
 
     void SkeletonEditor::ReflectWeightsToEditedBoneMask()
     {
-        EE_ASSERT( IsDescriptorLoaded() );
+        EE_ASSERT( IsDataFileLoaded() );
         EE_ASSERT( IsEditingBoneMask() );
 
-        ScopedDescriptorModification const sm( this );
-        auto pDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
+        ScopedDataFileModification const sm( this );
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
         auto pEditedBoneMaskDefinition = &pDescriptor->m_boneMaskDefinitions[m_editedMaskIdx];
 
         // Clear existing weights
@@ -844,9 +844,10 @@ namespace EE::Animation
         EE_ASSERT( IsEditingBoneMask() );
         Skeleton const* pSkeleton = m_editedResource.GetPtr();
 
-        auto pDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
-        auto pEditedBoneMaskDefinition = &pDescriptor->m_boneMaskDefinitions[m_editedMaskIdx];
-        m_previewBoneMask = BoneMask( pSkeleton, *pEditedBoneMaskDefinition );
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
+        BoneMask::SerializedData serializedData;
+        pDescriptor->m_boneMaskDefinitions[m_editedMaskIdx].GenerateSerializedBoneMask( pSkeleton, serializedData );
+        m_previewBoneMask = BoneMask( pSkeleton, serializedData );
     }
 
     void SkeletonEditor::DrawBoneMaskPreview()
@@ -860,21 +861,21 @@ namespace EE::Animation
         auto drawingCtx = GetDrawingContext();
 
         Skeleton const* pSkeleton = m_editedResource.GetPtr();
-        auto const& localRefPose = pSkeleton->GetLocalReferencePose();
+        auto const& parentSpaceRefPose = pSkeleton->GetParentSpaceReferencePose();
         auto const& parentIndices = pSkeleton->GetParentBoneIndices();
 
-        auto const numBones = localRefPose.size();
+        auto const numBones = parentSpaceRefPose.size();
         if ( numBones > 0 )
         {
-            TInlineVector<Transform, 256> globalTransforms;
-            globalTransforms.resize( numBones );
+            TInlineVector<Transform, 256> modelSpaceTransforms;
+            modelSpaceTransforms.resize( numBones );
 
-            globalTransforms[0] = localRefPose[0];
+            modelSpaceTransforms[0] = parentSpaceRefPose[0];
             for ( auto i = 1; i < numBones; i++ )
             {
                 auto const& parentIdx = parentIndices[i];
-                auto const& parentTransform = globalTransforms[parentIdx];
-                globalTransforms[i] = localRefPose[i] * parentTransform;
+                auto const& parentTransform = modelSpaceTransforms[parentIdx];
+                modelSpaceTransforms[i] = parentSpaceRefPose[i] * parentTransform;
             }
 
             //-------------------------------------------------------------------------
@@ -882,10 +883,10 @@ namespace EE::Animation
             for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
             {
                 auto const& parentIdx = parentIndices[boneIdx];
-                auto const& parentTransform = globalTransforms[parentIdx];
-                auto const& boneTransform = globalTransforms[boneIdx];
+                auto const& parentTransform = modelSpaceTransforms[parentIdx];
+                auto const& boneTransform = modelSpaceTransforms[boneIdx];
 
-                Color const boneColor = BoneMask::GetColorForWeight( m_previewBoneMask.GetWeight( boneIdx ) );
+                Color const boneColor = Color::EvaluateRedGreenGradient( m_previewBoneMask.GetWeight( boneIdx ) );
                 drawingCtx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), boneColor, 5.0f );
             }
         }
@@ -897,10 +898,10 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto pDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
 
-        ImGui::BeginDisabled( !IsDescriptorLoaded() );
-        if ( ImGuiX::ColoredIconButton( Colors::Green, Colors::White, Colors::White, EE_ICON_PLUS, "Add New Mask", ImVec2( -1, 0 ) ) )
+        ImGui::BeginDisabled( !IsDataFileLoaded() );
+        if ( ImGuiX::IconButtonColored(  EE_ICON_PLUS, "Add New Mask", Colors::Green, Colors::White, Colors::White, ImVec2( -1, 0 ) ) )
         {
             CreateBoneMask();
         }
@@ -1021,7 +1022,7 @@ namespace EE::Animation
 
     void SkeletonEditor::ValidateDescriptorBoneMaskDefinitions()
     {
-        EE_ASSERT( IsDescriptorLoaded() );
+        EE_ASSERT( IsDataFileLoaded() );
         EE_ASSERT( IsResourceLoaded() );
 
         bool fixupPerformed = false;
@@ -1029,7 +1030,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         Skeleton const* pSkeleton = m_editedResource.GetPtr();
-        auto pDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
         for ( auto& descriptorDefinition : pDescriptor->m_boneMaskDefinitions )
         {
             // Remove invalid weights;
@@ -1082,8 +1083,8 @@ namespace EE::Animation
     {
         // Do not used a scoped descriptor modification here as this function is used as part of the validation
 
-        EE_ASSERT( IsDescriptorLoaded() );
-        auto pDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
+        EE_ASSERT( IsDataFileLoaded() );
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
         EE_ASSERT( boneMaskIdx >= 0 && boneMaskIdx < pDescriptor->m_boneMaskDefinitions.size() );
 
         InlineString desiredName = pDescriptor->m_boneMaskDefinitions[boneMaskIdx].m_ID.c_str();
@@ -1154,7 +1155,7 @@ namespace EE::Animation
 
     bool SkeletonEditor::DrawRenameBoneMaskDialog( UpdateContext const& context )
     {
-        SkeletonResourceDescriptor* pDescriptor = GetDescriptor<SkeletonResourceDescriptor>();
+        SkeletonResourceDescriptor* pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
 
         auto ValidateName = [this, pDescriptor] ( StringID ID )
         {

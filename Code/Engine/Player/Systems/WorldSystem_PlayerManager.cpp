@@ -1,6 +1,7 @@
 #include "WorldSystem_PlayerManager.h"
 #include "Engine/Player/Components/Component_PlayerSpawn.h"
 #include "Engine/Player/Components/Component_Player.h"
+#include "Engine/Input/GameInput.h"
 #include "Engine/Camera/Components/Component_Camera.h"
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
@@ -71,13 +72,6 @@ namespace EE
         }
         else if ( auto pPlayerComponent = TryCast<Player::PlayerComponent>( pComponent ) )
         {
-            // Shutdown input registry
-            auto pInputRegistry = m_player.m_pPlayerComponent->GetInputRegistry();
-            if ( pInputRegistry->IsInitialized() )
-            {
-                pInputRegistry->Shutdown();
-            }
-
             // Remove the player
             if ( m_player.m_entityID == pEntity->GetID() )
             {
@@ -174,22 +168,15 @@ namespace EE
             // Run input system
             //-------------------------------------------------------------------------
 
-            if ( m_player.m_pPlayerComponent != nullptr )
+            if ( m_player.m_pPlayerComponent != nullptr  )
             {
-                auto pInputRegistry = m_player.m_pPlayerComponent->GetInputRegistry();
-                if ( !pInputRegistry->IsInitialized() )
+                Input::GameInputMap* pInputMap = m_player.m_pPlayerComponent->GetInputMap();
+                if ( pInputMap != nullptr )
                 {
-                    pInputRegistry->Initialize( ctx.GetSystem<Input::InputSystem>() );
+                    auto pInputSystem = ctx.GetSystem<Input::InputSystem>();
+                    pInputMap->Update( pInputSystem, ctx.GetRawDeltaTime(), ctx.GetScaledDeltaTime() );
                 }
-
-                pInputRegistry->Update();
             }
         }
-        // HACK
-        else if ( ctx.GetUpdateStage() == UpdateStage::FrameEnd )
-        {
-
-        }
-        // HACK
     }
 }

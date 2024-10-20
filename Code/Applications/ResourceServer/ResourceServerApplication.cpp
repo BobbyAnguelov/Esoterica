@@ -1,12 +1,13 @@
 #include "ResourceServerApplication.h"
 #include "Resources/Resource.h"
-#include "Applications/Shared/LivePP/LivePP.h"
 
 #include "Base/Time/Timers.h"
+#include "Base/ThirdParty/LivePP/LivePP.h"
 #include "Base/FileSystem/FileSystemUtils.h"
 #include "Base/Imgui/Platform/ImguiPlatform_win32.h"
 #include "Base/Platform/PlatformUtils_Win32.h"
 #include "Base/Settings/IniFile.h"
+
 #include <tchar.h>
 #include <shobjidl_core.h>
 
@@ -25,18 +26,6 @@ namespace EE
 
     LRESULT ResourceServerApplication::WindowMessageProcessor( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
     {
-        if ( message == RegisterWindowMessage( "TaskbarCreated" ) )
-        {
-            if ( !Shell_NotifyIcon( NIM_ADD, &m_systemTrayIconData ) )
-            {
-                FatalError( "Failed to recreate system tray icon after explorer crash!" );
-                RequestApplicationExit();
-                return -1;
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
         switch ( message )
         {
             case g_shellIconCallbackMessageID:
@@ -272,7 +261,7 @@ namespace EE
 
     bool ResourceServerApplication::Shutdown()
     {
-        if ( IsInitialized() )
+        if ( WasInitialized() )
         {
             m_resourceServerUI.Shutdown();
             m_imguiRenderer.Shutdown();

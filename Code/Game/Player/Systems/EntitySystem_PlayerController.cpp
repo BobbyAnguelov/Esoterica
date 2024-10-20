@@ -55,7 +55,7 @@ namespace EE::Player
         {
             EE_ASSERT( m_actionContext.m_pPlayerComponent == nullptr );
             m_actionContext.m_pPlayerComponent = pPlayerComponent;
-            m_actionContext.m_pInputRegistry = pPlayerComponent->GetInputRegistry();
+            m_actionContext.m_pInput = TryCast<GameInputMap>( pPlayerComponent->GetInputMap() );
         }
 
         else if ( auto pCharacterMeshComponent = TryCast<Render::CharacterMeshComponent>( pComponent ) )
@@ -101,8 +101,8 @@ namespace EE::Player
         {
             EE_ASSERT( m_actionContext.m_pPlayerComponent == pPlayerComponent );
             m_actionStateMachine.ForceStopAllRunningActions();
-            m_actionContext.m_pInputRegistry = nullptr;
             m_actionContext.m_pPlayerComponent = nullptr;
+            m_actionContext.m_pInput = nullptr;
         }
 
         else if ( auto pCharacterMeshComponent = TryCast<Render::CharacterMeshComponent>( pComponent ) )
@@ -140,7 +140,6 @@ namespace EE::Player
 
         TScopedGuardValue const contextGuardValue( m_actionContext.m_pEntityWorldUpdateContext, &ctx );
         TScopedGuardValue const physicsSystemGuard( m_actionContext.m_pPhysicsWorld, ctx.GetWorldSystem<Physics::PhysicsWorldSystem>()->GetWorld() );
-        TScopedGuardValue<Input::InputSystem const*> const inputStateGuardValue( m_actionContext.m_pInputSystem, ctx.GetSystem<Input::InputSystem>() );
 
         if ( !m_actionContext.IsValid() )
         {
@@ -156,7 +155,7 @@ namespace EE::Player
                 EE_PROFILE_SCOPE_GAMEPLAY( "Player SM Update" );
 
                 // Update camera
-                m_actionContext.m_pCameraController->UpdateCamera( ctx );
+                m_actionContext.m_pCameraController->UpdateCamera( ctx, m_actionContext.m_pInput->m_look.GetValue() );
 
                 // Update player actions
                 m_actionStateMachine.Update();

@@ -228,6 +228,52 @@ namespace EE::Quantization
                     return Quaternion( NoInit );
                 }
             }
+
+
+            //fltx4 const vValueRangeMin = ReplicateX4( s_flValueRangeMin );
+            //fltx4 const vRangeMultiplier15Bit = ReplicateX4( s_flValueRangeLength / float( 0x7FFF ) );
+
+            ////-------------------------------------------------------------------------
+            //// load 3 values as 2 overlapping 32-bit ints
+            //// extract 16-bit ints from both and promote to 32-bit
+            //i32x4 nVal0 = ExtractLowUnsignedShortsAsIntSIMD( LoadScalarInt( reinterpret_cast<int32 const*>( pData ) ) );
+            //i32x4 nVal1 = ExtractLowUnsignedShortsAsIntSIMD( LoadScalarInt( reinterpret_cast<int32 const*>( pData + 1 ) ) );
+            //// now merge so we have ABCX
+
+            //// NOTE: CastIntToFloat() / CastFloatToInt() appear to be unusable for this use case (won't compile in gcc) so I will just use the intrinsics directly
+            //fltx4 fl4Val0 = _mm_castsi128_ps( nVal0 );
+            //fltx4 fl4Val1 = _mm_castsi128_ps( nVal1 );
+            //i32x4 nVals = _mm_castps_si128( ShuffleSIMD<MM_SHUFFLE_REV( 0, 1, 1, 2 )>( fl4Val0, fl4Val1 ) );
+            //// now convert to float and scale to quat range
+            //fltx4 fl4Vals = SignedIntConvertToFltSIMD( AndSIMD( ReplicateIX4( 0x7FFF ), nVals ) );
+            //fltx4 vData = MaddSIMD( fl4Vals, vRangeMultiplier15Bit, vValueRangeMin );
+
+            //// compute the magnitude of the last component
+            //fltx4 const vSum = Dot3SIMD( vData, vData );
+            //fltx4 const vSqrtInvSum = SqrtSIMD( SubSIMD( Four_Ones, vSum ) );
+            //// add it in as W
+            //vData = SetWSIMD( vData, vSqrtInvSum );
+
+            //// now shuffle the result to match the input coefficient ordering by inserting the W value to its proper place (two bit index of its original position)
+            ////-------------------------------------------------------------------------
+
+            //if ( !( pData[0] & 0x8000 ) )
+            //{
+            //    if ( !( pData[1] & 0x8000 ) )
+            //    {
+            //        vData = ShuffleSIMD<MM_SHUFFLE_REV( 3, 0, 1, 2 )>( vData, vData ); // 0
+            //    }
+            //    else
+            //    {
+            //        vData = ShuffleSIMD<MM_SHUFFLE_REV( 0, 3, 1, 2 )>( vData, vData ); // 1
+            //    }
+            //}
+            //else if ( !( pData[1] & 0x8000 ) )
+            //{
+            //    vData = ShuffleSIMD<MM_SHUFFLE_REV( 0, 1, 3, 2 )>( vData, vData ); // 2
+            //}
+            //return Quaternion( vData );
+
         }
 
         inline uint16_t GetData0() const { return m_data0; }

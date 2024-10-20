@@ -61,8 +61,8 @@ namespace EE
 
         virtual void Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache ) override final;
         virtual void Shutdown( UpdateContext const& context ) override final;
-        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) override;
-        virtual void HotReload_ReloadResources() override;
+        virtual void HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) override;
+        virtual void HotReload_ReloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) override;
 
         void DrawMenu( UpdateContext const& context );
         void DrawOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport );

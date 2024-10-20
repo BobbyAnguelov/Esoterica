@@ -2,7 +2,7 @@
 #include "Animation_ToolsGraphNode_AnimationClip.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Blend2D.h"
-#include "EngineTools/Core/PropertyGrid/PropertyGridEditor.h"
+#include "EngineTools/PropertyGrid/PropertyGridEditor.h"
 #include "EngineTools/ThirdParty/delabella/delabella.h"
 
 //-------------------------------------------------------------------------
@@ -101,7 +101,7 @@ namespace EE::Animation::GraphNodes
                 auto& point = blendSpace.m_points[i];
 
                 auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
-                pointLabel = blendSpace.m_pointIDs[i].IsValid() ? blendSpace.m_pointIDs[i].c_str() : "Input";
+                pointLabel = blendSpace.m_pointIDs[i].empty() ? "Input" : blendSpace.m_pointIDs[i].c_str();
                 ImVec2 const labelSize = pFont->CalcTextSizeA( pFont->FontSize, FLT_MAX, -1.0f, pointLabel.c_str() );
 
                 pDrawList->AddCircleFilled( screenPoints[i], 5.0f, color );
@@ -131,7 +131,7 @@ namespace EE::Animation::GraphNodes
     void Blend2DToolsNode::BlendSpace::AddPoint()
     {
         m_points.emplace_back( Float2::Zero );
-        m_pointIDs.emplace_back( StringID() );
+        m_pointIDs.emplace_back( "Option" );
         GenerateTriangulation();
     }
 
@@ -198,7 +198,7 @@ namespace EE::Animation::GraphNodes
         return triangulationSucceeded;
     }
 
-    bool Blend2DToolsNode::BlendSpace::operator!=( BlendSpace const& rhs )
+    bool Blend2DToolsNode::BlendSpace::operator!=( BlendSpace const& rhs ) const
     {
         if ( rhs.m_points.size() != m_points.size() )
         {
@@ -232,11 +232,21 @@ namespace EE::Animation::GraphNodes
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "X", GraphValueType::Float );
         CreateInputPin( "Y", GraphValueType::Float );
+
+        CreateDynamicInputPin( "Option", GetPinTypeForValueType( GraphValueType::Pose ) );
+        CreateDynamicInputPin( "Option", GetPinTypeForValueType( GraphValueType::Pose ) );
+        CreateDynamicInputPin( "Option", GetPinTypeForValueType( GraphValueType::Pose ) );
+
+        m_blendSpace.m_points[0] = Float2( 0, 1 );
+        m_blendSpace.m_points[1] = Float2( -1, 0 );
+        m_blendSpace.m_points[2] = Float2( 1, 0 );
+
+        m_blendSpace.GenerateTriangulation();
     }
 
-    void Blend2DToolsNode::SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue )
+    void Blend2DToolsNode::PostDeserialize()
     {
-        FlowToolsNode::SerializeCustom( typeRegistry, nodeObjectValue );
+        FlowToolsNode::PostDeserialize();
         m_blendSpace.GenerateTriangulation();
     }
 
@@ -248,6 +258,12 @@ namespace EE::Animation::GraphNodes
         {
             // Validate blendspace
             //-------------------------------------------------------------------------
+
+            if ( m_blendSpace.GetNumPoints() <= 2 )
+            {
+                context.LogError( this, "Not enough points to generate a blendspace!" );
+                return InvalidIndex;
+            }
 
             // We only allow 32 input nodes
             if ( GetNumInputPins() > 34 )
@@ -348,16 +364,20 @@ namespace EE::Animation::GraphNodes
             }
         }
 
+        //-------------------------------------------------------------------------
+
+        pDefinition->m_allowLooping = m_allowLooping;
+
         return pDefinition->m_nodeIdx;
     }
 
-    void Blend2DToolsNode::OnDynamicPinCreation( UUID pinID )
+    void Blend2DToolsNode::OnDynamicPinCreation( UUID const& pinID )
     {
         m_blendSpace.AddPoint();
-        UpdateDynamicPins();
+        RefreshDynamicPins();
     }
 
-    void Blend2DToolsNode::OnDynamicPinDestruction( UUID pinID )
+    void Blend2DToolsNode::PreDynamicPinDestruction( UUID const& pinID )
     {
         int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
         EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
@@ -365,8 +385,12 @@ namespace EE::Animation::GraphNodes
         m_blendSpace.RemovePoint( pointIdx );
     }
 
-    void Blend2DToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void Blend2DToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
+        FlowToolsNode::DrawExtraControls( ctx, pUserContext );
+
+        //-------------------------------------------------------------------------
+
         Float2* pActualDebugPoint = nullptr; // This is done to let the visualization know if we have a point or not
         Float2 debugPointStorage;
 
@@ -375,7 +399,7 @@ namespace EE::Animation::GraphNodes
         if ( runtimeNodeIdx != InvalidIndex )
         {
             auto pBlendNode = static_cast<GraphNodes::Blend2DNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
-            if ( pBlendNode->IsInitialized() )
+            if ( pBlendNode->WasInitialized() )
             {
                 debugPointStorage = pBlendNode->GetParameter();
                 pActualDebugPoint = &debugPointStorage;
@@ -391,20 +415,21 @@ namespace EE::Animation::GraphNodes
 
         if ( pPropertyEdited->m_ID == StringID( "m_blendSpace" ) )
         {
-            UpdateDynamicPins();
+            RefreshDynamicPins();
+            m_blendSpace.GenerateTriangulation();
         }
     }
 
-    void Blend2DToolsNode::UpdateDynamicPins()
+    void Blend2DToolsNode::RefreshDynamicPins()
     {
         int32_t const numPins = GetNumInputPins();
         EE_ASSERT( numPins == ( m_blendSpace.GetNumPoints() + 2 ) );
         for ( int32_t i = 2; i < numPins; i++ )
         {
-            VisualGraph::Flow::Pin* pInputPin = GetInputPin( i );
+            NodeGraph::Pin* pInputPin = GetInputPin( i );
             int32_t const pointIdx = i - 2;
-            StringID const& pointID = m_blendSpace.m_pointIDs[pointIdx];
-            pInputPin->m_name.sprintf( "%s (%.2f, %.2f)", pointID.IsValid() ? pointID.c_str() : "Input", m_blendSpace.m_points[pointIdx].m_x, m_blendSpace.m_points[pointIdx].m_y );
+            String const& pointID = m_blendSpace.m_pointIDs[pointIdx];
+            pInputPin->m_name.sprintf( "%s (%.2f, %.2f)", pointID.empty() ? "Input" : pointID.c_str(), m_blendSpace.m_points[pointIdx].m_x, m_blendSpace.m_points[pointIdx].m_y );
         }
     }
 }
@@ -421,8 +446,8 @@ namespace EE::Animation::GraphNodes
 
         using PropertyEditor::PropertyEditor;
 
-        BlendSpaceEditor( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* m_pPropertyInstance )
-            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
+        BlendSpaceEditor( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, IReflectedType* pTypeInstance, void* m_pPropertyInstance )
+            : PropertyEditor( context, propertyInfo, pTypeInstance, m_pPropertyInstance )
         {}
 
     private:
@@ -435,14 +460,14 @@ namespace EE::Animation::GraphNodes
             for ( int32_t i = 0; i < numPoints; i++ )
             {
                 m_IDBuffers[i].resize( s_bufferSize );
-                if ( m_value_cached.m_pointIDs[i].IsValid() )
+                if ( m_value_cached.m_pointIDs[i].empty() )
                 {
-                    char const* const pIDString = m_value_cached.m_pointIDs[i].c_str();
-                    memcpy( m_IDBuffers[i].data(), pIDString, strlen( pIDString ) );
+                    Memory::MemsetZero( m_IDBuffers[i].data(), s_bufferSize );
                 }
                 else
                 {
-                    Memory::MemsetZero( m_IDBuffers[i].data(), s_bufferSize );
+                    char const* const pIDString = m_value_cached.m_pointIDs[i].c_str();
+                    memcpy( m_IDBuffers[i].data(), pIDString, strlen( pIDString ) );
                 }
             }
         }
@@ -472,7 +497,7 @@ namespace EE::Animation::GraphNodes
             }
         }
 
-        virtual bool InternalUpdateAndDraw() override
+        virtual Result InternalUpdateAndDraw() override
         {
             bool valueUpdated = false;
 
@@ -505,7 +530,7 @@ namespace EE::Animation::GraphNodes
 
                 if ( IDUpdated )
                 {
-                    m_value_imgui.m_pointIDs[i] = StringID( m_IDBuffers[i].data() );
+                    m_value_imgui.m_pointIDs[i] = m_IDBuffers[i].data();
                     valueUpdated = true;
                 }
 
@@ -513,7 +538,7 @@ namespace EE::Animation::GraphNodes
                 //-------------------------------------------------------------------------
 
                 ImGui::SameLine();
-                if ( ImGuiX::InputFloat2( "i", m_value_imgui.m_points[i] ) )
+                if ( ImGuiX::InputFloat2( &m_value_imgui.m_points[i] ) )
                 {
                     m_value_imgui.GenerateTriangulation();
                     valueUpdated = true;
@@ -528,7 +553,7 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            return valueUpdated;
+            return valueUpdated ? Result::ValueUpdated : Result::None;
         }
 
     private:

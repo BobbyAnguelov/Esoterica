@@ -24,12 +24,13 @@ namespace EE::Animation::Tasks
 
         #if EE_DEVELOPMENT_TOOLS
         virtual Color GetDebugColor() const override final { return Colors::Lime; }
+        virtual float GetDebugProgressOrWeight() const override { return m_blendWeight; }
         virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const override final;
         #endif
 
     protected:
 
-        BlendTaskBase() : Task( 0xFF ) {}
+        BlendTaskBase() : Task() {}
 
     protected:
 
@@ -49,11 +50,12 @@ namespace EE::Animation::Tasks
 
     public:
 
-        BlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList = nullptr );
+        BlendTask( int8_t sourceTaskIdx, int8_t targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList = nullptr );
         virtual void Execute( TaskContext const& context ) override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual String GetDebugText() const override;
+        virtual char const* GetDebugName() const override { return "Blend"; }
+        virtual InlineString GetDebugTextInfo() const override;
         #endif
 
     protected:
@@ -69,11 +71,12 @@ namespace EE::Animation::Tasks
 
     public:
 
-        OverlayBlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList = nullptr );
+        OverlayBlendTask( int8_t sourceTaskIdx, int8_t targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList = nullptr );
         virtual void Execute( TaskContext const& context ) override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual String GetDebugText() const override;
+        virtual char const* GetDebugName() const override { return "Overlay Blend"; }
+        virtual InlineString GetDebugTextInfo() const override;
         #endif
 
     protected:
@@ -89,11 +92,12 @@ namespace EE::Animation::Tasks
 
     public:
 
-        AdditiveBlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList = nullptr );
+        AdditiveBlendTask( int8_t sourceTaskIdx, int8_t targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList = nullptr );
         virtual void Execute( TaskContext const& context ) override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual String GetDebugText() const override;
+        virtual char const* GetDebugName() const override { return "Additive Blend"; }
+        virtual InlineString GetDebugTextInfo() const override;
         #endif
 
     protected:
@@ -109,11 +113,11 @@ namespace EE::Animation::Tasks
 
     public:
 
-        GlobalBlendTask( TaskSourceID sourceID, TaskIndex baseTaskIdx, TaskIndex layerTaskIdx, float const blendWeight, BoneMaskTaskList const& boneMaskTaskList );
+        GlobalBlendTask( int8_t baseTaskIdx, int8_t layerTaskIdx, float const blendWeight, BoneMaskTaskList const& boneMaskTaskList );
         virtual void Execute( TaskContext const& context ) override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual String GetDebugText() const override { return "Global Blend"; }
+        virtual char const* GetDebugName() const override { return "Global Blend"; }
         #endif
 
     protected:

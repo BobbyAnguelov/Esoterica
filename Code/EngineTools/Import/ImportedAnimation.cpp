@@ -47,16 +47,16 @@ namespace EE::Import
             int32_t const parentBoneIdx = m_skeleton.GetParentBoneIndex( i );
             if ( parentBoneIdx == InvalidIndex )
             {
-                trackData.m_globalTransforms = trackData.m_localTransforms;
+                trackData.m_modelSpaceTransforms = trackData.m_localTransforms;
             }
             else // Calculate global transforms
             {
                 auto const& parentTrackData = m_tracks[parentBoneIdx];
-                trackData.m_globalTransforms.resize( m_numFrames );
+                trackData.m_modelSpaceTransforms.resize( m_numFrames );
 
                 for ( auto f = 0; f < m_numFrames; f++ )
                 {
-                    trackData.m_globalTransforms[f] = trackData.m_localTransforms[f] * parentTrackData.m_globalTransforms[f];
+                    trackData.m_modelSpaceTransforms[f] = trackData.m_localTransforms[f] * parentTrackData.m_modelSpaceTransforms[f];
                 }
             }
         }
@@ -72,7 +72,7 @@ namespace EE::Import
             int32_t const parentBoneIdx = m_skeleton.GetParentBoneIndex( i );
             if ( parentBoneIdx == InvalidIndex )
             {
-                trackData.m_localTransforms = trackData.m_globalTransforms;
+                trackData.m_localTransforms = trackData.m_modelSpaceTransforms;
             }
             else // Calculate local transforms
             {
@@ -81,7 +81,7 @@ namespace EE::Import
 
                 for ( auto f = 0; f < m_numFrames; f++ )
                 {
-                    trackData.m_localTransforms[f] = Transform::Delta( parentTrackData.m_globalTransforms[f], trackData.m_globalTransforms[f] );
+                    trackData.m_localTransforms[f] = Transform::Delta( parentTrackData.m_modelSpaceTransforms[f], trackData.m_modelSpaceTransforms[f] );
                 }
             }
         }
@@ -92,7 +92,7 @@ namespace EE::Import
         uint32_t const numBones = m_skeleton.GetNumBones();
         for ( uint32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
-            Transform baseTransform = m_skeleton.GetLocalTransform( boneIdx );
+            Transform baseTransform = m_skeleton.GetParentSpaceTransform( boneIdx );
 
             for ( int32_t frameIdx = 0; frameIdx < m_numFrames; frameIdx++ )
             {

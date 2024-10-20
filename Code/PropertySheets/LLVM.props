@@ -13,7 +13,7 @@
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(LLVM_DIR)lib;$(LLVM_DIR)bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>LLVMCore.lib;LLVMSupport.lib;LLVMBinaryFormat.lib;LLVMRemarks.lib;LLVMFrontendOpenMP.lib;LLVMBitstreamReader.lib;libclang.lib;clangAST.lib;clangBasic.lib;clangLex.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>clangAST.lib;clangBasic.lib;clangLex.lib;libclang.lib;LLVMAnalysis.lib;LLVMBinaryFormat.lib;LLVMBitReader.lib;LLVMBitstreamReader.lib;LLVMCore.lib;LLVMDemangle.lib;LLVMFrontendOffloading.lib;LLVMFrontendOpenMP.lib;LLVMMC.lib;LLVMProfileData.lib;LLVMRemarks.lib;LLVMScalarOpts.lib;LLVMSupport.lib;LLVMTargetParser.lib;LLVMTransformUtils.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Target Name="LLVM_CopyDLL" BeforeTargets="Build">

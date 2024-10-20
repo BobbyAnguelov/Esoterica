@@ -69,7 +69,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void TimeConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void TimeConditionToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         InlineString text;
 

@@ -6,13 +6,13 @@
 
 namespace EE::FileSystem
 {
-    bool GetDirectoryContents( Path const& directoryPath, TVector<Path>& contents, DirectoryReaderOutput output, DirectoryReaderMode mode, TVector<String> const& extensionFilter )
+    bool GetDirectoryContents( Path const& directoryPath, TVector<Path>& contents, DirectoryReaderOutput output, DirectoryReaderMode mode, TVector<Extension> const& extensionFilter )
     {
         EE_ASSERT( directoryPath.IsDirectoryPath() );
 
         contents.clear();
 
-        if ( !Exists( directoryPath ) )
+        if ( !directoryPath.Exists() )
         {
             return false;
         }
@@ -20,7 +20,7 @@ namespace EE::FileSystem
         //-------------------------------------------------------------------------
 
         uint32_t const numExtensionFilters = (uint32_t) extensionFilter.size();
-        TVector<String> lowercaseExtensionFilters = extensionFilter;
+        TVector<Extension> lowercaseExtensionFilters = extensionFilter;
         for ( auto& extFilter : lowercaseExtensionFilters )
         {
             extFilter.make_lower();
@@ -29,7 +29,7 @@ namespace EE::FileSystem
         // Path processing
         //-------------------------------------------------------------------------
 
-        TInlineString<15> fileLowercaseExtension;
+        Extension fileLowercaseExtension;
 
         auto ProcessPath = [&] ( std::filesystem::path const& path )
         {
@@ -59,7 +59,7 @@ namespace EE::FileSystem
                 {
                     // Todo: there's likely a more efficient way to do a case insensitive compare
                     auto pPathExtension = (char const*) path.extension().u8string().c_str() + 1;
-                    fileLowercaseExtension = TInlineString<15>( pPathExtension );
+                    fileLowercaseExtension = Extension( pPathExtension );
                     fileLowercaseExtension.make_lower();
 
                     for ( auto i = 0u; i < numExtensionFilters; i++ )
@@ -88,7 +88,7 @@ namespace EE::FileSystem
 
         switch ( mode )
         {
-            case DirectoryReaderMode::Expand:
+            case DirectoryReaderMode::Recursive:
             {
                 for ( auto& directoryEntry : std::filesystem::recursive_directory_iterator( directoryPath.c_str() ) )
                 {
@@ -97,7 +97,7 @@ namespace EE::FileSystem
             }
             break;
 
-            case DirectoryReaderMode::DontExpand:
+            case DirectoryReaderMode::NoRecursion:
             {
                 for ( auto& directoryEntry : std::filesystem::directory_iterator( directoryPath.c_str() ) )
                 {
@@ -119,7 +119,7 @@ namespace EE::FileSystem
 
         contents.clear();
 
-        if ( !Exists( directoryPath ) )
+        if ( !directoryPath.Exists() )
         {
             return false;
         }
@@ -170,7 +170,7 @@ namespace EE::FileSystem
 
         switch ( mode )
         {
-            case DirectoryReaderMode::Expand:
+            case DirectoryReaderMode::Recursive:
             {
                 for ( auto& directoryEntry : std::filesystem::recursive_directory_iterator( directoryPath.c_str() ) )
                 {
@@ -179,7 +179,7 @@ namespace EE::FileSystem
             }
             break;
 
-            case DirectoryReaderMode::DontExpand:
+            case DirectoryReaderMode::NoRecursion:
             {
                 for ( auto& directoryEntry : std::filesystem::directory_iterator( directoryPath.c_str() ) )
                 {

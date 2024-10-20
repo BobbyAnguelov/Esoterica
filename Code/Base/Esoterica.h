@@ -60,7 +60,32 @@ namespace EE::Platform
 // Logging
 //-------------------------------------------------------------------------
 
-#include "Logging/Log.h"
+#include "Types/Severity.h"
+
+namespace EE::SystemLog
+{
+    // Logging
+    //-------------------------------------------------------------------------
+
+    EE_BASE_API void AddEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... );
+    EE_BASE_API void AddEntryVarArgs( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args );
+
+    // Asserts
+    //-------------------------------------------------------------------------
+
+    EE_BASE_API void LogAssert( char const* pFile, int line, char const* pAssertInfo );
+    EE_BASE_API void LogAssertVarArgs( char const* pFile, int line, char const* pAssertInfoFormat, ... );
+
+    // Trace to Output Log
+    //-------------------------------------------------------------------------
+
+    EE_BASE_API void TraceMessage( const char* format, ... );
+}
+
+#define EE_LOG_INFO( category, source, ... ) EE::SystemLog::AddEntry( EE::Severity::Info, category, source, __FILE__, __LINE__, __VA_ARGS__ )
+#define EE_LOG_WARNING( category, source, ... ) EE::SystemLog::AddEntry( EE::Severity::Warning, category, source, __FILE__, __LINE__, __VA_ARGS__ )
+#define EE_LOG_ERROR( category, source, ... ) EE::SystemLog::AddEntry( EE::Severity::Error, category, source, __FILE__, __LINE__, __VA_ARGS__ )
+#define EE_LOG_FATAL_ERROR( category, source, ... ) EE::SystemLog::AddEntry( EE::Severity::FatalError, category, source, __FILE__, __LINE__, __VA_ARGS__ ); EE_HALT()
 
 //-------------------------------------------------------------------------
 // Defines
@@ -72,21 +97,20 @@ namespace EE::Platform
 
 #if EE_DEVELOPMENT_TOOLS
 
-    #define EE_ASSERT( cond ) do { if( !(cond) ) { EE::Log::LogAssert( __FILE__, __LINE__, #cond ); EE_DEBUG_BREAK(); } } while( 0 )
-    #define EE_HALT() { EE::Log::LogAssert( __FILE__, __LINE__, "HALT" ); EE_DEBUG_BREAK(); }
-    #define EE_TRACE_MSG( msgFormat, ... ) EE::Log::TraceMessage( msgFormat, ## __VA_ARGS__ )
-    #define EE_TRACE_HALT( msgFormat, ... ) { EE::Log::LogAssert( __FILE__, __LINE__, msgFormat, ## __VA_ARGS__ ); EE_DEBUG_BREAK(); }
+    #define EE_ASSERT( cond ) do { if( !(cond) ) { EE::SystemLog::LogAssert( __FILE__, __LINE__, #cond ); EE_DEBUG_BREAK(); } } while( 0 )
+    #define EE_HALT() { EE::SystemLog::LogAssert( __FILE__, __LINE__, "HALT" ); EE_DEBUG_BREAK(); }
+    #define EE_TRACE_MSG( msgFormat, ... ) EE::SystemLog::TraceMessage( msgFormat, ## __VA_ARGS__ )
+    #define EE_TRACE_HALT( msgFormat, ... ) { EE::SystemLog::LogAssert( __FILE__, __LINE__, msgFormat, ## __VA_ARGS__ ); EE_DEBUG_BREAK(); }
     #define EE_UNIMPLEMENTED_FUNCTION() EE_TRACE_HALT( "Function not implemented!" )
     #define EE_UNREACHABLE_CODE() EE_TRACE_HALT( "Unreachable code encountered!" )
 
 #else
 
     // Platform specific, need to be defined in Platform/Defines_XXX.h
-    #define EE_ASSERT( cond ) do { (void)sizeof( cond );} while (0)
+    #define EE_ASSERT( cond )
     #define EE_HALT()
     #define EE_TRACE_MSG( msgFormat, ... )
     #define EE_TRACE_HALT( msgFormat, ... )
     #define EE_UNIMPLEMENTED_FUNCTION()
     #define EE_UNREACHABLE_CODE()
-
 #endif

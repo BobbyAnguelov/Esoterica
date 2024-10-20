@@ -46,7 +46,7 @@ namespace EE
         // Standard and accurate Spherical LERP - based on DirectX Math
         inline static Quaternion SLerp( Quaternion const& from, Quaternion const& to, float t );
 
-        // Fast approximation of a Spherical LERP - based on "A fast and accurate estimate for SLERP" by David Eberly
+        // Fast approximation of a Spherical LERP - based on "https://zeux.io/2015/07/23/approximating-slerp/"
         inline static Quaternion FastSLerp( Quaternion const& from, Quaternion const& to, float t );
 
         // Spherical quadrangle/cubic interpolation for quaternions
@@ -82,9 +82,14 @@ namespace EE
         EE_FORCE_INLINE Float4 ToFloat4() const { Float4 v; _mm_storeu_ps( &v.m_x, m_data ); return v; }
         EE_FORCE_INLINE Vector ToVector() const { return Vector( m_data ); }
 
-        inline Vector Length() { return ToVector().Length4(); }
+        EE_FORCE_INLINE float GetX() const { return AsVector().GetX(); }
+        EE_FORCE_INLINE float GetY() const { return AsVector().GetY(); }
+        EE_FORCE_INLINE float GetZ() const { return AsVector().GetZ(); }
+        EE_FORCE_INLINE float GetW() const { return AsVector().GetW(); }
 
-        inline float GetLength() const { return ToVector().GetLength4(); }
+        inline Vector Length() { return AsVector().Length4(); }
+
+        inline float GetLength() const { return AsVector().GetLength4(); }
 
         // Get the angle this rotation represents around the specified axis
         inline Radians GetAngle() const { return Radians( 2.0f * Math::ACos( GetW() ) ); }
@@ -120,8 +125,8 @@ namespace EE
         // This function will return the estimated normalized quaternion, this is not super accurate but a lot faster (use with care)
         inline Quaternion GetNormalizedInaccurate() const;
 
-        inline bool IsNormalized() const { return ToVector().IsNormalized4(); }
-        inline bool IsIdentity() const { return ToVector().IsEqual3( Vector::UnitW ); }
+        inline bool IsNormalized() const { return AsVector().IsNormalized4(); }
+        inline bool IsIdentity() const { return AsVector().IsEqual3( Vector::UnitW ); }
 
         // Concatenate the rotation of this onto rhs and return the result i.e. first rotate by rhs then by this
         // This means order of rotation is right-to-left: child-rotation * parent-rotation
@@ -135,15 +140,16 @@ namespace EE
         }
 
         // Exact equality
-        inline bool operator==( Quaternion const& rhs ) const { return ToVector() == rhs.ToVector(); }
+        inline bool operator==( Quaternion const& rhs ) const { return AsVector() == rhs.AsVector(); }
 
         // Exact equality
         inline bool operator!=( Quaternion const& rhs ) const { return !operator==( rhs ); }
 
     private:
 
-        EE_FORCE_INLINE Vector GetSplatW() const { return _mm_shuffle_ps( m_data, m_data, _MM_SHUFFLE( 3, 3, 3, 3 ) ); }
-        EE_FORCE_INLINE float GetW() const { auto vTemp = GetSplatW(); return _mm_cvtss_f32( vTemp ); }
+        EE_FORCE_INLINE Vector& AsVector() { return *reinterpret_cast<Vector*>( this ); }
+        EE_FORCE_INLINE Vector const& AsVector() const { return *reinterpret_cast<Vector const*>( this ); }
+        EE_FORCE_INLINE Vector GetSplatW() const { return AsVector().GetSplatW(); }
 
         Quaternion& operator=( Vector const& v ) = delete;
 
@@ -192,7 +198,7 @@ namespace EE
     inline Quaternion& Quaternion::Invert()
     {
         Vector const conjugate( GetConjugate().m_data );
-        Vector const length = ToVector().Length4();
+        Vector const length = AsVector().Length4();
         Vector const mask = length.LessThanEqual( Vector::Epsilon );
         Vector const result = conjugate / length;
         m_data = result.Select( result, Vector::Zero, mask );
@@ -208,7 +214,7 @@ namespace EE
 
     inline Quaternion& Quaternion::Normalize()
     {
-        m_data = ToVector().GetNormalized4().m_data;
+        m_data = AsVector().GetNormalized4().m_data;
         return *this;
     }
 
@@ -353,7 +359,7 @@ namespace EE
 
     inline AxisAngle Quaternion::ToAxisAngle() const
     {
-        return AxisAngle( ToVector(), Radians( 2.0f * Math::ACos( GetW() ) ) );
+        return AxisAngle( AsVector(), Radians( 2.0f * Math::ACos( GetW() ) ) );
     }
 
     inline Vector Quaternion::RotateVector( Vector const& vector ) const
@@ -426,7 +432,7 @@ namespace EE
             adjustedFrom.Negate();
         }
 
-        Quaternion result( Vector::Lerp( adjustedFrom.ToVector(), to.ToVector(), T ) );
+        Quaternion result( Vector::Lerp( adjustedFrom.AsVector(), to.AsVector(), T ) );
         result.Normalize();
         return result;
     }
@@ -475,84 +481,26 @@ namespace EE
         return Quaternion( result );
     }
 
+    // Based on: https://zeux.io/2015/07/23/approximating-slerp/ & https://zeux.io/2016/05/05/optimizing-slerp/
     inline Quaternion Quaternion::FastSLerp( Quaternion const& q0, Quaternion const& q1, float t )
     {
-        // Precomputed constants
-        constexpr float const mu = 1.85298109240830f;
-        static Vector const u0123 = _mm_setr_ps( 1.f / ( 1 * 3 ), 1.f / ( 2 * 5 ), 1.f / ( 3 * 7 ), 1.f / ( 4 * 9 ) );
-        static Vector const u4567 = _mm_setr_ps( 1.f / ( 5 * 11 ), 1.f / ( 6 * 13 ), 1.f / ( 7 * 15 ), mu / ( 8 * 17 ) );
-        static Vector const v0123 = _mm_setr_ps( 1.f / 3, 2.f / 5, 3.f / 7, 4.f / 9 );
-        static Vector const v4567 = _mm_setr_ps( 5.f / 11, 6.f / 13, 7.f / 15, mu * 8 / 17 );
-        static Vector const vSignMask = _mm_set1_ps( -0.f );
+        float dot = Quaternion::Dot( q0, q1 ).GetX();
 
-        // Common code for computing the scalar coefficients of SLERP
-        auto CalculateCoefficient = [] ( Vector vT, Vector xm1 )
-        {
-            Vector const vTSquared = vT * vT;
+        float d = Math::Abs( dot );
+        float A = 1.0904f + d * ( -3.2452f + d * ( 3.55645f - d * 1.43519f ) );
+        float B = 0.848013f + d * ( -1.06021f + d * 0.215638f );
+        float k = A * Math::Sqr( t - 0.5f ) + B;
+        float ot = t + t * ( t - 0.5f ) * ( t - 1.f ) * k;
 
-            // ( b4, b5, b6, b7 ) = ( x-1 ) * ( u4 * t^2 - v4, u5 * t^2 - v5, u6 * t^2 - v6, u7 * t^2 - v7 )
-            Vector b4567 = Vector::MultiplySubtract( u4567, vTSquared, v4567 );
-            b4567 *= xm1;
+        Vector qt0( 1.f - ot );
+        Vector qt1( dot > 0.f ? ot : -ot );
 
-            // ( b7, b7, b7, b7 )
-            Vector b = b4567.GetSplatW();
-            Vector c = b + Vector::One;
+        Vector vTmp = q0.AsVector() * qt0;
+        Vector vResult = Vector::MultiplyAdd( q1.AsVector(), qt1, vTmp );
 
-            // ( b6, b6, b6, b6 )
-            b = b4567.GetSplatZ();
-            c = Vector::MultiplyAdd( b, c, Vector::One );
-
-            // ( b5, b5, b5, b5 )
-            b = b4567.GetSplatY();
-            c = Vector::MultiplyAdd( b, c, Vector::One );
-
-            // ( b4, b4, b4, b4 )
-            b = b4567.GetSplatX();
-            c = Vector::MultiplyAdd( b, c, Vector::One );
-
-            // ( b0, b1, b2, b3 ) =
-            // ( x-1)*(u0* t^2-v0, u1 * t^2 -v1, u2* t^2-v2, u3* t^2-v3 )
-            Vector b0123 = Vector::MultiplySubtract( u0123, vTSquared, v0123 );
-            b0123 *= xm1;
-
-            // ( b3, b3, b3, b3 )
-            b = b0123.GetSplatW();
-            c = Vector::MultiplyAdd( b, c, Vector::One );
-
-            // ( b2, b2, b2, b2 )
-            b = b0123.GetSplatZ();
-            c = Vector::MultiplyAdd( b, c, Vector::One );
-
-            // ( b1, b1, b1, b1 )
-            b = b0123.GetSplatY();
-            c = Vector::MultiplyAdd( b, c, Vector::One );
-
-            // ( b0, b0, b0, b0 )
-            b = b0123.GetSplatX();
-            c = Vector::MultiplyAdd( b, c, Vector::One );
-            c *= vT;
-
-            return c;
-        };
-
-        //-------------------------------------------------------------------------
-
-        Vector x = Vector::Dot4( q0.m_data, q1.m_data ); // cos ( theta ) in all components
-
-        Vector sign = _mm_and_ps( vSignMask, x );
-        x = _mm_xor_ps( sign, x );
-        Vector localQ1 = _mm_xor_ps( sign, q1 );
-
-        Vector xm1 = x - Vector::One;
-
-        Vector cT = CalculateCoefficient( Vector( t ), xm1 );
-        Vector cD = CalculateCoefficient( Vector( 1.0f - t ), xm1 );
-        cT = cT * localQ1;
-
-        //-------------------------------------------------------------------------
-
-        Quaternion result( Vector::MultiplyAdd( cD, q0.m_data, cT ) );
-        return result;
+        Quaternion qResult( vResult );
+        qResult.Normalize();
+        return qResult;
     }
 
     inline Quaternion Quaternion::SQuad( Quaternion const& q0, Quaternion const& q1, Quaternion const& q2, Quaternion const& q3, float t )

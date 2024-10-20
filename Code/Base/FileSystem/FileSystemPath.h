@@ -1,7 +1,7 @@
 #pragma once
 
-#include "FileSystem.h"
 #include "Base/Encoding/Hash.h"
+#include "FileSystemExtension.h"
 
 //-------------------------------------------------------------------------
 // File System Path
@@ -18,6 +18,22 @@ namespace EE::FileSystem
 {
     class EE_BASE_API Path
     {
+    public:
+
+        static char const s_pathDelimiter;
+
+        // Converts a file path (relative, short, etc...) to a full path
+        static bool GetFullPathString( char const* pPath, String& outPath );
+
+        // Find the start idx for the extension for a given path - returns String::npos if no extension is found
+        static size_t FindExtensionStartIdx( String const& path, char const pathDelimiter = s_pathDelimiter, bool supportMultiExtensionPaths = false );
+
+        // Returns the parent directory for a given path
+        static bool GetParentDirectory( String const& path, String& outParentPath );
+
+        // Gets the path with the correct case - only relevant for case-insensitive platforms
+        // Note: This is an expensive function that will create a file handle so be careful with usage
+        static bool GetCorrectCaseForPath( char const* pPath, String& outPath );
 
     public:
 
@@ -41,18 +57,10 @@ namespace EE::FileSystem
         //-------------------------------------------------------------------------
 
         // Checks the file system to check if the file/directory exists
-        inline bool Exists() const
-        {
-            EE_ASSERT( IsValid() );
-            return m_isDirectoryPath ? IsExistingDirectory( m_fullpath.c_str() ) : IsExistingFile( m_fullpath.c_str() ); 
-        }
+        bool Exists() const;
 
         // Checks the file system to check if the file/directory is read-only
-        inline bool IsReadOnly() const
-        {
-            EE_ASSERT( IsValid() );
-            return FileSystem::IsReadOnly( m_fullpath.c_str() );
-        }
+        bool IsReadOnly() const;
 
         // Check if this path is under a specific directory
         bool IsUnderDirectory( Path const& parentDirectory ) const;
@@ -115,7 +123,7 @@ namespace EE::FileSystem
         inline bool IsFilenameEqual( String const& pString ) const { EE_ASSERT( !pString.empty() ); return IsFilenameEqual( pString.c_str() ); }
 
         // Get the filename for this path without the extension ( only valid to call on file paths )
-        String GetFileNameWithoutExtension() const;
+        String GetFilenameWithoutExtension() const;
 
         // Extensions
         //-------------------------------------------------------------------------
@@ -134,23 +142,38 @@ namespace EE::FileSystem
         char const* GetExtension() const;
 
         // Returns the extension for this path (excluding the '.'). Returns an empty string if there is no extension!
-        inline TInlineString<6> GetExtensionAsString() const
+        inline Extension GetExtensionAsString() const
         {
             char const* const pExtensionSubstr = GetExtension();
-            return TInlineString<6>( pExtensionSubstr == nullptr ? "" : pExtensionSubstr );
+            return Extension( pExtensionSubstr == nullptr ? "" : pExtensionSubstr );
         }
 
         // Returns a lowercase version of the extension (excluding the '.') if one exists else returns an empty string
-        inline TInlineString<6> GetLowercaseExtensionAsString() const
+        inline Extension GetLowercaseExtensionAsString() const
         {
             char const* const pExtensionSubstr = GetExtension();
-            TInlineString<6> ext( pExtensionSubstr == nullptr ? "" : pExtensionSubstr );
+            Extension ext( pExtensionSubstr == nullptr ? "" : pExtensionSubstr );
             ext.make_lower();
             return ext;
         }
 
+        // Appends a new extension (excluding the '.') e.g. Path( "a.txt" ).AppendExtension( "rar") -> "a.txt.rar"
+        void AppendExtension( char const* pAdditionalExtension );
+
+        // Appends a new extension (excluding the '.') e.g. Path( "a.txt" ).AppendExtension( "rar") -> "a.txt.rar"
+        inline void AppendExtension( Extension const& extension ) { AppendExtension( extension.c_str() ); }
+
+        // Appends a new extension (excluding the '.') e.g. Path( "a.txt" ).AppendExtension( "rar") -> "a.txt.rar"
+        inline Path GetWithAppendedExtension( char const* pAdditionalExtension ) const { Path p = *this; p.AppendExtension( pAdditionalExtension ); return p; }
+
+        // Appends a new extension (excluding the '.') e.g. Path( "a.txt" ).AppendExtension( "rar") -> "a.txt.rar"
+        inline Path GetWithAppendedExtension( Extension const& extension ) const { Path p = *this; p.AppendExtension( extension.c_str() ); return p; }
+
         // Replaces the extension (excluding the '.') for this path (will create an extensions if no extension exists)
         void ReplaceExtension( const char* pExtension );
+
+        // Replaces the extension (excluding the '.') for this path (will create an extensions if no extension exists)
+        void ReplaceExtension( Extension const& extension ) { ReplaceExtension( extension.c_str() ); }
 
         // Replaces the extension (excluding the '.') for this path (will create an extensions if no extension exists)
         inline void ReplaceExtension( String const& extension ) { ReplaceExtension( extension.c_str() ); }
@@ -195,19 +218,7 @@ namespace EE::FileSystem
 
     private:
 
-        inline void UpdatePathInternals()
-        {
-            if ( m_fullpath.empty() )
-            {
-                m_hashCode = 0;
-                m_isDirectoryPath = false;
-            }
-            else
-            {
-                m_hashCode = Hash::GetHash32( m_fullpath );
-                m_isDirectoryPath = m_fullpath[m_fullpath.length() - 1] == Settings::s_pathDelimiter;
-            }
-        }
+        void UpdatePathInternals();
 
         char const* GetFilenameSubstr() const;
 
@@ -217,33 +228,6 @@ namespace EE::FileSystem
         uint32_t    m_hashCode = 0;
         bool        m_isDirectoryPath = false;
     };
-}
-
-//-------------------------------------------------------------------------
-// Path Helpers
-//-------------------------------------------------------------------------
-
-namespace EE::FileSystem
-{
-    EE_FORCE_INLINE uint64_t GetFileModifiedTime( Path const& filePath )
-    {
-        return GetFileModifiedTime( filePath.c_str() );
-    }
-
-    EE_FORCE_INLINE bool EraseFile( Path const& filePath )
-    {
-        EE_ASSERT( filePath.IsFilePath() );
-        return EraseFile( filePath.c_str() );
-    }
-
-    EE_FORCE_INLINE bool LoadFile( Path const& filePath, Blob& fileData )
-    {
-        EE_ASSERT( filePath.IsFilePath() );
-        return LoadFile( filePath.c_str(), fileData );
-    }
-
-    EE_FORCE_INLINE bool CreateDir( Path const& path ) { EE_ASSERT( path.IsDirectoryPath() ); return CreateDir( path.c_str() ); }
-    EE_FORCE_INLINE bool EraseDir( Path const& path ){ EE_ASSERT( path.IsDirectoryPath() ); return EraseDir( path.c_str() ); }
 }
 
 //-------------------------------------------------------------------------

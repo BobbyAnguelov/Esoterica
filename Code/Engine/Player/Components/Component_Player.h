@@ -2,7 +2,10 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Entity/EntityComponent.h"
-#include "Engine/Input/VirtualInputRegistry.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE::Input { class GameInputMap; }
 
 //-------------------------------------------------------------------------
 // Player Component
@@ -23,12 +26,16 @@ namespace EE::Player
         inline bool IsPlayerEnabled() const { return m_isEnabled; }
         inline void SetPlayerEnabled( bool isEnabled ) { m_isEnabled = isEnabled; }
 
-        inline Input::VirtualInputRegistry* GetInputRegistry() { return &m_inputRegistry; }
-        inline Input::VirtualInputRegistry const* GetInputRegistry() const { return &m_inputRegistry; }
+        inline bool HasInputMap() const { return m_pInputMap != nullptr; }
+        Input::GameInputMap* GetInputMap() { return m_pInputMap; }
+        Input::GameInputMap const* GetInputMap() const { return m_pInputMap; }
+
+    protected:
+
+        Input::GameInputMap*            m_pInputMap = nullptr;
 
     private:
 
-        Input::VirtualInputRegistry     m_inputRegistry;
         bool                            m_isEnabled = true;
     };
 }

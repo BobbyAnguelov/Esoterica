@@ -32,7 +32,7 @@ namespace EE::Animation
     };
 
     #if EE_DEVELOPMENT_TOOLS
-    EE_ENGINE_API Color GetDebugForWarpRule( TargetWarpRule rule );
+    EE_ENGINE_API Color GetDebugColorForWarpRule( TargetWarpRule rule );
     #endif
 
     enum class TargetWarpAlgorithm : uint8_t

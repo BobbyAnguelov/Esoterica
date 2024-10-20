@@ -15,7 +15,18 @@ namespace EE::TypeSystem
 {
     class EE_BASE_API PropertyPath
     {
-        EE_SERIALIZE( m_pathElements );
+        EE_CUSTOM_SERIALIZE_WRITE_FUNCTION( archive )
+        {
+            archive << m_pathElements;
+            return archive;
+        }
+
+        EE_CUSTOM_SERIALIZE_READ_FUNCTION( archive )
+        {
+            archive << m_pathElements;
+            GenerateHashCode();
+            return archive;
+        }
 
     public:
 
@@ -55,6 +66,17 @@ namespace EE::TypeSystem
             return !m_pathElements.empty();
         }
 
+        inline uint64_t GetHashCode() const
+        {
+            return m_hash;
+        }
+
+        void Clear()
+        {
+            m_pathElements.clear();
+            m_hash = 0;
+        }
+
         inline size_t GetNumElements() const
         {
             return m_pathElements.size();
@@ -82,12 +104,14 @@ namespace EE::TypeSystem
         {
             EE_ASSERT( newElement.IsValid() && arrayElementIdx >= InvalidIndex );
             m_pathElements.emplace_back( PathElement( newElement, arrayElementIdx ) );
+            GenerateHashCode();
         }
 
         inline void RemoveLastElement()
         {
             EE_ASSERT( IsValid() );
             m_pathElements.pop_back();
+            GenerateHashCode();
         }
 
         inline void ReplaceLastElement( StringID newElement, int32_t arrayElementIdx = InvalidIndex )
@@ -95,6 +119,7 @@ namespace EE::TypeSystem
             EE_ASSERT( IsValid() );
             EE_ASSERT( newElement.IsValid() && arrayElementIdx >= InvalidIndex );
             m_pathElements.back() = PathElement( newElement, arrayElementIdx );
+            GenerateHashCode();
         }
 
         inline PropertyPath GetPathWithoutFirstElement() const
@@ -103,10 +128,11 @@ namespace EE::TypeSystem
             EE_ASSERT( m_pathElements.size() > 1 );
             PropertyPath subPath;
             subPath.m_pathElements = TInlineVector<PathElement, 10>( m_pathElements.begin() + 1, m_pathElements.end() );
+            subPath.GenerateHashCode();
             return subPath;
         }
 
-        inline PathElement const& operator []( size_t idx ) const
+        inline PathElement const& operator[]( size_t idx ) const
         {
             EE_ASSERT( idx < m_pathElements.size() );
             return m_pathElements[idx];
@@ -114,31 +140,18 @@ namespace EE::TypeSystem
 
         inline bool operator==( PropertyPath const& other ) const
         {
-            size_t const numElements = m_pathElements.size();
-            if ( numElements != other.GetNumElements() )
-            {
-                return false;
-            }
-
-            for ( auto i = 0u; i < numElements; i++ )
-            {
-                if ( m_pathElements[i] != other.m_pathElements[i] )
-                {
-                    return false;
-                }
-            }
-
-            return true;
+            return m_hash == other.m_hash;
         }
 
         inline bool operator!=( PropertyPath const& other ) const
         {
-            return !( *this == other );
+            return m_hash != other.m_hash;
         }
 
         inline PropertyPath& operator+=( StringID newElement )
         {
             m_pathElements.emplace_back( PathElement( newElement ) );
+            GenerateHashCode();
             return *this;
         }
 
@@ -146,6 +159,11 @@ namespace EE::TypeSystem
 
     private:
 
-        TInlineVector<PathElement, 10>    m_pathElements;
+        void GenerateHashCode();
+
+    private:
+
+        TInlineVector<PathElement, 10>      m_pathElements;
+        uint64_t                            m_hash = 0;
     };
 }

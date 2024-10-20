@@ -31,27 +31,27 @@ namespace EE::Import
     void ImportedSkeleton::CalculateLocalTransforms()
     {
         EE_ASSERT( !m_bones.empty() );
-        m_bones[0].m_localTransform = m_bones[0].m_globalTransform;
+        m_bones[0].m_parentSpaceTransform = m_bones[0].m_modelSpaceTransform;
 
         auto const numBones = m_bones.size();
         for ( auto i = numBones - 1; i > 0; i-- )
         {
             int32_t parentIdx = m_bones[i].m_parentBoneIdx;
-            m_bones[i].m_localTransform = Transform::Delta( m_bones[parentIdx].m_globalTransform, m_bones[i].m_globalTransform );
+            m_bones[i].m_parentSpaceTransform = Transform::Delta( m_bones[parentIdx].m_modelSpaceTransform, m_bones[i].m_modelSpaceTransform );
         }
     }
 
     void ImportedSkeleton::CalculateModelSpaceTransforms()
     {
         EE_ASSERT( !m_bones.empty() );
-        m_bones[0].m_globalTransform = m_bones[0].m_localTransform;
+        m_bones[0].m_modelSpaceTransform = m_bones[0].m_parentSpaceTransform;
 
         auto const numBones = m_bones.size();
         for ( auto i = 1; i < numBones; i++ )
         {
             int32_t parentIdx = m_bones[i].m_parentBoneIdx;
             EE_ASSERT( parentIdx != InvalidIndex );
-            m_bones[i].m_globalTransform = m_bones[i].m_localTransform * m_bones[parentIdx].m_globalTransform;
+            m_bones[i].m_modelSpaceTransform = m_bones[i].m_parentSpaceTransform * m_bones[parentIdx].m_modelSpaceTransform;
         }
     }
 

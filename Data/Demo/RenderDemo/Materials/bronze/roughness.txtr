@@ -1,4 +1,3 @@
-{
-  "TypeID": "EE::Render::TextureResourceDescriptor",
-  "m_path": "data://Demo/RenderDemo/materials/bronze/roughness.dds"
-}
+<Type TypeID="EE::Render::TextureResourceDescriptor" Version="0">
+  <Property ID="m_path" Value="data://demo/renderdemo/materials/bronze/roughness.png" />
+</Type>

@@ -2,9 +2,9 @@
 
 #include "EngineTools/_Module/API.h"
 #include "Base/FileSystem/FileSystemPath.h"
-#include "Base/Memory/Pointers.h"
 #include "Base/Types/Function.h"
 #include "Base/Types/StringID.h"
+#include "Base/Memory/UniquePtr.h"
 
 //-------------------------------------------------------------------------
 

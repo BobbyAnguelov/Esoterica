@@ -102,7 +102,7 @@ namespace EE::Animation::GraphNodes
         // Transition Info
         //-------------------------------------------------------------------------
 
-        inline bool IsComplete( GraphContext& context ) const;
+        bool IsComplete( GraphContext& context ) const;
         inline float GetProgressPercentage() const { return m_transitionProgress; }
         inline SourceType GetSourceType() const { return m_sourceType; }
         inline bool IsSourceATransition() const { return m_sourceType == SourceType::Transition; }

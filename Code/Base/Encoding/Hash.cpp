@@ -7,18 +7,13 @@
 
 namespace EE::Hash
 {
-    namespace XXHash
-    {
-        constexpr static uint32_t const g_hashSeed = 'EE8';
-    }
-
     uint32_t XXHash::GetHash32( void const* pData, size_t size )
     {
-        return XXH32( pData, size, g_hashSeed );
+        return XXH32( pData, size, 0 );
     }
 
     uint64_t XXHash::GetHash64( void const* pData, size_t size )
     {
-        return XXH64( pData, size, g_hashSeed );
+        return XXH64( pData, size, 0 );
     }
 }

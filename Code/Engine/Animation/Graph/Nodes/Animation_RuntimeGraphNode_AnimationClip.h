@@ -48,7 +48,7 @@ namespace EE::Animation::GraphNodes
         virtual void DisableRootMotionSampling() final { EE_ASSERT( IsValid() ); m_shouldSampleRootMotion = false; }
         virtual bool IsLooping() const final { return GetDefinition<AnimationClipNode>()->m_allowLooping; }
 
-        virtual SyncTrack const& GetSyncTrack() const override { EE_ASSERT( IsValid() ); return m_pAnimation->GetSyncTrack(); }
+        virtual SyncTrack const& GetSyncTrack() const override;
 
     private:
 

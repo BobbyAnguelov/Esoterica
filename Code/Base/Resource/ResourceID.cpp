@@ -15,7 +15,7 @@ namespace EE
         }
 
         // Ensure this is a valid data path
-        if ( !ResourcePath::IsValidPath( pStr ) )
+        if ( !DataPath::IsValidPath( pStr ) )
         {
             return false;
         }
@@ -47,7 +47,7 @@ namespace EE
         if ( m_path.IsValid() )
         {
             auto const pExtension = m_path.GetExtension();
-            if (pExtension != nullptr)
+            if ( pExtension != nullptr )
             {
                 m_type = ResourceTypeID( pExtension );
                 return;
@@ -56,5 +56,29 @@ namespace EE
 
         // Invalidate this resource ID
         m_type = ResourceTypeID();
+    }
+
+    //-------------------------------------------------------------------------
+
+    ResourceID ResourceID::GetParentResourceID() const
+    {
+        ResourceID parentResourceID;
+
+        DataPath const parentDataFilePath = m_path.GetIntraFilePathParent();
+        if ( parentDataFilePath.IsValid() )
+        {
+            parentResourceID = parentDataFilePath;
+        }
+        else
+        {
+            parentResourceID = *this;
+        }
+
+        return parentResourceID;
+    }
+
+    ResourceTypeID ResourceID::GetParentResourceTypeID() const
+    {
+        return GetParentResourceID().GetResourceTypeID();
     }
 }

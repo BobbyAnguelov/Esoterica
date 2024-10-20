@@ -4,6 +4,23 @@
 
 namespace EE::Animation
 {
+    #if EE_DEVELOPMENT_TOOLS
+    void InstantiationContext::LogWarning( char const* pFormat, ... ) const
+    {
+        auto& entry = m_pLog->emplace_back();
+        entry.m_updateID = 0;
+        entry.m_nodeIdx = m_currentNodeIdx;
+        entry.m_severity = Severity::Warning;
+
+        va_list args;
+        va_start( args, pFormat );
+        entry.m_message.append_sprintf_va_list( pFormat, args );
+        va_end( args );
+    }
+    #endif
+
+    //-------------------------------------------------------------------------
+
     void GraphNode::Definition::Load( Serialization::BinaryInputArchive& archive )
     {
         archive.Serialize( m_nodeIdx );
@@ -23,7 +40,7 @@ namespace EE::Animation
 
     void GraphNode::Initialize( GraphContext& context )
     {
-        if ( IsInitialized() )
+        if ( WasInitialized() )
         {
             ++m_initializationCount;
         }
@@ -35,7 +52,7 @@ namespace EE::Animation
 
     void GraphNode::Shutdown( GraphContext& context )
     {
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
         if ( --m_initializationCount == 0 )
         {
             ShutdownInternal( context );
@@ -53,13 +70,13 @@ namespace EE::Animation
 
     void GraphNode::InitializeInternal( GraphContext& context )
     {
-        EE_ASSERT( !IsInitialized() );
+        EE_ASSERT( !WasInitialized() );
         ++m_initializationCount;
     }
 
     void GraphNode::ShutdownInternal( GraphContext& context )
     {
-        EE_ASSERT( !IsInitialized() );
+        EE_ASSERT( !WasInitialized() );
         m_lastUpdateID = 0xFFFFFFFF;
     }
 
@@ -79,7 +96,7 @@ namespace EE::Animation
 
     void PoseNode::Initialize( GraphContext& context, SyncTrackTime const& initialTime )
     {
-        if ( IsInitialized() )
+        if ( WasInitialized() )
         {
             ++m_initializationCount;
         }

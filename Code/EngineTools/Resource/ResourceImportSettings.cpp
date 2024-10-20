@@ -1,7 +1,8 @@
 #include "ResourceImportSettings.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "EngineTools/Core/CommonDialogs.h"
-#include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
+#include "EngineTools/Core/Dialogs.h"
+#include "Base/TypeSystem/ResourceInfo.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 
@@ -12,7 +13,7 @@ namespace EE::Resource
         , m_propertyGrid( pToolsContext )
     {}
 
-    bool ImportSettings::UpdateAndDraw( ResourcePath& outCreatedDescriptorPath )
+    bool ImportSettings::UpdateAndDraw( DataPath& outCreatedDescriptorPath )
     {
         EE_ASSERT( IsVisible() );
 
@@ -31,7 +32,7 @@ namespace EE::Resource
         ImVec2 propertyGridWindowSize( availableSpaceSize.x, availableSpaceSize.y - requiredExtraOptionsHeight - buttonRowHeight - ( style.ItemSpacing.y * 2 ) );
         if ( ImGui::BeginChild( "grid", propertyGridWindowSize, 0, 0 ) )
         {
-            m_propertyGrid.DrawGrid();
+            m_propertyGrid.UpdateAndDraw();
         }
         ImGui::EndChild();
 
@@ -53,16 +54,16 @@ namespace EE::Resource
 
         bool wasDescriptorSuccessfullyCreated = false;
 
-        ResourceDescriptor const* pDescriptor = GetDescriptor();
+        ResourceDescriptor const* pDescriptor = GetDataFile();
 
-        FileSystem::Path const defaultDescriptorFilePath = m_defaultDescriptorResourcePath.IsValid() ? m_defaultDescriptorResourcePath.ToFileSystemPath( m_pToolsContext->GetRawResourceDirectory() ) : FileSystem::Path();
+        FileSystem::Path const defaultDescriptorFilePath = m_defaultDescriptorResourcePath.IsValid() ? m_defaultDescriptorResourcePath.GetFileSystemPath( m_pToolsContext->GetSourceDataDirectory() ) : FileSystem::Path();
 
         ImGui::BeginDisabled( !pDescriptor->IsValid() || !defaultDescriptorFilePath.IsValid() || defaultDescriptorFilePath.Exists() );
-        if ( ImGuiX::ColoredIconButton( Colors::Green, Colors::White, Colors::White, EE_ICON_FILE_IMPORT, "Import", ImVec2( 100, 0 ) ) )
+        if ( ImGuiX::IconButtonColored(  EE_ICON_FILE_IMPORT, "Import", Colors::Green, Colors::White, Colors::White, ImVec2( 100, 0 ) ) )
         {
             if ( TrySaveDescriptorToDisk( defaultDescriptorFilePath ) )
             {
-                outCreatedDescriptorPath = ResourcePath::FromFileSystemPath( m_pToolsContext->GetRawResourceDirectory(), defaultDescriptorFilePath );
+                outCreatedDescriptorPath = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), defaultDescriptorFilePath );
                 wasDescriptorSuccessfullyCreated = true;
             }
         }
@@ -71,14 +72,14 @@ namespace EE::Resource
         ImGui::SameLine();
 
         ImGui::BeginDisabled( !pDescriptor->IsValid() || !m_defaultDescriptorResourcePath.IsValid() );
-        if ( ImGuiX::ColoredIconButton( Colors::Green, Colors::White, Colors::White, EE_ICON_FILE_IMPORT, "Import As", ImVec2( 100, 0 ) ) )
+        if ( ImGuiX::IconButtonColored( EE_ICON_FILE_IMPORT, "Import As", Colors::Green, Colors::White, Colors::White, ImVec2( 100, 0 ) ) )
         {
             FileSystem::Path userSpecifiedDescriptorFilePath;
             if ( TryGetUserSpecifiedDescriptorPath( userSpecifiedDescriptorFilePath ) )
             {
                 if ( TrySaveDescriptorToDisk( userSpecifiedDescriptorFilePath ) )
                 {
-                    outCreatedDescriptorPath = ResourcePath::FromFileSystemPath( m_pToolsContext->GetRawResourceDirectory(), userSpecifiedDescriptorFilePath );
+                    outCreatedDescriptorPath = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), userSpecifiedDescriptorFilePath );
                     wasDescriptorSuccessfullyCreated = true;
                 }
             }
@@ -90,7 +91,7 @@ namespace EE::Resource
         return wasDescriptorSuccessfullyCreated;
     }
 
-    void ImportSettings::UpdateDescriptor( ResourcePath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems )
+    void ImportSettings::UpdateDescriptor( DataPath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems )
     {
         m_sourceResourcePath = sourceFileResourcePath;
         GenerateDefaultDescriptorPath();
@@ -99,9 +100,9 @@ namespace EE::Resource
 
     void ImportSettings::GenerateDefaultDescriptorPath()
     {
-        if ( m_sourceResourcePath.IsValid() && m_sourceResourcePath.IsFile() )
+        if ( m_sourceResourcePath.IsValid() && m_sourceResourcePath.IsFilePath() )
         {
-            ResourceDescriptor const* pDesc = GetDescriptor();
+            ResourceDescriptor const* pDesc = GetDataFile();
             ResourceTypeID const resourceTypeID = pDesc->GetCompiledResourceTypeID();
             EE_ASSERT( resourceTypeID.IsValid() );
 
@@ -121,25 +122,31 @@ namespace EE::Resource
 
     bool ImportSettings::TryGetUserSpecifiedDescriptorPath( FileSystem::Path& outPath ) const
     {
-        ResourceDescriptor const* pDesc = GetDescriptor();
+        ResourceDescriptor const* pDesc = GetDataFile();
         ResourceTypeID const resourceTypeID = pDesc->GetCompiledResourceTypeID();
         EE_ASSERT( resourceTypeID.IsValid() );
 
         EE_ASSERT( m_defaultDescriptorResourcePath.IsValid() );
-        FileSystem::Path const newDescriptorPath = m_defaultDescriptorResourcePath.ToFileSystemPath( m_pToolsContext->GetRawResourceDirectory() );
+        FileSystem::Path const newDescriptorPath = m_defaultDescriptorResourcePath.GetFileSystemPath( m_pToolsContext->GetSourceDataDirectory() );
 
-        TypeSystem::ResourceInfo const* pResourceInfo = m_pToolsContext->m_pTypeRegistry->GetResourceInfoForResourceType( resourceTypeID );
-        return SaveDialog( resourceTypeID, outPath, newDescriptorPath, pResourceInfo->m_friendlyName );
+        FileDialog::Result result = FileDialog::Save( m_pToolsContext, resourceTypeID, newDescriptorPath );
+        if ( result )
+        {
+            outPath = result;
+            return true;
+        }
+
+        return false;
     }
 
     bool ImportSettings::TrySaveDescriptorToDisk( FileSystem::Path const filePath )
     {
         EE_ASSERT( filePath.IsValid() );
 
-        ResourceDescriptor const* pDescriptor = GetDescriptor();
+        ResourceDescriptor const* pDescriptor = GetDataFile();
         EE_ASSERT( pDescriptor != nullptr );
 
-        ResourceID resourceID = ResourcePath::FromFileSystemPath( m_pToolsContext->GetRawResourceDirectory(), filePath );
+        ResourceID resourceID = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), filePath );
         EE_ASSERT( resourceID.GetResourceTypeID() == pDescriptor->GetCompiledResourceTypeID() );
 
         //-------------------------------------------------------------------------
@@ -156,14 +163,11 @@ namespace EE::Resource
         // Save the descriptor
         if ( result )
         {
-            Serialization::TypeArchiveWriter typeWriter( *m_pToolsContext->m_pTypeRegistry );
-            typeWriter << pDescriptor;
-            if ( !typeWriter.WriteToFile( filePath ) )
+            if ( !IDataFile::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, filePath, pDescriptor ) )
             {
-                pfd::message( "Failed to save descriptor!", "Failed to write descriptor to disk!", pfd::choice::ok, pfd::icon::error ).result();
+                MessageDialog::Error( "Failed to save descriptor!", "Failed to write descriptor to disk!" );
                 result = false;
             }
-
         }
 
         // Always run post save to undo any changes we might have done in the pre-save

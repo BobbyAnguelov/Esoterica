@@ -35,7 +35,7 @@ namespace EE::Serialization
 
         // Writes a unsigned int value out, using the specified number of bits
         // Use this for enum value though clients are expected to do any conversions themselves
-        void WriteUInt( uint32_t value, uint32_t maxBitsToUse );
+        void WriteUInt( uint64_t value, uint32_t maxBitsToUse );
 
         // Writes a 8bit float - expected to be in the range [0:1]
         void WriteNormalizedFloat8Bit( float value );
@@ -60,7 +60,7 @@ namespace EE::Serialization
 
         // Reads back an unsigned int stored in the specified number of bits
         // Use this for enum value though clients are expected to do any conversions themselves
-        uint32_t ReadUInt( uint32_t maxBitsToUse );
+        uint64_t ReadUInt( uint64_t maxBitsToUse );
 
         // Read back a 8bit float - expected to be in the range [0:1]
         float ReadNormalizedFloat8Bit();
@@ -97,7 +97,7 @@ namespace EE::Serialization
     }
 
     template<size_t N>
-    void BitArchive<N>::WriteUInt( uint32_t value, uint32_t maxBitsToUse )
+    void BitArchive<N>::WriteUInt( uint64_t value, uint32_t maxBitsToUse )
     {
         EE_ASSERT( !m_isReading );
         EE_ASSERT( ( Math::GetMostSignificantBit( value ) + 1 ) <= maxBitsToUse );
@@ -182,16 +182,16 @@ namespace EE::Serialization
     }
 
     template<size_t N>
-    uint32_t BitArchive<N>::ReadUInt( uint32_t maxBitsToUse )
+    uint64_t BitArchive<N>::ReadUInt( uint64_t maxBitsToUse )
     {
         EE_ASSERT( m_isReading );
-        uint32_t value = 0;
+        uint64_t value = 0;
 
-        for ( uint32_t i = 0u; i < maxBitsToUse; i++ )
+        for ( uint64_t i = 0u; i < maxBitsToUse; i++ )
         {
             if ( m_bits[m_bitPos] )
             {
-                value |= ( 1 << i );
+                value |= ( uint64_t( 1 ) << i );
             }
 
             m_bitPos++;

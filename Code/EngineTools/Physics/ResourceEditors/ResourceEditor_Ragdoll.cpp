@@ -1,6 +1,7 @@
 #include "ResourceEditor_Ragdoll.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
-#include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
+#include "EngineTools/Core/Dialogs.h"
+#include "Engine/Physics/PhysicsWorld.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Animation/AnimationBlender.h"
@@ -10,7 +11,6 @@
 #include "Engine/Animation/AnimationPose.h"
 #include "Base/Math/MathUtils.h"
 #include "Base/Math/MathUtils.h"
-#include "Engine/Physics/PhysicsWorld.h"
 
 //-------------------------------------------------------------------------
 
@@ -20,12 +20,12 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    class [[nodiscard]] ScopedRagdollSettingsModification : public ScopedDescriptorModification
+    class [[nodiscard]] ScopedRagdollSettingsModification : public ScopedDataFileModification
     {
     public:
 
         ScopedRagdollSettingsModification( RagdollEditor* pEditor )
-            : ScopedDescriptorModification( pEditor )
+            : ScopedDataFileModification( pEditor )
             , m_pRagdollEditor( pEditor )
         {}
 
@@ -47,62 +47,6 @@ namespace EE::Physics
     };
 
     //-------------------------------------------------------------------------
-
-    static void DrawTwistLimits( Drawing::DrawContext& ctx, Transform const& jointTransform, Radians limitMin, Radians limitMax, Color color, float lineThickness )
-    {
-        EE_ASSERT( limitMin < limitMax );
-
-        Vector const axisOfRotation = jointTransform.GetAxisX();
-        Vector const zeroRotationVector = jointTransform.GetAxisY();
-
-        constexpr float const limitScale = 0.1f;
-        constexpr uint32_t const numVertices = 30;
-        TInlineVector<Vector, numVertices> vertices;
-        
-        Radians const deltaAngle = ( limitMax - limitMin ) / numVertices;
-        for ( int32_t i = 0; i < numVertices; i++ )
-        {
-            auto rotatedVector = Quaternion( axisOfRotation, limitMin + ( deltaAngle * i ) ).RotateVector( zeroRotationVector );
-            vertices.push_back( jointTransform.GetTranslation() + ( rotatedVector * limitScale ) );
-            ctx.DrawLine( jointTransform.GetTranslation(), vertices.back(), color, lineThickness );
-        }
-
-        for ( auto i = 1; i < numVertices; i++ )
-        {
-            ctx.DrawLine( vertices[i-1], vertices[i], color, lineThickness);
-        }
-    }
-
-    static void DrawSwingLimits( Drawing::DrawContext& ctx, Transform const& jointTransform, Radians limitY, Radians limitZ, Color color, float lineThickness )
-    {
-        Vector const axisOfRotationY = jointTransform.GetAxisY();
-        Vector const axisOfRotationZ = jointTransform.GetAxisZ();
-        Vector const zeroRotationVector = jointTransform.GetAxisX();
-
-        constexpr float const limitScale = 0.2f;
-        constexpr uint32_t const numVertices = 30;
-        TInlineVector<Vector, numVertices> vertices;
-
-        Radians const startAngleY = -( limitY / 2 );
-        Radians const deltaAngleY = limitY / numVertices;
-        for ( int32_t i = 0; i < numVertices; i++ )
-        {
-            auto rotatedVector = Quaternion( axisOfRotationY, startAngleY + ( deltaAngleY * i ) ).RotateVector( zeroRotationVector );
-            vertices.push_back( jointTransform.GetTranslation() + ( rotatedVector * limitScale ) );
-            ctx.DrawLine( jointTransform.GetTranslation(), vertices.back(), Colors::Green, lineThickness );
-        }
-
-        vertices.clear();
-
-        Radians const startAngleZ = -( limitZ / 2 );
-        Radians const deltaAngleZ = limitZ / numVertices;
-        for ( int32_t i = 0; i < numVertices; i++ )
-        {
-            auto rotatedVector = Quaternion( axisOfRotationZ, startAngleZ + ( deltaAngleZ * i ) ).RotateVector( zeroRotationVector );
-            vertices.push_back( jointTransform.GetTranslation() + ( rotatedVector * limitScale ) );
-            ctx.DrawLine( jointTransform.GetTranslation(), vertices.back(), Colors::RoyalBlue, lineThickness );
-        }
-    }
 
     static int32_t GetParentBodyIndex( Animation::Skeleton const* pSkeleton, RagdollDefinition const& definition, int32_t bodyIdx )
     {
@@ -132,21 +76,21 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    RagdollEditor::RagdollEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-        : TResourceEditor<RagdollDefinition>( pToolsContext, pWorld, resourceID )
+    RagdollEditor::RagdollEditor( ToolsContext const* pToolsContext, ResourceID const& resourceID, EntityWorld* pWorld )
+        : TResourceEditor<RagdollDefinition>( pToolsContext, resourceID, pWorld )
         , m_bodyEditorPropertyGrid( pToolsContext )
         , m_solverSettingsGrid( pToolsContext )
         , m_resourceFilePicker( *pToolsContext )
     {
         auto OnPreEdit = [this] ( PropertyEditInfo const& info ) 
         {
-            BeginDescriptorModification();
+            BeginDataFileModification();
         };
         
         auto OnPostEdit = [this] ( PropertyEditInfo const& info ) 
         {
             EE_ASSERT( m_pActiveUndoableAction != nullptr );
-            EndDescriptorModification();
+            EndDataFileModification();
         };
 
         m_bodyGridPreEditEventBindingID = m_bodyEditorPropertyGrid.OnPreEdit().Bind( OnPreEdit );
@@ -157,7 +101,7 @@ namespace EE::Physics
         auto OnSolverPreEdit = [this] ( PropertyEditInfo const& info )
         {
             EE_ASSERT( m_pActiveUndoableAction == nullptr );
-            BeginDescriptorModification();
+            BeginDataFileModification();
         };
 
         auto OnSolverPostEdit = [this] ( PropertyEditInfo const& info )
@@ -165,7 +109,7 @@ namespace EE::Physics
             EE_ASSERT( m_pActiveUndoableAction != nullptr );
             auto pSolverSettings = Cast<RagdollDefinition::Profile>( m_solverSettingsGrid.GetEditedType() );
             pSolverSettings->CorrectSettingsToValidRanges();
-            EndDescriptorModification();
+            EndDataFileModification();
         };
 
         m_solverGridPreEditEventBindingID = m_solverSettingsGrid.OnPreEdit().Bind( OnSolverPreEdit );
@@ -175,7 +119,7 @@ namespace EE::Physics
 
         m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
         m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowCoordinateSpaceSwitching, false );
-        m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Translation );
+        m_gizmo.SetMode( ImGuiX::Gizmo::GizmoMode::Translation );
     }
 
     RagdollEditor::~RagdollEditor()
@@ -214,10 +158,10 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        CreateToolWindow( "Body Editor", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
-        CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
-        CreateToolWindow( "Profile Editor", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
-        CreateToolWindow( "Preview Controls", [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
+        CreateToolWindow( "Body Editor", [this] ( UpdateContext const& context, bool isFocused ) { DrawDataFileEditorWindow( context, isFocused ); } );
+        CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDataFileEditorWindow( context, isFocused ); } );
+        CreateToolWindow( "Profile Editor", [this] ( UpdateContext const& context, bool isFocused ) { DrawDataFileEditorWindow( context, isFocused ); } );
+        CreateToolWindow( "Preview Controls", [this] ( UpdateContext const& context, bool isFocused ) { DrawDataFileEditorWindow( context, isFocused ); } );
     }
 
     void RagdollEditor::Shutdown( UpdateContext const& context )
@@ -252,7 +196,7 @@ namespace EE::Physics
         UpdateProfileWorkingCopy();
     }
 
-    void RagdollEditor::OnDescriptorUnload()
+    void RagdollEditor::OnDataFileUnload()
     {
         if ( IsPreviewing() )
         {
@@ -264,9 +208,9 @@ namespace EE::Physics
         UnloadSkeleton();
     }
 
-    void RagdollEditor::OnDescriptorLoadCompleted()
+    void RagdollEditor::OnDataFileLoadCompleted()
     {
-        if ( IsDescriptorLoaded() )
+        if ( IsDataFileLoaded() )
         {
             LoadSkeleton();
         }
@@ -306,11 +250,11 @@ namespace EE::Physics
         // Dock windows
         //-------------------------------------------------------------------------
 
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), viewportDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), viewportDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Body Editor" ).c_str(), leftDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomleftDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Profile Editor" ).c_str(), bottomDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomDockID);
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomDockID);
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Preview Controls" ).c_str(), rightDockID );
     }
 
@@ -468,7 +412,7 @@ namespace EE::Physics
 
                     //-------------------------------------------------------------------------
 
-                    Transform const bodyTransform = body.m_offsetTransform * m_skeleton->GetBoneGlobalTransform( boneIdx );
+                    Transform const bodyTransform = body.m_offsetTransform * m_skeleton->GetBoneModelSpaceTransform( boneIdx );
                     drawingCtx.DrawCapsule( bodyTransform, body.m_radius, body.m_halfHeight, Colors::Orange, 3.0f );
 
                     // Draw body axes
@@ -483,7 +427,7 @@ namespace EE::Physics
                         int32_t const parentBodyIdx = GetParentBodyIndex( m_skeleton.GetPtr(), m_ragdollDefinition, i );
                         int32_t const parentBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[parentBodyIdx].m_boneID );
                         EE_ASSERT( parentBoneIdx != InvalidIndex );
-                        Transform const parentBodyTransform = m_ragdollDefinition.m_bodies[parentBodyIdx].m_offsetTransform * m_skeleton->GetBoneGlobalTransform( parentBoneIdx );
+                        Transform const parentBodyTransform = m_ragdollDefinition.m_bodies[parentBodyIdx].m_offsetTransform * m_skeleton->GetBoneModelSpaceTransform( parentBoneIdx );
 
                         drawingCtx.DrawAxis( body.m_jointTransform, 0.1f, 3 );
                         drawingCtx.DrawLine( body.m_jointTransform.GetTranslation(), parentBodyTransform.GetTranslation(), Colors::Cyan, 2.0f );
@@ -512,8 +456,8 @@ namespace EE::Physics
                     int32_t const parentBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[parentBodyIdx].m_boneID );
                     EE_ASSERT( parentBoneIdx != InvalidIndex );
 
-                    Transform const bodyTransform = body.m_offsetTransform * m_skeleton->GetBoneGlobalTransform( boneIdx );
-                    Transform const parentBodyTransform = m_ragdollDefinition.m_bodies[parentBodyIdx].m_offsetTransform * m_skeleton->GetBoneGlobalTransform( parentBoneIdx );
+                    Transform const bodyTransform = body.m_offsetTransform * m_skeleton->GetBoneModelSpaceTransform( boneIdx );
+                    Transform const parentBodyTransform = m_ragdollDefinition.m_bodies[parentBodyIdx].m_offsetTransform * m_skeleton->GetBoneModelSpaceTransform( parentBoneIdx );
 
                     // Draw joint
                     drawingCtx.DrawAxis( body.m_jointTransform, 0.1f, 4 );
@@ -523,12 +467,12 @@ namespace EE::Physics
                     // Draw limits
                     if ( pActiveProfile->m_jointSettings[jointIdx].m_twistLimitEnabled )
                     {
-                        DrawTwistLimits( drawingCtx, body.m_jointTransform, Degrees( pActiveProfile->m_jointSettings[jointIdx].m_twistLimitMin ), Degrees( pActiveProfile->m_jointSettings[jointIdx].m_twistLimitMax ), Colors::Red, 1.0f );
+                        drawingCtx.DrawTwistLimits( body.m_jointTransform, Degrees( pActiveProfile->m_jointSettings[jointIdx].m_twistLimitMin ), Degrees( pActiveProfile->m_jointSettings[jointIdx].m_twistLimitMax ), Colors::Red, 1.0f );
                     }
 
                     if ( pActiveProfile->m_jointSettings[jointIdx].m_swingLimitEnabled )
                     {
-                        DrawSwingLimits( drawingCtx, body.m_jointTransform, Degrees( pActiveProfile->m_jointSettings[jointIdx].m_swingLimitY ), Degrees( pActiveProfile->m_jointSettings[jointIdx].m_swingLimitZ ), Colors::Yellow, 1.0f );
+                        drawingCtx.DrawSwingLimits( body.m_jointTransform, Degrees( pActiveProfile->m_jointSettings[jointIdx].m_swingLimitY ), Degrees( pActiveProfile->m_jointSettings[jointIdx].m_swingLimitZ ), Colors::Yellow, 1.0f );
                     }
                 }
             }
@@ -546,7 +490,7 @@ namespace EE::Physics
 
                     if ( m_editorMode == Mode::BodyEditor )
                     {
-                        Transform const boneTransform = m_skeleton->GetBoneGlobalTransform( boneIdx );
+                        Transform const boneTransform = m_skeleton->GetBoneModelSpaceTransform( boneIdx );
                         Transform const bodyTransform = body.m_offsetTransform * boneTransform;
 
                         auto const gizmoResult = m_gizmo.Draw( bodyTransform.GetTranslation(), bodyTransform.GetRotation(), *pViewport );
@@ -554,7 +498,7 @@ namespace EE::Physics
                         {
                             case ImGuiX::Gizmo::State::StartedManipulating :
                             {
-                                BeginDescriptorModification();
+                                BeginDataFileModification();
                                 body.m_offsetTransform = Transform::Delta( boneTransform, gizmoResult.GetModifiedTransform( bodyTransform ) );
                             }
                             break;
@@ -568,7 +512,7 @@ namespace EE::Physics
                             case ImGuiX::Gizmo::State::StoppedManipulating :
                             {
                                 body.m_offsetTransform = Transform::Delta( boneTransform, gizmoResult.GetModifiedTransform( bodyTransform ) );
-                                EndDescriptorModification();
+                                EndDataFileModification();
                             }
                             break;
 
@@ -583,7 +527,7 @@ namespace EE::Physics
                         {
                             case ImGuiX::Gizmo::State::StartedManipulating:
                             {
-                                BeginDescriptorModification();
+                                BeginDataFileModification();
                                 gizmoResult.ApplyResult( body.m_jointTransform );
                             }
                             break;
@@ -597,7 +541,7 @@ namespace EE::Physics
                             case ImGuiX::Gizmo::State::StoppedManipulating:
                             {
                                 gizmoResult.ApplyResult( body.m_jointTransform );
-                                EndDescriptorModification();
+                                EndDataFileModification();
                             }
                             break;
 
@@ -635,7 +579,7 @@ namespace EE::Physics
         }
     }
 
-    void RagdollEditor::PreWorldUpdate( EntityWorldUpdateContext const& updateContext )
+    void RagdollEditor::WorldUpdate( EntityWorldUpdateContext const& updateContext )
     {
         if ( !IsPreviewing() )
         {
@@ -954,7 +898,7 @@ namespace EE::Physics
         }
         else
         {
-            pfd::message( "Invalid Descriptor", "Descriptor doesnt have a skeleton set!\r\nPlease set a valid skeleton via the descriptor editor", pfd::choice::ok, pfd::icon::error ).result();
+            MessageDialog::Error( "Invalid Descriptor", "Descriptor doesnt have a skeleton set!\r\nPlease set a valid skeleton via the descriptor editor" );
         }
     }
 
@@ -974,7 +918,7 @@ namespace EE::Physics
 
     void RagdollEditor::CreatePreviewEntity()
     {
-        EE_ASSERT( IsDescriptorLoaded() );
+        EE_ASSERT( IsDataFileLoaded() );
         EE_ASSERT( m_skeleton.IsLoaded() );
 
         // Load resource descriptor for skeleton to get the preview mesh
@@ -1031,7 +975,7 @@ namespace EE::Physics
             if ( pRagdollDesc->m_skeleton.GetResourceID() != m_ragdollDefinition.m_skeleton.GetResourceID() )
             {
                 errorMsg.sprintf( "Skeleton mismatch detected.\r\nDescriptor Skeleton: %s\r\nDefinition Skeleton: %s\r\n\r\nThe definition will now be reset!", pRagdollDesc->m_skeleton.GetResourceID().c_str(), m_ragdollDefinition.m_skeleton.GetResourceID().c_str() );
-                pfd::message( "Ragdoll Skeleton Mismatch", errorMsg.c_str(), pfd::choice::ok, pfd::icon::error ).result();
+                MessageDialog::Error( "Ragdoll Skeleton Mismatch", errorMsg.c_str() );
 
                 // Remove all bodies
                 m_ragdollDefinition.m_bodies.clear();
@@ -1074,8 +1018,7 @@ namespace EE::Physics
         {
             if ( !profile.IsValid( numBodies ) )
             {
-                errorMsg.sprintf( "Profile %s is invalid. This profile will be reset!", profile.m_ID.c_str() );
-                pfd::message( "Invalid Ragdoll Profile", errorMsg.c_str(), pfd::choice::ok, pfd::icon::error ).result();
+                MessageDialog::Error( "Invalid Ragdoll Profile", "Profile %s is invalid. This profile will be reset!", profile.m_ID.c_str() );
 
                 // Reset Settings
                 ResetProfile( profile );
@@ -1122,13 +1065,13 @@ namespace EE::Physics
         newBody.m_boneID = boneID;
 
         // Calculate initial  body and joint transforms
-        Transform boneTransform = m_skeleton->GetBoneGlobalTransform( newBodyBoneIdx );
+        Transform boneTransform = m_skeleton->GetBoneModelSpaceTransform( newBodyBoneIdx );
         Transform bodyGlobalTransform = boneTransform;
 
         int32_t const firstChildIdx = m_skeleton->GetFirstChildBoneIndex( newBodyBoneIdx );
         if ( firstChildIdx != InvalidIndex )
         {
-            auto childBoneTransform = m_skeleton->GetBoneGlobalTransform( firstChildIdx );
+            auto childBoneTransform = m_skeleton->GetBoneModelSpaceTransform( firstChildIdx );
 
             Vector bodyAxisX;
             float length = 0.0f;
@@ -1296,18 +1239,18 @@ namespace EE::Physics
     {
         if ( m_pSkeletonTreeRoot != nullptr )
         {
-            ImGui::Text( "Skeleton ID: %s", m_skeleton->GetResourcePath().GetFileNameWithoutExtension().c_str() );
+            ImGui::Text( "Skeleton ID: %s", m_skeleton->GetResourcePath().GetFilenameWithoutExtension().c_str() );
 
             if ( m_editorMode == Mode::BodyEditor )
             {
-                if ( ImGuiX::ColoredButton( Colors::RoyalBlue, Colors::White, "Switch to Joint Editor", ImVec2( -1, 0 ) ) )
+                if ( ImGuiX::ButtonColored( "Switch to Joint Editor", Colors::RoyalBlue, Colors::White, ImVec2( -1, 0 ) ) )
                 {
                     m_editorMode = Mode::JointEditor;
                 }
             }
             else
             {
-                if ( ImGuiX::ColoredButton( Colors::Orange, Colors::Black, "Switch to Body Editor", ImVec2( -1, 0 ) ) )
+                if ( ImGuiX::ButtonColored("Switch to Body Editor", Colors::Orange, Colors::Black, ImVec2( -1, 0 ) ) )
                 {
                     m_editorMode = Mode::BodyEditor;
                 }
@@ -1350,7 +1293,7 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        m_bodyEditorPropertyGrid.DrawGrid();
+        m_bodyEditorPropertyGrid.UpdateAndDraw();
     }
 
     void RagdollEditor::CreateSkeletonTree()
@@ -1693,7 +1636,7 @@ namespace EE::Physics
                     {
                         m_solverSettingsGrid.SetTypeToEdit( pActiveProfile );
                     }
-                    m_solverSettingsGrid.DrawGrid();
+                    m_solverSettingsGrid.UpdateAndDraw();
                     ImGui::EndTabItem();
                 }
 
@@ -1743,7 +1686,7 @@ namespace EE::Physics
         ImGui::BeginDisabled( IsPreviewing() );
         {
             ImGui::SameLine();
-            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS"New", ImVec2( createButtonWidth, 0 ) ) )
+            if ( ImGuiX::ButtonColored( EE_ICON_PLUS"New", Colors::Green, Colors::White, ImVec2( createButtonWidth, 0 ) ) )
             {
                 auto const newUniqueName = GetUniqueProfileName( "Profile" );
                 Printf( m_profileNameBuffer, 256, newUniqueName.c_str() );
@@ -1753,7 +1696,7 @@ namespace EE::Physics
             //-------------------------------------------------------------------------
 
             ImGui::SameLine();
-            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_CONTENT_COPY"##Duplicate", ImVec2( iconButtonWidth, 0 ) ) )
+            if ( ImGuiX::ButtonColored( EE_ICON_CONTENT_COPY"##Duplicate", Colors::Green, Colors::White, ImVec2( iconButtonWidth, 0 ) ) )
             {
                 auto const newUniqueName = GetUniqueProfileName( m_activeProfileID.c_str() );
                 Printf( m_profileNameBuffer, 256, newUniqueName.c_str() );
@@ -1763,7 +1706,7 @@ namespace EE::Physics
             //-------------------------------------------------------------------------
 
             ImGui::SameLine();
-            if ( ImGuiX::ColoredButton( Colors::RoyalBlue, Colors::White, EE_ICON_RENAME_BOX"##Rename", ImVec2( iconButtonWidth, 0 ) ) )
+            if ( ImGuiX::ButtonColored( EE_ICON_RENAME_BOX"##Rename", Colors::RoyalBlue, Colors::White, ImVec2( iconButtonWidth, 0 ) ) )
             {
                 Printf( m_profileNameBuffer, 256, m_activeProfileID.c_str() );
                 m_dialogManager.CreateModalDialog( "Rename Profile", [this] ( UpdateContext const& context ) { return DrawRenameProfileDialog( context ); } );
@@ -1774,7 +1717,7 @@ namespace EE::Physics
 
             ImGui::SameLine();
             ImGui::BeginDisabled( m_ragdollDefinition.GetNumProfiles() == 1 );
-            if ( ImGuiX::ColoredButton( Colors::MediumRed, Colors::White, EE_ICON_DELETE, ImVec2( iconButtonWidth, 0 ) ) )
+            if ( ImGuiX::ButtonColored( EE_ICON_DELETE, Colors::MediumRed, Colors::White, ImVec2( iconButtonWidth, 0 ) ) )
             {
                 if ( m_ragdollDefinition.GetNumProfiles() > 1 )
                 {
@@ -2572,7 +2515,7 @@ namespace EE::Physics
     {
         if ( IsPreviewing() )
         {
-            if ( ImGuiX::ColoredButton( Colors::MediumRed, Colors::White, EE_ICON_STOP" Stop Preview", ImVec2( -1, 0 ) ) )
+            if ( ImGuiX::ButtonColored( EE_ICON_STOP" Stop Preview", Colors::MediumRed, Colors::White, ImVec2( -1, 0 ) ) )
             {
                 StopPreview();
             }
@@ -2580,7 +2523,7 @@ namespace EE::Physics
         else
         {
             ImGui::BeginDisabled( !m_ragdollDefinition.IsValid() && m_pMeshComponent != nullptr );
-            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLAY" Start Preview", ImVec2( -1, 0 ) ) )
+            if ( ImGuiX::ButtonColored( EE_ICON_PLAY" Start Preview", Colors::Green, Colors::White, ImVec2( -1, 0 ) ) )
             {
                 StartPreview( context );
             }

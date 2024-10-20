@@ -8,31 +8,14 @@
 #include "Base/Math/Transform.h"
 #include "Base/Math/NumericRange.h"
 #include "Base/Math/FloatCurve.h"
+#include "TypeInstance.h"
 
 //-------------------------------------------------------------------------
 
 #define REGISTER_TYPE_RECORD( coreTypeEnum, fullyQualifiedTypeName ) \
 ID = TypeID( #fullyQualifiedTypeName );\
 EE_ASSERT( !CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum].m_ID.IsValid() );\
-CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum] = { ID, sizeof( fullyQualifiedTypeName ), alignof( fullyQualifiedTypeName ) };\
-EE_DEVELOPMENT_TOOLS_ONLY( Printf( CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum].m_friendlyName, 30, &#coreTypeEnum[12] ) );
-
-#define REGISTER_TEMPLATE_TYPE_RECORD_GENERIC( coreTypeEnum, fullyQualifiedTypeName, baseSpecialization ) \
-ID = TypeID( #fullyQualifiedTypeName );\
-EE_ASSERT( !CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum].m_ID.IsValid() );\
-CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum] = { ID, sizeof( fullyQualifiedTypeName<baseSpecialization> ), alignof( fullyQualifiedTypeName<baseSpecialization> ) };\
-EE_DEVELOPMENT_TOOLS_ONLY( Printf( CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum].m_friendlyName, 30, &#coreTypeEnum[12] ) );
-
-#define REGISTER_TEMPLATE_TYPE_RECORD_RESOURCE( coreTypeEnum, fullyQualifiedTypeName ) \
-ID = TypeID( #fullyQualifiedTypeName );\
-EE_ASSERT( !CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum].m_ID.IsValid() );\
-CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum] = { ID, sizeof( fullyQualifiedTypeName<EE::Resource::IResource> ), alignof( fullyQualifiedTypeName<EE::Resource::IResource> ) };\
-EE_DEVELOPMENT_TOOLS_ONLY( Printf( CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum].m_friendlyName, 30, &#coreTypeEnum[12] ) );
-
-#define REGISTER_TEMPLATE_TYPE_RECORD_OBJECT( coreTypeEnum, fullyQualifiedTypeName ) \
-ID = TypeID( #fullyQualifiedTypeName );\
-EE_ASSERT( !CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum].m_ID.IsValid() );\
-CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum] = { ID, sizeof( fullyQualifiedTypeName<EE::Entity> ), alignof( fullyQualifiedTypeName<EE::Entity> ) };\
+CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum] = { ID };\
 EE_DEVELOPMENT_TOOLS_ONLY( Printf( CoreTypeRegistry::s_coreTypeRecords[(uint8_t)coreTypeEnum].m_friendlyName, 30, &#coreTypeEnum[12] ) );
 
 //-------------------------------------------------------------------------
@@ -63,7 +46,6 @@ namespace EE::TypeSystem
         REGISTER_TYPE_RECORD( CoreTypeID::Double, double );
         REGISTER_TYPE_RECORD( CoreTypeID::UUID, EE::UUID );
         REGISTER_TYPE_RECORD( CoreTypeID::StringID, EE::StringID );
-        REGISTER_TYPE_RECORD( CoreTypeID::Tag, EE::Tag );
         REGISTER_TYPE_RECORD( CoreTypeID::TypeID, EE::TypeSystem::TypeID );
         REGISTER_TYPE_RECORD( CoreTypeID::String, EE::String );
         REGISTER_TYPE_RECORD( CoreTypeID::Color, EE::Color );
@@ -84,17 +66,25 @@ namespace EE::TypeSystem
         REGISTER_TYPE_RECORD( CoreTypeID::IntRange, EE::IntRange );
         REGISTER_TYPE_RECORD( CoreTypeID::FloatRange, EE::FloatRange );
         REGISTER_TYPE_RECORD( CoreTypeID::FloatCurve, EE::FloatCurve );
+        REGISTER_TYPE_RECORD( CoreTypeID::Tag2, EE::Tag2 );
+        REGISTER_TYPE_RECORD( CoreTypeID::Tag4, EE::Tag4 );
+
         REGISTER_TYPE_RECORD( CoreTypeID::BitFlags, EE::BitFlags );
+        REGISTER_TYPE_RECORD( CoreTypeID::TBitFlags, EE::TBitFlags );
 
-        REGISTER_TEMPLATE_TYPE_RECORD_GENERIC( CoreTypeID::TBitFlags, EE::TBitFlags, enum class TempEnum );
-        REGISTER_TEMPLATE_TYPE_RECORD_GENERIC( CoreTypeID::TVector, EE::TVector, uint8_t );
+        REGISTER_TYPE_RECORD( CoreTypeID::TVector, EE::TVector );
+        REGISTER_TYPE_RECORD( CoreTypeID::TInlineVector, EE::TInlineVector );
 
-        // Resources
-        REGISTER_TYPE_RECORD( CoreTypeID::ResourcePath, EE::ResourcePath );
+        REGISTER_TYPE_RECORD( CoreTypeID::TypeInstance, EE::TypeInstance );
+        REGISTER_TYPE_RECORD( CoreTypeID::TTypeInstance, EE::TTypeInstance );
+
+        REGISTER_TYPE_RECORD( CoreTypeID::DataPath, EE::DataPath );
+        REGISTER_TYPE_RECORD( CoreTypeID::TDataFilePath, EE::TDataFilePath );
+
         REGISTER_TYPE_RECORD( CoreTypeID::ResourceID, EE::ResourceID );
         REGISTER_TYPE_RECORD( CoreTypeID::ResourceTypeID, EE::ResourceTypeID );
         REGISTER_TYPE_RECORD( CoreTypeID::ResourcePtr, EE::Resource::ResourcePtr );
-        REGISTER_TEMPLATE_TYPE_RECORD_RESOURCE( CoreTypeID::TResourcePtr, EE::TResourcePtr );
+        REGISTER_TYPE_RECORD( CoreTypeID::TResourcePtr, EE::TResourcePtr );
 
         s_areCoreTypeRecordsInitialized = true;
     }
@@ -134,37 +124,5 @@ namespace EE::TypeSystem
         }
 
         return CoreTypeID::Invalid;
-    }
-
-    size_t CoreTypeRegistry::GetTypeSize( TypeID typeID )
-    {
-        EE_ASSERT( s_areCoreTypeRecordsInitialized );
-
-        for ( auto i = 0; i < (uint8_t) CoreTypeID::NumTypes; i++ )
-        {
-            if ( s_coreTypeRecords[i].m_ID == typeID )
-            {
-                return s_coreTypeRecords[i].m_typeSize;
-            }
-        }
-
-        EE_UNREACHABLE_CODE();
-        return 0;
-    }
-
-    size_t CoreTypeRegistry::GetTypeAlignment( TypeID typeID )
-    {
-        EE_ASSERT( s_areCoreTypeRecordsInitialized );
-
-        for ( auto i = 0; i < (uint8_t) CoreTypeID::NumTypes; i++ )
-        {
-            if ( s_coreTypeRecords[i].m_ID == typeID )
-            {
-                return s_coreTypeRecords[i].m_typeAlignment;
-            }
-        }
-
-        EE_UNREACHABLE_CODE();
-        return 0;
     }
 }

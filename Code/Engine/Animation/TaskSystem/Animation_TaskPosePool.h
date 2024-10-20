@@ -32,7 +32,7 @@ namespace EE::Animation
         inline bool IsAdditive() const { return m_poses[0].IsAdditivePose(); }
         inline Pose* GetPrimaryPose() { return &m_poses[0]; }
         void ResetPose( Pose::Type poseType = Pose::Type::None, bool calculateGlobalPose = false );
-        void CalculateGlobalTransforms();
+        void CalculateModelSpaceTransforms();
 
     protected:
 

@@ -1,0 +1,1 @@
+powershell Start-BitsTransfer -Source http://data.esotericaengine.com/ExternalData.zip -Destination .\ExternalData.zip;Expand-Archive -Path ExternalData.zip -DestinationPath .\;rm ExternalData.zip

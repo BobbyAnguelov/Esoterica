@@ -25,10 +25,13 @@ namespace EE::Render
         EE_REFLECT_TYPE( TextureResourceDescriptor );
 
         virtual bool IsValid() const override { return m_path.IsValid(); }
+        virtual int32_t GetFileVersion() const override { return 0; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Texture::GetStaticResourceTypeID(); }
+        virtual FileSystem::Extension GetExtension() const override final { return Texture::GetStaticResourceTypeID().ToString(); }
+        virtual char const* GetFriendlyName() const override final { return Texture::s_friendlyName; }
 
-        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
         {
             if ( m_path.IsValid() )
             {
@@ -45,7 +48,7 @@ namespace EE::Render
 
     public:
 
-        EE_REFLECT() ResourcePath     m_path;
+        EE_REFLECT() DataPath     m_path;
         EE_REFLECT() TextureType      m_type = TextureType::Default;
         EE_REFLECT() String           m_name; // Optional: needed for extracting textures out of container files (e.g. glb, fbx)
     };
@@ -57,10 +60,13 @@ namespace EE::Render
         EE_REFLECT_TYPE( CubemapTextureResourceDescriptor );
 
         virtual bool IsValid() const override { return m_path.IsValid(); }
+        virtual int32_t GetFileVersion() const override { return 0; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return CubemapTexture::GetStaticResourceTypeID(); }
+        virtual FileSystem::Extension GetExtension() const override final { return CubemapTexture::GetStaticResourceTypeID().ToString(); }
+        virtual char const* GetFriendlyName() const override final { return CubemapTexture::s_friendlyName; }
 
-        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
         {
             if ( m_path.IsValid() )
             {
@@ -75,6 +81,6 @@ namespace EE::Render
 
     public:
 
-        EE_REFLECT() ResourcePath     m_path;
+        EE_REFLECT() DataPath     m_path;
     };
 }

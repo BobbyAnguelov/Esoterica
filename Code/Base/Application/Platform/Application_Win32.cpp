@@ -5,8 +5,8 @@
 #include "Base/Platform/PlatformUtils_Win32.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/FileSystem/FileSystemUtils.h"
+#include "Base/Logging/SystemLog.h"
 #include "Base/Math/Rectangle.h"
-#include "Base/Logging/LoggingSystem.h"
 #include "Base/Platform/Platform.h"
 
 #include <dwmapi.h>
@@ -213,7 +213,7 @@ namespace EE
     LRESULT Win32Application::WindowMessageProcessor( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
     {
         #if EE_DEVELOPMENT_TOOLS
-        if ( IsInitialized() )
+        if ( WasInitialized() )
         {
             auto const imguiResult = ImGuiX::Platform::WindowMessageProcessor( hWnd, message, wParam, lParam );
             if ( imguiResult != 0 )
@@ -300,7 +300,7 @@ namespace EE
 
             case WM_SIZE:
             {
-                if ( IsInitialized() )
+                if ( WasInitialized() )
                 {
                     Int2 const newWindowSize( LOWORD( lParam ), HIWORD( lParam ) );
                     if ( newWindowSize.m_x > 0 && newWindowSize.m_y > 0 )
@@ -323,7 +323,7 @@ namespace EE
             case WM_CHAR:
             case WM_MOUSEMOVE:
             {
-                if ( IsInitialized() )
+                if ( WasInitialized() )
                 {
                     ProcessInputMessage( message, wParam, lParam );
                 }
@@ -488,8 +488,8 @@ namespace EE
 
                 if ( !isAnyInteractibleWidgetHovered )
                 {
-                    int32_t const titleBarTop = window.top + (int32_t) titleBarRect.GetTopLeft().m_y;
-                    int32_t const titleBarLeft = window.left + (int32_t) titleBarRect.GetTopLeft().m_x;
+                    int32_t const titleBarTop = window.top + (int32_t) titleBarRect.GetTL().m_y;
+                    int32_t const titleBarLeft = window.left + (int32_t) titleBarRect.GetTL().m_x;
                     int32_t const titleBarBottom = titleBarTop + (int32_t) titleBarRect.GetSize().m_y;
                     int32_t const titleBarRight = titleBarLeft + (int32_t) titleBarRect.GetSize().m_x;
 
@@ -513,7 +513,7 @@ namespace EE
     int32_t Win32Application::Run( int32_t argc, char** argv )
     {
         FileSystem::Path const logFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + "Log.txt";
-        Log::System::SetLogFilePath( logFilePath );
+        SystemLog::SetLogFilePath( logFilePath );
 
         // Read Settings
         //-------------------------------------------------------------------------
@@ -582,7 +582,7 @@ namespace EE
         bool const shutdownResult = Shutdown();
         m_initialized = false;
 
-        Log::System::SaveToFile();
+        SystemLog::SaveToFile();
 
         //-------------------------------------------------------------------------
 

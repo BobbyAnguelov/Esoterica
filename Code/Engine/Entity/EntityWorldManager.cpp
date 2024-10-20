@@ -251,7 +251,7 @@ namespace EE
                 // Add Log
                 //-------------------------------------------------------------------------
 
-                Log::AddEntry( request.m_severity, request.m_category.c_str(), sourceInfoStr.c_str(), request.m_filename.c_str(), request.m_lineNumber, request.m_message.c_str());
+                SystemLog::AddEntry( request.m_severity, request.m_category.c_str(), sourceInfoStr.c_str(), request.m_filename.c_str(), request.m_lineNumber, request.m_message.c_str());
             }
             #endif
         }
@@ -260,7 +260,7 @@ namespace EE
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void EntityWorldManager::HotReload_UnloadEntities( TVector<Resource::ResourceRequesterID> const& usersToReload )
+    void EntityWorldManager::HotReload_UnloadEntities( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload )
     {
         for ( auto const& pWorld : m_worlds )
         {
@@ -268,11 +268,11 @@ namespace EE
         }
     }
 
-    void EntityWorldManager::HotReload_ReloadEntities()
+    void EntityWorldManager::HotReload_ReloadEntities( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload )
     {
         for ( auto const& pWorld : m_worlds )
         {
-            pWorld->HotReload_ReloadEntities();
+            pWorld->HotReload_ReloadEntities( usersToReload );
         }
     }
     #endif

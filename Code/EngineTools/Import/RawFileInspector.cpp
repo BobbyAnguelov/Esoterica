@@ -9,7 +9,7 @@ namespace EE::Import
 {
     static bool InspectFBX( InspectorContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<ImportableItem*>& outFileInfo )
     {
-        ResourcePath const resourcePath = ResourcePath::FromFileSystemPath( ctx.m_rawResourceDirectoryPath, sourceFilePath );
+        DataPath const resourcePath = DataPath::FromFileSystemPath( ctx.m_sourceDataDirectoryPath, sourceFilePath );
 
         //-------------------------------------------------------------------------
 
@@ -154,7 +154,7 @@ namespace EE::Import
 
     static bool InspectGLTF( InspectorContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<ImportableItem*>& outFileInfo )
     {
-        ResourcePath const resourcePath = ResourcePath::FromFileSystemPath( ctx.m_rawResourceDirectoryPath, sourceFilePath );
+        DataPath const resourcePath = DataPath::FromFileSystemPath( ctx.m_sourceDataDirectoryPath, sourceFilePath );
 
         //-------------------------------------------------------------------------
 
@@ -246,8 +246,8 @@ namespace EE::Import
     static bool InspectImage( InspectorContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<ImportableItem*>& outFileInfo )
     {
         ImportableImage* pImg = EE::New<ImportableImage>();
-        pImg->m_sourceFile = ResourcePath::FromFileSystemPath( ctx.m_rawResourceDirectoryPath, sourceFilePath );
-        pImg->m_nameID = StringID( sourceFilePath.GetFileNameWithoutExtension() );
+        pImg->m_sourceFile = DataPath::FromFileSystemPath( ctx.m_sourceDataDirectoryPath, sourceFilePath );
+        pImg->m_nameID = StringID( sourceFilePath.GetFilenameWithoutExtension() );
 
         if ( stbi_info( sourceFilePath.c_str(), &pImg->m_dimensions.m_x, &pImg->m_dimensions.m_y, &pImg->m_numChannels ) )
         {
@@ -283,7 +283,7 @@ namespace EE::Import
         EE_ASSERT( ctx.IsValid() && sourceFilePath.IsValid() );
         EE_ASSERT( outFileInfo.empty() );
 
-        TInlineString<6> extension = sourceFilePath.GetExtensionAsString();
+        FileSystem::Extension extension = sourceFilePath.GetExtensionAsString();
         extension.make_lower();
 
         //-------------------------------------------------------------------------
@@ -320,9 +320,9 @@ namespace EE::Import
         return InspectionResult::UnsupportedExtension;
     }
 
-    bool IsImportableFileType( TInlineString<6> const& extension )
+    bool IsImportableFileType( FileSystem::Extension const& extension )
     {
-        TInlineString<6> lowerCaseExtension = extension;
+        FileSystem::Extension lowerCaseExtension = extension;
         lowerCaseExtension.make_lower();
 
         int32_t const numValidExtensions = sizeof( g_importableExtensions ) / sizeof( g_importableExtensions[0] );

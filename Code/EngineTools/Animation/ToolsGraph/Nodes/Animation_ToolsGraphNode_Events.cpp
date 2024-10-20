@@ -88,7 +88,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void IDEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void IDEventConditionToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         switch ( m_searchRule )
         {
@@ -169,7 +169,7 @@ namespace EE::Animation::GraphNodes
 
         if ( foundMatch )
         {
-            VisualGraph::ScopedNodeModification snm( this );
+            NodeGraph::ScopedNodeModification snm( this );
             for ( auto& ID : m_eventIDs )
             {
                 if ( ID == oldID )
@@ -222,7 +222,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void IDEventToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void IDEventToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         if ( m_priorityRule == EventPriorityRule::HighestPercentageThrough )
         {
@@ -286,7 +286,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void IDEventPercentageThroughToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void IDEventPercentageThroughToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         if ( m_eventID.IsValid() )
         {
@@ -385,7 +385,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void StateEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void StateEventConditionToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         if ( m_operator == EventConditionOperator::Or )
         {
@@ -441,7 +441,7 @@ namespace EE::Animation::GraphNodes
 
         if ( foundMatch )
         {
-            VisualGraph::ScopedNodeModification snm( this );
+            NodeGraph::ScopedNodeModification snm( this );
             for ( auto& condition : m_conditions )
             {
                 if ( condition.m_eventID == oldID )
@@ -479,7 +479,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FootEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void FootEventConditionToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         ImGui::Text( FootEvent::GetPhaseConditionName( m_phaseCondition ) );
 
@@ -536,7 +536,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FootstepEventPercentageThroughToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void FootstepEventPercentageThroughToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         ImGui::Text( FootEvent::GetPhaseConditionName( m_phaseCondition ) );
 
@@ -630,7 +630,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void SyncEventIndexConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void SyncEventIndexConditionToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         if ( m_triggerMode == SyncEventIndexConditionNode::TriggerMode::ExactlyAtEventIndex )
         {
@@ -748,7 +748,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void TransitionEventConditionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void TransitionEventConditionToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         ImGui::Text( GetTransitionRuleConditionName( m_ruleCondition ) );
 

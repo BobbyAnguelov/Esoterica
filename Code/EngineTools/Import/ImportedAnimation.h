@@ -20,7 +20,7 @@ namespace EE::Import
         struct TrackData
         {
             TVector<Transform>                 m_localTransforms; // Ground truth transforms
-            TVector<Transform>                 m_globalTransforms; // Generated from the local transforms
+            TVector<Transform>                 m_modelSpaceTransforms; // Generated from the local transforms
         };
 
     public:

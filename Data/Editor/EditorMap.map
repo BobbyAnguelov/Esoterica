@@ -1,57 +1,34 @@
-{
-    "TypeID": "EE::EntityModel::EntityMapDescriptor",    
-    "Entities": [
-        {
-            "Name": "Floor",
-            "Components": [
-                {
-                    "Name": "FloorCollision",
-                    "TypeData": {
-                        "TypeID": "EE::Physics::CollisionMeshComponent",
-                        "m_name": "FloorCollision",
-                        "m_collisionMesh": "data://editor/floor/floor.pmsh"
-                    }
-                },
-                {
-                    "Name": "FloorMesh",
-                    "SpatialParent": "FloorCollision",
-                    "TypeData": {
-                        "TypeID": "EE::Render::StaticMeshComponent",
-                        "m_name": "FloorMesh",
-                        "m_mesh": "data://editor/floor/floor.msh"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "DirectionalLight",
-            "Components": [
-                {
-                    "Name": "DirectionalLight",
-                    "TypeData": {
-                        "TypeID": "EE::Render::DirectionalLightComponent",
-                        "m_name": "DirectionalLight",
-                        "m_transform": "135.000000,-0.000000,0.000000,0.000000,0.000000,10.000000,1.000000,1.000000,1.000000",
-                        "m_intensity": "20.000000",
-                        "m_shadowed": "True"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "GlobalEnvMap",
-            "Components": [
-                {
-                    "Name": "GlobalEnvMapComp",
-                    "TypeData": {
-                        "TypeID": "EE::Render::GlobalEnvironmentMapComponent",
-                        "m_name": "GlobalEnvMapComp",
-                        "m_skyboxTexture": "data://editor/skybox/editorskybox.cbmp",
-                        "m_skyboxRadianceTexture": "data://editor/skybox/editorskybox.cbmp",
-                        "m_skyboxIntensity": "1.500000"
-                    }
-                }
-            ]
-        }
-    ]
-}
+<Entities>
+  <Entity Name="DirectionalLight">
+    <Components>
+      <Type TypeID="EE::Render::DirectionalLightComponent">
+        <Property Path="m_name" Value="DirectionalLight" />
+        <Property Path="m_transform" Value="135.000000,-0.000000,0.000000,0.000000,0.000000,10.000000,1.000000,1.000000,1.000000" />
+        <Property Path="m_intensity" Value="20.000000" />
+        <Property Path="m_shadowed" Value="True" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="Floor">
+    <Components>
+      <Type TypeID="EE::Physics::CollisionMeshComponent">
+        <Property Path="m_name" Value="FloorCollision" />
+        <Property Path="m_collisionMesh" Value="data://editor/floor/floor.pmsh" />
+      </Type>
+      <Type TypeID="EE::Render::StaticMeshComponent" SpatialParent="FloorCollision">
+        <Property Path="m_name" Value="FloorMesh" />
+        <Property Path="m_mesh" Value="data://editor/floor/floor.msh" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="GlobalEnvMap">
+    <Components>
+      <Type TypeID="EE::Render::GlobalEnvironmentMapComponent">
+        <Property Path="m_name" Value="GlobalEnvMapComp" />
+        <Property Path="m_skyboxTexture" Value="data://editor/skybox/editorskybox.cbmp" />
+        <Property Path="m_skyboxRadianceTexture" Value="data://editor/skybox/editorskybox.cbmp" />
+        <Property Path="m_skyboxIntensity" Value="1.500000" />
+      </Type>
+    </Components>
+  </Entity>
+</Entities>

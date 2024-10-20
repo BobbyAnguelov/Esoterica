@@ -1,14 +1,15 @@
 #include "Animation_ToolsGraphNode_Transition.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
-#include "../../../Core/PropertyGrid/PropertyGridTypeEditingRules.h"
+#include "EngineTools/PropertyGrid/PropertyGridTypeEditingRules.h"
+#include "EngineTools/NodeGraph/NodeGraph_Style.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation::GraphNodes
 {
     TransitionToolsNode::TransitionToolsNode()
-        : FlowToolsNode()
+        : ResultToolsNode()
     {
         CreateInputPin( "Condition", GraphValueType::Bool );
         CreateInputPin( "Duration Override", GraphValueType::Float );
@@ -17,14 +18,7 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "Target Sync ID", GraphValueType::ID );
     }
 
-    void TransitionToolsNode::SetName( String const& newName )
-    {
-        EE_ASSERT( IsRenameable() );
-        VisualGraph::ScopedNodeModification const snm( this );
-        m_name = newName;
-    }
-
-    void TransitionToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void TransitionToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         BeginDrawInternalRegion( ctx );
 
@@ -137,20 +131,18 @@ namespace EE::Animation::GraphNodes
     {
         using PG::TTypeEditingRules<TransitionToolsNode>::TTypeEditingRules;
 
-        virtual bool IsReadOnly( StringID const& propertyID ) override
-        {
-            return false;
-        }
-
-        virtual bool IsHidden( StringID const& propertyID ) override
+        virtual HiddenState IsHidden( StringID const& propertyID ) override
         {
             StringID const boneMaskBlendPropertyID( "m_boneMaskBlendInTimePercentage" );
             if ( propertyID == boneMaskBlendPropertyID )
             {
-                return m_pTypeInstance->GetConnectedInputNode<FlowToolsNode>( 3 ) == nullptr;
+                if( m_pTypeInstance->GetConnectedInputNode<FlowToolsNode>( 3 ) == nullptr )
+                {
+                    return HiddenState::Hidden;
+                }
             }
 
-            return false;
+            return HiddenState::Unhandled;
         }
     };
 
@@ -158,10 +150,16 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void TransitionConduitToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    TransitionConduitToolsNode::TransitionConduitToolsNode()
+        : NodeGraph::TransitionConduitNode()
     {
-        VisualGraph::SM::TransitionConduit::Initialize( pParent );
-        SetSecondaryGraph( EE::New<FlowGraph>( GraphType::TransitionTree ) );
+        CreateSecondaryGraph<FlowGraph>( GraphType::TransitionConduit );
+    }
+
+    TransitionConduitToolsNode::TransitionConduitToolsNode( NodeGraph::StateNode const* pStartState, NodeGraph::StateNode const* pEndState )
+        : NodeGraph::TransitionConduitNode( pStartState, pEndState )
+    {
+        CreateSecondaryGraph<FlowGraph>( GraphType::TransitionConduit );
     }
 
     bool TransitionConduitToolsNode::HasTransitions() const
@@ -169,27 +167,27 @@ namespace EE::Animation::GraphNodes
         return !GetSecondaryGraph()->FindAllNodesOfType<TransitionToolsNode>().empty();
     }
 
-    Color TransitionConduitToolsNode::GetColor( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::NodeVisualState visualState ) const
+    Color TransitionConduitToolsNode::GetConduitColor( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, TBitFlags<NodeGraph::NodeVisualState> visualState ) const
     {
         // Is this an blocked transition
-        if ( visualState == VisualGraph::NodeVisualState::None && !HasTransitions() )
+        if ( visualState.HasNoFlagsSet() && !HasTransitions() )
         {
-            return s_connectionColorInvalid;
+            return NodeGraph::Style::s_connectionColorInvalid;
         }
 
         // Is this transition active?
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() && isAnyChildActive )
         {
-            return s_connectionColorValid;
+            return NodeGraph::Style::s_connectionColorValid;
         }
 
         //-------------------------------------------------------------------------
 
-        return VisualGraph::SM::TransitionConduit::GetColor( ctx, pUserContext, visualState );
+        return NodeGraph::TransitionConduitNode::GetConduitColor( ctx, pUserContext, visualState );
     }
 
-    void TransitionConduitToolsNode::PreDrawUpdate( VisualGraph::UserContext* pUserContext )
+    void TransitionConduitToolsNode::PreDrawUpdate( NodeGraph::UserContext* pUserContext )
     {
         isAnyChildActive = false;
         m_transitionProgress = 0.0f;
@@ -208,7 +206,7 @@ namespace EE::Animation::GraphNodes
                 {
                     float progress = 0.0f;
                     auto pTransitionNode = static_cast<GraphNodes::TransitionNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
-                    if ( pTransitionNode->IsInitialized() )
+                    if ( pTransitionNode->WasInitialized() )
                     {
                         progress = pTransitionNode->GetProgressPercentage();
                     }

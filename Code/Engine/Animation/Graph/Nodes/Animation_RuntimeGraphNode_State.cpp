@@ -131,49 +131,32 @@ namespace EE::Animation::GraphNodes
         {
             for ( auto const& entryEventID : pStateDefinition->m_entryEvents )
             {
-                SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::Entry, entryEventID, isInActiveBranch );
-
-                #if EE_DEVELOPMENT_TOOLS
-                evt.SetSourceNodeIndex( GetNodeIndex() );
-                #endif
+                context.m_pSampledEventsBuffer->EmplaceStateEvent( GetNodeIndex(), StateEventType::Entry, entryEventID, isInActiveBranch );
             }
         }
         else if ( m_transitionState == TransitionState::None && isInActiveBranch )
         {
             for ( auto const& executeEventID : pStateDefinition->m_executeEvents )
             {
-                SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::FullyInState, executeEventID, isInActiveBranch );
-
-                #if EE_DEVELOPMENT_TOOLS
-                evt.SetSourceNodeIndex( GetNodeIndex() );
-                #endif
+                context.m_pSampledEventsBuffer->EmplaceStateEvent( GetNodeIndex(), StateEventType::FullyInState, executeEventID, isInActiveBranch );
             }
         }
         else if ( m_transitionState == TransitionState::TransitioningOut || !isInActiveBranch )
         {
             for ( auto const& exitEventID : pStateDefinition->m_exitEvents )
             {
-                SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::Exit, exitEventID, isInActiveBranch );
-
-                #if EE_DEVELOPMENT_TOOLS
-                evt.SetSourceNodeIndex( GetNodeIndex() );
-                #endif
+                context.m_pSampledEventsBuffer->EmplaceStateEvent( GetNodeIndex(), StateEventType::Exit, exitEventID, isInActiveBranch );
             }
         }
 
         // Sample Timed Events
         //-------------------------------------------------------------------------
 
-        Seconds const currentTimeElapsed( m_duration * m_currentTime.ToFloat() );
         for ( auto const& timedEvent : pStateDefinition->m_timedElapsedEvents )
         {
-            if ( currentTimeElapsed >= timedEvent.m_timeValue )
+            if ( m_elapsedTimeInState >= timedEvent.m_timeValue )
             {
-                SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::Timed, timedEvent.m_ID, isInActiveBranch );
-
-                #if EE_DEVELOPMENT_TOOLS
-                evt.SetSourceNodeIndex( GetNodeIndex() );
-                #endif
+                context.m_pSampledEventsBuffer->EmplaceStateEvent( GetNodeIndex(), StateEventType::Timed, timedEvent.m_ID, isInActiveBranch );
             }
         }
 
@@ -182,11 +165,7 @@ namespace EE::Animation::GraphNodes
         {
             if ( currentTimeRemaining <= timedEvent.m_timeValue )
             {
-                SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceStateEvent( StateEventType::Timed, timedEvent.m_ID, isInActiveBranch );
-
-                #if EE_DEVELOPMENT_TOOLS
-                evt.SetSourceNodeIndex( GetNodeIndex() );
-                #endif
+                context.m_pSampledEventsBuffer->EmplaceStateEvent( GetNodeIndex(), StateEventType::Timed, timedEvent.m_ID, isInActiveBranch );
             }
         }
 

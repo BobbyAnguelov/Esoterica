@@ -31,7 +31,7 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status MeleeAttackAction::UpdateInternal( ActionContext const& ctx )
+    Action::Status MeleeAttackAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
     {
         if ( ctx.m_pAnimationController->IsHitReactionComplete() )
         {

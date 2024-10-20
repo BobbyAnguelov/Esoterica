@@ -4,7 +4,7 @@
 #include "Base/Types/StringID.h"
 #include "Base/Profiling.h"
 #include "Base/Threading/Threading.h"
-#include "Base/Logging/LoggingSystem.h"
+#include "Base/Logging/SystemLog.h"
 #include "Base/Platform/Platform.h"
 
 //-------------------------------------------------------------------------
@@ -27,7 +27,8 @@ namespace EE
         Platform::Initialize();
         Memory::Initialize();
         Threading::Initialize( ( pMainThreadName != nullptr ) ? pMainThreadName : "Main Thread" );
-        Log::System::Initialize();
+        SystemLog::Initialize();
+        StringID::Initialize();
         TypeSystem::CoreTypeRegistry::Initialize();
 
         g_platformInitialized = true;
@@ -42,7 +43,8 @@ namespace EE
         m_initialized = false;
 
         TypeSystem::CoreTypeRegistry::Shutdown();
-        Log::System::Shutdown();
+        StringID::Shutdown();
+        SystemLog::Shutdown();
         Threading::Shutdown();
         Memory::Shutdown();
         Platform::Shutdown();

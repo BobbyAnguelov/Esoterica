@@ -10,7 +10,7 @@ namespace EE::Animation::GraphNodes
     OrientationWarpToolsNode::OrientationWarpToolsNode()
         : FlowToolsNode()
     {
-        CreateOutputPin( "Result", GraphValueType::Pose, false );
+        CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Direction (Character)", GraphValueType::Vector );
         CreateInputPin( "Angle Offset (Deg)", GraphValueType::Float );
@@ -96,7 +96,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    bool OrientationWarpToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    bool OrientationWarpToolsNode::IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const
     {
         int32_t const pinIdx = GetInputPinIndex( inputPinID );
         if ( pinIdx == 0 )
@@ -112,7 +112,7 @@ namespace EE::Animation::GraphNodes
     TargetWarpToolsNode::TargetWarpToolsNode()
         : FlowToolsNode()
     {
-        CreateOutputPin( "Result", GraphValueType::Pose, false );
+        CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "World Target", GraphValueType::Target );
     }
@@ -177,7 +177,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    bool TargetWarpToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    bool TargetWarpToolsNode::IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const
     {
         int32_t const pinIdx = GetInputPinIndex( inputPinID );
         if ( pinIdx == 0 )

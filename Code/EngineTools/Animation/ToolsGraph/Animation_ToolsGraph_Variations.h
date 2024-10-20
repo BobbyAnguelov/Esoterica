@@ -3,7 +3,6 @@
 #include "Base/Resource/ResourcePtr.h"
 #include "Base/TypeSystem/ReflectedType.h"
 #include "Base/Types/StringID.h"
-#include "Base/Serialization/JsonSerialization.h"
 
 //-------------------------------------------------------------------------
 
@@ -20,10 +19,10 @@ namespace EE::Animation
     public:
 
         // The default name for a graph variation
-        static StringID const s_defaultVariationID;
+        static StaticStringID const s_defaultVariationID;
 
         // Create a file path for the graph variation resource
-        static String GenerateResourceFilePath( FileSystem::Path const& graphPath, StringID variationID );
+        static DataPath GenerateResourceDataPath( FileSystem::Path const& sourceDataDirectoryPath, FileSystem::Path const& graphPath, StringID variationID );
 
         // Note: Resource paths are case-insensitive so the name will be lowercase
         static String GetVariationNameFromResourceID( ResourceID const& resourceID );
@@ -41,7 +40,7 @@ namespace EE::Animation
         EE_REFLECT()
         StringID                m_ID;
 
-        EE_REFLECT( "IsToolsReadOnly" : true )
+        EE_REFLECT( ReadOnly )
         StringID                m_parentID;
 
         EE_REFLECT()
@@ -50,8 +49,9 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class VariationHierarchy
+    class VariationHierarchy : public IReflectedType
     {
+        EE_REFLECT_TYPE( VariationHierarchy );
 
     public:
 
@@ -92,10 +92,6 @@ namespace EE::Animation
         // This will destroy the specified variation and all children
         void DestroyVariation( StringID variationID );
 
-        // Serialization
-        bool Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& objectValue );
-        void Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const;
-
     private:
 
         inline int32_t GetVariationIndex( StringID variationID ) const
@@ -111,6 +107,7 @@ namespace EE::Animation
 
     private:
 
+        EE_REFLECT( ReadOnly );
         TVector<Variation>                          m_variations;
     };
 }

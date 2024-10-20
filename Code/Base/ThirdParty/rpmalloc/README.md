@@ -1,7 +1,7 @@
 # rpmalloc - General Purpose Memory Allocator
 This library provides a public domain cross platform lock free thread caching 16-byte aligned memory allocator implemented in C. The latest source code is always available at https://github.com/mjansson/rpmalloc
 
-Created by Mattias Jansson ([@maniccoder](https://twitter.com/maniccoder))  -  Support development through my [GitHub Sponsors page](https://github.com/sponsors/mjansson)
+Created by Mattias Jansson ([@maniccoder](https://twitter.com/maniccoder)) - Discord server for discussions at https://discord.gg/M8BwTQrt6c 
 
 Platforms currently supported:
 
@@ -33,7 +33,7 @@ Configuration of the thread and global caches can be important depending on your
 
 # Required functions
 
-Before calling any other function in the API, you __MUST__ call the initialization function, either __rpmalloc_initialize__ or __pmalloc_initialize_config__, or you will get undefined behaviour when calling other rpmalloc entry point.
+Before calling any other function in the API, you __MUST__ call the initialization function, either __rpmalloc_initialize__ or __rpmalloc_initialize_config__, or you will get undefined behaviour when calling other rpmalloc entry point.
 
 Before terminating your use of the allocator, you __SHOULD__ call __rpmalloc_finalize__ in order to release caches and unmap virtual memory, as well as prepare the allocator for global scope cleanup at process exit or dynamic library unload depending on your use case.
 
@@ -54,7 +54,7 @@ __rpmalloc_config__: Get the current runtime configuration of the allocator
 
 Then simply use the __rpmalloc__/__rpfree__ and the other malloc style replacement functions. Remember all allocations are 16-byte aligned, so no need to call the explicit rpmemalign/rpaligned_alloc/rpposix_memalign functions unless you need greater alignment, they are simply wrappers to make it easier to replace in existing code.
 
-If you wish to override the standard library malloc family of functions and have automatic initialization/finalization of process and threads, define __ENABLE_OVERRIDE__ to non-zero which will include the `malloc.c` file in compilation of __rpmalloc.c__. The list of libc entry points replaced may not be complete, use libc replacement only as a convenience for testing the library on an existing code base, not a final solution.
+If you wish to override the standard library malloc family of functions and have automatic initialization/finalization of process and threads, define __ENABLE_OVERRIDE__ to non-zero which will include the `malloc.c` file in compilation of __rpmalloc.c__, and then rebuild the library or your project where you added the rpmalloc source. If you compile rpmalloc as a separate library you must make the linker use the override symbols from the library by referencing at least one symbol. The easiest way is to simply include `rpmalloc.h` in at least one source file and call `rpmalloc_linker_reference` somewhere - it's a dummy empty function. On Windows platforms and C++ overrides you have to `#include <rpnew.h>` in at least one source file and also manually handle the initialize/finalize of the process and all threads. The list of libc entry points replaced may not be complete, use libc/stdc++ replacement only as a convenience for testing the library on an existing code base, not a final solution.
 
 For explicit first class heaps, see the __rpmalloc_heap_*__ API under [first class heaps](#first-class-heaps) section, requiring __RPMALLOC_FIRST_CLASS_HEAPS__ tp be defined to 1.
 
@@ -124,9 +124,9 @@ To reduce system call overhead, memory spans are mapped in batches controlled by
 On macOS and iOS mmap requests are tagged with tag 240 for easy identification with the vmmap tool.
 
 # Span breaking
-Super spans (spans a multiple > 1 of the span size) can be subdivided into smaller spans to fulfull a need to map a new span of memory. By default the allocator will greedily grab and break any larger span from the available caches before mapping new virtual memory. However, spans can currently not be glued together to form larger super spans again. Subspans can traverse the cache and be used by different threads individually.
+Super spans (spans a multiple > 1 of the span size) can be subdivided into smaller spans to fulfill a need to map a new span of memory. By default the allocator will greedily grab and break any larger span from the available caches before mapping new virtual memory. However, spans can currently not be glued together to form larger super spans again. Subspans can traverse the cache and be used by different threads individually.
 
-A span that is a subspan of a larger super span can be individually decommitted to reduce physical memory pressure when the span is evicted from caches and scheduled to be unmapped. The entire original super span will keep track of the subspans it is broken up into, and when the entire range is decommitted tha super span will be unmapped. This allows platforms like Windows that require the entire virtual memory range that was mapped in a call to VirtualAlloc to be unmapped in one call to VirtualFree, while still decommitting individual pages in subspans (if the page size is smaller than the span size).
+A span that is a subspan of a larger super span can be individually decommitted to reduce physical memory pressure when the span is evicted from caches and scheduled to be unmapped. The entire original super span will keep track of the subspans it is broken up into, and when the entire range is decommitted the super span will be unmapped. This allows platforms like Windows that require the entire virtual memory range that was mapped in a call to VirtualAlloc to be unmapped in one call to VirtualFree, while still decommitting individual pages in subspans (if the page size is smaller than the span size).
 
 If you use a custom memory map/unmap function you need to take this into account by looking at the `release` parameter given to the `memory_unmap` function. It is set to 0 for decommitting individual pages and the total super span byte size for finally releasing the entire super span memory range.
 

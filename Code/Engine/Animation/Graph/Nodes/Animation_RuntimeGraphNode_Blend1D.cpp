@@ -11,7 +11,7 @@
 namespace EE::Animation::GraphNodes
 {
     // Creates a parameterization for a given set of values (each value corresponds to an input node and are initially ordered as such)
-    ParameterizedBlendNode::Parameterization ParameterizedBlendNode::Parameterization::CreateParameterization( TInlineVector<float, 5> values )
+    ParameterizedBlendNode::Parameterization ParameterizedBlendNode::Parameterization::CreateParameterization( TInlineVector<float, 5> const& values )
     {
         struct IndexValuePair
         {
@@ -230,10 +230,6 @@ namespace EE::Animation::GraphNodes
         MarkNodeActive( context );
         EvaluateBlendSpace( context );
 
-        #if EE_DEVELOPMENT_TOOLS
-        int16_t baseMotionActionIdx = InvalidIndex;
-        #endif
-
         // Calculate actual update range
         //-------------------------------------------------------------------------
 
@@ -244,9 +240,11 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
+            auto* pDefinition = GetDefinition<ParameterizedBlendNode>();
+
             Percentage const deltaPercentage = ( m_duration > 0.0f ) ? Percentage( context.m_deltaTime / m_duration ) : Percentage( 0.0f );
             Percentage const fromTime = m_currentTime;
-            Percentage const toTime = Percentage::Clamp( m_currentTime + deltaPercentage );
+            Percentage const toTime = Percentage::Clamp( m_currentTime + deltaPercentage, pDefinition->m_allowLooping );
 
             updateRange.m_startTime = m_blendedSyncTrack.GetTime( fromTime );
             updateRange.m_endTime = m_blendedSyncTrack.GetTime( toTime );
@@ -288,7 +286,7 @@ namespace EE::Animation::GraphNodes
                 result.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult0.m_rootMotionDelta, sourceResult1.m_rootMotionDelta, m_bsr.m_blendWeight );
 
                 #if EE_DEVELOPMENT_TOOLS
-                baseMotionActionIdx = context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
+                context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
                 #endif
             }
             else

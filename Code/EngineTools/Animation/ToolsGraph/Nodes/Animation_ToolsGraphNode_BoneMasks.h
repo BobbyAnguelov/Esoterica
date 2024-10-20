@@ -14,17 +14,15 @@ namespace EE::Animation::GraphNodes
 
         BoneMaskToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Bone Mask"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionTree, GraphType::BlendTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionConduit, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
-        virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 
-        EE_REFLECT( "CustomEditor" : "AnimGraph_BoneMaskID" );
+        EE_REFLECT( CustomEditor = "AnimGraph_BoneMaskID" );
         StringID                               m_maskID;
     };
 
@@ -38,12 +36,11 @@ namespace EE::Animation::GraphNodes
 
         FixedWeightBoneMaskToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Fixed Weight Bone Mask"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionTree, GraphType::BlendTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionConduit, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
         EE_REFLECT();
         float                                   m_boneWeight = 0.0f;
@@ -59,10 +56,9 @@ namespace EE::Animation::GraphNodes
 
         BoneMaskBlendToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Bone Mask Blend"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionTree, GraphType::BlendTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionConduit, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
@@ -76,28 +72,29 @@ namespace EE::Animation::GraphNodes
 
         BoneMaskSelectorToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::BoneMask; }
         virtual char const* GetTypeName() const override { return "Bone Mask Selector"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionTree, GraphType::BlendTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionConduit, GraphType::BlendTree ); }
 
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override;
         virtual StringID GetDynamicInputPinValueType() const override { return GetPinTypeForValueType( GraphValueType::BoneMask ); }
-        virtual void OnDynamicPinCreation( UUID pinID ) override;
-        virtual void OnDynamicPinDestruction( UUID pinID ) override;
+        virtual void OnDynamicPinCreation( UUID const& pinID ) override;
+        virtual void PreDynamicPinDestruction( UUID const& pinID ) override;
+        virtual void PostDynamicPinDestruction() override;
 
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
         virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
+        virtual void RefreshDynamicPins() override;
 
     private:
 
         EE_REFLECT();
         bool                                   m_switchDynamically = false;
 
-        EE_REFLECT( "ShowAsStaticArray" : true );
+        EE_REFLECT( ShowAsStaticArray );
         TVector<StringID>                      m_parameterValues;
 
         EE_REFLECT();

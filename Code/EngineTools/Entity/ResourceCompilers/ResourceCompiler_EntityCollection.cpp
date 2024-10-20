@@ -11,14 +11,14 @@
 namespace EE::EntityModel
 {
     EntityCollectionCompiler::EntityCollectionCompiler()
-        : Resource::Compiler( "EntityCollectionCompiler", s_version )
+        : Resource::Compiler( "EntityCollectionCompiler" )
     {
-        m_outputTypes.push_back( SerializedEntityCollection::GetStaticResourceTypeID() );
+        AddOutputType<EntityCollection>();
     }
 
     Resource::CompilationResult EntityCollectionCompiler::Compile( Resource::CompileContext const& ctx ) const
     {
-        SerializedEntityCollection serializedCollection;
+        EntityCollection entityCollection;
 
         //-------------------------------------------------------------------------
         // Read collection
@@ -28,7 +28,7 @@ namespace EE::EntityModel
         {
             ScopedTimer<PlatformClock> timer( elapsedTime );
 
-            if ( !ReadSerializedEntityCollectionFromFile( *m_pTypeRegistry, ctx.m_inputFilePath, serializedCollection ) )
+            if ( !ReadEntityCollectionFromFile( *m_pTypeRegistry, ctx.m_inputFilePath, entityCollection ) )
             {
                 return Resource::CompilationResult::Failure;
             }
@@ -40,7 +40,7 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         Serialization::BinaryOutputArchive archive;
-        archive << Resource::ResourceHeader( s_version, SerializedEntityCollection::GetStaticResourceTypeID(), ctx.m_sourceResourceHash ) << serializedCollection;
+        archive << Resource::ResourceHeader( EntityCollection::s_version, EntityCollection::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash ) << entityCollection;
         
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {
@@ -54,20 +54,20 @@ namespace EE::EntityModel
 
     bool EntityCollectionCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
-        EE_ASSERT( resourceID.GetResourceTypeID() == SerializedEntityCollection::GetStaticResourceTypeID() );
+        EE_ASSERT( resourceID.GetResourceTypeID() == EntityCollection::GetStaticResourceTypeID() );
 
-        EntityModel::SerializedEntityCollection serializedCollection;
+        EntityModel::EntityCollection entityCollection;
 
         // Read map descriptor
-        FileSystem::Path const collectionFilePath = resourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
-        if ( !ReadSerializedEntityCollectionFromFile( *m_pTypeRegistry, collectionFilePath, serializedCollection ) )
+        FileSystem::Path const collectionFilePath = resourceID.GetFileSystemPath( m_sourceDataDirectoryPath );
+        if ( !ReadEntityCollectionFromFile( *m_pTypeRegistry, collectionFilePath, entityCollection ) )
         {
             return false;
         }
 
         // Get all referenced resources
         TVector<ResourceID> referencedResources;
-        serializedCollection.GetAllReferencedResources( referencedResources );
+        entityCollection.GetAllReferencedResources( referencedResources );
 
         // Enqueue resources for compilation
         for ( auto const& referencedResourceID : referencedResources )

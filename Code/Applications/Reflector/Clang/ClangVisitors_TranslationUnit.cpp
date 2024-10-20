@@ -23,13 +23,13 @@ namespace EE::TypeSystem::Reflection
         }
 
         // Dont parse non-solution files
-        if ( !headerFilePath.IsUnderDirectory( pContext->m_pSolution->m_path ) )
+        if ( !headerFilePath.IsUnderDirectory( pContext->m_solutionPath ) )
         {
             return CXChildVisit_Continue;
         }
 
         // Ensure that the header file is part of the list of headers to visit
-        HeaderID const headerID = HeaderInfo::GetHeaderID( headerFilePath );
+        StringID const headerID = HeaderInfo::GetHeaderID( headerFilePath );
         HeaderInfo const* pHeaderInfo = pContext->GetHeaderInfo( headerID );
         if ( pHeaderInfo == nullptr )
         {

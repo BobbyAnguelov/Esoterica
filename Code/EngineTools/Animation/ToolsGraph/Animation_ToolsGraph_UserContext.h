@@ -3,7 +3,7 @@
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Layers.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Transition.h"
-#include "EngineTools/Core/VisualGraph/VisualGraph_UserContext.h"
+#include "EngineTools/NodeGraph/NodeGraph_UserContext.h"
 #include "EngineTools/Core/CategoryTree.h"
 #include "Base/Types/HashMap.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Blend2D.h"
@@ -12,7 +12,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Resource { class ResourceDatabase; }
+namespace EE { class FileRegistry; }
 namespace EE::TypeSystem { class TypeInfo; }
 
 //-------------------------------------------------------------------------
@@ -23,19 +23,17 @@ namespace EE::Animation
 
     namespace GraphNodes
     {
-        class ControlParameterToolsNode;
-        class VirtualParameterToolsNode;
+        class ParameterBaseToolsNode;
     }
 
     //-------------------------------------------------------------------------
 
-    struct ToolsGraphUserContext : public VisualGraph::UserContext
+    struct ToolsGraphUserContext : public NodeGraph::UserContext
     {
         // Node Helpers
         //-------------------------------------------------------------------------
 
-        inline TInlineVector<GraphNodes::ControlParameterToolsNode*, 20> const& GetControlParameters() const { EE_ASSERT( m_pControlParameters != nullptr ); return *m_pControlParameters; }
-        inline TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20> const& GetVirtualParameters() const { EE_ASSERT( m_pVirtualParameters != nullptr ); return *m_pVirtualParameters; }
+        inline TInlineVector<GraphNodes::ParameterBaseToolsNode*, 20> const& GetParameters() const { EE_ASSERT( m_pParameters != nullptr ); return *m_pParameters; }
         inline Category<TypeSystem::TypeInfo const*> const& GetCategorizedNodeTypes() const { return *m_pCategorizedNodeTypes; }
 
         // Debug Data
@@ -43,7 +41,7 @@ namespace EE::Animation
 
         inline bool HasDebugData() const
         {
-            return m_pGraphInstance != nullptr && m_pGraphInstance->IsInitialized();
+            return m_pGraphInstance != nullptr && m_pGraphInstance->WasInitialized();
         }
 
         inline int16_t GetRuntimeGraphNodeIndex( UUID const& nodeID ) const
@@ -90,14 +88,13 @@ namespace EE::Animation
 
     public:
 
-        Resource::ResourceDatabase const*                                   m_pResourceDatabase = nullptr;
+        FileRegistry const*                                                 m_pFileRegistry = nullptr;
         StringID                                                            m_selectedVariationID;
         VariationHierarchy const*                                           m_pVariationHierarchy = nullptr;
         GraphInstance*                                                      m_pGraphInstance = nullptr;
         THashMap<UUID, int16_t>                                             m_nodeIDtoIndexMap;
         THashMap<int16_t, UUID>                                             m_nodeIndexToIDMap;
-        TInlineVector<GraphNodes::ControlParameterToolsNode*, 20> const*    m_pControlParameters = nullptr;
-        TInlineVector<GraphNodes::VirtualParameterToolsNode*, 20> const*    m_pVirtualParameters = nullptr;
+        TInlineVector<GraphNodes::ParameterBaseToolsNode*, 20> const*       m_pParameters = nullptr;
         Category<TypeSystem::TypeInfo const*> const*                        m_pCategorizedNodeTypes = nullptr;
         TypeSystem::TypeRegistry const*                                     m_pTypeRegistry = nullptr;
         bool                                                                m_showRuntimeIndices = false;

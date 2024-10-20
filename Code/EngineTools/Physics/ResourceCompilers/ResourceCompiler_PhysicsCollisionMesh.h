@@ -14,7 +14,6 @@ namespace EE::Physics
     class CollisionMeshCompiler : public Resource::Compiler
     {
         EE_REFLECT_TYPE( CollisionMeshCompiler );
-        static const int32_t s_version = 15;
 
     public:
 

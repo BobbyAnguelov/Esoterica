@@ -1,7 +1,7 @@
 #pragma once
 #include "Animation_RuntimeGraph_Definition.h"
 #include "Animation_RuntimeGraph_RootMotionDebugger.h"
-#include "Animation_RuntimeGraph_Contexts.h"
+#include "Animation_RuntimeGraph_Context.h"
 #include "Nodes/Animation_RuntimeGraphNode_Parameters.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Base/Types/PointerID.h"
@@ -59,7 +59,7 @@ namespace EE::Animation
         {
             PointerID GetID() const { return PointerID( m_pInstance ); }
 
-            String              m_pathToInstance;
+            DebugPath           m_path;
             GraphInstance*      m_pInstance = nullptr;
         };
         #endif
@@ -68,6 +68,10 @@ namespace EE::Animation
 
         // Main instance
         inline GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID ) : GraphInstance( pGraphVariation, ownerID, nullptr, nullptr ) {}
+
+        // Child instance
+        explicit GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID, TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer, class RootMotionDebugger* pRootMotionDebugger = nullptr );
+
         ~GraphInstance();
 
         // Info
@@ -77,8 +81,8 @@ namespace EE::Animation
         inline StringID const& GetVariationID() const { return m_pGraphVariation->m_dataSet.m_variationID; }
         inline ResourceID const& GetDefinitionResourceID() const { return m_pGraphVariation->m_pGraphDefinition->GetResourceID(); }
 
-        // Returns the list of all resource LUTs used by this instance: the graph def + all connected external graphs
-        void GetResourceLookupTables( TInlineVector<ResourceLUT const*, 10>& outLUTs ) const;
+        // Is this a full self-contained instance i.e. not a child or a external graph instance
+        inline bool IsStandaloneInstance() const { return m_pTaskSystem != nullptr; }
 
         // Pose
         //-------------------------------------------------------------------------
@@ -108,16 +112,19 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Enable task serialization
-        inline void EnableTaskSystemSerialization( TypeSystem::TypeRegistry const& typeRegistry ) { EE_ASSERT( m_isStandaloneGraph ); m_pTaskSystem->EnableSerialization( typeRegistry ); }
+        inline void EnableTaskSystemSerialization( TypeSystem::TypeRegistry const& typeRegistry ) { EE_ASSERT( m_isStandaloneGraph ); m_pTaskSystem->EnableSerialization( typeRegistry ); GenerateResourceMappings(); }
 
         // Disable task serialization
-        inline void DisableTaskSystemSerialization() { EE_ASSERT( m_isStandaloneGraph ); m_pTaskSystem->DisableSerialization(); }
+        inline void DisableTaskSystemSerialization() { EE_ASSERT( m_isStandaloneGraph ); m_pTaskSystem->DisableSerialization(); m_resourceMappings.Clear(); }
 
         // Does the task system have any pending pose tasks
         inline bool DoesTaskSystemNeedUpdate() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->RequiresUpdate(); }
 
         // Serialize the currently registered pose tasks. Note: This can only be done after the task system has executed!
         void SerializeTaskList( Blob& outBlob ) const;
+
+        // Get generated resource mappings
+        ResourceMappings const &GetResourceMappings() const { return m_resourceMappings; }
 
         // Graph State
         //-------------------------------------------------------------------------
@@ -126,7 +133,7 @@ namespace EE::Animation
         bool IsValid() const { return m_pRootNode != nullptr && m_pRootNode->IsValid(); }
 
         // Is this a valid instance that has been correctly initialized
-        bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid() && m_pRootNode->IsInitialized(); }
+        bool WasInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid() && m_pRootNode->WasInitialized(); }
 
         // Reset/Initialize the graph state with an initial time
         void ResetGraphState( SyncTrackTime initTime = SyncTrackTime(), TVector<GraphLayerUpdateState> const* pLayerInitInfo = nullptr );
@@ -162,7 +169,7 @@ namespace EE::Animation
         inline bool IsNodeActive( int16_t nodeIdx ) const
         {
             EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
-            return m_nodes[nodeIdx]->IsNodeActive( m_graphContext.m_updateID );
+            return IsControlParameter( nodeIdx ) || m_nodes[nodeIdx]->IsNodeActive( m_graphContext.m_updateID );
         }
 
         inline bool IsValidNodeIndex( int16_t nodeIdx ) const 
@@ -235,17 +242,10 @@ namespace EE::Animation
         }
 
         template<>
-        void SetControlParameterValue<Vector>( int16_t parameterNodeIdx, Vector const& value )
+        void SetControlParameterValue<Float3>( int16_t parameterNodeIdx, Float3 const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
             reinterpret_cast<GraphNodes::ControlParameterVectorNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
-        }
-
-        template<>
-        void SetControlParameterValue<Float4>( int16_t parameterNodeIdx, Float4 const& value )
-        {
-            EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<GraphNodes::ControlParameterVectorNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( Vector( value ) );
         }
 
         template<>
@@ -287,16 +287,16 @@ namespace EE::Animation
         inline void SetGraphDebugMode( GraphDebugMode mode ) { m_debugMode = mode; }
 
         // Get the root motion debug mode
-        inline RootMotionDebugMode GetRootMotionDebugMode() const { return m_rootMotionDebugger.GetDebugMode(); }
+        inline RootMotionDebugMode GetRootMotionDebugMode() const { return m_pRootMotionDebugger->GetDebugMode(); }
 
         // Set the root motion debug mode
-        inline void SetRootMotionDebugMode( RootMotionDebugMode mode ) { m_rootMotionDebugger.SetDebugMode( mode ); }
+        inline void SetRootMotionDebugMode( RootMotionDebugMode mode ) { m_pRootMotionDebugger->SetDebugMode( mode ); }
 
         // Get the root motion debugger for this instance
-        inline RootMotionDebugger const* GetRootMotionDebugger() const { return &m_rootMotionDebugger; }
+        inline RootMotionDebugger const* GetRootMotionDebugger() const { return m_pRootMotionDebugger; }
 
         // Manually end the root motion debugger update (call this if you explicitly skip executing the pose tasks)
-        inline void EndRootMotionDebuggerUpdate( Transform const& endWorldTransform ) { m_rootMotionDebugger.EndCharacterUpdate( endWorldTransform ); }
+        inline void EndRootMotionDebuggerUpdate( Transform const& endWorldTransform ) { m_pRootMotionDebugger->EndCharacterUpdate( endWorldTransform ); }
 
         // Get the task system debug mode
         inline TaskSystemDebugMode GetTaskSystemDebugMode() const;
@@ -325,8 +325,11 @@ namespace EE::Animation
         // Get the connected external graph instance
         GraphInstance const* GetChildGraphDebugInstance( PointerID childGraphInstanceID ) const;
 
-        // Get all child graphs - this will return all child graph instance (recursively)
-        void GetChildGraphsForDebug( TVector<DebuggableChildGraph>& outChildGraphInstances, String const& pathPrefix = String() ) const;
+        // Get the connected external graph instance
+        DebugPath GetDebugPathForChildGraphInstance( PointerID instanceID ) const;
+
+        // Get all child graphs - this will return all child graph instances (recursively)
+        void GetChildGraphsForDebug( TVector<DebuggableChildGraph>& outChildGraphInstances ) const { GetChildGraphsForDebug( outChildGraphInstances, DebugPath() ); }
 
         // Get the connected external graph instance
         GraphInstance const* GetExternalGraphDebugInstance( StringID slotID ) const;
@@ -336,6 +339,9 @@ namespace EE::Animation
 
         // Get the connected external graph instance
         GraphInstance const* GetChildOrExternalGraphDebugInstance( int16_t nodeIdx ) const;
+
+        // Get the connected external graph instance
+        DebugPath GetDebugPathForChildOrExternalGraphDebugInstance( PointerID instanceID ) const;
 
         // Get the value of a specified value node
         template<typename T>
@@ -357,7 +363,13 @@ namespace EE::Animation
         void GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges );
 
         // Get sampled event debug path
-        SampledEventDebugPath GetSampledEventDebugPath( int32_t sampledEventIdx ) const;
+        inline DebugPath ResolveSampledEventDebugPath( int32_t sampledEventIdx ) const { return ResolveSourcePath( m_pSampledEventsBuffer->GetEventDebugPath( sampledEventIdx ) ); }
+
+        // Get task debug path
+        inline DebugPath ResolveTaskDebugPath( int8_t taskIdx ) const { return ResolveSourcePath( m_pTaskSystem->GetTaskDebugPath( taskIdx ) ); }
+
+        // Get root motion debug path
+        inline DebugPath ResolveRootMotionDebugPath( int16_t actionIdx ) const { return ResolveSourcePath( m_pRootMotionDebugger->GetActionDebugPath( actionIdx ) ); }
 
         // Get the runtime log for this graph instance
         TVector<GraphLogEntry> const& GetLog() const { return m_log; }
@@ -394,7 +406,6 @@ namespace EE::Animation
 
     private:
 
-        explicit GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID, TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer );
 
         EE_FORCE_INLINE bool IsControlParameter( int16_t nodeIdx ) const { return nodeIdx < GetNumControlParameters(); }
         int32_t GetExternalGraphSlotIndex( StringID slotID ) const;
@@ -405,6 +416,23 @@ namespace EE::Animation
         GraphInstance( GraphInstance&& ) = delete;
         GraphInstance& operator=( GraphInstance const& ) = delete;
         GraphInstance& operator=( GraphInstance&& ) = delete;
+
+        // Task Serialization
+        //-------------------------------------------------------------------------
+
+        // Returns the list of all resource LUTs used by this instance: the graph def + all connected external graphs
+        void GetResourceLookupTables( TInlineVector<ResourceLUT const*, 10>& outLUTs ) const;
+
+        // Generate a resource mapping for all resources used by this graph instance
+        void GenerateResourceMappings();
+
+        // Debug
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        void GetChildGraphsForDebug( TVector<DebuggableChildGraph>& outChildGraphInstances, DebugPath const& parentPath ) const;
+        DebugPath ResolveSourcePath( TInlineVector<int64_t, 5>const& sourcePath ) const;
+        #endif
 
         // Recording
         //-------------------------------------------------------------------------
@@ -428,6 +456,7 @@ namespace EE::Animation
         bool                                    m_isStandaloneGraph = true;
 
         TaskSystem*                             m_pTaskSystem = nullptr;
+        ResourceMappings                        m_resourceMappings;
         SampledEventsBuffer*                    m_pSampledEventsBuffer = nullptr;
         GraphContext                            m_graphContext;
         TVector<ChildGraph>                     m_childGraphs;
@@ -436,7 +465,7 @@ namespace EE::Animation
         #if EE_DEVELOPMENT_TOOLS
         TVector<int16_t>                        m_activeNodes;
         GraphDebugMode                          m_debugMode = GraphDebugMode::Off;
-        RootMotionDebugger                      m_rootMotionDebugger; // Allows nodes to record root motion operations
+        RootMotionDebugger*                     m_pRootMotionDebugger = nullptr; // Allows nodes to record root motion operations
         TVector<int16_t>                        m_debugFilterNodes; // The list of nodes that are allowed to debug draw (if this is empty all nodes will draw)
         TVector<GraphLogEntry>                  m_log;
         int32_t                                 m_lastOutputtedLogItemIdx = 0;

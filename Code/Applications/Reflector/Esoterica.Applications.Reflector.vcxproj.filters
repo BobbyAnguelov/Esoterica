@@ -31,6 +31,7 @@
       <Filter>Database</Filter>
     </ClCompile>
     <ClCompile Include="CodeGenerator.cpp" />
+    <ClCompile Include="ReflectorApplication.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Reflector.h" />
@@ -63,9 +64,6 @@
       <Filter>Database</Filter>
     </ClInclude>
     <ClInclude Include="Database\ReflectionDataTypes.h">
-      <Filter>Database</Filter>
-    </ClInclude>
-    <ClInclude Include="Database\ReflectionProjectTypes.h">
       <Filter>Database</Filter>
     </ClInclude>
     <ClInclude Include="CodeGenerator.h" />

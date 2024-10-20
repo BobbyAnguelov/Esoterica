@@ -1,6 +1,4 @@
-{
-    "TypeID": "EE::Render::TextureResourceDescriptor",
-    "m_path": "data://Demo/RenderDemo/materials/bronze/normal.dds",
-    "m_type": "TangentSpaceNormals",
-    "m_name": ""
-}
+<Type TypeID="EE::Render::TextureResourceDescriptor" Version="0">
+  <Property ID="m_path" Value="data://demo/renderdemo/materials/bronze/normal.png" />
+  <Property ID="m_type" Value="TangentSpaceNormals" />
+</Type>

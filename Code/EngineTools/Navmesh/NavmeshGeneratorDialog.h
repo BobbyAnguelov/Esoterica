@@ -1,6 +1,6 @@
 #pragma once
 #include "EngineTools/_Module/API.h"
-#include "EngineTools/Core/PropertyGrid/PropertyGrid.h"
+#include "EngineTools/PropertyGrid/PropertyGrid.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "Engine/Entity/EntityDescriptors.h"
 
@@ -8,7 +8,6 @@
 
 namespace EE { class ToolsContext; class UpdateContext; }
 namespace EE::TypeSystem { class TypeRegistry; }
-namespace EE::EntityModel { class SerializedEntityCollection; }
 
 //-------------------------------------------------------------------------
 
@@ -23,7 +22,7 @@ namespace EE::Navmesh
 
     public:
 
-        NavmeshGeneratorDialog( ToolsContext const* pToolsContext, NavmeshBuildSettings const& initialBuildSettings, EntityModel::SerializedEntityCollection const& entityCollection, FileSystem::Path const& navmeshOutputPath );
+        NavmeshGeneratorDialog( ToolsContext const* pToolsContext, NavmeshBuildSettings const& initialBuildSettings, EntityModel::EntityCollection const& entityCollection, FileSystem::Path const& navmeshOutputPath );
         ~NavmeshGeneratorDialog();
 
         bool UpdateAndDrawDialog( UpdateContext const& ctx );
@@ -35,7 +34,7 @@ namespace EE::Navmesh
 
         ToolsContext const*                                 m_pToolsContext = nullptr;
         NavmeshBuildSettings                                m_buildSettings;
-        EntityModel::SerializedEntityCollection const       m_entityCollection;
+        EntityModel::EntityCollection const                 m_entityCollection;
         FileSystem::Path const                              m_navmeshOutputPath;
         PropertyGrid                                        m_propertyGrid;
         NavmeshGenerator*                                   m_pGenerator = nullptr;

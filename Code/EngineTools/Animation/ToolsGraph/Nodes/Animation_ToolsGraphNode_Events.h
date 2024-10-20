@@ -42,12 +42,11 @@ namespace EE::Animation::GraphNodes
 
         IDEventConditionToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "ID Event Condition"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
         virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
@@ -59,15 +58,15 @@ namespace EE::Animation::GraphNodes
         EE_REFLECT();
         SearchRule                                      m_searchRule = SearchRule::SearchAll;
 
-        // When used in a transition, should we limit the search to only the source state?
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        // When used in a transition, should we limit the search to only the source state? This is useful to ignore events from lower layers!
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_limitSearchToSourceState = false;
 
         // Ignore any events from states that we are transitioning away from
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_ignoreInactiveBranchEvents = false;
 
-        EE_REFLECT( "Category" : "Conditions", "CustomEditor" : "AnimGraph_ID");
+        EE_REFLECT( Category = "Conditions", CustomEditor = "AnimGraph_ID");
         TVector<StringID>                               m_eventIDs;
     };
 
@@ -81,28 +80,27 @@ namespace EE::Animation::GraphNodes
 
         IDEventToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::ID; }
         virtual char const* GetTypeName() const override { return "ID Event"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree, GraphType::BlendTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 
-        // When used in a transition, should we limit the search to only the source state?
+        // The ID this node returns when nothing matches
         EE_REFLECT();
         StringID                                        m_defaultValue;
 
-        // When used in a transition, should we limit the search to only the source state?
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        // When used in a transition, should we limit the search to only the source state? This is useful to ignore events from lower layers!
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_limitSearchToSourceState = false;
 
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         EventPriorityRule                               m_priorityRule = EventPriorityRule::HighestWeight;
 
         // Ignore any events from states that we are transitioning away from
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_ignoreInactiveBranchEvents = false;
     };
 
@@ -116,29 +114,28 @@ namespace EE::Animation::GraphNodes
 
         IDEventPercentageThroughToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "ID Event Percentage Through"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree, GraphType::BlendTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_eventID ); }
-        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override { if ( m_eventID == oldID ) { VisualGraph::ScopedNodeModification snm( this ); m_eventID = newID; } }
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override { if ( m_eventID == oldID ) { NodeGraph::ScopedNodeModification snm( this ); m_eventID = newID; } }
 
     private:
 
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         EventPriorityRule                               m_priorityRule = EventPriorityRule::HighestWeight;
 
-        // When used in a transition, should we limit the search to only the source state?
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        // When used in a transition, should we limit the search to only the source state? This is useful to ignore events from lower layers!
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_limitSearchToSourceState = false;
 
         // Ignore any events from states that we are transitioning away from
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_ignoreInactiveBranchEvents = false;
 
-        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+        EE_REFLECT( CustomEditor = "AnimGraph_ID" );
         StringID                                        m_eventID;
     };
 
@@ -152,7 +149,7 @@ namespace EE::Animation::GraphNodes
         {
             EE_REFLECT_TYPE( Condition );
 
-            EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+            EE_REFLECT( CustomEditor = "AnimGraph_ID" );
             StringID                                    m_eventID;
 
             EE_REFLECT();
@@ -163,12 +160,11 @@ namespace EE::Animation::GraphNodes
 
         StateEventConditionToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "State Event Condition"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
         virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
@@ -177,15 +173,15 @@ namespace EE::Animation::GraphNodes
         EE_REFLECT();
         EventConditionOperator                          m_operator = EventConditionOperator::Or;
 
-        // When used in a transition, should we limit the search to only the source state?
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        // When used in a transition, should we limit the search to only the source state? This is useful to ignore events from lower layers!
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_limitSearchToSourceState = false;
 
         // Ignore any events from states that we are transitioning away from
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_ignoreInactiveBranchEvents = false;
 
-        EE_REFLECT( "Category" : "Conditions" );
+        EE_REFLECT( Category = "Conditions" );
         TVector<Condition>                              m_conditions;
     };
 
@@ -199,24 +195,23 @@ namespace EE::Animation::GraphNodes
 
         FootEventConditionToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Footstep Condition"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 
         EE_REFLECT();
         FootEvent::PhaseCondition                       m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
 
-        // When used in a transition, should we limit the search to only the source state?
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        // When used in a transition, should we limit the search to only the source state? This is useful to ignore events from lower layers!
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_limitSearchToSourceState = false;
 
         // Ignore any events from states that we are transitioning away from
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_ignoreInactiveBranchEvents = false;
     };
 
@@ -230,27 +225,26 @@ namespace EE::Animation::GraphNodes
 
         FootstepEventPercentageThroughToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Footstep Percentage Through"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 
         EE_REFLECT();
         FootEvent::PhaseCondition                       m_phaseCondition = FootEvent::PhaseCondition::LeftFootDown;
 
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         EventPriorityRule                               m_priorityRule = EventPriorityRule::HighestWeight;
 
-        // When used in a transition, should we limit the search to only the source state?
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        // When used in a transition, should we limit the search to only the source state? This is useful to ignore events from lower layers!
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_limitSearchToSourceState = false;
 
         // Ignore any events from states that we are transitioning away from
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_ignoreInactiveBranchEvents = false;
     };
 
@@ -264,23 +258,22 @@ namespace EE::Animation::GraphNodes
 
         FootstepEventIDToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::ID; }
         virtual char const* GetTypeName() const override { return "Footstep Event ID"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
     private:
 
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         EventPriorityRule                               m_priorityRule = EventPriorityRule::HighestWeight;
 
-        // When used in a transition, should we limit the search to only the source state?
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        // When used in a transition, should we limit the search to only the source state? This is useful to ignore events from lower layers!
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_limitSearchToSourceState = false;
 
         // Ignore any events from states that we are transitioning away from
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_ignoreInactiveBranchEvents = false;
     };
 
@@ -294,12 +287,11 @@ namespace EE::Animation::GraphNodes
 
         SyncEventIndexConditionToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Sync Event Index Condition"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 
@@ -320,10 +312,9 @@ namespace EE::Animation::GraphNodes
 
         CurrentSyncEventIDToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::ID; }
         virtual char const* GetTypeName() const override { return "Current Sync Event ID"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
@@ -337,10 +328,9 @@ namespace EE::Animation::GraphNodes
 
         CurrentSyncEventIndexToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Current Sync Event Index"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
@@ -354,10 +344,9 @@ namespace EE::Animation::GraphNodes
 
         CurrentSyncEventPercentageThroughToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Current Sync Event Percentage Through"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
@@ -371,14 +360,13 @@ namespace EE::Animation::GraphNodes
 
         TransitionEventConditionToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Transition Event Condition"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree, GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_markerIDToMatch ); }
-        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override { if ( m_markerIDToMatch == oldID ) { VisualGraph::ScopedNodeModification snm( this ); m_markerIDToMatch = newID; } }
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override { if ( m_markerIDToMatch == oldID ) { NodeGraph::ScopedNodeModification snm( this ); m_markerIDToMatch = newID; } }
 
     private:
 
@@ -388,15 +376,15 @@ namespace EE::Animation::GraphNodes
         EE_REFLECT();
         bool                                            m_matchOnlySpecificMarkerID = false;
 
-        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+        EE_REFLECT( CustomEditor = "AnimGraph_ID" );
         StringID                                        m_markerIDToMatch;
 
-        // When used in a transition, should we limit the search to only the source state?
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        // When used in a transition, should we limit the search to only the source state? This is useful to ignore events from lower layers!
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_limitSearchToSourceState = false;
 
         // Ignore any events from states that we are transitioning away from
-        EE_REFLECT( "Category" : "Advanced Search Rules" );
+        EE_REFLECT( Category = "Advanced Search Rules" );
         bool                                            m_ignoreInactiveBranchEvents = false;
     };
 }

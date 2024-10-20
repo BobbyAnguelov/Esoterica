@@ -47,8 +47,8 @@ namespace EE::Animation::Tasks
 
     //-------------------------------------------------------------------------
 
-    BlendTask::BlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList )
-        : BlendTaskBase( sourceID, TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
+    BlendTask::BlendTask( int8_t sourceTaskIdx, int8_t targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList )
+        : BlendTaskBase( TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
     {
         m_blendWeight = blendWeight;
         EE_ASSERT( m_blendWeight >= 0.0f && m_blendWeight <= 1.0f );
@@ -139,23 +139,21 @@ namespace EE::Animation::Tasks
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    String BlendTask::GetDebugText() const
+    InlineString BlendTask::GetDebugTextInfo() const
     {
+        InlineString str;
         if ( m_boneMaskTaskList.HasTasks() )
         {
-            return String( String::CtorSprintf(), "Blend (Masked): %.2f%%", m_blendWeight * 100 );
+            str = "Masked";
         }
-        else
-        {
-            return String( String::CtorSprintf(), "Blend: %.2f%%", m_blendWeight * 100 );
-        }
+        return str;
     }
     #endif
 
     //-------------------------------------------------------------------------
 
-    OverlayBlendTask::OverlayBlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList )
-        : BlendTaskBase( sourceID, TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
+    OverlayBlendTask::OverlayBlendTask( int8_t sourceTaskIdx, int8_t targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList )
+        : BlendTaskBase( TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
     {
         m_blendWeight = blendWeight;
         EE_ASSERT( m_blendWeight >= 0.0f && m_blendWeight <= 1.0f );
@@ -245,23 +243,21 @@ namespace EE::Animation::Tasks
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    String OverlayBlendTask::GetDebugText() const
+    InlineString OverlayBlendTask::GetDebugTextInfo() const
     {
+        InlineString str;
         if ( m_boneMaskTaskList.HasTasks() )
         {
-            return String( String::CtorSprintf(), "Overlay Blend (Masked): %.2f%%", m_blendWeight * 100 );
+            str = "Masked";
         }
-        else
-        {
-            return String( String::CtorSprintf(), "Overlay Blend: %.2f%%", m_blendWeight * 100 );
-        }
+        return str;
     }
     #endif
 
     //-------------------------------------------------------------------------
 
-    AdditiveBlendTask::AdditiveBlendTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, TaskIndex targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList )
-        : BlendTaskBase( sourceID, TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
+    AdditiveBlendTask::AdditiveBlendTask( int8_t sourceTaskIdx, int8_t targetTaskIdx, float const blendWeight, BoneMaskTaskList const* pBoneMaskTaskList )
+        : BlendTaskBase( TaskUpdateStage::Any, { sourceTaskIdx, targetTaskIdx } )
     {
         m_blendWeight = blendWeight;
         EE_ASSERT( m_blendWeight >= 0.0f && m_blendWeight <= 1.0f );
@@ -356,23 +352,21 @@ namespace EE::Animation::Tasks
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    String AdditiveBlendTask::GetDebugText() const
+    InlineString AdditiveBlendTask::GetDebugTextInfo() const
     {
+        InlineString str;
         if ( m_boneMaskTaskList.HasTasks() )
         {
-            return String( String::CtorSprintf(), "Additive Blend (Masked): %.2f%%", m_blendWeight * 100 );
+            str = "Masked";
         }
-        else
-        {
-            return String( String::CtorSprintf(), "Additive Blend: %.2f%%", m_blendWeight * 100 );
-        }
+        return str;
     }
     #endif
 
     //-------------------------------------------------------------------------
 
-    GlobalBlendTask::GlobalBlendTask( TaskSourceID sourceID, TaskIndex baseTaskIdx, TaskIndex layerTaskIdx, float const blendWeight, BoneMaskTaskList const& boneMaskTaskList )
-        : BlendTaskBase( sourceID, TaskUpdateStage::Any, { baseTaskIdx, layerTaskIdx } )
+    GlobalBlendTask::GlobalBlendTask( int8_t baseTaskIdx, int8_t layerTaskIdx, float const blendWeight, BoneMaskTaskList const& boneMaskTaskList )
+        : BlendTaskBase( TaskUpdateStage::Any, { baseTaskIdx, layerTaskIdx } )
     {
         m_blendWeight = blendWeight;
         EE_ASSERT( m_blendWeight >= 0.0f && m_blendWeight <= 1.0f );

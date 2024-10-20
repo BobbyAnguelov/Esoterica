@@ -5,50 +5,50 @@
 
 namespace EE::Player
 {
-    StringID const AnimationController::s_characterStateIDs[] =
+    StaticStringID const AnimationController::s_characterStateIDs[] =
     {
-        StringID( "CS_Locomotion" ),
-        StringID( "CS_InAir" ),
-        StringID( "CS_Ability" ),
-        StringID( "CS_Interaction" ),
-        StringID( "CS_GhostMode" ),
+        StaticStringID( "CS_Locomotion" ),
+        StaticStringID( "CS_InAir" ),
+        StaticStringID( "CS_Ability" ),
+        StaticStringID( "CS_Interaction" ),
+        StaticStringID( "CS_GhostMode" ),
     };
 
-    StringID const AnimationController::s_locomotionStateIDs[] =
+    StaticStringID const AnimationController::s_locomotionStateIDs[] =
     {
-        StringID( "Locomotion_Idle" ),
-        StringID( "Locomotion_TurnOnSpot" ),
-        StringID( "Locomotion_Start" ),
-        StringID( "Locomotion_Move" ),
-        StringID( "Locomotion_PlantedTurn" ),
-        StringID( "Locomotion_Stop" ),
+        StaticStringID( "Locomotion_Idle" ),
+        StaticStringID( "Locomotion_TurnOnSpot" ),
+        StaticStringID( "Locomotion_Start" ),
+        StaticStringID( "Locomotion_Move" ),
+        StaticStringID( "Locomotion_PlantedTurn" ),
+        StaticStringID( "Locomotion_Stop" ),
     };
 
-    StringID const AnimationController::s_inAirStateParameterIDs[] =
+    StaticStringID const AnimationController::s_inAirStateParameterIDs[] =
     {
-        StringID( "InAir_Falling" ),
-        StringID( "InAir_SoftLanding" ),
-        StringID( "InAir_HardLanding" ),
+        StaticStringID( "InAir_Falling" ),
+        StaticStringID( "InAir_SoftLanding" ),
+        StaticStringID( "InAir_HardLanding" )
     };
 
-    StringID const AnimationController::s_weaponStateIDs[] =
+    StaticStringID const AnimationController::s_weaponStateIDs[] =
     {
-        StringID( "Weapon_None" ),
-        StringID( "Weapon_Draw" ),
-        StringID( "Weapon_Drawn" ),
-        StringID( "Weapon_Aimed" ),
-        StringID( "Weapon_Holster" ),
-        StringID( "Weapon_WeaponAttack" ),
+        StaticStringID( "Weapon_None" ),
+        StaticStringID( "Weapon_Draw" ),
+        StaticStringID( "Weapon_Drawn" ),
+        StaticStringID( "Weapon_Aimed" ),
+        StaticStringID( "Weapon_Holster" ),
+        StaticStringID( "Weapon_WeaponAttack" ),
     };
 
     namespace AbilityIDs
     {
-        static StringID g_jumpID( "Ability_Jump" );
-        static StringID g_dashID( "Ability_Dash" );
-        static StringID g_slideID( "Ability_Slide" );
+        static StaticStringID g_jumpID( "Ability_Jump" );
+        static StaticStringID g_dashID( "Ability_Dash" );
+        static StaticStringID g_slideID( "Ability_Slide" );
     }
 
-    static StringID const g_locomotionTransitionMarkerID( "Locomotion" );
+    StaticStringID const AnimationController::s_locomotionTransitionMarkerID( "Locomotion" );
 
     //-------------------------------------------------------------------------
 
@@ -324,12 +324,12 @@ namespace EE::Player
 
     bool AnimationController::IsLocomotionTransitionFullyAllowed() const
     {
-        return IsTransitionFullyAllowed( g_locomotionTransitionMarkerID );
+        return IsTransitionFullyAllowed( s_locomotionTransitionMarkerID );
     }
 
     bool AnimationController::IsLocomotionTransitionConditionallyAllowed() const
     {
-        return IsTransitionFullyAllowed( g_locomotionTransitionMarkerID );
+        return IsTransitionFullyAllowed( s_locomotionTransitionMarkerID );
     }
 
     //-------------------------------------------------------------------------
@@ -391,7 +391,7 @@ namespace EE::Player
         int32_t const headIdx = pPose->GetSkeleton()->GetBoneIndex( StringID( "head" ) );
         if ( headIdx != InvalidIndex )
         {
-            Vector headPos = pPose->GetGlobalTransform( headIdx ).GetTranslation();
+            Vector headPos = pPose->GetModelSpaceTransform( headIdx ).GetTranslation();
             Vector targetPosCS = ConvertWorldSpacePointToCharacterSpace( targetWS );
             Vector aimDir = ( targetPosCS - headPos ).GetNormalized3();
 

@@ -1,5 +1,5 @@
 #pragma once
-#include "EngineTools/Core/VisualGraph/VisualGraph_FlowGraph.h"
+#include "EngineTools/NodeGraph/NodeGraph_FlowGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode.h"
 
 //-------------------------------------------------------------------------
@@ -13,10 +13,14 @@ namespace EE::Animation
     // Base Animation Flow Graph
     //-------------------------------------------------------------------------
 
-    class EE_ENGINETOOLS_API FlowGraph : public VisualGraph::FlowGraph
+    class EE_ENGINETOOLS_API FlowGraph : public NodeGraph::FlowGraph
     {
         friend class ToolsGraphDefinition;
         EE_REFLECT_TYPE( FlowGraph );
+
+    public:
+
+        constexpr static char const* const s_graphParameterPayloadID = "AnimGraphParameterPayload";
 
     public:
 
@@ -27,46 +31,18 @@ namespace EE::Animation
         // Node factory methods
         //-------------------------------------------------------------------------
 
-        template<typename T, typename ... ConstructorParams>
-        T* CreateNode( ConstructorParams&&... params )
-        {
-            VisualGraph::ScopedGraphModification sgm( this );
-
-            static_assert( std::is_base_of<GraphNodes::FlowToolsNode, T>::value );
-            auto pNode = EE::New<T>( eastl::forward<ConstructorParams>( params )... );
-            EE_ASSERT( pNode->GetAllowedParentGraphTypes().IsFlagSet( m_type ) );
-            pNode->Initialize( this );
-
-            AddNode( pNode );
-
-            return pNode;
-        }
-
-        GraphNodes::FlowToolsNode* CreateNode( TypeSystem::TypeInfo const* pTypeInfo )
-        {
-            VisualGraph::ScopedGraphModification sgm( this );
-
-            EE_ASSERT( pTypeInfo->IsDerivedFrom( GraphNodes::FlowToolsNode::GetStaticTypeID() ) );
-            auto pNode = Cast<GraphNodes::FlowToolsNode>( pTypeInfo->CreateType() );
-            EE_ASSERT( pNode->GetAllowedParentGraphTypes().IsFlagSet( m_type ) );
-            pNode->Initialize( this );
-
-            AddNode( pNode );
-
-            return pNode;
-        }
+        virtual bool CanCreateNode( TypeSystem::TypeInfo const* pNodeTypeInfo ) const override;
 
     private:
 
-        virtual bool SupportsAutoConnection() const override { return true; }
-        virtual bool DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, VisualGraph::Flow::Node* pSourceNode, VisualGraph::Flow::Pin* pOriginPin ) override;
-        virtual void HandleDragAndDrop( VisualGraph::UserContext* pUserContext, ImVec2 const& mouseCanvasPos ) override;
-        virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) override;
-        virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const override;
+        virtual bool SupportsNodeCreationFromConnection() const override { return true; }
+        virtual bool DrawContextMenuOptions( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens, NodeGraph::FlowNode* pSourceNode, NodeGraph::Pin* pOriginPin ) override;
+        virtual void GetSupportedDragAndDropPayloadIDs( TInlineVector<char const*, 10>& outIDs ) const override;
+        virtual bool HandleDragAndDrop( NodeGraph::UserContext* pUserContext, NodeGraph::DragAndDropState const& dragAndDropState ) override;
 
     private:
 
-        EE_REFLECT( "IsToolsReadOnly" : true )
+        EE_REFLECT( ReadOnly )
         GraphType       m_type;
     };
 }

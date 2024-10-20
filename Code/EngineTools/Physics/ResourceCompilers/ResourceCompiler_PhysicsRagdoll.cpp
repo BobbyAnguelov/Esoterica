@@ -10,9 +10,9 @@
 namespace EE::Physics
 {
     RagdollCompiler::RagdollCompiler()
-        : Resource::Compiler( "PhysicsRagdollCompiler", s_version )
+        : Resource::Compiler( "PhysicsRagdollCompiler" )
     {
-        m_outputTypes.push_back( RagdollDefinition::GetStaticResourceTypeID() );
+        AddOutputType<RagdollDefinition>();
     }
 
     Resource::CompilationResult RagdollCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -39,7 +39,7 @@ namespace EE::Physics
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, RagdollDefinition::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        Resource::ResourceHeader hdr( RagdollDefinition::s_version, RagdollDefinition::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         hdr.AddInstallDependency( definition.m_skeleton.GetResourceID() );
 
         Serialization::BinaryOutputArchive archive;

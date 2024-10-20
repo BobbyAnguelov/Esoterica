@@ -1,7 +1,6 @@
 #include "ResourceEditor_EntityEditor.h"
-
 #include "EngineTools/Entity/EntitySerializationTools.h"
-#include "EngineTools/Core/Widgets/TreeListView.h"
+#include "EngineTools/Widgets/TreeListView.h"
 #include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
 #include "Engine/Navmesh/DebugViews/DebugView_Navmesh.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
@@ -12,12 +11,10 @@
 #include "Engine/Volumes/Components/Component_Volumes.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntitySystem.h"
-#include "Engine/Entity/EntitySerialization.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/FileSystem/FileSystem.h"
 #include "Base/Math/Math.h"
 #include "Base/Math/MathUtils.h"
-
 
 //-------------------------------------------------------------------------
 // Undo/Redo
@@ -70,7 +67,7 @@ namespace EE::EntityModel
         struct SerializedEntity
         {
             EntityMapID                         m_mapID;
-            SerializedEntityDescriptor          m_desc;
+            EntityDescriptor                    m_desc;
         };
 
         struct SerializedComponentTransform
@@ -149,7 +146,7 @@ namespace EE::EntityModel
             EE_ASSERT( pEntity != nullptr && pEntity->IsAddedToMap() );
             auto& serializedState = m_createdEntities.emplace_back();
             serializedState.m_mapID = pEntity->GetMapID();
-            bool const result = Serializer::SerializeEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
+            bool const result = CreateEntityDescriptor( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
             EE_ASSERT( result );
         }
 
@@ -165,7 +162,7 @@ namespace EE::EntityModel
             EE_ASSERT( pEntity != nullptr && pEntity->IsAddedToMap() );
             auto& serializedState = m_deletedEntities.emplace_back();
             serializedState.m_mapID = pEntity->GetMapID();
-            bool const result = Serializer::SerializeEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
+            bool const result = CreateEntityDescriptor( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
             EE_ASSERT( result );
         }
 
@@ -194,7 +191,7 @@ namespace EE::EntityModel
             EE_ASSERT( pEntity != nullptr && pEntity->IsAddedToMap() );
             auto& serializedState = m_entityDescPreModification.emplace_back();
             serializedState.m_mapID = pEntity->GetMapID();
-            bool const result = Serializer::SerializeEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
+            bool const result = CreateEntityDescriptor( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
             EE_ASSERT( result );
         }
 
@@ -211,7 +208,7 @@ namespace EE::EntityModel
             EE_ASSERT( pEntity != nullptr && pEntity->IsAddedToMap() );
             auto& serializedState = m_entityDescPostModification.emplace_back();
             serializedState.m_mapID = pEntity->GetMapID();
-            bool const result = Serializer::SerializeEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
+            bool const result = CreateEntityDescriptor( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
             EE_ASSERT( result );
         }
 
@@ -248,7 +245,7 @@ namespace EE::EntityModel
             EE_ASSERT( pEntity != nullptr && pEntity->IsAddedToMap() );
             auto& serializedState = m_entityDescPreModification.emplace_back();
             serializedState.m_mapID = pEntity->GetMapID();
-            bool const result = Serializer::SerializeEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
+            bool const result = CreateEntityDescriptor( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
             EE_ASSERT( result );
 
             // Serialize Transforms
@@ -280,7 +277,7 @@ namespace EE::EntityModel
             EE_ASSERT( pEntity != nullptr && pEntity->IsAddedToMap() );
             auto& serializedState = m_entityDescPostModification.emplace_back();
             serializedState.m_mapID = pEntity->GetMapID();
-            bool const result = Serializer::SerializeEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
+            bool const result = CreateEntityDescriptor( *m_pEditor->m_pToolsContext->m_pTypeRegistry, pEntity, serializedState.m_desc );
             EE_ASSERT( result );
 
             // Serialize transforms
@@ -330,7 +327,7 @@ namespace EE::EntityModel
                 // Recreate all entities
                 for ( auto const& serializedEntity : m_deletedEntities )
                 {
-                    auto pEntity = Serializer::CreateEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, serializedEntity.m_desc );
+                    auto pEntity = serializedEntity.m_desc.CreateEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry );
                     auto pMap = pWorld->GetMap( serializedEntity.m_mapID );
                     EE_ASSERT( pMap != nullptr );
                     pMap->AddEntity( pEntity );
@@ -385,7 +382,7 @@ namespace EE::EntityModel
                 TVector<Entity*> createdEntities;
                 for ( int32_t i = 0; i < numEntities; i++ )
                 {
-                    auto pNewEntity = Serializer::CreateEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, m_entityDescPreModification[i].m_desc );
+                    auto pNewEntity = m_entityDescPreModification[i].m_desc.CreateEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry );
                     createdEntities.emplace_back( pNewEntity );
                 }
 
@@ -480,7 +477,7 @@ namespace EE::EntityModel
                 {
                     auto pMap = pWorld->GetMap( serializedEntity.m_mapID );
                     EE_ASSERT( pMap != nullptr );
-                    auto pEntity = Serializer::CreateEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, serializedEntity.m_desc );
+                    auto pEntity = serializedEntity.m_desc.CreateEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry );
                     pMap->AddEntity( pEntity );
                 }
 
@@ -546,7 +543,7 @@ namespace EE::EntityModel
                 TVector<Entity*> createdEntities;
                 for ( int32_t i = 0; i < numEntities; i++ )
                 {
-                    auto pNewEntity = Serializer::CreateEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, m_entityDescPostModification[i].m_desc );
+                    auto pNewEntity = m_entityDescPostModification[i].m_desc.CreateEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry );
                     createdEntities.emplace_back( pNewEntity );
                 }
 
@@ -596,7 +593,7 @@ namespace EE::EntityModel
                     TVector<Entity*> createdEntities;
                     for ( int32_t i = 0; i < numEntities; i++ )
                     {
-                        auto pNewEntity = Serializer::CreateEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry, m_entityDescPostModification[i].m_desc );
+                        auto pNewEntity = m_entityDescPostModification[i].m_desc.CreateEntity( *m_pEditor->m_pToolsContext->m_pTypeRegistry );
                         createdEntities.emplace_back( pNewEntity );
                     }
 
@@ -676,19 +673,26 @@ namespace EE::EntityModel
 
 namespace EE::EntityModel
 {
-    EntityEditor::EntityEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-        : EditorTool( pToolsContext, pWorld, resourceID )
-        , m_allSystemTypes( pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( EntitySystem::GetStaticTypeID(), false, false, true ) )
-        , m_allComponentTypes( pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( EntityComponent::GetStaticTypeID(), false, false, true ) )
-        , m_propertyGrid( pToolsContext )
-    {}
-
     EntityEditor::EntityEditor( ToolsContext const* pToolsContext, String const& displayName, EntityWorld* pWorld )
         : EditorTool( pToolsContext, displayName, pWorld )
         , m_allSystemTypes( pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( EntitySystem::GetStaticTypeID(), false, false, true ) )
         , m_allComponentTypes( pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( EntityComponent::GetStaticTypeID(), false, false, true ) )
         , m_propertyGrid( pToolsContext )
-    {}
+    {
+        // Get all component visualizer options
+        //-------------------------------------------------------------------------
+
+        TVector<TypeSystem::TypeInfo const*> const visualizerTypes = m_pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( ComponentVisualizer::GetStaticTypeID(), false, false );
+        for ( auto pType : visualizerTypes )
+        {
+            m_visualizerDefaultInstances.emplace_back( Cast<ComponentVisualizer>( pType->m_pDefaultInstance ) );
+        }
+    }
+
+    EntityEditor::~EntityEditor()
+    {
+        EE::Delete( m_pComponentVisualizer );
+    }
 
     //-------------------------------------------------------------------------
 
@@ -772,11 +776,18 @@ namespace EE::EntityModel
         ImGui::DockBuilderSplitNode( bottomCenterDockID, ImGuiDir_Right, 0.5f, &bottomRightDockID, &bottomCenterDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), topDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), topDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Outliner" ).c_str(), bottomLeftDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Entity" ).c_str(), bottomCenterDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomRightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomRightDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Properties" ).c_str(), bottomRightDockID );
+    }
+
+    void EntityEditor::PreUndoRedo( UndoStack::Operation operation )
+    {
+        EditorTool::PreUndoRedo( operation );
+
+        m_propertyGrid.GetCurrentVisualState( m_propertyGridVisualState );
     }
 
     void EntityEditor::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
@@ -804,13 +815,15 @@ namespace EE::EntityModel
     {
         EditorTool::DrawViewportToolbar( context, pViewport );
 
+        auto const& style = ImGui::GetStyle();
+
         //-------------------------------------------------------------------------
 
         ImGui::SameLine();
 
+        // Spatial Controls
         //-------------------------------------------------------------------------
 
-        auto const& style = ImGui::GetStyle();
         float const separatorWidth = 3;
         float const widthButton0 = ImGui::CalcTextSize( m_gizmo.IsInWorldSpace() ? EE_ICON_EARTH : EE_ICON_MAP_MARKER ).x + ( style.FramePadding.x * 2 );
         float const widthButton1 = ImGui::CalcTextSize( EE_ICON_AXIS_ARROW ).x + ( style.FramePadding.x * 2 );
@@ -839,7 +852,7 @@ namespace EE::EntityModel
             ImGui::PushStyleColor( ImGuiCol_Text, t ? ImGuiX::Style::s_colorAccent1 : ImGuiX::Style::s_colorText );
             if ( ImGuiX::FlatButton( EE_ICON_AXIS_ARROW, ImVec2( widthButton1, ImGui::GetContentRegionAvail().y ) ) )
             {
-                m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Translation );
+                m_gizmo.SetMode( ImGuiX::Gizmo::GizmoMode::Translation );
             }
             ImGui::PopStyleColor();
             ImGuiX::ItemTooltip( "Translate" );
@@ -850,7 +863,7 @@ namespace EE::EntityModel
             ImGui::PushStyleColor( ImGuiCol_Text, r ? ImGuiX::Style::s_colorAccent1 : ImGuiX::Style::s_colorText );
             if ( ImGuiX::FlatButton( EE_ICON_ROTATE_ORBIT, ImVec2( widthButton2, ImGui::GetContentRegionAvail().y ) ) )
             {
-                m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Rotation );
+                m_gizmo.SetMode( ImGuiX::Gizmo::GizmoMode::Rotation );
             }
             ImGui::PopStyleColor();
             ImGuiX::ItemTooltip( "Rotate" );
@@ -861,12 +874,27 @@ namespace EE::EntityModel
             ImGui::PushStyleColor( ImGuiCol_Text, s ? ImGuiX::Style::s_colorAccent1 : ImGuiX::Style::s_colorText );
             if ( ImGuiX::FlatButton( EE_ICON_ARROW_TOP_RIGHT_BOTTOM_LEFT, ImVec2( widthButton3, ImGui::GetContentRegionAvail().y ) ) )
             {
-                m_gizmo.SwitchMode( ImGuiX::Gizmo::GizmoMode::Scale );
+                m_gizmo.SetMode( ImGuiX::Gizmo::GizmoMode::Scale );
             }
             ImGui::PopStyleColor();
             ImGuiX::ItemTooltip( "Scale" );
         }
         EndViewportToolbarGroup();
+
+        // Component Visualizer
+        //-------------------------------------------------------------------------
+
+        if ( m_pComponentVisualizer != nullptr && m_pComponentVisualizer->HasToolbar() )
+        {
+            ImGui::SameLine();
+
+            if ( BeginViewportToolbarGroup( "Component Visualizer", ImVec2( requiredWidth, 0 ), ImVec2( 0, 0 ) ) )
+            {
+                ComponentVisualizerContext visualizerContext( context, pViewport, m_pWorld, [this] ( EntityComponent* pComponent ) { PreVisualizerEdit( pComponent ); }, [this] ( EntityComponent* pComponent ) { PostVisualizerEdit( pComponent ); } );
+                m_pComponentVisualizer->DrawToolbar( visualizerContext );
+            }
+            EndViewportToolbarGroup();
+        }
     }
 
     void EntityEditor::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
@@ -1040,6 +1068,15 @@ namespace EE::EntityModel
                 break;
             }
         }
+
+        // Component Visualizer
+        //-------------------------------------------------------------------------
+
+        if ( m_pComponentVisualizer != nullptr )
+        {
+            ComponentVisualizerContext visualizerContext( context, pViewport, m_pWorld, [this] ( EntityComponent* pComponent ) { PreVisualizerEdit( pComponent ); }, [this] ( EntityComponent* pComponent ) { PostVisualizerEdit( pComponent ); } );
+            m_pComponentVisualizer->Visualize( visualizerContext );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -1057,7 +1094,7 @@ namespace EE::EntityModel
             if ( pMap != nullptr )
             {
                 // Create entity
-                StringID const entityName( resourceID.GetFileNameWithoutExtension().c_str() );
+                StringID const entityName( resourceID.GetFilenameWithoutExtension().c_str() );
                 auto pMeshEntity = EE::New<Entity>( entityName );
 
                 // Create mesh component
@@ -1067,10 +1104,10 @@ namespace EE::EntityModel
                 pMeshEntity->AddComponent( pMeshComponent );
 
                 // Try create optional physics collision component
-                ResourcePath physicsResourcePath = resourceID.GetResourcePath();
+                DataPath physicsResourcePath = resourceID.GetResourcePath();
                 physicsResourcePath.ReplaceExtension( Physics::CollisionMesh::GetStaticResourceTypeID().ToString() );
                 ResourceID const physicsResourceID( physicsResourcePath );
-                if ( m_pToolsContext->m_pResourceDatabase->DoesResourceExist( physicsResourceID ) )
+                if ( m_pToolsContext->m_pFileRegistry->DoesFileExist( physicsResourceID ) )
                 {
                     auto pPhysicsMeshComponent = EE::New<Physics::CollisionMeshComponent>( StringID( "Physics Component" ) );
                     pPhysicsMeshComponent->SetCollision( physicsResourceID );
@@ -1434,6 +1471,8 @@ namespace EE::EntityModel
             AddAvailableSpatialComponentOptions();
         }
 
+        m_filteredOptions = m_operationOptions;
+
         //-------------------------------------------------------------------------
 
         char const* pDialogTitle = nullptr;
@@ -1511,14 +1550,14 @@ namespace EE::EntityModel
         // Serialized all selected entities
         //-------------------------------------------------------------------------
 
-        TVector<TPair<EntityMap*, SerializedEntityDescriptor>> entityDescs;
+        TVector<TPair<EntityMap*, EntityDescriptor>> entityDescs;
         for ( auto pEntity : selectedEntities )
         {
             auto& serializedEntity = entityDescs.emplace_back();
             serializedEntity.first = m_pWorld->GetMapForEntity( pEntity );
             EE_ASSERT( serializedEntity.first != nullptr );
 
-            if ( Serializer::SerializeEntity( *m_pToolsContext->m_pTypeRegistry, pEntity, serializedEntity.second ) )
+            if ( CreateEntityDescriptor( *m_pToolsContext->m_pTypeRegistry, pEntity, serializedEntity.second ) )
             {
                 // Clear the serialized ID so that we will generate a new ID for the duplicated entities
                 serializedEntity.second.ClearAllSerializedIDs();
@@ -1538,7 +1577,7 @@ namespace EE::EntityModel
         for ( int32_t i = 0; i < numEntitiesToDuplicate; i++ )
         {
             // Create the duplicated entity
-            auto pDuplicatedEntity = Serializer::CreateEntity( *m_pToolsContext->m_pTypeRegistry, entityDescs[i].second );
+            auto pDuplicatedEntity = entityDescs[i].second.CreateEntity( *m_pToolsContext->m_pTypeRegistry );
             duplicatedEntities.emplace_back( pDuplicatedEntity );
 
             // Add to map
@@ -2024,7 +2063,7 @@ namespace EE::EntityModel
             {
                 {
                     ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
-                    if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "CREATE NEW ENTITY", ImVec2( -1, 0 ) ) )
+                    if ( ImGuiX::ButtonColored( "CREATE NEW ENTITY", Colors::Green, Colors::White, ImVec2( -1, 0 ) ) )
                     {
                         CreateEntity( pMap->GetID() );
                     }
@@ -2332,12 +2371,15 @@ namespace EE::EntityModel
         }
         else
         {
-            if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, EE_ICON_PLUS" Add Component/System", ImVec2( -1, 0 ) ) )
+            if ( ImGuiX::ButtonColored( EE_ICON_PLUS" Add Component/System", Colors::Green, Colors::White, ImVec2( -1, 0 ) ) )
             {
                 StartAddComponentOrSystem( AddRequestType::Any );
             }
 
-            m_structureEditorTreeView.UpdateAndDraw( m_structureEditorContext );
+            if ( m_structureEditorTreeView.UpdateAndDraw( m_structureEditorContext ) )
+            {
+                UpdateComponentVisualizer();
+            }
         }
 
         // Handle Input
@@ -2368,6 +2410,7 @@ namespace EE::EntityModel
                     if ( pSelectedItem->IsComponent() )
                     {
                         DestroyComponent( pSelectedItem->m_pComponent );
+                        UpdateComponentVisualizer();
                     }
                     else if ( pSelectedItem->IsSystem() )
                     {
@@ -2447,6 +2490,11 @@ namespace EE::EntityModel
 
             pSystemsHeaderItem->SortChildren();
         }
+
+        // Component Visualizer
+        //-------------------------------------------------------------------------
+
+        UpdateComponentVisualizer();
     }
 
     void EntityEditor::DrawStructureEditorContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus )
@@ -2585,6 +2633,12 @@ namespace EE::EntityModel
             ImGui::Text( "Entity Operations Pending - Please Wait" );
             ImGui::Unindent();
 
+            // Record state so we can attempt to restore it
+            if ( m_propertyGrid.GetEditedType() != nullptr )
+            {
+                m_propertyGrid.GetCurrentVisualState( m_propertyGridVisualState );
+            }
+
             m_propertyGrid.SetTypeToEdit( nullptr );
 
             return;
@@ -2606,6 +2660,7 @@ namespace EE::EntityModel
                 }
 
                 m_propertyGrid.SetTypeToEdit( nullptr );
+                m_propertyGridVisualState.Clear();
                 return;
             }
 
@@ -2614,21 +2669,30 @@ namespace EE::EntityModel
             {
                 ImGui::Text( "Multiple components selected..." );
                 m_propertyGrid.SetTypeToEdit( nullptr );
+                m_propertyGridVisualState.Clear();
                 return;
             }
 
-            // Check if we need to switch 
+            // Check if we need to switch
             auto pSelectedItem = static_cast<StructureEditorItem*>( selection[0] );
             if ( pSelectedItem->IsComponent() )
             {
                 if ( m_propertyGrid.GetEditedType() != pSelectedItem->m_pComponent )
                 {
-                    m_propertyGrid.SetTypeToEdit( pSelectedItem->m_pComponent );
+                    PropertyGrid::VisualState const* pVisualState = nullptr;
+                    if ( pSelectedItem->m_pComponent->GetTypeID() == m_propertyGridVisualState.m_editedTypeID )
+                    {
+                        pVisualState = &m_propertyGridVisualState;
+                    }
+
+                    m_propertyGrid.SetTypeToEdit( pSelectedItem->m_pComponent, pVisualState );
+                    m_propertyGridVisualState.Clear();
                 }
             }
             else
             {
                 m_propertyGrid.SetTypeToEdit( nullptr );
+                m_propertyGridVisualState.Clear();
             }
         }
 
@@ -2662,7 +2726,7 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
-        m_propertyGrid.DrawGrid();
+        m_propertyGrid.UpdateAndDraw();
     }
 
     void EntityEditor::PreEditProperty( PropertyEditInfo const& eventInfo )
@@ -3148,6 +3212,120 @@ namespace EE::EntityModel
     }
 
     //-------------------------------------------------------------------------
+    // Component Visualizer
+    //-------------------------------------------------------------------------
+
+    void EntityEditor::UpdateComponentVisualizer()
+    {
+        EntityComponent* pSelectedComponent = nullptr;
+        TVector<TreeListViewItem*> const& selection = m_structureEditorTreeView.GetSelection();
+        if ( selection.size() == 1 )
+        {
+            auto pSelectedItem = static_cast<StructureEditorItem*> ( selection[0] );
+            pSelectedComponent = pSelectedItem->m_pComponent;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( pSelectedComponent == nullptr )
+        {
+            if ( m_pComponentVisualizer != nullptr )
+            {
+                EE::Delete( m_pComponentVisualizer );
+            }
+        }
+        else
+        {
+            // Check if we need to update the visualizer
+            if ( m_pComponentVisualizer != nullptr )
+            {
+                // If we are already visualizing this component, do nothing
+                if ( m_pComponentVisualizer->GetVisualizedComponent() == pSelectedComponent )
+                {
+                    return;
+                }
+
+                // If we have an exact supported type match, just update the component
+                if ( pSelectedComponent->GetTypeID() == m_pComponentVisualizer->GetSupportedType() )
+                {
+                    m_pComponentVisualizer->UpdateVisualizedComponent( pSelectedComponent );
+                    return;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            EE::Delete( m_pComponentVisualizer );
+
+            // Find appropriate visualizer type
+            TypeSystem::TypeInfo const* pExactMatchVisualizerType = nullptr;
+            TypeSystem::TypeInfo const* pDerivedMatchVisualizerType = nullptr;
+
+            for ( ComponentVisualizer const* pDefaultInstance : m_visualizerDefaultInstances )
+            {
+                // Try find exact match
+                if ( pSelectedComponent->GetTypeID() == pDefaultInstance->GetSupportedType() )
+                {
+                    pExactMatchVisualizerType = pDefaultInstance->GetTypeInfo();
+                    break;
+                }
+
+                // Find first matching visualizer
+                if ( pDerivedMatchVisualizerType == nullptr && pSelectedComponent->s_pTypeInfo->IsDerivedFrom( pDefaultInstance->GetSupportedType() ) )
+                {
+                    pDerivedMatchVisualizerType = pDefaultInstance->GetTypeInfo();
+                }
+            }
+
+            // Create the visualizer
+            TypeSystem::TypeInfo const* pFinalVisualizerType = ( pExactMatchVisualizerType != nullptr ) ? pExactMatchVisualizerType : pDerivedMatchVisualizerType;
+            if ( pFinalVisualizerType != nullptr )
+            {
+                EE_ASSERT( m_pComponentVisualizer == nullptr );
+                m_pComponentVisualizer = Cast<ComponentVisualizer>( pFinalVisualizerType->CreateType() );
+                m_pComponentVisualizer->UpdateVisualizedComponent( pSelectedComponent );
+            }
+        }
+    }
+
+    void EntityEditor::PreVisualizerEdit( EntityComponent* pComponent )
+    {
+        EE_ASSERT( m_pActiveUndoableAction == nullptr );
+
+        //-------------------------------------------------------------------------
+
+        Entity* pEntity = m_pWorld->FindEntity( pComponent->GetEntityID() );
+
+        //-------------------------------------------------------------------------
+
+        auto pMap = m_pWorld->GetMap( pEntity->GetMapID() );
+        EE_ASSERT( pMap != nullptr );
+        auto pUndoAction = EE::New<EntityUndoableAction>( this );
+        pUndoAction->RecordBeginEdit( { pEntity } );
+        m_pActiveUndoableAction = pUndoAction;
+
+        //-------------------------------------------------------------------------
+
+        m_pWorld->BeginComponentEdit( pComponent );
+    }
+
+    void EntityEditor::PostVisualizerEdit( EntityComponent* pComponent )
+    {
+        EE_ASSERT( m_pActiveUndoableAction != nullptr );
+
+        //-------------------------------------------------------------------------
+
+        auto pUndoAction = (EntityUndoableAction*) m_pActiveUndoableAction;
+        pUndoAction->RecordEndEdit();
+        m_undoStack.RegisterAction( pUndoAction );
+        m_pActiveUndoableAction = nullptr;
+
+        //-------------------------------------------------------------------------
+
+        m_pWorld->EndComponentEdit( pComponent );
+    }
+
+    //-------------------------------------------------------------------------
     // Update
     //-------------------------------------------------------------------------
 
@@ -3251,6 +3429,7 @@ namespace EE::EntityModel
             }
 
             m_selectionSwitchRequest.Clear();
+            UpdateComponentVisualizer();
         }
 
         // Handle input

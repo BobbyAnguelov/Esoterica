@@ -4,17 +4,18 @@
 #include "Applications/Reflector/Database/ReflectionDatabase.h"
 #include "Base/Time/Timers.h"
 #include "Base/Platform/PlatformUtils_Win32.h"
+#include "Base/FileSystem/FileSystemUtils.h"
 #include <fstream>
 
 //-------------------------------------------------------------------------
 
 namespace EE::TypeSystem::Reflection
 {
-    ClangParser::ClangParser( SolutionInfo* pSolution, ReflectionDatabase* pDatabase, FileSystem::Path const& reflectionDataPath )
-        : m_context( pSolution, pDatabase )
+    ClangParser::ClangParser( FileSystem::Path const& solutionPath, ReflectionDatabase* pDatabase )
+        : m_context( solutionPath, pDatabase )
         , m_totalParsingTime( 0 )
         , m_totalVisitingTime( 0 )
-        , m_reflectionDataPath( reflectionDataPath )
+        , m_reflectionDataPath( FileSystem::GetCurrentProcessPath() + Settings::g_reflectionTempDataPath )
     {}
 
     bool ClangParser::Parse( TVector<HeaderInfo*> const& headers, Pass pass )
@@ -53,7 +54,7 @@ namespace EE::TypeSystem::Reflection
         int32_t const numIncludePaths = sizeof( Settings::g_includePaths ) / sizeof( Settings::g_includePaths[0] );
         for ( auto i = 0; i < numIncludePaths; i++ )
         {
-            String const fullPath = m_context.m_pSolution->m_path.GetString() + Settings::g_includePaths[i];
+            String const fullPath = m_context.m_solutionPath.GetString() + Settings::g_includePaths[i];
             String const shortPath = Platform::Win32::GetShortPath( fullPath );
             fullIncludePaths.push_back( "-I" + shortPath );
             clangArgs.push_back( fullIncludePaths.back().c_str() );
@@ -71,6 +72,7 @@ namespace EE::TypeSystem::Reflection
         clangArgs.push_back( "-O0" );
         clangArgs.push_back( "-D NDEBUG" );
         clangArgs.push_back( "-Werror" );
+        clangArgs.push_back( "-Wno-multichar" );
         clangArgs.push_back( "-Wno-deprecated-builtins" );
         clangArgs.push_back( "-fparse-all-comments" );
         clangArgs.push_back( "-fms-extensions" );
@@ -78,6 +80,7 @@ namespace EE::TypeSystem::Reflection
         clangArgs.push_back( "-Wno-unknown-warning-option" );
         clangArgs.push_back( "-Wno-return-type-c-linkage" );
         clangArgs.push_back( "-Wno-gnu-folding-constant" );
+        clangArgs.push_back( "-Wno-vla-extension-static-assert" );
 
         // Exclude dev tools
         if ( pass == NoDevToolsPass )
@@ -132,9 +135,10 @@ namespace EE::TypeSystem::Reflection
 
         //-------------------------------------------------------------------------
 
+        // Check that we've processed all detected macros
         if ( !m_context.HasErrorOccured() )
         {
-            m_context.CheckForOrphanedReflectionMacros();
+            m_context.CheckForUnhandledReflectionMacros();
         }
 
         // If we have an error from the parser, prepend the header to it

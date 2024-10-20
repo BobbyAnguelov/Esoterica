@@ -155,7 +155,6 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         m_selectedMaskIndex = TrySelectMask( context );
-        m_taskList.CopyFrom( *GetBoneMaskForIndex( context, m_selectedMaskIndex ) );
         m_newMaskIndex = InvalidIndex;
         m_isBlending = false;
     }
@@ -256,6 +255,10 @@ namespace EE::Animation::GraphNodes
                 {
                     m_taskList.SetToBlendBetweenTaskLists( *GetBoneMaskForIndex( context, m_selectedMaskIndex ), *GetBoneMaskForIndex( context, m_newMaskIndex ), blendWeight );
                 }
+            }
+            else
+            {
+                m_taskList.CopyFrom( *GetBoneMaskForIndex( context, m_selectedMaskIndex ) );
             }
         }
 

@@ -7,6 +7,11 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Animation
 {
+    char const* const RootMotionDebugger::s_actionTypeLabels[4] = {"Error", "Sample", "Modification", "Blend"};
+    Color const RootMotionDebugger::s_actionTypeColors[4] = { Colors::Red, Colors::Yellow, Colors::HotPink, Colors::Lime };
+
+    //-------------------------------------------------------------------------
+
     RootMotionDebugger::RootMotionDebugger()
     {
         m_recordedRootTransforms.reserve( s_recordingBufferSize );
@@ -25,6 +30,7 @@ namespace EE::Animation
 
     void RootMotionDebugger::StartCharacterUpdate( Transform const& characterWorldTransform )
     {
+        m_debugPathTracker.Clear();
         m_startWorldTransform = characterWorldTransform;
         m_recordedActions.clear();
     }

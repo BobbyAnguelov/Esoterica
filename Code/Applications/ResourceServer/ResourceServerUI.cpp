@@ -13,6 +13,7 @@ namespace EE::Resource
     static char const* const g_serverControlsWindowName = "Server";
     static char const* const g_connectionInfoWindowName = "Connected Clients";
     static char const* const g_packagingControlsWindowName = "Packaging";
+    static char const* const g_dataToolsWindowName = "Data Tools";
 
     //-------------------------------------------------------------------------
 
@@ -32,7 +33,7 @@ namespace EE::Resource
 
     void ResourceServerUI::Initialize()
     {
-        EE_ASSERT( m_pImageCache != nullptr && m_pImageCache->IsInitialized() );
+        EE_ASSERT( m_pImageCache != nullptr && m_pImageCache->WasInitialized() );
         m_resourceServerIcon = m_pImageCache->LoadImageFromMemoryBase64( g_iconDataPurple, 3332 );
     }
 
@@ -88,6 +89,7 @@ namespace EE::Resource
                 ImGui::DockBuilderDockWindow( g_connectionInfoWindowName, topLeftDockID );
                 ImGui::DockBuilderDockWindow( g_serverControlsWindowName, topRightDockID );
                 ImGui::DockBuilderDockWindow( g_packagingControlsWindowName, topLeftDockID );
+                ImGui::DockBuilderDockWindow( g_dataToolsWindowName, topLeftDockID );
                 ImGui::DockBuilderDockWindow( g_completedRequestsWindowName, bottomDockID );
 
                 ImGui::DockBuilderFinish( dockspaceID );
@@ -101,10 +103,11 @@ namespace EE::Resource
         // Draw windows
         //-------------------------------------------------------------------------
 
-        DrawServerControls();
-        DrawConnectionInfo();
-        DrawRequests();
-        DrawPackagingControls();
+        DrawServerInfoWindow();
+        DrawConnectionInfoWindow();
+        DrawRequestWindow();
+        DrawPackagingWindow();
+        DrawDataToolsWindow();
     }
 
     //-------------------------------------------------------------------------
@@ -117,15 +120,30 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    void ResourceServerUI::DrawRequests()
+    void ResourceServerUI::DrawRequestWindow()
     {
         if ( ImGui::Begin( g_completedRequestsWindowName ) )
         {
-            constexpr static float const compilationLogFieldHeight = 125;
-            constexpr static float const buttonWidth = 140;
-            float const tableHeight = ImGui::GetContentRegionAvail().y - compilationLogFieldHeight - ImGui::GetFrameHeight() - 16;
-            float const itemSpacing = ImGui::GetStyle().ItemSpacing.x;
-            float const textfieldWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x - ( ( buttonWidth + itemSpacing ) * 5 );
+            ImVec2 const itemSpacing = ImGui::GetStyle().ItemSpacing;
+
+            //-------------------------------------------------------------------------
+            // Filter
+            //-------------------------------------------------------------------------
+
+            m_requestsFilter.UpdateAndDraw();
+
+            TVector<CompilationRequest const*> filteredRequests = m_resourceServer.GetRequests();
+            if ( m_requestsFilter.HasFilterSet() )
+            {
+                for ( int32_t i = 0; i < (int32_t) filteredRequests.size(); i++ )
+                {
+                    if ( !m_requestsFilter.MatchesFilter( filteredRequests[i]->GetResourceID().c_str() ) )
+                    {
+                        filteredRequests.erase( filteredRequests.begin() + i );
+                        i--;
+                    }
+                }
+            }
 
             //-------------------------------------------------------------------------
             // Table
@@ -133,12 +151,11 @@ namespace EE::Resource
 
             ImGuiX::ScopedFont const BigScopedFont( ImGuiX::Font::Small );
 
+            constexpr static float const compilationLogFieldHeight = 125;
+            float const tableHeight = ImGui::GetContentRegionAvail().y - compilationLogFieldHeight - ImGui::GetFrameHeight() - ( itemSpacing.y * 3 );
+
             if ( ImGui::BeginTable( "Requests", 7, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, tableHeight ) ) )
             {
-                auto const& requests = m_resourceServer.GetRequests();
-
-                //-------------------------------------------------------------------------
-
                 ImGui::TableSetupColumn( "##Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
                 ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
                 ImGui::TableSetupColumn( "ID", ImGuiTableColumnFlags_WidthStretch );
@@ -153,12 +170,12 @@ namespace EE::Resource
                 ImGui::TableHeadersRow();
 
                 ImGuiListClipper clipper;
-                clipper.Begin( (int32_t) requests.size() );
+                clipper.Begin( (int32_t) filteredRequests.size() );
                 while ( clipper.Step() )
                 {
                     for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
                     {
-                        CompilationRequest const* pRequest = requests[i];
+                        CompilationRequest const* pRequest = filteredRequests[i];
                         ImGui::PushID( pRequest );
 
                         ImVec4 itemColor;
@@ -191,7 +208,7 @@ namespace EE::Resource
 
                             case CompilationRequest::Status::Compiling:
                             {
-                                ImGuiX::DrawSpinner( "##Compiling", Colors::Cyan, ImVec2( 16, 16 ), 3.0f, 0.0f );
+                                ImGuiX::DrawSpinner( "##Compiling", Colors::Cyan, 16, 3.0f, 0.0f );
                                 HandleContextMenuOpening();
                                 ImGuiX::TextTooltip( "Compiling" );
                             }
@@ -285,8 +302,14 @@ namespace EE::Resource
                                 ImGui::Text( "Package" );
                             }
                             break;
-
                         }
+
+                        ImGui::SameLine();
+                        if ( pRequest->HasExtraInfo() )
+                        {
+                            ImGuiX::HelpMarker( pRequest->m_extraInfo.c_str() );
+                        }
+
                         HandleContextMenuOpening();
 
                         //-------------------------------------------------------------------------
@@ -361,8 +384,6 @@ namespace EE::Resource
                 ImGui::EndTable();
             }
 
-            ImGui::Separator();
-
             //-------------------------------------------------------------------------
             // Info Panel
             //-------------------------------------------------------------------------
@@ -372,6 +393,9 @@ namespace EE::Resource
 
             {
                 ImGuiX::ScopedFont const scopedFont( ImGuiX::Font::Medium );
+
+                constexpr static float const buttonWidth = 140;
+                float const textfieldWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x - ( ( buttonWidth + itemSpacing.x ) * 5 );
 
                 if ( m_pSelectedRequest != nullptr )
                 {
@@ -426,17 +450,17 @@ namespace EE::Resource
 
             if ( m_pSelectedRequest != nullptr )
             {
-                ImGui::InputTextMultiline( "##Output", const_cast<char*>( m_pSelectedRequest->GetLog() ), strlen( m_pSelectedRequest->GetLog() ), ImVec2( ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x, compilationLogFieldHeight ), ImGuiInputTextFlags_ReadOnly );
+                ImGui::InputTextMultiline( "##Output", const_cast<char*>( m_pSelectedRequest->GetLog() ), strlen( m_pSelectedRequest->GetLog() ), ImVec2( -1, compilationLogFieldHeight ), ImGuiInputTextFlags_ReadOnly );
             }
             else
             {
-                ImGui::InputTextMultiline( "##Output", emptyBuffer, 255, ImVec2( ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x, compilationLogFieldHeight ), ImGuiInputTextFlags_ReadOnly );
+                ImGui::InputTextMultiline( "##Output", emptyBuffer, 255, ImVec2( -1, compilationLogFieldHeight ), ImGuiInputTextFlags_ReadOnly );
             }
         }
         ImGui::End();
     }
 
-    void ResourceServerUI::DrawServerControls()
+    void ResourceServerUI::DrawServerInfoWindow()
     {
         if ( ImGui::Begin( g_serverControlsWindowName ) )
         {
@@ -460,7 +484,7 @@ namespace EE::Resource
             ImGui::Checkbox( "##ForceRecompile", &m_forceRecompilation );
             ImGuiX::TextTooltip( "Force Recompilation" );
 
-            ImGui::BeginDisabled( !ResourcePath::IsValidPath( m_resourcePathbuffer ) );
+            ImGui::BeginDisabled( !DataPath::IsValidPath( m_resourcePathbuffer ) );
             ImGui::SameLine();
             if ( ImGui::Button( "Request Compilation", buttonSize ) )
             {
@@ -472,11 +496,10 @@ namespace EE::Resource
 
             ImGui::SeparatorText( "Registered Compilers" );
 
-            if ( ImGui::BeginTable( "Registered Compilers Table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg ) )
+            if ( ImGui::BeginTable( "Registered Compilers Table", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg ) )
             {
                 ImGui::SeparatorText( "Info" );
                 ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 150 );
-                ImGui::TableSetupColumn( "Ver", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 25 );
                 ImGui::TableSetupColumn( "Output Types", ImGuiTableColumnFlags_WidthStretch );
 
                 //-------------------------------------------------------------------------
@@ -489,23 +512,21 @@ namespace EE::Resource
                 {
                     ImGui::TableNextRow();
 
-                    ImGui::TableSetColumnIndex( 0 );
+                    ImGui::TableNextColumn();
                     ImGui::Text( pCompiler->GetName().c_str() );
-
-                    ImGui::TableSetColumnIndex( 1 );
-                    ImGui::Text( "%d", pCompiler->GetVersion() );
 
                     //-------------------------------------------------------------------------
 
-                    char str[32] = { 0 };
+                    ImGui::TableNextColumn();
 
-                    ImGui::TableSetColumnIndex( 2 );
+                    InlineString str;
                     for ( auto const& type : pCompiler->GetOutputTypes() )
                     {
-                        type.GetString( str );
-                        ImGui::Text( str );
-                        ImGui::SameLine();
+                        str.append_sprintf( "%s (%d), ", type.m_typeID.ToString().c_str(), type.m_version );
                     }
+                    str = str.substr( 0, str.length() - 2 );
+
+                    ImGui::Text( str.c_str() );
                 }
 
                 ImGui::EndTable();
@@ -514,7 +535,7 @@ namespace EE::Resource
         ImGui::End();
     }
 
-    void ResourceServerUI::DrawConnectionInfo()
+    void ResourceServerUI::DrawConnectionInfoWindow()
     {
         if ( ImGui::Begin( g_connectionInfoWindowName ) )
         {
@@ -545,7 +566,7 @@ namespace EE::Resource
         ImGui::End();
     }
 
-    void ResourceServerUI::DrawPackagingControls()
+    void ResourceServerUI::DrawPackagingWindow()
     {
         if ( ImGui::Begin( g_packagingControlsWindowName ) )
         {
@@ -566,7 +587,7 @@ namespace EE::Resource
                     {
                         previewStr.append( ", " );
                     }
-                    previewStr.append( mapID.GetFileNameWithoutExtension().c_str() );
+                    previewStr.append( mapID.GetFilenameWithoutExtension().c_str() );
                 }
 
                 if ( previewStr.empty() )
@@ -617,7 +638,7 @@ namespace EE::Resource
 
                 ImGui::SameLine();
                 ImGui::BeginDisabled( !m_resourceServer.CanStartPackaging() );
-                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Start", ImVec2( 50, 0 ) ) )
+                if ( ImGuiX::ButtonColored( "Start", Colors::Green, Colors::White, ImVec2( 50, 0 ) ) )
                 {
                     m_resourceServer.StartPackaging();
                 }
@@ -643,20 +664,41 @@ namespace EE::Resource
 
                 if ( packagingStage != ResourceServer::PackagingStage::Complete )
                 {
-                    ImGui::Indent( 4.0f );
                     ImGuiX::DrawSpinner( "##Packaging" );
-                    ImGui::Unindent( 4.0f );
                 }
                 else
                 {
                     ImGuiX::ScopedFont const sf( ImGuiX::Font::Medium, Colors::Lime );
                     ImGui::AlignTextToFramePadding();
+                    ImGui::Indent( 4.0f );
                     ImGui::Text( EE_ICON_CHECK_BOLD );
+                    ImGui::Unindent( 4.0f );
                 }
 
-                ImGui::SameLine( 26 );
+                ImGui::SameLine( 36 );
 
                 float const progress = m_resourceServer.GetPackagingProgress();
+                TInlineString<32> overlay( TInlineString<32>::CtorSprintf(), "%.2f%%", progress * 100 );
+                ImGui::ProgressBar( progress, ImVec2( -1, 0 ), overlay.c_str() );
+            }
+        }
+        ImGui::End();
+    }
+
+    void ResourceServerUI::DrawDataToolsWindow()
+    {
+        if ( ImGui::Begin( g_dataToolsWindowName ) )
+        {
+            ImGui::BeginDisabled( m_resourceServer.IsResavingDataFiles() );
+            if ( ImGuiX::IconButton( EE_ICON_COG_TRANSFER, "Resave All Data Files", Colors::Yellow, ImVec2( -1, 0 ) ) )
+            {
+                m_resourceServer.RequestResaveOfDataFiles();
+            }
+            ImGui::EndDisabled();
+
+            if ( m_resourceServer.IsResavingDataFiles() )
+            {
+                float const progress = m_resourceServer.GetDataFileResaveProgress();
                 TInlineString<32> overlay( TInlineString<32>::CtorSprintf(), "%.2f%%", progress * 100 );
                 ImGui::ProgressBar( progress, ImVec2( -1, 0 ), overlay.c_str() );
             }

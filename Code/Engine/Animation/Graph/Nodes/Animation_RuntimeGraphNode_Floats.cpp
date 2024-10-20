@@ -541,33 +541,33 @@ namespace EE::Animation::GraphNodes
         {
             MarkNodeActive( context );
             
-            float const inputValue = m_pInputValueNode->GetValue<float>( context );
+            Degrees const inputValue = m_pInputValueNode->GetValue<float>( context );
 
             switch ( pDefinition->m_operation )
             {
                 case Operation::ClampTo180:
                 {
-                    m_value = Degrees( inputValue ).GetClamped180().ToFloat();
+                    m_value = inputValue.GetClamped180().ToFloat();
                 }
                 break;
 
                 case Operation::ClampTo360:
                 {
-                    m_value = Degrees( inputValue ).ClampPositive360().ToFloat();
+                    m_value = inputValue.GetClampedPositive360().ToFloat();
                 }
                 break;
 
                 case Operation::FlipHemisphere:
                 {
                     // Treats 180.0f as the forward direction, so negative values are to the left and positive are to the right
-                    m_value = Degrees( inputValue - 180.0f ).GetClamped180().ToFloat();
+                    m_value = ( inputValue - 180.0f ).GetClamped180().ToFloat();
                 }
                 break;
 
                 case Operation::FlipHemisphereNegate:
                 {
                     // Treats 180.0f as the forward direction but flips the result so negative values are to the right and positive are to the left
-                    m_value = Degrees( inputValue - 180.0f ).GetClamped180().ToFloat();
+                    m_value = ( inputValue - 180.0f ).GetClamped180().ToFloat();
                     m_value = -m_value;
                 }
                 break;

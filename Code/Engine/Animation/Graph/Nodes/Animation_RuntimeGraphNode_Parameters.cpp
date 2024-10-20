@@ -109,7 +109,7 @@ namespace EE::Animation::GraphNodes
             MarkNodeActive( context );
         }
 
-        *( (Vector*) pOutValue ) = m_value;
+        *( (Float3*) pOutValue ) = m_value;
     }
 
     #if EE_DEVELOPMENT_TOOLS
@@ -287,10 +287,10 @@ namespace EE::Animation::GraphNodes
         if ( !WasUpdated( context ) )
         {
             MarkNodeActive( context );
-            m_value = m_pChildNode->GetValue<Vector>( context );
+            m_value = m_pChildNode->GetValue<Float3>( context );
         }
 
-        *reinterpret_cast<Vector*>( pOutValue ) = m_value;
+        *reinterpret_cast<Float3*>( pOutValue ) = m_value;
     }
 
     //-------------------------------------------------------------------------

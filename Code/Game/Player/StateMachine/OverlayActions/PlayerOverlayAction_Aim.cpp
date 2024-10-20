@@ -10,7 +10,7 @@ namespace EE::Player
 {
     bool AimOverlayAction::TryStartInternal( ActionContext const& ctx )
     {
-        if ( ctx.m_pInputSystem->GetController()->GetValue( Input::InputID::Controller_LeftTrigger ) >= 0.2f )
+        if ( ctx.m_pInput->m_aim.IsHeld() )
         {
             return true;
         }
@@ -18,7 +18,7 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status AimOverlayAction::UpdateInternal( ActionContext const& ctx )
+    Action::Status AimOverlayAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
     {
         if ( !ctx.m_pAnimationController->IsWeaponDrawn() )
         {
@@ -32,7 +32,7 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        if ( ctx.m_pInputSystem->GetController()->GetValue( Input::InputID::Controller_LeftTrigger ) < 0.2f )
+        if ( ctx.m_pInput->m_aim.WasReleased() )
         {
             return Status::Completed;
         }

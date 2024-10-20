@@ -299,8 +299,8 @@ namespace EE::Input
                 RAWMOUSE const& rawMouse = pRawInputData->data.mouse;
 
                 // Mouse Movement
-                m_movementDelta.m_x += (float) rawMouse.lLastX * m_sensitivity.m_x;
-                m_movementDelta.m_y += (float) rawMouse.lLastY * m_sensitivity.m_y;
+                m_movementDelta.m_x += (float) rawMouse.lLastX;
+                m_movementDelta.m_y += (float) rawMouse.lLastY;
 
                 // Mouse button state
                 if ( rawMouse.usButtonFlags != 0 )

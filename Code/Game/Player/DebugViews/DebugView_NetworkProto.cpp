@@ -34,7 +34,7 @@ namespace EE::Player
         DebugView::Shutdown();
     }
 
-    void NetworkProtoDebugView::HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded )
+    void NetworkProtoDebugView::HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded )
     {
         if ( VectorContains( usersToReload, Resource::ResourceRequesterID( m_pPlayerGraphComponent->GetEntityID().m_value ) ) )
         {
@@ -91,7 +91,7 @@ namespace EE::Player
 
         if ( m_isRecording )
         {
-            if ( ImGuiX::IconButton( EE_ICON_STOP, " Stop Recording", Colors::White, ImVec2( 200, 0 ) ) )
+            if ( ImGuiX::IconButton( EE_ICON_STOP, "Stop Recording", Colors::White, ImVec2( 200, 0 ) ) )
             {
                 m_pPlayerGraphComponent->GetDebugGraphInstance()->StopRecording();
                 m_pPlayerGraphComponent->GetDebugGraphInstance()->DisableTaskSystemSerialization();
@@ -104,6 +104,7 @@ namespace EE::Player
 
                 m_pTaskSystem = EE::New<Animation::TaskSystem>( m_pPlayerGraphComponent->GetPrimarySkeleton() );
                 m_pTaskSystem->EnableSerialization( *context.GetSystem<TypeSystem::TypeRegistry>() );
+                m_pPlayerGraphComponent->GetDebugGraphInstance()->EnableTaskSystemSerialization( *context.GetSystem<TypeSystem::TypeRegistry>() );
 
                 ProcessRecording();
                 m_updateFrameIdx = 0;
@@ -411,7 +412,7 @@ namespace EE::Player
                         //-------------------------------------------------------------------------
 
                         ImGui::TableNextColumn();
-                        Animation::AnimationDebugView::DrawGraphActiveTasksDebugView( m_pTaskSystem );
+                        Animation::AnimationDebugView::DrawGraphActiveTasksDebugView( m_pPlayerGraphComponent->GetDebugGraphInstance() );
 
                         ImGui::EndTable();
                     }
@@ -486,7 +487,7 @@ namespace EE::Player
 
                 case Animation::GraphValueType::ID :
                 {
-                    archive.WriteUInt( parameterData[i].m_ID.ToUint(), 32 );
+                    archive.WriteUInt( parameterData[i].m_ID.ToUint(), 64 );
                 }
                 break;
 
@@ -498,9 +499,9 @@ namespace EE::Player
 
                 case Animation::GraphValueType::Vector :
                 {
-                    archive.WriteQuantizedFloat( parameterData[i].m_vector.GetX(), -FLT_MAX, FLT_MAX );
-                    archive.WriteQuantizedFloat( parameterData[i].m_vector.GetY(), -FLT_MAX, FLT_MAX );
-                    archive.WriteQuantizedFloat( parameterData[i].m_vector.GetZ(), -FLT_MAX, FLT_MAX );
+                    archive.WriteQuantizedFloat( parameterData[i].m_vector.m_x, -FLT_MAX, FLT_MAX );
+                    archive.WriteQuantizedFloat( parameterData[i].m_vector.m_y, -FLT_MAX, FLT_MAX );
+                    archive.WriteQuantizedFloat( parameterData[i].m_vector.m_z, -FLT_MAX, FLT_MAX );
                 }
                 break;
 
@@ -508,7 +509,7 @@ namespace EE::Player
                 {
                     if ( parameterData[i].m_target.IsBoneTarget() )
                     {
-                        archive.WriteUInt( parameterData[i].m_target.GetBoneID().ToUint(), 32 );
+                        archive.WriteUInt( parameterData[i].m_target.GetBoneID().ToUint(), 64 );
                     }
                     else
                     {
@@ -727,11 +728,10 @@ namespace EE::Player
         {
             auto const& frameData = m_graphRecorder.m_recordedData[m_updateFrameIdx];
 
-            TInlineVector<Animation::ResourceLUT const*, 10> LUTs;
-            m_pPlayerGraphComponent->GetDebugGraphInstance()->GetResourceLookupTables( LUTs );
+            Animation::ResourceMappings const& resourceMappings = m_pPlayerGraphComponent->GetDebugGraphInstance()->GetResourceMappings();
 
             m_pTaskSystem->Reset();
-            m_pTaskSystem->DeserializeTasks( LUTs, frameData.m_serializedTaskData );
+            m_pTaskSystem->DeserializeTasks( resourceMappings, frameData.m_serializedTaskData );
             m_pTaskSystem->UpdatePrePhysics( frameData.m_deltaTime, frameData.m_characterWorldTransform, frameData.m_characterWorldTransform.GetInverse() );
             m_pTaskSystem->UpdatePostPhysics();
             m_pGeneratedPose->CopyFrom( m_pTaskSystem->GetPrimaryPose() );

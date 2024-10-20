@@ -14,6 +14,8 @@ namespace EE
     template<eastl_size_t S> using TInlineString = eastl::fixed_string<char, S, true>;
     using InlineString = eastl::fixed_string<char, 255, true>;
 
+    using WString = eastl::basic_string<wchar_t>;
+
     //-------------------------------------------------------------------------
     // Additional utility functions for string class
     //-------------------------------------------------------------------------
@@ -192,5 +194,10 @@ namespace EE
         {
             return (uint8_t) ( HexCharToByteValue( a ) * 16 + HexCharToByteValue( b ) );
         }
+
+        //-------------------------------------------------------------------------
+
+        EE_FORCE_INLINE WString ToWideString( String const& str ) { return WString( WString::CtorConvert(), str ); }
+        EE_FORCE_INLINE WString ToWideString( char const* pStr ) { return WString( WString::CtorConvert(), pStr ); }
     }
 }

@@ -1,86 +1,43 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "Base/Serialization/TypeSerialization.h"
 #include "Base/TypeSystem/ReflectedType.h"
 #include "Base/Resource/ResourceID.h"
 #include "Base/Types/Function.h"
-
 
 //-------------------------------------------------------------------------
 
 namespace EE::Resource
 {
-    struct EE_ENGINETOOLS_API ResourceDescriptor : public IReflectedType
+    struct EE_ENGINETOOLS_API ResourceDescriptor : public IDataFile
     {
         EE_REFLECT_TYPE( ResourceDescriptor );
 
     public:
 
-        // Try to read a descriptor from a file without knowing the type
-        static inline ResourceDescriptor* TryReadFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& descriptorPath )
+        static inline ResourceDescriptor* TryReadFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& dataFilePath )
         {
-            Serialization::TypeArchiveReader typeReader( typeRegistry );
-
-            if ( !typeReader.ReadFromFile( descriptorPath ) )
+            IDataFile* pDataFile = IDataFile::TryReadFromFile( typeRegistry, dataFilePath );
+            if ( pDataFile == nullptr )
             {
-                EE_LOG_ERROR( "Resource", "Resource Descriptor", "Failed to read resource descriptor file: %s", descriptorPath.c_str() );
                 return nullptr;
             }
 
-            //-------------------------------------------------------------------------
-
-            auto pDescriptor = typeReader.TryReadType();
-            if ( pDescriptor == nullptr )
-            {
-                EE_LOG_ERROR( "Resource", "Resource Descriptor", "Failed to read resource descriptor file: %s", descriptorPath.c_str() );
-                return nullptr;
-            }
-
-            //-------------------------------------------------------------------------
-
-            if ( !pDescriptor->GetTypeInfo()->IsDerivedFrom( ResourceDescriptor::GetStaticTypeID() ) )
-            {
-                EE_LOG_ERROR( "Resource", "Resource Descriptor", "Read type from file: %s is not a resource descriptor", descriptorPath.c_str() );
-                EE::Delete( pDescriptor );
-                return nullptr;
-            }
-
-            return Cast<ResourceDescriptor>( pDescriptor );
+            return Cast<ResourceDescriptor>( pDataFile );
         }
 
-        // Try to read a specific descriptor from a file
         template<typename T>
-        static bool TryReadFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& descriptorPath, T& outData )
+        static bool TryReadFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& dataFilePath, T& outData )
         {
             static_assert( std::is_base_of<ResourceDescriptor, T>::value, "T must be a child of ResourceDescriptor" );
-
-            Serialization::TypeArchiveReader typeReader( typeRegistry );
-            if ( !typeReader.ReadFromFile( descriptorPath ) )
-            {
-                EE_LOG_ERROR( "Resource", "Resource Descriptor", "Failed to read resource descriptor file: %s", descriptorPath.c_str() );
-                return false;
-            }
-
-            if ( !typeReader.ReadType( &outData ) )
-            {
-                return false;
-            }
-
-            return true;
+            return IDataFile::TryReadFromFile<T>( typeRegistry, dataFilePath, outData );
         }
 
-        // Write a descriptor to a file
         template<typename T>
-        static bool TryWriteToFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& descriptorPath, T const* pDescriptorData )
+        static bool TryWriteToFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& dataFilePath, T const* pDataFile )
         {
             static_assert( std::is_base_of<ResourceDescriptor, T>::value, "T must be a child of ResourceDescriptor" );
-
-            EE_ASSERT( descriptorPath.IsFilePath() );
-
-            Serialization::TypeArchiveWriter typeWriter( typeRegistry );
-            typeWriter << pDescriptorData;
-            return typeWriter.WriteToFile( descriptorPath );
+            return IDataFile::TryWriteToFile(typeRegistry, dataFilePath, pDataFile );
         }
 
     public:
@@ -94,7 +51,7 @@ namespace EE::Resource
         virtual void Clear() = 0;
 
         // Get all the resources that are required for the compilation of the resource
-        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) = 0;
+        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) = 0;
 
         // Is this a valid descriptor - This only signifies whether all the required data is set and not whether the resource or any other authored data within the descriptor is valid
         virtual bool IsValid() const = 0;

@@ -57,13 +57,13 @@ namespace EE
             virtual bool CanProceedWithFailedInstallDependency() const { return false; }
 
             // This function loads is responsible to deserialize the compiled resource data, read the resource header for install dependencies and to create the new runtime resource object
-            bool Load( ResourceID const& resourceID, Blob& rawData, ResourceRecord* pResourceRecord ) const;
+            bool Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, ResourceRecord* pResourceRecord ) const;
 
             // This function will destroy the created resource object
             void Unload( ResourceID const& resourceID, ResourceRecord* pResourceRecord ) const;
 
             // This function is called once all the install dependencies have been loaded, it allows us to update any internal resource ptrs the resource might hold
-            virtual InstallResult Install( ResourceID const& resourceID, ResourceRecord* pResourceRecord, InstallDependencyList const& installDependencies ) const;
+            virtual InstallResult Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, InstallDependencyList const& installDependencies, ResourceRecord* pResourceRecord ) const;
 
             // This function is called as a first step when we are about to unload a resource, it allows us to clean up anything that might require an install dependency to be available
             virtual void Uninstall( ResourceID const& resourceID, ResourceRecord* pResourceRecord ) const {}
@@ -74,7 +74,7 @@ namespace EE
         protected:
 
             // (Required) Override this function to implement you custom deserialization and creation logic, resource header has already been read at this point
-            virtual bool LoadInternal( ResourceID const& resourceID, ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const = 0;
+            virtual bool Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const = 0;
 
             // (Optional) Override this function to implement any custom object destruction logic if needed, by default this will just delete the created resource
             virtual void UnloadInternal( ResourceID const& resourceID, ResourceRecord* pResourceRecord ) const;

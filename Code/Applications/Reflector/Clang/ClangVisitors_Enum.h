@@ -10,7 +10,7 @@ namespace EE
     {
         namespace Reflection
         {
-            CXChildVisitResult VisitEnum( ClangParserContext* pContext, CXCursor cr, HeaderID const headerID );
+            CXChildVisitResult VisitEnum( ClangParserContext* pContext, CXCursor cr, StringID const headerID );
         }
     }
 }

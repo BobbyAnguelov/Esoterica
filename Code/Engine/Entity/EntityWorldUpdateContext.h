@@ -26,6 +26,9 @@ namespace EE
         // Get the original delta time for this frame (without the world timescale applied)
         EE_FORCE_INLINE Seconds GetRawDeltaTime() const { return m_rawDeltaTime; }
 
+        // Get the scaled delta time for this frame
+        EE_FORCE_INLINE Seconds GetScaledDeltaTime() const { return m_deltaTime; }
+
         // Get the time scaling for the current world
         float GetTimeScale() const;
 

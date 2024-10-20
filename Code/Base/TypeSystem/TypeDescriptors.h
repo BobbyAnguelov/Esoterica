@@ -7,94 +7,37 @@
 #include "TypeRegistry.h"
 
 //-------------------------------------------------------------------------
-// Basic descriptor of a reflected property
-//-------------------------------------------------------------------------
 
 namespace EE::TypeSystem
 {
     class TypeRegistry;
     class TypeInfo;
 
+    //-------------------------------------------------------------------------
+    // Basic descriptor of a reflected property
+    //-------------------------------------------------------------------------
+
     struct EE_BASE_API PropertyDescriptor
     {
         EE_SERIALIZE( m_path, m_byteValue );
 
+    public:
+
         PropertyDescriptor() = default;
-
-        PropertyDescriptor( TypeRegistry const& typeRegistry, PropertyPath const& path, PropertyInfo const& propertyInfo, String const& stringValue )
-            : m_path( path )
-        {
-            EE_ASSERT( m_path.IsValid() );
-            Conversion::ConvertStringToBinary( typeRegistry, propertyInfo, stringValue, m_byteValue );
-
-            #if EE_DEVELOPMENT_TOOLS
-            m_stringValue = stringValue;
-            m_typeID = propertyInfo.m_typeID;
-            m_templatedArgumentTypeID = propertyInfo.m_templateArgumentTypeID;
-            #endif
-        }
-
-        PropertyDescriptor( TypeRegistry const& typeRegistry, PropertyPath const& path, TypeID propertyTypeID, TypeID propertyTemplatedArgumentTypeID, String const& stringValue )
-            : m_path( path )
-        {
-            EE_ASSERT( m_path.IsValid() && !stringValue.empty() );
-            Conversion::ConvertStringToBinary( typeRegistry, propertyTypeID, propertyTemplatedArgumentTypeID, stringValue, m_byteValue );
-
-            #if EE_DEVELOPMENT_TOOLS
-            m_stringValue = stringValue;
-            m_typeID = propertyTypeID;
-            m_templatedArgumentTypeID = propertyTemplatedArgumentTypeID;
-            #endif
-        }
 
         inline bool IsValid() const { return m_path.IsValid() && !m_byteValue.empty(); }
 
-        // Value Access
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        template<typename T>
-        inline T GetValue( TypeRegistry const& typeRegistry ) const
-        {
-            TypeID const coreTypeID = GetCoreTypeID<T>();
-
-            T value;
-            ConvertStringToNativeType( typeRegistry, coreTypeID, TypeID(), m_stringValue, value );
-            return value;
-        }
-        #endif
-
-        // Tools only constructors
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        PropertyDescriptor( PropertyPath const& path, char const* pValue, TypeID typeID, TypeID templatedArgumentTypeID = TypeID() )
-            : m_path( path )
-            , m_stringValue( pValue )
-            , m_typeID( typeID )
-            , m_templatedArgumentTypeID( templatedArgumentTypeID )
-        {
-            EE_ASSERT( path.IsValid() );
-        }
-        #endif
-
     public:
 
-        PropertyPath                                                m_path;
-        Blob                                            m_byteValue;
-
-        // Not-serialized - used in tooling
-        #if EE_DEVELOPMENT_TOOLS
-        String                                                      m_stringValue;
-        TypeID                                                      m_typeID;
-        TypeID                                                      m_templatedArgumentTypeID;
-        #endif
+        PropertyPath                                                m_path; // The path to the property we are describing (potentially including array indices)
+        Blob                                                        m_byteValue;
+        String                                                      m_stringValue; // Not serialized
     };
 
     //-------------------------------------------------------------------------
     // Type Descriptor
     //-------------------------------------------------------------------------
-    // A serialized description of a EE type with all property overrides
+    // A serialized description of a EE type, intended for binary serialization of type data (i.e. compiled data)
 
     class EE_BASE_API TypeDescriptor
     {
@@ -102,48 +45,53 @@ namespace EE::TypeSystem
 
     public:
 
+        // Create a type descriptor from a given reflected instance
+        static void DescribeType( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, TypeDescriptor& outDesc );
+
+        // Get all referenced resources for a given type instance
+        // Note: referenced resources are appended to the back of the supplied vector. It is the user's responsibility to clear it before calling this function (if needed).
+        static void GetAllReferencedResources( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, TVector<ResourceID>& outReferencedResources );
+
+    public:
+
         TypeDescriptor() = default;
         TypeDescriptor( TypeID typeID ) : m_typeID( typeID ) { EE_ASSERT( m_typeID.IsValid() ); }
-        TypeDescriptor( TypeRegistry const& typeRegistry, IReflectedType* pTypeInstance, bool shouldSetPropertyStringValues = false );
+        TypeDescriptor( TypeRegistry const& typeRegistry, IReflectedType* pTypeInstance );
 
         inline bool IsValid() const { return m_typeID.IsValid(); }
-
-        // Descriptor Creation
-        //-------------------------------------------------------------------------
-
-        void DescribeTypeInstance( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, bool shouldSetPropertyStringValues );
 
         // Type Creation
         //-------------------------------------------------------------------------
 
         // Create a new instance of the described type!
         template<typename T>
-        [[nodiscard]] inline T* CreateTypeInstance( TypeRegistry const& typeRegistry, TypeInfo const* pTypeInfo ) const
+        [[nodiscard]] inline T* CreateType( TypeRegistry const& typeRegistry, TypeInfo const* pTypeInfo ) const
         {
             EE_ASSERT( pTypeInfo != nullptr && pTypeInfo->m_ID == m_typeID );
             EE_ASSERT( pTypeInfo->IsDerivedFrom<T>() );
 
             // Create new instance
-            void* pTypeInstance = pTypeInfo->CreateType();
+            IReflectedType* pTypeInstance = pTypeInfo->CreateType();
             EE_ASSERT( pTypeInstance != nullptr );
 
             // Set properties
-            SetPropertyValues( typeRegistry, pTypeInfo, pTypeInstance );
+            RestorePropertyState( typeRegistry, pTypeInfo, pTypeInstance );
+            pTypeInstance->PostDeserialize();
             return reinterpret_cast<T*>( pTypeInstance );
         }
 
         // Create a new instance of the described type! This function is slower since it has to look up the type info first, if you can prefer using the version above!
         template<typename T>
-        [[nodiscard]] inline T* CreateTypeInstance( TypeRegistry const& typeRegistry ) const
+        [[nodiscard]] inline T* CreateType( TypeRegistry const& typeRegistry ) const
         {
             TypeInfo const* pTypeInfo = typeRegistry.GetTypeInfo( m_typeID );
-            return CreateTypeInstance<T>( typeRegistry, pTypeInfo );
+            return CreateType<T>( typeRegistry, pTypeInfo );
         }
 
         // This will create a new instance of the described type in the memory block provided
         // WARNING! Do not use this function on an existing type instance of type T since it will not call the destructor and so will leak, only use on uninitialized memory
         template<typename T>
-        [[nodiscard]] inline T* CreateTypeInstanceInPlace( TypeRegistry const& typeRegistry, TypeInfo const* pTypeInfo, IReflectedType* pAllocatedMemoryForInstance ) const
+        [[nodiscard]] inline T* CreateTypeInPlace( TypeRegistry const& typeRegistry, TypeInfo const* pTypeInfo, IReflectedType* pAllocatedMemoryForInstance ) const
         {
             EE_ASSERT( pTypeInfo != nullptr && pTypeInfo->m_ID == m_typeID );
             EE_ASSERT( pTypeInfo->IsDerivedFrom<T>() );
@@ -153,27 +101,28 @@ namespace EE::TypeSystem
             pTypeInfo->CreateTypeInPlace( pAllocatedMemoryForInstance );
 
             // Set properties
-            SetPropertyValues( typeRegistry, pTypeInfo, pAllocatedMemoryForInstance );
+            RestorePropertyState( typeRegistry, pTypeInfo, pAllocatedMemoryForInstance );
+            pAllocatedMemoryForInstance->PostDeserialize();
             return reinterpret_cast<T*>( pAllocatedMemoryForInstance );
         }
 
         // This will create a new instance of the described type in the memory block provided
         // WARNING! Do not use this function on an existing type instance of type T since it will not call the destructor and so will leak, only use on uninitialized memory
         template<typename T>
-        [[nodiscard]] inline T* CreateTypeInstanceInPlace( TypeRegistry const& typeRegistry, void* pAllocatedMemoryForInstance ) const
+        [[nodiscard]] inline T* CreateTypeInPlace( TypeRegistry const& typeRegistry, void* pAllocatedMemoryForInstance ) const
         {
             TypeInfo const* pTypeInfo = typeRegistry.GetTypeInfo( m_typeID );
-            return CreateTypeInstanceInPlace<T>( typeRegistry, pTypeInfo, pAllocatedMemoryForInstance );
+            return CreateTypeInPlace<T>( typeRegistry, pTypeInfo, pAllocatedMemoryForInstance );
         }
 
         // This will create a new instance of the described type in the memory block provided
         // WARNING! Do not use this function on an existing type instance of type T since it will not call the destructor and so will leak, only use on uninitialized memory
         template<typename T>
-        inline void CreateTypeInstanceInPlace( TypeRegistry const& typeRegistry, T* pTypeInstance ) const
+        inline void CreateTypeInPlace( TypeRegistry const& typeRegistry, T* pTypeInstance ) const
         {
             pTypeInstance->~T();
             TypeInfo const* pTypeInfo = typeRegistry.GetTypeInfo( m_typeID );
-            T* pCreatedType = CreateTypeInstanceInPlace<T>( typeRegistry, pTypeInfo, pTypeInstance );
+            T* pCreatedType = CreateTypeInPlace<T>( typeRegistry, pTypeInfo, pTypeInstance );
         }
 
         // Properties
@@ -185,7 +134,7 @@ namespace EE::TypeSystem
 
     private:
 
-        void* SetPropertyValues( TypeRegistry const& typeRegistry, TypeInfo const* pTypeInfo, void* pTypeInstance ) const;
+        void* RestorePropertyState( TypeRegistry const& typeRegistry, TypeInfo const* pTypeInfo, IReflectedType* pTypeInstance ) const;
 
     public:
 
@@ -219,7 +168,7 @@ namespace EE::TypeSystem
             for ( int32_t i = 0; i < numDescs; i++ )
             {
                 pTypeMemory += collection.m_typePaddings[i];
-                outTypes.emplace_back( collection.m_descriptors[i].CreateTypeInstanceInPlace<T>( typeRegistry, collection.m_typeInfos[i], (IReflectedType*) pTypeMemory ) );
+                outTypes.emplace_back( collection.m_descriptors[i].CreateTypeInPlace<T>( typeRegistry, collection.m_typeInfos[i], (IReflectedType*) pTypeMemory ) );
                 pTypeMemory += collection.m_typeSizes[i];
             }
 
@@ -244,7 +193,7 @@ namespace EE::TypeSystem
             int32_t const numDescs = (int32_t) collection.m_descriptors.size();
             for ( int32_t i = 0; i < numDescs; i++ )
             {
-                outTypes.emplace_back( collection.m_descriptors[i].CreateTypeInstance<T>( typeRegistry, collection.m_typeInfos[i] ) );
+                outTypes.emplace_back( collection.m_descriptors[i].CreateType<T>( typeRegistry, collection.m_typeInfos[i] ) );
             }
         }
 
@@ -268,10 +217,10 @@ namespace EE::TypeSystem
     public:
 
         TVector<TypeDescriptor>                                     m_descriptors;
-        int32_t                                                       m_totalRequiredSize = -1;
-        int32_t                                                       m_requiredAlignment = -1;
+        int32_t                                                     m_totalRequiredSize = -1;
+        int32_t                                                     m_requiredAlignment = -1;
         TVector<TypeInfo const*>                                    m_typeInfos;
-        TVector<uint32_t>                                             m_typeSizes;
-        TVector<uint32_t>                                             m_typePaddings;
+        TVector<uint32_t>                                           m_typeSizes;
+        TVector<uint32_t>                                           m_typePaddings;
     };
 }

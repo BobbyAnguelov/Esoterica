@@ -1,8 +1,8 @@
 #ifdef _WIN32
 #include "PlatformUtils_Win32.h"
 #include "Base/Esoterica.h"
-#include "Base/Logging/LoggingSystem.h"
 #include "Base/Types/Arrays.h"
+#include "Base/Logging/SystemLog.h"
 
 #include <windows.h>
 #include <dbghelp.h>
@@ -222,7 +222,7 @@ namespace EE::Platform
             case EXCEPTION_SINGLE_STEP:
             {
                 GenerateCrashDump( pExceptionPtrs );
-                Log::System::SaveToFile();
+                SystemLog::SaveToFile();
             }
             break;
         }

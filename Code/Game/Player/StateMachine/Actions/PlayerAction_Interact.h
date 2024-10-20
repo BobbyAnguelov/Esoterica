@@ -16,7 +16,7 @@ namespace EE::Player
         EE_PLAYER_ACTION_ID( InteractAction );
 
         virtual bool TryStartInternal( ActionContext const& ctx ) override;
-        virtual Status UpdateInternal( ActionContext const& ctx ) override;
+        virtual Status UpdateInternal( ActionContext const& ctx, bool isFirstUpdate ) override;
         virtual void StopInternal( ActionContext const& ctx, StopReason reason ) override;
 
         inline bool CanInteract() const { return m_canInteract; }

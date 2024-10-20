@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Base/Types/Containers_ForwardDecl.h"
+#include "Base/Types/Arrays.h"
 #include <type_traits>
 
 //-------------------------------------------------------------------------
@@ -431,8 +432,7 @@ namespace EE::Serialization
 
     private:
 
-        void*       m_pFileData = nullptr;
-        size_t      m_fileDataSize = 0;
+        Blob        m_fileData; // If we read from file, then we store the file data here
     };
 
     //-------------------------------------------------------------------------

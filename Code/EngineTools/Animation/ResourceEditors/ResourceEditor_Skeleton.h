@@ -40,7 +40,7 @@ namespace EE::Animation
 
     public:
 
-        SkeletonEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
+        SkeletonEditor( ToolsContext const* pToolsContext, ResourceID const& resourceID, EntityWorld* pWorld );
         virtual ~SkeletonEditor();
 
     private:
@@ -57,8 +57,8 @@ namespace EE::Animation
 
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
-        virtual void OnDescriptorUnload() override;
-        virtual void OnDescriptorLoadCompleted() override;
+        virtual void OnDataFileUnload() override;
+        virtual void OnDataFileLoadCompleted() override;
         virtual void OnResourceUnload( Resource::ResourcePtr* pResourcePtr ) override;
         virtual void OnResourceLoadCompleted( Resource::ResourcePtr* pResourcePtr ) override;
 

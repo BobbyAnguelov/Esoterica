@@ -33,7 +33,7 @@ namespace EE::Physics
         EE_REFLECT_TYPE( MaterialSettings );
         EE_SERIALIZE( m_ID, m_dynamicFriction, m_staticFriction, m_restitution, m_frictionCombineMode, m_restitutionCombineMode );
 
-        constexpr static char const* const s_defaultID = "Default";
+        static inline StaticStringID const s_defaultID = StaticStringID( "Default" );
         constexpr static float const s_defaultStaticFriction = 0.5f;
         constexpr static float const s_defaultDynamicFriction = 0.5f;
         constexpr static float const s_defaultRestitution = 0.5f;
@@ -69,7 +69,7 @@ namespace EE::Physics
     // Empty resource - acts as a placeholder for the actual data being loaded - see PhysicsMaterialDatabaseLoader for details
     class EE_ENGINE_API MaterialDatabase final : public Resource::IResource
     {
-        EE_RESOURCE( 'pmdb', "Physics Material DB" );
+        EE_RESOURCE( 'pmdb', "Physics Material DB", 1, false );
         EE_SERIALIZE( m_materials );
 
         friend class PhysicsMaterialDatabaseCompiler;

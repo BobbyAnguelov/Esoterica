@@ -1,8 +1,7 @@
 #include "BinarySerialization.h"
 #include "Base/Types/String.h"
 #include "Base/Types/StringID.h"
-#include "Base/FileSystem/FileSystemPath.h"
-
+#include "Base/FileSystem/FileSystem.h"
 #include "Base/ThirdParty/mpack/mpack.h"
 
 //-------------------------------------------------------------------------
@@ -11,7 +10,7 @@ namespace EE::Serialization
 {
     int32_t GetBinarySerializationVersion()
     {
-        return 5;
+        return 7;
     }
 
     //-------------------------------------------------------------------------
@@ -304,7 +303,7 @@ namespace EE::Serialization
     void BinaryInputArchive::Reset()
     {
         m_serializer.Reset();
-        EE::Free( m_pFileData );
+        m_fileData.clear();
     }
 
     bool BinaryInputArchive::ReadFromData( uint8_t const* pData, size_t size )
@@ -312,7 +311,7 @@ namespace EE::Serialization
         if ( m_serializer.IsReading() )
         {
             m_serializer.Reset();
-            EE::Free( m_pFileData );
+            m_fileData.clear();
         }
 
         m_serializer.BeginReading( (char const*) pData, size );
@@ -326,34 +325,21 @@ namespace EE::Serialization
         if ( m_serializer.IsReading() )
         {
             m_serializer.Reset();
-            EE::Free( m_pFileData );
+            m_fileData.clear();
         }
 
         //-------------------------------------------------------------------------
 
-        if ( FileSystem::Exists( filePath ) )
+        if ( filePath.Exists() )
         {
-            FILE* pFile = fopen( filePath, "rb" );
-
-            if ( pFile == nullptr )
+            if ( FileSystem::ReadBinaryFile( filePath, m_fileData ) )
+            {
+                m_serializer.BeginReading( (char const*) m_fileData.data(), m_fileData.size() );
+            }
+            else
             {
                 return false;
             }
-
-            fseek( pFile, 0, SEEK_END );
-            m_fileDataSize = (size_t) ftell( pFile );
-            fseek( pFile, 0, SEEK_SET );
-
-            m_pFileData = EE::Alloc( m_fileDataSize );
-            size_t const readLength = fread( m_pFileData, 1, m_fileDataSize, pFile );
-            fclose( pFile );
-
-            if ( readLength != m_fileDataSize )
-            {
-                return false;
-            }
-
-            m_serializer.BeginReading( (char*) m_pFileData, m_fileDataSize );
 
             return true;
         }
@@ -393,15 +379,7 @@ namespace EE::Serialization
 
         //-------------------------------------------------------------------------
 
-        FILE* pFile = fopen( outPath, "wb" );
-        if ( pFile == nullptr )
-        {
-            return false;
-        }
-
-        fwrite( m_serializer.GetData(), m_serializer.GetSize(), 1, pFile );
-        fclose( pFile );
-        return true;
+        return FileSystem::WriteBinaryFile( outPath, m_serializer.GetData(), m_serializer.GetSize() );
     }
 
     uint8_t* BinaryOutputArchive::GetBinaryData()

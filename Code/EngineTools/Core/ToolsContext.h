@@ -2,6 +2,7 @@
 
 #include "EngineTools/_Module/API.h"
 #include "Engine/Entity/EntityIDs.h"
+#include "Base/Resource/ResourceID.h"
 
 //-------------------------------------------------------------------------
 
@@ -12,7 +13,9 @@ namespace EE
     class EntityWorld;
     class EntityWorldManager;
     class SystemRegistry;
-    namespace Resource { class ResourceSystem; class ResourceDatabase; }
+    class DataPath;
+    class FileRegistry;
+    namespace Resource { class ResourceSystem; }
     namespace TypeSystem { class TypeRegistry; }
     namespace FileSystem { class Path; }
     namespace ImGuiX { class ImageCache; }
@@ -24,16 +27,27 @@ namespace EE
     public:
 
         virtual ~ToolsContext() = default;
-        inline bool IsValid() const { return m_pTypeRegistry != nullptr && m_pResourceDatabase != nullptr && m_pSystemRegistry != nullptr; }
-        FileSystem::Path const& GetRawResourceDirectory() const;
+        inline bool IsValid() const { return m_pTypeRegistry != nullptr && m_pFileRegistry != nullptr && m_pSystemRegistry != nullptr; }
+        FileSystem::Path const& GetSourceDataDirectory() const;
         FileSystem::Path const& GetCompiledResourceDirectory() const;
 
         // Resources
         //-------------------------------------------------------------------------
 
-        virtual bool TryOpenResource( ResourceID const& resourceID ) const = 0;
+        virtual bool TryOpenDataFile( DataPath const& path ) const = 0;
 
-        virtual bool TryFindInResourceBrowser( ResourceID const& resourceID ) const = 0;
+        inline bool TryOpenResource( ResourceID const& resourceID ) const
+        {
+            return TryOpenDataFile( resourceID.GetResourcePath() );
+        }
+
+        virtual bool TryFindInResourceBrowser( DataPath const& path ) const = 0;
+
+        inline bool TryFindInResourceBrowser( ResourceID const& resourceID ) const
+        {
+            ResourceID const finalResourceID = ( resourceID.IsSubResourceID() ) ? resourceID.GetParentResourceID() : resourceID;
+            return TryFindInResourceBrowser( finalResourceID.GetResourcePath() );
+        }
 
         // Debugging
         //-------------------------------------------------------------------------
@@ -52,7 +66,7 @@ namespace EE
 
         TypeSystem::TypeRegistry const*                     m_pTypeRegistry = nullptr;
         SystemRegistry const*                               m_pSystemRegistry = nullptr;
-        Resource::ResourceDatabase const*                   m_pResourceDatabase = nullptr;
+        FileRegistry const*                                 m_pFileRegistry = nullptr;
         ImGuiX::ImageCache*                                 m_pImageCache = nullptr;
     };
 }

@@ -26,6 +26,9 @@ namespace EE::Player
 
     public:
 
+        MainPlayerComponent();
+        ~MainPlayerComponent();
+
         float GetEnergyLevel() const { return m_energyLevel; }
         inline bool HasEnoughEnergy( float requiredEnergy ) const { return m_energyLevel >= requiredEnergy; }
         inline void ConsumeEnergy( float ConsumedEnergy ) { EE_ASSERT( m_energyLevel >= ConsumedEnergy ); m_energyLevel -= ConsumedEnergy; }

@@ -19,7 +19,7 @@ namespace EE::Resource
 
         #if EE_DEVELOPMENT_TOOLS
         {
-            m_rawResourcePathStr = ini.GetStringOrDefault( "Resource:RawResourcePath", s_defaultRawResourcePath );
+            m_sourceDataDirectoryPathStr = ini.GetStringOrDefault( "Resource:SourceDataDirectoryPath", s_defaultSourceDataPath );
             m_packagedBuildName = ini.GetStringOrDefault( "Resource:PackagedBuildName", s_defaultPackagedBuildName );
             m_compiledDBName = ini.GetStringOrDefault( "Resource:CompiledResourceDatabaseName", s_defaultCompiledResourceDatabaseName );
             m_resourceCompilerExeName = ini.GetStringOrDefault( "Resource:ResourceCompilerExecutable", s_defaultResourceCompilerExecutableName );
@@ -39,15 +39,15 @@ namespace EE::Resource
         // Compiled Resource Path
         //-------------------------------------------------------------------------
 
-        m_compiledResourcePath = m_workingDirectoryPath + m_compiledResourceDirectoryName.c_str();
+        m_compiledResourceDirectoryPath = m_workingDirectoryPath + m_compiledResourceDirectoryName.c_str();
 
-        if ( !m_compiledResourcePath.IsValid() )
+        if ( !m_compiledResourceDirectoryPath.IsValid() )
         {
-            EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid compiled data path: %s", m_compiledResourcePath.c_str() );
+            EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid compiled data path: %s", m_compiledResourceDirectoryPath.c_str() );
             return false;
         }
 
-        m_compiledResourcePath.MakeIntoDirectoryPath();
+        m_compiledResourceDirectoryPath.MakeIntoDirectoryPath();
 
         //-------------------------------------------------------------------------
 
@@ -56,35 +56,35 @@ namespace EE::Resource
             // Raw Resource Path
             //-------------------------------------------------------------------------
 
-            m_rawResourcePath = m_workingDirectoryPath + m_rawResourcePathStr.c_str();
+            m_sourceDataDirectoryPath = m_workingDirectoryPath + m_sourceDataDirectoryPathStr.c_str();
 
-            if ( !m_rawResourcePath.IsValid() )
+            if ( !m_sourceDataDirectoryPath.IsValid() )
             {
-                EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid source data path: %s", m_rawResourcePath.c_str() );
+                EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid source data path: %s", m_sourceDataDirectoryPath.c_str() );
                 return false;
             }
 
-            m_rawResourcePath.MakeIntoDirectoryPath();
+            m_sourceDataDirectoryPath.MakeIntoDirectoryPath();
 
             // Packaged Build Path
             //-------------------------------------------------------------------------
 
-            m_packagedBuildCompiledResourcePath = m_compiledResourcePath.GetParentDirectory().GetParentDirectory();
-            m_packagedBuildCompiledResourcePath += m_packagedBuildName.c_str();
-            m_packagedBuildCompiledResourcePath += m_compiledResourceDirectoryName.c_str();
+            m_packagedBuildCompiledResourceDirectoryPath = m_compiledResourceDirectoryPath.GetParentDirectory().GetParentDirectory();
+            m_packagedBuildCompiledResourceDirectoryPath += m_packagedBuildName.c_str();
+            m_packagedBuildCompiledResourceDirectoryPath += m_compiledResourceDirectoryName.c_str();
 
-            if ( !m_packagedBuildCompiledResourcePath.IsValid() )
+            if ( !m_packagedBuildCompiledResourceDirectoryPath.IsValid() )
             {
-                EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid source data path: %s", m_rawResourcePath.c_str() );
+                EE_LOG_ERROR( "Resource", "Resource Settings", "Invalid source data path: %s", m_sourceDataDirectoryPath.c_str() );
                 return false;
             }
 
-            m_packagedBuildCompiledResourcePath.MakeIntoDirectoryPath();
+            m_packagedBuildCompiledResourceDirectoryPath.MakeIntoDirectoryPath();
 
             // Compiled Resource DB
             //-------------------------------------------------------------------------
 
-            m_compiledResourceDatabasePath = m_compiledResourcePath + m_compiledDBName.c_str();
+            m_compiledResourceDatabasePath = m_compiledResourceDirectoryPath + m_compiledDBName.c_str();
 
             if ( !m_compiledResourceDatabasePath.IsValid() )
             {
@@ -125,7 +125,7 @@ namespace EE::Resource
         ini.SetString( "Resource:CompiledResourceDirectoryName", m_compiledResourceDirectoryName );
 
         #if EE_DEVELOPMENT_TOOLS
-        ini.SetString( "Resource:RawResourcePath", m_rawResourcePathStr );
+        ini.SetString( "Resource:RawResourcePath", m_sourceDataDirectoryPathStr );
         ini.SetString( "Resource:PackagedBuildName", m_packagedBuildName );
         ini.SetString( "Resource:CompiledResourceDatabaseName", m_compiledDBName );
         ini.SetString( "Resource:ResourceCompilerExecutable", m_resourceCompilerExeName );

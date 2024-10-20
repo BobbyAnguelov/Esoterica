@@ -7,8 +7,8 @@
 
 namespace EE::Animation::Tasks
 {
-    RagdollSetPoseTask::RagdollSetPoseTask( Physics::Ragdoll* pRagdoll, TaskSourceID sourceID, TaskIndex sourceTaskIdx, InitOption initOption )
-        : Task( sourceID, TaskUpdateStage::PrePhysics, { sourceTaskIdx } )
+    RagdollSetPoseTask::RagdollSetPoseTask( Physics::Ragdoll* pRagdoll, int8_t sourceTaskIdx, InitOption initOption )
+        : Task( TaskUpdateStage::PrePhysics, { sourceTaskIdx } )
         , m_pRagdoll( pRagdoll )
         , m_initOption( initOption )
     {
@@ -28,8 +28,8 @@ namespace EE::Animation::Tasks
 
     //-------------------------------------------------------------------------
 
-    RagdollGetPoseTask::RagdollGetPoseTask( Physics::Ragdoll* pRagdoll, TaskSourceID sourceID, TaskIndex sourceTaskIdx, float const physicsBlendWeight )
-        : Task( sourceID, TaskUpdateStage::PostPhysics, { sourceTaskIdx } )
+    RagdollGetPoseTask::RagdollGetPoseTask( Physics::Ragdoll* pRagdoll, int8_t sourceTaskIdx, float const physicsBlendWeight )
+        : Task( TaskUpdateStage::PostPhysics, { sourceTaskIdx } )
         , m_pRagdoll( pRagdoll )
         , m_physicsBlendWeight( physicsBlendWeight )
     {
@@ -37,8 +37,8 @@ namespace EE::Animation::Tasks
         EE_ASSERT( sourceTaskIdx != InvalidIndex );
     }
 
-    RagdollGetPoseTask::RagdollGetPoseTask( Physics::Ragdoll* pRagdoll, TaskSourceID sourceID )
-        : Task( sourceID, TaskUpdateStage::PostPhysics, {} )
+    RagdollGetPoseTask::RagdollGetPoseTask( Physics::Ragdoll* pRagdoll )
+        : Task( TaskUpdateStage::PostPhysics, {} )
         , m_pRagdoll( pRagdoll )
     {
         EE_ASSERT( pRagdoll != nullptr );
@@ -86,18 +86,4 @@ namespace EE::Animation::Tasks
 
         MarkTaskComplete( context );
     }
-
-    #if EE_DEVELOPMENT_TOOLS
-    String RagdollGetPoseTask::GetDebugText() const
-    {
-        if ( m_physicsBlendWeight < 1.0f )
-        {
-            return String( String::CtorSprintf(), "Get Ragdoll Pose (%.2f)", m_physicsBlendWeight );
-        }
-        else
-        {
-            return "Get Ragdoll Pose";
-        }
-    }
-    #endif
 }

@@ -11,8 +11,8 @@ namespace EE::Resource
 
     public:
 
-        FileSystem::Path                        m_rawResourcePath;
-        FileSystem::Path                        m_compiledResourcePath;
+        FileSystem::Path                        m_sourceDataDirectoryPath;
+        FileSystem::Path                        m_compiledResourceDirectoryPath;
         FileSystem::Path                        m_compilerExecutablePath;
         TypeSystem::TypeRegistry const*         m_pTypeRegistry = nullptr;
         CompilerRegistry const*                 m_pCompilerRegistry = nullptr;

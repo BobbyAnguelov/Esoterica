@@ -58,7 +58,7 @@ namespace EE::Input
         inline bool HasConnectedController() const { return GetNumConnectedControllers() > 0; }
         inline bool IsControllerConnected( int32_t controllerIdx ) const;
         ControllerDevice const* GetController( uint32_t controllerIdx = 0 ) const;
-        ControllerDevice const* GetFirstController() const;
+        ControllerDevice const* GetFirstConnectedController() const;
 
     private:
 

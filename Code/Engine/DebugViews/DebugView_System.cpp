@@ -1,21 +1,37 @@
 
 #include "DebugView_System.h"
 #include "Engine/UpdateContext.h"
+#include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Profiling.h"
-#include "Base/Logging/LoggingSystem.h"
-#include "Engine/Entity/EntityWorldUpdateContext.h"
+#include "Base/Logging/SystemLog.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
 namespace EE
 {
+    SystemLogView::LogEntryEx::LogEntryEx( Log::Entry const& entry )
+        : Log::Entry( entry )
+    {
+        size_t const newlineIdx = entry.m_message.find_first_of( '\n' );
+        if ( newlineIdx != String::npos )
+        {
+            m_truncatedMessage = entry.m_message.substr( 0, newlineIdx );
+            m_truncatedMessage.append( "..." );
+        }
+        else
+        {
+            m_truncatedMessage = entry.m_message;
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     void SystemLogView::Draw( UpdateContext const& context )
     {
-        constexpr static float const filterButtonWidth = 30.0f;
+        constexpr static float const controlButtonWidth = 30.0f;
+        constexpr static float const detailsBoxHeight = 100.0f;
 
         // Draw filter
         //-------------------------------------------------------------------------
@@ -23,7 +39,7 @@ namespace EE
         ImGui::AlignTextToFramePadding();
         ImGui::Text( "Filter:" );
         ImGui::SameLine();
-        float const filterWidth = ImGui::GetContentRegionAvail().x - filterButtonWidth - ImGui::GetStyle().ItemSpacing.x;
+        float const filterWidth = ImGui::GetContentRegionAvail().x - ( controlButtonWidth + ImGui::GetStyle().ItemSpacing.x ) * 2;
         if ( m_filterWidget.UpdateAndDraw( filterWidth ) )
         {
             UpdateFilteredList( context );
@@ -33,7 +49,7 @@ namespace EE
 
         ImGui::SameLine();
 
-        ImGui::SetNextItemWidth( filterButtonWidth );
+        ImGui::SetNextItemWidth( controlButtonWidth );
         ImGui::PushStyleColor( ImGuiCol_FrameBg, ImGuiX::Style::s_colorGray3 );
         ImGui::PushStyleColor( ImGuiCol_FrameBgHovered, ImGuiX::Style::s_colorGray2 );
         ImGui::PushStyleColor( ImGuiCol_FrameBgActive, ImGuiX::Style::s_colorGray1 );
@@ -54,10 +70,16 @@ namespace EE
             ImGui::EndCombo();
         }
 
+        //-------------------------------------------------------------------------
+
+        ImGui::SameLine();
+        ImGuiX::ToggleButton( EE_ICON_TEXT_BOX_OUTLINE"##details", EE_ICON_TEXT_BOX"##details", m_showDetails, ImVec2( controlButtonWidth, 0 ) );
+        ImGuiX::ItemTooltip( "Show Details Window" );
+
         // Check if there are more entries than we know about, if so updated the filtered list
         //-------------------------------------------------------------------------
 
-        if ( m_numLogEntriesWhenFiltered != Log::System::GetLogEntries().size() )
+        if ( m_numLogEntriesWhenFiltered != SystemLog::GetLogEntries().size() )
         {
             UpdateFilteredList( context );
         }
@@ -65,8 +87,15 @@ namespace EE
         // Draw Entries
         //-------------------------------------------------------------------------
 
+        int32_t selectedEntryIdx = InvalidIndex;
+        ImVec2 tableSize = ImGui::GetContentRegionAvail();
+        if ( m_showDetails )
+        {
+            tableSize.y -= detailsBoxHeight + ImGui::GetStyle().ItemSpacing.y;
+        }
+
         ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
-        if ( ImGui::BeginTable( "System Log Table", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, ImGui::GetContentRegionAvail() ) )
+        if ( ImGui::BeginTable( "System Log Table", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY, tableSize ) )
         {
             ImGui::TableSetupColumn( "##Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 14 );
             ImGui::TableSetupColumn( "Time", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 36 );
@@ -81,6 +110,7 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
+
             ImGuiListClipper clipper;
             clipper.Begin( (int32_t) m_filteredEntries.size() );
             while ( clipper.Step() )
@@ -89,6 +119,7 @@ namespace EE
                 {
                     auto const& entry = m_filteredEntries[i];
 
+                    ImGui::PushID( i );
                     ImGui::TableNextRow();
 
                     //-------------------------------------------------------------------------
@@ -97,15 +128,15 @@ namespace EE
                     ImGui::AlignTextToFramePadding();
                     switch ( entry.m_severity )
                     {
-                        case Log::Severity::Info:
+                        case Severity::Info:
                         ImGui::Text( EE_ICON_INFORMATION );
                         break;
 
-                        case Log::Severity::Warning:
+                        case Severity::Warning:
                         ImGui::TextColored( Colors::Yellow.ToFloat4(), EE_ICON_ALERT );
                         break;
 
-                        case Log::Severity::Error:
+                        case Severity::Error:
                         ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_CLOSE_CIRCLE );
                         break;
 
@@ -114,8 +145,22 @@ namespace EE
                     }
                     //-------------------------------------------------------------------------
 
+                    bool isSelected = ( m_selectedEntryID == entry.m_ID );
+
                     ImGui::TableSetColumnIndex( 1 );
-                    ImGui::Text( entry.m_timestamp.c_str() );
+                    if ( ImGui::Selectable( entry.m_timestamp.c_str(), &isSelected, ImGuiSelectableFlags_SpanAllColumns ) )
+                    {
+                        if ( isSelected )
+                        {
+                            m_selectedEntryID = entry.m_ID;
+                        }
+                    }
+
+                    // Track selected entry idx - taking into account that we might have just changed it
+                    if ( m_selectedEntryID == entry.m_ID )
+                    {
+                        selectedEntryIdx = i;
+                    }
 
                     //-------------------------------------------------------------------------
 
@@ -127,17 +172,19 @@ namespace EE
                     ImGui::TableSetColumnIndex( 3 );
                     if ( !entry.m_sourceInfo.empty() )
                     {
-                        ImGui::SetNextItemWidth( -1 );
-                        ImGui::PushID( i );
-                        ImGui::InputText( "##RO", const_cast<char*>( entry.m_sourceInfo.c_str() ), entry.m_sourceInfo.size(), ImGuiInputTextFlags_ReadOnly );
+                        ImGui::Text( entry.m_sourceInfo.c_str() );
                         ImGuiX::ItemTooltip( entry.m_sourceInfo.c_str() );
-                        ImGui::PopID();
                     }
 
                     //-------------------------------------------------------------------------
 
                     ImGui::TableSetColumnIndex( 4 );
-                    ImGui::Text( entry.m_message.c_str() );
+                    ImGui::Text( entry.m_truncatedMessage.c_str() );
+                    ImGuiX::ItemTooltip( entry.m_message.c_str() );
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::PopID();
                 }
             }
 
@@ -149,11 +196,39 @@ namespace EE
 
             ImGui::EndTable();
         }
+
+        // Show Details
+        //-------------------------------------------------------------------------
+        
+        if ( m_showDetails )
+        {
+            char* pBuffer = nullptr;
+            size_t length = 0;
+
+            if ( selectedEntryIdx != InvalidIndex )
+            {
+                pBuffer = (char*) m_filteredEntries[selectedEntryIdx].m_message.c_str();
+                length = m_filteredEntries[selectedEntryIdx].m_message.length();
+            }
+            else
+            {
+                constexpr static char const * const nothingSelectedText = "Nothing Selected";
+                pBuffer = (char*) nothingSelectedText;
+                length = 17;
+            }
+
+            ImGui::InputTextMultiline( "##detailsml", pBuffer, length, ImVec2( -1, -1 ) );
+        }
     }
 
     void SystemLogView::UpdateFilteredList( UpdateContext const& context )
     {
-        auto const& logEntries = Log::System::GetLogEntries();
+        auto const& logEntries = SystemLog::GetLogEntries();
+
+        UUID const previousSelection = m_selectedEntryID;
+        m_selectedEntryID.Clear();
+
+        //-------------------------------------------------------------------------
 
         m_filteredEntries.clear();
         m_filteredEntries.reserve( logEntries.size() );
@@ -162,21 +237,21 @@ namespace EE
         {
             switch ( entry.m_severity )
             {
-                case Log::Severity::Warning:
+                case Severity::Warning:
                 if ( !m_showLogWarnings )
                 {
                     continue;
                 }
                 break;
 
-                case Log::Severity::Error:
+                case Severity::Error:
                 if ( !m_showLogErrors )
                 {
                     continue;
                 }
                 break;
 
-                case Log::Severity::Info:
+                case Severity::Info:
                 if ( !m_showLogMessages )
                 {
                     continue;
@@ -189,22 +264,16 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            if ( m_filterWidget.MatchesFilter( entry.m_category ) )
+            bool const entryMatchesFilter = m_filterWidget.MatchesFilter( entry.m_category ) || m_filterWidget.MatchesFilter( entry.m_message ) || m_filterWidget.MatchesFilter( entry.m_sourceInfo );
+            if ( entryMatchesFilter )
             {
                 m_filteredEntries.emplace_back( entry );
-                continue;
-            }
 
-            if ( m_filterWidget.MatchesFilter( entry.m_message ) )
-            {
-                m_filteredEntries.emplace_back( entry );
-                continue;
-            }
-
-            if ( m_filterWidget.MatchesFilter( entry.m_sourceInfo ) )
-            {
-                m_filteredEntries.emplace_back( entry );
-                continue;
+                // Restore selection
+                if ( entry.m_ID == previousSelection )
+                {
+                    m_selectedEntryID = entry.m_ID;
+                }
             }
         }
     }

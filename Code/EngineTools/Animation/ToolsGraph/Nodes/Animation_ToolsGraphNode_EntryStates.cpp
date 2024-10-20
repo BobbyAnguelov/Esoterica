@@ -14,7 +14,7 @@ namespace EE::Animation::GraphNodes
         auto pParentStateMachineGraph = pEntryStateOverridesNode->GetParentGraph();
         EE_ASSERT( pParentStateMachineGraph != nullptr );
 
-        auto stateNodes = pParentStateMachineGraph->FindAllNodesOfType<StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto stateNodes = pParentStateMachineGraph->FindAllNodesOfType<StateToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
 
         //-------------------------------------------------------------------------
 
@@ -83,11 +83,10 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void EntryStateOverrideConduitToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    EntryStateOverrideConduitToolsNode::EntryStateOverrideConduitToolsNode()
+        : NodeGraph::StateMachineNode()
     {
-        VisualGraph::SM::Node::Initialize( pParent );
-        auto pFlowGraph = EE::New<FlowGraph>( GraphType::ValueTree );
-        SetSecondaryGraph( pFlowGraph );
+        auto pFlowGraph = CreateSecondaryGraph<FlowGraph>( GraphType::ValueTree );
         pFlowGraph->CreateNode<GraphNodes::EntryStateOverrideConditionsToolsNode>();
     }
 

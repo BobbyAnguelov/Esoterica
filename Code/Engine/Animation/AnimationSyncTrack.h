@@ -4,6 +4,7 @@
 #include "Base/Types/Percentage.h"
 #include "Base/Types/Arrays.h"
 #include "Base/Types/StringID.h"
+#include "Base/Math/Lerp.h"
 
 //-------------------------------------------------------------------------
 
@@ -111,8 +112,6 @@ namespace EE::Animation
             Percentage                      m_startTime = 0.0f;
             StringID                        m_ID;
         };
-
-    private:
 
         // A sync event
         struct Event

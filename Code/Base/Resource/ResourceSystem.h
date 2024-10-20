@@ -69,7 +69,7 @@ namespace EE::Resource
         ResourceSystem( TaskSystem& taskSystem );
         ~ResourceSystem();
 
-        inline bool IsInitialized() const { return m_pResourceProvider != nullptr; }
+        inline bool WasInitialized() const { return m_pResourceProvider != nullptr; }
         ResourceGlobalSettings const& GetSettings() const;
         void Initialize( ResourceProvider* pResourceProvider );
         void Shutdown();
@@ -109,9 +109,9 @@ namespace EE::Resource
 
         #if EE_DEVELOPMENT_TOOLS
         void RequestResourceHotReload( ResourceID const& resourceID );
-        inline bool RequiresHotReloading() const { return !m_usersThatRequireReload.empty(); }
-        inline TVector<ResourceRequesterID> const& GetUsersToBeReloaded() const { return m_usersThatRequireReload; }
-        inline TVector<ResourceID> const& GetResourcesToBeReloaded() const { return m_externallyUpdatedResources; }
+        inline bool RequiresHotReloading() const { return !m_externallyUpdatedResources.empty(); }
+        inline TInlineVector<ResourceRequesterID, 20> const& GetUsersToBeReloaded() const { return m_usersThatRequireReload; }
+        inline TInlineVector<ResourceID, 20> const& GetResourcesToBeReloaded() const { return m_externallyUpdatedResources; }
         void ClearHotReloadRequests();
         #endif
 
@@ -132,7 +132,10 @@ namespace EE::Resource
         ResourceRequest* TryFindActiveRequest( ResourceRecord const* pResourceRecord ) const;
 
         // Returns a list of all unique external references for the given resource
-        void GetUsersForResource( ResourceRecord const* pResourceRecord, TVector<ResourceRequesterID>& requesterIDs ) const;
+        void GetUsersForResource( ResourceRecord const* pResourceRecord, TInlineVector<ResourceRequesterID, 20>& requesterIDs ) const;
+
+        // Returns a list of all unique external references for the given resource
+        void GetDependentResourcesForResource( ResourceRecord const* pResourceRecord, TInlineVector<ResourceID, 20>& dependentResources ) const;
 
         // Process all queued resource requests
         void ProcessResourceRequests();
@@ -155,8 +158,8 @@ namespace EE::Resource
         std::atomic<bool>                                       m_isAsyncTaskRunning = false;
 
         #if EE_DEVELOPMENT_TOOLS
-        TVector<ResourceRequesterID>                            m_usersThatRequireReload;
-        TVector<ResourceID>                                     m_externallyUpdatedResources;
+        TInlineVector<ResourceRequesterID, 20>                  m_usersThatRequireReload;
+        TInlineVector<ResourceID, 20>                           m_externallyUpdatedResources;
         TVector<CompletedRequestLog>                            m_history;
         #endif
     };

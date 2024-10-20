@@ -23,7 +23,7 @@ namespace EE
 
         friend class Entity;
         friend class EntityDebugView;
-        friend EntityModel::Serializer;
+        friend EntityModel::EntityDescriptor;
         friend EntityModel::EntityMapEditor;
         friend EntityModel::EntityCollection;
 
@@ -254,7 +254,8 @@ namespace EE
 
     private:
 
-        EE_REFLECT() Transform                                                 m_transform;                            // Local space transform
+        EE_REFLECT();
+        Transform                                                           m_transform;                            // Local space transform
         OBB                                                                 m_bounds;                               // Local space bounding box
         Transform                                                           m_worldTransform;                       // World space transform (left uninitialized to catch initialization errors)
         OBB                                                                 m_worldBounds;                          // World space bounding box
@@ -262,7 +263,8 @@ namespace EE
         //-------------------------------------------------------------------------
 
         SpatialEntityComponent*                                             m_pSpatialParent = nullptr;             // The component we are attached to (spatial hierarchy is managed by the parent entity!)
-        EE_REFLECT() StringID                                                  m_parentAttachmentSocketID;             // The socket we are attached to (can be invalid)
+        EE_REFLECT();
+        StringID                                                            m_parentAttachmentSocketID;             // The socket we are attached to (can be invalid)
         TInlineVector<SpatialEntityComponent*, 2>                           m_spatialChildren;                      // All components that are attached to us. DO NOT EXPOSE THIS!!!
 
         //-------------------------------------------------------------------------

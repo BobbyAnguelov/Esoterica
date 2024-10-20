@@ -1,4 +1,3 @@
-{
-  "TypeID": "EE::Render::MaterialResourceDescriptor",
-  "m_albedoTexture": "data://Demo/RenderDemo/matball/debug_texture.txtr"
-}
+<Type TypeID="EE::Render::MaterialResourceDescriptor" Version="0">
+  <Property ID="m_albedoTexture" Value="data://demo/renderdemo/matball/debug_texture.txtr" />
+</Type>

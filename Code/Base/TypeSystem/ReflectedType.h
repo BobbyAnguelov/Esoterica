@@ -35,6 +35,11 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        // Called whenever we finish deserializing a type
+        virtual void PostDeserialize() {}
+
+        //-------------------------------------------------------------------------
+
         #if EE_DEVELOPMENT_TOOLS
         // Called before a property is changed via a property grid or other similar system
         virtual void PrePropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) {}
@@ -98,6 +103,18 @@ namespace EE
 
         return nullptr;
     }
+
+    //-------------------------------------------------------------------------
+
+    EE_FORCE_INLINE void ValidateStaticTypeInfoPtr( TypeSystem::TypeInfo const* pPtr )
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        if ( pPtr == nullptr )
+        {
+            EE_TRACE_HALT( "Invalid Typeinfo Ptr: either this type hasn't been reflected, or it is being used across DLL boundaries and hasn't been exported!" );
+        }
+        #endif
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -113,23 +130,14 @@ namespace EE
         template<typename T> friend class EE::TypeSystem::TTypeInfo;\
         public: \
         inline static EE::TypeSystem::TypeInfo const* s_pTypeInfo = nullptr; \
-        static EE::TypeSystem::TypeID GetStaticTypeID() { EE_ASSERT( s_pTypeInfo != nullptr ); return TypeName::s_pTypeInfo->m_ID; }\
-        virtual EE::TypeSystem::TypeInfo const* GetTypeInfo() const override { EE_ASSERT( TypeName::s_pTypeInfo != nullptr ); return TypeName::s_pTypeInfo; }\
-        virtual EE::TypeSystem::TypeID GetTypeID() const override { EE_ASSERT( TypeName::s_pTypeInfo != nullptr ); return TypeName::s_pTypeInfo->m_ID; }\
+        static EE::TypeSystem::TypeID GetStaticTypeID() { ValidateStaticTypeInfoPtr( s_pTypeInfo ); return TypeName::s_pTypeInfo->m_ID; }\
+        virtual EE::TypeSystem::TypeInfo const* GetTypeInfo() const override { ValidateStaticTypeInfoPtr( TypeName::s_pTypeInfo ); return TypeName::s_pTypeInfo; }\
+        virtual EE::TypeSystem::TypeID GetTypeID() const override { ValidateStaticTypeInfoPtr( TypeName::s_pTypeInfo ); return TypeName::s_pTypeInfo->m_ID; }\
 
 // Flag this member variable (i.e. class property) for reflection and expose it to the tools/serializers
-// Users can fill the contents with a JSON string to define per variable meta data
-//
-// Currently Supported Meta Data:
-// * "Category" : "Lorem Ipsum" - Create a category for this property
-// * "Description" : "Lorem Ipsum" - Provides tooltip help text for this property
-// * "IsToolsReadOnly" : true/false - Allows the tools to edit this property, by default all properties are writable
-// * "ShowAsStaticArray" : true/false - Removes the resizing controls from a dynamic array
-// * "CustomEditor" : "MyEditorID" - Allows for a custom editor to be used in the property grid without creating a new type
+// Note: look at "PropertyMetadata.h" for all the supported metadata
+// Example: EE_REFLECT( Category = "Foo", Description = "Bar", ReadOnly, ShowAsStaticArray )
 #define EE_REFLECT( ... )
 
 // Flag a class as the module class for that project
-#define EE_REFLECT_MODULE \
-        public: \
-        static void RegisterTypes( TypeSystem::TypeRegistry& typeRegistry ); \
-        static void UnregisterTypes( TypeSystem::TypeRegistry& typeRegistry );
+#define EE_REFLECT_MODULE

@@ -24,12 +24,11 @@
 // Dev Defines
 //-------------------------------------------------------------------------
 
+#define EE_DISABLE_OPTIMIZATION __pragma( optimize( "", off ) )
+#define EE_ENABLE_OPTIMIZATION __pragma( optimize( "", on ) )
+
 #if EE_DEVELOPMENT_TOOLS
-
-    #define EE_DISABLE_OPTIMIZATION __pragma( optimize( "", off ) )
-    #define EE_ENABLE_OPTIMIZATION __pragma( optimize( "", on ) )
     #define EE_DEBUG_BREAK() __debugbreak()
-
 #endif
 
 #endif

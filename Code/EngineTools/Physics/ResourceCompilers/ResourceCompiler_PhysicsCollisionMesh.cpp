@@ -39,9 +39,9 @@ namespace EE::Physics
     //-------------------------------------------------------------------------
 
     CollisionMeshCompiler::CollisionMeshCompiler()
-        : Resource::Compiler( "CollisionMeshCompiler", s_version )
+        : Resource::Compiler( "CollisionMeshCompiler" )
     {
-        m_outputTypes.push_back( CollisionMesh::GetStaticResourceTypeID() );
+        AddOutputType<CollisionMesh>();
     }
 
     Resource::CompilationResult CollisionMeshCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -67,7 +67,7 @@ namespace EE::Physics
         //-------------------------------------------------------------------------
 
         FileSystem::Path meshFilePath;
-        if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_sourcePath, meshFilePath ) )
+        if ( !ConvertDataPathToFilePath( resourceDescriptor.m_sourcePath, meshFilePath ) )
         {
             return Error( "Invalid source data path: %s", resourceDescriptor.m_sourcePath.c_str() );
         }
@@ -110,23 +110,22 @@ namespace EE::Physics
         //-------------------------------------------------------------------------
         // For now just use the default material until we have a proper DCC physics pipeline
 
-        static StringID const defaultMaterialID( MaterialSettings::s_defaultID );
         if ( physicsMesh.IsConvexMesh() )
         {
-            physicsMesh.m_materialIDs.emplace_back( defaultMaterialID );
+            physicsMesh.m_materialIDs.emplace_back( MaterialSettings::s_defaultID );
         }
         else // One material per geometry section
         {
             for ( auto i = 0; i < pImportedMesh->GetNumGeometrySections(); i++ )
             {
-                physicsMesh.m_materialIDs.emplace_back( defaultMaterialID );
+                physicsMesh.m_materialIDs.emplace_back( MaterialSettings::s_defaultID );
             }
         }
 
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, CollisionMesh::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        Resource::ResourceHeader hdr( CollisionMesh::s_version, CollisionMesh::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         Serialization::BinaryOutputArchive archive;
         archive << hdr << physicsMesh << cookedMeshData;
 

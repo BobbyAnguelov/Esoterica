@@ -1,9 +1,9 @@
 #pragma once
 
+#include "Engine/_Module/API.h"
 #include "DebugView.h"
 #include "Base/Imgui/ImguiX.h"
-#include "Base/Logging/LoggingSystem.h"
-#include "Engine/_Module/API.h"
+#include "Base/Logging/LogEntry.h"
 
 //-------------------------------------------------------------------------
 
@@ -16,6 +16,16 @@ namespace EE
 
     class EE_ENGINE_API SystemLogView
     {
+        struct LogEntryEx : public Log::Entry
+        {
+            LogEntryEx() = default;
+            explicit LogEntryEx( Log::Entry const& entry );
+
+        public:
+
+            String                                          m_truncatedMessage;
+        };
+
     public:
 
         void Draw( UpdateContext const& context );
@@ -29,12 +39,14 @@ namespace EE
         bool                                                m_showLogMessages = true;
         bool                                                m_showLogWarnings = true;
         bool                                                m_showLogErrors = true;
+        bool                                                m_showDetails = false;
 
     private:
 
         ImGuiX::FilterWidget                                m_filterWidget;
-        TVector<Log::LogEntry>                              m_filteredEntries;
+        TVector<LogEntryEx>                                 m_filteredEntries;
         size_t                                              m_numLogEntriesWhenFiltered = 0;
+        UUID                                                m_selectedEntryID;
     };
 
     //-------------------------------------------------------------------------

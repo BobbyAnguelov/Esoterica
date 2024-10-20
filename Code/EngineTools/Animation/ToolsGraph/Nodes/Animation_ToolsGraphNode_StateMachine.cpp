@@ -15,15 +15,10 @@ namespace EE::Animation::GraphNodes
         : FlowToolsNode()
     {
         CreateOutputPin( "Pose", GraphValueType::Pose );
-    }
-
-    void StateMachineToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
-    {
-        FlowToolsNode::Initialize( pParent );
+        m_name = "SM";
 
         // Create graph
-        auto pStateMachineGraph = EE::New<StateMachineGraph>();
-        SetChildGraph( pStateMachineGraph );
+        auto pStateMachineGraph = CreateChildGraph<StateMachineGraph>();
 
         // Create conduits
         pStateMachineGraph->CreateNode<EntryStateOverrideConduitToolsNode>();
@@ -49,7 +44,7 @@ namespace EE::Animation::GraphNodes
     EntryStateOverrideConduitToolsNode const* StateMachineToolsNode::GetEntryStateOverrideConduit() const
     {
         auto pStateMachineGraph = Cast<StateMachineGraph>( GetChildGraph() );
-        auto const foundNodes = pStateMachineGraph->FindAllNodesOfType<EntryStateOverrideConduitToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+        auto const foundNodes = pStateMachineGraph->FindAllNodesOfType<EntryStateOverrideConduitToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
         EE_ASSERT( foundNodes.size() == 1 );
         return foundNodes[0];
     }
@@ -57,7 +52,7 @@ namespace EE::Animation::GraphNodes
     GlobalTransitionConduitToolsNode const* StateMachineToolsNode::GetGlobalTransitionConduit() const
     {
         auto pStateMachineGraph = Cast<StateMachineGraph>( GetChildGraph() );
-        auto const foundNodes = pStateMachineGraph->FindAllNodesOfType<GlobalTransitionConduitToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+        auto const foundNodes = pStateMachineGraph->FindAllNodesOfType<GlobalTransitionConduitToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
         EE_ASSERT( foundNodes.size() == 1 );
         return foundNodes[0];
     }
@@ -75,7 +70,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         auto pStateMachineGraph = Cast<StateMachineGraph>( GetChildGraph() );
-        auto stateNodes = pStateMachineGraph->FindAllNodesOfType<StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto stateNodes = pStateMachineGraph->FindAllNodesOfType<StateToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
         int32_t const numStateNodes = (int32_t) stateNodes.size();
         EE_ASSERT( numStateNodes >= 1 );
 
@@ -284,7 +279,7 @@ namespace EE::Animation::GraphNodes
             // Compile Blend Tree
             //-------------------------------------------------------------------------
 
-            auto resultNodes = pStateNode->GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+            auto resultNodes = pStateNode->GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
             EE_ASSERT( resultNodes.size() == 1 );
             ResultToolsNode const* pBlendTreeRoot = resultNodes[0];
             EE_ASSERT( pBlendTreeRoot != nullptr );
@@ -514,9 +509,9 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void StateMachineToolsNode::SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue )
+    void StateMachineToolsNode::PostDeserialize()
     {
-        FlowToolsNode::SerializeCustom( typeRegistry, graphObjectValue );
+        FlowToolsNode::PostDeserialize();
         GetEntryStateOverrideConduit()->UpdateConditionsNode();
         GetGlobalTransitionConduit()->UpdateTransitionNodes();
     }

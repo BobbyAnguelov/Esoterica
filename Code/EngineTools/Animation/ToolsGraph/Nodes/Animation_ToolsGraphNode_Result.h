@@ -13,7 +13,6 @@ namespace EE::Animation::GraphNodes
 
         ResultToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Unknown; }
         virtual char const* GetTypeName() const override { return "Result"; }
         virtual char const* GetCategory() const override { return "Results"; }
         virtual bool IsUserCreatable() const override { return false; }
@@ -26,8 +25,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT( "IsToolsReadOnly" : true );
-        GraphValueType m_valueType = GraphValueType::Pose;
+        EE_REFLECT( ReadOnly );
+        GraphValueType m_valueType = GraphValueType::Special;
     };
 
     //-------------------------------------------------------------------------

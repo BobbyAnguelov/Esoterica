@@ -12,7 +12,7 @@ namespace EE::Player
         EE_PLAYER_ACTION_ID( AimOverlayAction );
 
         virtual bool TryStartInternal( ActionContext const& ctx ) override;
-        virtual Status UpdateInternal( ActionContext const& ctx ) override;
+        virtual Status UpdateInternal( ActionContext const& ctx, bool isFirstUpdate ) override;
         virtual void StopInternal( ActionContext const& ctx, StopReason reason ) override;
     };
 }

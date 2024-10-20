@@ -1,6 +1,6 @@
-{
-    "TypeID": "EE::Render::StaticMeshResourceDescriptor",
-    "m_meshPath": "data://Demo/RenderDemo/matball/matball.gltf",
-    "m_materials": ["data://Demo/RenderDemo/matball/debug_texture.mtrl"],
-    "m_meshName": ""
-}
+<Type TypeID="EE::Render::StaticMeshResourceDescriptor" Version="0">
+  <Property ID="m_meshPath" Value="data://demo/renderdemo/matball/matball.gltf" />
+  <Property ID="m_materials">
+    <Property Index="0" Value="data://demo/renderdemo/matball/debug_texture.mtrl" />
+  </Property>
+</Type>

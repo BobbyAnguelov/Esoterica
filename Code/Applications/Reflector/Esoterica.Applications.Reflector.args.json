@@ -5,6 +5,10 @@
     {
       "Id": "d61405fc-6c2e-4339-a10f-439bf32393ae",
       "Command": "-s D:\\Esoterica\\Esoterica.sln"
+    },
+    {
+      "Id": "48f39e83-dbc6-4c0d-b5d0-66cd438d699c",
+      "Command": "-rebuild"
     }
   ]
 }

@@ -23,7 +23,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void ConstBoolToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void ConstBoolToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         BeginDrawInternalRegion( ctx );
         ImGui::Text( m_value ? "True" : "False" );
@@ -48,7 +48,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void ConstIDToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void ConstIDToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         BeginDrawInternalRegion( ctx );
         ImGui::Text( m_value.IsValid() ? m_value.c_str() : "" );
@@ -73,7 +73,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void ConstFloatToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void ConstFloatToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         BeginDrawInternalRegion( ctx );
         ImGui::Text( "%.3f", m_value );
@@ -98,7 +98,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void ConstVectorToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void ConstVectorToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         BeginDrawInternalRegion( ctx );
         DrawVectorInfoText( ctx, m_value );
@@ -123,10 +123,35 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void ConstTargetToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void ConstTargetToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         BeginDrawInternalRegion( ctx );
         DrawTargetInfoText( ctx, Target( m_value ) );
+        EndDrawInternalRegion( ctx );
+    }
+
+    //-------------------------------------------------------------------------
+
+    ConstBoneTargetToolsNode::ConstBoneTargetToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Value", GraphValueType::Target, true );
+    }
+
+    int16_t ConstBoneTargetToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        ConstTargetNode::Definition* pDefinition = nullptr;
+        if ( context.GetDefinition<ConstTargetNode>( this, pDefinition ) == NodeCompilationState::NeedCompilation )
+        {
+            pDefinition->m_value = Target( m_boneName );
+        }
+        return pDefinition->m_nodeIdx;
+    }
+
+    void ConstBoneTargetToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
+    {
+        BeginDrawInternalRegion( ctx );
+        DrawTargetInfoText( ctx, Target( m_boneName ) );
         EndDrawInternalRegion( ctx );
     }
 }

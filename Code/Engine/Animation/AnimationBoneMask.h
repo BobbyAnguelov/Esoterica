@@ -15,55 +15,6 @@ namespace EE::Animation
     class Skeleton;
 
     //-------------------------------------------------------------------------
-    // Bone Mask Definition
-    //-------------------------------------------------------------------------
-    // Serialized data that describes a set of weights from which we can generate a bone mask
-
-    struct EE_ENGINE_API BoneMaskDefinition final : public IReflectedType
-    {
-        friend class SkeletonEditor;
-
-        EE_REFLECT_TYPE( BoneMaskDefinition )
-        EE_SERIALIZE( m_ID, m_weights );
-
-    public:
-
-        struct EE_ENGINE_API BoneWeight final : public IReflectedType
-        {
-            EE_REFLECT_TYPE( BoneWeight )
-            EE_SERIALIZE( m_boneID, m_weight );
-
-            BoneWeight() = default;
-
-            BoneWeight( StringID const ID, float weight )
-                : m_boneID( ID )
-                , m_weight( weight )
-            {
-                EE_ASSERT( ID.IsValid() && m_weight >= 0.0f && m_weight <= 1.0f );
-            }
-
-            EE_REFLECT( "IsToolsReadOnly" : true );
-            StringID            m_boneID;
-
-            EE_REFLECT( "IsToolsReadOnly" : true );
-            float               m_weight = 0.0f;
-        };
-
-    public:
-
-        BoneMaskDefinition() = default;
-        BoneMaskDefinition( StringID ID ) : m_ID( ID ) {}
-
-    public:
-
-        EE_REFLECT( "IsToolsReadOnly" : true );
-        StringID                m_ID;
-
-        EE_REFLECT( "IsToolsReadOnly" : true );
-        TVector<BoneWeight>     m_weights;
-    };
-
-    //-------------------------------------------------------------------------
     // Bone Mask
     //-------------------------------------------------------------------------
 
@@ -78,16 +29,25 @@ namespace EE::Animation
             One, // All weights are set to 1.0f
         };
 
-        #if EE_DEVELOPMENT_TOOLS
-        static Color GetColorForWeight( float weight );
-        #endif
+        struct SerializedData
+        {
+            EE_SERIALIZE( m_ID, m_weights );
+
+            StringID            m_ID;
+            TVector<float>      m_weights;
+        };
+
+        EE_FORCE_INLINE static int32_t CalculateNumWeightsToSet( int32_t numBones )
+        {
+            return Math::CeilingToInt( float( numBones ) / 4.0f ) * 4;
+        }
 
     public:
 
         BoneMask() : m_pSkeleton( nullptr ) {}
         BoneMask( Skeleton const* pSkeleton );
         BoneMask( Skeleton const* pSkeleton, float fixedWeight );
-        BoneMask( Skeleton const* pSkeleton, BoneMaskDefinition const& definition );
+        BoneMask( Skeleton const* pSkeleton, SerializedData const& serializedMask );
 
         BoneMask( BoneMask const& rhs );
         BoneMask( BoneMask&& rhs );
@@ -101,7 +61,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         inline StringID GetID() const { return m_ID; }
-        inline bool IsValid() const;
+        bool IsValid() const;
         inline Skeleton const* GetSkeleton() const { return m_pSkeleton; }
         inline int32_t GetNumWeights() const { return (int32_t) m_weights.size(); }
         inline float GetWeight( uint32_t i ) const { EE_ASSERT( i < (uint32_t) m_weights.size() ); return m_weights[i]; }
@@ -130,9 +90,9 @@ namespace EE::Animation
         // Set all weights to the supplied weights, note that the number of supplied weights MUST match the expected num of weights!!
         void ResetWeights( TVector<float> const& weights );
 
-        // Calculate bone weights based on a set of supplied bone IDs and weights, user can specify whether we should feather any weights between set bones
-        // i.e. if head is set to 1.0f and pelvis is set to 0.2f, the intermediate spine bone weights will be gradually increased till they match the head weight
-        void ResetWeights( BoneMaskDefinition const& definition, bool shouldFeatherIntermediateBones = true );
+        // Calculate bone weights based on a set of supplied bone IDs and weights
+        // i.e. This will also feather bones so if head is set to 1.0f, pelvis is set to 0.2f, and intermediate bones are set to -1.0f then the intermediate spine bone weights will be gradually increased till they match the head weight
+        void ResetWeights( SerializedData const& serializedMask );
 
         // Apply this scaling factor to all weights
         void ScaleWeights( float scale );

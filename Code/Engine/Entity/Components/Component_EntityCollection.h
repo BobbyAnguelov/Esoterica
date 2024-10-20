@@ -16,7 +16,7 @@ namespace EE::EntityModel
 
         inline EntityCollectionComponent() = default;
 
-        inline EntityModel::SerializedEntityCollection const* GetEntityCollectionDesc() const 
+        inline EntityModel::EntityCollection const* GetEntityCollectionDesc() const 
         {
             if ( !m_entityCollectionDesc.IsSet() )
             {
@@ -29,6 +29,6 @@ namespace EE::EntityModel
     private:
 
         EE_REFLECT();
-        TResourcePtr<EntityModel::SerializedEntityCollection> m_entityCollectionDesc;
+        TResourcePtr<EntityModel::EntityCollection> m_entityCollectionDesc;
     };
 }

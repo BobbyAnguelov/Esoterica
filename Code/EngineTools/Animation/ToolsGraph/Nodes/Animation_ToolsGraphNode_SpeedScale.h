@@ -15,16 +15,16 @@ namespace EE::Animation::GraphNodes
 
         SpeedScaleToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Speed Scale"; }
         virtual char const* GetCategory() const override { return "Animation/Speed Scale"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 
         EE_REFLECT();
-        float                   m_blendInTime = 0.2f; // How long should we take to initially blend in this speed modification
+        float                   m_multiplier = 1.0f; // The desired speed multiplier if the input node is not set
     };
 
     //-------------------------------------------------------------------------
@@ -37,17 +37,16 @@ namespace EE::Animation::GraphNodes
 
         DurationScaleToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Duration Scale"; }
         virtual char const* GetCategory() const override { return "Animation/Speed Scale"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 
         EE_REFLECT();
-        float                   m_desiredDuration = 1.0f; // The desired duration for the input
+        float                   m_desiredDuration = 1.0f; // The desired duration if the duration input node is not set
     };
 
     //-------------------------------------------------------------------------
@@ -60,15 +59,16 @@ namespace EE::Animation::GraphNodes
 
         VelocityBasedSpeedScaleToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Velocity Based Speed Scale"; }
         virtual char const* GetCategory() const override { return "Animation/Speed Scale"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
+        virtual bool IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const override;
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 
         EE_REFLECT();
-        float                   m_blendTime = 0.2f; // How long should we take to initially blend in this speed modification
+        float                   m_desiredVelocity = 1.0f; // The desired velocity if the speed input node is not set
     };
 }

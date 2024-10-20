@@ -14,9 +14,9 @@ namespace EE::Animation
         m_loadableTypes.push_back( GraphVariation::GetStaticResourceTypeID() );
     }
 
-    bool GraphLoader::LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    bool GraphLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
-        auto const resourceTypeID = resID.GetResourceTypeID();
+        auto const resourceTypeID = resourceID.GetResourceTypeID();
 
         //-------------------------------------------------------------------------
         // Graph Definition
@@ -85,9 +85,9 @@ namespace EE::Animation
         return false;
     }
 
-    Resource::InstallResult GraphLoader::Install( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Resource::InstallDependencyList const& installDependencies ) const
+    Resource::InstallResult GraphLoader::Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
     {
-        auto const resourceTypeID = resID.GetResourceTypeID();
+        auto const resourceTypeID = resourceID.GetResourceTypeID();
         if ( resourceTypeID == GraphVariation::GetStaticResourceTypeID() )
         {
             // Graph definition
@@ -105,7 +105,7 @@ namespace EE::Animation
 
             if ( !dataSet.IsValid() )
             {
-                EE_LOG_ERROR( "Animation", "Graph Loader", "Failed to install skeleton for graph data set resource: %s", resID.ToString().c_str() );
+                EE_LOG_ERROR( "Animation", "Graph Loader", "Failed to install skeleton for graph data set resource: %s", resourceID.ToString().c_str() );
                 return Resource::InstallResult::Failed;
             }
 
@@ -137,13 +137,13 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        ResourceLoader::Install( resID, pResourceRecord, installDependencies );
+        ResourceLoader::Install( resourceID, resourcePath, installDependencies, pResourceRecord );
         return Resource::InstallResult::Succeeded;
     }
 
-    void GraphLoader::UnloadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord ) const
+    void GraphLoader::UnloadInternal( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
     {
-        auto const resourceTypeID = resID.GetResourceTypeID();
+        auto const resourceTypeID = resourceID.GetResourceTypeID();
 
         if ( resourceTypeID == GraphDefinition::GetStaticResourceTypeID() )
         {
@@ -155,6 +155,6 @@ namespace EE::Animation
             }
         }
 
-        ResourceLoader::UnloadInternal( resID, pResourceRecord );
+        ResourceLoader::UnloadInternal( resourceID, pResourceRecord );
     }
 }

@@ -97,7 +97,7 @@ namespace EE::ImGuiX
         inline void SetOptions( TBitFlags<Options> options) { m_options = options; }
 
         inline GizmoMode GetMode() const { return m_gizmoMode; }
-        void SwitchMode( GizmoMode newMode );
+        void SetMode( GizmoMode newMode );
         void SwitchToNextMode();
 
         void SetCoordinateSystemSpace( CoordinateSpace space );

@@ -222,7 +222,7 @@ namespace EE::Physics
 
     void PhysicsRenderer::RenderWorld( Seconds const deltaTime, Render::Viewport const& viewport, Render::RenderTarget const& renderTarget, EntityWorld* pWorld )
     {
-        EE_ASSERT( IsInitialized() && Threading::IsMainThread() );
+        EE_ASSERT( WasInitialized() && Threading::IsMainThread() );
         EE_PROFILE_FUNCTION_RENDER();
 
         //-------------------------------------------------------------------------

@@ -20,6 +20,7 @@ namespace EE::Animation::GraphNodes
 
             TInlineVector<int16_t, 5>               m_sourceNodeIndices;
             int16_t                                 m_inputParameterValueNodeIdx = InvalidIndex;
+            bool                                    m_allowLooping = true;
         };
 
     public:
@@ -42,7 +43,7 @@ namespace EE::Animation::GraphNodes
         {
             EE_SERIALIZE( m_blendRanges, m_parameterRange );
 
-            static Parameterization CreateParameterization( TInlineVector<float, 5> values );
+            static Parameterization CreateParameterization( TInlineVector<float, 5> const& values );
 
             inline void Reset()
             {
@@ -110,7 +111,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Definition final : public ParameterizedBlendNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( ParameterizedBlendNode::Definition, m_parameterization );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( ParameterizedBlendNode::Definition, m_parameterization, m_allowLooping );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 

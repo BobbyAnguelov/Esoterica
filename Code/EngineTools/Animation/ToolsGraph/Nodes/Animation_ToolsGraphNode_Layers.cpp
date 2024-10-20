@@ -16,7 +16,7 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "BoneMask", GraphValueType::BoneMask );
     }
 
-    bool LocalLayerToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    bool LocalLayerToolsNode::IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const
     {
         if ( IsOfType<StateMachineToolsNode>( pOutputPinNode ) )
         {
@@ -26,7 +26,7 @@ namespace EE::Animation::GraphNodes
         return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );
     }
 
-    void LocalLayerToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void LocalLayerToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         DrawInternalSeparator( ctx );
 
@@ -46,9 +46,9 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case PoseBlendMode::GlobalSpace:
+            case PoseBlendMode::ModelSpace:
             {
-                ImGui::Text( "Global Space" );
+                ImGui::Text( "Model Space" );
             }
             break;
         }
@@ -75,12 +75,12 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "State Machine", GraphValueType::Pose );
     }
 
-    bool StateMachineLayerToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    bool StateMachineLayerToolsNode::IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const
     {
         return IsOfType<StateMachineToolsNode>( pOutputPinNode );
     }
 
-    void StateMachineLayerToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void StateMachineLayerToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         DrawInternalSeparator( ctx );
 
@@ -100,9 +100,9 @@ namespace EE::Animation::GraphNodes
             }
             break;
 
-            case PoseBlendMode::GlobalSpace:
+            case PoseBlendMode::ModelSpace:
             {
-                ImGui::Text( "Global Space" );
+                ImGui::Text( "Model Space" );
             }
             break;
         }
@@ -120,7 +120,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void StateMachineLayerToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void StateMachineLayerToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         DrawInfoText( ctx );
         DrawInternalSeparator( ctx );
@@ -149,7 +149,7 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "Layer 0", GraphValueType::Special );
     }
 
-    bool LayerBlendToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    bool LayerBlendToolsNode::IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const
     {
         int32_t const pinIdx = GetInputPinIndex( inputPinID );
         if ( pinIdx > 0 )
@@ -168,7 +168,7 @@ namespace EE::Animation::GraphNodes
         return pinName;
     }
 
-    void LayerBlendToolsNode::OnDynamicPinDestruction( UUID pinID )
+    void LayerBlendToolsNode::PreDynamicPinDestruction( UUID const& pinID )
     {
         int32_t const numOptions = GetNumInputPins();
 
@@ -191,6 +191,17 @@ namespace EE::Animation::GraphNodes
 
             GetInputPin( i )->m_name = newPinName;
             newPinIdx++;
+        }
+    }
+
+    void LayerBlendToolsNode::PostDynamicPinDestruction()
+    {
+        int32_t const numOptions = GetNumInputPins();
+        for ( auto i = 2; i < numOptions; i++ )
+        {
+            TInlineString<100> newPinName;
+            newPinName.sprintf( "Layer %d", i - 2 );
+            GetInputPin( i )->m_name = newPinName;
         }
     }
 
@@ -305,9 +316,9 @@ namespace EE::Animation::GraphNodes
                     }
                     else // No Mask
                     {
-                        if ( layerDefinition.m_blendMode == PoseBlendMode::GlobalSpace )
+                        if ( layerDefinition.m_blendMode == PoseBlendMode::ModelSpace )
                         {
-                            context.LogError( this, "Bone Masks are not optional for global blends!" );
+                            context.LogError( this, "Bone Masks are not optional for model blends!" );
                             return InvalidIndex;
                         }
                     }
@@ -359,7 +370,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void LayerBlendToolsNode::PreDrawUpdate( VisualGraph::UserContext* pUserContext )
+    void LayerBlendToolsNode::PreDrawUpdate( NodeGraph::UserContext* pUserContext )
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         bool const isPreviewing = pGraphNodeContext->HasDebugData();
@@ -373,7 +384,7 @@ namespace EE::Animation::GraphNodes
                 if ( auto pStateMachineLayerNode = GetConnectedInputNode<StateMachineLayerToolsNode>( i ) )
                 {
                     auto pLayerNode = static_cast<GraphNodes::LayerBlendNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
-                    if ( pLayerNode->IsInitialized() )
+                    if ( pLayerNode->WasInitialized() )
                     {
                         pStateMachineLayerNode->m_runtimeDebugLayerWeight = pLayerNode->GetLayerWeight( i - 1 );
                     }

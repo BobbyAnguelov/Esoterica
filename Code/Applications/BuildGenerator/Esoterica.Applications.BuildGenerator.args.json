@@ -1,0 +1,10 @@
+{
+  "FileVersion": 2,
+  "Id": "d12c1d44-ac38-426c-a5f1-be6bff659ec2",
+  "Items": [
+    {
+      "Id": "5c54386e-6362-41f2-8056-0f4cdf0b44f3",
+      "Command": "-s d:\\Esoterica\\Esoterica.sln"
+    }
+  ]
+}

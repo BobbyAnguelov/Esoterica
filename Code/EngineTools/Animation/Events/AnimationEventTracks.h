@@ -9,7 +9,7 @@
 #include "Engine/Animation/Events/AnimationEvent_Ragdoll.h"
 #include "Engine/Animation/Events/AnimationEvent_Transition.h"
 #include "Engine/Animation/Events/AnimationEvent_RootMotion.h"
-#include "EngineTools/Core/Widgets/CurveEditor.h"
+#include "EngineTools/Widgets/CurveEditor.h"
 
 //-------------------------------------------------------------------------
 // Animation Event Tracks
@@ -51,7 +51,7 @@ namespace EE::Animation
         virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
         virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
         virtual Color GetItemColor( Timeline::TrackItem const* pItem ) const override;
-        virtual bool DrawContextMenu( Timeline::TrackContext const& context, TVector<Track*>& tracks, float playheadPosition ) override;
+        virtual bool DrawContextMenu( Timeline::TrackContext const& context, TVector<TTypeInstance<Track>>& tracks, float playheadPosition ) override;
 
         void AutoSetPhases( Timeline::TrackContext const& context, FootEvent::Phase startingPhase );
     };

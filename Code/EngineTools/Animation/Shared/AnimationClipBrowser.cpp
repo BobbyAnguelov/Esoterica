@@ -1,7 +1,8 @@
 #include "AnimationClipBrowser.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
-#include "EngineTools/Resource/ResourceDatabase.h"
+#include "EngineTools/FileSystem/FileRegistry.h"
+#include "EngineTools/Core/CommonToolTypes.h"
 
 //-------------------------------------------------------------------------
 
@@ -21,8 +22,11 @@ namespace EE::Animation
 
     void AnimationClipBrowser::SetSkeleton( ResourceID const& skeletonID )
     {
-        m_skeleton = skeletonID;
-        RebuildCache();
+        if ( skeletonID != m_skeleton )
+        {
+            m_skeleton = skeletonID;
+            RebuildCache();
+        }
     }
 
     void AnimationClipBrowser::UpdateFilter()
@@ -36,14 +40,21 @@ namespace EE::Animation
                 m_filteredClips.emplace_back( clip );
             }
         }
+
+        // Clear selection if not in filtered list
+        if ( eastl::find( m_filteredClips.begin(), m_filteredClips.end(), m_selectedClipID ) == m_filteredClips.end() )
+        {
+            m_selectedClipID.Clear();
+        }
     }
 
     void AnimationClipBrowser::RebuildCache()
     {
         m_clips.clear();
         m_filteredClips.clear();
+        m_selectedClipID.Clear();
 
-        if ( !m_skeleton.IsValid() || !m_pToolsContext->m_pResourceDatabase->IsDescriptorCacheBuilt() )
+        if ( !m_skeleton.IsValid() || !m_pToolsContext->m_pFileRegistry->IsDataFileCacheBuilt() )
         {
             return;
         }
@@ -56,7 +67,7 @@ namespace EE::Animation
             return pClipDescriptor->m_skeleton.GetResourceID() == m_skeleton;
         };
 
-        m_clips = m_pToolsContext->m_pResourceDatabase->GetAllResourcesOfTypeFiltered( AnimationClip::GetStaticResourceTypeID(), SkeletonFilter );
+        m_clips = m_pToolsContext->m_pFileRegistry->GetAllResourcesOfTypeFiltered( AnimationClip::GetStaticResourceTypeID(), SkeletonFilter );
         UpdateFilter();
 
         m_refreshTimer.Reset();
@@ -69,7 +80,7 @@ namespace EE::Animation
 
         if ( m_skeleton.IsValid() )
         {
-            if ( m_refreshTimer.GetElapsedTimeSeconds() > 1.0f && m_pToolsContext->m_pResourceDatabase->IsDescriptorCacheBuilt() )
+            if ( m_refreshTimer.GetElapsedTimeSeconds() > 1.0f && m_pToolsContext->m_pFileRegistry->IsDataFileCacheBuilt() )
             {
                 RebuildCache();
             }
@@ -97,11 +108,27 @@ namespace EE::Animation
                 {
                     for ( int32_t i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
                     {
+                        bool isSelected = m_filteredClips[i] == m_selectedClipID;
+
                         ImGui::TableNextRow();
                         ImGui::TableNextColumn();
-                        if ( ImGuiX::FlatButton( m_filteredClips[i].c_str() ) )
+                        if ( ImGui::Selectable( m_filteredClips[i].c_str(), isSelected, ImGuiSelectableFlags_AllowDoubleClick ) )
                         {
-                            m_pToolsContext->TryOpenResource( m_filteredClips[i] );
+                            m_selectedClipID = m_filteredClips[i];
+
+                            // Open clip resource
+                            if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+                            {
+                                m_pToolsContext->TryOpenResource( m_filteredClips[i] );
+                            }
+                        }
+
+                        // Drag and drop support
+                        if ( ImGui::BeginDragDropSource( ImGuiDragDropFlags_None ) )
+                        {
+                            ImGui::SetDragDropPayload( DragAndDrop::s_filePayloadID, (void*) m_filteredClips[i].GetResourcePath().c_str(), m_filteredClips[i].GetResourcePath().GetString().length() + 1 );
+                            ImGui::Text( m_filteredClips[i].GetResourcePath().GetFilename().c_str() );
+                            ImGui::EndDragDropSource();
                         }
                     }
                 }

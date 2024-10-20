@@ -96,11 +96,11 @@ namespace EE::Animation
 
     void Pose::SetToReferencePose( bool setGlobalPose )
     {
-        m_parentSpaceTransforms = m_pSkeleton->GetLocalReferencePose();
+        m_parentSpaceTransforms = m_pSkeleton->GetParentSpaceReferencePose();
 
         if ( setGlobalPose )
         {
-            m_modelSpaceTransforms = m_pSkeleton->GetGlobalReferencePose();
+            m_modelSpaceTransforms = m_pSkeleton->GetModelSpaceReferencePose();
         }
         else
         {
@@ -145,14 +145,14 @@ namespace EE::Animation
         }
     }
 
-    Transform Pose::GetGlobalTransform( int32_t boneIdx ) const
+    Transform Pose::GetModelSpaceTransform( int32_t boneIdx ) const
     {
         EE_ASSERT( boneIdx < m_pSkeleton->GetNumBones() );
 
-        Transform boneGlobalTransform;
+        Transform boneModelSpaceTransform;
         if ( !m_modelSpaceTransforms.empty() )
         {
-            boneGlobalTransform = m_modelSpaceTransforms[boneIdx];
+            boneModelSpaceTransform = m_modelSpaceTransforms[boneIdx];
         }
         else
         {
@@ -168,26 +168,26 @@ namespace EE::Animation
             }
 
             // If we have parents
-            boneGlobalTransform = m_parentSpaceTransforms[boneIdx];
+            boneModelSpaceTransform = m_parentSpaceTransforms[boneIdx];
             if ( nextEntry > 0 )
             {
                 // Calculate global transform of parent
                 int32_t arrayIdx = nextEntry - 1;
                 parentIdx = boneParents[arrayIdx--];
-                auto parentGlobalTransform = m_parentSpaceTransforms[parentIdx];
+                Transform parentModelSpaceTransform = m_parentSpaceTransforms[parentIdx];
                 for ( ; arrayIdx >= 0; arrayIdx-- )
                 {
                     int32_t const nextIdx = boneParents[arrayIdx];
-                    auto const nextTransform = m_parentSpaceTransforms[nextIdx];
-                    parentGlobalTransform = nextTransform * parentGlobalTransform;
+                    Transform const& nextTransform = m_parentSpaceTransforms[nextIdx];
+                    parentModelSpaceTransform = nextTransform * parentModelSpaceTransform;
                 }
 
                 // Calculate global transform of bone
-                boneGlobalTransform = boneGlobalTransform * parentGlobalTransform;
+                boneModelSpaceTransform = boneModelSpaceTransform * parentModelSpaceTransform;
             }
         }
 
-        return boneGlobalTransform;
+        return boneModelSpaceTransform;
     }
 
     //-------------------------------------------------------------------------
@@ -232,7 +232,7 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                Color const boneColor = ( pBoneMask != nullptr ) ? BoneMask::GetColorForWeight( pBoneMask->GetWeight( boneIdx ) ) : color;
+                Color const boneColor = ( pBoneMask != nullptr ) ? Color::EvaluateRedGreenGradient( pBoneMask->GetWeight( boneIdx ) ) : color;
 
                 auto const& parentTransform = worldTransforms[parentIdx];
                 auto const& boneTransform = worldTransforms[boneIdx];

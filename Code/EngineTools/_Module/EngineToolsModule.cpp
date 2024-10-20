@@ -4,12 +4,12 @@
 
 namespace EE
 {
-    bool EngineToolsModule::InitializeModule( ModuleContext& context )
+    bool EngineToolsModule::InitializeModule( ModuleContext const& context )
     {
         return true;
     }
 
-    void EngineToolsModule::ShutdownModule( ModuleContext& context )
+    void EngineToolsModule::ShutdownModule( ModuleContext const& context )
     {
     }
 }

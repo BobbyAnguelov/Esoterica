@@ -17,7 +17,6 @@ namespace EE::Animation::GraphNodes
             X,
             Y,
             Z,
-            W,
             Length,
             AngleHorizontal, // The horizontal angle between the vector and the character forward (assumes the vector is in character space)
             AngleVertical, // The vertical angle (around x) between the vector and the character forward (assumes the vector is in character space)
@@ -79,7 +78,7 @@ namespace EE::Animation::GraphNodes
         FloatValueNode*                 m_pInputXValueNode = nullptr;
         FloatValueNode*                 m_pInputYValueNode = nullptr;
         FloatValueNode*                 m_pInputZValueNode = nullptr;
-        Vector                          m_value = Vector::Zero;
+        Float3                          m_value = Float3::Zero;
     };
 
     //-------------------------------------------------------------------------
@@ -107,6 +106,6 @@ namespace EE::Animation::GraphNodes
     private:
 
         VectorValueNode*                m_pInputValueNode = nullptr;
-        Vector                          m_value = Vector::Zero;
+        Float3                          m_value = Float3::Zero;
     };
 }

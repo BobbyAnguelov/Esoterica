@@ -14,13 +14,9 @@ namespace EE::Animation::GraphNodes
 
         ExternalGraphToolsNode();
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParentGraph ) override;
-
-        virtual char const* GetName() const override { return m_name.c_str(); }
         virtual bool IsRenameable() const override { return true; }
-        virtual void SetName( String const& newName ) override;
+        virtual bool RequiresUniqueName() const override final { return true; }
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "External Graph"; }
         virtual char const* GetCategory() const override { return "Animation/Graphs"; }
         virtual bool IsPersistentNode() const override { return true; }
@@ -29,18 +25,8 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        virtual void PostPaste() override;
-        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
-        virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
+        virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
-        #endif
-
-        String GetUniqueSlotName( VisualGraph::BaseGraph* pRootGraph, String const& desiredName );
-
-    private:
-
-        EE_REFLECT() String                       m_name;
+        virtual String CreateUniqueNodeName( String const& desiredName ) const override final;
     };
 }

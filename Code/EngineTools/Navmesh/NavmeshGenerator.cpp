@@ -8,7 +8,6 @@
 #include "Engine/Navmesh/NavmeshData.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "Engine/Physics/Components/Component_PhysicsCollisionMesh.h"
-#include "Engine/Entity/EntitySerialization.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityDescriptors.h"
@@ -21,7 +20,7 @@
 
 namespace EE::Navmesh
 {
-    NavmeshGenerator::NavmeshGenerator( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& outputPath, EntityModel::SerializedEntityCollection const& entityCollection, NavmeshBuildSettings const& buildSettings )
+    NavmeshGenerator::NavmeshGenerator( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& outputPath, EntityModel::EntityCollection const& entityCollection, NavmeshBuildSettings const& buildSettings )
         : m_rawResourceDirectoryPath( rawResourceDirectoryPath )
         , m_outputPath( outputPath )
         , m_typeRegistry( typeRegistry )
@@ -93,7 +92,7 @@ namespace EE::Navmesh
         Printf( m_progressMessage, 256, "Step 1/4: Collecting Primitives" );
         m_progress = 0.0f;
 
-        TVector<Entity*> createdEntities = EntityModel::Serializer::CreateEntities( nullptr, m_typeRegistry, m_entityCollection );
+        TVector<Entity*> createdEntities = m_entityCollection.CreateEntities( m_typeRegistry );
 
         // Update all spatial transforms
         //-------------------------------------------------------------------------
@@ -172,7 +171,7 @@ namespace EE::Navmesh
         {
             va_list args;
             va_start( args, pFormat );
-            Log::AddEntryVarArgs( Log::Severity::Error, "Navmesh", "Generation", __FILE__, __LINE__, pFormat, args );
+            SystemLog::AddEntryVarArgs( Severity::Error, "Navmesh", "Generation", __FILE__, __LINE__, pFormat, args );
             va_end( args );
             return false;
         };
@@ -188,48 +187,44 @@ namespace EE::Navmesh
             // Load descriptor
             //-------------------------------------------------------------------------
 
+            DataPath const& descriptorDataPath = primitiveDesc.first;
+
             FileSystem::Path meshDescriptorFilePath;
-            if ( primitiveDesc.first.IsValid() )
+            if ( descriptorDataPath.IsValid() )
             {
-                meshDescriptorFilePath = ResourcePath::ToFileSystemPath( m_rawResourceDirectoryPath, primitiveDesc.first );
+                meshDescriptorFilePath = descriptorDataPath.GetFileSystemPath( m_rawResourceDirectoryPath );
             }
             else
             {
                 return LogError( "Invalid source data path (%s) for physics mesh descriptor", primitiveDesc.first.c_str() );
             }
 
-            Physics::PhysicsCollisionMeshResourceDescriptor resourceDescriptor;
-            if ( !Resource::ResourceDescriptor::TryReadFromFile( m_typeRegistry, meshDescriptorFilePath, resourceDescriptor ) )
+            Physics::PhysicsCollisionMeshResourceDescriptor physicsCollisionDescriptor;
+            if ( !Resource::ResourceDescriptor::TryReadFromFile( m_typeRegistry, meshDescriptorFilePath, physicsCollisionDescriptor ) )
             {
                 return LogError( "Failed to read physics mesh resource descriptor from file: %s", meshDescriptorFilePath.c_str() );
             }
 
-            // Load mesh
+            // Load collision mesh
             //-------------------------------------------------------------------------
 
-            FileSystem::Path meshFilePath;
-            if ( primitiveDesc.first.IsValid() )
+            FileSystem::Path collisionMeshFilePath;
+            if ( descriptorDataPath.IsValid() )
             {
-                meshFilePath = ResourcePath::ToFileSystemPath( m_rawResourceDirectoryPath, resourceDescriptor.m_sourcePath );
+                collisionMeshFilePath = physicsCollisionDescriptor.m_sourcePath.GetFileSystemPath( m_rawResourceDirectoryPath );
             }
             else
             {
-                return LogError( "Invalid source data path (%) in physics collision descriptor: %s", resourceDescriptor.m_sourcePath.c_str(), meshDescriptorFilePath.c_str() );
+                return LogError( "Invalid source data path (%) in physics collision descriptor: %s", physicsCollisionDescriptor.m_sourcePath.c_str(), meshDescriptorFilePath.c_str() );
             }
 
             Import::ReaderContext readerCtx = 
             { 
-                [this] ( char const* pString ) { EE_LOG_WARNING( "Navmesh", "Generation", pString ); },
-                [this] ( char const* pString ) { EE_LOG_ERROR( "Navmesh", "Generation", pString ); }
+                [] ( char const* pString ) { EE_LOG_WARNING( "Navmesh", "Generation", pString ); },
+                [] ( char const* pString ) { EE_LOG_ERROR( "Navmesh", "Generation", pString ); }
             };
 
-            TVector<String> meshesToInclude;
-            if ( !resourceDescriptor.m_sourceItemName.empty() )
-            {
-                meshesToInclude.emplace_back( resourceDescriptor.m_sourceItemName );
-            }
-
-            TUniquePtr<Import::ImportedMesh> pImportedMesh = Import::ReadStaticMesh( readerCtx, meshFilePath, meshesToInclude );
+            TUniquePtr<Import::ImportedMesh> pImportedMesh = Import::ReadStaticMesh( readerCtx, collisionMeshFilePath, physicsCollisionDescriptor.m_meshesToInclude );
             if ( pImportedMesh == nullptr )
             {
                 return LogError( "Failed to read mesh from source file: %s" );
@@ -366,7 +361,7 @@ namespace EE::Navmesh
         surfaceInput.m_numParams = (uint32_t) layerBuildParams.size();
 
         surfaceInput.m_globalParams.m_enableMulticoreBuild = true;
-        surfaceInput.m_globalParams.m_maxNumCores = Threading::GetProcessorInfo().m_numPhysicalCores / 2;
+        surfaceInput.m_globalParams.m_maxNumCores = Math::Max( 1, Threading::GetProcessorInfo().m_numPhysicalCores - 2 );
         surfaceInput.m_globalParams.m_pMonitor = this;
 
         //-------------------------------------------------------------------------
@@ -402,7 +397,7 @@ namespace EE::Navmesh
         m_progress = 1.0f;
 
         Serialization::BinaryOutputArchive archive;
-        archive << Resource::ResourceHeader( s_version, Navmesh::NavmeshData::GetStaticResourceTypeID(), 0 ) << navmeshData;
+        archive << Resource::ResourceHeader( NavmeshData::s_version, NavmeshData::GetStaticResourceTypeID(), 0, 0 ) << navmeshData;
 
         if ( archive.WriteToFile( m_outputPath ) )
         {

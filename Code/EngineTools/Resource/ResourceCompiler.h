@@ -2,8 +2,8 @@
 
 #include "ResourceDescriptor.h"
 #include "Base/Resource/ResourceHeader.h"
+#include "Base/Resource/IResource.h"
 #include "Base/TypeSystem/ReflectedType.h"
-
 #include "Base/Types/Function.h"
 
 //-------------------------------------------------------------------------
@@ -23,7 +23,7 @@ namespace EE::Resource
 
     struct EE_ENGINETOOLS_API CompilationLog
     {
-        constexpr static char const* const s_delimiter = "Esoterica Resource Compiler\n";
+        constexpr static char const* const s_delimiter = "Esoterica Resource Compiler\n-------------------------------------------------------------------------\n\n";
     };
 
     // Context for a single compilation operation
@@ -41,7 +41,7 @@ namespace EE::Resource
     public:
 
         Platform::Target const                          m_platform = Platform::Target::PC;
-        FileSystem::Path const                          m_rawResourceDirectoryPath;
+        FileSystem::Path const                          m_sourceDataDirectoryPath;
         FileSystem::Path const                          m_compiledResourceDirectoryPath;
         bool                                            m_isCompilingForPackagedBuild = false;
 
@@ -50,6 +50,7 @@ namespace EE::Resource
         FileSystem::Path const                          m_outputFilePath;
 
         uint64_t                                        m_sourceResourceHash = 0; // The combined hash of the source resource and its dependencies
+        uint64_t                                        m_advancedUpToDateHash = 0; // The optional advanced hash of the source source
     };
 
     // Resource Compiler
@@ -61,24 +62,47 @@ namespace EE::Resource
 
     public:
 
-        Compiler( String const& name, int32_t version ) : m_version( version ), m_name( name ) {}
-        virtual ~Compiler() {}
-        virtual CompilationResult Compile( CompileContext const& ctx ) const = 0;
+        struct OutputType
+        {
+            ResourceTypeID  m_typeID;
+            int32_t         m_version;
+            bool            m_requiresAdditionalDataFile;
+        };
 
+    public:
+
+        Compiler( String const& name ) : m_name( name ) {}
+        virtual ~Compiler() {}
+
+        // Get the friendly name for this compiler
         String const& GetName() const { return m_name; }
-        inline int32_t GetVersion() const { return Serialization::GetBinarySerializationVersion() + m_version; }
+
+        // Get the version for the resource
+        int32_t GetVersion( ResourceTypeID resourceTypeID ) const;
 
         void Initialize( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath );
         void Shutdown();
 
         // The list of resource type we can compile
-        virtual TVector<ResourceTypeID> const& GetOutputTypes() const { return m_outputTypes; }
+        virtual TVector<OutputType> const& GetOutputTypes() const { return m_outputTypes; }
+
+        // Will this compiler generate an additional data file for this resource type?
+        bool WillGenerateAdditionalDataFile( ResourceTypeID resourceTypeID ) const;
 
         // Does this compiler actually require the input file or is it optional.
         virtual bool IsInputFileRequired() const { return true; }
 
         // Get all referenced resources needed at runtime
         virtual bool GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const { return true; }
+
+        // Does this resource require an additional advanced up-to-date check
+        virtual bool RequiresAdvancedUpToDateCheck( ResourceTypeID resourceTypeID ) const { return false; }
+
+        // Calculate the advanced up to date check hash
+        virtual uint64_t CalculateAdvancedUpToDateHash( ResourceID resourceID ) const { return 0; }
+
+        // Compile a resource
+        virtual CompilationResult Compile( CompileContext const& ctx ) const = 0;
 
     protected:
 
@@ -92,15 +116,41 @@ namespace EE::Resource
         CompilationResult CompilationSucceededWithWarnings( CompileContext const& ctx ) const;
         CompilationResult CompilationFailed( CompileContext const& ctx ) const;
 
+        // Initialization
+        //-------------------------------------------------------------------------
+
+        template<typename T>
+        void AddOutputType()
+        {
+            static_assert( std::is_base_of<EE::Resource::IResource, T>::value, "T is not derived from IResource" );
+            m_outputTypes.emplace_back( T::GetStaticResourceTypeID(), T::s_version, T::s_requiresAdditionalDataFile );
+        }
+
         // Utilities
         //-------------------------------------------------------------------------
 
         // Converts a resource path to a file path
-        inline bool ConvertResourcePathToFilePath( ResourcePath const& resourcePath, FileSystem::Path& filePath ) const
+        inline bool GetFilePathForResourceID( ResourceID const& resourceID, FileSystem::Path& filePath ) const
+        {
+            if ( resourceID.IsValid() )
+            {
+                filePath = resourceID.GetFileSystemPath( m_sourceDataDirectoryPath );
+                return true;
+            }
+            else
+            {
+                Error( "ResourceCompiler", "Failed to convert resource path to file system path: '%s'", resourceID.c_str() );
+                return false;
+            }
+        }
+
+
+        // Converts a resource path to a file path
+        inline bool ConvertDataPathToFilePath( DataPath const& resourcePath, FileSystem::Path& filePath ) const
         {
             if ( resourcePath.IsValid() )
             {
-                filePath = ResourcePath::ToFileSystemPath( m_rawResourceDirectoryPath, resourcePath );
+                filePath = resourcePath.GetFileSystemPath( m_sourceDataDirectoryPath );
                 return true;
             }
             else
@@ -111,11 +161,11 @@ namespace EE::Resource
         }
 
         // Converts a file path to a resource path
-        inline bool ConvertFilePathToResourcePath( FileSystem::Path const& filePath, ResourcePath& resourcePath ) const
+        inline bool ConvertFilePathToDataPath( FileSystem::Path const& filePath, DataPath& resourcePath ) const
         {
             if ( resourcePath.IsValid() )
             {
-                resourcePath = ResourcePath::FromFileSystemPath( m_rawResourceDirectoryPath, filePath );
+                resourcePath = DataPath::FromFileSystemPath( m_sourceDataDirectoryPath, filePath );
                 return true;
             }
             else
@@ -128,7 +178,7 @@ namespace EE::Resource
         // Try to load a resource descriptor from a resource path
         // Optional: returns the json document read for the descriptor if you need to read additional data from it
         template<typename T>
-        bool TryLoadResourceDescriptor( FileSystem::Path const& descriptorFilePath, T& outDescriptor, rapidjson::Document* pOutOptionalDescriptorDocument = nullptr ) const
+        bool TryLoadResourceDescriptor( FileSystem::Path const& descriptorFilePath, T& outDescriptor ) const
         {
             if ( !descriptorFilePath.IsValid() )
             {
@@ -136,38 +186,25 @@ namespace EE::Resource
                 return false;
             }
 
-            if ( !FileSystem::Exists( descriptorFilePath ) )
+            if ( !descriptorFilePath.Exists() )
             {
                 Error( "Descriptor file doesnt exist: %s", descriptorFilePath.c_str() );
                 return false;
             }
 
-            Serialization::TypeArchiveReader typeReader( *m_pTypeRegistry );
-            if ( !typeReader.ReadFromFile( descriptorFilePath.c_str() ) )
+            if ( !ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, descriptorFilePath, outDescriptor ) )
             {
-                Error( "Failed to read resource descriptor file: %s", descriptorFilePath.c_str() );
+                EE_LOG_ERROR( "ResourceCompiler", "Load Descriptor", "Failed to read data file: %s", descriptorFilePath.c_str() );
                 return false;
-            }
-
-            if ( !typeReader.ReadType( &outDescriptor ) )
-            {
-                Error( "Failed to read resource descriptor from file: %s", descriptorFilePath.c_str() );
-                return false;
-            }
-
-            // Make a copy of the json document to read further data from
-            if ( pOutOptionalDescriptorDocument != nullptr )
-            {
-                pOutOptionalDescriptorDocument->CopyFrom( typeReader.GetDocument(), pOutOptionalDescriptorDocument->GetAllocator(), true );
             }
 
             return true;
         }
-        
+
         // Try to load a resource descriptor from a resource path
         // Optional: returns the json document read for the descriptor if you need to read additional data from it
         template<typename T>
-        bool TryLoadResourceDescriptor( ResourcePath const& descriptorResourcePath, T& outDescriptor, rapidjson::Document* pOutOptionalDescriptorDocument = nullptr ) const
+        bool TryLoadResourceDescriptor( DataPath const& descriptorResourcePath, T& outDescriptor ) const
         {
             if ( !descriptorResourcePath.IsValid() )
             {
@@ -176,13 +213,13 @@ namespace EE::Resource
             }
 
             FileSystem::Path descriptorFilePath;
-            if ( !ConvertResourcePathToFilePath( descriptorResourcePath, descriptorFilePath ) )
+            if ( !ConvertDataPathToFilePath( descriptorResourcePath, descriptorFilePath ) )
             {
                 Error( "Invalid descriptor resource path: %s", descriptorResourcePath.c_str() );
                 return false;
             }
 
-            return TryLoadResourceDescriptor( descriptorFilePath, outDescriptor, pOutOptionalDescriptorDocument );
+            return TryLoadResourceDescriptor( descriptorFilePath, outDescriptor );
         }
 
         // Combines two results together and keeps the most severe one
@@ -209,9 +246,11 @@ namespace EE::Resource
     protected:
 
         TypeSystem::TypeRegistry const*                 m_pTypeRegistry = nullptr;
-        FileSystem::Path                                m_rawResourceDirectoryPath;
-        int32_t const                                   m_version;
+        FileSystem::Path                                m_sourceDataDirectoryPath;
         String const                                    m_name;
-        TVector<ResourceTypeID>                         m_outputTypes;
+
+    private:
+
+        TVector<OutputType>                             m_outputTypes;
     };
 }

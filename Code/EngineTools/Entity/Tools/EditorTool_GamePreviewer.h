@@ -18,7 +18,8 @@ namespace EE
 
     public:
 
-        GamePreviewer( ToolsContext const* pToolsContext, EntityWorld* pWorld );
+        GamePreviewer( ToolsContext const* pToolsContext, String const& displayName, EntityWorld* pWorld );
+        GamePreviewer( ToolsContext const* pToolsContext, EntityWorld* pWorld ) : GamePreviewer( pToolsContext, String( "Game Preview" ), pWorld ) {}
 
         void LoadMapToPreview( ResourceID mapResourceID );
         virtual void Initialize( UpdateContext const& context ) override;

@@ -158,6 +158,10 @@ namespace EE
             {
                 qualifiedName = "EE::TVector";
             }
+            else if ( qualifiedName == "eastl::fixed_vector" )
+            {
+                qualifiedName = "EE::TInlineVector";
+            }
             return true;
         }
     }

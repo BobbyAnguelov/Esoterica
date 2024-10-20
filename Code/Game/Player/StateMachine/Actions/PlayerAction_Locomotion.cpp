@@ -60,15 +60,12 @@ namespace EE::Player
         return true;
     }
 
-    Action::Status LocomotionAction::UpdateInternal( ActionContext const& ctx )
+    Action::Status LocomotionAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
     {
-        auto const pControllerState = ctx.m_pInputSystem->GetController();
-        EE_ASSERT( pControllerState != nullptr );
-
         // Process inputs
         //-------------------------------------------------------------------------
 
-        Vector const movementInputs = pControllerState->GetLeftStickValue();
+        Vector const movementInputs = ctx.m_pInput->m_move.GetValue();
         float const stickAmplitude = movementInputs.GetLength2();
 
         Vector const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
@@ -206,9 +203,7 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        auto const pControllerState = ctx.m_pInputSystem->GetController();
-        EE_ASSERT( pControllerState != nullptr );
-        if ( pControllerState->WasPressed( Input::InputID::Controller_ThumbstickRight ) )
+        if ( ctx.m_pInput->m_crouch.WasPressed() )
         {
             SetCrouchState( ctx, !ctx.m_pPlayerComponent->m_crouchFlag );
         }
@@ -364,9 +359,6 @@ namespace EE::Player
 
     void LocomotionAction::UpdateMoving( ActionContext const& ctx, Vector const& stickInputVectorWS, float stickAmplitude )
     {
-        auto const pControllerState = ctx.m_pInputSystem->GetController();
-        EE_ASSERT( pControllerState != nullptr );
-
         Transform const characterWorldTransform = ctx.m_pCharacterComponent->GetWorldTransform();
 
         //-------------------------------------------------------------------------
@@ -401,7 +393,7 @@ namespace EE::Player
 
             if ( ctx.m_pPlayerComponent->m_sprintFlag )
             {
-                if ( pControllerState->WasPressed( Input::InputID::Controller_ThumbstickLeft ) )
+                if ( ctx.m_pInput->m_sprint.WasPressed() )
                 {
                     ctx.m_pPlayerComponent->m_sprintFlag = false;
                 }
@@ -409,13 +401,13 @@ namespace EE::Player
             else // Not Sprinting
             {
                 float const characterSpeed = ctx.m_pCharacterComponent->GetCharacterVelocity().GetLength2();
-                if ( characterSpeed > 1.0f && pControllerState->WasPressed( Input::InputID::Controller_ThumbstickLeft ) )
+                if ( characterSpeed > 1.0f && ctx.m_pInput->m_sprint.WasPressed() )
                 {
                     ctx.m_pPlayerComponent->m_sprintFlag = true;
                     SetCrouchState( ctx, false );
                 }
 
-                if ( !ctx.m_pPlayerComponent->m_sprintFlag && pControllerState->WasPressed( Input::InputID::Controller_ThumbstickRight ) )
+                if ( !ctx.m_pPlayerComponent->m_sprintFlag && ctx.m_pInput->m_crouch.WasPressed() )
                 {
                     SetCrouchState( ctx, !ctx.m_pPlayerComponent->m_crouchFlag );
                 }

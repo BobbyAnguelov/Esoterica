@@ -1,19 +1,19 @@
 #include "Animation_ToolsGraph_Variations.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
-#include "Base/Serialization/TypeSerialization.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
-    EE::StringID const Variation::s_defaultVariationID( "Default" );
+    StaticStringID const Variation::s_defaultVariationID( "Default" );
 
     //-------------------------------------------------------------------------
 
-    String Variation::GenerateResourceFilePath( FileSystem::Path const& graphPath, StringID variationID )
+    DataPath Variation::GenerateResourceDataPath( FileSystem::Path const& sourceDataDirectoryPath, FileSystem::Path const& graphPath, StringID variationID )
     {
-        return String( String::CtorSprintf(), "%s%c%s.agv", graphPath.c_str(), ResourcePath::s_pathDelimiter, variationID.c_str() );
+        String const pathStr( String::CtorSprintf(), "%s%c%s.agv", graphPath.c_str(), DataPath::s_pathDelimiter, variationID.c_str() );
+        return DataPath::FromFileSystemPath( sourceDataDirectoryPath, pathStr );
     }
 
     String Variation::GetVariationNameFromResourceID( ResourceID const& resourceID )
@@ -21,7 +21,7 @@ namespace EE::Animation
         String variationName;
         if ( resourceID.IsSubResourceID() )
         {
-            variationName = resourceID.GetFileNameWithoutExtension();
+            variationName = resourceID.GetFilenameWithoutExtension();
         }
         else
         {
@@ -41,7 +41,7 @@ namespace EE::Animation
 
             if ( pOutOptionalVariation != nullptr )
             {
-                *pOutOptionalVariation = StringID( resourceID.GetFileNameWithoutExtension() );
+                *pOutOptionalVariation = StringID( resourceID.GetFilenameWithoutExtension() );
             }
         }
         else // Just pass through the resource ID
@@ -190,31 +190,5 @@ namespace EE::Animation
                 break;
             }
         }
-    }
-
-    bool VariationHierarchy::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& objectValue )
-    {
-        m_variations.clear();
-
-        for ( auto& variationObjectValue : objectValue.GetArray() )
-        {
-            auto& newVariation = m_variations.emplace_back();
-            Serialization::ReadNativeType( typeRegistry, variationObjectValue, &newVariation );
-        }
-
-        return true;
-    }
-
-    void VariationHierarchy::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const
-    {
-        writer.StartArray();
-
-        int32_t const numVariations = (int32_t) m_variations.size();
-        for ( int32_t i = 0; i < numVariations; i++ )
-        {
-            Serialization::WriteNativeType( typeRegistry, &m_variations[i], writer );
-        }
-
-        writer.EndArray();
     }
 }

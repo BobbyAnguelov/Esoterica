@@ -22,7 +22,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult TransitionNode::StartTransitionFromState( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, StateNode* pSourceState, bool startCachingSourcePose )
     {
-        EE_ASSERT( pSourceState != nullptr && m_pSourceNode == nullptr && IsInitialized() );
+        EE_ASSERT( pSourceState != nullptr && m_pSourceNode == nullptr && WasInitialized() );
 
         m_pSourceNode = pSourceState;
         m_sourceType = SourceType::State;
@@ -37,7 +37,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult TransitionNode::StartTransitionFromTransition( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, TransitionNode* pSourceTransition, bool startCachingSourcePose )
     {
-        EE_ASSERT( pSourceTransition != nullptr && m_pSourceNode == nullptr && IsInitialized() );
+        EE_ASSERT( pSourceTransition != nullptr && m_pSourceNode == nullptr && WasInitialized() );
 
         m_pSourceNode = pSourceTransition;
         m_sourceType = SourceType::Transition;
@@ -135,11 +135,11 @@ namespace EE::Animation::GraphNodes
             targetUpdateRange.m_startTime.m_eventIdx += int32_t( m_syncEventOffset );
             targetUpdateRange.m_endTime.m_eventIdx += int32_t( m_syncEventOffset );
 
+            // Transition out - this will resample any source state events so that the target state machine has all the correct state events
+            StartTransitionOutForSource();
+
             // Initialize the target node
             m_pTargetNode->Initialize( context, targetUpdateRange.m_startTime );
-
-            // Transition out - has to occur after the initialization of the target so that it doesnt mess with the event state
-            StartTransitionOutForSource();
 
             // Start transition in and update target
             m_pTargetNode->StartTransitionIn( context );
@@ -272,11 +272,11 @@ namespace EE::Animation::GraphNodes
                 targetStartEventSyncTime.m_percentageThrough = Math::ModF( targetStartEventSyncTime.m_percentageThrough + percentageThroughOffset, eventIdxOffset );
                 targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
 
+                // Transition out - this will resample any source state events so that the target state machine has all the correct state events
+                StartTransitionOutForSource();
+
                 // Initialize the target node
                 m_pTargetNode->Initialize( context, targetStartEventSyncTime );
-
-                // Transition out - has to occur after the initialization of the target so that it doesnt mess with the event state
-                StartTransitionOutForSource();
 
                 // Start transition in and update target node
                 // Use a zero time-step as we dont want to update the target on this update but we do want the target pose to be created!
@@ -288,10 +288,10 @@ namespace EE::Animation::GraphNodes
             }
             else // Regular time update (not matched or has sync offset)
             {
-                m_pTargetNode->Initialize( context, SyncTrackTime() );
-
-                // Transition out - has to occur after the initialization of the target so that it doesnt mess with the event state
+                // Transition out - this will resample any source state events so that the target state machine has all the correct state events
                 StartTransitionOutForSource();
+
+                m_pTargetNode->Initialize( context, SyncTrackTime() );
 
                 // Start transition in and update target
                 m_pTargetNode->StartTransitionIn( context );
@@ -653,7 +653,12 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult TransitionNode::Update( GraphContext& context, SyncTrackTimeRange const* pExternallySuppliedUpdateRange )
     {
-        EE_ASSERT( IsInitialized() && m_pSourceNode != nullptr && m_pSourceNode->IsInitialized() && !IsComplete( context ) );
+        EE_ASSERT( WasInitialized() && !IsComplete( context ) );
+        if ( !IsSourceACachedPose() )
+        {
+            EE_ASSERT( m_pSourceNode != nullptr && m_pSourceNode->WasInitialized() );
+        }
+
         auto pDefinition = GetDefinition<TransitionNode>();
 
         MarkNodeActive( context );
@@ -826,7 +831,7 @@ namespace EE::Animation::GraphNodes
             {
                 Percentage const deltaPercentage = Percentage( context.m_deltaTime / m_blendedDuration );
                 m_previousTime = m_currentTime;
-                m_currentTime = m_currentTime + deltaPercentage;
+                m_currentTime = ( m_currentTime + deltaPercentage ).GetClamped( true );
             }
             else
             {

@@ -4,58 +4,68 @@
 #include "Base/TypeSystem/TypeDescriptors.h"
 #include "Base/TypeSystem/ReflectedType.h"
 #include "Base/FileSystem/FileSystemPath.h"
-#include "Base/Serialization/JsonSerialization.h"
+#include "Base/Serialization/XmlSerialization.h"
+#include "Base/Types/Function.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::TypeSystem 
 {
     class TypeRegistry;
-    class TypeInstanceModel;
 }
 
 //-------------------------------------------------------------------------
 // Type Serialization
 //-------------------------------------------------------------------------
-// This file contain basic facilities to convert between JSON and the various type representations we have
+// This file contain basic facilities to convert between XML and the various type representations we have
 
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Serialization
 {
-    constexpr static char const* const s_typeIDKey = "TypeID";
+    constexpr static char const* const g_typeNodeName = "Type";
+    constexpr static char const* const g_typeIDAttrName = "TypeID";
+    constexpr static char const* const g_propertyNodeName = "Property";
+    constexpr static char const* const g_propertyIDAttrName = "ID";
+    constexpr static char const* const g_propertyPathAttrName = "Path";
+    constexpr static char const* const g_propertyArrayIdxAttrName = "Index";
+    constexpr static char const* const g_propertyValueAttrName = "Value";
 
     // Type Descriptors
     //-------------------------------------------------------------------------
 
-    EE_BASE_API bool ReadTypeDescriptorFromJSON( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue, TypeSystem::TypeDescriptor& outDesc );
-    EE_BASE_API void WriteTypeDescriptorToJSON( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer, TypeSystem::TypeDescriptor const& type );
+    EE_BASE_API bool ReadTypeDescriptorFromXML( TypeSystem::TypeRegistry const& typeRegistry, xml_node const& descriptorNode, TypeSystem::TypeDescriptor& outDesc );
+
+    EE_BASE_API xml_node WriteTypeDescriptorToXML( TypeSystem::TypeRegistry const& typeRegistry, xml_node parentNode, TypeSystem::TypeDescriptor const& type );
 
     // Type Instances
     //-------------------------------------------------------------------------
 
-    // Read the data for a native type from JSON - expect a fully created type to be supplied and will override the values
-    EE_BASE_API bool ReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue, IReflectedType* pTypeInstance );
+    // Read the data for a native type from XML - expect a fully created type to be supplied and will override the values
+    EE_BASE_API bool ReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_node const& node, IReflectedType* pTypeInstance );
 
-    // Read the data for a native type from JSON - expect a fully created type to be supplied and will override the values
-    EE_BASE_API bool ReadNativeTypeFromString( TypeSystem::TypeRegistry const& typeRegistry, String const& jsonString, IReflectedType* pTypeInstance );
+    // Read the data for a native type from XML - expect a fully created type to be supplied and will override the values
+    inline bool ReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_document const& doc, IReflectedType* pTypeInstance ) { return ReadType( typeRegistry, doc.first_child(), pTypeInstance ); }
 
-    // Serialize a supplied native type to JSON - creates a new JSON object for this type
-    EE_BASE_API void WriteNativeType( TypeSystem::TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, Serialization::JsonWriter& writer );
+    // Read the data for a native type from XML - expect a fully created type to be supplied and will override the values
+    EE_BASE_API bool ReadTypeFromString( TypeSystem::TypeRegistry const& typeRegistry, String const& xmlString, IReflectedType* pTypeInstance );
 
-    // Writes out the type ID and property data for a supplied native type to an existing JSON object - Note: This function does not create a new json object!
-    EE_BASE_API void WriteNativeTypeContents( TypeSystem::TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, Serialization::JsonWriter& writer );
+    // Serialize a supplied native type to XML - creates a new XML object for this type
+    EE_BASE_API void WriteType( TypeSystem::TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, xml_node& parentNode );
 
-    // Write the property data for a supplied native type to JSON
-    EE_BASE_API void WriteNativeTypeToString( TypeSystem::TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, String& outString );
+    // Write the property data for a supplied native type to XML
+    EE_BASE_API void WriteTypeToString( TypeSystem::TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, String& outString );
 
-    // Create a new instance of a type from a supplied JSON version
-    EE_BASE_API IReflectedType* TryCreateAndReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue );
+    // Create a new instance of a type from a supplied XML version
+    EE_BASE_API IReflectedType* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_node const& node );
 
-    // Create a new instance of a type from a supplied JSON version
+    // Create a new instance of a type from a supplied XML version
+    inline IReflectedType* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_document const& doc ) { return TryCreateAndReadType( typeRegistry, doc.first_child() ); }
+
+    // Create a new instance of a type from a supplied XML version
     template<typename T>
-    T* TryCreateAndReadNativeType( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
+    T* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_node const& node )
     {
-        IReflectedType* pCreatedType = TryCreateAndReadNativeType( typeRegistry, typeObjectValue );
+        IReflectedType* pCreatedType = TryCreateAndReadType( typeRegistry, node );
         if ( pCreatedType != nullptr )
         {
             if ( IsOfType<T>( pCreatedType ) )
@@ -70,130 +80,22 @@ namespace EE::Serialization
         return nullptr;
     }
 
-    //-------------------------------------------------------------------------
-    // Native Type Serialization : Reading
-    //-------------------------------------------------------------------------
-    // Supports multiple compound types in a single archive
-    // An archive is either a single serialized type or an array of serialized types
-    // Each type is serialized as a JSON object with a 'TypeID' property containing the type ID of the serialized type
-
-    class EE_BASE_API TypeArchiveReader : public JsonArchiveReader
+    // Create a new instance of a type from a supplied XML version
+    template<typename T>
+    T* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_document const& doc )
     {
-    public:
+        return TryCreateAndReadType<T>( typeRegistry, doc.first_child() );
+    }
 
-        TypeArchiveReader( TypeSystem::TypeRegistry const& typeRegistry );
-
-        // Get number of types serialized in the read json file
-        inline int32_t GetNumSerializedTypes() const { return m_numSerializedTypes; }
-
-        // Descriptor
-        //-------------------------------------------------------------------------
-
-        inline bool ReadType( TypeSystem::TypeDescriptor& typeDesc )
-        {
-            return ReadTypeDescriptorFromJSON( m_typeRegistry, GetObjectValueToBeDeserialized(), typeDesc );
-        }
-
-        inline TypeArchiveReader const& operator>>( TypeSystem::TypeDescriptor& typeDesc )
-        {
-            bool const result = ReadType( typeDesc );
-            EE_ASSERT( result );
-            return *this;
-        }
-
-        // Native
-        //-------------------------------------------------------------------------
-        // Do not try to serialize core-types using this reader
-
-        inline bool ReadType( IReflectedType* pType )
-        {
-            return ReadNativeType( m_typeRegistry, GetObjectValueToBeDeserialized(), pType );
-        }
-
-        inline IReflectedType* TryReadType()
-        {
-            return TryCreateAndReadNativeType( m_typeRegistry, GetObjectValueToBeDeserialized() );
-        }
-
-        inline TypeArchiveReader const& operator>>( IReflectedType* pType )
-        {
-            bool const result = ReadType( pType );
-            EE_ASSERT( result );
-            return *this;
-        }
-
-        inline TypeArchiveReader const& operator>>( IReflectedType& type )
-        {
-            bool const result = ReadType( &type );
-            EE_ASSERT( result );
-            return *this;
-        }
-
-    private:
-
-        virtual void Reset() override final;
-        virtual void OnFileReadSuccess() override final;
-
-        Serialization::JsonValue const& GetObjectValueToBeDeserialized();
-
-    private:
-
-        TypeSystem::TypeRegistry const&                             m_typeRegistry;
-        int32_t                                                     m_numSerializedTypes = 0;
-        int32_t                                                     m_deserializedTypeIdx = 0;
-    };
-
+    // Utility Functions
     //-------------------------------------------------------------------------
-    // // Native Type Serialization : Writing
-    //-------------------------------------------------------------------------
-    // Supports multiple compound types in a single archive
-    // An archive is either a single serialized type or an array of serialized types
-    // Each type is serialized as a JSON object with a 'TypeID' property containing the type ID of the serialized type
 
-    class EE_BASE_API TypeArchiveWriter final : public JsonArchiveWriter
+    inline void GetAllChildNodes( xml_node const& parentNode, char const* pNodeName, TInlineVector<xml_node, 10>& outNodes )
     {
-    public:
-
-        TypeArchiveWriter( TypeSystem::TypeRegistry const& typeRegistry );
-
-        // Reset all serialized data without writing to disk
-        void Reset() override;
-
-        // Native
-        //-------------------------------------------------------------------------
-        // Do not try to serialize core-types using this writer
-
-        template<typename T>
-        inline TypeArchiveWriter& operator<<( T const* pType )
+        for ( pugi::xml_node typeNode : parentNode.children( pNodeName ) )
         {
-            PreSerializeType();
-            WriteNativeType( m_typeRegistry, pType, m_writer );
-            m_numTypesSerialized++;
-            return *this;
+            outNodes.emplace_back( typeNode );
         }
-
-        // Descriptor
-        //-------------------------------------------------------------------------
-
-        inline TypeArchiveWriter& operator<< ( TypeSystem::TypeDescriptor const& typeDesc )
-        {
-            PreSerializeType();
-            WriteTypeDescriptorToJSON( m_typeRegistry, m_writer, typeDesc );
-            m_numTypesSerialized++;
-            return *this;
-        }
-
-    private:
-
-        using JsonArchiveWriter::GetWriter;
-
-        void PreSerializeType();
-        virtual void FinalizeSerializedData() override final;
-
-    private:
-
-        TypeSystem::TypeRegistry const&                             m_typeRegistry;
-        int32_t                                                     m_numTypesSerialized = 0;
-    };
+    }
 }
 #endif

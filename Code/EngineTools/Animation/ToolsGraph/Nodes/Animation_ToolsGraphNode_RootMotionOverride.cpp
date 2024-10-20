@@ -9,7 +9,7 @@ namespace EE::Animation::GraphNodes
     RootMotionOverrideToolsNode::RootMotionOverrideToolsNode()
         : FlowToolsNode()
     {
-        CreateOutputPin( "Result", GraphValueType::Pose, true );
+        CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Desired Moving Velocity (Character)", GraphValueType::Vector );
         CreateInputPin( "Desired Facing Direction (Character)", GraphValueType::Vector );

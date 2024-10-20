@@ -1,5 +1,3 @@
-{
-    "TypeID": "EE::Render::StaticMeshResourceDescriptor",
-    "m_meshPath": "data://Editor/MaterialBall/MaterialBall.gltf",
-    "m_meshName": ""
-}
+<Type TypeID="EE::Render::StaticMeshResourceDescriptor" Version="0">
+  <Property ID="m_meshPath" Value="data://editor/materialball/materialball.gltf" />
+</Type>

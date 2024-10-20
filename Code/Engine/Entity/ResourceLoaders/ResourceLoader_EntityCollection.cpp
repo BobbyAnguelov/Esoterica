@@ -8,8 +8,8 @@ namespace EE::EntityModel
     EntityCollectionLoader::EntityCollectionLoader()
         : m_pTypeRegistry( nullptr )
     {
-        m_loadableTypes.push_back( SerializedEntityCollection::GetStaticResourceTypeID() );
-        m_loadableTypes.push_back( SerializedEntityMap::GetStaticResourceTypeID() );
+        m_loadableTypes.push_back( EntityCollection::GetStaticResourceTypeID() );
+        m_loadableTypes.push_back( EntityMapDescriptor::GetStaticResourceTypeID() );
     }
 
     void EntityCollectionLoader::SetTypeRegistryPtr( TypeSystem::TypeRegistry const* pTypeRegistry )
@@ -18,21 +18,21 @@ namespace EE::EntityModel
         m_pTypeRegistry = pTypeRegistry;
     }
 
-    bool EntityCollectionLoader::LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    bool EntityCollectionLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         EE_ASSERT( m_pTypeRegistry != nullptr );
 
-        SerializedEntityCollection* pCollectionDesc = nullptr;
+        EntityCollection* pCollectionDesc = nullptr;
 
-        if ( resID.GetResourceTypeID() == SerializedEntityMap::GetStaticResourceTypeID() )
+        if ( resourceID.GetResourceTypeID() == EntityMapDescriptor::GetStaticResourceTypeID() )
         {
-            auto pMap = EE::New<SerializedEntityMap>();
+            auto pMap = EE::New<EntityMapDescriptor>();
             archive << *pMap;
             pCollectionDesc = pMap;
         }
-        else  if ( resID.GetResourceTypeID() == SerializedEntityCollection::GetStaticResourceTypeID() )
+        else  if ( resourceID.GetResourceTypeID() == EntityCollection::GetStaticResourceTypeID() )
         {
-            auto pEC = EE::New<SerializedEntityCollection>();
+            auto pEC = EE::New<EntityCollection>();
             archive << *pEC;
             pCollectionDesc = pEC;
         }

@@ -3,8 +3,12 @@
   "Id": "d6bdd49c-ef46-4637-844a-4ffdd6a25dc5",
   "Items": [
     {
-      "Id": "49c06ffe-e890-415d-9b67-38560969dd27",
+      "Id": "e0990d19-2cb1-4b6a-a95e-a9eb8f5678c6",
       "Command": "-map data://maps/test.map"
+    },
+    {
+      "Id": "49c06ffe-e890-415d-9b67-38560969dd27",
+      "Command": "-map data://maps/br_nav.map"
     },
     {
       "Id": "b2f325a1-49f8-4b85-ab51-0c56a859bf7f",

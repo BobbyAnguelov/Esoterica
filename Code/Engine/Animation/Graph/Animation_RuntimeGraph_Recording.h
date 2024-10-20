@@ -1,6 +1,6 @@
 #pragma once
 #include "Engine/_Module/API.h"
-#include "Animation_RuntimeGraph_Contexts.h"
+#include "Animation_RuntimeGraph_Context.h"
 #include "Animation_RuntimeGraph_LayerData.h"
 #include "Engine/Animation/AnimationTarget.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
@@ -108,7 +108,7 @@ namespace EE::Animation
             bool                                            m_bool;
             StringID                                        m_ID;
             float                                           m_float;
-            Vector                                          m_vector;
+            Float3                                          m_vector;
             Target                                          m_target;
         };
 

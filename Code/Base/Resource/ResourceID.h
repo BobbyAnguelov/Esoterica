@@ -1,7 +1,7 @@
 #pragma once
 
 #include "ResourceTypeID.h"
-#include "ResourcePath.h"
+#include "Base/FileSystem/DataPath.h"
 #include "Base/Types/UUID.h"
 
 //-------------------------------------------------------------------------
@@ -11,6 +11,12 @@
 // Resource Type ID are generated from the lowercase extension of the resource path
 //
 // e.g. data://directory/someResource.mesh ->  ResourceTypeID = 'mesh'
+// 
+// We support the concept of sub-resource paths i.e. data://parentResource.pr/childResource.ch
+// This allows us to specify resources that dont have source descriptor files, for example: navmeshes, graph variations, etc...
+// When converting to file system paths, the sub-resources will be converted as follows:
+//  <path to parent> + <parent resource name with extension> + <data path delimiter> + <sub-resource name with extension> -> <path to parent> + <parent resource name without extension> + <sub-resource delimiter> + <sub-resource name with extension>
+//  e.g., data://parentResource.pr/childResource.ch -> c:\data\parentResource_childResource.ch
 //-------------------------------------------------------------------------
 
 namespace EE
@@ -33,14 +39,14 @@ namespace EE
     public:
 
         static bool IsValidResourceIDString( char const* pStr );
+
         inline static bool IsValidResourceIDString( String const& str ) { return IsValidResourceIDString( str.c_str() ); }
-        inline static ResourceID FromFileSystemPath( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& filePath ) { return ResourceID( ResourcePath::FromFileSystemPath( rawResourceDirectoryPath, filePath ) ); }
 
     public:
 
         ResourceID() = default;
-        ResourceID( ResourcePath const& path ) : m_path( path ) { EE_ASSERT( m_path.IsValid() ); OnPathChanged(); }
-        ResourceID( ResourcePath&& path ) : m_path( std::move( path ) ) { EE_ASSERT( m_path.IsValid() ); OnPathChanged(); }
+        ResourceID( DataPath const& path ) : m_path( path ) { EE_ASSERT( m_path.IsValid() ); OnPathChanged(); }
+        ResourceID( DataPath&& path ) : m_path( std::move( path ) ) { EE_ASSERT( m_path.IsValid() ); OnPathChanged(); }
         inline ResourceID( String&& path ) : m_path( path ) { OnPathChanged(); }
         inline ResourceID( String const& path ) : m_path( path ) { OnPathChanged(); }
         inline ResourceID( char const* pPath ) : m_path( pPath ) { OnPathChanged(); }
@@ -58,23 +64,27 @@ namespace EE
 
         inline bool IsPathSet() const { return m_path.IsValid(); }
         inline uint32_t GetPathID() const { return m_path.GetID(); }
-        inline ResourcePath const& GetResourcePath() const { return m_path; }
-        inline String GetFileNameWithoutExtension() const { EE_ASSERT( m_path.IsValid() ); return m_path.GetFileNameWithoutExtension(); }
+        inline DataPath const& GetResourcePath() const { return m_path; }
+        inline String GetFilenameWithoutExtension() const { EE_ASSERT( m_path.IsValid() ); return m_path.GetFilenameWithoutExtension(); }
 
         // Sub-resources
         //-------------------------------------------------------------------------
 
-        inline bool IsSubResourceID() const { return m_path.IsSubResourcePath(); }
-        inline ResourceID GetParentResourceID() const { ResourcePath const parentResourcePath = m_path.GetParentResourcePath(); return parentResourcePath.IsValid() ? ResourceID( eastl::move( parentResourcePath ) ) : ResourceID(); }
-        inline ResourcePath GetParentResourcePath() const { return m_path.GetParentResourcePath(); }
-        inline ResourceTypeID GetParentResourceTypeID() const { return GetParentResourceID().GetResourceTypeID(); }
+        inline bool IsSubResourceID() const { return m_path.IsIntraFilePath(); }
+
+        // Get the parent resource ID for a sub-resource ID - if this is not a sub resource ID this function will return the same resource ID
+        inline ResourceID GetParentResourceID() const;
+
+        // Get the resource type ID for the parent of a sub-resource ID - if this is not a sub resource ID this function will return the same resource type ID
+        ResourceTypeID GetParentResourceTypeID() const;
 
         // Conversion
         //-------------------------------------------------------------------------
 
         inline String const& ToString() const { return m_path.GetString(); }
-        inline FileSystem::Path ToFileSystemPath( FileSystem::Path const& rawResourceDirectoryPath ) const { return m_path.ToFileSystemPath( rawResourceDirectoryPath ); }
         inline char const* c_str() const { return m_path.c_str(); }
+        inline FileSystem::Path GetFileSystemPath( FileSystem::Path const& dataDirectoryPath ) const { return m_path.GetFileSystemPath( dataDirectoryPath ); }
+        inline FileSystem::Path GetParentResourceFileSystemPath( FileSystem::Path const& dataDirectoryPath ) const { return m_path.GetParentFileSystemPath( dataDirectoryPath ); }
 
         // Operators
         //-------------------------------------------------------------------------
@@ -91,8 +101,8 @@ namespace EE
 
     private:
 
-        ResourcePath            m_path;
-        ResourceTypeID          m_type;
+        DataPath            m_path;
+        ResourceTypeID      m_type;
     };
 }
 

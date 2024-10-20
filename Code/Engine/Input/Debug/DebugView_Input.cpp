@@ -2,10 +2,10 @@
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
+#include "Engine/Player/Components/Component_Player.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Input/InputSystem.h"
-#include "Engine/Player/Components/Component_Player.h"
 
 //-------------------------------------------------------------------------
 
@@ -26,9 +26,11 @@ namespace EE::Input
 
         static Float2 const g_buttonBorderOffset( g_buttonBorderThickness );
         static Float2 const g_buttonDimensions( g_buttonWidth, g_buttonWidth );
-
-        static StringID const g_controllerWindowTypeID( "ControllerWindow" );
     }
+
+    StaticStringID const InputDebugView::s_controllerWindowTypeID( "ControllerWindow" );
+
+    //-------------------------------------------------------------------------
 
     static void DrawButton( ImDrawList* pDrawList, Float2 const& position, Float2 const& dimensions, char const* const pLabel, bool IsHeldDown, uint32_t buttonColor = g_controlOutlineColor, uint32_t pressedColor = g_controlFillColor )
     {
@@ -72,42 +74,31 @@ namespace EE::Input
 
         // Get Values
         float triggerValue = 0.0f;
-        float triggerRawValue = 0.0f;
         uint32_t triggerValueColor = 0;
-        uint32_t triggerRawValueColor = 0;
 
         if ( isLeftTrigger )
         {
             triggerValue = controller.GetValue( InputID::Controller_LeftTrigger );
-            triggerRawValue = controller.GetRawValue( InputID::Controller_LeftTrigger );
             triggerValueColor = 0xFF0000FF;
-            triggerRawValueColor = 0xFF00FF00;
         }
         else
         {
             triggerValue = controller.GetValue( InputID::Controller_RightTrigger );
-            triggerRawValue = controller.GetRawValue( InputID::Controller_RightTrigger );
             triggerValueColor = 0xFF00FF00;
-            triggerRawValueColor = 0xFF0000FF;
         }
 
         // Draw the trigger values
-        if ( triggerRawValue > 0 )
+        if ( triggerValue > 0 )
         {
             float const valueMaxLength = borderDimensions.m_y - ( g_buttonBorderThickness * 2 );
             float const triggerValueWidth = ( borderDimensions.m_x - g_buttonBorderThickness * 2 ) / 2;
             float const triggerValue0TopLeftX = drawPosition.m_x + g_buttonBorderThickness;
             float const triggerValue1TopLeftX = triggerValue0TopLeftX + triggerValueWidth;
             float const triggerValue0TopLeftY = drawPosition.m_y + g_buttonBorderThickness + ( 1.0f - triggerValue ) * valueMaxLength;
-            float const triggerValue1TopLeftY = drawPosition.m_y + g_buttonBorderThickness + ( 1.0f - triggerRawValue ) * valueMaxLength;
 
             Float2 const triggerValue0TopLeft( triggerValue0TopLeftX, triggerValue0TopLeftY );
             Float2 const triggerValue0BottomRight( triggerValue1TopLeftX, triggerBottomRight.m_y - g_buttonBorderThickness );
             pDrawList->AddRectFilled( triggerValue0TopLeft, triggerValue0BottomRight, triggerValueColor );
-
-            Float2 const triggerValue1TopLeft( triggerValue0TopLeftX + triggerValueWidth, triggerValue1TopLeftY );
-            Float2 const triggerValue1BottomRight( triggerValue1TopLeftX + triggerValueWidth, triggerBottomRight.m_y - g_buttonBorderThickness );
-            pDrawList->AddRectFilled( triggerValue1TopLeft, triggerValue1BottomRight, triggerRawValueColor );
         }
     }
 
@@ -115,40 +106,27 @@ namespace EE::Input
     {
         EE_ASSERT( pDrawList != nullptr );
 
-        Float2 rawValue = Float2::Zero;
-        Float2 filteredValue = Float2::Zero;
+        Float2 value = Float2::Zero;
 
         if ( isLeftStick )
         {
-            rawValue = Float2( controller.GetRawValue( InputID::Controller_LeftStickHorizontal ), controller.GetRawValue( InputID::Controller_LeftStickVertical ) );
-            filteredValue = Float2( controller.GetValue( InputID::Controller_LeftStickHorizontal ), controller.GetValue( InputID::Controller_LeftStickVertical ) );
+            value = Float2( controller.GetValue( InputID::Controller_LeftStickHorizontal ), controller.GetValue( InputID::Controller_LeftStickVertical ) );
         }
         else
         {
-            rawValue = Float2( controller.GetRawValue( InputID::Controller_RightStickHorizontal ), controller.GetRawValue( InputID::Controller_RightStickVertical ) );
-            filteredValue = Float2( controller.GetValue( InputID::Controller_RightStickHorizontal ), controller.GetValue( InputID::Controller_RightStickVertical ) );
+            value = Float2( controller.GetValue( InputID::Controller_RightStickHorizontal ), controller.GetValue( InputID::Controller_RightStickVertical ) );
         }
 
         // Invert the m_y values to match screen space
-        rawValue.m_y = -rawValue.m_y;
-        filteredValue.m_y = -filteredValue.m_y;
+        value.m_y = -value.m_y;
 
         // Draw max stick range and dead zone range
-        float const innerDeadZoneRadius = g_analogStickRangeRadius * ( isLeftStick ? controller.GetLeftStickInnerDeadzone() : controller.GetRightStickInnerDeadzone() );
-        float const outerDeadZoneRadius = g_analogStickRangeRadius * ( 1.0f - ( isLeftStick ? controller.GetLeftStickOuterDeadzone() : controller.GetRightStickOuterDeadzone() ) );
         Float2 const analogStickCenter = position + Float2( g_analogStickRangeRadius );
         pDrawList->AddCircle( analogStickCenter, g_analogStickRangeRadius, g_controlFillColor, 20 );
-        pDrawList->AddCircleFilled( analogStickCenter, outerDeadZoneRadius, g_controlFillColor, 20 );
-        pDrawList->AddCircleFilled( analogStickCenter, innerDeadZoneRadius, 0xFF333333, 20 );
 
         // Draw raw stick position
-        Float2 stickOffset = rawValue * g_analogStickRangeRadius;
+        Float2 stickOffset = value * g_analogStickRangeRadius;
         pDrawList->AddCircleFilled( analogStickCenter + stickOffset, g_analogStickPositionRadius, 0xFF0000FF, 6 );
-
-        // Draw filtered stick position
-        Vector vDirection = Vector( filteredValue ).GetNormalized2();
-        stickOffset = ( filteredValue * ( outerDeadZoneRadius - innerDeadZoneRadius ) ) + ( vDirection * innerDeadZoneRadius ).ToFloat2();
-        pDrawList->AddCircleFilled( analogStickCenter + stickOffset, g_analogStickPositionRadius, 0xFF00FF00, 6 );
     }
 
     //-------------------------------------------------------------------------
@@ -206,9 +184,9 @@ namespace EE::Input
                 {
                     for ( auto& window : m_windows )
                     {
-                        if ( m_windows[i].m_typeID == g_controllerWindowTypeID && m_windows[i].m_userData == i )
+                        if ( window.m_typeID == s_controllerWindowTypeID && window.m_userData == i )
                         {
-                            m_windows[i].m_isOpen = true;
+                            window.m_isOpen = true;
                         }
                     }
                 }
@@ -241,7 +219,7 @@ namespace EE::Input
             // Remove all controller windows
             for ( int32_t i = (int32_t) m_windows.size() - 1; i >= 0; i-- )
             {
-                if ( m_windows[i].m_typeID == g_controllerWindowTypeID )
+                if ( m_windows[i].m_typeID == s_controllerWindowTypeID )
                 {
                     m_windows.erase_unsorted( m_windows.begin() + i );
                 }
@@ -259,7 +237,7 @@ namespace EE::Input
 
                 str.sprintf( "Controller State: Controller %d", i );
                 m_windows.emplace_back( str.c_str(), DrawControllerStateLambda );
-                m_windows.back().m_typeID = g_controllerWindowTypeID;
+                m_windows.back().m_typeID = s_controllerWindowTypeID;
                 m_windows.back().m_userData = i;
             }
         }
@@ -287,50 +265,6 @@ namespace EE::Input
         {
             return;
         }
-
-        //-------------------------------------------------------------------------
-
-        VirtualInputRegistry const* pInputRegistry = pPlayerComponent->GetInputRegistry();
-
-        for ( auto pInput : pInputRegistry->m_inputs )
-        {
-            ImGui::PushID( pInput );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::Text( pInput->GetID().c_str() );
-
-            ImGui::SameLine();
-
-            switch ( pInput->GetType() )
-            {
-                case VirtualInput::Type::Binary:
-                {
-                    auto pActualInput = static_cast<BinaryInput const*>( pInput );
-                    ImGui::Text( pActualInput->GetValue() ? "true" : "false" );
-                }
-                break;
-
-                case VirtualInput::Type::Analog:
-                {
-                    auto pActualInput = static_cast<AnalogInput const*>( pInput );
-                    ImGui::Text( "%.2f", pActualInput->GetValue() );
-                }
-                break;
-
-                case VirtualInput::Type::Directional:
-                {
-                    auto pActualInput = static_cast<DirectionalInput const*>( pInput );
-                    Float2 value = pActualInput->GetValue();
-                    ImGuiX::DrawFloat2( value, -1 );
-                }
-                break;
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::PopID();
-        }
     }
 
     void InputDebugView::DrawControllerState( EntityWorldUpdateContext const& context, ControllerDevice const& controller )
@@ -344,7 +278,7 @@ namespace EE::Input
 
         // Left Shoulder and trigger buttons
         drawPosition = FirstRowTopLeft;
-        DrawButton( pDrawList, drawPosition, g_buttonDimensions, "LB", controller.IsHeldDown( Input::InputID::Controller_ShoulderLeft ) );
+        DrawButton( pDrawList, drawPosition, g_buttonDimensions, "LB", controller.IsHeldDown( Input::InputID::Controller_LeftShoulder ) );
         drawPosition.m_y += g_buttonDimensions.m_y;
         DrawTriggerButton( pDrawList, drawPosition, triggerButtonDimensions, "LT", controller, true );
 
@@ -358,7 +292,7 @@ namespace EE::Input
 
         // Right Shoulder and trigger buttons
         drawPosition = Float2( drawPosition.m_x + g_analogStickRangeRadius * 2 + 9, FirstRowTopLeft.m_y );
-        DrawButton( pDrawList, drawPosition, g_buttonDimensions, "RB", controller.IsHeldDown( Input::InputID::Controller_ShoulderRight ) );
+        DrawButton( pDrawList, drawPosition, g_buttonDimensions, "RB", controller.IsHeldDown( Input::InputID::Controller_RightShoulder ) );
         drawPosition.m_y += g_buttonDimensions.m_y;
         DrawTriggerButton( pDrawList, drawPosition, triggerButtonDimensions, "RT", controller, false );
 
@@ -401,9 +335,9 @@ namespace EE::Input
 
         // Stick Buttons
         drawPosition = Float2( SecondRowTopLeft.m_x + g_buttonWidth + g_analogStickRangeRadius * 2, drawPosition.m_y + g_buttonWidth + 4 );
-        DrawButton( pDrawList, drawPosition, g_buttonDimensions, "LS", controller.IsHeldDown( Input::InputID::Controller_ThumbstickLeft ) );
+        DrawButton( pDrawList, drawPosition, g_buttonDimensions, "LS", controller.IsHeldDown( Input::InputID::Controller_LeftStick ) );
         drawPosition = Float2( drawPosition.m_x + g_buttonWidth + 4, drawPosition.m_y );
-        DrawButton( pDrawList, drawPosition, g_buttonDimensions, "RS", controller.IsHeldDown( Input::InputID::Controller_ThumbstickRight ) );
+        DrawButton( pDrawList, drawPosition, g_buttonDimensions, "RS", controller.IsHeldDown( Input::InputID::Controller_RightStick ) );
 
         totalSize.m_x = ( drawPosition.m_x + g_buttonWidth ) - FirstRowTopLeft.m_x;
         totalSize.m_y = triggerButtonDimensions.m_y + g_buttonWidth + 4;

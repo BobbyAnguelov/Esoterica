@@ -127,7 +127,7 @@ namespace EE::Animation::GraphNodes
 
         if ( m_pActiveTransition != nullptr )
         {
-            EE_ASSERT( m_pActiveTransition->IsInitialized() );
+            EE_ASSERT( m_pActiveTransition->WasInitialized() );
             m_pActiveTransition->Shutdown( context );
         }
 

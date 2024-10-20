@@ -25,7 +25,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        bool IsInitialized() const;
+        bool WasInitialized() const;
         bool Initialize( RenderGlobalSettings const& settings );
         bool Initialize();
         void Shutdown();

@@ -14,7 +14,7 @@ namespace EE::Player
         EE_PLAYER_ACTION_ID( JumpAction );
 
         virtual bool TryStartInternal( ActionContext const& ctx ) override;
-        virtual Status UpdateInternal( ActionContext const& ctx ) override;
+        virtual Status UpdateInternal( ActionContext const& ctx, bool isFirstUpdate ) override;
         virtual void StopInternal( ActionContext const& ctx, StopReason reason ) override;
 
         inline bool IsChargedJumpReady() const { return m_isChargedJumpReady; }

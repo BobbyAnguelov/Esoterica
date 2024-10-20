@@ -24,10 +24,10 @@ namespace EE::Physics
 
     protected:
 
-        EE_REFLECT( "Category" : "Shape" );
+        EE_REFLECT( Category = "Shape" );
         float                                   m_radius = 0.5f;
 
-        EE_REFLECT( "Category" : "Physics" );
+        EE_REFLECT( Category = "Physics" );
         MaterialID                              m_materialID;
     };
 }

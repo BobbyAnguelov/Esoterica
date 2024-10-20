@@ -26,6 +26,7 @@ namespace EE::TypeSystem::Conversion
     EE_BASE_API bool ConvertBinaryToNativeType( TypeRegistry const& typeRegistry, TypeID typeID, TypeID templateArgumentTypeID, Blob const& byteArray, void* pValue );
     EE_BASE_API bool ConvertNativeTypeToBinary( TypeRegistry const& typeRegistry, TypeID typeID, TypeID templateArgumentTypeID, void const* pValue, Blob& byteArray );
     EE_BASE_API bool ConvertStringToBinary( TypeRegistry const& typeRegistry, TypeID typeID, TypeID templateArgumentTypeID, String const& strValue, Blob& byteArray );
+    EE_BASE_API bool ConvertBinaryToString( TypeRegistry const& typeRegistry, TypeID typeID, TypeID templateArgumentTypeID, Blob const& byteArray, String& strValue );
     EE_BASE_API bool IsValidStringValueForType( TypeRegistry const& typeRegistry, TypeID typeID, TypeID templateArgumentTypeID, String const& strValue );
 
     //-------------------------------------------------------------------------

@@ -36,19 +36,22 @@ namespace EE::Animation::GraphNodes
 
     void CachedBoolNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
-        MarkNodeActive( context );
-
-        if ( !m_hasCachedValue )
+        if ( !WasUpdated( context ) )
         {
-            EE_ASSERT( GetDefinition<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
+            MarkNodeActive( context );
 
-            if ( context.m_branchState == BranchState::Inactive )
+            if ( !m_hasCachedValue )
             {
-                m_hasCachedValue = true;
-            }
-            else
-            {
-                m_value = m_pInputValueNode->GetValue<bool>( context );
+                EE_ASSERT( GetDefinition<CachedBoolNode>()->m_mode == CachedValueMode::OnExit );
+
+                if ( context.m_branchState == BranchState::Inactive )
+                {
+                    m_hasCachedValue = true;
+                }
+                else
+                {
+                    m_value = m_pInputValueNode->GetValue<bool>( context );
+                }
             }
         }
 
@@ -111,19 +114,22 @@ namespace EE::Animation::GraphNodes
 
     void CachedIDNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
-        MarkNodeActive( context );
-
-        if ( !m_hasCachedValue )
+        if ( !WasUpdated( context ) )
         {
-            EE_ASSERT( GetDefinition<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
+            MarkNodeActive( context );
 
-            if ( context.m_branchState == BranchState::Inactive )
+            if ( !m_hasCachedValue )
             {
-                m_hasCachedValue = true;
-            }
-            else
-            {
-                m_value = m_pInputValueNode->GetValue<StringID>( context );
+                EE_ASSERT( GetDefinition<CachedIDNode>()->m_mode == CachedValueMode::OnExit );
+
+                if ( context.m_branchState == BranchState::Inactive )
+                {
+                    m_hasCachedValue = true;
+                }
+                else
+                {
+                    m_value = m_pInputValueNode->GetValue<StringID>( context );
+                }
             }
         }
 
@@ -249,7 +255,7 @@ namespace EE::Animation::GraphNodes
         auto pDefinition = GetDefinition<CachedVectorNode>();
         if ( pDefinition->m_mode == CachedValueMode::OnEntry )
         {
-            m_value = m_pInputValueNode->GetValue<Vector>( context );
+            m_value = m_pInputValueNode->GetValue<Float3>( context );
             m_hasCachedValue = true;
         }
         else
@@ -266,23 +272,26 @@ namespace EE::Animation::GraphNodes
 
     void CachedVectorNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
-        MarkNodeActive( context );
-
-        if ( !m_hasCachedValue )
+        if ( !WasUpdated( context ) )
         {
-            EE_ASSERT( GetDefinition<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
+            MarkNodeActive( context );
 
-            if ( context.m_branchState == BranchState::Inactive )
+            if ( !m_hasCachedValue )
             {
-                m_hasCachedValue = true;
-            }
-            else
-            {
-                m_value = m_pInputValueNode->GetValue<Vector>( context );
+                EE_ASSERT( GetDefinition<CachedVectorNode>()->m_mode == CachedValueMode::OnExit );
+
+                if ( context.m_branchState == BranchState::Inactive )
+                {
+                    m_hasCachedValue = true;
+                }
+                else
+                {
+                    m_value = m_pInputValueNode->GetValue<Float3>( context );
+                }
             }
         }
 
-        *reinterpret_cast<Vector*>( pOutValue ) = m_value;
+        *reinterpret_cast<Float3*>( pOutValue ) = m_value;
     }
 
     #if EE_DEVELOPMENT_TOOLS
@@ -341,19 +350,22 @@ namespace EE::Animation::GraphNodes
 
     void CachedTargetNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
-        MarkNodeActive( context );
-
-        if ( !m_hasCachedValue )
+        if ( !WasUpdated( context ) )
         {
-            EE_ASSERT( GetDefinition<CachedFloatNode>()->m_mode == CachedValueMode::OnExit );
+            MarkNodeActive( context );
 
-            if ( context.m_branchState == BranchState::Inactive )
+            if ( !m_hasCachedValue )
             {
-                m_hasCachedValue = true;
-            }
-            else
-            {
-                m_value = m_pInputValueNode->GetValue<Target>( context );
+                EE_ASSERT( GetDefinition<CachedTargetNode>()->m_mode == CachedValueMode::OnExit );
+
+                if ( context.m_branchState == BranchState::Inactive )
+                {
+                    m_hasCachedValue = true;
+                }
+                else
+                {
+                    m_value = m_pInputValueNode->GetValue<Target>( context );
+                }
             }
         }
 

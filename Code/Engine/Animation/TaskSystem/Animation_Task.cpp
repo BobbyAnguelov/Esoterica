@@ -4,13 +4,10 @@
 
 namespace EE::Animation
 {
-    Task::Task( TaskSourceID sourceID, TaskUpdateStage updateRequirements, TaskDependencies const& dependencies )
-        : m_sourceID( sourceID )
-        , m_updateStage( updateRequirements )
+    Task::Task( TaskUpdateStage updateRequirements, TaskDependencies const& dependencies )
+        : m_updateStage( updateRequirements )
         , m_dependencies( dependencies )
-    {
-        EE_ASSERT( sourceID != InvalidIndex );
-    }
+    {}
 
     //-------------------------------------------------------------------------
 
@@ -33,7 +30,7 @@ namespace EE::Animation
                 int32_t const boneIdx = pPrimarySkeleton->GetBoneIndex( pSecondarySkeleton->GetPreviewAttachmentSocketID() );
                 if ( boneIdx != InvalidIndex )
                 {
-                    poseWorldTransform = pPrimaryPose->GetGlobalTransform( boneIdx ) * worldTransform;
+                    poseWorldTransform = pPrimaryPose->GetModelSpaceTransform( boneIdx ) * worldTransform;
                 }
             }
 
@@ -46,7 +43,7 @@ namespace EE::Animation
 
     void Task::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
     {
-        pRecordedPoseBuffer->m_poses[0].DrawDebug( drawingContext, worldTransform, lod, GetDebugColor(), 3.0f, isDetailedViewEnabled );
+        pRecordedPoseBuffer->m_poses[0].DrawDebug( drawingContext, worldTransform, lod, GetDebugColor(), 3.0f, false );
         DrawSecondaryPoses( drawingContext, worldTransform, lod, pRecordedPoseBuffer, isDetailedViewEnabled );
     }
     #endif

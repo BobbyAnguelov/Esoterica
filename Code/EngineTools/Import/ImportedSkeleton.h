@@ -20,8 +20,8 @@ namespace EE::Import
         public:
 
             StringID            m_name;
-            Transform           m_localTransform = Transform::Identity;
-            Transform           m_globalTransform = Transform::Identity;
+            Transform           m_parentSpaceTransform = Transform::Identity;
+            Transform           m_modelSpaceTransform = Transform::Identity;
             StringID            m_parentBoneName;
             int32_t             m_parentBoneIdx = InvalidIndex;
         };
@@ -44,8 +44,8 @@ namespace EE::Import
         inline StringID GetBoneID( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx].m_name; }
         int32_t GetBoneIndex( StringID const& boneName ) const;
         inline int32_t GetParentBoneIndex( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx].m_parentBoneIdx; }
-        inline Transform const& GetLocalTransform( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx].m_localTransform; }
-        inline Transform const& GetGlobalTransform( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx].m_globalTransform; }
+        inline Transform const& GetParentSpaceTransform( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx].m_parentSpaceTransform; }
+        inline Transform const& GetModelSpaceTransform( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx].m_modelSpaceTransform; }
 
         bool IsChildBoneOf( int32_t parentBoneIdx, int32_t childBoneIdx ) const;
 

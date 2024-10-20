@@ -34,6 +34,18 @@ namespace EE::Animation::GraphNodes
         return AnimationClipReferenceNode::IsValid() && m_pAnimation != nullptr;
     }
 
+    SyncTrack const& AnimationClipNode::GetSyncTrack() const
+    {
+        if ( IsValid() )
+        {
+            return m_pAnimation->GetSyncTrack();
+        }
+        else
+        {
+            return SyncTrack::s_defaultTrack;
+        }
+    }
+
     void AnimationClipNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         AnimationClipReferenceNode::InitializeInternal( context, initialTime );
@@ -77,11 +89,13 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult AnimationClipNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
-        EE_ASSERT( context.IsValid() && IsInitialized() );
+        EE_ASSERT( context.IsValid() && WasInitialized() );
 
         if ( !IsValid() )
         {
-            return GraphPoseNodeResult();
+            GraphPoseNodeResult result;
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
+            return result;
         }
 
         MarkNodeActive( context );
@@ -227,11 +241,7 @@ namespace EE::Animation::GraphNodes
                 frameSelectionMode = pSnapFrameEvent->GetFrameSelectionMode();
             }
 
-            SampledEvent& evt = context.m_pSampledEventsBuffer->EmplaceAnimationEvent( pEvent, percentageThroughEvent, isFromActiveBranch );
-
-            #if EE_DEVELOPMENT_TOOLS
-            evt.SetSourceNodeIndex( GetNodeIndex() );
-            #endif
+            context.m_pSampledEventsBuffer->EmplaceAnimationEvent( GetNodeIndex(), pEvent, percentageThroughEvent, isFromActiveBranch );
         }
 
         result.m_sampledEventRange.m_endIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();

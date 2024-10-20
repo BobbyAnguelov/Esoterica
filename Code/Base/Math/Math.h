@@ -37,8 +37,17 @@ namespace EE
         EE_FORCE_INLINE float Sqr( float value ) { return value * value; }
         EE_FORCE_INLINE float Sqrt( float value ) { return sqrtf( value ); }
 
+        // Computes Euler's number (2.7182818...) raised to the given power N ( 2.7182818...^N )
+        EE_FORCE_INLINE float Exp( float N ) { return expf( N ); }
+
+        // Computes 2 raised to the given power N ( 2^N )
+        EE_FORCE_INLINE float Exp2( float N ) { return exp2f( N ); }
+
+        // Computes the base 10 log of value
         EE_FORCE_INLINE float Log( float value ) { return logf( value ); }
-        EE_FORCE_INLINE float Log2f( float value ) { return log2f( value ); }
+
+        // Computes the base 2 log of value
+        EE_FORCE_INLINE float Log2( float value ) { return log2f( value ); }
 
         EE_FORCE_INLINE float AddToMovingAverage( float currentAverage, uint64_t numCurrentSamples, float newValue )
         {
@@ -103,12 +112,6 @@ namespace EE
             return fmodf( x, y );
         }
 
-        template<typename T>
-        EE_FORCE_INLINE T Lerp( T A, T B, float t )
-        {
-            return A + ( B - A ) * t;
-        }
-
         EE_FORCE_INLINE float PercentageThroughRange( float value, float lowerBound, float upperBound )
         {
             EE_ASSERT( lowerBound < upperBound );
@@ -163,6 +166,18 @@ namespace EE
         EE_FORCE_INLINE int32_t RoundToInt( float value )
         {
             return (int32_t) roundf( value );
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE T FloatToInt( float value )
+        {
+            return static_cast<T>( roundf( value ) );
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE T DoubleToInt( double value )
+        {
+            return static_cast<T>( round( value ) );
         }
 
         inline int32_t GreatestCommonDivisor( int32_t a, int32_t b )
@@ -270,6 +285,8 @@ namespace EE
     enum IdentityInit_t { IdentityInit };
 
     //-------------------------------------------------------------------------
+    // Axes
+    //-------------------------------------------------------------------------
 
     enum class Axis : uint8_t
     {
@@ -281,6 +298,24 @@ namespace EE
         NegZ
     };
 
+    EE_FORCE_INLINE Axis GetOppositeAxis( Axis axis) 
+    {
+        int32_t const v = (int32_t) axis;
+        if ( v < 3 )
+        {
+            return Axis( v + 3 );
+        }
+        else
+        {
+            return Axis( v - 3 );
+        }
+    }
+
+    // Returns the orthogonal axis based on the right hand rule for cross-products: Cross( axis1, axis2 )
+    EE_BASE_API Axis GetOrthogonalAxis( Axis axis1, Axis axis2 );
+
+    //-------------------------------------------------------------------------
+    // Storage Types
     //-------------------------------------------------------------------------
 
     struct Float2;
@@ -409,6 +444,7 @@ namespace EE
         inline explicit Float2( Float4 const& v );
 
         inline bool IsZero() const { return *this == Zero; }
+        inline bool IsNearZero() const { return Math::IsNearZero( m_x ) && Math::IsNearZero( m_y ); }
 
         inline float& operator[]( uint32_t i ) { EE_ASSERT( i < 2 ); return ( (float*) this )[i]; }
         inline float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 2 ); return ( (float*) this )[i]; }
@@ -467,6 +503,7 @@ namespace EE
         inline explicit Float3( Float4 const& v );
 
         inline bool IsZero() const { return *this == Zero; }
+        inline bool IsNearZero() const { return Math::IsNearZero( m_x ) && Math::IsNearZero( m_y ) && Math::IsNearZero( m_z ); }
 
         inline float& operator[]( uint32_t i ) { EE_ASSERT( i < 3 ); return ( (float*) this )[i]; }
         inline float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 3 ); return ( (float*) this )[i]; }
@@ -528,6 +565,7 @@ namespace EE
         explicit Float4( Float3 const& v, float iw = 0.0f ) : m_x( v.m_x ), m_y( v.m_y ), m_z( v.m_z ), m_w( iw ) {}
 
         inline bool IsZero() const { return *this == Zero; }
+        inline bool IsNearZero() const { return Math::IsNearZero( m_x ) && Math::IsNearZero( m_y ) && Math::IsNearZero( m_z ) && Math::IsNearZero( m_w ); }
 
         float& operator[]( uint32_t i ) { EE_ASSERT( i < 4 ); return ( (float*) this )[i]; }
         float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 4 ); return ( (float*) this )[i]; }

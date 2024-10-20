@@ -65,7 +65,7 @@ namespace EE::ImGuiX
         {
             case GizmoMode::Translation:
             {
-                SwitchMode( GizmoMode::Rotation );
+                SetMode( GizmoMode::Rotation );
             }
             break;
 
@@ -73,11 +73,11 @@ namespace EE::ImGuiX
             {
                 if ( m_options.IsFlagSet( Options::AllowScale ) )
                 {
-                    SwitchMode( GizmoMode::Scale );
+                    SetMode( GizmoMode::Scale );
                 }
                 else
                 {
-                    SwitchMode( GizmoMode::Translation );
+                    SetMode( GizmoMode::Translation );
                 }
             }
             break;
@@ -85,13 +85,13 @@ namespace EE::ImGuiX
             case GizmoMode::Scale:
             {
                 EE_ASSERT( m_options.IsFlagSet( Options::AllowScale ) );
-                SwitchMode( GizmoMode::Translation );
+                SetMode( GizmoMode::Translation );
             }
             break;
         }
     }
 
-    void Gizmo::SwitchMode( GizmoMode newMode )
+    void Gizmo::SetMode( GizmoMode newMode )
     {
         if ( newMode == m_gizmoMode )
         {

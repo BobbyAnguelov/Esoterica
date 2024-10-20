@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Animation_RuntimeGraph_Common.h"
-#include "Animation_RuntimeGraph_Events.h"
-#include "Animation_RuntimeGraph_Contexts.h"
+#include "Animation_RuntimeGraph_SampledEvents.h"
+#include "Animation_RuntimeGraph_ValueTypes.h"
+#include "Animation_RuntimeGraph_Context.h"
 #include "Animation_RuntimeGraph_Recording.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
 #include "Engine/Animation/AnimationTarget.h"
@@ -21,6 +21,80 @@ namespace EE::Animation
 {
     class GraphContext;
     struct BoneMaskTaskList;
+
+    //-------------------------------------------------------------------------
+    // Instantiation Context
+    //-------------------------------------------------------------------------
+
+    enum class InstantiationOptions
+    {
+        CreateNode,                 // Instruct the instantiate function to actually create the node
+        NodeAlreadyCreated          // Informs the instantiate function that the node has been created (via derived class) and so it should only get it's ptrs set
+    };
+
+    struct InstantiationContext final
+    {
+        template<typename T>
+        EE_FORCE_INLINE void SetNodePtrFromIndex( int16_t nodeIdx, T*& pTargetPtr ) const
+        {
+            EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
+            pTargetPtr = reinterpret_cast<T*>( m_nodePtrs[nodeIdx] );
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE void SetNodePtrFromIndex( int16_t nodeIdx, T const*& pTargetPtr ) const
+        {
+            EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
+            pTargetPtr = reinterpret_cast<T const*>( m_nodePtrs[nodeIdx] );
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE void SetOptionalNodePtrFromIndex( int16_t nodeIdx, T*& pTargetPtr ) const
+        {
+            if ( nodeIdx == InvalidIndex )
+            {
+                pTargetPtr = nullptr;
+            }
+            else
+            {
+                EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
+                pTargetPtr = reinterpret_cast<T*>( m_nodePtrs[nodeIdx] );
+            }
+        }
+
+        template<typename T>
+        EE_FORCE_INLINE void SetOptionalNodePtrFromIndex( int16_t nodeIdx, T const*& pTargetPtr ) const
+        {
+            if ( nodeIdx == InvalidIndex )
+            {
+                pTargetPtr = nullptr;
+            }
+            else
+            {
+                EE_ASSERT( nodeIdx >= 0 && nodeIdx < m_nodePtrs.size() );
+                pTargetPtr = reinterpret_cast<T const*>( m_nodePtrs[nodeIdx] );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        void LogWarning( char const* pFormat, ... ) const;
+        #endif
+
+    public:
+
+        int16_t                                     m_currentNodeIdx;
+        TVector<GraphNode*> const&                  m_nodePtrs;
+        TInlineVector<GraphInstance*, 20> const&    m_childGraphInstances;
+        THashMap<StringID, int16_t> const&          m_parameterLookupMap;
+        GraphDataSet const*                         m_pDataSet;
+        uint64_t                                    m_userID;
+
+        #if EE_DEVELOPMENT_TOOLS
+        TVector<GraphLogEntry>*                     m_pLog;
+        #endif
+    };
 
     //-------------------------------------------------------------------------
 
@@ -89,7 +163,7 @@ namespace EE::Animation
         virtual GraphValueType GetValueType() const = 0;
         inline int16_t GetNodeIndex() const { return m_pDefinition->m_nodeIdx; }
 
-        inline bool IsInitialized() const { return m_initializationCount > 0; }
+        inline bool WasInitialized() const { return m_initializationCount > 0; }
         virtual void Initialize( GraphContext& context );
         void Shutdown( GraphContext& context );
 
@@ -218,7 +292,7 @@ namespace EE::Animation
     template<> struct ValueTypeValidation<bool> { static GraphValueType const Type = GraphValueType::Bool; };
     template<> struct ValueTypeValidation<StringID> { static GraphValueType const Type = GraphValueType::ID; };
     template<> struct ValueTypeValidation<float> { static GraphValueType const Type = GraphValueType::Float; };
-    template<> struct ValueTypeValidation<Vector> { static GraphValueType const Type = GraphValueType::Vector; };
+    template<> struct ValueTypeValidation<Float3> { static GraphValueType const Type = GraphValueType::Vector; };
     template<> struct ValueTypeValidation<Target> { static GraphValueType const Type = GraphValueType::Target; };
     template<> struct ValueTypeValidation<BoneMaskTaskList const*> { static GraphValueType const Type = GraphValueType::BoneMask; };
 

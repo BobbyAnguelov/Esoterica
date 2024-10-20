@@ -1,7 +1,8 @@
 #include "TypeSerialization.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/TypeSystem/TypeInfo.h"
-
+#include "Base/TypeSystem/TypeInstance.h"
+#include "Base/TypeSystem/CoreTypeConversions.h"
 
 //-------------------------------------------------------------------------
 
@@ -14,191 +15,152 @@ using namespace EE::TypeSystem;
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Serialization
 {
-    // Type descriptor reader needs to support both nested and unnested formats as it needs to read the outputs from both descriptor serialization and type model serialization
-    struct TypeDescriptorReader
+    bool ReadTypeDescriptorFromXML( TypeRegistry const& typeRegistry, xml_node const& descriptorNode, TypeDescriptor& outDesc )
     {
-        static bool ReadArrayDescriptor( TypeRegistry const& typeRegistry, TypeInfo const* pRootTypeInfo, PropertyInfo const* pArrayPropertyInfo, Serialization::JsonValue const& arrayValue, TInlineVector<PropertyDescriptor, 6>& outPropertyValues, String const& propertyPathPrefix )
+        auto Error = [] ( char const* pFormat, ... )
         {
-            EE_ASSERT( pArrayPropertyInfo != nullptr && arrayValue.IsArray() );
+            va_list args;
+            va_start( args, pFormat );
+            SystemLog::AddEntryVarArgs( Severity::Error, "TypeSystem", "TypeDescriptor", __FILE__, __LINE__, pFormat, args );
+            va_end( args );
+        };
 
-            int32_t const numElements = (int32_t) arrayValue.Size();
-            for ( int32_t i = 0; i < numElements; i++ )
+        auto Warning = [] ( char const* pFormat, ... )
+        {
+            va_list args;
+            va_start( args, pFormat );
+            SystemLog::AddEntryVarArgs( Severity::Warning, "TypeSystem", "TypeDescriptor", __FILE__, __LINE__, pFormat, args );
+            va_end( args );
+        };
+
+        auto ReadAndConvertPropertyValue = [&] ( TypeSystem::TypeRegistry const& typeRegistry, TypeSystem::TypeInfo const* pTypeInfo, pugi::xml_node propertyNode, TInlineVector<PropertyDescriptor, 6>& propertyDescs )
+        {
+            xml_attribute pathAttr = propertyNode.attribute( g_propertyPathAttrName );
+            xml_attribute valueAttr = propertyNode.attribute( g_propertyValueAttrName );
+            if ( pathAttr.empty() || valueAttr.empty() )
             {
-                if ( arrayValue[i].IsArray() )
-                {
-                    // We dont support arrays of arrays
-                    EE_LOG_ERROR( "TypeSystem", "Serialization", "We dont support arrays of arrays" );
-                    return false;
-                }
-                else if ( arrayValue[i].IsObject() )
-                {
-                    if ( CoreTypeRegistry::IsCoreType( pArrayPropertyInfo->m_typeID ) )
-                    {
-                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, object declared for core type property: %s", pArrayPropertyInfo->m_ID.c_str() );
-                        return false;
-                    }
-
-                    auto pArrayPropertyTypeInfo = typeRegistry.GetTypeInfo( pArrayPropertyInfo->m_typeID );
-                    String const newPrefix = String( String::CtorSprintf(), "%s%d/", propertyPathPrefix.c_str(), i );
-                    if ( !ReadTypeDescriptor( typeRegistry, pRootTypeInfo, pArrayPropertyTypeInfo, arrayValue[i], outPropertyValues, newPrefix ) )
-                    {
-                        return false;
-                    }
-                }
-                else // Add regular property value
-                {
-                    if ( !CoreTypeRegistry::IsCoreType( pArrayPropertyInfo->m_typeID ) )
-                    {
-                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, only core type properties are allowed to be directly declared: %s", pArrayPropertyInfo->m_ID.c_str() );
-                        return false;
-                    }
-
-                    if ( !arrayValue[i].IsString() )
-                    {
-                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, Core type values must be strings, property (%s) has invalid value: %s", pArrayPropertyInfo->m_ID.c_str(), arrayValue[i].GetString() );
-                        return false;
-                    }
-
-                    auto const propertyPath = PropertyPath( String( String::CtorSprintf(), "%s%d", propertyPathPrefix.c_str(), i ) );
-                    auto pPropertyInfo = typeRegistry.ResolvePropertyPath( pRootTypeInfo, propertyPath );
-                    if ( pPropertyInfo != nullptr )
-                    {
-                        outPropertyValues.push_back( PropertyDescriptor( typeRegistry, propertyPath, *pPropertyInfo, arrayValue[i].GetString() ) );
-                    }
-                }
+                Error( "Malformed type descriptor property encountered!" );
+                return false;
             }
 
-            return true;
-        }
-
-        static bool ReadTypeDescriptor( TypeRegistry const& typeRegistry, TypeInfo const* pRootTypeInfo, TypeInfo const* pTypeInfo, Serialization::JsonValue const& typeObjectValue, TInlineVector<PropertyDescriptor, 6>& outPropertyValues, String const& propertyPathPrefix = String() )
-        {
-            // Read properties
             //-------------------------------------------------------------------------
 
-            for ( auto itr = typeObjectValue.MemberBegin(); itr != typeObjectValue.MemberEnd(); ++itr )
+            PropertyDescriptor propertyDesc;
+            propertyDesc.m_path = TypeSystem::PropertyPath( pathAttr.as_string() );
+            propertyDesc.m_stringValue = valueAttr.as_string();
+
+            //-------------------------------------------------------------------------
+
+            auto const pPropertyInfo = typeRegistry.ResolvePropertyPath( pTypeInfo, propertyDesc.m_path );
+            if ( pPropertyInfo == nullptr )
             {
-                StringID const propertyID( itr->name.GetString() );
-                PropertyInfo const* pPropertyInfo = pTypeInfo->GetPropertyInfo( propertyID );
-                if ( pPropertyInfo == nullptr )
+                Warning( "Failed to resolve property path: %s, for type (%s)", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.c_str() );
+            }
+            else
+            {
+                // Handle array size descs
+                if ( pPropertyInfo->IsDynamicArrayProperty() && !propertyDesc.m_path.IsPathToArrayElement() )
                 {
-                    continue;
-                }
-
-                if ( itr->value.IsArray() )
-                {
-                    String const newPrefix = String( String::CtorSprintf(), "%s%s/", propertyPathPrefix.c_str(), itr->name.GetString() );
-                    ReadArrayDescriptor( typeRegistry, pRootTypeInfo, pPropertyInfo, itr->value, outPropertyValues, newPrefix );
-                }
-                else if ( itr->value.IsObject() )
-                {
-                    if ( CoreTypeRegistry::IsCoreType( pPropertyInfo->m_typeID ) )
+                    if ( TypeSystem::Conversion::ConvertStringToBinary( typeRegistry, GetCoreTypeID( CoreTypeID::Int32 ), TypeID(), propertyDesc.m_stringValue, propertyDesc.m_byteValue ) )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, object declared for core type property: %s", itr->name.GetString() );
-                        return false;
+                        propertyDescs.emplace_back( propertyDesc );
                     }
-                    
-                    auto pPropertyTypeInfo = typeRegistry.GetTypeInfo( pPropertyInfo->m_typeID );
-                    String const newPrefix = String( String::CtorSprintf(), "%s%s/", propertyPathPrefix.c_str(), itr->name.GetString() );
-                    if ( !ReadTypeDescriptor( typeRegistry, pRootTypeInfo, pPropertyTypeInfo, itr->value, outPropertyValues, newPrefix ) )
+                    else
                     {
                         return false;
                     }
                 }
-                else // Regular core type property
+                else if ( pPropertyInfo->IsTypeInstanceProperty() )
                 {
-                    if ( !CoreTypeRegistry::IsCoreType( pPropertyInfo->m_typeID ) && !pPropertyInfo->IsEnumProperty() )
+                    if ( TypeSystem::Conversion::ConvertStringToBinary( typeRegistry, GetCoreTypeID( CoreTypeID::TypeID ), TypeID(), propertyDesc.m_stringValue, propertyDesc.m_byteValue ) )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, only core type properties are allowed to be directly declared: %s", itr->name.GetString() );
+                        propertyDescs.emplace_back( propertyDesc );
+                    }
+                    else
+                    {
                         return false;
                     }
-
-                    if ( !itr->value.IsString() )
+                }
+                else // Get property value
+                {
+                    if ( TypeSystem::IsCoreType( pPropertyInfo->m_typeID ) || pPropertyInfo->IsEnumProperty() || pPropertyInfo->IsBitFlagsProperty() )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Malformed json detected, Core type values must be strings, invalid value detected: %s", itr->name.GetString() );
-                        return false;
-                    }
-
-                    PropertyPath const propertyPath( String( String::CtorSprintf(), "%s%s", propertyPathPrefix.c_str(), itr->name.GetString() ) );
-
-                    auto pResolvedPropertyInfo = typeRegistry.ResolvePropertyPath( pRootTypeInfo, propertyPath );
-                    if ( pResolvedPropertyInfo != nullptr )
-                    {
-                        outPropertyValues.push_back( PropertyDescriptor( typeRegistry, propertyPath, *pResolvedPropertyInfo, itr->value.GetString() ) );
+                        // If the value was successfully converted add it to the list of property descs
+                        if ( TypeSystem::Conversion::ConvertStringToBinary( typeRegistry, *pPropertyInfo, propertyDesc.m_stringValue, propertyDesc.m_byteValue ) )
+                        {
+                            propertyDescs.emplace_back( propertyDesc );
+                        }
+                        else
+                        {
+                            Warning( "Failed to convert string value (%s) to binary for property: %s for type (%s)", propertyDesc.m_stringValue.c_str(), propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.c_str() );
+                        }
                     }
                 }
             }
 
             return true;
-        }
-    };
+        };
 
-    bool ReadTypeDescriptorFromJSON( TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue, TypeDescriptor& outDesc )
-    {
-        if ( !typeObjectValue.IsObject() )
-        {
-            EE_LOG_ERROR( "TypeSystem", "Serialization", "Supplied json value is not an object" );
-            return false;
-        }
-
-        // Get type info
+        // Get Type ID
         //-------------------------------------------------------------------------
 
-        auto const typeIDIter = typeObjectValue.FindMember( s_typeIDKey );
-        if ( typeIDIter == typeObjectValue.MemberEnd() )
+        xml_attribute typeAttr = descriptorNode.attribute( g_typeIDAttrName );
+        if ( typeAttr.empty() )
         {
-            EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing typeID for object" );
+            Error( "Failed to find 'TypeID' member when deserializing TypeData" );
             return false;
         }
 
-        TypeID const typeID( typeIDIter->value.GetString() );
+        TypeID const typeID( typeAttr.as_string() );
         auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
         if ( pTypeInfo == nullptr )
         {
-            EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered: %s", typeID.c_str() );
+            Error( "Invalid type: %s encountered when trying to deserializing", typeID.c_str() );
             return false;
         }
+        outDesc.m_typeID = typeID;
 
-        // Read descriptor
+        // Properties
         //-------------------------------------------------------------------------
 
-        outDesc.m_typeID = TypeID( typeIDIter->value.GetString() );
-        return TypeDescriptorReader::ReadTypeDescriptor( typeRegistry, pTypeInfo, pTypeInfo, typeObjectValue, outDesc.m_properties );
+        // Get all property nodes
+        TInlineVector<xml_node, 10> propertyNodes;
+        GetAllChildNodes( descriptorNode, g_propertyNodeName, propertyNodes );
+        int32_t const numProperties = (int32_t) propertyNodes.size();
+
+        // Reserve memory for all property and create an empty desc
+        outDesc.m_properties.reserve( numProperties );
+
+        // Read all properties
+        for ( pugi::xml_node propertyNode : propertyNodes )
+        {
+            // Try to read the property value, some properties are allowed to gracefully fail while other are a fatal error
+            if ( !ReadAndConvertPropertyValue( typeRegistry, pTypeInfo, propertyNode, outDesc.m_properties ) )
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     //-------------------------------------------------------------------------
 
-    // Type descriptor serialization will collapse all properties into a single list per type, using the property paths as property names 
-    struct TypeDescriptorWriter
-    {
-        static void WriteProperty( Serialization::JsonWriter& writer, PropertyDescriptor const& propertyDesc )
-        {
-            writer.Key( propertyDesc.m_path.ToString().c_str() );
-            writer.Key( propertyDesc.m_stringValue.c_str() );
-        }
-
-        static void WriteStructure( Serialization::JsonWriter& writer, TypeDescriptor const& typeDesc )
-        {
-            writer.StartObject();
-
-            // Every type has to have a type ID
-            writer.Key( s_typeIDKey );
-            writer.String( typeDesc.m_typeID.c_str() );
-
-            // Write all property values
-            for ( auto const& propertyValue : typeDesc.m_properties )
-            {
-                WriteProperty( writer, propertyValue );
-            }
-
-            writer.EndObject();
-        }
-    };
-
-    void WriteTypeDescriptorToJSON( TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer, TypeDescriptor const& typeDesc )
+    xml_node WriteTypeDescriptorToXML( TypeRegistry const& typeRegistry, xml_node parentNode, TypeDescriptor const& typeDesc )
     {
         EE_ASSERT( typeDesc.IsValid() );
-        TypeDescriptorWriter::WriteStructure( writer, typeDesc );
+
+        xml_node typeNode = parentNode.append_child( g_typeNodeName );
+        typeNode.append_attribute( g_typeIDAttrName ).set_value( typeDesc.m_typeID.c_str() );
+
+        for ( auto const& propertyDesc : typeDesc.m_properties )
+        {
+            xml_node propertyNode = typeNode.append_child( g_propertyNodeName );
+            propertyNode.append_attribute( g_propertyPathAttrName ).set_value( propertyDesc.m_path.ToString().c_str() );
+            propertyNode.append_attribute( g_propertyValueAttrName ).set_value( propertyDesc.m_stringValue.c_str() );
+        }
+
+        return typeNode;
     }
 }
 
@@ -208,97 +170,11 @@ namespace EE::Serialization
 
 namespace EE::Serialization
 {
-    struct NativeTypeReader
+    struct NativeTypeReaderXml
     {
-        template<typename T>
-        static void SetPropertyValue( void* pAddress, T value )
+        static bool ReadType( TypeRegistry const& typeRegistry, xml_node const& typeNode, TypeID typeID, IReflectedType* pTypeInstance )
         {
-            *( (T*) pAddress ) = value;
-        }
-
-        static bool ReadCoreType( TypeRegistry const& typeRegistry, PropertyInfo const& propInfo, Serialization::JsonValue const& typeValue, void* pPropertyDataAddress )
-        {
-            EE_ASSERT( pPropertyDataAddress != nullptr );
-
-            if ( typeValue.IsString() )
-            {
-                String const valueString = String( typeValue.GetString() );
-                Conversion::ConvertStringToNativeType( typeRegistry, propInfo, valueString, pPropertyDataAddress );
-            }
-            else if ( typeValue.IsBool() )
-            {
-                EE_ASSERT( propInfo.m_typeID == CoreTypeID::Bool );
-                SetPropertyValue( pPropertyDataAddress, typeValue.GetBool() );
-            }
-            else if ( typeValue.IsInt64() || typeValue.IsUint64() )
-            {
-                if ( propInfo.m_typeID == CoreTypeID::Uint8 )
-                {
-                    SetPropertyValue( pPropertyDataAddress, (uint8_t) typeValue.GetUint64() );
-                }
-                else if ( propInfo.m_typeID == CoreTypeID::Int8 )
-                {
-                    SetPropertyValue( pPropertyDataAddress, (int8_t) typeValue.GetInt64() );
-                }
-                else if ( propInfo.m_typeID == CoreTypeID::Uint16 )
-                {
-                    SetPropertyValue( pPropertyDataAddress, (uint16_t) typeValue.GetUint64() );
-                }
-                else if ( propInfo.m_typeID == CoreTypeID::Int16 )
-                {
-                    SetPropertyValue( pPropertyDataAddress, (int16_t) typeValue.GetInt64() );
-                }
-                else if ( propInfo.m_typeID == CoreTypeID::Uint32 )
-                {
-                    SetPropertyValue( pPropertyDataAddress, (uint32_t) typeValue.GetUint64() );
-                }
-                else if ( propInfo.m_typeID == CoreTypeID::Int32 )
-                {
-                    SetPropertyValue( pPropertyDataAddress, (int32_t) typeValue.GetInt64() );
-                }
-                else if ( propInfo.m_typeID == CoreTypeID::Uint64 )
-                {
-                    SetPropertyValue( pPropertyDataAddress, typeValue.GetUint64() );
-                }
-                else if ( propInfo.m_typeID == CoreTypeID::Int64 )
-                {
-                    SetPropertyValue( pPropertyDataAddress, typeValue.GetInt64() );
-                }
-                else // Invalid JSON data encountered
-                {
-                    EE_LOG_ERROR( "TypeSystem", "Serialization", "Invalid JSON file encountered" );
-                    return false;
-                }
-            }
-            else if ( typeValue.IsDouble() )
-            {
-                if ( propInfo.m_typeID == CoreTypeID::Float )
-                {
-                    SetPropertyValue( pPropertyDataAddress, typeValue.GetFloat() );
-                }
-                else if ( propInfo.m_typeID == CoreTypeID::Double )
-                {
-                    SetPropertyValue( pPropertyDataAddress, typeValue.GetDouble() );
-                }
-                else // Invalid JSON data encountered
-                {
-                    EE_LOG_ERROR( "TypeSystem", "Serialization", "Invalid JSON file encountered" );
-                    return false;
-                }
-            }
-            else // Invalid JSON data encountered
-            {
-                EE_LOG_ERROR( "TypeSystem", "Serialization", "Invalid JSON file encountered" );
-                return false;
-            }
-
-            return true;
-        }
-
-        //-------------------------------------------------------------------------
-
-        static bool ReadType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& currentJsonValue, TypeID typeID, IReflectedType* pTypeData )
-        {
+            EE_ASSERT( pTypeInstance != nullptr );
             EE_ASSERT( !IsCoreType( typeID ) );
 
             auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
@@ -308,12 +184,22 @@ namespace EE::Serialization
                 return false;
             }
 
-            EE_ASSERT( currentJsonValue.IsObject() );
-            auto const typeIDValueIter = currentJsonValue.FindMember( s_typeIDKey );
-            EE_ASSERT( typeIDValueIter != currentJsonValue.MemberEnd() );
-            TypeID const actualTypeID( typeIDValueIter->value.GetString() );
+            if ( strcmp( typeNode.name(), g_typeNodeName ) != 0 )
+            {
+                EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown node encountered: %s", typeNode.name() );
+                return false;
+            }
 
-            // If you hit this the type in the JSON file and the type you are trying to deserialize do not match
+            xml_attribute typeAttr = typeNode.attribute( g_typeIDAttrName );
+            if ( typeAttr.empty() )
+            {
+                EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing typeID from xml representation: %s", typeID.c_str() );
+                return false;
+            }
+
+            TypeID const actualTypeID( typeAttr.as_string() );
+
+            // If you hit this the type in the xml file and the type you are trying to deserialize do not match
             if ( typeID != actualTypeID && !typeRegistry.IsTypeDerivedFrom( actualTypeID, typeID ) )
             {
                 EE_LOG_ERROR( "TypeSystem", "Serialization", "Type mismatch, expected %s, encountered %s", typeID.c_str(), actualTypeID.c_str() );
@@ -324,35 +210,46 @@ namespace EE::Serialization
 
             for ( auto const& propInfo : pTypeInfo->m_properties )
             {
-                // Read Arrays
-                auto pPropertyDataAddress = propInfo.GetPropertyAddress( pTypeData );
+                // Try to find the property node
+                xml_node propertyNode = typeNode.find_child_by_attribute( g_propertyIDAttrName, propInfo.m_ID.c_str() );
+                if ( propertyNode.empty() )
+                {
+                    continue;
+                }
+
+                auto pPropertyDataAddress = propInfo.GetPropertyAddress( pTypeInstance );
+
                 if ( propInfo.IsArrayProperty() )
                 {
-                    // Try get serialized value
-                    const char* pPropertyName = propInfo.m_ID.c_str();
-                    auto const propertyNameIter = currentJsonValue.FindMember( pPropertyName );
-                    if ( propertyNameIter == currentJsonValue.MemberEnd() )
+                    // Get all array element nodes
+                    //-------------------------------------------------------------------------
+
+                    TInlineVector<xml_node, 10> arrayElementNodes;
+
+                    if ( ( IsCoreType( propInfo.m_typeID ) || propInfo.IsEnumProperty() ) && !propInfo.IsTypeInstanceProperty() )
                     {
-                        continue;
+                        GetAllChildNodes( propertyNode, g_propertyNodeName, arrayElementNodes );
+                    }
+                    else
+                    {
+                        GetAllChildNodes( propertyNode, g_typeNodeName, arrayElementNodes );
                     }
 
-                    EE_ASSERT( propertyNameIter->value.IsArray() );
-                    auto jsonArrayValue = propertyNameIter->value.GetArray();
-                    size_t const numJSONArrayElements = jsonArrayValue.Size();
+                    int32_t const numElements = (int32_t) arrayElementNodes.size();
 
                     // Static array
                     if ( propInfo.IsStaticArrayProperty() )
                     {
-                        if ( propInfo.m_arraySize < (int32_t) numJSONArrayElements )
+                        if ( propInfo.m_arraySize < numElements )
                         {
-                            EE_LOG_ERROR( "TypeSystem", "Serialization", "Static array size mismatch for %s, expected maximum %d elements, encountered %d elements", propInfo.m_size, propInfo.m_size, (int32_t) numJSONArrayElements );
+                            EE_LOG_ERROR( "TypeSystem", "Serialization", "Static array size mismatch for %s, expected maximum %d elements, encountered %d elements", propInfo.m_size, propInfo.m_size, numElements );
                             return false;
                         }
 
                         uint8_t* pArrayElementAddress = reinterpret_cast<uint8_t*>( pPropertyDataAddress );
-                        for ( auto i = 0u; i < numJSONArrayElements; i++ )
+                        for ( int32_t i = 0; i < numElements; i++ )
                         {
-                            if ( !ReadProperty( typeRegistry, jsonArrayValue[i], propInfo, pArrayElementAddress ) )
+                            if ( !ReadProperty( typeRegistry, arrayElementNodes[i], propInfo, pArrayElementAddress, i ) )
                             {
                                 return false;
                             }
@@ -362,119 +259,143 @@ namespace EE::Serialization
                     else // Dynamic array
                     {
                         // If we have less elements in the json array than in the current type, clear the array as we will resize the array appropriately as part of reading the values
-                        size_t const currentArraySize = pTypeInfo->GetArraySize( pTypeData, propInfo.m_ID.ToUint() );
-                        if ( numJSONArrayElements < currentArraySize )
+                        size_t const currentArraySize = pTypeInfo->GetArraySize( pTypeInstance, propInfo.m_ID.ToUint() );
+                        if ( numElements < currentArraySize )
                         {
-                            pTypeInfo->ClearArray( pTypeData, propInfo.m_ID.ToUint() );
+                            pTypeInfo->ClearArray( pTypeInstance, propInfo.m_ID.ToUint() );
                         }
 
                         // Do the traversal backwards to only allocate once
-                        for ( int32_t i = (int32_t) ( numJSONArrayElements - 1 ); i >= 0; i-- )
+                        for ( int32_t i = ( numElements - 1 ); i >= 0; i-- )
                         {
-                            auto pArrayElementAddress = pTypeInfo->GetArrayElementDataPtr( pTypeData, propInfo.m_ID.ToUint(), i );
-                            if ( !ReadProperty( typeRegistry, jsonArrayValue[i], propInfo, pArrayElementAddress ) )
+                            auto pArrayElementAddress = pTypeInfo->GetArrayElementDataPtr( pTypeInstance, propInfo.m_ID.ToUint(), i );
+                            if ( !ReadProperty( typeRegistry, arrayElementNodes[i], propInfo, pArrayElementAddress, i ) )
                             {
                                 return false;
                             }
                         }
                     }
                 }
-                else // Non-array type
+                else
                 {
-                    // Try get serialized value
-                    const char* pPropertyName = propInfo.m_ID.c_str();
-                    auto const propertyValueIter = currentJsonValue.FindMember( pPropertyName );
-                    if ( propertyValueIter == currentJsonValue.MemberEnd() )
+                    if ( !ReadProperty( typeRegistry, propertyNode, propInfo, pPropertyDataAddress ) )
                     {
-                        continue;
-                    }
-
-                    if ( !ReadProperty( typeRegistry, propertyValueIter->value, propInfo, pPropertyDataAddress ) )
-                    {
-                        return false;
+                         return false;
                     }
                 }
             }
 
+            //-------------------------------------------------------------------------
+
+            pTypeInstance->PostDeserialize();
+
             return true;
         }
 
-        static bool ReadProperty( TypeRegistry const& typeRegistry, Serialization::JsonValue const& currentJsonValue, PropertyInfo const& propertyInfo, void* pPropertyInstance )
+        static bool ReadProperty( TypeRegistry const& typeRegistry, xml_node const& propertyNode, PropertyInfo const& propertyInfo, void* pPropertyInstance, int32_t arrayElementIdx = InvalidIndex )
         {
-            if ( IsCoreType( propertyInfo.m_typeID ) || propertyInfo.IsEnumProperty() )
+            EE_ASSERT( pPropertyInstance != nullptr );
+
+            if ( propertyInfo.IsArrayProperty() )
             {
-                String const typeName = propertyInfo.m_typeID.c_str();
-                return ReadCoreType( typeRegistry, propertyInfo, currentJsonValue, pPropertyInstance );
+                EE_ASSERT( !propertyNode.attribute( g_propertyArrayIdxAttrName ).empty() );
+                EE_ASSERT( propertyNode.attribute( g_propertyArrayIdxAttrName ).as_int() == arrayElementIdx );
+            }
+            else
+            {
+                EE_ASSERT( strcmp( propertyNode.attribute( g_propertyIDAttrName ).as_string(), propertyInfo.m_ID.c_str() ) == 0 );
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( propertyInfo.IsTypeInstanceProperty() )
+            {
+                EE_ASSERT( strcmp( propertyNode.name(), g_typeNodeName ) == 0 );
+
+                // Has an instance set
+                xml_attribute typeAttr = propertyNode.attribute( g_typeIDAttrName );
+                if( !typeAttr.empty() )
+                {
+                    TypeID const instanceTypeID( typeAttr.as_string() );
+                    TypeInfo const* pInstanceTypeInfo = typeRegistry.GetTypeInfo( instanceTypeID );
+                    if ( pInstanceTypeInfo == nullptr )
+                    {
+                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered: %s", instanceTypeID.c_str() );
+                        return false;
+                    }
+
+                    auto pInstanceContainer = (TypeInstance*) pPropertyInstance;
+                    if ( !pInstanceTypeInfo->IsDerivedFrom( pInstanceContainer->GetAllowedBaseTypeInfo()->m_ID ) )
+                    {
+                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Invalid type detected for instance property: %s", instanceTypeID.c_str() );
+                        return false;
+                    }
+
+                    pInstanceContainer->CreateInstance( pInstanceTypeInfo );
+                    return ReadType( typeRegistry, propertyNode, instanceTypeID, pInstanceContainer->Get() );
+                }
+                else
+                {
+                    auto pInstanceContainer = (TypeInstance*) pPropertyInstance;
+                    pInstanceContainer->DestroyInstance();
+                    return true;
+                }
+            }
+            // Read the property node
+            else if ( IsCoreType( propertyInfo.m_typeID ) || propertyInfo.IsEnumProperty() )
+            {
+                EE_ASSERT( strcmp( propertyNode.name(), g_propertyNodeName ) == 0 );
+
+                xml_attribute valueAttr = propertyNode.attribute( g_propertyValueAttrName );
+                EE_ASSERT( !valueAttr.empty() );
+                return Conversion::ConvertStringToNativeType( typeRegistry, propertyInfo, valueAttr.as_string(), pPropertyInstance );
             }
             else // Complex Type
             {
-                return ReadType( typeRegistry, currentJsonValue, propertyInfo.m_typeID, (IReflectedType*) pPropertyInstance );
+                EE_ASSERT( strcmp( propertyNode.name(), g_typeNodeName ) == 0 );
+                return ReadType( typeRegistry, propertyNode, propertyInfo.m_typeID, (IReflectedType*) pPropertyInstance );
             }
+
+            //-------------------------------------------------------------------------
+
+            EE_UNREACHABLE_CODE();
+            return false;
         }
     };
 
-    bool ReadNativeType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue, IReflectedType* pTypeInstance )
-    {
-        if ( !typeObjectValue.IsObject() )
-        {
-            EE_LOG_ERROR( "TypeSystem", "Serialization", "Supplied json value is not an object" );
-            return false;
-        }
-
-        if ( !typeObjectValue.HasMember( s_typeIDKey ) )
-        {
-            EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing typeID for object" );
-            return false;
-        }
-
-        return NativeTypeReader::ReadType( typeRegistry, typeObjectValue, pTypeInstance->GetTypeID(), pTypeInstance );
-    }
-
-    bool ReadNativeTypeFromString( TypeRegistry const& typeRegistry, String const& jsonString, IReflectedType* pTypeInstance )
-    {
-        EE_ASSERT( !jsonString.empty() && pTypeInstance != nullptr );
-
-        JsonArchiveReader reader;
-        reader.ReadFromString( jsonString.c_str() );
-        return ReadNativeType( typeRegistry, reader.GetDocument(), pTypeInstance );
-    }
-
     //-------------------------------------------------------------------------
 
-    struct NativeTypeWriter
+    struct NativeTypeWriterXml
     {
-        static void WriteType( TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer, String& scratchBuffer, TypeID typeID, IReflectedType const* pTypeInstance, bool createJsonObject = true )
+        static xml_node WriteType( TypeRegistry const& typeRegistry, xml_node parentNode, String& scratchBuffer, TypeID typeID, IReflectedType const* pTypeInstance )
         {
             EE_ASSERT( !IsCoreType( typeID ) );
             auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
             EE_ASSERT( pTypeInfo != nullptr );
 
-            if ( createJsonObject )
-            {
-                writer.StartObject();
-            }
-
-            // Every type has to have a type ID
-            writer.Key( s_typeIDKey );
-            writer.String( typeID.c_str() );
-
+            // Type and ID
             //-------------------------------------------------------------------------
 
-            for ( auto const& propInfo : pTypeInfo->m_properties )
+            xml_node typeNode = parentNode.append_child( g_typeNodeName );
+            typeNode.append_attribute( g_typeIDAttrName ).set_value( typeID.c_str() );
+
+            // Properties
+            //-------------------------------------------------------------------------
+
+            for ( PropertyInfo const& propInfo : pTypeInfo->m_properties )
             {
-                // Write Key
-                const char* pPropertyName = propInfo.m_ID.c_str();
-                EE_ASSERT( pPropertyName != nullptr );
-                writer.Key( pPropertyName );
+                // Skip default value properties
+                if ( pTypeInfo->IsPropertyValueSetToDefault( pTypeInstance, propInfo.m_ID ) )
+                {
+                    continue;
+                }
 
                 // Write Value
                 auto pPropertyDataAddress = propInfo.GetPropertyAddress( pTypeInstance );
                 if ( propInfo.IsArrayProperty() )
                 {
-                    size_t const elementByteSize = typeRegistry.GetTypeByteSize( propInfo.m_typeID );
+                    size_t const elementByteSize = propInfo.m_arrayElementSize;
                     EE_ASSERT( elementByteSize > 0 );
-
-                    writer.StartArray();
 
                     size_t numArrayElements = 0;
                     uint8_t const* pElementAddress = nullptr;
@@ -493,72 +414,130 @@ namespace EE::Serialization
                         pElementAddress = dynamicArray.data();
                     }
 
+                    // Create enclosing property node for array
+                    xml_node arrayNode = typeNode.append_child( g_propertyNodeName );
+                    arrayNode.append_attribute( g_propertyIDAttrName ).set_value( propInfo.m_ID.c_str() );
+
                     // Write array elements
                     for ( auto i = 0u; i < numArrayElements; i++ )
                     {
-                        WriteProperty( typeRegistry, writer, scratchBuffer, propInfo, pElementAddress );
+                        WriteProperty( typeRegistry, arrayNode, scratchBuffer, propInfo, pElementAddress, i );
                         pElementAddress += elementByteSize;
                     }
-
-                    writer.EndArray();
                 }
                 else
                 {
-                    WriteProperty( typeRegistry, writer, scratchBuffer, propInfo, pPropertyDataAddress );
+                    WriteProperty( typeRegistry, typeNode, scratchBuffer, propInfo, pPropertyDataAddress );
                 }
             }
 
-            if ( createJsonObject )
-            {
-                writer.EndObject();
-            }
+            //-------------------------------------------------------------------------
+
+            return typeNode;
         }
 
-        static void WriteProperty( TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer, String& scratchBuffer, PropertyInfo const& propertyInfo, void const* pPropertyInstance )
+        static void WriteProperty( TypeRegistry const& typeRegistry, xml_node parentTypeNode, String& scratchBuffer, PropertyInfo const& propertyInfo, void const* pPropertyInstance, int32_t arrayElementIdx = InvalidIndex )
         {
-            if ( IsCoreType( propertyInfo.m_typeID ) || propertyInfo.IsEnumProperty() )
+            xml_node propertyNode;
+
+            if ( propertyInfo.IsTypeInstanceProperty() )
             {
+                // Skip property node and directly output the type
+                auto pInstanceContainer = (TypeInstance const*) pPropertyInstance;
+                if ( pInstanceContainer->IsSet() )
+                {
+                    propertyNode = WriteType( typeRegistry, parentTypeNode, scratchBuffer, pInstanceContainer->GetInstanceTypeInfo()->m_ID, pInstanceContainer->Get() );
+                }
+                else // Write empty type node
+                {
+                    propertyNode = parentTypeNode.append_child( g_typeNodeName );
+                }
+            }
+            // Create a property node and write out string value
+            else if ( IsCoreType( propertyInfo.m_typeID ) || propertyInfo.IsEnumProperty() )
+            {
+                propertyNode = parentTypeNode.append_child( g_propertyNodeName );
                 Conversion::ConvertNativeTypeToString( typeRegistry, propertyInfo, pPropertyInstance, scratchBuffer );
-                writer.String( scratchBuffer.c_str() );
+                propertyNode.append_attribute( g_propertyValueAttrName ).set_value( scratchBuffer.c_str() );
+            }
+            else // Skip property node and directly output the type
+            {
+                propertyNode = WriteType( typeRegistry, parentTypeNode, scratchBuffer, propertyInfo.m_typeID, (IReflectedType*) pPropertyInstance );
+            }
+
+            // Write ID or index into the created property node
+            //-------------------------------------------------------------------------
+
+            if ( arrayElementIdx == InvalidIndex )
+            {
+                if ( propertyNode.first_attribute().empty() )
+                {
+                    propertyNode.append_attribute( g_propertyIDAttrName ).set_value( propertyInfo.m_ID.c_str() );
+                }
+                else
+                {
+                    propertyNode.insert_attribute_before( g_propertyIDAttrName, propertyNode.first_attribute() ).set_value( propertyInfo.m_ID.c_str() );
+                }
             }
             else
             {
-                WriteType( typeRegistry, writer, scratchBuffer, propertyInfo.m_typeID, (IReflectedType*) pPropertyInstance );
+                if ( propertyNode.first_attribute().empty() )
+                {
+                    propertyNode.append_attribute( g_propertyArrayIdxAttrName ).set_value( arrayElementIdx );
+                }
+                else
+                {
+                    propertyNode.insert_attribute_before( g_propertyArrayIdxAttrName, propertyNode.first_attribute() ).set_value( arrayElementIdx );
+                }
             }
         }
     };
+}
 
-    void WriteNativeType( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, Serialization::JsonWriter& writer )
-    {
-        String scratchBuffer;
-        scratchBuffer.reserve( 255 );
-        NativeTypeWriter::WriteType( typeRegistry, writer, scratchBuffer, pTypeInstance->GetTypeID(), pTypeInstance );
-    }
+//-------------------------------------------------------------------------
 
-    void WriteNativeTypeContents( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, Serialization::JsonWriter& writer )
+namespace EE::Serialization
+{
+    bool ReadType( TypeRegistry const& typeRegistry, xml_node const& node, IReflectedType* pTypeInstance )
     {
-        String scratchBuffer;
-        scratchBuffer.reserve( 255 );
-        NativeTypeWriter::WriteType( typeRegistry, writer, scratchBuffer, pTypeInstance->GetTypeID(), pTypeInstance, false );
-    }
-
-    void WriteNativeTypeToString( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, String& outString )
-    {
-        JsonArchiveWriter writer;
-        WriteNativeType( typeRegistry, pTypeInstance, *writer.GetWriter() );
-        outString = writer.GetStringBuffer().GetString();
-    }
-
-    IReflectedType* TryCreateAndReadNativeType( TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
-    {
-        auto const typeIDIter = typeObjectValue.FindMember( s_typeIDKey );
-        if ( typeIDIter == typeObjectValue.MemberEnd() )
+        xml_attribute typeAttr = node.attribute( g_typeIDAttrName );
+        if ( typeAttr.empty() )
         {
-            EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing typeID for object" );
+            EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing type ID for type element" );
+            return false;
+        }
+
+        return NativeTypeReaderXml::ReadType( typeRegistry, node, pTypeInstance->GetTypeID(), pTypeInstance );
+    }
+
+    bool ReadTypeFromString( TypeRegistry const& typeRegistry, String const& xmlString, IReflectedType* pTypeInstance )
+    {
+        EE_ASSERT( !xmlString.empty() && pTypeInstance != nullptr );
+
+        xml_document doc;
+        if ( !ReadXmlFromString( xmlString, doc ) )
+        {
+            return false;
+        }
+
+        // Reset the type
+        TypeSystem::TypeInfo const* pTypeInfo = pTypeInstance->GetTypeInfo();
+        pTypeInfo->ResetType( pTypeInstance );
+
+        // Deserialize
+        return ReadType( typeRegistry, doc.first_child(), pTypeInstance );
+    }
+
+    IReflectedType* TryCreateAndReadType( TypeRegistry const& typeRegistry, xml_node const& node )
+    {
+        xml_attribute typeAttr = node.attribute( g_typeIDAttrName );
+        if ( typeAttr.empty() )
+        {
+            EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing type ID for type element" );
             return nullptr;
         }
 
-        TypeID const typeID( typeIDIter->value.GetString() );
+        TypeID const typeID( typeAttr.as_string() );
         auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
         if ( pTypeInfo == nullptr )
         {
@@ -568,7 +547,7 @@ namespace EE::Serialization
 
         IReflectedType* pTypeInstance = pTypeInfo->CreateType();
 
-        if ( !ReadNativeType( typeRegistry, typeObjectValue, pTypeInstance ) )
+        if ( !ReadType( typeRegistry, node, pTypeInstance ) )
         {
             EE::Delete( pTypeInstance );
             return nullptr;
@@ -576,84 +555,21 @@ namespace EE::Serialization
 
         return pTypeInstance;
     }
-}
-
-//-------------------------------------------------------------------------
-// Reader / Writer
-//-------------------------------------------------------------------------
-
-namespace EE::Serialization
-{
-    TypeArchiveReader::TypeArchiveReader( TypeSystem::TypeRegistry const& typeRegistry )
-        : m_typeRegistry( typeRegistry )
-    {}
-
-    void TypeArchiveReader::OnFileReadSuccess()
-    {
-        if ( m_document.IsArray() )
-        {
-            m_numSerializedTypes = m_document.Size();
-        }
-        else
-        {
-            m_numSerializedTypes = m_document.IsObject() ? 1 : 0;
-        }
-    }
-
-    void TypeArchiveReader::Reset()
-    {
-        JsonArchiveReader::Reset();
-        m_numSerializedTypes = 0;
-        m_deserializedTypeIdx = 0;
-    }
-
-    Serialization::JsonValue const& TypeArchiveReader::GetObjectValueToBeDeserialized()
-    {
-        EE_ASSERT( m_deserializedTypeIdx < m_numSerializedTypes );
-
-        if ( m_document.IsArray() )
-        {
-            EE_ASSERT( m_document.IsArray() );
-            return m_document[m_deserializedTypeIdx++];
-        }
-        else
-        {
-            return m_document;
-        }
-    }
 
     //-------------------------------------------------------------------------
 
-    TypeArchiveWriter::TypeArchiveWriter( TypeSystem::TypeRegistry const& typeRegistry )
-        : m_typeRegistry( typeRegistry )
-    {}
-
-    void TypeArchiveWriter::Reset()
+    void WriteType( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, xml_node& parentNode )
     {
-        JsonArchiveWriter::Reset();
-        m_numTypesSerialized = 0;
+        String scratchBuffer;
+        scratchBuffer.reserve( 255 );
+        NativeTypeWriterXml::WriteType( typeRegistry, parentNode, scratchBuffer, pTypeInstance->GetTypeID(), pTypeInstance );
     }
 
-    void TypeArchiveWriter::PreSerializeType()
+    void WriteTypeToString( TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, String& outString )
     {
-        if ( m_numTypesSerialized == 1 )
-        {
-            String const firstValueSerialized = m_stringBuffer.GetString();
-
-            //-------------------------------------------------------------------------
-
-            m_stringBuffer.Clear();
-            m_writer.StartArray();
-            m_writer.RawValue( firstValueSerialized.c_str(), firstValueSerialized.length(), rapidjson::Type::kObjectType );
-        }
-    }
-
-    void TypeArchiveWriter::FinalizeSerializedData()
-    {
-        if ( m_numTypesSerialized > 1 )
-        {
-            m_writer.EndArray();
-        }
+        xml_document doc;
+        WriteType( typeRegistry, pTypeInstance, doc );
+        Serialization::WriteXmlToString( doc, outString );
     }
 }
 #endif

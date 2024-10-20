@@ -27,18 +27,18 @@ namespace EE::Animation::Tasks
 
     public:
 
-        RagdollSetPoseTask( Physics::Ragdoll* pRagdoll, TaskSourceID sourceID, TaskIndex sourceTaskIdx, InitOption initOption = InitOption::DoNothing );
+        RagdollSetPoseTask( Physics::Ragdoll* pRagdoll, int8_t sourceTaskIdx, InitOption initOption = InitOption::DoNothing );
         virtual void Execute( TaskContext const& context ) override;
         virtual bool AllowsSerialization() const override { return false; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual String GetDebugText() const override { return "Set Ragdoll Pose"; }
+        virtual char const* GetDebugName() const override { return "Set Ragdoll Pose"; }
         virtual Color GetDebugColor() const override { return Colors::Orange; }
         #endif
 
     private:
 
-        RagdollSetPoseTask() : Task( 0xFF ) {}
+        RagdollSetPoseTask() : Task() {}
 
     private:
 
@@ -54,19 +54,20 @@ namespace EE::Animation::Tasks
 
     public:
 
-        RagdollGetPoseTask( Physics::Ragdoll* pRagdoll, TaskSourceID sourceID, TaskIndex sourceTaskIdx, float const physicsBlendWeight = 1.0f );
-        RagdollGetPoseTask( Physics::Ragdoll* pRagdoll, TaskSourceID sourceID );
+        RagdollGetPoseTask( Physics::Ragdoll* pRagdoll, int8_t sourceTaskIdx, float const physicsBlendWeight = 1.0f );
+        RagdollGetPoseTask( Physics::Ragdoll* pRagdoll );
         virtual void Execute( TaskContext const& context ) override;
         virtual bool AllowsSerialization() const override { return false; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual String GetDebugText() const override;
+        virtual char const* GetDebugName() const override { return "Get Ragdoll Pose"; }
+        virtual float GetDebugProgressOrWeight() const override { return m_physicsBlendWeight; }
         virtual Color GetDebugColor() const override { return Colors::Yellow; }
         #endif
 
     private:
 
-        RagdollGetPoseTask() : Task( 0xFF ) {}
+        RagdollGetPoseTask() : Task() {}
 
     private:
 

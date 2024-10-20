@@ -27,17 +27,17 @@ namespace EE::Animation
                     // Get the local transform and the parent global transform
                     if ( m_isUsingBoneSpaceOffsets )
                     {
-                        int32_t const parentBoneIdx = pSkeleton->GetParentBoneIndex( m_boneID );
+                        int32_t const parentBoneIdx = pSkeleton->GetParentBoneIndex( boneIdx );
                         if ( parentBoneIdx != InvalidIndex )
                         {
-                            parentTransform = pPose->GetGlobalTransform( parentBoneIdx );
+                            parentTransform = pPose->GetModelSpaceTransform( parentBoneIdx );
                         }
 
                         outTransform = pPose->GetTransform( boneIdx );
                     }
                     else // Get the global transform for the target bone
                     {
-                        outTransform = pPose->GetGlobalTransform( boneIdx );
+                        outTransform = pPose->GetModelSpaceTransform( boneIdx );
                     }
 
                     //-------------------------------------------------------------------------
@@ -52,7 +52,7 @@ namespace EE::Animation
                 }
                 else
                 {
-                    outTransform = pPose->GetGlobalTransform( boneIdx );
+                    outTransform = pPose->GetModelSpaceTransform( boneIdx );
                 }
             }
             else

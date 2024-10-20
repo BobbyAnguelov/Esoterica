@@ -1,18 +1,16 @@
 #pragma once
 
-#include "Engine.h"
-#include "Base/Application/Platform/Application_Win32.h"
-#include "EngineTools/_Module/EngineToolsModule.h"
+#include "Game/_Module/GameModule.h"
 #include "GameTools/_Module/GameToolsModule.h"
+#include "EngineTools/_Module/EngineToolsModule.h"
+#include "Engine/Engine.h"
+#include "Base/Application/Platform/Application_Win32.h"
+#include "../EditorUI.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
-    class EditorUI;
-
-    //-------------------------------------------------------------------------
-
     class EditorEngine final : public Engine
     {
         friend class EditorApplication;
@@ -23,21 +21,12 @@ namespace EE
 
         virtual void RegisterTypes() override;
         virtual void UnregisterTypes() override;
-
-        virtual bool InitializeToolsModulesAndSystems( ModuleContext& moduleContext );
-        virtual void ShutdownToolsModulesAndSystems( ModuleContext& moduleContext );
-
-        virtual void CreateToolsUI();
+        virtual void CreateDevelopmentToolsUI() override { m_pDevelopmentToolsUI = EE::New<EditorUI>(); }
+        virtual void PostInitialize() override;
 
     private:
 
         ResourceID                                      m_editorStartupMap;
-
-        // Modules
-        //-------------------------------------------------------------------------
-
-        EngineToolsModule                               m_engineToolsModule;
-        GameToolsModule                                 m_gameToolsModule;
     };
 
     //-------------------------------------------------------------------------

@@ -11,100 +11,70 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    ToolsGraphDefinition::ToolsGraphDefinition()
-    {
-        ResetToDefaultState();
-    }
-
-    ToolsGraphDefinition::~ToolsGraphDefinition()
-    {
-        ResetInternalState();
-    }
-
-    void ToolsGraphDefinition::ResetInternalState()
+    void ToolsGraphDefinition::CreateDefaultRootGraph()
     {
         m_variationHierarchy.Reset();
-
-        if ( m_pRootGraph != nullptr )
-        {
-            m_pRootGraph->Shutdown();
-            EE::Delete( m_pRootGraph );
-        }
-    }
-
-    void ToolsGraphDefinition::ResetToDefaultState()
-    {
-        ResetInternalState();
-        m_pRootGraph = EE::New<FlowGraph>( GraphType::BlendTree );
-        m_pRootGraph->CreateNode<PoseResultToolsNode>();
+        m_rootGraph.CreateInstance<FlowGraph>( GraphType::BlendTree );
+        m_rootGraph.Get()->m_ID = UUID::GenerateID();
+        m_rootGraph.Get()->CreateNode<PoseResultToolsNode>();
     }
 
     //-------------------------------------------------------------------------
 
     void ToolsGraphDefinition::RefreshParameterReferences()
     {
-        EE_ASSERT( m_pRootGraph != nullptr );
-        auto controlParameters = m_pRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-        auto const virtualParameters = m_pRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        EE_ASSERT( m_rootGraph.IsSet() );
+        auto parameterNodes = m_rootGraph->FindAllNodesOfType<ParameterBaseToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
 
         //-------------------------------------------------------------------------
 
+        auto SetReferencedParameter = [] ( ParameterReferenceToolsNode* pReferenceNode, ParameterBaseToolsNode* pParameter )
+        {
+            EE_ASSERT( pParameter != nullptr );
+            EE_ASSERT( IsOfType<ControlParameterToolsNode>( pParameter ) || IsOfType<VirtualParameterToolsNode>( pParameter ) );
+            EE_ASSERT( pParameter->GetOutputValueType() == pReferenceNode->GetOutputValueType() );
+            pReferenceNode->m_pParameter = pParameter;
+            pReferenceNode->UpdateCachedParameterData();
+        };
+
         TInlineVector<ParameterReferenceToolsNode*, 10> invalidReferenceNodes; // These nodes are invalid and need to be removed
 
-        auto parameterReferenceNodes = m_pRootGraph->FindAllNodesOfType<ParameterReferenceToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+        auto parameterReferenceNodes = m_rootGraph->FindAllNodesOfType<ParameterReferenceToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
         for ( auto pReferenceNode : parameterReferenceNodes )
         {
-            FlowToolsNode* pFoundParameterNode = nullptr;
-            FlowToolsNode* pFoundMatchingNameParameterNode = nullptr;
+            ParameterBaseToolsNode* pFoundParameterNode = nullptr;
+            ParameterBaseToolsNode* pFoundMatchingNameParameterNode = nullptr;
 
-            // Check all control parameters for matching ID or matching name
-            for ( auto pParameter : controlParameters )
+            // Check all parameters for matching ID or matching name
+            for ( auto pParameterNode : parameterNodes )
             {
-                if ( pParameter->GetID() == pReferenceNode->GetReferencedParameterID() )
+                if ( pParameterNode->GetID() == pReferenceNode->GetReferencedParameterID() )
                 {
                     EE_ASSERT( pFoundParameterNode == nullptr );
-                    pFoundParameterNode = pParameter;
+                    pFoundParameterNode = pParameterNode;
                     break;
                 }
 
-                if ( pParameter->GetParameterName().comparei( pReferenceNode->GetReferencedParameterName() ) == 0 )
+                if ( pParameterNode->GetParameterName().comparei( pReferenceNode->GetReferencedParameterName() ) == 0 )
                 {
                     EE_ASSERT( pFoundMatchingNameParameterNode == nullptr );
-                    pFoundMatchingNameParameterNode = pParameter;
+                    pFoundMatchingNameParameterNode = pParameterNode;
                 }
             }
 
-            // Check all virtual parameters for matching ID
-            if ( pFoundParameterNode == nullptr )
-            {
-                for ( auto pParameter : virtualParameters )
-                {
-                    if ( pParameter->GetID() == pReferenceNode->GetReferencedParameterID() )
-                    {
-                        EE_ASSERT( pFoundParameterNode == nullptr );
-                        pFoundParameterNode = pParameter;
-                        break;
-                    }
-
-                    if ( pParameter->GetParameterName().comparei( pReferenceNode->GetReferencedParameterName() ) == 0 )
-                    {
-                        EE_ASSERT( pFoundMatchingNameParameterNode == nullptr );
-                        pFoundMatchingNameParameterNode = pParameter;
-                    }
-                }
-            }
+            GraphValueType const referencedParameterValueType = pReferenceNode->GetReferencedParameterValueType();
 
             // If we have a matching parameter node, set the reference to point to it
-            if ( pFoundParameterNode != nullptr && ( pReferenceNode->GetReferencedParameterValueType() == pFoundParameterNode->GetValueType() ) )
+            if ( pFoundParameterNode != nullptr && ( referencedParameterValueType == pFoundParameterNode->GetOutputValueType() ) )
             {
-                pReferenceNode->SetReferencedParameter( pFoundParameterNode );
+                SetReferencedParameter( pReferenceNode, pFoundParameterNode );
             }
             // If we have a parameter that matches both name and type then link to it (this handles cross graph pasting of parameters)
             else if ( pFoundMatchingNameParameterNode != nullptr )
             {
-                if ( pReferenceNode->GetReferencedParameterValueType() == pFoundMatchingNameParameterNode->GetValueType() )
+                if ( referencedParameterValueType == pFoundMatchingNameParameterNode->GetOutputValueType() )
                 {
-                    pReferenceNode->SetReferencedParameter( pFoundMatchingNameParameterNode );
+                    SetReferencedParameter( pReferenceNode, pFoundMatchingNameParameterNode );
                 }
                 else // Flag this reference as invalid since we cannot create a parameter with this name as one already exists
                 {
@@ -113,13 +83,13 @@ namespace EE::Animation
             }
             else // Create missing parameter
             {
-                auto pParameter = GraphNodes::ControlParameterToolsNode::Create(m_pRootGraph, pReferenceNode->GetReferencedParameterValueType(), pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterCategory() );
+                auto pParameter = GraphNodes::ControlParameterToolsNode::Create( m_rootGraph.Get(), referencedParameterValueType, pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterGroup() );
 
                 // Set the reference to the newly created parameter
-                pReferenceNode->SetReferencedParameter( pParameter );
+                SetReferencedParameter( pReferenceNode, pParameter );
 
                 // Add newly created parameter to the list of parameters to be used for references
-                controlParameters.emplace_back( pParameter );
+                parameterNodes.emplace_back( pParameter );
             }
         }
 
@@ -134,13 +104,13 @@ namespace EE::Animation
 
     void ToolsGraphDefinition::ReflectParameters( ToolsGraphDefinition const& otherGraphDefinition, bool reflectVirtualParameters, TVector<String>* pOptionalOutputLog )
     {
-        auto pOtherRootGraph = otherGraphDefinition.m_pRootGraph;
-        auto otherControlParameters = pOtherRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-        auto otherVirtualParameters = pOtherRootGraph->FindAllNodesOfType<GraphNodes::VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        FlowGraph const* pOtherRootGraph = otherGraphDefinition.m_rootGraph.Get();
+        auto otherControlParameters = pOtherRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        auto otherVirtualParameters = pOtherRootGraph->FindAllNodesOfType<GraphNodes::VirtualParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
 
-        auto pRootGraph = GetRootGraph();
-        auto controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-        auto virtualParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        FlowGraph* pRootGraph = GetRootGraph();
+        auto controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        auto virtualParameters = pRootGraph->FindAllNodesOfType<GraphNodes::VirtualParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
 
         //-------------------------------------------------------------------------
 
@@ -159,7 +129,7 @@ namespace EE::Animation
                     }
 
                     // Types dont match
-                    if ( pControlParameter->GetValueType() != type )
+                    if ( pControlParameter->GetOutputValueType() != type )
                     {
                         return SearchResult::MismatchedType;
                     }
@@ -181,7 +151,7 @@ namespace EE::Animation
                     }
 
                     // Types dont match
-                    if ( pVirtualParameter->GetValueType() != type )
+                    if ( pVirtualParameter->GetOutputValueType() != type )
                     {
                         return SearchResult::MismatchedType;
                     }
@@ -195,7 +165,7 @@ namespace EE::Animation
             return SearchResult::CanAdd;
         };
 
-        auto ProcessResult = [&] ( SearchResult result, GraphValueType type, String const& parameterName, String const& parameterCategory, GraphNodes::ControlParameterToolsNode* pOtherParameterNode = nullptr )
+        auto ProcessResult = [&] ( SearchResult result, GraphValueType type, String const& parameterName, String const& parameterCategory, GraphNodes::ControlParameterToolsNode const* pOtherParameterNode = nullptr )
         {
             switch ( result )
             {
@@ -253,8 +223,8 @@ namespace EE::Animation
 
         for ( auto pParameterNode : otherControlParameters )
         {
-            SearchResult const result = CanAddParameter( pParameterNode->GetParameterName(), pParameterNode->GetValueType() );
-            ProcessResult( result, pParameterNode->GetValueType(), pParameterNode->GetParameterName(), pParameterNode->GetParameterCategory(), pParameterNode );
+            SearchResult const result = CanAddParameter( pParameterNode->GetParameterName(), pParameterNode->GetOutputValueType() );
+            ProcessResult( result, pParameterNode->GetOutputValueType(), pParameterNode->GetParameterName(), pParameterNode->GetParameterGroup(), pParameterNode );
         }
 
         //-------------------------------------------------------------------------
@@ -263,112 +233,30 @@ namespace EE::Animation
         {
             for ( auto pParameterNode : otherVirtualParameters )
             {
-                SearchResult const result = CanAddParameter( pParameterNode->GetParameterName(), pParameterNode->GetValueType() );
-                ProcessResult( result, pParameterNode->GetValueType(), pParameterNode->GetParameterName(), pParameterNode->GetParameterCategory() );
+                SearchResult const result = CanAddParameter( pParameterNode->GetParameterName(), pParameterNode->GetOutputValueType() );
+                ProcessResult( result, pParameterNode->GetOutputValueType(), pParameterNode->GetParameterName(), pParameterNode->GetParameterGroup() );
             }
         }
     }
 
-    //-------------------------------------------------------------------------
-
-    bool ToolsGraphDefinition::LoadFromJson( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphDescriptorObjectValue )
+    void ToolsGraphDefinition::PostDeserialize()
     {
-        EE_ASSERT( graphDescriptorObjectValue.IsObject() );
+        IReflectedType::PostDeserialize();
 
-        ResetInternalState();
-
-        // Find relevant json values
-        //-------------------------------------------------------------------------
-
-        Serialization::JsonValue const* pGraphObjectValue = nullptr;
-        Serialization::JsonValue const* pVariationsObjectValue = nullptr;
-        Serialization::JsonValue const* pRootGraphObjectValue = nullptr;
-
-        auto graphDefinitionValueIter = graphDescriptorObjectValue.FindMember( "GraphDefinition" );
-        if ( graphDefinitionValueIter != graphDescriptorObjectValue.MemberEnd() && graphDefinitionValueIter->value.IsObject() )
-        {
-            pGraphObjectValue = &graphDefinitionValueIter->value;
-        }
-
-        if ( pGraphObjectValue != nullptr )
-        {
-            auto rootGraphValueIter = pGraphObjectValue->FindMember( "RootGraph" );
-            if ( rootGraphValueIter != pGraphObjectValue->MemberEnd() )
-            {
-                pRootGraphObjectValue = &rootGraphValueIter->value;
-            }
-        }
-
-        if ( pGraphObjectValue != nullptr )
-        {
-            auto variationsValueIter = pGraphObjectValue->FindMember( "Variations" );
-            if ( variationsValueIter != pGraphObjectValue->MemberEnd() && variationsValueIter->value.IsArray() )
-            {
-                pVariationsObjectValue = &variationsValueIter->value;
-            }
-        }
-
-        // Deserialize graph
-        //-------------------------------------------------------------------------
-
-        bool serializationSuccessful = false;
-
-        if ( pRootGraphObjectValue != nullptr && pVariationsObjectValue != nullptr )
-        {
-            m_pRootGraph = Cast<FlowGraph>( VisualGraph::BaseGraph::CreateGraphFromSerializedData( typeRegistry, *pRootGraphObjectValue, nullptr ) );
-            serializationSuccessful = m_variationHierarchy.Serialize( typeRegistry, *pVariationsObjectValue );
-        }
-
-        // If serialization failed, reset the graph state to a valid one
-        if ( !serializationSuccessful )
-        {
-            ResetToDefaultState();
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( serializationSuccessful )
+        if ( m_rootGraph.IsSet() )
         {
             RefreshParameterReferences();
         }
-
-        return serializationSuccessful;
     }
 
-    void ToolsGraphDefinition::SaveToJson( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonWriter& writer ) const
+    TInlineVector<EE::StringID, 10> ToolsGraphDefinition::GetVariationIDs() const
     {
-        writer.StartObject();
-
-        // Descriptor Data
-        //-------------------------------------------------------------------------
-
-        writer.Key( Serialization::s_typeIDKey );
-        writer.String( GraphResourceDescriptor::GetStaticTypeID().c_str() );
-
-        writer.Key( "m_variations" );
-        writer.StartArray();
-
-        for ( auto const& variation : m_variationHierarchy.GetAllVariations() )
+        TInlineVector<EE::StringID, 10> IDs;
+        for ( Variation const& variation : m_variationHierarchy.GetAllVariations() )
         {
-            writer.String( variation.m_ID.c_str() );
+            IDs.emplace_back( variation.m_ID );
         }
 
-        writer.EndArray();
-
-        // Graph Data
-        //-------------------------------------------------------------------------
-
-        writer.Key( "GraphDefinition" );
-        writer.StartObject();
-        {
-            writer.Key( "RootGraph" );
-            m_pRootGraph->Serialize( typeRegistry, writer );
-
-            writer.Key( "Variations" );
-            m_variationHierarchy.Serialize( typeRegistry, writer );
-
-            writer.EndObject();
-        }
-        writer.EndObject();
+        return IDs;
     }
 }

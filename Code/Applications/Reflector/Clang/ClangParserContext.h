@@ -2,7 +2,7 @@
 
 #include "ClangUtils.h"
 #include "Applications/Reflector/ReflectorSettingsAndUtils.h"
-#include "Applications/Reflector/Database/ReflectionProjectTypes.h"
+#include "Applications/Reflector/Database/ReflectionDatabase.h"
 #include "Base/Types/HashMap.h"
 #include "Base/Types/StringID.h"
 
@@ -28,22 +28,25 @@ namespace EE::TypeSystem::Reflection
         inline bool IsEntitySystemMacro() const { return m_type == ReflectionMacroType::EntitySystem; }
         inline bool IsEntityWorldSystemMacro() const { return m_type == ReflectionMacroType::EntityWorldSystem; }
         inline bool IsEntityComponentMacro() const { return m_type == ReflectionMacroType::EntityComponent || m_type == ReflectionMacroType::SingletonEntityComponent; }
+        inline bool IsDataFileMacro() const { return m_type == ReflectionMacroType::DataFile; }
 
         // Should be registered as a type
         inline bool IsReflectedTypeMacro() const 
         { 
-            return m_type == ReflectionMacroType::ReflectType || IsEntitySystemMacro() || IsEntityWorldSystemMacro() || IsEntityComponentMacro() || m_type == ReflectionMacroType::ReflectedResource;
+            return m_type == ReflectionMacroType::ReflectType || IsEntitySystemMacro() || IsEntityWorldSystemMacro() || IsEntityComponentMacro() || m_type == ReflectionMacroType::DataFile;
         }
         
         // Should be registered as a resource
         inline bool IsRegisteredResourceMacro() const
         { 
-            return m_type == ReflectionMacroType::Resource || m_type == ReflectionMacroType::ReflectedResource; 
+            return m_type == ReflectionMacroType::Resource;
         }
+
+        String GetReflectedTypeName() const;
 
     public:
 
-        HeaderID            m_headerID;
+        StringID            m_headerID;
         uint32_t            m_lineNumber = 0;
         uint32_t            m_position = 0xFFFFFFFF;
         ReflectionMacroType m_type = ReflectionMacroType::Unknown;
@@ -60,33 +63,33 @@ namespace EE::TypeSystem::Reflection
 
         struct HeaderToVisit
         {
-            HeaderToVisit( HeaderID ID, HeaderInfo const* pHeaderInfo ) : m_ID( ID ), m_pHeaderInfo( pHeaderInfo ) {}
+            HeaderToVisit( StringID ID, HeaderInfo const* pHeaderInfo ) : m_ID( ID ), m_pHeaderInfo( pHeaderInfo ) {}
 
-            inline bool operator==( HeaderID const& ID ) const { return m_ID == ID; }
+            inline bool operator==( StringID const& ID ) const { return m_ID == ID; }
 
         public:
 
-            HeaderID            m_ID;
+            StringID            m_ID;
             HeaderInfo const*   m_pHeaderInfo;
         };
 
     public:
 
-        ClangParserContext( SolutionInfo* pSolution, ReflectionDatabase* pDatabase )
+        ClangParserContext( FileSystem::Path const& solutionPath, ReflectionDatabase* pDatabase )
             : m_pTU( nullptr )
+            , m_solutionPath( solutionPath )
             , m_pDatabase( pDatabase )
             , m_pParentReflectedType( nullptr )
             , m_inEngineNamespace( false )
-            , m_pSolution( pSolution )
         {
-            EE_ASSERT( pSolution != nullptr && pDatabase != nullptr );
+            EE_ASSERT( pDatabase != nullptr );
         }
 
         void LogError( char const* pFormat, ... ) const;
         char const* GetErrorMessage() const { return m_errorMessage.c_str(); }
         inline bool HasErrorOccured() const { return !m_errorMessage.empty(); }
 
-        HeaderInfo const* GetHeaderInfo( HeaderID headerID ) const;
+        HeaderInfo const* GetHeaderInfo( StringID headerID ) const;
 
         void Reset( CXTranslationUnit* pTU );
         void PushNamespace( String const& name );
@@ -104,16 +107,16 @@ namespace EE::TypeSystem::Reflection
         // Try to find a reflection macro for a property
         // If we found a macro we will remove it from the list of macros to reduce the cost of future searches
         // Returns true if a macro was found
-        bool GetReflectionMacroForType( HeaderID headerID, CXCursor const& cr, ReflectionMacro& macro );
+        bool GetReflectionMacroForType( StringID headerID, CXCursor const& cr, ReflectionMacro& macro );
 
         // Try to find a reflection macro for a property
         // If we found a macro we will remove it from the list of macros to reduce the cost of future searches
         // Returns true if a macro was found
-        bool FindReflectionMacroForProperty( HeaderID headerID, uint32_t lineNumber, ReflectionMacro& reflectionMacro );
+        bool FindReflectionMacroForProperty( StringID headerID, uint32_t lineNumber, ReflectionMacro& reflectionMacro );
 
         // Check if we have any orphaned reflection macros
         // If we have any then we will populate the error message with all the details
-        bool CheckForOrphanedReflectionMacros() const;
+        bool CheckForUnhandledReflectionMacros() const;
 
     public:
 
@@ -122,7 +125,7 @@ namespace EE::TypeSystem::Reflection
         // Should we do a full pass or just update the flags?
         bool                                                    m_detectDevOnlyTypesAndProperties = false;
 
-        SolutionInfo*                                           m_pSolution;
+        FileSystem::Path                                        m_solutionPath;
         ReflectionDatabase*                                     m_pDatabase;
         TVector<HeaderToVisit>                                  m_headersToVisit;
 
@@ -131,8 +134,8 @@ namespace EE::TypeSystem::Reflection
 
     private:
 
-        THashMap<HeaderID, TVector<ReflectionMacro>>            m_typeReflectionMacros;
-        THashMap<HeaderID, TVector<ReflectionMacro>>            m_propertyReflectionMacros;
+        THashMap<StringID, TVector<ReflectionMacro>>            m_typeReflectionMacros;
+        THashMap<StringID, TVector<ReflectionMacro>>            m_propertyReflectionMacros;
 
         mutable String                                          m_errorMessage;
         TVector<String>                                         m_namespaceStack;

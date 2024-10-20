@@ -115,6 +115,9 @@ namespace EE
         // Normalized linear interpolation of one vector to another
         EE_FORCE_INLINE static Vector NLerp( Vector const& from, Vector const& to, float t );
 
+        // Frame-rate independent Lerp (See Lerp.h)
+        EE_FORCE_INLINE static Vector LerpSmooth( Vector const& from, Vector const& to, float deltaTimeSeconds, float halfLifeTimeSeconds );
+
         // Spherical interpolation of one vector to another
         static Vector SLerp( Vector const& from, Vector const& to, float t ); 
 
@@ -1842,6 +1845,12 @@ namespace EE
         auto const finalDirection = Lerp( normalizedFrom, normalizedTo, t );
         auto result = finalDirection.GetNormalized3() * finalLength;
         return result;
+    }
+
+    EE_FORCE_INLINE Vector Vector::LerpSmooth( Vector const& from, Vector const& to, float deltaTimeSeconds, float halfLifeTimeSeconds )
+    {
+        Vector const vT( Math::Exp2( -deltaTimeSeconds / halfLifeTimeSeconds ) );
+        return Vector::MultiplyAdd( ( from - to ), vT, to );
     }
 
     //-------------------------------------------------------------------------

@@ -7,8 +7,8 @@
 
 namespace EE
 {
-    GamePreviewer::GamePreviewer( ToolsContext const* pToolsContext, EntityWorld* pWorld )
-        : EditorTool( pToolsContext, String( "Game Preview" ), pWorld )
+    GamePreviewer::GamePreviewer( ToolsContext const* pToolsContext, String const& displayName, EntityWorld* pWorld )
+        : EditorTool( pToolsContext, displayName, pWorld )
     {
         // Switch back to player camera
         auto pCameraManager = m_pWorld->GetWorldSystem<CameraManager>();
@@ -28,7 +28,7 @@ namespace EE
             // Load map
             m_loadedMap = mapResourceID;
             m_pWorld->LoadMap( m_loadedMap );
-            String const displayName( String::CtorSprintf(), "Preview: %s", m_loadedMap.GetResourcePath().GetFileName().c_str() );
+            String const displayName( String::CtorSprintf(), "Preview: %s", m_loadedMap.GetResourcePath().GetFilename().c_str() );
             SetDisplayName( displayName );
         }
     }
@@ -55,7 +55,7 @@ namespace EE
 
     void GamePreviewer::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), dockspaceID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), dockspaceID );
     }
 
     void GamePreviewer::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )

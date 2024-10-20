@@ -1,9 +1,9 @@
 #include "ResourceDescriptorCreator.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "EngineTools/ThirdParty/pfd/portable-file-dialogs.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
-#include "EngineTools/Core/CommonDialogs.h"
+#include "EngineTools/Core/Dialogs.h"
 #include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/ResourceInfo.h"
 #include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
@@ -21,20 +21,20 @@ namespace EE::Resource
         auto pTypeInfo = m_pToolsContext->m_pTypeRegistry->GetTypeInfo( descriptorTypeID );
         EE_ASSERT( pTypeInfo != nullptr );
 
-        m_pDescriptor = Cast<ResourceDescriptor>( pTypeInfo->CreateType() );
-        EE_ASSERT( m_pDescriptor != nullptr );
+        m_pDataFile = Cast<ResourceDescriptor>( pTypeInfo->CreateType() );
+        EE_ASSERT( m_pDataFile != nullptr );
 
-        m_propertyGrid.SetTypeToEdit( m_pDescriptor );
+        m_propertyGrid.SetTypeToEdit( m_pDataFile );
 
         //-------------------------------------------------------------------------
 
-        TInlineString<10> const filenameStr( TInlineString < 10>::CtorSprintf(), "NewResource.%s", m_pDescriptor->GetCompiledResourceTypeID().ToString().c_str() );
+        TInlineString<10> const filenameStr( TInlineString < 10>::CtorSprintf(), "NewResource.%s", m_pDataFile->GetCompiledResourceTypeID().ToString().c_str() );
         m_startingPath += filenameStr.c_str();
     }
 
     ResourceDescriptorCreator::~ResourceDescriptorCreator()
     {
-        EE::Delete( m_pDescriptor );
+        EE::Delete( m_pDataFile );
     }
 
     bool ResourceDescriptorCreator::Draw()
@@ -42,7 +42,7 @@ namespace EE::Resource
         bool isOpen = true;
 
         // Just save empty descriptors immediately
-        if ( m_pDescriptor->GetTypeInfo()->m_properties.empty() )
+        if ( m_pDataFile->GetTypeInfo()->m_properties.empty() )
         {
             SaveDescriptor();
             isOpen = false;
@@ -61,14 +61,14 @@ namespace EE::Resource
             {
                 if ( ImGui::BeginChild( "#descEditor", ImGui::GetContentRegionAvail() - ImVec2( 0, 40 ) ) )
                 {
-                    m_propertyGrid.DrawGrid();
+                    m_propertyGrid.UpdateAndDraw();
                 }
                 ImGui::EndChild();
 
                 //-------------------------------------------------------------------------
 
-                ImGui::BeginDisabled( !m_pDescriptor->IsValid() );
-                if ( ImGuiX::ColoredButton( Colors::Green, Colors::White, "Save", ImVec2( 120, 0 ) ) )
+                ImGui::BeginDisabled( !m_pDataFile->IsValid() );
+                if ( ImGuiX::ButtonColored( "Save", Colors::Green, Colors::White, ImVec2( 120, 0 ) ) )
                 {
                     SaveDescriptor();
                     ImGui::CloseCurrentPopup();
@@ -96,28 +96,20 @@ namespace EE::Resource
 
     void ResourceDescriptorCreator::SaveDescriptor()
     {
-        ResourceTypeID const resourceTypeID = m_pDescriptor->GetCompiledResourceTypeID();
+        ResourceTypeID const resourceTypeID = m_pDataFile->GetCompiledResourceTypeID();
         TInlineString<5> const resourceTypeIDString = resourceTypeID.ToString();
-        TypeSystem::ResourceInfo const* pResourceInfo = m_pToolsContext->m_pTypeRegistry->GetResourceInfoForResourceType( resourceTypeID );
 
-        FileSystem::Path outPath;
-        if( !SaveDialog( resourceTypeID, outPath, m_startingPath, pResourceInfo->m_friendlyName ) )
+        FileDialog::Result result = FileDialog::Save( m_pToolsContext, resourceTypeID, m_startingPath );
+        if ( !result )
         {
             return;
         }
 
-        // Ensure that the extension matches the expected type
-        auto const extension = outPath.GetExtensionAsString();
-        if ( extension != resourceTypeIDString.c_str() )
+        EE_ASSERT( m_pDataFile != nullptr );
+        if ( !ResourceDescriptor::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, result.m_filePaths[0], m_pDataFile ) )
         {
-            outPath.ReplaceExtension( resourceTypeIDString.c_str() );
-        }
-
-        EE_ASSERT( m_pDescriptor != nullptr );
-        if ( !ResourceDescriptor::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, outPath, m_pDescriptor ) )
-        {
-            InlineString const str( InlineString::CtorSprintf(), "Failed to write descriptor file (%s) to disk!", outPath.c_str() );
-            pfd::message( "Error Saving Descriptor!", str.c_str(), pfd::choice::ok, pfd::icon::error ).result();
+            InlineString const str( InlineString::CtorSprintf(), "Failed to write descriptor file (%s) to disk!", result.m_filePaths[0].c_str() );
+            MessageDialog::Error( "Error Saving Descriptor!", str.c_str() );
         }
     }
 }

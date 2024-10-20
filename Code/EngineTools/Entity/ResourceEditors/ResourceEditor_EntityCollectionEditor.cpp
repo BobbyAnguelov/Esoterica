@@ -1,7 +1,6 @@
 #include "ResourceEditor_EntityCollectionEditor.h"
 #include "EngineTools/Entity/EntitySerializationTools.h"
 #include "Engine/UpdateContext.h"
-#include "Engine/Entity/EntitySerialization.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Base/Threading/TaskSystem.h"
 
@@ -9,16 +8,14 @@
 
 namespace EE::EntityModel
 {
-    EE_RESOURCE_EDITOR_FACTORY( EntityCollectionEditorFactory, SerializedEntityCollection, EntityCollectionEditor );
+    EE_RESOURCE_EDITOR_FACTORY( EntityCollectionEditorFactory, EntityCollection, EntityCollectionEditor );
 
     //-------------------------------------------------------------------------
 
-    EntityCollectionEditor::EntityCollectionEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& collectionResourceID )
-        : EntityEditor( pToolsContext, pWorld, collectionResourceID )
+    EntityCollectionEditor::EntityCollectionEditor( ToolsContext const* pToolsContext, ResourceID const& collectionResourceID, EntityWorld* pWorld )
+        : EntityEditor( pToolsContext, collectionResourceID.GetFilenameWithoutExtension(), pWorld )
         , m_collection( collectionResourceID )
-    {
-        SetDisplayName( collectionResourceID.GetFileNameWithoutExtension() );
-    }
+    {}
 
     //-------------------------------------------------------------------------
 
@@ -51,14 +48,14 @@ namespace EE::EntityModel
             return false;
         }
 
-        SerializedEntityMap sem;
-        if ( !Serializer::SerializeEntityMap( *m_pToolsContext->m_pTypeRegistry, pEditedMap, sem ) )
+        EntityMapDescriptor sem;
+        if ( !CreateEntityMapDescriptor( *m_pToolsContext->m_pTypeRegistry, pEditedMap, sem ) )
         {
             return false;
         }
 
         FileSystem::Path const filePath = GetFileSystemPath( m_collection.GetResourcePath() );
-        if ( !WriteSerializedEntityCollectionToFile( *m_pToolsContext->m_pTypeRegistry, sem, filePath ) )
+        if ( !WriteEntityCollectionToFile( *m_pToolsContext->m_pTypeRegistry, sem, filePath ) )
         {
             return false;
         }

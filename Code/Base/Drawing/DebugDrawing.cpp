@@ -341,7 +341,7 @@ namespace EE::Drawing
     }
 
     //-------------------------------------------------------------------------
-    // Compound Shapes
+    // Complex Shapes
     //-------------------------------------------------------------------------
 
     void DrawContext::DrawArrow( Float3 const& startPoint, Float3 const& endPoint, Float4 const& color, float thickness, DepthTest depthTestState, Seconds TTL )
@@ -392,6 +392,62 @@ namespace EE::Drawing
 
         InternalDrawLine( m_commandBuffer, transform.GetTranslation(), verts[0], color, thickness, depthTestState, TTL );
         InternalDrawLine( m_commandBuffer, verts[0], verts[g_numCircleVertices-1], color, thickness, depthTestState, TTL );
+    }
+
+    void DrawContext::DrawTwistLimits( Transform const& jointTransform, Axis twistAxis, Axis upAxis, Radians limitMin, Radians limitMax, Color color, float lineThickness, float limitSize )
+    {
+        EE_ASSERT( limitMin < limitMax );
+        EE_ASSERT( twistAxis != upAxis );
+        EE_ASSERT( upAxis != Axis( (int32_t) twistAxis + 3 ) );
+
+        Vector const vRotationAxis = jointTransform.GetAxis( twistAxis );
+        Vector const vZeroTwist = jointTransform.GetAxis( upAxis );
+
+        constexpr uint32_t const numVertices = 30;
+        TInlineVector<Vector, numVertices> vertices;
+
+        Radians const deltaAngle = ( limitMax - limitMin ) / numVertices;
+        for ( int32_t i = 0; i < numVertices; i++ )
+        {
+            auto rotatedVector = Quaternion( vRotationAxis, limitMin + ( deltaAngle * i ) ).RotateVector( vZeroTwist );
+            vertices.push_back( jointTransform.GetTranslation() + ( rotatedVector * limitSize ) );
+            DrawLine( jointTransform.GetTranslation(), vertices.back(), color, lineThickness );
+        }
+
+        for ( auto i = 1; i < numVertices; i++ )
+        {
+            DrawLine( vertices[i - 1], vertices[i], color, lineThickness );
+        }
+    }
+
+    void DrawContext::DrawSwingLimits( Transform const& jointTransform, Axis swingAxis1, Axis swingAxis2, Axis zeroAxis, Radians limit1, Radians limit2, Color color, float lineThickness, float limitSize )
+    {
+        Vector const vSwingAxis1 = jointTransform.GetAxis( swingAxis1 );
+        Vector const vSwingAxis2 = jointTransform.GetAxis( swingAxis2 );
+        Vector const vZeroSwing = jointTransform.GetAxis( zeroAxis );
+
+        constexpr uint32_t const numVertices = 30;
+        TInlineVector<Vector, numVertices> vertices;
+
+        Radians const startAngleY = -( limit1 / 2 );
+        Radians const deltaAngleY = limit1 / numVertices;
+        for ( int32_t i = 0; i < numVertices; i++ )
+        {
+            auto rotatedVector = Quaternion( vSwingAxis1, startAngleY + ( deltaAngleY * i ) ).RotateVector( vZeroSwing );
+            vertices.push_back( jointTransform.GetTranslation() + ( rotatedVector * limitSize ) );
+            DrawLine( jointTransform.GetTranslation(), vertices.back(), Colors::Green, lineThickness );
+        }
+
+        vertices.clear();
+
+        Radians const startAngleZ = -( limit2 / 2 );
+        Radians const deltaAngleZ = limit2 / numVertices;
+        for ( int32_t i = 0; i < numVertices; i++ )
+        {
+            auto rotatedVector = Quaternion( vSwingAxis2, startAngleZ + ( deltaAngleZ * i ) ).RotateVector( vZeroSwing );
+            vertices.push_back( jointTransform.GetTranslation() + ( rotatedVector * limitSize ) );
+            DrawLine( jointTransform.GetTranslation(), vertices.back(), Colors::RoyalBlue, lineThickness );
+        }
     }
 }
 #endif

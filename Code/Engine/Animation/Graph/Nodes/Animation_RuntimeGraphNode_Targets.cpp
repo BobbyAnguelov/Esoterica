@@ -188,6 +188,64 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    void TargetPointNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<TargetPointNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pTargetNode );
+    }
+
+    void TargetPointNode::InitializeInternal( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() && m_pTargetNode != nullptr );
+        VectorValueNode::InitializeInternal( context );
+        m_pTargetNode->Initialize( context );
+    }
+
+    void TargetPointNode::ShutdownInternal( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() && m_pTargetNode != nullptr );
+        m_pTargetNode->Shutdown( context );
+        VectorValueNode::ShutdownInternal( context );
+    }
+
+    void TargetPointNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() && m_pTargetNode != nullptr );
+        auto pDefinition = GetDefinition<TargetInfoNode>();
+
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            Target const inputTarget = m_pTargetNode->GetValue<Target>( context );
+            if ( inputTarget.IsTargetSet() )
+            {
+                // Get the transform out of the source target
+                Transform inputTargetTransform;
+                bool bIsValidTransform = inputTarget.TryGetTransform( context.m_pPreviousPose, inputTargetTransform );
+
+                // If we have a valid transform, update the internal value
+                if ( bIsValidTransform )
+                {
+                    if ( pDefinition->m_isWorldSpaceTarget )
+                    {
+                        inputTargetTransform = inputTargetTransform * context.m_worldTransformInverse;
+                    }
+
+                    m_value = inputTargetTransform.GetTranslation();
+                }
+            }
+            else
+            {
+                m_value = Vector::Zero;
+            }
+        }
+
+        *reinterpret_cast<Vector*>( pOutValue ) = m_value;
+    }
+
+    //-------------------------------------------------------------------------
+
     void TargetOffsetNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<TargetOffsetNode>( context, options );

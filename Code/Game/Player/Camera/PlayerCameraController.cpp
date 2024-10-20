@@ -14,7 +14,7 @@ namespace EE::Player
         EE_ASSERT( pCamera != nullptr );
     }
 
-    void CameraController::UpdateCamera( EntityWorldUpdateContext const& ctx )
+    void CameraController::UpdateCamera( EntityWorldUpdateContext const& ctx, Float2 const& cameraInputs )
     {
         EE_PROFILE_FUNCTION_GAMEPLAY();
 
@@ -24,10 +24,10 @@ namespace EE::Player
         // Update camera rotation
         //-------------------------------------------------------------------------
 
-        Vector cameraInputs = pControllerState->GetRightStickValue();
+        Vector adjustedCameraInputs = cameraInputs;
         Radians const maxAngularVelocityForThisFrame = Math::Pi * ctx.GetDeltaTime();
-        cameraInputs *= (float) maxAngularVelocityForThisFrame;
-        m_pCamera->AdjustOrbitAngle( cameraInputs.GetX(), cameraInputs.GetY() );
+        adjustedCameraInputs *= (float) maxAngularVelocityForThisFrame;
+        m_pCamera->AdjustOrbitAngle( adjustedCameraInputs.GetX(), adjustedCameraInputs.GetY() );
 
         //-------------------------------------------------------------------------
 

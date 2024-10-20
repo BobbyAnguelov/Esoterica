@@ -5,18 +5,17 @@
 
 namespace EE::Resource
 {
-    CompileContext::CompileContext( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& compiledResourceDirectoryPath, ResourceID const& resourceToCompile, bool isCompilingForShippingBuild )
-        : m_rawResourceDirectoryPath( rawResourceDirectoryPath )
+    CompileContext::CompileContext( FileSystem::Path const& sourceDataDirectoryPath, FileSystem::Path const& compiledResourceDirectoryPath, ResourceID const& resourceToCompile, bool isCompilingForShippingBuild )
+        : m_sourceDataDirectoryPath( sourceDataDirectoryPath )
         , m_compiledResourceDirectoryPath( compiledResourceDirectoryPath )
         , m_isCompilingForPackagedBuild( isCompilingForShippingBuild )
         , m_resourceID( resourceToCompile )
     {
-        EE_ASSERT( rawResourceDirectoryPath.IsDirectoryPath() && FileSystem::Exists( rawResourceDirectoryPath ) && resourceToCompile.IsValid() );
+        EE_ASSERT( sourceDataDirectoryPath.IsDirectoryPath() && FileSystem::Exists( sourceDataDirectoryPath ) && resourceToCompile.IsValid() );
 
         // Resolve paths
-        ResourcePath const& resourceToCompilePath = resourceToCompile.GetResourcePath();
-        const_cast<FileSystem::Path&>( m_inputFilePath ) = ResourcePath::ToFileSystemPath( rawResourceDirectoryPath, resourceToCompilePath );
-        const_cast<FileSystem::Path&>( m_outputFilePath ) = ResourcePath::ToFileSystemPath( m_compiledResourceDirectoryPath, resourceToCompilePath );
+        const_cast<FileSystem::Path&>( m_inputFilePath ) = resourceToCompile.GetParentResourceFileSystemPath( m_sourceDataDirectoryPath );
+        const_cast<FileSystem::Path&>( m_outputFilePath ) = resourceToCompile.GetFileSystemPath( m_compiledResourceDirectoryPath );
     }
 
     bool CompileContext::IsValid() const
@@ -31,23 +30,52 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
+    int32_t Compiler::GetVersion( ResourceTypeID resourceTypeID ) const
+    {
+        for ( auto const& outputType : m_outputTypes )
+        {
+            if ( outputType.m_typeID == resourceTypeID )
+            {
+                return Serialization::GetBinarySerializationVersion() + outputType.m_version;
+                break;
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+        return -1;
+    }
+
+    bool Compiler::WillGenerateAdditionalDataFile( ResourceTypeID resourceTypeID ) const
+    {
+        for ( auto const& outputType : m_outputTypes )
+        {
+            if ( outputType.m_typeID == resourceTypeID )
+            {
+                return outputType.m_requiresAdditionalDataFile;
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+        return false;
+    }
+
     void Compiler::Initialize( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath )
     {
         m_pTypeRegistry = &typeRegistry;
-        m_rawResourceDirectoryPath = rawResourceDirectoryPath;
+        m_sourceDataDirectoryPath = rawResourceDirectoryPath;
     }
 
     void Compiler::Shutdown()
     {
         m_pTypeRegistry = nullptr;
-        m_rawResourceDirectoryPath.Clear();
+        m_sourceDataDirectoryPath.Clear();
     }
 
     CompilationResult Compiler::Error( char const* pFormat, ... ) const
     {
         va_list args;
         va_start( args, pFormat );
-        Log::AddEntryVarArgs( Log::Severity::Error, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args);
+        SystemLog::AddEntryVarArgs( Severity::Error, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args);
         va_end( args );
         return CompilationResult::Failure;
     }
@@ -56,7 +84,7 @@ namespace EE::Resource
     {
         va_list args;
         va_start( args, pFormat );
-        Log::AddEntryVarArgs( Log::Severity::Warning, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args );
+        SystemLog::AddEntryVarArgs( Severity::Warning, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args );
         va_end( args );
         return CompilationResult::SuccessWithWarnings;
     }
@@ -65,23 +93,27 @@ namespace EE::Resource
     {
         va_list args;
         va_start( args, pFormat );
-        Log::AddEntryVarArgs( Log::Severity::Info, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args );
+        SystemLog::AddEntryVarArgs( Severity::Info, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args );
         va_end( args );
         return CompilationResult::Success;
     }
 
     CompilationResult Compiler::CompilationSucceeded( CompileContext const& ctx ) const
     {
-        return Message( "Compiled '%s' to '%s' successfully", (char const*) ctx.m_inputFilePath, (char const*) ctx.m_outputFilePath );
+        Message( "Compiled successfully: %s", (char const*) ctx.m_inputFilePath );
+        Message( "Output File: %s", (char const*) ctx.m_outputFilePath );
+        return CompilationResult::Success;
     }
 
     CompilationResult Compiler::CompilationSucceededWithWarnings( CompileContext const& ctx ) const
     {
-        return Warning( "Compiled '%s' to '%s' successfully (with warnings)", (char const*) ctx.m_inputFilePath, (char const*) ctx.m_outputFilePath );
+        Warning( "Compiled with warnings: %s", (char const*) ctx.m_inputFilePath );
+        Message( "Output File: %s", (char const*) ctx.m_outputFilePath );
+        return CompilationResult::SuccessWithWarnings;
     }
 
     CompilationResult Compiler::CompilationFailed( CompileContext const& ctx ) const
     {
-        return Error( "Failed to compile resource: '%s'", (char const*) ctx.m_outputFilePath );
+        return Error( "Failed to compile resource: %s", (char const*) ctx.m_outputFilePath );
     }
 }

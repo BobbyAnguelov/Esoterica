@@ -44,7 +44,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void VectorInfoToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void VectorInfoToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         switch ( m_desiredInfo )
         {
@@ -58,10 +58,6 @@ namespace EE::Animation::GraphNodes
 
             case VectorInfoNode::Info::Z:
             ImGui::Text( "Z" );
-            break;
-
-            case VectorInfoNode::Info::W:
-            ImGui::Text( "W" );
             break;
 
             case VectorInfoNode::Info::Length:

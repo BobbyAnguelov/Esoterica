@@ -17,17 +17,7 @@ namespace EE::TypeSystem::Reflection
             IgnoreHeader,
         };
 
-        struct HeaderTimestamp
-        {
-            HeaderTimestamp( HeaderID ID, uint64_t timestamp ) : m_ID( ID ), m_timestamp( timestamp ) {}
-
-            HeaderID                        m_ID;
-            uint64_t                        m_timestamp;
-        };
-
     public:
-
-        Reflector() = default;
 
         bool ParseSolution( FileSystem::Path const& slnPath );
         bool Clean();
@@ -38,21 +28,21 @@ namespace EE::TypeSystem::Reflection
         bool LogError( char const* pFormat, ... ) const;
         void LogWarning( char const* pFormat, ... ) const;
 
+        // Solution Parsing
+        //-------------------------------------------------------------------------
+
         bool ParseProject( FileSystem::Path const& prjPath );
+        HeaderProcessResult ProcessHeaderFile( FileSystem::Path const& filePath, String& exportMacroName, TVector<String>& headerFileContents );
 
-        HeaderProcessResult ProcessHeaderFile( FileSystem::Path const& filePath, String& exportMacro, TVector<String>& headerFileContents );
-        uint64_t CalculateHeaderChecksum( FileSystem::Path const& engineIncludePath, FileSystem::Path const& filePath );
+        // Code Generation
+        //-------------------------------------------------------------------------
 
-        bool ReflectRegisteredHeaders();
-        bool WriteTypeData();
+        bool WriteGeneratedFiles( class CodeGenerator const& generator );
 
     private:
 
-        FileSystem::Path                    m_reflectionDataPath;
-        SolutionInfo                        m_solution;
-        ReflectionDatabase                  m_database;
-
-        // Up to data checks
-        TVector<HeaderTimestamp>            m_registeredHeaderTimestamps;
+        FileSystem::Path                    m_solutionPath;
+        TVector<ProjectInfo>                m_projects;
+        TVector<FileSystem::Path>           m_excludedProjectPaths;
     };
 }

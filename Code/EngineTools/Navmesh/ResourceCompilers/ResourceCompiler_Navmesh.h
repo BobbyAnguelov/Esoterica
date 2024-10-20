@@ -16,6 +16,8 @@ namespace EE::Navmesh
         NavmeshCompiler();
         virtual Resource::CompilationResult Compile( Resource::CompileContext const& ctx ) const override;
         virtual bool IsInputFileRequired() const override { return false; }
+        virtual bool RequiresAdvancedUpToDateCheck( ResourceTypeID resourceTypeID ) const override { return true; }
+        virtual uint64_t CalculateAdvancedUpToDateHash( ResourceID resourceID ) const override;
 
     private:
 

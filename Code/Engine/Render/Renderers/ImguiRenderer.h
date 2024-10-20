@@ -30,7 +30,7 @@ namespace EE::Render
 
     public:
 
-        bool IsInitialized() const { return m_initialized; }
+        bool WasInitialized() const { return m_initialized; }
         bool Initialize( RenderDevice* pRenderDevice );
         void Shutdown();
         void RenderViewport( Seconds const deltaTime, Viewport const& viewport, RenderTarget const& renderTarget ) override final;

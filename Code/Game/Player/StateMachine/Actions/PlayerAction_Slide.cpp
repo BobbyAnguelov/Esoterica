@@ -12,12 +12,9 @@ namespace EE::Player
 {
     bool SlideAction::TryStartInternal( ActionContext const& ctx )
     {
-        if( ctx.m_pPlayerComponent->m_sprintFlag && ctx.m_pInputSystem->GetController()->WasPressed( Input::InputID::Controller_ThumbstickRight ) )
+        if( ctx.m_pPlayerComponent->m_sprintFlag && ctx.m_pInput->m_crouch.WasPressed() )
         {
-            auto const pControllerState = ctx.m_pInputSystem->GetController();
-            EE_ASSERT( pControllerState != nullptr );
-
-            Vector const movementInputs = ctx.m_pInputSystem->GetController()->GetLeftStickValue();
+            Vector const movementInputs = ctx.m_pInput->m_move.GetValue();
             Vector const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
             Vector const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
             Vector const forward = camFwd * movementInputs.GetY();
@@ -43,11 +40,8 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status SlideAction::UpdateInternal( ActionContext const& ctx )
+    Action::Status SlideAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
     {
-        auto const pControllerState = ctx.m_pInputSystem->GetController();
-        EE_ASSERT( pControllerState != nullptr );
-
         // Calculate desired player displacement
         //-------------------------------------------------------------------------
 

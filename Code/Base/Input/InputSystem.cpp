@@ -98,7 +98,7 @@ namespace EE::Input
         return m_controllers[controllerIdx];
     }
 
-    ControllerDevice const* InputSystem::GetFirstController() const
+    ControllerDevice const* InputSystem::GetFirstConnectedController() const
     {
         for ( int32_t i = 0; i < s_maxControllers; i++ )
         {

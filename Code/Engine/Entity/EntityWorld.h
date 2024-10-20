@@ -1,9 +1,10 @@
 #pragma once
 
 #include "EntityWorldSystem.h"
-#include "EntityContexts.h"
+#include "EntityInitializationContext.h"
 #include "Entity.h"
 #include "EntityMap.h"
+#include "EntityLoadingContext.h"
 #include "Base/Render/RenderViewport.h"
 #include "Base/Types/Arrays.h"
 #include "Base/Settings/SettingsRegistry.h"
@@ -216,16 +217,42 @@ namespace EE
         void EndComponentEdit( EntityComponent* pComponent );
 
         // Get all the registered components of the specified type
-        inline TVector<EntityComponent const*> const& GetAllRegisteredComponentsOfType( TypeSystem::TypeID typeID ) { return m_componentTypeLookup[typeID]; }
+        // Note: this will only find components that have successfully initialized
+        inline TVector<EntityComponent const*> const* GetAllRegisteredComponentsOfType( TypeSystem::TypeID typeID ) const 
+        {
+            auto iter = m_componentTypeLookup.find( typeID );
+            if ( iter == m_componentTypeLookup.end() )
+            {
+                return nullptr;
+            }
+
+            return &iter->second;
+        }
 
         // Get all the registered components of the specified type
+        // Note: this will only find components that have successfully initialized
         template<typename T>
-        inline TInlineVector<T const*, 20> GetAllRegisteredComponentsOfType() 
+        inline TInlineVector<T const*, 20> GetAllRegisteredComponentsOfType() const
         {
             TInlineVector<T const*, 20> results;
-            for ( auto pComponent : m_componentTypeLookup[T::GetStaticTypeID()] )
+            TVector<EntityComponent const*> const* pComponents = GetAllRegisteredComponentsOfType( T::GetStaticTypeID() );
+            if ( pComponents != nullptr )
             {
-                results.emplace_back( reinterpret_cast<T const*>( pComponent ) );
+                for ( auto pComponent : *pComponents )
+                {
+                    results.emplace_back( static_cast<T const*>( pComponent ) );
+                }
+            }
+            return results;
+        }
+
+        template<typename T>
+        inline TInlineVector<T const*, 20> GetAllComponentsOfType() const
+        {
+            TInlineVector<T const*, 20> results;
+            for ( EntityModel::EntityMap const* pMap : m_maps )
+            {
+                pMap->GetAllComponentsOfType<T>( results );
             }
             return results;
         }
@@ -278,10 +305,10 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         // Starts the hot-reload process - shuts down and unloads all specified entities
-        void HotReload_UnloadEntities( TVector<Resource::ResourceRequesterID> const& usersToReload );
+        void HotReload_UnloadEntities( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload );
 
         // Ends the hot-reload process - starts re-loading of unloaded entities
-        void HotReload_ReloadEntities();
+        void HotReload_ReloadEntities( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload );
         #endif
 
     private:

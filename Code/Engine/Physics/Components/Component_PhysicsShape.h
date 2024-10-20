@@ -104,10 +104,10 @@ namespace EE::Physics
 
     protected:
 
-        EE_REFLECT( "Category" : "Simulation" )
+        EE_REFLECT( Category = "Simulation" )
         SimulationSettings                              m_simulationSettings;
 
-        EE_REFLECT( "Category" : "Collision" )
+        EE_REFLECT( Category = "Collision" )
         CollisionSettings                               m_collisionSettings;
 
     private:

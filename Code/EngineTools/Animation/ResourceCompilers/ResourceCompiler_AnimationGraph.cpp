@@ -2,6 +2,7 @@
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Definition.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_DataSlot.h"
+#include "Base/TypeSystem/TypeDescriptors.h"
 #include "Base/FileSystem/FileSystem.h"
 
 //-------------------------------------------------------------------------
@@ -9,10 +10,10 @@
 namespace EE::Animation
 {
     AnimationGraphCompiler::AnimationGraphCompiler()
-        : Resource::Compiler( "GraphCompiler", s_version )
+        : Resource::Compiler( "GraphCompiler" )
     {
-        m_outputTypes.push_back( GraphDefinition::GetStaticResourceTypeID() );
-        m_outputTypes.push_back( GraphVariation::GetStaticResourceTypeID() );
+        AddOutputType<GraphDefinition>();
+        AddOutputType<GraphVariation>();
     }
 
     Resource::CompilationResult AnimationGraphCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -31,40 +32,32 @@ namespace EE::Animation
         return CompilationFailed( ctx );
     }
 
-    bool AnimationGraphCompiler::LoadAndCompileGraph( FileSystem::Path const& graphFilePath, ToolsGraphDefinition& editorGraph, GraphDefinitionCompiler& definitionCompiler ) const
+    bool AnimationGraphCompiler::LoadAndCompileGraph( FileSystem::Path const& graphFilePath, GraphResourceDescriptor& graphDescriptor, GraphDefinitionCompiler& definitionCompiler ) const
     {
-        Serialization::JsonArchiveReader archive;
-        if ( !archive.ReadFromFile( graphFilePath ) )
+        if ( !TryLoadResourceDescriptor( graphFilePath, graphDescriptor ) )
         {
-            Error( "Failed to read animation graph file: %s", graphFilePath.c_str() );
-            return false;
-        }
-
-        if ( !editorGraph.LoadFromJson( *m_pTypeRegistry, archive.GetDocument() ) )
-        {
-            Error( "Malformed animation graph file: %s", graphFilePath.c_str() );
             return false;
         }
 
         // Compile
         //-------------------------------------------------------------------------
 
-        if ( !definitionCompiler.CompileGraph( editorGraph ) )
+        if ( !definitionCompiler.CompileGraph( graphDescriptor.m_graphDefinition ) )
         {
             // Dump log
             for ( auto const& logEntry : definitionCompiler.GetLog() )
             {
-                if ( logEntry.m_severity == Log::Severity::Error )
+                if ( logEntry.m_severity == Severity::Error )
                 {
-                    Error( "%s", logEntry.m_message.c_str() );
+                    Error( "Failed to compile graph: %s", logEntry.m_message.c_str() );
                 }
-                else if ( logEntry.m_severity == Log::Severity::Warning )
+                else if ( logEntry.m_severity == Severity::Warning )
                 {
-                    Warning( "%s", logEntry.m_message.c_str() );
+                    Warning( "Failed to compile graph: %s", logEntry.m_message.c_str() );
                 }
-                else if ( logEntry.m_severity == Log::Severity::Info )
+                else if ( logEntry.m_severity == Severity::Info )
                 {
-                    Message( "%s", logEntry.m_message.c_str() );
+                    Message( "Failed to compile graph: %s", logEntry.m_message.c_str() );
                 }
             }
 
@@ -76,9 +69,9 @@ namespace EE::Animation
 
     Resource::CompilationResult AnimationGraphCompiler::CompileGraphDefinition( Resource::CompileContext const& ctx ) const
     {
-        ToolsGraphDefinition editorGraph;
+        GraphResourceDescriptor graphDescriptor;
         GraphDefinitionCompiler definitionCompiler;
-        if ( !LoadAndCompileGraph( ctx.m_inputFilePath, editorGraph, definitionCompiler ) )
+        if ( !LoadAndCompileGraph( ctx.m_inputFilePath, graphDescriptor, definitionCompiler ) )
         {
             return CompilationFailed( ctx );
         }
@@ -90,7 +83,7 @@ namespace EE::Animation
 
         Serialization::BinaryOutputArchive archive;
 
-        archive << Resource::ResourceHeader( s_version, GraphDefinition::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        archive << Resource::ResourceHeader( GraphDefinition::s_version, GraphDefinition::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         archive << *pRuntimeGraph;
 
         // Serialize node paths only in dev builds
@@ -133,14 +126,14 @@ namespace EE::Animation
         EE_ASSERT( graphResourceID.IsValid() );
 
         FileSystem::Path graphFilePath;
-        if ( !ConvertResourcePathToFilePath( graphResourceID.GetResourcePath(), graphFilePath ) )
+        if ( !GetFilePathForResourceID( graphResourceID, graphFilePath ) )
         {
             return Error( "invalid graph data path: %s", graphResourceID.c_str() );
         }
 
-        ToolsGraphDefinition editorGraph;
+        GraphResourceDescriptor graphDescriptor;
         GraphDefinitionCompiler definitionCompiler;
-        if ( !LoadAndCompileGraph( graphFilePath, editorGraph, definitionCompiler ) )
+        if ( !LoadAndCompileGraph( graphFilePath, graphDescriptor, definitionCompiler ) )
         {
             return CompilationFailed( ctx );
         }
@@ -149,8 +142,8 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         variationID = variationID.IsValid() ? variationID : Variation::s_defaultVariationID;
-        variationID = editorGraph.GetVariationHierarchy().TryGetCaseCorrectVariationID( variationID );
-        if ( !editorGraph.IsValidVariation( variationID ) )
+        variationID = graphDescriptor.m_graphDefinition.GetVariationHierarchy().TryGetCaseCorrectVariationID( variationID );
+        if ( !graphDescriptor.m_graphDefinition.IsValidVariation( variationID ) )
         {
             return Error( "Invalid variation requested: %s", variationID.c_str() );
         }
@@ -162,7 +155,7 @@ namespace EE::Animation
         variation.m_pGraphDefinition = graphResourceID;
         variation.m_dataSet.m_variationID = variationID;
 
-        if ( !GenerateDataSet( ctx, editorGraph, definitionCompiler.GetRegisteredDataSlots(), variation.m_dataSet ) )
+        if ( !GenerateDataSet( ctx, graphDescriptor.m_graphDefinition, definitionCompiler.GetRegisteredDataSlots(), variation.m_dataSet ) )
         {
             return Error( "Failed to create data set for variation: %s", variationID.c_str() );
         }
@@ -170,7 +163,7 @@ namespace EE::Animation
         // Create header
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, GraphVariation::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        Resource::ResourceHeader hdr( GraphVariation::s_version, GraphVariation::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         hdr.AddInstallDependency( variation.m_pGraphDefinition.GetResourceID() );
 
         // Add data set install dependencies
@@ -218,15 +211,15 @@ namespace EE::Animation
             EE_ASSERT( graphResourceID.IsValid() );
 
             FileSystem::Path graphFilePath;
-            if ( !ConvertResourcePathToFilePath( graphResourceID.GetResourcePath(), graphFilePath ) )
+            if ( !GetFilePathForResourceID( graphResourceID, graphFilePath ) )
             {
                 Error( "invalid graph data path: %s", graphResourceID.c_str() );
                 return false;
             }
 
-            ToolsGraphDefinition editorGraph;
+            GraphResourceDescriptor graphDescriptor;
             GraphDefinitionCompiler definitionCompiler;
-            if ( !LoadAndCompileGraph( graphFilePath, editorGraph, definitionCompiler ) )
+            if ( !LoadAndCompileGraph( graphFilePath, graphDescriptor, definitionCompiler ) )
             {
                 return false;
             }
@@ -235,9 +228,9 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             variationID = variationID.IsValid() ? variationID : Variation::s_defaultVariationID;
-            variationID = editorGraph.GetVariationHierarchy().TryGetCaseCorrectVariationID( variationID );
+            variationID = graphDescriptor.m_graphDefinition.GetVariationHierarchy().TryGetCaseCorrectVariationID( variationID );
 
-            if ( !editorGraph.IsValidVariation( variationID ) )
+            if ( !graphDescriptor.m_graphDefinition.IsValidVariation( variationID ) )
             {
                 Error( "Invalid variation requested: %s", variationID.c_str() );
                 return false;
@@ -251,7 +244,7 @@ namespace EE::Animation
             // Add skeleton
             //-------------------------------------------------------------------------
 
-            auto const pVariation = editorGraph.GetVariation( variationID );
+            auto const pVariation = graphDescriptor.m_graphDefinition.GetVariation( variationID );
             EE_ASSERT( pVariation != nullptr );
 
             if ( pVariation->m_skeleton.GetResourceID().IsValid() )
@@ -263,8 +256,8 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             THashMap<UUID, GraphNodes::DataSlotToolsNode const*> dataSlotLookupMap;
-            auto pRootGraph = editorGraph.GetRootGraph();
-            auto const& dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+            auto pRootGraph = graphDescriptor.m_graphDefinition.GetRootGraph();
+            auto const& dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
             for ( auto pSlotNode : dataSlotNodes )
             {
                 dataSlotLookupMap.insert( TPair<UUID, GraphNodes::DataSlotToolsNode const*>( pSlotNode->GetID(), pSlotNode ) );
@@ -280,7 +273,7 @@ namespace EE::Animation
                     return false;
                 }
 
-                auto const dataSlotResourceID = iter->second->GetResourceID( editorGraph.GetVariationHierarchy(), variationID );
+                auto const dataSlotResourceID = iter->second->GetResolvedResourceID( graphDescriptor.m_graphDefinition.GetVariationHierarchy(), variationID );
                 if ( dataSlotResourceID.IsValid() )
                 {
                     VectorEmplaceBackUnique( outReferencedResources, dataSlotResourceID );
@@ -320,7 +313,7 @@ namespace EE::Animation
 
         THashMap<UUID, GraphNodes::DataSlotToolsNode const*> dataSlotLookupMap;
         auto pRootGraph = editorGraph.GetRootGraph();
-        auto const& dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( VisualGraph::SearchMode::Recursive, VisualGraph::SearchTypeMatch::Derived );
+        auto const& dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
         for ( auto pSlotNode : dataSlotNodes )
         {
             dataSlotLookupMap.insert( TPair<UUID, GraphNodes::DataSlotToolsNode const*>( pSlotNode->GetID(), pSlotNode ) );
@@ -338,7 +331,7 @@ namespace EE::Animation
             }
 
             auto const pDataSlotNode = iter->second;
-            auto const dataSlotResourceID = pDataSlotNode->GetResourceID( editorGraph.GetVariationHierarchy(), dataSet.m_variationID );
+            auto const dataSlotResourceID = pDataSlotNode->GetResolvedResourceID( editorGraph.GetVariationHierarchy(), dataSet.m_variationID );
             dataSet.m_resources.emplace_back( dataSlotResourceID );
         }
 

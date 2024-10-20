@@ -68,6 +68,8 @@ namespace EE
         inline Vector const& GetAxisY() const { return m_rows[1]; }
         inline Vector const& GetAxisZ() const { return m_rows[2]; }
 
+        Vector GetAxis( Axis axis ) const;
+
         // Get the world forward vector (Note: this is not valid for camera transforms!)
         EE_FORCE_INLINE Float3 GetForwardVector() const { return GetAxisY().GetNegated(); }
 

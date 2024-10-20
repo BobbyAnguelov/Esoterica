@@ -46,7 +46,7 @@ namespace EE::Animation
         return FootEvent::GetPhaseColor( pAnimEvent->GetFootPhase() );
     }
 
-    bool FootEventTrack::DrawContextMenu( Timeline::TrackContext const& context, TVector<Track*>& tracks, float playheadPosition )
+    bool FootEventTrack::DrawContextMenu( Timeline::TrackContext const& context, TVector<TTypeInstance<Track>>& tracks, float playheadPosition )
     {
         EventTrack::DrawContextMenu( context, tracks, playheadPosition );
 
@@ -98,9 +98,9 @@ namespace EE::Animation
 
         FootEvent::Phase currentPhase = startingPhase;
 
-        for ( auto pItem : m_items )
+        for ( TTypeInstance<Timeline::TrackItem>& item : m_items )
         {
-            auto pFootEvent = GetAnimEvent<FootEvent>( pItem );
+            auto pFootEvent = GetAnimEvent<FootEvent>( item.Get() );
             pFootEvent->m_phase = currentPhase;
             currentPhase = FootEvent::Phase( ( (int8_t) currentPhase + 1 ) % 4 );
         }
@@ -139,11 +139,13 @@ namespace EE::Animation
 
     Timeline::Track::Status OrientationWarpEventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const
     {
-        for ( auto pItem : m_items )
+        ResetStatusMessage();
+
+        for ( TTypeInstance<Timeline::TrackItem> const& pItem : m_items )
         {
             if ( pItem->GetStartTime() < 1.0f || pItem->GetEndTime() > ( context.GetTimelineLength() - 1 ) )
             {
-                m_validationStatueMessage = "Warp event is not allowed to be within the first or last frame!";
+                m_validationStatusMessage = "Warp event is not allowed to be within the first or last frame!";
                 return Status::HasErrors;
             }
         }
@@ -166,13 +168,15 @@ namespace EE::Animation
 
     Timeline::Track::Status RootMotionEventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const
     {
+        ResetStatusMessage();
+
         int32_t const numItems = GetNumItems();
         for ( int32_t i = 0; i < numItems; i++ )
         {
-            auto pEvent = GetAnimEvent<RootMotionEvent>( m_items[i]);
-            if ( pEvent->GetBlendTime() < 0.0f )
+            auto pEvent = GetAnimEvent<RootMotionEvent>( m_items[i].Get() );
+            if ( pEvent->GetBlendTime() <= 0.0f )
             {
-                m_validationStatueMessage = String( String::CtorSprintf(), "Invalid blend time on event %d!", i );
+                m_validationStatusMessage = String( String::CtorSprintf(), "Invalid blend time on event %d!", i );
                 return Status::HasErrors;
             }
         }
@@ -195,13 +199,15 @@ namespace EE::Animation
 
     Timeline::Track::Status TargetWarpEventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const
     {
+        ResetStatusMessage();
+
         int32_t numTransXY = 0;
         int32_t numTransZ = 0;
         int32_t numRot = 0;
 
-        for ( auto pItem : m_items )
+        for ( TTypeInstance<Timeline::TrackItem> const& item : m_items )
         {
-            auto pEvent = GetAnimEvent<TargetWarpEvent>( pItem );
+            auto pEvent = GetAnimEvent<TargetWarpEvent>( item.Get() );
             TargetWarpRule const warpRule = pEvent->GetRule();
 
             switch ( warpRule )
@@ -237,19 +243,19 @@ namespace EE::Animation
 
         if ( numTransXY == 0 )
         {
-            m_validationStatueMessage = "Target warps required at least one translation XY event!";
+            m_validationStatusMessage = "Target warps required at least one translation XY event!";
             return Status::HasErrors;
         }
 
         if ( numTransXY > 1 )
         {
-            m_validationStatueMessage = "More than one translation XY event detected! This is not supported!";
+            m_validationStatusMessage = "More than one translation XY event detected! This is not supported!";
             return Status::HasErrors;
         }
 
         if ( numRot > 1 )
         {
-            m_validationStatueMessage = "More than one rotation event detected! This is not supported!";
+            m_validationStatusMessage = "More than one rotation event detected! This is not supported!";
             return Status::HasErrors;
         }
 
@@ -257,7 +263,7 @@ namespace EE::Animation
 
         if ( numTransZ == 0 )
         {
-            m_validationStatueMessage = "Missing vertical warp translation event! Will only warp in XY!";
+            m_validationStatusMessage = "Missing vertical warp translation event! Will only warp in XY!";
             return Status::HasWarnings;
         }
 
@@ -267,7 +273,7 @@ namespace EE::Animation
     Color TargetWarpEventTrack::GetItemColor( Timeline::TrackItem const * pItem ) const
     {
         auto pEvent = GetAnimEvent<TargetWarpEvent>( pItem );
-        return GetDebugForWarpRule( pEvent->GetRule() );
+        return GetDebugColorForWarpRule( pEvent->GetRule() );
     }
 
     //-------------------------------------------------------------------------
@@ -361,22 +367,24 @@ namespace EE::Animation
 
     Timeline::Track::Status RagdollEventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const
     {
+        ResetStatusMessage();
+
         int32_t const numItems = GetNumItems();
         if ( numItems == 1 )
         {
             FloatRange const validRange( 0, 1 );
-            auto pRagdollEvent = GetAnimEvent<RagdollEvent>( m_items[0] );
+            auto pRagdollEvent = GetAnimEvent<RagdollEvent>( m_items[0].Get() );
             auto const& curve = pRagdollEvent->m_physicsWeightCurve;
             if ( curve.GetNumPoints() == 0 )
             {
-                m_validationStatueMessage = "Curve has no data points!";
+                m_validationStatusMessage = "Curve has no data points!";
                 return Timeline::Track::Status::HasWarnings;
             }
             else if ( curve.GetNumPoints() == 1 )
             {
                 if ( !validRange.ContainsInclusive( curve.GetPoint( 0 ).m_value ) )
                 {
-                    m_validationStatueMessage = "Curve values are outside valid range! Keep the curve between 0 and 1 on both axes!";
+                    m_validationStatusMessage = "Curve values are outside valid range! Keep the curve between 0 and 1 on both axes!";
                     return Timeline::Track::Status::HasErrors;
                 }
             }
@@ -385,20 +393,19 @@ namespace EE::Animation
                 FloatRange const valueRange = curve.GetValueRange();
                 if ( !validRange.ContainsInclusive( valueRange.m_begin ) || !validRange.ContainsInclusive( valueRange.m_end ) )
                 {
-                    m_validationStatueMessage = "Curve values are outside valid range! Keep the curve between 0 and 1 on both axes!";
+                    m_validationStatusMessage = "Curve values are outside valid range! Keep the curve between 0 and 1 on both axes!";
                     return Timeline::Track::Status::HasErrors;
                 }
             }
         }
         else if( numItems > 1 )
         {
-            m_validationStatueMessage = "More than one event detected! This is not allowed!";
+            m_validationStatusMessage = "More than one event detected! This is not allowed!";
             return Timeline::Track::Status::HasErrors;
         }
 
         //-------------------------------------------------------------------------
 
-        ResetStatusMessage();
         return Timeline::Track::Status::Valid;
     }
 }

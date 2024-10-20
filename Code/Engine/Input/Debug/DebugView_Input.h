@@ -21,6 +21,8 @@ namespace EE::Input
     {
         EE_REFLECT_TYPE( InputDebugView );
 
+        static StaticStringID const s_controllerWindowTypeID;
+
     public:
 
         InputDebugView() : DebugView( "Engine/Input" ) {}

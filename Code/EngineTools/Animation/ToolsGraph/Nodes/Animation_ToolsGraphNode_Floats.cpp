@@ -45,7 +45,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatRemapToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void FloatRemapToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         DrawInternalSeparator( ctx );
         ImGui::Text( "[%.2f, %.2f] to [%.2f, %.2f]", m_inputRange.m_begin, m_inputRange.m_end, m_outputRange.m_begin, m_outputRange.m_end );
@@ -92,7 +92,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatClampToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void FloatClampToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         if ( m_clampRange.IsSet() && m_clampRange.IsValid() )
         {
@@ -193,7 +193,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatEaseToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void FloatEaseToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         ImGui::Text( Math::Easing::GetName( m_easing ) );
         ImGui::Text( "Ease Time: %.2fs", m_easeTime );
@@ -305,7 +305,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatMathToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void FloatMathToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         bool const useValueB = GetConnectedInputNode( 1 ) == nullptr;
 
@@ -405,7 +405,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatComparisonToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void FloatComparisonToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         DrawInternalSeparator( ctx );
 
@@ -471,7 +471,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatRangeComparisonToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void FloatRangeComparisonToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         if ( m_isInclusiveCheck )
         {
@@ -610,10 +610,18 @@ namespace EE::Animation::GraphNodes
         : FlowToolsNode()
     {
         CreateOutputPin( "Result", GraphValueType::Float, true );
-        CreateInputPin( "Option 0", GraphValueType::Bool );
-        CreateInputPin( "Option 1", GraphValueType::Bool );
+        CreateDynamicInputPin( "Option", GetPinTypeForValueType( GraphValueType::Bool ) );
+        CreateDynamicInputPin( "Option", GetPinTypeForValueType( GraphValueType::Bool ) );
+    }
 
-        m_pinValues.resize( 2, 0.0f );
+    void FloatSelectorToolsNode::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
+    {
+        FlowToolsNode::PostPropertyEdit( pPropertyEdited );
+
+        if ( pPropertyEdited->m_ID == StringID( "m_options" ) )
+        {
+            RefreshDynamicPins();
+        }
     }
 
     int16_t FloatSelectorToolsNode::Compile( GraphCompilationContext& context ) const
@@ -623,6 +631,13 @@ namespace EE::Animation::GraphNodes
         if ( state == NodeCompilationState::NeedCompilation )
         {
             int32_t const numOptions = GetNumInputPins();
+
+            if ( numOptions == 0 )
+            {
+                context.LogError( this, "No options on dynamic float selector!" );
+                return InvalidIndex;
+            }
+
             for ( auto i = 0; i < numOptions; i++ )
             {
                 auto pInputNode = GetConnectedInputNode<FlowToolsNode>( i );
@@ -632,7 +647,7 @@ namespace EE::Animation::GraphNodes
                     if ( compiledNodeIdx != InvalidIndex )
                     {
                         pDefinition->m_conditionNodeIndices.emplace_back( compiledNodeIdx );
-                        pDefinition->m_values.emplace_back( m_pinValues[i] );
+                        pDefinition->m_values.emplace_back( m_options[i].m_value );
                     }
                     else
                     {
@@ -656,63 +671,38 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    TInlineString<100> FloatSelectorToolsNode::GetNewDynamicInputPinName() const
+    void FloatSelectorToolsNode::OnDynamicPinCreation( UUID const& pinID )
     {
-        int32_t const numOptions = GetNumInputPins();
-        TInlineString<100> pinName;
-        pinName.sprintf( "Option %d", numOptions - 1 );
-        return pinName;
+        m_options.emplace_back( GetNewDynamicInputPinName().c_str(), 0.0f );
+        RefreshDynamicPins();
     }
 
-    void FloatSelectorToolsNode::OnDynamicPinCreation( UUID pinID )
-    {
-        m_pinValues.emplace_back( 0.0f );
-    }
-
-    void FloatSelectorToolsNode::OnDynamicPinDestruction( UUID pinID )
+    void FloatSelectorToolsNode::PreDynamicPinDestruction( UUID const& pinID )
     {
         int32_t const numOptions = GetNumInputPins();
         int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
         EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
+        m_options.erase( m_options.begin() + pinToBeRemovedIdx );
+    }
 
-        m_pinValues.erase( m_pinValues.begin() + pinToBeRemovedIdx );
-
-        // Rename all pins
-        //-------------------------------------------------------------------------
-
-        int32_t newPinIdx = 2;
-        for ( auto i = 2; i < numOptions; i++ )
+    void FloatSelectorToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    {
+        DrawInternalSeparator( ctx );
+        ImGui::Text( "Default: %.2f", m_defaultValue );
+        ImGui::Text( "Ease: %s", Math::Easing::GetName( m_easing ) );
+        if ( m_easing != Math::Easing::Operation::None )
         {
-            if ( i == pinToBeRemovedIdx )
-            {
-                continue;
-            }
-
-            TInlineString<100> newPinName;
-            newPinName.sprintf( "Option %d", newPinIdx );
-            GetInputPin( i )->m_name = newPinName;
-            newPinIdx++;
+            ImGui::Text( "Ease Time: %.2f", m_easeTime );
         }
     }
 
-    bool FloatSelectorToolsNode::DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
+    void FloatSelectorToolsNode::RefreshDynamicPins()
     {
-        FlowToolsNode::DrawPinControls( ctx, pUserContext, pin );
-
-        // Add parameter value input field
-        if ( pin.IsInputPin() && pin.m_type == GetPinTypeForValueType( GraphValueType::Bool ) )
+        for ( int32_t i = 0; i < GetNumInputPins(); i++ )
         {
-            int32_t const valueIdx = GetInputPinIndex( pin.m_ID );
-            EE_ASSERT( valueIdx >= 0 && valueIdx < m_pinValues.size() );
-
-            ImGui::PushID( &m_pinValues[valueIdx] );
-            ImGui::SetNextItemWidth( 50 * ctx.m_viewScaleFactor );
-            ImGui::InputFloat( "##parameter", &m_pinValues[valueIdx], 0.0f, 0.0f, "%.2f" );
-            ImGui::PopID();
-
-            return true;
+            NodeGraph::Pin* pInputPin = GetInputPin( i );
+            Option const& option = m_options[i];
+            pInputPin->m_name.sprintf( "%s (%.2f)", option.m_name.empty() ? "Input" : option.m_name.c_str(), option.m_value );
         }
-
-        return false;
     }
 }

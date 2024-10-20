@@ -24,7 +24,7 @@ namespace EE::Render
 
         // Dock windows
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Preview" ).c_str(), topDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomDockID);
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomDockID);
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Info" ).c_str(), bottomDockID );
     }
 

@@ -54,7 +54,7 @@ namespace EE::Animation
 
     protected:
 
-        EE_REFLECT( "IsToolsReadOnly" : true ) Seconds         m_startTime = 0.0f;
-        EE_REFLECT( "IsToolsReadOnly" : true ) Seconds         m_duration = 0.0f;
+        EE_REFLECT( ReadOnly ) Seconds         m_startTime = 0.0f;
+        EE_REFLECT( ReadOnly ) Seconds         m_duration = 0.0f;
     };
 }

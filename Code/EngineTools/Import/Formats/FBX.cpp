@@ -37,7 +37,7 @@ namespace EE::Import::Fbx
     {
         m_filePath = filePath;
 
-        if ( !FileSystem::Exists( m_filePath ) )
+        if ( !m_filePath.Exists() )
         {
             m_error.sprintf( "Specified FBX file doesn't exist: %s", m_filePath.c_str() );
             return;
@@ -383,8 +383,8 @@ namespace EE::Import::Fbx
 
             // Read Bone transform
             FbxAMatrix const nodeTransform = pNode->EvaluateGlobalTransform();
-            ImportedSkeleton.m_bones[boneIdx].m_globalTransform = sceneCtx.ConvertMatrixToTransform( nodeTransform );
-            ImportedSkeleton.m_bones[boneIdx].m_globalTransform.SetTranslation( ImportedSkeleton.m_bones[boneIdx].m_globalTransform.GetTranslation() * sceneCtx.GetScaleConversionMultiplier() );
+            ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform = sceneCtx.ConvertMatrixToTransform( nodeTransform );
+            ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform.SetTranslation( ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform.GetTranslation() * sceneCtx.GetScaleConversionMultiplier() );
 
             // Read child bones
             auto const numChildren = pNode->GetChildCount();
@@ -623,7 +623,7 @@ namespace EE::Import::Fbx
                     // Store skeleton reference pose for bone
                     for ( auto i = 0; i < ImportedAnimation.m_numFrames; i++ )
                     {
-                        animTrack.m_localTransforms.emplace_back( ImportedAnimation.m_skeleton.GetLocalTransform( boneIdx ) );
+                        animTrack.m_localTransforms.emplace_back( ImportedAnimation.m_skeleton.GetParentSpaceTransform( boneIdx ) );
                     }
                 }
                 else
@@ -1291,10 +1291,10 @@ namespace EE::Import::Fbx
                 // Read bind pose
                 FbxAMatrix clusterLinkTransform;
                 pCluster->GetTransformLinkMatrix( clusterLinkTransform );
-                ImportedSkeleton.m_bones[boneIdx].m_globalTransform = sceneCtx.ConvertMatrixToTransform( clusterLinkTransform );
+                ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform = sceneCtx.ConvertMatrixToTransform( clusterLinkTransform );
 
                 // Manually scale translation
-                ImportedSkeleton.m_bones[boneIdx].m_globalTransform.SetTranslation( ImportedSkeleton.m_bones[boneIdx].m_globalTransform.GetTranslation() * sceneCtx.GetScaleConversionMultiplier() );
+                ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform.SetTranslation( ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform.GetTranslation() * sceneCtx.GetScaleConversionMultiplier() );
 
                 // Add bone indices and weight to all influenced vertices
                 auto const* pControlPointIndices = pCluster->GetControlPointIndices();

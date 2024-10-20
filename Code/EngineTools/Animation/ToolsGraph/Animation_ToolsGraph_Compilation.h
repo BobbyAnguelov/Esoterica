@@ -1,5 +1,5 @@
 #pragma once
-#include "EngineTools/Core/VisualGraph/VisualGraph_BaseGraph.h"
+#include "EngineTools/NodeGraph/NodeGraph_BaseGraph.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 
 //-------------------------------------------------------------------------
@@ -16,7 +16,7 @@ namespace EE::Animation
 
     struct NodeCompilationLogEntry
     {
-        NodeCompilationLogEntry( Log::Severity severity, UUID const& nodeID, String const& message )
+        NodeCompilationLogEntry( Severity severity, UUID const& nodeID, String const& message )
             : m_message( message )
             , m_nodeID( nodeID )
             , m_severity( severity )
@@ -24,7 +24,7 @@ namespace EE::Animation
 
         String              m_message;
         UUID                m_nodeID;
-        Log::Severity       m_severity;
+        Severity       m_severity;
     };
 
     //-------------------------------------------------------------------------
@@ -46,13 +46,13 @@ namespace EE::Animation
         // Logging
         //-------------------------------------------------------------------------
 
-        void LogMessage( VisualGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Info, pNode->GetID(), message ) ); }
-        void LogWarning( VisualGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Warning, pNode->GetID(), message ) ); }
-        void LogError( VisualGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Error, pNode->GetID(), message ) ); }
+        void LogMessage( NodeGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Info, pNode->GetID(), message ) ); }
+        void LogWarning( NodeGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Warning, pNode->GetID(), message ) ); }
+        void LogError( NodeGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Error, pNode->GetID(), message ) ); }
 
-        void LogMessage( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Info, UUID(), message ) ); }
-        void LogWarning( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Warning, UUID(), message ) ); }
-        void LogError( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Log::Severity::Error, UUID(), message ) ); }
+        void LogMessage( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Info, UUID(), message ) ); }
+        void LogWarning( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Warning, UUID(), message ) ); }
+        void LogError( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Error, UUID(), message ) ); }
 
         // General Compilation
         //-------------------------------------------------------------------------
@@ -65,7 +65,7 @@ namespace EE::Animation
 
         // Try to get the runtime settings for a node in the graph, will return whether this node was already compiled or still needs compilation
         template<typename T>
-        NodeCompilationState GetDefinition( VisualGraph::BaseNode const* pNode, typename T::Definition*& pOutDefinition )
+        NodeCompilationState GetDefinition( NodeGraph::BaseNode const* pNode, typename T::Definition*& pOutDefinition )
         {
             auto foundIter = m_nodeIDToIndexMap.find( pNode->GetID() );
             if ( foundIter != m_nodeIDToIndexMap.end() )
@@ -200,7 +200,7 @@ namespace EE::Animation
 
     private:
 
-        void TryAddPersistentNode( VisualGraph::BaseNode const* pNode, GraphNode::Definition* pDefinition );
+        void TryAddPersistentNode( NodeGraph::BaseNode const* pNode, GraphNode::Definition* pDefinition );
 
     private:
 

@@ -23,20 +23,20 @@ namespace EE::Animation::GraphNodes
 
             bool GenerateTriangulation();
 
-            bool operator!=( BlendSpace const& rhs );
+            bool operator!=( BlendSpace const& rhs ) const;
 
         public:
 
             EE_REFLECT();
-            TVector<StringID>       m_pointIDs;
+            TVector<String>         m_pointIDs;
 
             EE_REFLECT();
             TVector<Float2>         m_points;
 
-            EE_REFLECT( "IsToolsReadOnly" : true );
+            EE_REFLECT( ReadOnly );
             TVector<uint8_t>        m_indices;
 
-            EE_REFLECT( "IsToolsReadOnly" : true );
+            EE_REFLECT( ReadOnly );
             TVector<uint8_t>        m_hullIndices;
         };
 
@@ -45,7 +45,6 @@ namespace EE::Animation::GraphNodes
         Blend2DToolsNode();
 
         virtual char const* GetTypeName() const override { return "Blend 2D"; }
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetCategory() const override { return "Animation/Blends"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override final { return TBitFlags<GraphType>( GraphType::BlendTree ); }
 
@@ -55,19 +54,23 @@ namespace EE::Animation::GraphNodes
 
     private:
 
+        virtual void PostDeserialize() override;
+
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& nodeObjectValue ) override;
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
 
-        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
-        virtual void OnDynamicPinCreation( UUID pinID ) override;
-        virtual void OnDynamicPinDestruction( UUID pinID ) override;
+        virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
+        virtual void OnDynamicPinCreation( UUID const& pinID ) override;
+        virtual void PreDynamicPinDestruction( UUID const& pinID ) override;
 
-        void UpdateDynamicPins();
+        virtual void RefreshDynamicPins() override;
 
     private:
 
         EE_REFLECT();
         BlendSpace                  m_blendSpace;
+
+        EE_REFLECT();
+        bool                         m_allowLooping = true;
     };
 }

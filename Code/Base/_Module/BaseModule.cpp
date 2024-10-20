@@ -68,7 +68,21 @@ namespace EE
         , m_resourceSystem( m_taskSystem )
     {}
 
-    bool BaseModule::InitializeModule()
+    ModuleContext BaseModule::GetModuleContext() const
+    {
+        BaseModule* mutableModule = const_cast<BaseModule*>( this );
+
+        ModuleContext moduleContext;
+        moduleContext.m_pTaskSystem = &mutableModule->m_taskSystem;
+        moduleContext.m_pTypeRegistry = &mutableModule->m_typeRegistry;
+        moduleContext.m_pSettingsRegistry = &mutableModule->m_settingsRegistry;
+        moduleContext.m_pResourceSystem = &mutableModule->m_resourceSystem;
+        moduleContext.m_pSystemRegistry = &mutableModule->m_systemRegistry;
+        moduleContext.m_pRenderDevice = &mutableModule->m_renderDevice;
+        return moduleContext;
+    }
+
+    bool BaseModule::InitializeModule( ModuleContext const& context )
     {
         // Threading
         //-------------------------------------------------------------------------
@@ -129,15 +143,12 @@ namespace EE
         // Rendering
         //-------------------------------------------------------------------------
 
-        m_pRenderDevice = EE::New<Render::RenderDevice>();
-
         Render::RenderGlobalSettings const* pRenderSettings = m_settingsRegistry.GetGlobalSettings<Render::RenderGlobalSettings>();
         EE_ASSERT( pRenderSettings != nullptr );
 
-        if ( !m_pRenderDevice->Initialize( *pRenderSettings ) )
+        if ( !m_renderDevice.Initialize( *pRenderSettings ) )
         {
             EE_LOG_ERROR( "Render", nullptr, "Failed to create render device" );
-            EE::Delete( m_pRenderDevice );
             return false;
         }
 
@@ -145,7 +156,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        m_imguiSystem.Initialize( m_pRenderDevice, &m_inputSystem, true );
+        m_imguiSystem.Initialize( &m_renderDevice, &m_inputSystem, true );
         #endif
 
         // Register Systems
@@ -160,7 +171,7 @@ namespace EE
         return true;
     }
 
-    void BaseModule::ShutdownModule()
+    void BaseModule::ShutdownModule( ModuleContext const& context )
     {
         // Unregister Systems
         //-------------------------------------------------------------------------
@@ -181,11 +192,7 @@ namespace EE
         // Rendering
         //-------------------------------------------------------------------------
 
-        if ( m_pRenderDevice != nullptr )
-        {
-            m_pRenderDevice->Shutdown();
-            EE::Delete( m_pRenderDevice );
-        }
+        m_renderDevice.Shutdown();
 
         // Input
         //-------------------------------------------------------------------------

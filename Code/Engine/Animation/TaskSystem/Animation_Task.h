@@ -15,9 +15,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    using TaskSourceID = int16_t;
-    using TaskIndex = int8_t;
-    using TaskDependencies = TInlineVector<TaskIndex, 2>;
+    using TaskDependencies = TInlineVector<int8_t, 2>;
 
     //-------------------------------------------------------------------------
 
@@ -62,10 +60,9 @@ namespace EE::Animation
 
     public:
 
-        Task( TaskSourceID sourceID, TaskUpdateStage updateStage = TaskUpdateStage::Any, TaskDependencies const& dependencies = TaskDependencies() );
+        Task( TaskUpdateStage updateStage = TaskUpdateStage::Any, TaskDependencies const& dependencies = TaskDependencies() );
         virtual ~Task() {}
         virtual void Execute( TaskContext const& context ) = 0;
-        virtual uint32_t GetTaskTypeID() const { return 0; }
 
         inline int8_t GetResultBufferIndex() const { return m_bufferIdx; }
         inline bool IsComplete() const { return m_isComplete; }
@@ -99,8 +96,10 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual String GetDebugText() const { return String(); }
+        virtual char const* GetDebugName() const { return ""; }
+        virtual InlineString GetDebugTextInfo() const { return InlineString(); }
         virtual Color GetDebugColor() const { return Colors::White; }
+        virtual float GetDebugProgressOrWeight() const { return 0.0f; }
         virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const;
         #endif
 
@@ -121,7 +120,7 @@ namespace EE::Animation
         }
 
         // Transfer a dependency result to this task
-        inline PoseBuffer* TransferDependencyPoseBuffer( TaskContext const& context, TaskIndex dependencyIdx )
+        inline PoseBuffer* TransferDependencyPoseBuffer( TaskContext const& context, int8_t dependencyIdx )
         {
             EE_ASSERT( m_bufferIdx == InvalidIndex );
 
@@ -134,7 +133,7 @@ namespace EE::Animation
         }
 
         // Get a dependency task result
-        inline PoseBuffer* AccessDependencyPoseBuffer( TaskContext const& context, TaskIndex dependencyIdx )
+        inline PoseBuffer* AccessDependencyPoseBuffer( TaskContext const& context, int8_t dependencyIdx )
         {
             auto pDependencyTask = context.m_dependencies[dependencyIdx];
             EE_ASSERT( pDependencyTask != nullptr && pDependencyTask->m_isComplete && pDependencyTask->m_bufferIdx != InvalidIndex );
@@ -142,7 +141,7 @@ namespace EE::Animation
         }
 
         // Acquire and release a dependency's result buffer
-        inline void ReleaseDependencyPoseBuffer( TaskContext const& context, TaskIndex dependencyIdx )
+        inline void ReleaseDependencyPoseBuffer( TaskContext const& context, int8_t dependencyIdx )
         {
             auto pDependencyTask = context.m_dependencies[dependencyIdx];
             EE_ASSERT( pDependencyTask != nullptr && pDependencyTask->m_isComplete && pDependencyTask->m_bufferIdx != InvalidIndex );
@@ -180,7 +179,6 @@ namespace EE::Animation
 
     protected:
 
-        TaskSourceID                    m_sourceID = InvalidIndex;
         TaskUpdateStage                 m_updateStage = TaskUpdateStage::Any;
         int8_t                          m_bufferIdx = InvalidIndex;
         TaskUpdateStage                 m_actualUpdateStage = TaskUpdateStage::Any;

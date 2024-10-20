@@ -5,13 +5,13 @@
 
 namespace EE::Render
 {
-    bool ShaderLoader::LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    bool ShaderLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         EE_ASSERT( m_pRenderDevice != nullptr );
 
         // Get shader resource
         Shader* pShaderResource = nullptr;
-        auto const shaderResourceTypeID = resID.GetResourceTypeID();
+        auto const shaderResourceTypeID = resourceID.GetResourceTypeID();
 
         if ( shaderResourceTypeID == VertexShader::GetStaticResourceTypeID() )
         {
@@ -40,7 +40,7 @@ namespace EE::Render
         return true;
     }
 
-    void ShaderLoader::UnloadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord ) const
+    void ShaderLoader::UnloadInternal( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
     {
         EE_ASSERT( m_pRenderDevice != nullptr );
 
@@ -52,6 +52,6 @@ namespace EE::Render
             m_pRenderDevice->UnlockDevice();
         }
 
-        ResourceLoader::UnloadInternal( resID, pResourceRecord );
+        ResourceLoader::UnloadInternal( resourceID, pResourceRecord );
     }
 }

@@ -14,7 +14,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Definition : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_sourceNodeIndices, m_inputParameterNodeIdx0, m_inputParameterNodeIdx1, m_values, m_indices, m_hullIndices );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_sourceNodeIndices, m_inputParameterNodeIdx0, m_inputParameterNodeIdx1, m_values, m_indices, m_hullIndices, m_allowLooping );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -24,6 +24,7 @@ namespace EE::Animation::GraphNodes
             TInlineVector<Float2, 10>               m_values;
             TInlineVector<uint8_t, 30>              m_indices;
             TInlineVector<uint8_t, 10>              m_hullIndices;
+            bool                                    m_allowLooping = true;
         };
 
     private:

@@ -1,6 +1,7 @@
 #pragma once
 #include "Engine/_Module/API.h"
 #include "Base/Resource/ResourceRequesterID.h"
+#include "Base/Resource/ResourceID.h"
 #include "Base/Types/Arrays.h"
 
 //-------------------------------------------------------------------------
@@ -49,10 +50,10 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         // Start a hot-reload operation by unloading all resource about to be reloaded
-        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) = 0;
+        virtual void HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) = 0;
 
         // Request a load on all unloaded resources
-        virtual void HotReload_ReloadResources() = 0;
+        virtual void HotReload_ReloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) = 0;
     };
 }
 #endif

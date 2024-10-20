@@ -6,29 +6,36 @@
 
 namespace EE::Animation::GraphNodes
 {
-    void GlobalTransitionConduitToolsNode::Initialize( VisualGraph::BaseGraph* pParent )
+    GlobalTransitionConduitToolsNode::GlobalTransitionConduitToolsNode()
+        : NodeGraph::StateMachineNode()
     {
-        VisualGraph::SM::Node::Initialize( pParent );
-        auto pFlowGraph = EE::New<FlowGraph>( GraphType::ValueTree );
-        SetSecondaryGraph( pFlowGraph );
+        CreateSecondaryGraph<FlowGraph>( GraphType::ValueTree );
         UpdateTransitionNodes();
     }
 
     void GlobalTransitionConduitToolsNode::OnShowNode()
     {
-        VisualGraph::SM::Node::OnShowNode();
+        NodeGraph::StateMachineNode::OnShowNode();
         UpdateTransitionNodes();
     }
 
     void GlobalTransitionConduitToolsNode::UpdateTransitionNodes()
     {
-        auto stateNodes = GetParentGraph()->FindAllNodesOfType<GraphNodes::StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-        auto globalTransitions = GetSecondaryGraph()->FindAllNodesOfType<GraphNodes::GlobalTransitionToolsNode>();
+        // Do not run the below code for the default instance
+        if ( GetParentGraph() == nullptr )
+        {
+            return;
+        }
 
         //-------------------------------------------------------------------------
 
-        TInlineVector<GraphNodes::StateToolsNode*, 20> transitionsToCreate;
-        TInlineVector<GraphNodes::GlobalTransitionToolsNode*, 20> transitionsToRemove;
+        auto stateNodes = GetParentGraph()->FindAllNodesOfType<StateToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        auto globalTransitions = GetSecondaryGraph()->FindAllNodesOfType<GlobalTransitionToolsNode>();
+
+        //-------------------------------------------------------------------------
+
+        TInlineVector<StateToolsNode*, 20> transitionsToCreate;
+        TInlineVector<GlobalTransitionToolsNode*, 20> transitionsToRemove;
 
         for ( auto const& pTransition : globalTransitions )
         {
@@ -40,7 +47,7 @@ namespace EE::Animation::GraphNodes
         // Check transition states
         //-------------------------------------------------------------------------
 
-        auto SearchPredicate = [] ( GraphNodes::GlobalTransitionToolsNode* pNode, UUID const& ID )
+        auto SearchPredicate = [] ( GlobalTransitionToolsNode* pNode, UUID const& ID )
         {
             if ( pNode != nullptr )
             {
@@ -52,7 +59,7 @@ namespace EE::Animation::GraphNodes
             }
         };
 
-        for ( auto pState : stateNodes )
+        for ( StateToolsNode* pState : stateNodes )
         {
             int32_t const stateIdx = VectorFindIndex( transitionsToRemove, pState->GetID(), SearchPredicate );
             if ( stateIdx == InvalidIndex )
@@ -69,7 +76,7 @@ namespace EE::Animation::GraphNodes
         // Remove invalid transitions
         //-------------------------------------------------------------------------
 
-        for ( auto const& pTransition : transitionsToRemove )
+        for ( GlobalTransitionToolsNode* pTransition : transitionsToRemove )
         {
             if ( pTransition != nullptr )
             {
@@ -86,7 +93,7 @@ namespace EE::Animation::GraphNodes
         for ( auto pState : transitionsToCreate )
         {
             auto pSecondaryGraph = Cast<FlowGraph>( GetSecondaryGraph() );
-            auto pNewTransition = pSecondaryGraph->CreateNode<GraphNodes::GlobalTransitionToolsNode>();
+            auto pNewTransition = pSecondaryGraph->CreateNode<GlobalTransitionToolsNode>();
             pNewTransition->m_name = pState->GetName();
             pNewTransition->m_stateID = pState->GetID();
 

@@ -116,10 +116,10 @@ namespace EE
         inline bool HasDebugWindow( StringID typeID, uint64_t userData ) { return GetDebugWindow( typeID, userData ) != nullptr; }
 
         // Called before we hot-reload anything to allow you to unload any resource that need to be reloaded
-        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) {}
+        virtual void HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) {}
 
         // Called once all unloads are completed - user can reload their desired resources here
-        virtual void HotReload_ReloadResources() {}
+        virtual void HotReload_ReloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) {}
 
     protected:
 

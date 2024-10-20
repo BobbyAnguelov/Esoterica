@@ -44,5 +44,6 @@ namespace EE::Animation
         TVector<ResourceID>             m_clips;
         TVector<ResourceID>             m_filteredClips;
         Timer<PlatformClock>            m_refreshTimer;
+        ResourceID                      m_selectedClipID;
     };
 }

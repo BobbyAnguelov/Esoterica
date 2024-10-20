@@ -49,9 +49,9 @@ namespace EE::TypeSystem::Reflection
         {
             pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::Resource ) );
         }
-        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::ReflectedResource ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacroType::DataFile ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::ReflectedResource ) );
+            pContext->AddFoundReflectionMacro( ReflectionMacro( pHeaderInfo, cr, range, ReflectionMacroType::DataFile ) );
         }
 
         //-------------------------------------------------------------------------

@@ -120,7 +120,7 @@ namespace EE::Animation
         inline void ClearModelSpaceTransforms() { m_modelSpaceTransforms.clear(); }
         inline TVector<Transform> const& GetModelSpaceTransforms() const { return m_modelSpaceTransforms; }
         void CalculateModelSpaceTransforms( Skeleton::LOD lod = Skeleton::LOD::High );
-        Transform GetGlobalTransform( int32_t boneIdx ) const;
+        Transform GetModelSpaceTransform( int32_t boneIdx ) const;
 
         // Debug
         //-------------------------------------------------------------------------

@@ -1,7 +1,8 @@
 #pragma once
 #include "Animation_ToolsGraphNode.h"
-#include "EngineTools/Core/VisualGraph/VisualGraph_StateMachineGraph.h"
+#include "EngineTools/NodeGraph/NodeGraph_StateMachineGraph.h"
 #include "Engine/Animation/AnimationBlender.h"
+#include "Animation_ToolsGraphNode_Result.h"
 #include "Base/Math/Easing.h"
 
 //-------------------------------------------------------------------------
@@ -17,7 +18,7 @@ namespace EE::Animation
 namespace EE::Animation::GraphNodes
 {
     // The result node for a transition
-    class TransitionToolsNode : public FlowToolsNode
+    class TransitionToolsNode : public ResultToolsNode
     {
         friend class StateMachineToolsNode;
         EE_REFLECT_TYPE( TransitionToolsNode );
@@ -44,22 +45,18 @@ namespace EE::Animation::GraphNodes
 
         TransitionToolsNode();
 
-        virtual bool IsRenameable() const override { return true; }
-        virtual void SetName( String const& newName ) override;
+        virtual bool IsRenameable() const override final { return true; }
+        virtual bool RequiresUniqueName() const override final { return true; }
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Unknown; }
-        virtual char const* GetName() const override { return m_name.c_str(); }
         virtual char const* GetTypeName() const override { return "Transition"; }
         virtual char const* GetCategory() const override { return "Transitions"; }
         virtual bool IsUserCreatable() const override { return true; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionTree ); }
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit ); }
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
         virtual Color GetTitleBarColor() const override;
+        virtual int16_t Compile( GraphCompilationContext& context ) const override { EE_UNREACHABLE_CODE(); return InvalidIndex; }
 
     protected:
-
-        EE_REFLECT( "IsToolsReadOnly" : true );
-        String                                        m_name = "Transition";
 
         EE_REFLECT();
         Math::Easing::Operation                       m_blendWeightEasing = Math::Easing::Operation::Linear; // Should we use a easing mode for the blend weight calculation? Go to http://easings.net as a reference for all the curves.
@@ -88,18 +85,20 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class TransitionConduitToolsNode final : public VisualGraph::SM::TransitionConduit
+    class TransitionConduitToolsNode final : public NodeGraph::TransitionConduitNode
     {
         EE_REFLECT_TYPE( TransitionConduitToolsNode );
 
     public:
 
-        bool HasTransitions() const;
+        TransitionConduitToolsNode();
+        TransitionConduitToolsNode( NodeGraph::StateNode const* pStartState, NodeGraph::StateNode const* pEndState );
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        virtual bool HasTransitions() const override;
+
         virtual char const* GetTypeName() const override { return "Transition"; }
-        virtual Color GetColor( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::NodeVisualState visualState ) const override;
-        virtual void PreDrawUpdate( VisualGraph::UserContext* pUserContext ) override;
+        virtual Color GetConduitColor( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, TBitFlags<NodeGraph::NodeVisualState> visualState ) const override;
+        virtual void PreDrawUpdate( NodeGraph::UserContext* pUserContext ) override;
 
     private:
 

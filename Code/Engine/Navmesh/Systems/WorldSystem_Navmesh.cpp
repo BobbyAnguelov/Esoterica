@@ -42,7 +42,7 @@ namespace EE::Navmesh
                 for ( auto i = 0u; i < numLines; i++ )
                 {
                     bfx::LineSegment const& line = pLines[i];
-                    ctx.DrawLine( FromBfx( line.m_v0 ), FromBfx( line.m_v1 ), FromBfx( color ), 1.0f, m_depthTestEnabled ? Drawing::EnableDepthTest : Drawing::DisableDepthTest );
+                    ctx.DrawLine( FromBfx( line.m_v0 ), FromBfx( line.m_v1 ), FromBfx( color ), 1.0f, m_depthTestEnabled ? Drawing::DepthTest::Enable : Drawing::DepthTest::Disable );
                 }
             }
 
@@ -52,7 +52,7 @@ namespace EE::Navmesh
                 for ( auto i = 0u; i < numTris; i++ )
                 {
                     bfx::Triangle const& tri = pTris[i];
-                    ctx.DrawTriangle( FromBfx( tri.m_v0 ), FromBfx( tri.m_v1 ), FromBfx( tri.m_v2 ), FromBfx( color ), m_depthTestEnabled ? Drawing::EnableDepthTest : Drawing::DisableDepthTest );
+                    ctx.DrawTriangle( FromBfx( tri.m_v0 ), FromBfx( tri.m_v1 ), FromBfx( tri.m_v2 ), FromBfx( color ), m_depthTestEnabled ? Drawing::DepthTest::Enable : Drawing::DepthTest::Disable );
                 }
             }
 
@@ -173,7 +173,7 @@ namespace EE::Navmesh
         //-------------------------------------------------------------------------
         // NavPower operates on the resource in place so we need to make a copy
 
-        NavmeshData const* pData = pComponent->m_pNavmeshData.GetPtr();
+        NavmeshData const* pData = pComponent->m_navmeshData.GetPtr();
         EE_ASSERT( pData != nullptr && pData->IsValid() );
 
         size_t const requiredMemory = sizeof( char ) * pData->GetGraphImage().size();

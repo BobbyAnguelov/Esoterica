@@ -13,14 +13,12 @@ namespace EE::Animation::GraphNodes
 
         ChildGraphToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Child Graph"; }
         virtual char const* GetCategory() const override { return "Animation/Graphs"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void OnDoubleClick( VisualGraph::UserContext* pUserContext ) override;
         virtual Color GetTitleBarColor() const override { return Colors::Gold; }
-        virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin ) override;
+        virtual void DrawContextMenuOptions( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, NodeGraph::Pin* pPin ) override;
 
         virtual char const* GetDefaultSlotName() const override { return "Graph"; }
         virtual ResourceTypeID GetSlotResourceTypeID() const override;
@@ -28,7 +26,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    struct OpenChildGraphCommand : public VisualGraph::AdvancedCommand
+    struct OpenChildGraphCommand : public NodeGraph::CustomCommand
     {
         EE_REFLECT_TYPE( OpenChildGraphCommand );
 
@@ -52,7 +50,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    struct ReflectParametersCommand : public VisualGraph::AdvancedCommand
+    struct ReflectParametersCommand : public NodeGraph::CustomCommand
     {
         EE_REFLECT_TYPE( ReflectParametersCommand );
 

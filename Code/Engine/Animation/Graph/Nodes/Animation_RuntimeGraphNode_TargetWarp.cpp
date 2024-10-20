@@ -493,11 +493,14 @@ namespace EE::Animation::GraphNodes
         FrameTime const clipStartTime = pAnimation->GetFrameTime( m_warpStartTime );
         int32_t const clipStartFrame = clipStartTime.GetFrameIndex();
         int32_t const minimumStartFrameForFirstSection = clipStartFrame + 1;
+        Seconds const duration = pAnimation->GetDuration();
 
         for ( auto const pEvent : pAnimation->GetEvents() )
         {
+            Percentage const eventEndTime( pEvent->GetEndTime() / duration );
+
             // Skip any events that are before our start time
-            if ( pEvent->GetEndTime() < m_warpStartTime )
+            if ( eventEndTime < m_warpStartTime )
             {
                 continue;
             }
@@ -738,6 +741,7 @@ namespace EE::Animation::GraphNodes
         m_warpedRootMotion.Clear();
         auto& warpedTransforms = m_warpedRootMotion.m_transforms;
         warpedTransforms.resize( originalRM.GetNumFrames() );
+        m_warpedRootMotion.m_numFrames = originalRM.GetNumFrames();
 
         // Handle the case were we dont start the animation from the first frame
         if ( m_warpStartTime != 0.0f )
@@ -1179,7 +1183,7 @@ namespace EE::Animation::GraphNodes
         {
             auto const& section = m_warpSections[i];
 
-            Color const ruleColor = GetDebugForWarpRule( section.m_warpRule );
+            Color const ruleColor = GetDebugColorForWarpRule( section.m_warpRule );
 
             if ( section.m_isFixedSection )
             {

@@ -26,8 +26,8 @@ namespace EE::Animation
 
     class EE_ENGINE_API Skeleton : public Resource::IResource
     {
-        EE_RESOURCE( 'skel', "Animation Skeleton" );
-        EE_SERIALIZE( m_boneIDs, m_localReferencePose, m_parentIndices, m_boneFlags, m_numBonesToSampleAtLowLOD );
+        EE_RESOURCE( 'skel', "Animation Skeleton", 7, false );
+        EE_SERIALIZE( m_boneIDs, m_parentSpaceReferencePose, m_parentIndices, m_boneFlags, m_numBonesToSampleAtLowLOD );
 
         friend class SkeletonCompiler;
         friend class SkeletonLoader;
@@ -108,16 +108,20 @@ namespace EE::Animation
         // Pose info
         //-------------------------------------------------------------------------
 
-        TVector<Transform> const& GetLocalReferencePose() const { return m_localReferencePose; }
-        TVector<Transform> const& GetGlobalReferencePose() const { return m_globalReferencePose; }
+        TVector<Transform> const& GetParentSpaceReferencePose() const { return m_parentSpaceReferencePose; }
+        TVector<Transform> const& GetModelSpaceReferencePose() const { return m_modelSpaceReferencePose; }
 
-        inline Transform GetBoneTransform( int32_t idx ) const
+        // Get the parent space transform for a specified bone
+        inline Transform const& GetBoneTransform( int32_t idx ) const
         {
-            EE_ASSERT( idx >= 0 && idx < m_localReferencePose.size() );
-            return m_localReferencePose[idx];
+            EE_ASSERT( idx >= 0 && idx < m_parentSpaceReferencePose.size() );
+            return m_parentSpaceReferencePose[idx];
         }
 
-        Transform GetBoneGlobalTransform( int32_t idx ) const;
+        EE_FORCE_INLINE Transform const& GetBoneParentSpaceTransform( int32_t idx ) const { return GetBoneTransform( idx ); }
+
+        // Get the parent space transform for a specified bone
+        Transform GetBoneModelSpaceTransform( int32_t idx ) const;
 
         // Bone Masks
         //-------------------------------------------------------------------------
@@ -140,8 +144,8 @@ namespace EE::Animation
 
         TVector<StringID>                   m_boneIDs;
         TVector<int32_t>                    m_parentIndices;
-        TVector<Transform>                  m_localReferencePose;
-        TVector<Transform>                  m_globalReferencePose;
+        TVector<Transform>                  m_parentSpaceReferencePose;
+        TVector<Transform>                  m_modelSpaceReferencePose;
         TVector<TBitFlags<BoneFlags>>       m_boneFlags;
         TVector<BoneMask>                   m_boneMasks;
         int32_t                             m_numBonesToSampleAtLowLOD = 0; // The number of bones we should sample when operating at a low LOD

@@ -13,10 +13,9 @@ namespace EE::Animation::GraphNodes
 
         AndToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "And"; }
         virtual char const* GetCategory() const override { return "Values/Bool"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override { return "And"; }
         virtual StringID GetDynamicInputPinValueType() const override { return GetPinTypeForValueType( GraphValueType::Bool ); }
@@ -33,10 +32,9 @@ namespace EE::Animation::GraphNodes
 
         OrToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Or"; }
         virtual char const* GetCategory() const override { return "Values/Bool"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override{ return "Or"; }
         virtual StringID GetDynamicInputPinValueType() const override{ return GetPinTypeForValueType( GraphValueType::Bool ); }
@@ -53,10 +51,9 @@ namespace EE::Animation::GraphNodes
 
         NotToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Not"; }
         virtual char const* GetCategory() const override { return "Values/Bool"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 }

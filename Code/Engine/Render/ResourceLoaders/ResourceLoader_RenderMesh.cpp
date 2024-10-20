@@ -15,7 +15,7 @@ namespace EE::Render
         m_loadableTypes.push_back( SkeletalMesh::GetStaticResourceTypeID() );
     }
 
-    bool MeshLoader::LoadInternal( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    bool MeshLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         EE_ASSERT( m_pRenderDevice != nullptr );
 
@@ -45,7 +45,7 @@ namespace EE::Render
         return true;
     }
 
-    Resource::InstallResult MeshLoader::Install( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord, Resource::InstallDependencyList const& installDependencies ) const
+    Resource::InstallResult MeshLoader::Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
     {
         auto pMesh = pResourceRecord->GetResourceData<Mesh>();
 
@@ -79,7 +79,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        ResourceLoader::Install( resourceID, pResourceRecord, installDependencies );
+        ResourceLoader::Install( resourceID, resourcePath, installDependencies, pResourceRecord );
         return Resource::InstallResult::Succeeded;
     }
 

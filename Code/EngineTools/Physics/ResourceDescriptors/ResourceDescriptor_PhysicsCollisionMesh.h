@@ -15,10 +15,13 @@ namespace EE::Physics
     public:
 
         virtual bool IsValid() const override { return m_sourcePath.IsValid(); }
+        virtual int32_t GetFileVersion() const override { return 0; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return CollisionMesh::GetStaticResourceTypeID(); }
+        virtual FileSystem::Extension GetExtension() const override final { return CollisionMesh::GetStaticResourceTypeID().ToString(); }
+        virtual char const* GetFriendlyName() const override final { return CollisionMesh::s_friendlyName; }
 
-        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
         {
             if ( m_sourcePath.IsValid() )
             {
@@ -38,7 +41,7 @@ namespace EE::Physics
     public:
 
         EE_REFLECT();
-        ResourcePath        m_sourcePath;
+        DataPath        m_sourcePath;
 
         // Optional: specifies the specific sub-meshes to compile, if this is not set, all sub-meshes contained in the source will be combined into a single mesh object
         EE_REFLECT();

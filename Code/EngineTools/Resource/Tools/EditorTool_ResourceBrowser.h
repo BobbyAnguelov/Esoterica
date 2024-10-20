@@ -1,6 +1,6 @@
 #pragma once
 #include "EngineTools/Core/EditorTool.h"
-#include "EngineTools/Core/Widgets/TreeListView.h"
+#include "EngineTools/Widgets/TreeListView.h"
 #include "EngineTools/Core/CategoryTree.h"
 #include "Base/Resource/ResourceTypeID.h"
 
@@ -25,6 +25,31 @@ namespace EE::Resource
 
     class EE_ENGINETOOLS_API ResourceBrowserEditorTool : public EditorTool
     {
+        struct TypeFilter
+        {
+            String                  m_friendlyName;
+            FileSystem::Extension   m_extension;
+            ResourceTypeID          m_resourceTypeID;
+        };
+
+        struct NavigationRequest
+        {
+            inline bool IsSet() const { return m_path.IsValid(); }
+            inline void Clear() { m_path.Clear(); }
+
+        public:
+
+            DataPath    m_path;
+        };
+
+        enum class SortRule
+        {
+            TypeAscending,
+            TypeDescending,
+            NameAscending,
+            NameDescending
+        };
+
     public:
 
         EE_SINGLETON_EDITOR_TOOL( ResourceBrowserEditorTool );
@@ -34,8 +59,12 @@ namespace EE::Resource
         ResourceBrowserEditorTool( ToolsContext const* pToolsContext );
         ~ResourceBrowserEditorTool();
 
-        // Find, select and focus on a specified resource - returns true if successful
-        void TryFindAndSelectResource( ResourceID const& resourceID ) { EE_ASSERT( resourceID.IsValid() ); m_navigationRequest = resourceID; }
+        // Try to find, select and focus on a specified data path
+        void TryFindAndSelectFile( DataPath const& path )
+        { 
+            EE_ASSERT( path.IsValid() );
+            m_navigationRequest.m_path = path;
+        }
 
     private:
 
@@ -47,25 +76,47 @@ namespace EE::Resource
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
         void DrawBrowserWindow( UpdateContext const& context, bool isFocused );
-
-        void UpdateVisibility();
-        void DrawItemContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus );
-        void RebuildTreeView( TreeListViewItem* pRootItem );
+        void HandleNavigationRequest();
 
         // UI
         //-------------------------------------------------------------------------
 
         void DrawCreationControls( UpdateContext const& context );
-        void DrawFilterOptions( UpdateContext const& context );
-        bool DrawResourceTypeFilterMenu( float width );
         void DrawDescriptorMenuCategory( FileSystem::Path const& path, Category<TypeSystem::TypeInfo const*> const& category );
         bool DrawDeleteConfirmationDialog( UpdateContext const& context );
+
+        void DrawControlRow( UpdateContext const& context );
+        void DrawResourceTypeFilterRow( UpdateContext const& context );
+
+        // Folders
+        //-------------------------------------------------------------------------
+
+        void DrawFolderView( UpdateContext const& context );
+        void DrawFolderContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus );
+
+        void RebuildFolderTreeView( TreeListViewItem* pRootItem );
+        void UpdateFolderTreeVisibility();
+        void SetSelectedFolder( DataPath const& newFolderPath );
+
+        // Files
+        //-------------------------------------------------------------------------
+
+        void DrawFileView( UpdateContext const& context );
+
+        bool DoesFileMatchFilter( FileRegistry::FileInfo const* pFile, bool applyNameFilter = false );
+        void GenerateFileList();
+        void SortFileList();
+        void SetSelectedFile( DataPath const& filePath, bool setFocus );
 
     private:
 
         ImGuiX::FilterWidget                                m_filter;
-        TVector<ResourceTypeID>                             m_typeFilter;
+        TVector<TypeFilter>                                 m_allPossibleTypeFilters;
+        TVector<int32_t>                                    m_selectedTypeFilterIndices;
         bool                                                m_showRawFiles = false;
+        bool                                                m_filterUpdated = false;
+        bool                                                m_rebuildTree = false;
+        SortRule                                            m_sortRule = SortRule::NameAscending;
 
         EventBindingID                                      m_resourceDatabaseUpdateEventBindingID;
 
@@ -75,8 +126,14 @@ namespace EE::Resource
         CategoryTree<TypeSystem::TypeInfo const*>           m_categorizedDescriptorTypes;
         ResourceDescriptorCreator*                          m_pResourceDescriptorCreator = nullptr;
 
-        TreeListView                                        m_treeview;
-        ResourceID                                          m_navigationRequest;
-        bool                                                m_rebuildTree = false;
+        NavigationRequest                                   m_navigationRequest;
+        bool                                                m_setFocusToSelectedItem = false;
+
+        TreeListView                                        m_folderTreeView;
+        DataPath                                            m_selectedFolder;
+
+        TVector<FileRegistry::FileInfo>                     m_fileList;
+        TVector<int32_t>                                    m_sortedFileListIndices;
+        DataPath                                            m_selectedFile;
     };
 }

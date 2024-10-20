@@ -133,7 +133,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult SimulatedRagdollNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
 
         if ( m_isFirstUpdate )
         {
@@ -233,8 +233,8 @@ namespace EE::Animation::GraphNodes
 
             // Register ragdoll task
             Tasks::RagdollSetPoseTask::InitOption const initOptions = m_isFirstUpdate ? Tasks::RagdollSetPoseTask::InitializeBodies : Tasks::RagdollSetPoseTask::DoNothing;
-            TaskIndex const setPoseTaskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollSetPoseTask>( m_pRagdoll, GetNodeIndex(), result.m_taskIdx, initOptions );
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( m_pRagdoll, GetNodeIndex(), setPoseTaskIdx, physicsBlendWeight );
+            int8_t const setPoseTaskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollSetPoseTask>( GetNodeIndex(), m_pRagdoll, result.m_taskIdx, initOptions );
+            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( GetNodeIndex(), m_pRagdoll, setPoseTaskIdx, physicsBlendWeight );
 
             // Once we hit fully in physics, switch stage
             if ( physicsBlendWeight >= 1.0f )
@@ -252,7 +252,7 @@ namespace EE::Animation::GraphNodes
     {
         GraphPoseNodeResult result;
         result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( m_pRagdoll, GetNodeIndex() );
+        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( GetNodeIndex(), m_pRagdoll );
         return result;
     }
 

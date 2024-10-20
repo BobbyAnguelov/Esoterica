@@ -12,6 +12,10 @@ namespace EE::Animation::GraphNodes
     {
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Parameter", GraphValueType::Float );
+        CreateDynamicInputPin( "Option", GetPinTypeForValueType( GraphValueType::Pose ) );
+        CreateDynamicInputPin( "Option", GetPinTypeForValueType( GraphValueType::Pose ) );
+
+        m_blendSpace.back().m_value = 1.0f;
     }
 
     int16_t Blend1DToolsNode::Compile( GraphCompilationContext & context ) const
@@ -21,6 +25,12 @@ namespace EE::Animation::GraphNodes
         if ( state != NodeCompilationState::NeedCompilation )
         {
             return pDefinition->m_nodeIdx;
+        }
+
+        if ( m_blendSpace.size() <= 1 )
+        {
+            context.LogError( this, "Not enough points to generate a blendspace!" );
+            return InvalidIndex;
         }
 
         // Validate and create parameterization
@@ -97,6 +107,8 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
+        pDefinition->m_allowLooping = m_allowLooping;
+
         return pDefinition->m_nodeIdx;
     }
 
@@ -107,11 +119,11 @@ namespace EE::Animation::GraphNodes
         if ( pPropertyEdited->m_ID == StringID( "m_blendSpace" ) )
         {
             eastl::sort( m_blendSpace.begin(), m_blendSpace.end() );
-            UpdateDynamicPins();
+            RefreshDynamicPins();
         }
     }
 
-    void Blend1DToolsNode::UpdateDynamicPins()
+    void Blend1DToolsNode::RefreshDynamicPins()
     {
         // Reorder the input pins
         //-------------------------------------------------------------------------
@@ -129,20 +141,20 @@ namespace EE::Animation::GraphNodes
 
         for ( int32_t i = 1; i < GetNumInputPins(); i++ )
         {
-            VisualGraph::Flow::Pin* pInputPin = GetInputPin( i );
+            NodeGraph::Pin* pInputPin = GetInputPin( i );
             BlendSpacePoint const& point = m_blendSpace[i - 1];
-            pInputPin->m_name.sprintf( "%s (%.2f)", point.m_name.IsValid() ? point.m_name.c_str() : "Input", point.m_value );
+            pInputPin->m_name.sprintf( "%s (%.2f)", point.m_name.empty() ? "Input" : point.m_name.c_str(), point.m_value );
         }
     }
 
-    void Blend1DToolsNode::OnDynamicPinCreation( UUID pinID )
+    void Blend1DToolsNode::OnDynamicPinCreation( UUID const& pinID )
     {
-        m_blendSpace.emplace_back( StringID( "Input" ), 0.0f, pinID );
+        m_blendSpace.emplace_back( GetInputPin( pinID )->m_name, 0.0f, pinID );
         eastl::sort( m_blendSpace.begin(), m_blendSpace.end() );
-        UpdateDynamicPins();
+        RefreshDynamicPins();
     }
 
-    void Blend1DToolsNode::OnDynamicPinDestruction( UUID pinID )
+    void Blend1DToolsNode::PreDynamicPinDestruction( UUID const& pinID )
     {
         int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
         EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
@@ -152,8 +164,12 @@ namespace EE::Animation::GraphNodes
         m_blendSpace.erase( m_blendSpace.begin() + pointIdx );
     }
 
-    void Blend1DToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void Blend1DToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
+        FlowToolsNode::DrawExtraControls( ctx, pUserContext );
+
+        //-------------------------------------------------------------------------
+
         int16_t sourceRuntimeIdx0 = InvalidIndex;
         int16_t sourceRuntimeIdx1 = InvalidIndex;
         float blendWeight = 0.0f;
@@ -166,7 +182,7 @@ namespace EE::Animation::GraphNodes
         if ( runtimeNodeIdx != InvalidIndex )
         {
             auto pBlendNode = static_cast<GraphNodes::Blend1DNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
-            if ( pBlendNode->IsInitialized() )
+            if ( pBlendNode->WasInitialized() )
             {
                 pBlendNode->GetDebugInfo( sourceRuntimeIdx0, sourceRuntimeIdx1, blendWeight );
             }
@@ -184,13 +200,13 @@ namespace EE::Animation::GraphNodes
 
                 if ( inputNodeRuntimeIdx == sourceRuntimeIdx )
                 {
-                    if ( m_blendSpace[blendPointIdx].m_name.IsValid() )
+                    if ( m_blendSpace[blendPointIdx].m_name.empty() )
                     {
-                        outLabel = m_blendSpace[blendPointIdx].m_name.c_str();
+                        outLabel.sprintf( "Point %d", blendPointIdx );
                     }
                     else
                     {
-                        outLabel.sprintf( "Point %d", blendPointIdx );
+                        outLabel = m_blendSpace[blendPointIdx].m_name.c_str();
                     }
                 }
             }
@@ -261,7 +277,7 @@ namespace EE::Animation::GraphNodes
         return TInlineString<100>( TInlineString<100>::CtorSprintf(), "Input %d", GetNumInputPins() - 2 );
     }
 
-    bool VelocityBlendToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    bool VelocityBlendToolsNode::IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const
     {
         int32_t const pinIdx = GetInputPinIndex( inputPinID );
         if ( pinIdx > 0 )
@@ -330,6 +346,8 @@ namespace EE::Animation::GraphNodes
         }
 
         //-------------------------------------------------------------------------
+
+        pDefinition->m_allowLooping = m_allowLooping;
 
         return pDefinition->m_nodeIdx;
     }

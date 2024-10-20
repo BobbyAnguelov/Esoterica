@@ -14,13 +14,12 @@ namespace EE::Animation::GraphNodes
 
         IDComparisonToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "ID Comparison"; }
         virtual char const* GetCategory() const override { return "Values/ID"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
         virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
@@ -29,7 +28,7 @@ namespace EE::Animation::GraphNodes
         EE_REFLECT();
         IDComparisonNode::Comparison     m_comparison = IDComparisonNode::Comparison::Matches;
 
-        EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+        EE_REFLECT( CustomEditor = "AnimGraph_ID" );
         TVector<StringID>                m_IDs;
     };
 
@@ -43,7 +42,7 @@ namespace EE::Animation::GraphNodes
         {
             EE_REFLECT_TYPE( Mapping );
 
-            EE_REFLECT( "CustomEditor" : "AnimGraph_ID" );
+            EE_REFLECT( CustomEditor = "AnimGraph_ID" );
             StringID    m_ID;
 
             EE_REFLECT();
@@ -54,12 +53,11 @@ namespace EE::Animation::GraphNodes
 
         IDToFloatToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "ID to Float"; }
         virtual char const* GetCategory() const override { return "Values/ID"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
         virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 

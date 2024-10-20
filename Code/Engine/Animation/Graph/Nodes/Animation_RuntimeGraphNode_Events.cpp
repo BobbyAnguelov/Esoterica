@@ -37,7 +37,7 @@ namespace EE::Animation::GraphNodes
         BoolValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
         }
 
         m_result = false;
@@ -164,7 +164,7 @@ namespace EE::Animation::GraphNodes
         IDValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
         }
 
         m_value.Clear();
@@ -282,7 +282,7 @@ namespace EE::Animation::GraphNodes
         FloatValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
         }
 
         m_result = false;
@@ -397,7 +397,7 @@ namespace EE::Animation::GraphNodes
         BoolValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
         }
 
         m_result = false;
@@ -504,7 +504,7 @@ namespace EE::Animation::GraphNodes
         BoolValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
         }
 
         m_result = false;
@@ -618,7 +618,7 @@ namespace EE::Animation::GraphNodes
         FloatValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
         }
 
         m_result = false;
@@ -786,7 +786,7 @@ namespace EE::Animation::GraphNodes
         IDValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
         }
 
         m_result = StringID();
@@ -1034,7 +1034,7 @@ namespace EE::Animation::GraphNodes
         BoolValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
+            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
         }
 
         m_result = false;
@@ -1054,15 +1054,14 @@ namespace EE::Animation::GraphNodes
             //-------------------------------------------------------------------------
 
             bool eventFound = false;
-            TransitionRule markerFound = TransitionRule::AllowTransition;
+            TransitionRule mostRestrictiveMarkerFound = TransitionRule::AllowTransition;
 
             bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-            bool const preferHigherWeight = pDefinition->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
 
             SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
+                SampledEvent const* pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
                 {
                     continue;
@@ -1074,20 +1073,24 @@ namespace EE::Animation::GraphNodes
                     continue;
                 }
 
-                if ( auto pEvent = pSampledEvent->TryGetEvent<TransitionEvent>() )
+                if ( TransitionEvent const* pEvent = pSampledEvent->TryGetEvent<TransitionEvent>() )
                 {
-                    if ( pDefinition->m_requireRuleID != pEvent->GetOptionalID() )
+                    // Check if we need to match a specific transition ID
+                    if ( pDefinition->m_requireRuleID.IsValid() )
                     {
-                       continue;
+                        if ( pDefinition->m_requireRuleID != pEvent->GetOptionalID() )
+                        {
+                            continue;
+                        }
                     }
 
                     eventFound = true;
-                    auto const eventMarker = pEvent->GetRule();
+                    TransitionRule const eventMarker = pEvent->GetRule();
 
                     // We return the most restrictive marker found
-                    if ( eventMarker > markerFound )
+                    if ( eventMarker > mostRestrictiveMarkerFound )
                     {
-                        markerFound = eventMarker;
+                        mostRestrictiveMarkerFound = eventMarker;
                     }
                 }
             }
@@ -1102,19 +1105,19 @@ namespace EE::Animation::GraphNodes
                 switch ( pDefinition->m_ruleCondition )
                 {
                     case TransitionRuleCondition::AnyAllowed:
-                    m_result = ( markerFound != TransitionRule::BlockTransition );
+                    m_result = ( mostRestrictiveMarkerFound != TransitionRule::BlockTransition );
                     break;
 
                     case TransitionRuleCondition::FullyAllowed:
-                    m_result = ( markerFound == TransitionRule::AllowTransition );
+                    m_result = ( mostRestrictiveMarkerFound == TransitionRule::AllowTransition );
                     break;
 
                     case TransitionRuleCondition::ConditionallyAllowed:
-                    m_result = ( markerFound == TransitionRule::ConditionallyAllowTransition );
+                    m_result = ( mostRestrictiveMarkerFound == TransitionRule::ConditionallyAllowTransition );
                     break;
 
                     case TransitionRuleCondition::Blocked:
-                    m_result = ( markerFound == TransitionRule::BlockTransition );
+                    m_result = ( mostRestrictiveMarkerFound == TransitionRule::BlockTransition );
                     break;
                 }
             }

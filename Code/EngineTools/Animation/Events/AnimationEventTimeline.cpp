@@ -10,14 +10,43 @@ namespace EE::Animation
     {
         if ( m_isSyncTrack )
         {
-            auto const textSize = ImGui::CalcTextSize( EE_ICON_SYNC );
-            ImGui::SameLine( ImGui::GetCursorPosX() + widgetsRect.GetSize().x - textSize.x );
-            ImGui::Text( EE_ICON_SYNC );
-            ImGuiX::TextTooltip( "Sync Track" );
+            bool shouldShowWarning = false;
+            InlineString warningMessage;
+            int32_t const numItems = GetNumItems();
+            if ( numItems == 0 )
+            {
+                shouldShowWarning = true;
+                warningMessage = "No sync events!";
+            }
+            else
+            {
+                if ( m_items[0]->GetStartTime() > 0.0f )
+                {
+                    shouldShowWarning = true;
+                    warningMessage = "Sync Track - Last event will wrap around!";
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( shouldShowWarning )
+            {
+                ImVec2 const textSize = ImGui::CalcTextSize( EE_ICON_SYNC_ALERT );
+                ImGui::SameLine( ImGui::GetCursorPosX() + widgetsRect.GetSize().x - textSize.x );
+                ImGui::TextColored( Colors::Yellow.ToFloat4(), EE_ICON_SYNC_ALERT );
+                ImGuiX::TextTooltip( warningMessage.c_str() );
+            }
+            else
+            {
+                ImVec2 const textSize = ImGui::CalcTextSize( EE_ICON_SYNC );
+                ImGui::SameLine( ImGui::GetCursorPosX() + widgetsRect.GetSize().x - textSize.x );
+                ImGui::Text( EE_ICON_SYNC );
+                ImGuiX::TextTooltip( "Sync Track" );
+            }
         }
     }
 
-    bool EventTrack::DrawContextMenu( Timeline::TrackContext const& context, TVector<Track*>& tracks, float playheadPosition )
+    bool EventTrack::DrawContextMenu( Timeline::TrackContext const& context, TVector<TTypeInstance<Track>>& tracks, float playheadPosition )
     {
         if ( m_isSyncTrack )
         {
@@ -34,9 +63,9 @@ namespace EE::Animation
                 Timeline::ScopedModification const stm( context );
 
                 // Clear sync track from any other track
-                for ( auto pTrack : tracks )
+                for ( TTypeInstance<Track>& track : tracks )
                 {
-                    reinterpret_cast<EventTrack*>( pTrack )->m_isSyncTrack = false;
+                    track.GetAs<EventTrack>()->m_isSyncTrack = false;
                 }
 
                 m_isSyncTrack = true;
@@ -51,18 +80,23 @@ namespace EE::Animation
         auto pAnimEvent = Cast<Event>( GetEventTypeInfo()->CreateType() );
         float const duration = ( m_itemType == Timeline::ItemType::Duration ) ? 1.0f : 0.0f;
         FloatRange const itemRange( itemStartTime, itemStartTime + duration );
-        auto pCreatedItem = m_items.emplace_back( EE::New<Timeline::TrackItem>( itemRange, pAnimEvent ) );
-        return pCreatedItem;
+
+        TTypeInstance<Timeline::TrackItem>& createdItem = m_items.emplace_back();
+        createdItem.SetInstance( EE::New<EventTrackItem>( itemRange, pAnimEvent ) );
+        return createdItem.Get();
     };
 
     Timeline::Track::Status EventTrack::GetValidationStatus( Timeline::TrackContext const& context ) const
     {
+        ResetStatusMessage();
+
         bool hasValidEvents = false;
         bool hasInvalidEvents = false;
 
-        for ( auto pItem : m_items )
+        for ( TTypeInstance<Timeline::TrackItem> const& item : m_items )
         {
-            auto pAnimEvent = GetAnimEvent<Event>( pItem );
+            auto pEventItem = Cast<EventTrackItem>( item.Get() );
+            auto pAnimEvent = pEventItem->GetEvent();
             if ( pAnimEvent->IsValid() )
             {
                 hasValidEvents = true;
@@ -78,13 +112,13 @@ namespace EE::Animation
         // Warning
         if ( hasInvalidEvents && hasValidEvents )
         {
-            m_validationStatueMessage = "Track contains invalid events, these events will be ignored";
+            m_validationStatusMessage = "Track contains invalid events, these events will be ignored";
             return Status::HasWarnings;
         }
         // Error
         else if ( hasInvalidEvents && !hasValidEvents )
         {
-            m_validationStatueMessage = "Track doesnt contain any valid events!";
+            m_validationStatusMessage = "Track doesnt contain any valid events!";
             return Status::HasErrors;
         }
 
@@ -93,37 +127,17 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    EventTimeline::EventTimeline( TypeSystem::TypeRegistry const& typeRegistry )
-        : TimelineData()
+    EventTrackItem::EventTrackItem( FloatRange const& inRange, Event* pEvent )
+        : Timeline::TrackItem( inRange )
+        , m_event( pEvent )
     {
-        m_allowedTrackTypes = typeRegistry.GetAllDerivedTypes( EventTrack::GetStaticTypeID(), false, false, true );
+        EE_ASSERT( pEvent != nullptr );
     }
 
-    bool EventTimeline::Serialize( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& typeObjectValue )
+    //-------------------------------------------------------------------------
+
+    void EventTimeline::FillAllowedTrackTypes( TypeSystem::TypeRegistry const& typeRegistry )
     {
-        if ( !Timeline::TimelineData::Serialize( typeRegistry, typeObjectValue ) )
-        {
-            return false;
-        }
-
-        //-------------------------------------------------------------------------
-
-        int32_t numSyncTracks = 0;
-        for ( auto pTrack : m_tracks )
-        {
-            auto pEventTrack = reinterpret_cast<EventTrack*>( pTrack );
-            if ( pEventTrack->m_isSyncTrack )
-            {
-                numSyncTracks++;
-
-                // If we have more than one sync track, clear the rest
-                if ( numSyncTracks > 1 )
-                {
-                    pEventTrack->m_isSyncTrack = false;
-                }
-            }
-        }
-
-        return true;
+        m_allowedTrackTypes = typeRegistry.GetAllDerivedTypes( EventTrack::GetStaticTypeID(), false, false, true );
     }
 }

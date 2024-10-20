@@ -1,4 +1,5 @@
 #pragma once
+#include "Base/Esoterica.h"
 #include "ResourceID.h"
 
 //-------------------------------------------------------------------------
@@ -7,27 +8,30 @@ namespace EE::Resource
 {
     class ResourceRequesterID
     {
+        static constexpr uint64_t s_manualRequestID = 0x0;
+        static constexpr uint64_t s_toolsRequestID = 0xFFFFFFFFFFFFFFFF;
+
     public:
 
-        static constexpr uint64_t s_manualRequestID = 0;
-        static constexpr uint64_t s_toolsRequestID = 0xFFFFFFFFFFFFFFFF;
+        static inline ResourceRequesterID ManualRequest() { return ResourceRequesterID( s_manualRequestID ); }
+        static inline ResourceRequesterID ToolRequest() { return ResourceRequesterID( s_toolsRequestID ); }
 
     public:
 
         // No ID - manual request
         ResourceRequesterID() = default;
 
-        // Install dependency reference
-        ResourceRequesterID( ResourceID const& resourceID )
-            : m_ID( resourceID.GetResourcePath().GetID() )
-            , m_isInstallDependency( true )
+        // Explicit 64bit ID - generally refers to an entity ID
+        explicit ResourceRequesterID( uint64_t requesterID )
+            : m_ID( requesterID )
         {}
 
-        // Explicit ID - generally refers to an entity or tools ID
-        explicit ResourceRequesterID( uint64_t ID )
-            : m_ID( ID )
+        // Explicit install dependency based on another dependent resource
+        explicit ResourceRequesterID( ResourceID dependentResourceID )
+            : m_ID( dependentResourceID.GetPathID() )
+            , m_isInstallDependency( true )
         {
-            EE_ASSERT( ID > 0 );
+            EE_ASSERT( dependentResourceID.IsValid() );
         }
 
         //-------------------------------------------------------------------------

@@ -1,12 +1,4 @@
-{
-    "TypeID": "EE::Render::MaterialResourceDescriptor",
-    "m_albedoTexture": "data://editor/floor/floor.txtr",
-    "m_metalnessTexture": "",
-    "m_roughnessTexture": "",
-    "m_normalMapTexture": "",
-    "m_aoTexture": "",
-    "m_albedo": "FFFFFFFF",
-    "m_metalness": "0.000000",
-    "m_roughness": "0.000000",
-    "m_normalScaler": "1.000000"
-}
+<Type TypeID="EE::Render::MaterialResourceDescriptor" Version="0">
+  <Property ID="m_albedoTexture" Value="data://editor/floor/floor.txtr" />
+  <Property ID="m_albedo" Value="FFFFFFFF" />
+</Type>

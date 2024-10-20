@@ -79,7 +79,7 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            Vector m_value;
+            Float3 m_value;
         };
 
     private:

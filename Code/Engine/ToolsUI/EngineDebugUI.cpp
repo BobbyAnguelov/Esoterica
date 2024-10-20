@@ -7,7 +7,7 @@
 #include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
 #include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
 #include "Engine/Camera/Components/Component_DebugCamera.h"
-#include "Base/Logging/LoggingSystem.h"
+#include "Base/Logging/SystemLog.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Input/InputSystem.h"
 #include "EASTL/sort.h"
@@ -319,7 +319,7 @@ namespace EE
         // Always show the log if any errors/warnings occurred
         //-------------------------------------------------------------------------
 
-        auto const unhandledWarningsAndErrors = Log::System::GetUnhandledWarningsAndErrors();
+        auto const unhandledWarningsAndErrors = SystemLog::GetUnhandledWarningsAndErrors();
         if ( !unhandledWarningsAndErrors.empty() )
         {
             if ( auto pSystemDebugView = FindDebugView<SystemDebugView>() )
@@ -437,8 +437,8 @@ namespace EE
         float const currentFPS = 1.0f / context.GetDeltaTime();
         float const allocatedMemory = Memory::GetTotalAllocatedMemory() / 1024.0f / 1024.0f;
 
-        TInlineString<10> const warningsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT" %d", Log::System::GetNumWarnings() );
-        TInlineString<10> const errorsStr( TInlineString<10>::CtorSprintf(), EE_ICON_CLOSE_CIRCLE" %d", Log::System::GetNumErrors() );
+        TInlineString<10> const warningsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT" %d", SystemLog::GetNumWarnings() );
+        TInlineString<10> const errorsStr( TInlineString<10>::CtorSprintf(), EE_ICON_CLOSE_CIRCLE" %d", SystemLog::GetNumErrors() );
         TInlineString<40> const perfStatsStr( TInlineString<40>::CtorSprintf(), "FPS: %3.0f", currentFPS );
         TInlineString<40> const memStatsStr( TInlineString<40>::CtorSprintf(), "MEM: %.2fMB", allocatedMemory );
 
@@ -618,7 +618,7 @@ namespace EE
         }
     }
 
-    void EngineDebugUI::HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded )
+    void EngineDebugUI::HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded )
     {
         for ( auto pDebugView : m_debugViews )
         {
@@ -626,11 +626,11 @@ namespace EE
         }
     }
 
-    void EngineDebugUI::HotReload_ReloadResources()
+    void EngineDebugUI::HotReload_ReloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded )
     {
         for ( auto pDebugView : m_debugViews )
         {
-            pDebugView->HotReload_ReloadResources();
+            pDebugView->HotReload_ReloadResources( usersToReload, resourcesToBeReloaded );
         }
     }
 

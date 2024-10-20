@@ -4,6 +4,8 @@
 #include "Base/Resource/IResource.h"
 #include "Base/TypeSystem/TypeDescriptors.h"
 
+//-------------------------------------------------------------------------
+
 namespace EE
 {
     namespace TypeSystem { class TypeRegistry; }
@@ -12,14 +14,18 @@ namespace EE
 }
 
 //-------------------------------------------------------------------------
-// Serialized Entity Descriptors
+// Entity Descriptors
 //-------------------------------------------------------------------------
-// A custom format for serialized entities
+// A custom format for serialized entities, intended for binary serialization of type data (i.e. compiled data)
 // Very similar to the type descriptor format in the type-system
 
 namespace EE::EntityModel
 {
-    struct EE_ENGINE_API SerializedComponentDescriptor : public TypeSystem::TypeDescriptor
+    EE_ENGINE_API bool IsResourceAnEntityDescriptor( ResourceTypeID const& resourceTypeID );
+
+    //-------------------------------------------------------------------------
+
+    struct EE_ENGINE_API ComponentDescriptor : public TypeSystem::TypeDescriptor
     {
         EE_SERIALIZE( EE_SERIALIZE_BASE( TypeSystem::TypeDescriptor ), m_spatialParentName, m_attachmentSocketID, m_name, m_isSpatialComponent );
 
@@ -46,7 +52,7 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    struct EE_ENGINE_API SerializedSystemDescriptor
+    struct EE_ENGINE_API SystemDescriptor
     {
         EE_SERIALIZE( m_typeID );
 
@@ -61,7 +67,7 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    struct EE_ENGINE_API SerializedEntityDescriptor
+    struct EE_ENGINE_API EntityDescriptor
     {
         EE_SERIALIZE( m_name, m_spatialParentName, m_attachmentSocketID, m_systems, m_components, m_numSpatialComponents );
 
@@ -73,11 +79,13 @@ namespace EE::EntityModel
 
         int32_t FindComponentIndex( StringID const& componentName ) const;
 
-        inline SerializedComponentDescriptor const* FindComponent( StringID const& componentName ) const
+        inline ComponentDescriptor const* FindComponent( StringID const& componentName ) const
         {
             int32_t const componentIdx = FindComponentIndex( componentName );
             return ( componentIdx != InvalidIndex ) ? &m_components[componentIdx] : nullptr;
         }
+
+        Entity* CreateEntity( TypeSystem::TypeRegistry const& typeRegistry ) const;
 
         #if EE_DEVELOPMENT_TOOLS
         void ClearAllSerializedIDs();
@@ -89,9 +97,10 @@ namespace EE::EntityModel
         StringID                                                    m_spatialParentName;
         StringID                                                    m_attachmentSocketID;
         int32_t                                                     m_spatialHierarchyDepth = -1;
-        TInlineVector<SerializedSystemDescriptor, 5>                m_systems;
-        TVector<SerializedComponentDescriptor>                      m_components; // Ordered list of components: spatial components are first, followed by regular components
+        TInlineVector<SystemDescriptor, 5>                          m_systems;
+        TVector<ComponentDescriptor>                                m_components; // Ordered list of components: spatial components are first, followed by regular components
         int32_t                                                     m_numSpatialComponents = 0;
+        TVector<ResourceID>                                         m_referencedResources;
 
         #if EE_DEVELOPMENT_TOOLS
         EntityID                                                    m_transientEntityID; // WARNING: this is not serialized, and it is only stored for undo/redo support in the tools
@@ -108,20 +117,19 @@ namespace EE::EntityModel
 
 namespace EE::EntityModel
 {
-    class EE_ENGINE_API SerializedEntityCollection : public Resource::IResource
+    class EE_ENGINE_API EntityCollection : public Resource::IResource
     {
-        EE_RESOURCE( 'ec', "Entity Collection" );
+        EE_RESOURCE( 'ec', "Entity Collection", 7, false );
         EE_SERIALIZE( m_entityDescriptors, m_entityLookupMap, m_entitySpatialAttachmentInfo );
 
         friend class EntityCollectionLoader;
-        friend struct Serializer;
 
     public:
 
         struct SearchResult
         {
-            SerializedEntityDescriptor*                             m_pEntity = nullptr;
-            SerializedComponentDescriptor*                          m_pComponent = nullptr;
+            EntityDescriptor*                                       m_pEntity = nullptr;
+            ComponentDescriptor*                                    m_pComponent = nullptr;
         };
 
     protected:
@@ -146,6 +154,8 @@ namespace EE::EntityModel
             return m_entityDescriptors.size() == m_entityLookupMap.size();
         }
 
+        TVector<Entity*> CreateEntities( TypeSystem::TypeRegistry const& typeRegistry, TaskSystem* pTaskSystem = nullptr ) const;
+
         // Entity Access
         //-------------------------------------------------------------------------
 
@@ -154,7 +164,7 @@ namespace EE::EntityModel
             return (int32_t) m_entityDescriptors.size();
         }
 
-        inline TVector<SerializedEntityDescriptor> const& GetEntityDescriptors() const
+        inline TVector<EntityDescriptor> const& GetEntityDescriptors() const
         {
             return m_entityDescriptors;
         }
@@ -164,7 +174,7 @@ namespace EE::EntityModel
             return m_entitySpatialAttachmentInfo;
         }
 
-        inline SerializedEntityDescriptor const* FindEntityDescriptor( StringID const& entityName ) const
+        inline EntityDescriptor const* FindEntityDescriptor( StringID const& entityName ) const
         {
             EE_ASSERT( entityName.IsValid() );
 
@@ -201,7 +211,7 @@ namespace EE::EntityModel
 
         inline TVector<SearchResult> GetComponentsOfType( TypeSystem::TypeRegistry const& typeRegistry, TypeSystem::TypeID typeID, bool allowDerivedTypes = true ) const
         {
-            return const_cast<SerializedEntityCollection*>( this )->GetComponentsOfType( typeRegistry, typeID, allowDerivedTypes );
+            return const_cast<EntityCollection*>( this )->GetComponentsOfType( typeRegistry, typeID, allowDerivedTypes );
         }
 
         template<typename T>
@@ -213,10 +223,10 @@ namespace EE::EntityModel
         template<typename T>
         inline TVector<SearchResult> GetComponentsOfType( TypeSystem::TypeRegistry const& typeRegistry, bool allowDerivedTypes = true ) const
         {
-            return const_cast<SerializedEntityCollection*>( this )->GetComponentsOfType( typeRegistry, T::GetStaticTypeID(), allowDerivedTypes );
+            return const_cast<EntityCollection*>( this )->GetComponentsOfType( typeRegistry, T::GetStaticTypeID(), allowDerivedTypes );
         }
 
-        bool HasComponentsOfType( TypeSystem::TypeRegistry const& typeRegistry, TypeSystem::TypeID typeID, bool allowDerivedTypes = true ) const { return !const_cast<SerializedEntityCollection*>( this )->GetComponentsOfType( typeRegistry, typeID, allowDerivedTypes ).empty(); }
+        bool HasComponentsOfType( TypeSystem::TypeRegistry const& typeRegistry, TypeSystem::TypeID typeID, bool allowDerivedTypes = true ) const { return !const_cast<EntityCollection*>( this )->GetComponentsOfType( typeRegistry, typeID, allowDerivedTypes ).empty(); }
 
         template<typename T>
         inline bool HasComponentsOfType( TypeSystem::TypeRegistry const& typeRegistry, bool allowDerivedTypes = true ) const
@@ -229,15 +239,20 @@ namespace EE::EntityModel
 
         #if EE_DEVELOPMENT_TOOLS
         void Clear();
-        void SetCollectionData( TVector<SerializedEntityDescriptor>&& entityDescriptors );
+        void SetCollectionData( TVector<EntityDescriptor>&& entityDescriptors );
         void GetAllReferencedResources( TVector<ResourceID>& outReferencedResources ) const;
+        inline TVector<EntityDescriptor>& GetMutableEntityDescriptors() { return m_entityDescriptors; }
         #endif
 
     protected:
 
-        TVector<SerializedEntityDescriptor>                         m_entityDescriptors;
-        THashMap<StringID, int32_t>                                 m_entityLookupMap;
-        TVector<SpatialAttachmentInfo>                              m_entitySpatialAttachmentInfo;
+        void RebuildLookupMap();
+
+    protected:
+
+        TVector<EntityDescriptor>                       m_entityDescriptors;
+        THashMap<StringID, int32_t>                     m_entityLookupMap;
+        TVector<SpatialAttachmentInfo>                  m_entitySpatialAttachmentInfo;
     };
 }
 
@@ -254,10 +269,10 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API SerializedEntityMap final : public SerializedEntityCollection
+    class EE_ENGINE_API EntityMapDescriptor final : public EntityCollection
     {
-        EE_RESOURCE( 'map', "Map" );
-        EE_SERIALIZE( EE_SERIALIZE_BASE( SerializedEntityCollection ) );
+        EE_RESOURCE( 'map', "Map", 4, false );
+        EE_SERIALIZE( EE_SERIALIZE_BASE( EntityCollection ) );
 
         friend class EntityCollectionCompiler;
         friend class EntityCollectionLoader;

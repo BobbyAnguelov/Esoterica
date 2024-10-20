@@ -82,7 +82,7 @@ namespace EE::Physics
                     EE_HALT();
                 }
 
-                Log::AddEntry( Log::Severity::Error, "Physics", "PhysX Error", file, line, message );
+                SystemLog::AddEntry( Severity::Error, "Physics", "PhysX Error", file, line, message );
             }
         };
     }

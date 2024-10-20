@@ -2,7 +2,7 @@
 #include "Engine/UpdateContext.h"
 #include "EngineTools/ThirdParty/subprocess/subprocess.h"
 #include "EngineTools/Resource/ResourceCompiler.h"
-#include "EngineTools/Resource/ResourceToolDefines.h"
+#include "EngineTools/Core/CommonToolTypes.h"
 #include "Engine/Render/DebugViews/DebugView_Render.h"
 #include "Engine/Render/Components/Component_StaticMesh.h"
 #include "Engine/Camera/DebugViews/DebugView_Camera.h"
@@ -15,51 +15,40 @@
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Resource/ResourceSystem.h"
 #include "Base/Resource/Settings/GlobalSettings_Resource.h"
-#include "Base/Serialization/JsonSerialization.h"
 #include "Base/Serialization/TypeSerialization.h"
 #include "Base/Types/ScopedValue.h"
 #include <EASTL/sort.h>
 
 //-------------------------------------------------------------------------
+// Editor Tool
+//-------------------------------------------------------------------------
 
 namespace EE
 {
-    EditorTool::EditorTool( ToolsContext const* pToolsContext, String const& displayName )
+    EditorTool::EditorTool( ToolsContext const* pToolsContext, String const& displayName, EntityWorld* pWorld )
         : m_pToolsContext( pToolsContext )
         , m_windowName( displayName ) // Temp storage for display name since we cant call virtuals from CTOR
         , m_ID( Hash::GetHash32( displayName ) )
-    {
-        EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
-    }
-
-    EditorTool::EditorTool( ToolsContext const* pToolsContext, String const& displayName, EntityWorld* pWorld )
-        : EditorTool( pToolsContext, displayName )
-    {
-        EE_ASSERT( pWorld != nullptr );
-        m_pWorld = pWorld;
-    }
-
-    EditorTool::EditorTool( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-        : m_pToolsContext( pToolsContext )
-        , m_windowName( String( String::CtorSprintf(), "%s##%s", resourceID.GetResourcePath().GetFileName().c_str(), resourceID.GetResourcePath().c_str() ) ) // Temp storage for display name since we cant call virtuals from CTOR
         , m_pWorld( pWorld )
-        , m_descriptorID( resourceID )
-        , m_descriptorPath( GetFileSystemPath( resourceID ) )
     {
         EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
-        EE_ASSERT( resourceID.IsValid() );
-        EE_ASSERT( m_pWorld != nullptr );
-
-        m_ID = m_descriptorID.GetPathID();
     }
 
     EditorTool::~EditorTool()
     {
+        for ( auto pToolWindow : m_toolWindows )
+        {
+            EE::Delete( pToolWindow );
+        }
+        m_toolWindows.clear();
+
+        //-------------------------------------------------------------------------
+
         EE_ASSERT( m_requestedResources.empty() );
         EE_ASSERT( m_resourcesToBeReloaded.empty() );
         EE_ASSERT( m_loadingResources.empty() );
         EE_ASSERT( m_pActiveUndoableAction == nullptr );
-        EE_ASSERT( !m_isInitialized );
+        EE_ASSERT( !m_wasInitializedCalled );
     }
 
     //-------------------------------------------------------------------------
@@ -85,81 +74,26 @@ namespace EE
             CreateCamera();
         }
 
-        // Descriptor
-        //-------------------------------------------------------------------------
-
-        if ( IsResourceEditor() )
-        {
-            // Create descriptor property grid
-            //-------------------------------------------------------------------------
-
-            auto const PreDescEdit = [this] ( PropertyEditInfo const& info )
-            {
-                EE_ASSERT( m_pActiveUndoableAction == nullptr );
-                EE_ASSERT( IsDescriptorLoaded() );
-                BeginDescriptorModification();
-            };
-
-            auto const PostDescEdit = [this] ( PropertyEditInfo const& info )
-            {
-                EE_ASSERT( m_pActiveUndoableAction != nullptr );
-                EE_ASSERT( IsDescriptorLoaded() );
-                EndDescriptorModification();
-            };
-
-            m_pDescriptorPropertyGrid = EE::New<PropertyGrid>( m_pToolsContext );
-            m_pDescriptorPropertyGrid->SetControlBarVisible( true );
-            m_preEditEventBindingID = m_pDescriptorPropertyGrid->OnPreEdit().Bind( PreDescEdit );
-            m_postEditEventBindingID = m_pDescriptorPropertyGrid->OnPostEdit().Bind( PostDescEdit );
-
-            // Load descriptor
-            //-------------------------------------------------------------------------
-
-            LoadDescriptor();
-        }
-
         // Tool Windows
         //-------------------------------------------------------------------------
 
-        if ( IsResourceEditor() )
-        {
-            CreateToolWindow( s_descriptorWindowName, [this] ( UpdateContext const& context, bool isFocused ) { if ( IsDescriptorManualEditingAllowed() ) { DrawDescriptorEditorWindow( context, isFocused ); } } );
-        }
-
         if ( SupportsViewport() )
         {
-            CreateToolWindow( s_viewportWindowName, [this] ( UpdateContext const& context, bool isFocused ) { DrawDescriptorEditorWindow( context, isFocused ); } );
-            m_toolWindows.back().m_isViewport = true;
-        }
-
-        if ( !IsDescriptorManualEditingAllowed() )
-        {
-            HideDescriptorWindow();
+            auto pViewportWindow = CreateToolWindow( s_viewportWindowName, [] ( UpdateContext const& context, bool isFocused ) {} );
+            pViewportWindow->m_isViewport = true;
         }
 
         //-------------------------------------------------------------------------
 
-        m_isInitialized = true;
+        m_wasInitializedCalled = true;
     }
 
     void EditorTool::Shutdown( UpdateContext const& context )
     {
-        EE_ASSERT( m_isInitialized );
-
-        if ( IsResourceEditor() )
-        {
-            UnloadDescriptor();
-
-            if ( m_pDescriptorPropertyGrid != nullptr )
-            {
-                m_pDescriptorPropertyGrid->OnPreEdit().Unbind( m_preEditEventBindingID );
-                m_pDescriptorPropertyGrid->OnPostEdit().Unbind( m_postEditEventBindingID );
-                EE::Delete( m_pDescriptorPropertyGrid );
-            }
-        }
+        EE_ASSERT( m_wasInitializedCalled );
 
         m_pResourceSystem = nullptr;
-        m_isInitialized = false;
+        m_wasInitializedCalled = false;
     }
 
     void EditorTool::SharedUpdate( UpdateContext const& context, bool isVisible, bool isFocused )
@@ -240,38 +174,21 @@ namespace EE
     // Docking and Tool Windows
     //-------------------------------------------------------------------------
 
-    void EditorTool::CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding, bool disableScrolling )
+    EditorTool::ToolWindow* EditorTool::CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding, bool disableScrolling )
     {
-        for ( auto const& toolWindow : m_toolWindows )
+        for ( auto const& pToolWindow : m_toolWindows )
         {
-            EE_ASSERT( toolWindow.m_name != name );
+            EE_ASSERT( pToolWindow->m_name != name );
         }
 
-        m_toolWindows.emplace_back( name, drawFunction, windowPadding, disableScrolling );
-
-        eastl::sort( m_toolWindows.begin(), m_toolWindows.end(), [] ( ToolWindow const& lhs, ToolWindow const& rhs ) { return lhs.m_name < rhs.m_name; } );
+        auto pToolWindow = m_toolWindows.emplace_back( EE::New<ToolWindow>( name, drawFunction, windowPadding, disableScrolling ) );
+        eastl::sort( m_toolWindows.begin(), m_toolWindows.end(), [] ( ToolWindow const* pLHS, ToolWindow const* pRHS ) { return pLHS->m_name < pRHS->m_name; } );
+        return pToolWindow;
     }
 
     void EditorTool::InitializeDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const
     {
         ImGui::DockBuilderRemoveNodeChildNodes( dockspaceID );
-
-        if ( IsResourceEditor() )
-        {
-            ImGui::DockBuilderDockWindow( GetToolWindowName( s_descriptorWindowName ).c_str(), dockspaceID );
-        }
-    }
-
-    String EditorTool::GetFilenameForSave() const
-    {
-        EE_ASSERT( SupportsSaving() );
-
-        if ( IsResourceEditor() )
-        {
-            return GetFileSystemPath( m_descriptorID ).c_str();
-        }
-
-        return "";
     }
 
     // Save
@@ -281,12 +198,11 @@ namespace EE
     {
         EE_ASSERT( SupportsSaving() );
 
-        TScopedGuardValue<bool> const scopedValue( m_isSavingAllowedValidation, true );
-
         String const filename = GetFilenameForSave();
 
         if ( SaveData() )
         {
+            ClearDirty();
             ImGuiX::NotifySuccess( "Saved: %s", filename.c_str() );
             return true;
         }
@@ -295,44 +211,6 @@ namespace EE
             ImGuiX::NotifyError( "Failed to save: %s", filename.c_str() );
             return false;
         }
-    }
-
-    bool EditorTool::SaveData()
-    {
-        // DO NOT CALL THIS FUNCTION DIRECTLY
-        EE_ASSERT( m_isSavingAllowedValidation );
-
-        // Save Descriptor
-        EE_ASSERT( m_descriptorPath.IsFilePath() );
-        EE_ASSERT( m_pDescriptor != nullptr );
-        EE_ASSERT( m_pDescriptorPropertyGrid != nullptr );
-
-        // Serialize descriptor
-        //-------------------------------------------------------------------------
-
-        Serialization::JsonArchiveWriter descriptorWriter;
-        auto pWriter = descriptorWriter.GetWriter();
-
-        pWriter->StartObject();
-        Serialization::WriteNativeTypeContents( *m_pToolsContext->m_pTypeRegistry, m_pDescriptor, *pWriter );
-        WriteCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, *pWriter );
-        pWriter->EndObject();
-
-        // Save to file
-        //-------------------------------------------------------------------------
-
-        if ( descriptorWriter.WriteToFile( m_descriptorPath ) )
-        {
-            m_pDescriptorPropertyGrid->ClearDirty();
-            m_isDirty = false;
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-
-        return true;
     }
 
     // Undo/Redo
@@ -360,16 +238,6 @@ namespace EE
     {
         EE_ASSERT( SupportsUndoRedo() );
         m_isDirty = m_undoStack.CanUndo();
-
-        //-------------------------------------------------------------------------
-
-        if ( IsResourceEditor() )
-        {
-            if ( m_pDescriptorPropertyGrid != nullptr )
-            {
-                m_pDescriptorPropertyGrid->MarkDirty();
-            }
-        }
     }
 
     // Menu and Help
@@ -416,29 +284,6 @@ namespace EE
             ImGui::EndDisabled();
         }
 
-        // Descriptor
-        //-------------------------------------------------------------------------
-
-        if ( IsResourceEditor() )
-        {
-            if ( ImGui::BeginMenu( EE_ICON_PACKAGE_VARIANT" Descriptor" ) )
-            {
-                if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE" Copy Resource Path" ) )
-                {
-                    ImGui::SetClipboardText( m_descriptorID.c_str() );
-                }
-                ImGuiX::ItemTooltip( "Copy Resource Path" );
-
-                if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN_OUTLINE" Show in Resource Browser" ) )
-                {
-                    m_pToolsContext->TryFindInResourceBrowser( m_descriptorID.c_str() );
-                }
-                ImGuiX::ItemTooltip( "Copy Resource Path" );
-
-                ImGui::EndMenu();
-            }
-        }
-
         // Draw custom Menu
         //-------------------------------------------------------------------------
 
@@ -451,14 +296,12 @@ namespace EE
         {
             if ( ImGui::BeginMenu( EE_ICON_WINDOW_RESTORE" Window" ) )
             {
-                for ( auto& toolWindow : m_toolWindows )
+                for ( auto& pToolWindow : m_toolWindows )
                 {
-                    if ( toolWindow.m_name == s_descriptorWindowName && !IsDescriptorManualEditingAllowed() )
+                    if ( pToolWindow->ShouldShowInMenu() )
                     {
-                        continue;
+                        ImGui::MenuItem( pToolWindow->m_name.c_str(), nullptr, &pToolWindow->m_isOpen );
                     }
-
-                    ImGui::MenuItem( toolWindow.m_name.c_str(), nullptr, &toolWindow.m_isOpen );
                 }
 
                 ImGui::EndMenu();
@@ -830,14 +673,14 @@ namespace EE
 
         if ( ImGui::BeginDragDropTarget() )
         {
-            if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( Resource::DragAndDrop::s_payloadID, ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+            if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( DragAndDrop::s_filePayloadID, ImGuiDragDropFlags_AcceptBeforeDelivery ) )
             {
                 if ( payload->IsDelivery() )
                 {
                     InlineString payloadStr = (char*) payload->Data;
 
                     ResourceID const resourceID( payloadStr.c_str() );
-                    if ( resourceID.IsValid() && m_pToolsContext->m_pResourceDatabase->DoesResourceExist( resourceID ) )
+                    if ( resourceID.IsValid() && m_pToolsContext->m_pFileRegistry->DoesFileExist( resourceID ) )
                     {
                         // Unproject mouse into viewport
                         Vector const nearPointWS = pEngineViewport->ScreenSpaceToWorldSpaceNearPlane( ImGui::GetMousePos() - windowPos );
@@ -994,7 +837,7 @@ namespace EE
         EE_ASSERT( pResourcePtr != nullptr && pResourcePtr->IsUnloaded() );
         EE_ASSERT( !VectorContains( m_requestedResources, pResourcePtr ) );
         m_requestedResources.emplace_back( pResourcePtr );
-        m_pResourceSystem->LoadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
+        m_pResourceSystem->LoadResource( *pResourcePtr, Resource::ResourceRequesterID::ToolRequest() );
         m_loadingResources.emplace_back( pResourcePtr );
     }
 
@@ -1004,7 +847,7 @@ namespace EE
         EE_ASSERT( pResourcePtr->WasRequested() );
         EE_ASSERT( VectorContains( m_requestedResources, pResourcePtr ) );
         OnResourceUnload( pResourcePtr );
-        m_pResourceSystem->UnloadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
+        m_pResourceSystem->UnloadResource( *pResourcePtr, Resource::ResourceRequesterID::ToolRequest() );
         m_requestedResources.erase_first_unsorted( pResourcePtr );
         m_loadingResources.erase_first_unsorted( pResourcePtr );
     }
@@ -1048,129 +891,10 @@ namespace EE
         return true;
     }
 
-    // Descriptor
-    //-------------------------------------------------------------------------
-
-    void EditorTool::BeginDescriptorModification()
-    {
-        if ( m_beginModificationCallCount == 0 )
-        {
-            auto pUndoableAction = EE::New<ResourceDescriptorUndoableAction>( m_pToolsContext->m_pTypeRegistry, this );
-            pUndoableAction->SerializeBeforeState();
-            m_pActiveUndoableAction = pUndoableAction;
-        }
-        m_beginModificationCallCount++;
-    }
-
-    void EditorTool::EndDescriptorModification()
-    {
-        EE_ASSERT( m_beginModificationCallCount > 0 );
-        EE_ASSERT( m_pActiveUndoableAction != nullptr );
-
-        m_beginModificationCallCount--;
-
-        if ( m_beginModificationCallCount == 0 )
-        {
-            auto pUndoableAction = static_cast<ResourceDescriptorUndoableAction*>( m_pActiveUndoableAction );
-            pUndoableAction->SerializeAfterState();
-            m_undoStack.RegisterAction( pUndoableAction );
-            m_pActiveUndoableAction = nullptr;
-            m_isDirty = true;
-        }
-    }
-
-    void EditorTool::LoadDescriptor()
-    {
-        EE_ASSERT( m_pDescriptor == nullptr );
-        EE_ASSERT( m_pDescriptorPropertyGrid != nullptr );
-
-        // Read descriptor from file
-        //-------------------------------------------------------------------------
-
-        Serialization::JsonArchiveReader archive;
-        if ( !archive.ReadFromFile( m_descriptorPath ) )
-        {
-            EE_LOG_ERROR( "Tools", "Resource EditorTool", "Failed to read resource descriptor file: %s", m_descriptorPath.c_str() );
-            return;
-        }
-
-        auto const& document = archive.GetDocument();
-        m_pDescriptor = Serialization::TryCreateAndReadNativeType<Resource::ResourceDescriptor>( *m_pToolsContext->m_pTypeRegistry, document );
-        m_pDescriptorPropertyGrid->SetTypeToEdit( m_pDescriptor );
-
-        // Read any additional custom data from descriptor
-        //-------------------------------------------------------------------------
-
-        ReadCustomDescriptorData( *m_pToolsContext->m_pTypeRegistry, archive.GetDocument() );
-
-        // Notify tool that load is completed
-        //-------------------------------------------------------------------------
-
-        OnDescriptorLoadCompleted();
-    }
-
-    void EditorTool::UnloadDescriptor()
-    {
-        if ( m_pDescriptor != nullptr )
-        {
-            OnDescriptorUnload();
-            EE::Delete( m_pDescriptor );
-        }
-    }
-
-    void EditorTool::ShowDescriptorWindow()
-    {
-        for ( auto& toolWindow : m_toolWindows )
-        {
-            if ( toolWindow.m_name == s_descriptorWindowName )
-            {
-                toolWindow.m_isOpen = true;
-                return;
-            }
-        }
-    }
-
-    void EditorTool::HideDescriptorWindow()
-    {
-        for ( auto& toolWindow : m_toolWindows )
-        {
-            if ( toolWindow.m_name == s_descriptorWindowName )
-            {
-                toolWindow.m_isOpen = false;
-                return;
-            }
-        }
-    }
-
-    void EditorTool::DrawDescriptorEditorWindow( UpdateContext const& context, bool isFocused )
-    {
-        EE_ASSERT( m_pDescriptorPropertyGrid != nullptr );
-        EE_ASSERT( IsDescriptorManualEditingAllowed() );
-
-        if ( m_pDescriptor == nullptr )
-        {
-            ImGui::Text( "Failed to load descriptor!" );
-        }
-        else
-        {
-            ImGuiX::ScopedFont sf( ImGuiX::Font::Medium );
-            ImGui::Text( "Descriptor: %s", m_descriptorID.c_str() );
-
-            ImGui::BeginDisabled( !m_pDescriptorPropertyGrid->IsDirty() );
-            if ( ImGuiX::ColoredButton( Colors::ForestGreen, Colors::White, EE_ICON_CONTENT_SAVE" Save", ImVec2( -1, 0 ) ) )
-            {
-                Save();
-            }
-            ImGui::EndDisabled();
-
-            m_pDescriptorPropertyGrid->DrawGrid();
-        }
-    }
-
     // Hot-Reload
     //-------------------------------------------------------------------------
 
-    void EditorTool::HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToBeReloaded, TVector<ResourceID> const& resourcesToBeReloaded )
+    void EditorTool::HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded )
     {
         // Do we have any resources that need reloading
         TInlineVector<Resource::ResourcePtr*, 10> resourcesThatNeedReloading;
@@ -1217,24 +941,18 @@ namespace EE
                 }
 
                 OnResourceUnload( pResourcePtr );
-                m_pResourceSystem->UnloadResource( *pResourcePtr, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
-                m_resourcesToBeReloaded.emplace_back( pResourcePtr );
-            }
-        }
 
-        //-------------------------------------------------------------------------
-
-        // Does the descriptor need reloading?
-        if ( IsResourceEditor() )
-        {
-            if ( VectorContains( resourcesToBeReloaded, m_descriptorID ) )
-            {
-                UnloadDescriptor();
+                // Note: On resource unload might cause a resource that was requested for reload to be unloaded! So we need to validate that this resource ptr is still valid
+                if ( VectorContains( m_requestedResources, pResourcePtr ) )
+                {
+                    m_pResourceSystem->UnloadResource( *pResourcePtr, Resource::ResourceRequesterID::ToolRequest() );
+                    m_resourcesToBeReloaded.emplace_back( pResourcePtr );
+                }
             }
         }
     }
 
-    void EditorTool::HotReload_ReloadResources()
+    bool EditorTool::HotReload_ReloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded )
     {
         bool const hasResourcesToReload = !m_resourcesToBeReloaded.empty();
         if ( hasResourcesToReload )
@@ -1242,180 +960,454 @@ namespace EE
             // Load all unloaded resources
             for ( auto& pReloadedResource : m_resourcesToBeReloaded )
             {
-                m_pResourceSystem->LoadResource( *pReloadedResource, Resource::ResourceRequesterID( Resource::ResourceRequesterID::s_toolsRequestID ) );
+                m_pResourceSystem->LoadResource( *pReloadedResource, Resource::ResourceRequesterID::ToolRequest() );
                 VectorEmplaceBackUnique( m_loadingResources, pReloadedResource );
             }
             m_resourcesToBeReloaded.clear();
         }
 
-        if ( IsResourceEditor() && !IsDescriptorLoaded() )
-        {
-            LoadDescriptor();
-        }
+        return true;
     }
 }
 
 //-------------------------------------------------------------------------
+// Data File Editor
+//-------------------------------------------------------------------------
 
 namespace EE
 {
-    class GenericResourceEditor : public EditorTool
+    DataFileEditor::DataFileEditor( ToolsContext const* pToolsContext, DataPath const& dataPath, EntityWorld* pWorld )
+        : EditorTool( pToolsContext, String( String::CtorSprintf(), "%s##%s", dataPath.GetFilename().c_str(), dataPath.c_str() ), pWorld )
+        , m_dataFilePath( dataPath )
     {
-        EE_EDITOR_TOOL( GenericResourceEditor );
+        EE_ASSERT( m_dataFilePath.IsValid() );
+        m_ID = m_dataFilePath.GetID();
+    }
+
+    void DataFileEditor::Initialize( UpdateContext const& context )
+    {
+        EditorTool::Initialize( context );
+
+        // Create data file property grid
+         //-------------------------------------------------------------------------
+
+        auto const PreDescEdit = [this] ( PropertyEditInfo const& info )
+        {
+            EE_ASSERT( m_pActiveUndoableAction == nullptr );
+            EE_ASSERT( IsDataFileLoaded() );
+            BeginDataFileModification();
+        };
+
+        auto const PostDescEdit = [this] ( PropertyEditInfo const& info )
+        {
+            EE_ASSERT( m_pActiveUndoableAction != nullptr );
+            EE_ASSERT( IsDataFileLoaded() );
+            EndDataFileModification();
+        };
+
+        m_pDataFilePropertyGrid = EE::New<PropertyGrid>( m_pToolsContext );
+        m_pDataFilePropertyGrid->SetControlBarVisible( true );
+        m_preDataFileEditEventBindingID = m_pDataFilePropertyGrid->OnPreEdit().Bind( PreDescEdit );
+        m_postDataFileEditEventBindingID = m_pDataFilePropertyGrid->OnPostEdit().Bind( PostDescEdit );
+
+        // Load data file
+        //-------------------------------------------------------------------------
+
+        LoadDataFile();
+
+        if ( !IsDataFileManualEditingAllowed() )
+        {
+            HideDataFileWindow();
+        }
+
+        // Windows
+        //-------------------------------------------------------------------------
+
+        auto DrawDataFileWindow = [this] ( UpdateContext const& context, bool isFocused )
+        {
+            if ( IsDataFileManualEditingAllowed() )
+            {
+                DrawDataFileEditorWindow( context, isFocused ); 
+            }
+        };
+
+        auto ShouldShouldDataFileWindowOption = [this] ()
+        {
+            return IsDataFileManualEditingAllowed();
+        };
+
+        CreateToolWindow( s_dataFileWindowName, DrawDataFileWindow )->SetShowInMenuFunction( ShouldShouldDataFileWindowOption );
+    }
+
+    void DataFileEditor::Shutdown( UpdateContext const& context )
+    {
+        UnloadDataFile();
+
+        if ( m_pDataFilePropertyGrid != nullptr )
+        {
+            m_pDataFilePropertyGrid->OnPreEdit().Unbind( m_preDataFileEditEventBindingID );
+            m_pDataFilePropertyGrid->OnPostEdit().Unbind( m_postDataFileEditEventBindingID );
+            EE::Delete( m_pDataFilePropertyGrid );
+        }
+
+        EditorTool::Shutdown( context );
+    }
+
+    void DataFileEditor::InitializeDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const
+    {
+        EditorTool::InitializeDockingLayout( dockspaceID, dockspaceSize );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), dockspaceID );
+    }
+
+    void DataFileEditor::DrawMenu( UpdateContext const& context )
+    {
+        if ( ImGui::BeginMenu( EE_ICON_PACKAGE_VARIANT" Data File" ) )
+        {
+            if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE" Copy Resource Path" ) )
+            {
+                ImGui::SetClipboardText( m_dataFilePath.c_str() );
+            }
+            ImGuiX::ItemTooltip( "Copy Resource Path" );
+
+            if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN_OUTLINE" Show in Resource Browser" ) )
+            {
+                m_pToolsContext->TryFindInResourceBrowser( m_dataFilePath.c_str() );
+            }
+            ImGuiX::ItemTooltip( "Copy Resource Path" );
+
+            ImGui::EndMenu();
+        }
+    }
+
+    void DataFileEditor::MarkDirty()
+    {
+        EditorTool::MarkDirty();
+        m_pDataFilePropertyGrid->MarkDirty();
+    }
+
+    void DataFileEditor::ClearDirty()
+    {
+        m_pDataFilePropertyGrid->ClearDirty();
+        EditorTool::ClearDirty();
+    }
+
+    void DataFileEditor::PreUndoRedo( UndoStack::Operation operation )
+    {
+        EditorTool::PreUndoRedo( operation );
+
+        if ( m_pDataFilePropertyGrid != nullptr )
+        {
+            m_pDataFilePropertyGrid->GetCurrentVisualState( m_dataFilePropertyGridVisualState );
+        }
+    }
+
+    void DataFileEditor::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
+    {
+        EditorTool::PostUndoRedo( operation, pAction );
+
+        if ( m_pDataFilePropertyGrid != nullptr )
+        {
+            m_pDataFilePropertyGrid->SetTypeToEdit( m_pDataFile, &m_dataFilePropertyGridVisualState );
+            m_pDataFilePropertyGrid->MarkDirty();
+        }
+    }
+
+    void DataFileEditor::HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded )
+    {
+        EditorTool::HotReload_UnloadResources( usersToReload, resourcesToBeReloaded );
+
+        if ( VectorContains( resourcesToBeReloaded, m_dataFilePath ) )
+        {
+            UnloadDataFile();
+        }
+    }
+
+    bool DataFileEditor::HotReload_ReloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded )
+    {
+        EditorTool::HotReload_ReloadResources( usersToReload, resourcesToBeReloaded );
+
+        if ( !IsDataFileLoaded() )
+        {
+            LoadDataFile();
+            return IsDataFileLoaded();
+        }
+
+        return true;
+    }
+
+    String DataFileEditor::GetFilenameForSave() const
+    {
+        EE_ASSERT( SupportsSaving() );
+        return GetFileSystemPath( m_dataFilePath ).c_str();
+    }
+
+    bool DataFileEditor::SaveData()
+    {
+        // Save data file
+        EE_ASSERT( m_pDataFile != nullptr );
+        EE_ASSERT( m_pDataFilePropertyGrid != nullptr );
+
+        FileSystem::Path const filePath = GetFileSystemPath( m_dataFilePath );
+        return IDataFile::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, filePath, m_pDataFile );
+    }
+
+    bool DataFileEditor::IsEditingResourceDescriptor() const
+    {
+        return m_pDataFile->GetTypeInfo()->IsDerivedFrom( Resource::ResourceDescriptor::GetStaticTypeID() );
+    }
+
+    void DataFileEditor::BeginDataFileModification()
+    {
+        if ( m_beginDataFileModificationCallCount == 0 )
+        {
+            auto pUndoableAction = EE::New<DataFileUndoableAction>( m_pToolsContext->m_pTypeRegistry, this );
+            pUndoableAction->SerializeBeforeState();
+            m_pActiveUndoableAction = pUndoableAction;
+        }
+        m_beginDataFileModificationCallCount++;
+    }
+
+    void DataFileEditor::EndDataFileModification()
+    {
+        EE_ASSERT( m_beginDataFileModificationCallCount > 0 );
+        EE_ASSERT( m_pActiveUndoableAction != nullptr );
+
+        m_beginDataFileModificationCallCount--;
+
+        if ( m_beginDataFileModificationCallCount == 0 )
+        {
+            auto pUndoableAction = static_cast<DataFileUndoableAction*>( m_pActiveUndoableAction );
+            pUndoableAction->SerializeAfterState();
+            m_undoStack.RegisterAction( pUndoableAction );
+            m_pActiveUndoableAction = nullptr;
+            MarkDirty();
+        }
+    }
+
+    void DataFileEditor::LoadDataFile()
+    {
+        EE_ASSERT( m_pDataFile == nullptr );
+        EE_ASSERT( m_pDataFilePropertyGrid != nullptr );
+
+        // Read data file from file
+        //-------------------------------------------------------------------------
+
+        FileSystem::Path const filePath = GetFileSystemPath( m_dataFilePath );
+        m_pDataFile = IDataFile::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, filePath );
+
+        if ( IsDataFileManualEditingAllowed() )
+        {
+            PropertyGrid::VisualState const* pVisualState = ( m_dataFilePropertyGridVisualState.m_editedTypeID == m_pDataFile->GetTypeID() ) ? &m_dataFilePropertyGridVisualState : nullptr;
+            m_pDataFilePropertyGrid->SetUserContext( this );
+            m_pDataFilePropertyGrid->SetTypeToEdit( m_pDataFile, pVisualState );
+        }
+
+        // Notify tool that load is completed
+        //-------------------------------------------------------------------------
+
+        OnDataFileLoadCompleted();
+    }
+
+    void DataFileEditor::UnloadDataFile()
+    {
+        if ( m_pDataFile != nullptr )
+        {
+            m_pDataFilePropertyGrid->GetCurrentVisualState( m_dataFilePropertyGridVisualState );
+            m_pDataFilePropertyGrid->SetTypeToEdit( nullptr );
+            OnDataFileUnload();
+            EE::Delete( m_pDataFile );
+        }
+    }
+
+    void DataFileEditor::ShowDataFileWindow()
+    {
+        for ( auto& pToolWindow : GetToolWindows() )
+        {
+            if ( pToolWindow->GetName() == s_dataFileWindowName )
+            {
+                pToolWindow->SetOpen( true );
+                return;
+            }
+        }
+    }
+
+    void DataFileEditor::HideDataFileWindow()
+    {
+        for ( auto& pToolWindow : GetToolWindows() )
+        {
+            if ( pToolWindow->GetName() == s_dataFileWindowName )
+            {
+                pToolWindow->SetOpen( false );
+                return;
+            }
+        }
+    }
+
+    void DataFileEditor::DrawDataFileEditorWindow( UpdateContext const& context, bool isFocused )
+    {
+        EE_ASSERT( m_pDataFilePropertyGrid != nullptr );
+        EE_ASSERT( IsDataFileManualEditingAllowed() );
+
+        if ( m_pDataFile == nullptr )
+        {
+            ImGui::Text( "Failed to load data file!" );
+        }
+        else
+        {
+            ImGuiX::ScopedFont sf( ImGuiX::Font::Medium );
+            ImGui::Text( "Data File: %s", m_dataFilePath.c_str() );
+
+            ImGui::BeginDisabled( !m_pDataFilePropertyGrid->IsDirty() );
+            if ( ImGuiX::ButtonColored( EE_ICON_CONTENT_SAVE" Save", Colors::ForestGreen, Colors::White, ImVec2( -1, 0 ) ) )
+            {
+                Save();
+            }
+            ImGui::EndDisabled();
+
+            m_pDataFilePropertyGrid->UpdateAndDraw();
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    DataFileUndoableAction::DataFileUndoableAction( TypeSystem::TypeRegistry const* pTypeRegistry, DataFileEditor* pEditor )
+        : m_pTypeRegistry( pTypeRegistry )
+        , m_pEditor( pEditor )
+    {
+        EE_ASSERT( m_pTypeRegistry != nullptr );
+        EE_ASSERT( m_pEditor != nullptr );
+        EE_ASSERT( m_pEditor->m_pDataFile != nullptr );
+    }
+
+    void DataFileUndoableAction::Undo()
+    {
+        EE_ASSERT( m_pTypeRegistry != nullptr && m_pEditor != nullptr );
+        Serialization::ReadTypeFromString( *m_pTypeRegistry, m_valueBefore.c_str(), m_pEditor->m_pDataFile );
+        m_pEditor->MarkDirty();
+    }
+
+    void DataFileUndoableAction::Redo()
+    {
+        EE_ASSERT( m_pTypeRegistry != nullptr && m_pEditor != nullptr );
+        Serialization::ReadTypeFromString( *m_pTypeRegistry, m_valueAfter.c_str(), m_pEditor->m_pDataFile );
+        m_pEditor->MarkDirty();
+    }
+
+    void DataFileUndoableAction::SerializeBeforeState()
+    {
+        EE_ASSERT( m_pTypeRegistry != nullptr && m_pEditor != nullptr );
+        Serialization::WriteTypeToString( *m_pTypeRegistry, m_pEditor->m_pDataFile, m_valueBefore );
+    }
+
+    void DataFileUndoableAction::SerializeAfterState()
+    {
+        EE_ASSERT( m_pTypeRegistry != nullptr && m_pEditor != nullptr );
+        Serialization::WriteTypeToString( *m_pTypeRegistry, m_pEditor->m_pDataFile, m_valueAfter );
+        m_pEditor->MarkDirty();
+    }
+}
+
+//-------------------------------------------------------------------------
+// Editor Tool Factory
+//-------------------------------------------------------------------------
+
+namespace EE
+{
+    class GenericDataFileEditor final : public DataFileEditor
+    {
+        EE_EDITOR_TOOL( GenericDataFileEditor );
 
     public:
 
-        using EditorTool::EditorTool;
+        using DataFileEditor::DataFileEditor;
     };
 
     //-------------------------------------------------------------------------
 
-    bool ResourceEditorFactory::CanCreateEditor( ToolsContext const* pToolsContext, ResourceID const& resourceID )
+    EditorTool* EditorToolFactory::TryCreateEditor( ToolsContext const* pToolsContext, DataPath const& path, TFunction< EntityWorld*( )> worldCreationFunction )
     {
-        EE_ASSERT( resourceID.IsValid() );
-        auto resourceTypeID = resourceID.GetResourceTypeID();
-        EE_ASSERT( resourceTypeID.IsValid() );
+        EE_ASSERT( path.IsValid() && path.IsFilePath() );
 
-        // Check if we have a custom editor for this type
-        //-------------------------------------------------------------------------
-
-        auto pCurrentFactory = s_pHead;
-        while ( pCurrentFactory != nullptr )
+        // Check for a valid extension
+        FileSystem::Extension ext = path.GetExtension();
+        if ( !FourCC::IsValidLowercase( ext.c_str() ) )
         {
-            if ( resourceTypeID == pCurrentFactory->GetSupportedResourceTypeID() )
-            {
-                return true;
-            }
-
-            pCurrentFactory = pCurrentFactory->GetNextItem();
+            return nullptr;
         }
 
-        // Check if a descriptor type
-        //-------------------------------------------------------------------------
-
-        auto const resourceDescriptorTypes = pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( Resource::ResourceDescriptor::GetStaticTypeID(), false, false );
-        for ( auto pResourceDescriptorTypeInfo : resourceDescriptorTypes )
+        // Don't try to open files that dont exist
+        if ( !pToolsContext->m_pFileRegistry->DoesFileExist( path ) )
         {
-            auto pDefaultInstance = Cast<Resource::ResourceDescriptor>( pResourceDescriptorTypeInfo->GetDefaultInstance() );
-            if ( pDefaultInstance->GetCompiledResourceTypeID() == resourceID.GetResourceTypeID() )
-            {
-                return true;
-            }
+            return nullptr;
         }
 
         //-------------------------------------------------------------------------
 
-        return false;
-    }
+        uint32_t const extFourCC = FourCC::FromLowercaseString( ext.c_str() );
+        ResourceTypeID const resourceTypeID( extFourCC );
 
-    EditorTool* ResourceEditorFactory::CreateEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID )
-    {
-        EE_ASSERT( resourceID.IsValid() );
-        auto resourceTypeID = resourceID.GetResourceTypeID();
-        EE_ASSERT( resourceTypeID.IsValid() );
-
-        // Check if we have a custom editor for this type
-        //-------------------------------------------------------------------------
-
-        auto pCurrentFactory = s_pHead;
-        while ( pCurrentFactory != nullptr )
+        // Resources
+        if( pToolsContext->m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID ) )
         {
-            if ( resourceTypeID == pCurrentFactory->GetSupportedResourceTypeID() )
+            // Check if we have an explicit factory registered for this resource type
+            //-------------------------------------------------------------------------
+
+            EditorToolFactory* pCurrentFactory = s_pHead;
+            while ( pCurrentFactory != nullptr )
             {
-                return pCurrentFactory->CreateEditorInternal( pToolsContext, pWorld, resourceID );
+                if ( pCurrentFactory->IsResourceEditorFactory() && resourceTypeID == pCurrentFactory->GetSupportedResourceTypeID() )
+                {
+                    EntityWorld* pWorld = nullptr;
+                    if ( pCurrentFactory->RequiresEntityWorld() )
+                    {
+                        pWorld = worldCreationFunction();
+                    }
+
+                    return pCurrentFactory->CreateEditorInternal( pToolsContext, path, pWorld );
+                }
+
+                pCurrentFactory = pCurrentFactory->GetNextItem();
             }
 
-            pCurrentFactory = pCurrentFactory->GetNextItem();
-        }
-
-        // Create generic descriptor editor
-        //-------------------------------------------------------------------------
-
-        auto const resourceDescriptorTypes = pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( Resource::ResourceDescriptor::GetStaticTypeID(), false, false );
-        for ( auto pResourceDescriptorTypeInfo : resourceDescriptorTypes )
-        {
-            auto pDefaultInstance = Cast<Resource::ResourceDescriptor>( pResourceDescriptorTypeInfo->GetDefaultInstance() );
-            if ( pDefaultInstance->GetCompiledResourceTypeID() == resourceID.GetResourceTypeID() )
+            // If we couldn't find an explicit factory then check if there is a descriptor for this type, if there is, then we can create a generic editor
+            auto const resourceDescriptorTypes = pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( Resource::ResourceDescriptor::GetStaticTypeID(), false, false );
+            for ( auto pResourceDescriptorTypeInfo : resourceDescriptorTypes )
             {
-                return EE::New<GenericResourceEditor>( pToolsContext, pWorld, resourceID );
+                auto pDefaultInstance = Cast<Resource::ResourceDescriptor>( pResourceDescriptorTypeInfo->GetDefaultInstance() );
+                if ( pDefaultInstance->GetCompiledResourceTypeID() == resourceTypeID )
+                {
+                    return EE::New<GenericDataFileEditor>( pToolsContext, path );
+                }
             }
         }
+        // Data Files
+        else if ( pToolsContext->m_pTypeRegistry->IsRegisteredDataFileType( extFourCC ) )
+        {
+            // Check if we have an explicit factory registered for this resource type
+            //-------------------------------------------------------------------------
 
-        EE_UNREACHABLE_CODE();
+            EditorToolFactory* pCurrentFactory = s_pHead;
+            while ( pCurrentFactory != nullptr )
+            {
+                if ( !pCurrentFactory->IsResourceEditorFactory() && extFourCC == pCurrentFactory->GetSupportedDataFileExtensionFourCC() )
+                {
+                    EntityWorld* pWorld = nullptr;
+                    if ( pCurrentFactory->RequiresEntityWorld() )
+                    {
+                        pWorld = worldCreationFunction();
+                    }
+
+                    return pCurrentFactory->CreateEditorInternal( pToolsContext, path, pWorld );
+                }
+
+                pCurrentFactory = pCurrentFactory->GetNextItem();
+            }
+
+            return EE::New<GenericDataFileEditor>( pToolsContext, path );
+        }
+
+        //-------------------------------------------------------------------------
+
         return nullptr;
-    }
-}
-
-//-------------------------------------------------------------------------
-
-namespace EE
-{
-    ResourceDescriptorUndoableAction::ResourceDescriptorUndoableAction( TypeSystem::TypeRegistry const* pTypeRegistry, EditorTool* pEditorTool )
-        : m_pTypeRegistry( pTypeRegistry )
-        , m_pEditorTool( pEditorTool )
-    {
-        EE_ASSERT( m_pTypeRegistry != nullptr );
-        EE_ASSERT( m_pEditorTool != nullptr );
-        EE_ASSERT( m_pEditorTool->m_pDescriptor != nullptr );
-    }
-
-    void ResourceDescriptorUndoableAction::Undo()
-    {
-        EE_ASSERT( m_pTypeRegistry != nullptr && m_pEditorTool != nullptr );
-
-        Serialization::JsonArchiveReader typeReader;
-
-        typeReader.ReadFromString( m_valueBefore.c_str() );
-        auto const& document = typeReader.GetDocument();
-        Serialization::ReadNativeType( *m_pTypeRegistry, document, m_pEditorTool->m_pDescriptor );
-        m_pEditorTool->ReadCustomDescriptorData( *m_pTypeRegistry, document );
-        m_pEditorTool->MarkDirty();
-    }
-
-    void ResourceDescriptorUndoableAction::Redo()
-    {
-        EE_ASSERT( m_pTypeRegistry != nullptr && m_pEditorTool != nullptr );
-
-        Serialization::JsonArchiveReader typeReader;
-
-        typeReader.ReadFromString( m_valueAfter.c_str() );
-        auto const& document = typeReader.GetDocument();
-        Serialization::ReadNativeType( *m_pTypeRegistry, document, m_pEditorTool->m_pDescriptor );
-        m_pEditorTool->ReadCustomDescriptorData( *m_pTypeRegistry, document );
-        m_pEditorTool->MarkDirty();
-    }
-
-    void ResourceDescriptorUndoableAction::SerializeBeforeState()
-    {
-        EE_ASSERT( m_pTypeRegistry != nullptr && m_pEditorTool != nullptr );
-
-        Serialization::JsonArchiveWriter writer;
-
-        auto pWriter = writer.GetWriter();
-        pWriter->StartObject();
-        Serialization::WriteNativeTypeContents( *m_pTypeRegistry, m_pEditorTool->m_pDescriptor, *pWriter );
-        m_pEditorTool->WriteCustomDescriptorData( *m_pTypeRegistry, *pWriter );
-        pWriter->EndObject();
-
-        m_valueBefore.resize( writer.GetStringBuffer().GetSize() );
-        memcpy( m_valueBefore.data(), writer.GetStringBuffer().GetString(), writer.GetStringBuffer().GetSize() );
-    }
-
-    void ResourceDescriptorUndoableAction::SerializeAfterState()
-    {
-        EE_ASSERT( m_pTypeRegistry != nullptr && m_pEditorTool != nullptr );
-
-        Serialization::JsonArchiveWriter writer;
-
-        auto pWriter = writer.GetWriter();
-        pWriter->StartObject();
-        Serialization::WriteNativeTypeContents( *m_pTypeRegistry, m_pEditorTool->m_pDescriptor, *pWriter );
-        m_pEditorTool->WriteCustomDescriptorData( *m_pTypeRegistry, *pWriter );
-        pWriter->EndObject();
-
-        m_valueAfter.resize( writer.GetStringBuffer().GetSize() );
-        memcpy( m_valueAfter.data(), writer.GetStringBuffer().GetString(), writer.GetStringBuffer().GetSize() );
-
-        m_pEditorTool->MarkDirty();
     }
 }

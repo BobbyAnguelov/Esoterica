@@ -15,10 +15,10 @@
 namespace EE::Render
 {
     TextureCompiler::TextureCompiler()
-        : Resource::Compiler( "TextureCompiler", s_version )
+        : Resource::Compiler( "TextureCompiler" )
     {
-        m_outputTypes.push_back( Texture::GetStaticResourceTypeID() );
-        m_outputTypes.push_back( CubemapTexture::GetStaticResourceTypeID() );
+        AddOutputType<Texture>();
+        AddOutputType<CubemapTexture>();
     }
 
     Resource::CompilationResult TextureCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -48,9 +48,14 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         FileSystem::Path textureFilePath;
-        if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_path, textureFilePath ) )
+        if ( !ConvertDataPathToFilePath( resourceDescriptor.m_path, textureFilePath ) )
         {
             return Error( "Invalid texture data path: %s", resourceDescriptor.m_path.c_str() );
+        }
+
+        if ( !textureFilePath.Exists() )
+        {
+            return Error( "Missing texture file: %s", textureFilePath.c_str() );
         }
 
         // Try to load the texture file
@@ -58,6 +63,11 @@ namespace EE::Render
 
         Import::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
         TUniquePtr<Import::ImportedImage> importedImage = Import::ReadImage( readerCtx, textureFilePath );
+
+        if ( importedImage == nullptr )
+        {
+            return Error( "Failed to load image: %s", textureFilePath.c_str() );
+        }
 
         rgba_surface surface;
         surface.ptr = const_cast<uint8_t*>( importedImage->GetImageData() );
@@ -181,18 +191,25 @@ namespace EE::Render
             return Error( "Failed to create DDS container: %s", "ERROR" );
         }
 
-        Texture texture;
-        texture.m_format = TextureFormat::DDS;
-        texture.m_rawData.resize( ddsData.GetBufferSize() );
-        memcpy( texture.m_rawData.data(), ddsData.GetBufferPointer(), ddsData.GetBufferSize() );
-
+        // Write additional data file
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, Texture::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
-        
+        FileSystem::Path const additionalDataFilePath = Resource::IResource::GetAdditionalDataFilePath( ctx.m_outputFilePath );
+        if ( !FileSystem::WriteBinaryFile( additionalDataFilePath.c_str(), ddsData.GetBufferPointer(), ddsData.GetBufferSize() ) )
+        {
+            return Error( "Failed to create additional data file: %s", additionalDataFilePath.c_str() );
+        }
+
+        // Write resource file
+        //-------------------------------------------------------------------------
+
+        Texture texture;
+        texture.m_format = TextureFormat::DDS;
+
+        Resource::ResourceHeader hdr( Texture::s_version, Texture::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         Serialization::BinaryOutputArchive archive;
         archive << hdr << texture;
-        
+
         if ( archive.WriteToFile( ctx.m_outputFilePath ) )
         {
             return CompilationSucceeded( ctx );
@@ -211,26 +228,28 @@ namespace EE::Render
             return Error( "Failed to read resource descriptor from input file: %s", ctx.m_inputFilePath.c_str() );
         }
 
-        // Create cubemap
+        // Copy already created cubemap over to output dir
+        //-------------------------------------------------------------------------
+
+        FileSystem::Path const sourceTexturePath = resourceDescriptor.m_path.GetFileSystemPath( m_sourceDataDirectoryPath );
+        if ( !FileSystem::Exists( sourceTexturePath ) )
+        {
+            return Error( "Source cubemap file doesnt exist: %s", sourceTexturePath.c_str() );
+        }
+
+        FileSystem::Path const additionalDataFilePath = Resource::IResource::GetAdditionalDataFilePath( ctx.m_outputFilePath );
+        if ( !FileSystem::CopyExistingFile( sourceTexturePath, additionalDataFilePath ) )
+        {
+            return Error( "Failed to create additional data file: %s", additionalDataFilePath.c_str() );
+        }
+
+        // Write resource file
         //-------------------------------------------------------------------------
 
         CubemapTexture texture;
         texture.m_format = TextureFormat::DDS;
 
-        FileSystem::Path const sourceTexturePath = resourceDescriptor.m_path.ToFileSystemPath( m_rawResourceDirectoryPath );
-        if ( !FileSystem::Exists( sourceTexturePath ) )
-        {
-            return Error( "Failed to open specified source file: %s", sourceTexturePath.c_str() );
-        }
-
-        if ( !FileSystem::LoadFile( sourceTexturePath, texture.m_rawData ) )
-        {
-            return Error( "Failed to read specified source file: %s", sourceTexturePath.c_str() );
-        }
-
-        //-------------------------------------------------------------------------
-
-        Resource::ResourceHeader hdr( s_version, Texture::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        Resource::ResourceHeader hdr( Texture::s_version, Texture::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
 
         Serialization::BinaryOutputArchive archive;
         archive << hdr << texture;

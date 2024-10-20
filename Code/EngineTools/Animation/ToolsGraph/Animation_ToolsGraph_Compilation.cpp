@@ -44,7 +44,7 @@ namespace EE::Animation
         m_nodeMemoryOffsets.clear();
     }
 
-    void GraphCompilationContext::TryAddPersistentNode( VisualGraph::BaseNode const* pNode, GraphNode::Definition* pDefinition )
+    void GraphCompilationContext::TryAddPersistentNode( NodeGraph::BaseNode const* pNode, GraphNode::Definition* pDefinition )
     {
         auto pFlowNode = TryCast<GraphNodes::FlowToolsNode>( pNode );
         if ( pFlowNode != nullptr && pFlowNode->IsPersistentNode() )
@@ -81,8 +81,8 @@ namespace EE::Animation
         // Always compile control parameters first
         //-------------------------------------------------------------------------
 
-        auto const controlParameters = pRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-        for ( auto pParameter : controlParameters )
+        auto const controlParameters = pRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        for ( ControlParameterToolsNode const* pParameter : controlParameters )
         {
             if ( pParameter->Compile( m_context ) == InvalidIndex )
             {
@@ -95,8 +95,8 @@ namespace EE::Animation
         // Then compile virtual parameters
         //-------------------------------------------------------------------------
 
-        auto const virtualParameters = pRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
-        for ( auto pParameter : virtualParameters )
+        auto const virtualParameters = pRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        for ( VirtualParameterToolsNode const* pParameter : virtualParameters )
         {
             int16_t const parameterIdx = pParameter->Compile( m_context );
             if ( parameterIdx == InvalidIndex )
@@ -111,7 +111,7 @@ namespace EE::Animation
         // Finally compile the actual graph
         //-------------------------------------------------------------------------
 
-        auto const resultNodes = pRootGraph->FindAllNodesOfType<ResultToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto const resultNodes = pRootGraph->FindAllNodesOfType<ResultToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
         EE_ASSERT( resultNodes.size() == 1 );
         int16_t const rootNodeIdx = resultNodes[0]->Compile( m_context );
 

@@ -90,7 +90,7 @@ namespace EE::Animation
             float const percentageThrough = frameTime.GetPercentageThrough().ToFloat();
             for ( auto i = 0; i < numBones; i++ )
             {
-                pOutPose->m_parentSpaceTransforms[i] = Transform::FastSlerp( pOutPose->m_parentSpaceTransforms[i], tmpPose[i], percentageThrough );
+                pOutPose->m_parentSpaceTransforms[i] = Transform::FastSLerp( pOutPose->m_parentSpaceTransforms[i], tmpPose[i], percentageThrough );
             }
         }
 

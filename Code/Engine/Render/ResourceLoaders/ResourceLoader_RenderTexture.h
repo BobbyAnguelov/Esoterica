@@ -13,11 +13,7 @@ namespace EE::Render
     {
     public:
 
-        TextureLoader() : m_pRenderDevice( nullptr )
-        {
-            m_loadableTypes.push_back( Texture::GetStaticResourceTypeID() );
-            m_loadableTypes.push_back( CubemapTexture::GetStaticResourceTypeID() );
-        }
+        TextureLoader();
 
         inline void SetRenderDevicePtr( RenderDevice* pRenderDevice )
         {
@@ -29,8 +25,8 @@ namespace EE::Render
 
     private:
 
-        virtual bool LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const override;
-        virtual Resource::InstallResult Install( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord, Resource::InstallDependencyList const& installDependencies ) const override;
+        virtual bool Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const override;
+        virtual Resource::InstallResult Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const override;
         virtual Resource::InstallResult UpdateInstall( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const override;
         virtual void Uninstall( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const override;
 

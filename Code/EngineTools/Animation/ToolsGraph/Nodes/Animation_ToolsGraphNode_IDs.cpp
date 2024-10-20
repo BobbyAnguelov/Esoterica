@@ -48,7 +48,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void IDComparisonToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void IDComparisonToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         if ( m_comparison == IDComparisonNode::Comparison::Matches )
         {
@@ -94,7 +94,7 @@ namespace EE::Animation::GraphNodes
 
         if ( foundMatch )
         {
-            VisualGraph::ScopedNodeModification snm( this );
+            NodeGraph::ScopedNodeModification snm( this );
             for ( auto& ID : m_IDs )
             {
                 if ( ID == oldID )
@@ -166,7 +166,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void IDToFloatToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void IDToFloatToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         if ( !m_mappings.empty() && ValidateMappings() )
         {
@@ -216,7 +216,7 @@ namespace EE::Animation::GraphNodes
 
         if ( foundMatch )
         {
-            VisualGraph::ScopedNodeModification snm( this );
+            NodeGraph::ScopedNodeModification snm( this );
             for ( auto& mapping : m_mappings )
             {
                 if ( mapping.m_ID == oldID )

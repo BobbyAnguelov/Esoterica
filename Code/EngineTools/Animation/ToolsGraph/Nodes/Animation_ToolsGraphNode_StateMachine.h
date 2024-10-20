@@ -27,16 +27,13 @@ namespace EE::Animation::GraphNodes
     public:
 
         StateMachineToolsNode();
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
 
-        virtual char const* GetName() const override { return m_name.c_str(); }
-        virtual bool IsRenameable() const override { return true; }
-        virtual void SetName( String const& newName ) override { EE_ASSERT( IsRenameable() ); m_name = newName; }
+        virtual bool IsRenameable() const override final { return true; }
+        virtual bool RequiresUniqueName() const override final { return true; }
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "State Machine"; }
         virtual char const* GetCategory() const override { return "Animation"; }
-        virtual Color GetTitleBarColor() const override { return Colors::CornflowerBlue; }
+        virtual Color GetTitleBarColor() const override { return Colors::DarkOrange; }
         virtual void OnShowNode() override;
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
@@ -44,7 +41,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        virtual void SerializeCustom( TypeSystem::TypeRegistry const& typeRegistry, Serialization::JsonValue const& graphObjectValue ) override;
+        virtual void PostDeserialize() override;
 
         int16_t CompileState( GraphCompilationContext& context, StateToolsNode const* pStateNode ) const;
         int16_t CompileTransition( GraphCompilationContext& context, TransitionToolsNode const* pTransitionNode, int16_t targetStateNodeIdx ) const;
@@ -53,10 +50,5 @@ namespace EE::Animation::GraphNodes
         inline GraphNodes::EntryStateOverrideConduitToolsNode* GetEntryStateOverrideConduit() { return const_cast<GraphNodes::EntryStateOverrideConduitToolsNode*>( const_cast<StateMachineToolsNode const*>( this )->GetEntryStateOverrideConduit() ); }
         GlobalTransitionConduitToolsNode const* GetGlobalTransitionConduit() const;
         inline GraphNodes::GlobalTransitionConduitToolsNode* GetGlobalTransitionConduit() { return const_cast<GraphNodes::GlobalTransitionConduitToolsNode*>( const_cast<StateMachineToolsNode const*>( this )->GetGlobalTransitionConduit() ); }
-
-    private:
-
-        EE_REFLECT( "IsToolsReadOnly" : true )
-        String m_name = "SM";
     };
 }

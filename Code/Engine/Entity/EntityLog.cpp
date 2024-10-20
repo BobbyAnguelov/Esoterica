@@ -10,7 +10,7 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    static void EnqueueLogEntry( EntityID entityID, ComponentID componentID, EE::Log::Severity severity, char const* pCategory, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args )
+    static void EnqueueLogEntry( EntityID entityID, ComponentID componentID, EE::Severity severity, char const* pCategory, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args )
     {
         EE_ASSERT( entityID.IsValid() );
         EE_ASSERT( pCategory != nullptr && pFilename != nullptr && pMessageFormat != nullptr );
@@ -51,7 +51,7 @@ namespace EE::EntityModel
         EE::Delete( g_pEntryQueue );
     }
 
-    void EnqueueLogEntry( Entity const* pEntity, EE::Log::Severity severity, char const* pCategory, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... )
+    void EnqueueLogEntry( Entity const* pEntity, EE::Severity severity, char const* pCategory, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... )
     {
         EE_ASSERT( pEntity != nullptr );
 
@@ -61,7 +61,7 @@ namespace EE::EntityModel
         va_end( args );
     }
 
-    void EnqueueLogEntry( EntityComponent const* pComponent, EE::Log::Severity severity, char const* pCategory, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... )
+    void EnqueueLogEntry( EntityComponent const* pComponent, EE::Severity severity, char const* pCategory, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... )
     {
         EE_ASSERT( pComponent != nullptr && pComponent->GetEntityID().IsValid() );
 

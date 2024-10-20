@@ -123,7 +123,7 @@ namespace EE::Animation::GraphNodes
 
         EE_FORCE_INLINE void DirectlySetValue( Vector const& value ) { m_value = value; }
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-        virtual void SetValueInternal( void const* pInValue ) override { m_value = *(Vector*) pInValue; }
+        virtual void SetValueInternal( void const* pInValue ) override { m_value = *(Float3*) pInValue; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
@@ -132,7 +132,7 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        Vector m_value = Vector::Zero;
+        Float3 m_value = Float3::Zero;
     };
 
     //-------------------------------------------------------------------------
@@ -277,7 +277,7 @@ namespace EE::Animation::GraphNodes
     private:
 
         VectorValueNode*    m_pChildNode = nullptr;
-        Float4              m_value = Float4::Zero;
+        Float3              m_value = Float3::Zero;
     };
 
     //-------------------------------------------------------------------------

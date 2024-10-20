@@ -16,9 +16,12 @@ namespace EE::Physics
     public:
 
         virtual bool IsUserCreateableDescriptor() const override { return true; }
+        virtual int32_t GetFileVersion() const override { return 0; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override{ return RagdollDefinition::GetStaticResourceTypeID(); }
+        virtual FileSystem::Extension GetExtension() const override final { return RagdollDefinition::GetStaticResourceTypeID().ToString(); }
+        virtual char const* GetFriendlyName() const override final { return RagdollDefinition::s_friendlyName; }
 
-        virtual void GetCompileDependencies( TVector<ResourcePath>& outDependencies ) override
+        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
         {
             outDependencies.emplace_back( m_skeleton.GetResourcePath() );
         }
@@ -60,10 +63,10 @@ namespace EE::Physics
         EE_REFLECT();
         TResourcePtr<Animation::Skeleton>               m_skeleton;
 
-        EE_REFLECT( "IsToolsReadOnly" : true );
+        EE_REFLECT( ReadOnly );
         TVector<RagdollDefinition::BodyDefinition>      m_bodies;
 
-        EE_REFLECT( "IsToolsReadOnly" : true );
+        EE_REFLECT( ReadOnly );
         TVector<RagdollDefinition::Profile>             m_profiles;
     };
 }

@@ -580,7 +580,7 @@ namespace EE::Physics
             {
                 if ( m_bodies[bodyIdx].m_boneID == boneID )
                 {
-                    m_bodies[bodyIdx].m_initialGlobalTransform = m_bodies[bodyIdx].m_offsetTransform * m_skeleton->GetBoneGlobalTransform( boneIdx );
+                    m_bodies[bodyIdx].m_initialGlobalTransform = m_bodies[bodyIdx].m_offsetTransform * m_skeleton->GetBoneModelSpaceTransform( boneIdx );
                     m_bodies[bodyIdx].m_inverseOffsetTransform = m_bodies[bodyIdx].m_offsetTransform.GetInverse();
 
                     inverseBodyTransforms[bodyIdx] = m_bodies[bodyIdx].m_initialGlobalTransform.GetInverse();

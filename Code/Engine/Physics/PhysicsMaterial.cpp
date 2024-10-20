@@ -23,7 +23,7 @@ namespace EE::Physics
     {
         static StringID const defaultMaterialID( s_defaultID );
 
-        if ( !m_ID.IsValid() || m_ID == StringID( defaultMaterialID ) )
+        if ( !m_ID.IsValid() || m_ID == s_defaultID )
         {
             return false;
         }
@@ -45,7 +45,7 @@ namespace EE::Physics
         EE_ASSERT( m_materials.empty() );
 
         // Create default physics material
-        m_defaultMaterialID = StringID( MaterialSettings::s_defaultID );
+        m_defaultMaterialID = MaterialSettings::s_defaultID;
         m_pDefaultMaterial = pPhysics->createMaterial( MaterialSettings::s_defaultStaticFriction, MaterialSettings::s_defaultDynamicFriction, MaterialSettings::s_defaultRestitution );
         reinterpret_cast<uintptr_t&>( m_pDefaultMaterial->userData ) = m_defaultMaterialID.ToUint();
         m_materials.insert( TPair<StringID, MaterialInstance>( m_defaultMaterialID, MaterialInstance( m_defaultMaterialID, m_pDefaultMaterial ) ) );

@@ -21,8 +21,6 @@ namespace EE::Animation::GraphNodes
 
         inline UUID const& GetEndStateID() const { return m_stateID; }
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
-        virtual char const* GetName() const override { return m_name.c_str(); }
         virtual char const* GetTypeName() const override { return "Global Transition"; }
         virtual char const* GetCategory() const override { return "State Machine"; }
         virtual bool IsUserCreatable() const override { return false; }
@@ -30,20 +28,20 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT( "IsToolsReadOnly" : true );
+        EE_REFLECT( Hidden );
         UUID m_stateID;
     };
 
     // The global transition node present in state machine graphs
     //-------------------------------------------------------------------------
 
-    class GlobalTransitionConduitToolsNode final : public VisualGraph::SM::Node
+    class GlobalTransitionConduitToolsNode final : public NodeGraph::StateMachineNode
     {
         EE_REFLECT_TYPE( GlobalTransitionConduitToolsNode );
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        GlobalTransitionConduitToolsNode();
 
         bool HasGlobalTransitionForState( UUID const& stateID ) const;
 

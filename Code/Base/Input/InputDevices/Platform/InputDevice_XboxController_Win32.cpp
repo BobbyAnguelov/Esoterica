@@ -17,19 +17,10 @@ namespace EE::Input
         XINPUT_STATE state;
         DWORD result = XInputGetState( m_hardwareControllerIdx, &state );
         m_isConnected = ( result == ERROR_SUCCESS );
-
-        m_leftStickInnerDeadzone = XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE / g_maxThumbstickRange;
-        m_leftStickOuterDeadzone = 0.0f;
-        m_leftTriggerThreshold = XINPUT_GAMEPAD_TRIGGER_THRESHOLD / g_maxTriggerRange;
-
-        m_rightStickInnerDeadzone = XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE / g_maxThumbstickRange;
-        m_rightStickOuterDeadzone = 0.0f;
-        m_rightTriggerThreshold = XINPUT_GAMEPAD_TRIGGER_THRESHOLD / g_maxTriggerRange;
     }
 
     void XBoxControllerInputDevice::Shutdown()
     {
-
         m_isConnected = false;
     }
 
@@ -51,10 +42,10 @@ namespace EE::Input
             UpdateControllerButtonState( InputID::Controller_DPadRight, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_DPAD_RIGHT ) > 0 );
             UpdateControllerButtonState( InputID::Controller_System0, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_BACK ) > 0 );
             UpdateControllerButtonState( InputID::Controller_System1, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_START ) > 0 );
-            UpdateControllerButtonState( InputID::Controller_ThumbstickLeft, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB ) > 0 );
-            UpdateControllerButtonState( InputID::Controller_ThumbstickRight, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB ) > 0 );
-            UpdateControllerButtonState( InputID::Controller_ShoulderLeft, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER ) > 0 );
-            UpdateControllerButtonState( InputID::Controller_ShoulderRight, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER ) > 0 );
+            UpdateControllerButtonState( InputID::Controller_LeftStick, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_THUMB ) > 0 );
+            UpdateControllerButtonState( InputID::Controller_RightStick, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_THUMB ) > 0 );
+            UpdateControllerButtonState( InputID::Controller_LeftShoulder, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER ) > 0 );
+            UpdateControllerButtonState( InputID::Controller_RightShoulder, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER ) > 0 );
             UpdateControllerButtonState( InputID::Controller_FaceButtonDown, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_A ) > 0 );
             UpdateControllerButtonState( InputID::Controller_FaceButtonRight, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_B ) > 0 );
             UpdateControllerButtonState( InputID::Controller_FaceButtonLeft, ( state.Gamepad.wButtons & XINPUT_GAMEPAD_X ) > 0 );
@@ -62,6 +53,21 @@ namespace EE::Input
         }
 
         ControllerDevice::Update( deltaTime );
+    }
+
+    Float2 XBoxControllerInputDevice::GetDefaultLeftStickDeadZones() const
+    {
+        return Float2( XINPUT_GAMEPAD_LEFT_THUMB_DEADZONE / g_maxThumbstickRange, 0.0f );
+    }
+
+    Float2 XBoxControllerInputDevice::GetDefaultRightStickDeadZones() const
+    {
+        return Float2( XINPUT_GAMEPAD_RIGHT_THUMB_DEADZONE / g_maxThumbstickRange, 0.0f );
+    }
+
+    float XBoxControllerInputDevice::GetDefaultTriggerThreshold() const
+    {
+        return XINPUT_GAMEPAD_TRIGGER_THRESHOLD / g_maxTriggerRange;
     }
 }
 #endif

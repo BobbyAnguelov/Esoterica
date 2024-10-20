@@ -1,4 +1,4 @@
-#include "EngineTools/Core/PropertyGrid/PropertyGridTypeEditingRules.h"
+#include "EngineTools/PropertyGrid/PropertyGridTypeEditingRules.h"
 #include "Engine/Physics/Components/Component_PhysicsCollisionMesh.h"
 
 //-------------------------------------------------------------------------
@@ -9,20 +9,18 @@ namespace EE::Physics
     {
         using PG::TTypeEditingRules<CollisionMeshComponent>::TTypeEditingRules;
 
-        virtual bool IsReadOnly( StringID const& propertyID ) override
-        {
-            return false;
-        }
-
-        virtual bool IsHidden( StringID const& propertyID ) override
+        virtual HiddenState IsHidden( StringID const& propertyID ) override
         {
             StringID const collisionSettingsPropertyID( "m_collisionSettings" );
             if ( propertyID == collisionSettingsPropertyID )
             {
-                return !m_pTypeInstance->IsOverridingCollisionSettings();
+                if ( !m_pTypeInstance->IsOverridingCollisionSettings() )
+                {
+                    return HiddenState::Hidden;
+                }
             }
 
-            return false;
+            return HiddenState::Unhandled;
         }
     };
 

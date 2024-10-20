@@ -225,10 +225,10 @@ namespace EE::Animation::GraphNodes
         // Move
         //-------------------------------------------------------------------------
 
-        bool isMoveModificationAllowed = m_pDesiredMovingVelocityNode != nullptr && pDefinition->m_overrideFlags.AreAnyFlagsSet( OverrideFlags::AllowMoveX, OverrideFlags::AllowMoveX, OverrideFlags::AllowMoveX );
+        bool isMoveModificationAllowed = m_pDesiredMovingVelocityNode != nullptr && pDefinition->m_overrideFlags.AreAnyFlagsSet( OverrideFlags::AllowMoveX, OverrideFlags::AllowMoveY, OverrideFlags::AllowMoveZ );
         if ( isMoveModificationAllowed )
         {
-            Float3 const DesiredMovingVelocity = m_pDesiredMovingVelocityNode->GetValue<Vector>( context ).ToFloat3();
+            Float3 const DesiredMovingVelocity = m_pDesiredMovingVelocityNode->GetValue<Float3>( context );
 
             // Override the request axes with the desired Move
             Float3 translation = nodeResult.m_rootMotionDelta.GetTranslation();
@@ -242,7 +242,7 @@ namespace EE::Animation::GraphNodes
             float maxLinearVelocity = pDefinition->m_maxLinearVelocity;
             if ( m_pLinearVelocityLimitNode != nullptr )
             {
-                maxLinearVelocity = Math::Abs( m_pLinearVelocityLimitNode->GetValue<float>( context ) * 100 );
+                maxLinearVelocity = Math::Abs( m_pLinearVelocityLimitNode->GetValue<float>( context ) );
             }
 
             if ( maxLinearVelocity >= 0 )
@@ -264,7 +264,7 @@ namespace EE::Animation::GraphNodes
         bool isFacingModificationAllowed = ( m_pDesiredFacingDirectionNode != nullptr );
         if ( isFacingModificationAllowed )
         {
-            Vector desiredFacingCS = m_pDesiredFacingDirectionNode->GetValue<Vector>( context );
+            Vector desiredFacingCS = m_pDesiredFacingDirectionNode->GetValue<Float3>( context );
 
             // Remove pitch facing if this is not allowed
             if ( !pDefinition->m_overrideFlags.IsFlagSet( OverrideFlags::AllowFacingPitch ) )
@@ -281,7 +281,7 @@ namespace EE::Animation::GraphNodes
                 Quaternion deltaRotation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, desiredFacingCS, Vector::WorldUp );
 
                 // Apply max angular velocity limit
-                float maxAngularVelocity = pDefinition->m_maxAngularVelocity;
+                Radians maxAngularVelocity = pDefinition->m_maxAngularVelocity;
                 if ( m_pAngularVelocityLimitNode != nullptr )
                 {
                     maxAngularVelocity = Math::Abs( Math::DegreesToRadians * m_pAngularVelocityLimitNode->GetValue<float>( context ) );
@@ -289,7 +289,7 @@ namespace EE::Animation::GraphNodes
 
                 if ( maxAngularVelocity >= 0 )
                 {
-                    float const maxAngularValue = context.m_deltaTime * maxAngularVelocity;
+                    float const maxAngularValue = context.m_deltaTime * maxAngularVelocity.ToFloat();
                     float const desiredRotationAngle = (float) deltaRotation.ToAxisAngle().m_angle;
                     if (  desiredRotationAngle > maxAngularValue )
                     {

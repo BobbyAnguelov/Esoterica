@@ -25,19 +25,6 @@ namespace EE::ImGuiX
         return ImGui::BeginPopupModal( pPopupName, pIsPopupOpen, windowFlags );
     }
 
-    void MakeTabVisible( char const* const pWindowName )
-    {
-        EE_ASSERT( pWindowName != nullptr );
-        ImGuiWindow* pWindow = ImGui::FindWindowByName( pWindowName );
-        if ( pWindow == nullptr || pWindow->DockNode == nullptr || pWindow->DockNode->TabBar == nullptr )
-        {
-            return;
-        }
-
-        pWindow->DockNode->TabBar->NextSelectedTabId = pWindow->ID;
-        ImGui::SetWindowFocus( pWindowName );
-    }
-
     ImVec2 ClampToRect( ImRect const& rect, ImVec2 const& inPoint )
     {
         ImVec2 clampedPos;
@@ -152,18 +139,6 @@ namespace EE::ImGuiX
         ImGui::PopStyleVar();
     }
 
-    void ItemTooltipDelayed( float tooltipDelay, const char* fmt, ... )
-    {
-        EE_ASSERT( tooltipDelay > 0 );
-        if ( ImGui::IsItemHovered() && GImGui->HoveredIdTimer > tooltipDelay )
-        {
-            va_list args;
-            va_start( args, fmt );
-            ImGui::SetTooltipV( fmt, args );
-            va_end( args );
-        }
-    }
-
     void TextTooltip( const char* fmt, ... )
     {
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 4 ) );
@@ -196,273 +171,460 @@ namespace EE::ImGuiX
         return result;
     }
 
-    bool IconButton( char const* pIcon, char const* pLabel, Color const& iconColor, ImVec2 const& buttonSize, bool shouldCenterContents )
+    bool ButtonEx( char const* pIcon, char const* pLabel, ImVec2 const& size, Color const& backgroundColor, Color const& iconColor, Color const& foregroundColor, bool shouldCenterContents )
     {
-        if ( pIcon == nullptr )
-        {
-            return ImGui::Button( pLabel, buttonSize );
-        }
+        bool wasPressed = false;
 
-        //-------------------------------------------------------------------------
-
-        ImGuiContext& g = *GImGui;
-
-        ImGuiWindow* pWindow = ImGui::GetCurrentWindow();
-        if ( pWindow->SkipItems )
-        {
-            return false;
-        }
-
-        ImGuiStyle const& style = ImGui::GetStyle();
-
-        // Calculate sizes
-        //-------------------------------------------------------------------------
-
-        ImGuiID const ID = pWindow->GetID( pLabel );
-        ImVec2 const iconSize = ImGui::CalcTextSize( pIcon, nullptr, true );
-        ImVec2 const labelSize = ImGui::CalcTextSize( pLabel, nullptr, true );
-
-        float totalButtonContentsWidth = labelSize.x + iconSize.x + style.ItemSpacing.x;
-
-        if ( shouldCenterContents )
-        {
-            if ( labelSize.x > 0 )
-            {
-                totalButtonContentsWidth = labelSize.x + ( iconSize.x + style.ItemSpacing.x ) * 2;
-            }
-            else
-            {
-                totalButtonContentsWidth = iconSize.x;
-            }
-        }
-
-        float totalButtonWidth = totalButtonContentsWidth + ( style.FramePadding.x * 2.0f );
-
-        float const totalButtonHeight = Math::Max( iconSize.y, labelSize.y ) + ( style.FramePadding.y * 2.0f );
-
-        ImVec2 const pos = pWindow->DC.CursorPos;
-        ImVec2 const finalButtonSize = ImGui::CalcItemSize( buttonSize, totalButtonWidth, totalButtonHeight );
-
-        // Add item and handle input
-        //-------------------------------------------------------------------------
-
-        ImRect const bb( pos, pos + finalButtonSize );
-        ImGui::ItemSize( finalButtonSize, style.FramePadding.y );
-        if ( !ImGui::ItemAdd( bb, ID ) )
-        {
-            return false;
-        }
-
-        bool hovered, held;
-        bool pressed = ImGui::ButtonBehavior( bb, ID, &hovered, &held, 0 );
-
-        // Render Button
-        //-------------------------------------------------------------------------
-
-        // Render frame
-        ImU32 const color = ImGui::GetColorU32( ( held && hovered ) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button );
-        ImGui::RenderNavHighlight( bb, ID );
-        ImGui::RenderFrame( bb.Min, bb.Max, color, true, style.FrameRounding );
-
-        bool const isDisabled = g.CurrentItemFlags & ImGuiItemFlags_Disabled;
-        ImU32 const finalIconColor = isDisabled ? Style::s_colorTextDisabled : iconColor;
-
-        if ( shouldCenterContents )
-        {
-            // Icon and Label - ensure label is centered!
-            if ( labelSize.x > 0 )
-            {
-                ImVec2 const textOffset( ( finalButtonSize.x - labelSize.x ) / 2.0f, style.FramePadding.y );
-                ImGui::RenderTextClipped( bb.Min + textOffset, bb.Max - style.FramePadding, pLabel, NULL, &labelSize, ImVec2( 0, 0.5f ), &bb );
-
-                ImVec2 const iconOffset( textOffset.x - iconSize.x - style.ItemSpacing.x, style.FramePadding.y );
-                pWindow->DrawList->AddText( pos + iconOffset, finalIconColor, pIcon );
-            }
-            else // Only an icon
-            {
-                ImVec2 const iconOffset( ( finalButtonSize.x - iconSize.x ) / 2.0f, style.FramePadding.y );
-                pWindow->DrawList->AddText( pos + iconOffset, finalIconColor, pIcon );
-            }
-        }
-        else // No centering
-        {
-            ImVec2 const textOffset( style.FramePadding.x + iconSize.x + style.ItemSpacing.x, style.FramePadding.y );
-            ImGui::RenderTextClipped( bb.Min + textOffset, bb.Max - style.FramePadding, pLabel, NULL, &labelSize, ImVec2( 0, 0.5f ), &bb );
-            pWindow->DrawList->AddText( pos + style.FramePadding, finalIconColor, pIcon );
-        }
-
-        return pressed;
-    }
-
-    bool ColoredButton( Color const& backgroundColor, Color const& foregroundColor, char const* label, ImVec2 const& size )
-    {
-        Color const hoveredColor = backgroundColor.GetScaledColor( 1.15f );
-        Color const activeColor = backgroundColor.GetScaledColor( 1.25f );
-
-        ImGui::PushStyleColor( ImGuiCol_Button, backgroundColor.ToFloat4() );
-        ImGui::PushStyleColor( ImGuiCol_ButtonHovered, ImVec4( hoveredColor ) );
-        ImGui::PushStyleColor( ImGuiCol_ButtonActive, ImVec4( activeColor ) );
-        ImGui::PushStyleColor( ImGuiCol_Text, foregroundColor.ToFloat4() );
-        bool const result = ImGui::Button( label, size );
-        ImGui::PopStyleColor( 4 );
-
-        return result;
-    }
-
-    bool FlatButton( char const* label, ImVec2 const& size )
-    {
-        ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
-        bool const result = ImGui::Button( label, size );
-        ImGui::PopStyleColor( 1 );
-
-        return result;
-    }
-
-    bool ColoredIconButton( Color const& backgroundColor, Color const& foregroundColor, Color const& iconColor, char const* pIcon, char const* pLabel, ImVec2 const& size, bool shouldCenterContents )
-    {
         ImU32 const hoveredColor = backgroundColor.GetScaledColor( 1.15f );
         ImU32 const activeColor = backgroundColor.GetScaledColor( 1.25f );
 
-        ImGui::PushStyleColor( ImGuiCol_Button, (ImVec4) backgroundColor );
-        ImGui::PushStyleColor( ImGuiCol_ButtonHovered, hoveredColor );
-        ImGui::PushStyleColor( ImGuiCol_ButtonActive, activeColor );
-        ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) foregroundColor );
-        bool const result = IconButton( pIcon, pLabel, iconColor, size, shouldCenterContents );
-        ImGui::PopStyleColor( 4 );
-
-        return result;
-    }
-
-    bool FlatIconButton( char const* pIcon, char const* pLabel, Color const& iconColor, ImVec2 const& size, bool shouldCenterContents )
-    {
-        ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
-        bool const result = IconButton( pIcon, pLabel, iconColor, size, shouldCenterContents );
-        ImGui::PopStyleColor( 1 );
-
-        return result;
-    }
-
-    bool IconButtonWithDropDown( char const* comboID, char const* pIcon, const char* pButtonLabel, Color const& iconColor, float buttonWidth, TFunction<void()> const& comboCallback, bool shouldCenterContents )
-    {
-        InlineString const comboIDStr( InlineString::CtorSprintf(), "##%s", comboID );
-
-        // Calculate button size
         //-------------------------------------------------------------------------
 
-        constexpr float const comboWidth = 26;
-        if ( buttonWidth > comboWidth )
+        if ( pIcon == nullptr || strlen( pIcon ) == 0 )
         {
-            buttonWidth -= comboWidth;
+            ImGui::PushStyleColor( ImGuiCol_Button, (ImVec4) backgroundColor );
+            ImGui::PushStyleColor( ImGuiCol_ButtonHovered, hoveredColor );
+            ImGui::PushStyleColor( ImGuiCol_ButtonActive, activeColor );
+            ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) foregroundColor );
+            ImGui::PushStyleVar( ImGuiStyleVar_ButtonTextAlign, shouldCenterContents ? ImVec2( 0.5f, 0.5f ) : ImVec2( 0.0f, 0.5f ) );
+            wasPressed = ImGui::Button( pLabel, size );
+            ImGui::PopStyleColor( 4 );
+            ImGui::PopStyleVar();
         }
-        else if ( buttonWidth > 0 )
+        else // Icon button
         {
-            buttonWidth = 1;
-        }
-        else if ( buttonWidth < 0 )
-        {
-            buttonWidth = ImGui::GetContentRegionAvail().x - comboWidth;
-        }
+            ImGuiContext& g = *GImGui;
 
-        // Button
-        //-------------------------------------------------------------------------
-
-        ImVec2 const actualButtonSize = ImVec2( buttonWidth, 0 );
-        bool const buttonResult = IconButton( pIcon, pButtonLabel, iconColor, actualButtonSize, shouldCenterContents );
-
-        uint32_t color = ImGui::GetColorU32( ImGuiCol_Button );
-        if ( ImGui::IsItemHovered() )
-        {
-            if ( ImGui::IsItemActive() )
+            ImGuiWindow* pWindow = ImGui::GetCurrentWindow();
+            if ( pWindow->SkipItems )
             {
-                color = ImGui::GetColorU32( ImGuiCol_ButtonActive );
+                return false;
+            }
+
+            // Calculate ID
+            //-------------------------------------------------------------------------
+
+            char const* pID = nullptr;
+            if ( pLabel == nullptr || strlen( pLabel ) == 0 )
+            {
+                pID = pIcon;
             }
             else
             {
-                color = ImGui::GetColorU32( ImGuiCol_ButtonHovered );
+                pID = pLabel;
             }
-        }
 
-        //-------------------------------------------------------------------------
+            ImGuiID const ID = pWindow->GetID( pID );
 
-        ImGui::SameLine( 0, 0 );
-        ImVec2 const cursorPos = ImGui::GetCursorPos();
+            // Calculate sizes
+            //-------------------------------------------------------------------------
 
-        // Combo
-        //-------------------------------------------------------------------------
+            ImGuiStyle const& style = ImGui::GetStyle();
+            ImVec2 const iconSize = ImGui::CalcTextSize( pIcon, nullptr, true );
+            ImVec2 const labelSize = ImGui::CalcTextSize( pLabel, nullptr, true );
+            float const spacing = ( iconSize.x > 0 && labelSize.x > 0 ) ? style.ItemSpacing.x : 0.0f;
+            float const buttonWidth = labelSize.x + iconSize.x + spacing;
+            float const buttonWidthWithFramePadding = buttonWidth + ( style.FramePadding.x * 2.0f );
+            float const textHeightMax = Math::Max( iconSize.y, labelSize.y );
+            float const buttonHeight = Math::Max( ImGui::GetFrameHeight(), textHeightMax );
 
-        ImGui::SetNextItemWidth( comboWidth );
-        if ( ImGui::BeginCombo( comboIDStr.c_str(), nullptr, ImGuiComboFlags_NoPreview | ImGuiComboFlags_PopupAlignLeft | ImGuiComboFlags_HeightLargest ) )
-        {
-            ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 8 ) );
-            ImGui::PushStyleColor( ImGuiCol_TableBorderStrong, 0 );
-            ImGui::PushStyleColor( ImGuiCol_TableBorderLight, 0 );
-            bool const drawTable = ImGui::BeginTable( "LayoutTable", 1, ImGuiTableFlags_Borders );
-            ImGui::PopStyleVar();
-            ImGui::PopStyleColor( 2 );
+            ImVec2 const pos = pWindow->DC.CursorPos;
+            ImVec2 const finalButtonSize = ImGui::CalcItemSize( size, buttonWidthWithFramePadding, buttonHeight );
 
-            if ( drawTable )
+            // Add item and handle input
+            //-------------------------------------------------------------------------
+
+            ImGui::ItemSize( finalButtonSize, 0 );
+            ImRect const bb( pos, pos + finalButtonSize );
+            if ( !ImGui::ItemAdd( bb, ID ) )
             {
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                comboCallback();
-                ImGui::EndTable();
+                return false;
             }
 
-            ImGui::EndCombo();
+            bool hovered, held;
+            wasPressed = ImGui::ButtonBehavior( bb, ID, &hovered, &held, 0 );
+
+            // Render Button
+            //-------------------------------------------------------------------------
+
+            ImGui::PushStyleColor( ImGuiCol_Button, (ImVec4) backgroundColor );
+            ImGui::PushStyleColor( ImGuiCol_ButtonHovered, hoveredColor );
+            ImGui::PushStyleColor( ImGuiCol_ButtonActive, activeColor );
+            ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) foregroundColor );
+
+            // Render frame
+            ImU32 const color = ImGui::GetColorU32( ( held && hovered ) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button );
+            ImGui::RenderNavHighlight( bb, ID );
+            ImGui::RenderFrame( bb.Min, bb.Max, color, true, style.FrameRounding );
+
+            bool const isDisabled = g.CurrentItemFlags & ImGuiItemFlags_Disabled;
+            ImU32 const finalIconColor = isDisabled ? Style::s_colorTextDisabled : iconColor;
+
+            if ( shouldCenterContents )
+            {
+                // Icon and Label - ensure label is centered!
+                if ( labelSize.x > 0 )
+                {
+                    ImVec2 const textOffset( ( bb.GetWidth() / 2 ) - ( buttonWidthWithFramePadding / 2 ) + iconSize.x + spacing + style.FramePadding.x, 0 );
+                    ImGui::RenderTextClipped( bb.Min + textOffset, bb.Max, pLabel, NULL, &labelSize, ImVec2( 0, 0.5f ), &bb );
+
+                    float const offsetX = textOffset.x - iconSize.x - spacing;
+                    float const offsetY = ( ( bb.GetHeight() - textHeightMax ) / 2.0f );
+                    ImVec2 const iconOffset( offsetX, offsetY );
+                    pWindow->DrawList->AddText( pos + iconOffset, finalIconColor, pIcon );
+                }
+                else // Only an icon
+                {
+                    float const offsetX = ( bb.GetWidth() - iconSize.x ) / 2.0f;
+                    float const offsetY = ( ( bb.GetHeight() - iconSize.y ) / 2.0f );
+                    ImVec2 const iconOffset( offsetX, offsetY );
+                    pWindow->DrawList->AddText( pos + iconOffset, finalIconColor, pIcon );
+                }
+            }
+            else // No centering
+            {
+                ImVec2 const textOffset( iconSize.x + spacing + style.FramePadding.x, 0 );
+                ImGui::RenderTextClipped( bb.Min + textOffset, bb.Max, pLabel, NULL, &labelSize, ImVec2( 0, 0.5f ), &bb );
+
+                float const iconHeightOffset = ( ( bb.GetHeight() - iconSize.y ) / 2.0f );
+                pWindow->DrawList->AddText( pos + ImVec2( style.FramePadding.x, iconHeightOffset ), finalIconColor, pIcon );
+            }
+
+            ImGui::PopStyleColor( 4 );
         }
 
-        auto pDrawList = ImGui::GetWindowDrawList();
-        ImVec2 const fillerMin = ImGui::GetWindowPos() + ImVec2( cursorPos ) - ImVec2( ImGui::GetStyle().FrameRounding, 0 );
-        ImVec2 const fillerMax = ImGui::GetWindowPos() + ImVec2( cursorPos ) + ImVec2( ImGui::GetStyle().FrameRounding, ImGui::GetFrameHeight() );
-        pDrawList->AddRectFilled( fillerMin, fillerMax, color );
-
-        // Fill Gap
         //-------------------------------------------------------------------------
 
-        return buttonResult;
+        return wasPressed;
     }
 
-    bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size, Color  const& onColor, Color const& offColor )
+    //-------------------------------------------------------------------------
+
+    bool ToggleButtonEx( char const* pOnIcon, char const* pOnLabel, char const* pOffIcon, char const* pOffLabel, bool& value, ImVec2 const& size, Color const& onForegroundColor, Color const& onIconColor, Color const& offForegroundColor, Color const& offIconColor )
     {
-        ImGui::PushStyleColor( ImGuiCol_Text, ImGui::ColorConvertU32ToFloat4( value ? onColor : offColor ) );
-        bool const result = ImGui::Button( value ? pOnLabel : pOffLabel, size );
-        ImGui::PopStyleColor();
+        bool wasPressed = false;
+
+        if ( value )
+        {
+            wasPressed = ButtonEx( pOnIcon, pOnLabel, size, ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Button] ), onIconColor, onForegroundColor );
+        }
+        else
+        {
+            wasPressed = ButtonEx( pOffIcon, pOffLabel, size, ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Button] ), offIconColor, offForegroundColor );
+        }
 
         //-------------------------------------------------------------------------
 
-        if ( result )
+        if ( wasPressed )
         {
             value = !value;
         }
 
-        return result;
+        return wasPressed;
     }
 
-    bool FlatToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size, Color const& onColor, Color const& offColor )
-    {
-        ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
-        bool result = ToggleButton( pOnLabel, pOffLabel, value, size, onColor, offColor );
-        ImGui::PopStyleColor( 1 );
+    //-------------------------------------------------------------------------
 
-        return result;
-    }
-
-    void DropDownButton( char const* pLabel, TFunction<void()> const& contextMenuCallback, ImVec2 const& size )
+    void DropDownButtonEx( char const* pIcon, char const* pLabel, TFunction<void()> const& contextMenuCallback, ImVec2 const& size, Color const& backgroundColor, Color const& iconColor, Color const& foregroundColor, bool shouldCenterContents )
     {
         EE_ASSERT( pLabel != nullptr );
+        EE_ASSERT( contextMenuCallback != nullptr );
 
-        float const buttonStartPosX = ImGui::GetCursorPosX();
-        ImGui::Button( pLabel, size );
-        float const buttonEndPosY = ImGui::GetCursorPosY() - ImGui::GetStyle().ItemSpacing.y;
-        ImGui::SetNextWindowPos( ImGui::GetWindowPos() + ImVec2( buttonStartPosX, buttonEndPosY ) );
+        bool const isPressed = ButtonEx( pIcon, pLabel, size, backgroundColor, iconColor, foregroundColor, shouldCenterContents );
+        ImRect const buttonRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
+        ImVec2 const windowStartPos = buttonRect.GetBL() - ImVec2( 0, ImGui::GetStyle().FrameRounding );
 
-        InlineString const contextMenuLabel( InlineString::CtorSprintf(), "%s##ContextMenu", pLabel );
-        if ( ImGui::BeginPopupContextItem( contextMenuLabel.c_str(), ImGuiPopupFlags_MouseButtonLeft ) )
+        InlineString const dropDownMenuID( InlineString::CtorSprintf(), "%s##dropdownMenu", pLabel );
+        bool isDropDownOpen = ImGui::IsPopupOpen( dropDownMenuID.c_str(), ImGuiPopupFlags_None);
+        if ( isPressed && !isDropDownOpen )
+        {
+            ImGui::OpenPopup( dropDownMenuID.c_str() );
+        }
+
+        ImGui::SetNextWindowPos( windowStartPos );
+        ImGui::SetNextWindowSizeConstraints( ImVec2( buttonRect.GetWidth(), 0 ), ImVec2( FLT_MAX, FLT_MAX ) );
+
+        if ( ImGui::BeginPopup( dropDownMenuID.c_str(), ImGuiPopupFlags_MouseButtonLeft ) )
         {
             contextMenuCallback();
             ImGui::EndPopup();
         }
     }
+
+    //-------------------------------------------------------------------------
+
+    bool ComboButtonEx( char const* pIcon, const char* pLabel, TFunction<void()> const& comboCallback, ImVec2 const& size, Color const& backgroundColor, Color const& iconColor, Color const& foregroundColor, bool shouldCenterContents )
+    {
+        EE_ASSERT( pLabel != nullptr );
+        EE_ASSERT( comboCallback != nullptr );
+
+        ImGuiStyle const& style = ImGui::GetStyle();
+
+        InlineString const dropDownMenuID( InlineString::CtorSprintf(), "%s##DropdownMenu", pLabel );
+
+        // Calculate button size
+        //-------------------------------------------------------------------------
+
+        float const dropDownButtonWidth = ImGui::GetFrameHeight() + style.ItemSpacing.x;
+        float buttonWidth = size.x;
+
+        if ( buttonWidth > 0 )
+        {
+            if ( buttonWidth > dropDownButtonWidth )
+            {
+                buttonWidth -= dropDownButtonWidth;
+            }
+            else // Smaller than combo width but not zero or negative
+            {
+                buttonWidth = 1;
+            }
+        }
+        else if ( buttonWidth == 0 )
+        {
+            ImVec2 const iconSize = ImGui::CalcTextSize( pIcon, nullptr, true );
+            ImVec2 const labelSize = ImGui::CalcTextSize( pLabel, nullptr, true );
+            float const spacing = ( iconSize.x > 0 && labelSize.x > 0 ) ? style.ItemSpacing.x : 0.0f;
+            buttonWidth = iconSize.x + labelSize.x + spacing + ( style.FramePadding.x * 2 );
+
+        }
+        else if ( buttonWidth < 0 )
+        {
+            buttonWidth = ImGui::GetContentRegionAvail().x - dropDownButtonWidth;
+        }
+
+        // Button
+        //-------------------------------------------------------------------------
+
+        ImVec2 const actualMainButtonSize = ImVec2( buttonWidth, size.y );
+        bool const buttonResult = ButtonEx( pIcon, pLabel, actualMainButtonSize, backgroundColor, iconColor, foregroundColor, shouldCenterContents );
+        ImRect const mainButtonRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
+        ImVec2 const windowStartPos = mainButtonRect.GetBL() - ImVec2( 0, ImGui::GetStyle().FrameRounding );
+
+        uint32_t const hoveredColor = backgroundColor.GetScaledColor( 1.15f );
+        uint32_t const activeColor = backgroundColor.GetScaledColor( 1.25f );
+
+        uint32_t buttonColor = backgroundColor;
+
+        if ( ImGui::IsItemHovered() )
+        {
+            if ( ImGui::IsItemActive() )
+            {
+                buttonColor = activeColor;
+            }
+            else
+            {
+                buttonColor = hoveredColor;
+            }
+        }
+
+        // Gap
+        //-------------------------------------------------------------------------
+
+        ImGui::SameLine( 0, 0 );
+
+        // Combo
+        //-------------------------------------------------------------------------
+
+        ImGui::PushID( dropDownMenuID.c_str() );
+
+        ImGui::PushStyleColor( ImGuiCol_Button, (ImVec4) backgroundColor );
+        ImGui::PushStyleColor( ImGuiCol_ButtonHovered, hoveredColor );
+        ImGui::PushStyleColor( ImGuiCol_ButtonActive, activeColor );
+        ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) foregroundColor );
+        bool isPressed = ImGui::Button( "##dropdownButton", ImVec2( dropDownButtonWidth, mainButtonRect.GetHeight() ) );
+        ImRect const dropDownButtonRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
+        ImGui::PopStyleColor( 4 );
+
+        static constexpr char const dropdownID[] = "##dropdownMenu";
+        bool isDropDownOpen = ImGui::IsPopupOpen( dropdownID, ImGuiPopupFlags_None);
+        if ( isPressed && !isDropDownOpen )
+        {
+            ImGui::OpenPopup( dropdownID );
+        }
+
+        ImGui::SetNextWindowPos( windowStartPos );
+        ImGui::SetNextWindowSizeConstraints( ImVec2( buttonWidth + dropDownButtonWidth, 0 ), ImVec2( FLT_MAX, FLT_MAX ) );
+        if ( ImGui::BeginPopup( dropdownID ) )
+        {
+            comboCallback();
+            ImGui::EndPopup();
+        }
+        ImGui::PopID();
+
+        // Fill gap between button and drop down button
+        //-------------------------------------------------------------------------
+
+        auto pDrawList = ImGui::GetWindowDrawList();
+        ImVec2 const fillerMin = mainButtonRect.GetTR() + ImVec2( -ImGui::GetStyle().FrameRounding, 0 );
+        ImVec2 const fillerMax = dropDownButtonRect.GetBL() + ImVec2( ImGui::GetStyle().FrameRounding, 0 );
+        pDrawList->AddRectFilled( fillerMin, fillerMax, buttonColor );
+
+        // Draw arrow
+        //-------------------------------------------------------------------------
+
+        float const flArrowHeight = pDrawList->_Data->FontSize;
+        float arrowVerticalPos = dropDownButtonRect.GetCenter().y - ( flArrowHeight / 2 );
+        pDrawList->PushClipRect( dropDownButtonRect.Min, dropDownButtonRect.Max );
+        ImGui::RenderArrow( pDrawList, ImVec2( dropDownButtonRect.Min.x + style.FramePadding.x + style.ItemSpacing.x, arrowVerticalPos ), foregroundColor, ImGuiDir_Down, 1.0f );
+        pDrawList->PopClipRect();
+
+        return buttonResult;
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool InputTextEx( const char* pInputTextID, char* pBuffer, size_t bufferSize, bool hasClearButton, char const* pHelpText, TFunction<void()> const& comboCallback, ImGuiInputTextFlags flags, ImGuiInputTextCallback callback, void* pUserData)
+    {
+        EE_ASSERT( pInputTextID != nullptr );
+
+        ImGui::PushID( pInputTextID );
+
+        ImGuiStyle const& style = ImGui::GetStyle();
+        ImGuiContext& g = *GImGui;
+        auto pDrawList = ImGui::GetWindowDrawList();
+
+        // Calculate size
+        //-------------------------------------------------------------------------
+
+        bool const hasCombo = comboCallback != nullptr;
+        float const clearButtonWidth = 20;
+        float const comboButtonWidth = ImGui::GetFrameHeight() + style.ItemSpacing.x;
+
+        float requiredExtraWidth = 0.0f;
+        if ( hasClearButton ) requiredExtraWidth += clearButtonWidth;
+        if ( hasCombo ) requiredExtraWidth += comboButtonWidth;
+
+        float totalWidgetWidth = 0;
+        if ( g.NextItemData.Flags & ImGuiNextItemDataFlags_HasWidth )
+        {
+            totalWidgetWidth = g.NextItemData.Width;
+        }
+
+        float inputWidth = 0;
+        if ( totalWidgetWidth > 0 )
+        {
+            inputWidth = Math::Max( totalWidgetWidth - requiredExtraWidth, 1.0f );
+        }
+        else if ( totalWidgetWidth == 0 )
+        {
+            inputWidth = Math::Max( ImGui::GetContentRegionAvail().x - requiredExtraWidth, 1.0f ); // Max allowable size
+            inputWidth = Math::Min( inputWidth, 100.0f ); // arbitrary choice
+        }
+        else if ( totalWidgetWidth < 0 )
+        {
+            inputWidth = Math::Max( ImGui::GetContentRegionAvail().x - requiredExtraWidth, 1.0f );
+        }
+
+        // Draw Background
+        //-------------------------------------------------------------------------
+
+        if ( hasClearButton )
+        {
+            pDrawList->AddRectFilled( ImGui::GetCursorScreenPos(), ImGui::GetCursorScreenPos() + ImVec2( inputWidth + clearButtonWidth, ImGui::GetFrameHeight() ), ImGui::ColorConvertFloat4ToU32( style.Colors[ImGuiCol_FrameBg] ), style.FrameRounding );
+        }
+
+        // Draw Input
+        //-------------------------------------------------------------------------
+
+        InlineString const inputFinalID( InlineString::CtorSprintf(), "##%s", pInputTextID ); // Ensure we have no label!
+
+        ImGui::SetNextItemWidth( inputWidth );
+        bool inputResult = ImGui::InputText( inputFinalID.c_str(), pBuffer, bufferSize, flags, callback, pUserData );
+        inputResult |= ImGui::IsItemDeactivatedAfterEdit();
+        ImRect const inputRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
+        ImVec2 const windowStartPos = inputRect.GetBL() - ImVec2( 0, style.FrameRounding );
+        ImVec2 fillerRectMin = inputRect.GetTR();
+
+        // Clear Button
+        //-------------------------------------------------------------------------
+
+        if ( hasClearButton )
+        {
+            ImGui::SameLine( 0, 0 );
+
+            // Draw clear button
+            bool const isInputFocused = ImGui::IsItemFocused() && ImGui::IsItemActive();
+            bool const isbufferEmpty = strlen( pBuffer ) == 0;
+            if ( !isbufferEmpty )
+            {
+                ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 0, style.FramePadding.y ) );
+                if ( FlatButton( EE_ICON_CLOSE"##Clear", ImVec2( clearButtonWidth, ImGui::GetFrameHeight() ), ImGuiX::Style::s_colorText ) )
+                {
+                    Memory::MemsetZero( pBuffer, bufferSize );
+                    inputResult = true;
+                }
+                fillerRectMin.x += ImGui::GetItemRectSize().x;
+                ImGui::PopStyleVar();
+            }
+            else
+            {
+                ImGui::Dummy( ImVec2( clearButtonWidth, 0 ) );
+            }
+
+            // Draw filter text
+            if ( pHelpText != nullptr && isbufferEmpty && !isInputFocused )
+            {
+                ImVec2 const textPos = inputRect.GetTL() + ImVec2( style.ItemSpacing.x, style.FramePadding.y );
+                pDrawList->AddText( textPos, ImGui::ColorConvertFloat4ToU32( style.Colors[ImGuiCol_TextDisabled] ), pHelpText );
+            }
+        }
+
+        // Combo
+        //-------------------------------------------------------------------------
+
+        if ( hasCombo )
+        {
+            // Gap
+            //-------------------------------------------------------------------------
+
+            ImGui::SameLine( 0, 0 );
+
+            // Combo Button
+            //-------------------------------------------------------------------------
+
+            InlineString const comboMenuID( InlineString::CtorSprintf(), "%s##ComboMenu", pInputTextID );
+            ImGui::PushID( comboMenuID.c_str() );
+
+            bool isPressed = ImGui::Button( "##comboButton", ImVec2( comboButtonWidth, 0 ) );
+            ImRect const comboButtonRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
+
+            static constexpr char const comboID[] = "##comboMenu";
+            bool isComboOpen = ImGui::IsPopupOpen( comboID, ImGuiPopupFlags_None );
+            if ( isPressed && !isComboOpen )
+            {
+                ImGui::OpenPopup( comboID );
+            }
+
+            ImGui::SetNextWindowPos( windowStartPos );
+            ImGui::SetNextWindowSizeConstraints( ImVec2( inputWidth + requiredExtraWidth, 0 ), ImVec2( FLT_MAX, FLT_MAX ) );
+            if ( ImGui::BeginPopup( comboID ) )
+            {
+                comboCallback();
+                ImGui::EndPopup();
+            }
+            ImGui::PopID();
+
+            // Fill gap between button and drop down button
+            //-------------------------------------------------------------------------
+
+            ImVec2 const fillerMin = fillerRectMin + ImVec2( -style.FrameRounding, 0 );
+            ImVec2 const fillerMax = comboButtonRect.GetBL() + ImVec2( style.FrameRounding, 0 );
+            pDrawList->AddRectFilled( fillerMin, fillerMax, ImGui::ColorConvertFloat4ToU32( style.Colors[ImGuiCol_FrameBg] ) );
+
+            // Draw arrow
+            //-------------------------------------------------------------------------
+
+            ImGui::RenderArrow( pDrawList, ImVec2( comboButtonRect.Min.x + style.FramePadding.x + style.ItemSpacing.x, comboButtonRect.Min.y + style.FramePadding.y ), ImGui::ColorConvertFloat4ToU32( style.Colors[ImGuiCol_Text] ), ImGuiDir_Down, 1.0f );
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::PopID();
+
+        return inputResult;
+    }
+
+    //-------------------------------------------------------------------------
 
     void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, Color const& color, float arrowWidth, float arrowHeadWidth )
     {
@@ -480,50 +642,7 @@ namespace EE::ImGuiX
         pDrawList->AddTriangleFilled( arrowEnd, tri1, tri2, color );
     }
 
-    bool DrawOverlayIcon( ImVec2 const& iconPos, char icon[4], void* iconID, bool isSelected, Color const& selectedColor )
-    {
-        bool result = false;
-
-        //-------------------------------------------------------------------------
-
-        ImGuiX::ScopedFont scopedFont( ImGuiX::Font::Large );
-        ImVec2 const textSize = ImGui::CalcTextSize( icon );
-        ImVec2 const iconSize = textSize + ( ImGui::GetStyle().FramePadding * 2 );
-        ImVec2 const iconHalfSize( iconSize.x / 2, iconSize.y / 2 );
-        ImRect const iconRect( iconPos - iconHalfSize, iconPos + iconHalfSize );
-        ImRect const windowRect( ImVec2( 0, 0 ), ImGui::GetWindowSize() );
-        if ( !windowRect.Overlaps( iconRect ) )
-        {
-            return result;
-        }
-
-        //-------------------------------------------------------------------------
-
-        ImU32 iconColor = ImGuiX::Style::s_colorText;
-        if ( isSelected || iconRect.Contains( ImGui::GetMousePos() - ImGui::GetWindowPos() ) )
-        {
-            iconColor = selectedColor;
-        }
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SetCursorPos( iconPos - iconHalfSize );
-        ImGui::PushID( iconID );
-        ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
-        ImGui::PushStyleColor( ImGuiCol_ButtonActive, ImVec4( 0, 0, 0, 0 ) );
-        ImGui::PushStyleColor( ImGuiCol_ButtonHovered, ImVec4( 0, 0, 0, 0 ) );
-        ImGui::PushStyleColor( ImGuiCol_Text, iconColor );
-        if ( ImGui::Button( icon, iconSize ) && !isSelected )
-        {
-            result = true;
-        }
-        ImGui::PopStyleColor( 4 );
-        ImGui::PopID();
-
-        return result;
-    }
-
-    bool DrawSpinner( char const* pLabel, Color const& color, ImVec2 size, float thickness, float padding )
+    bool DrawSpinner( char const* pButtonLabel, Color const& color, float size, float thickness, float padding )
     {
         static float const numSegments = 30.0f;
 
@@ -542,57 +661,36 @@ namespace EE::ImGuiX
         // Calculate final size
         //-------------------------------------------------------------------------
 
-        if ( size.x == 0 )
+        float finalSize = size;
+
+        // Try to fill the remaining space if possible
+        if ( finalSize < 0 )
         {
-            size.x = ImGui::GetFrameHeight();
-        }
-        else if ( size.x <= 0 )
-        {
-            size.x = ImGui::GetContentRegionAvail().x;
+            finalSize = Math::Min( ImGui::GetContentRegionAvail().x, ImGui::GetContentRegionAvail().y );
         }
 
-        if ( size.y == 0 )
+        // Ensure that the minimum size is always the frame height
+        if ( finalSize <= 0 )
         {
-            size.y = ImGui::GetFrameHeight();
-        }
-        else if ( size.y <= 0 )
-        {
-            size.y = ImGui::GetContentRegionAvail().y;
-        }
-
-        if ( size.x < 0 || size.y < 0 )
-        {
-            return false;
+            finalSize = ImGui::GetFrameHeight();
         }
 
         // Calculate pos, radius and bounding box
         //-------------------------------------------------------------------------
 
-        ImVec2 const pos = pWindow->DC.CursorPos;
-        float const radius = ( ( Math::Min( size.x, size.y ) - thickness ) / 2 ) - padding;
-        ImRect const bb( pos, ImVec2( pos.x + size.x, pos.y + size.y ) );
+        ImVec2 const startPos = ImGui::GetCursorScreenPos();
+        float const radius = ( ( finalSize - thickness ) / 2 ) - padding;
 
-        // Add invisible button
-        //-------------------------------------------------------------------------
-
-        bool buttonResult = ImGui::InvisibleButton( pLabel, size );
-
-        // Draw
-        //-------------------------------------------------------------------------
-
-        // Debug Only
-        {
-            //pWindow->DrawList->AddRect( bb.Min, bb.Max, Colors::Pink.ToUInt32() );
-        }
-
-        pWindow->DrawList->PathClear();
+        bool const buttonResult = ImGui::InvisibleButton( pButtonLabel, ImVec2( finalSize, finalSize ) );
+        ImRect const spinnerRect = ImRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
+        //pWindow->DrawList->AddRect( bb.Min, bb.Max, Colors::Pink.ToUInt32() ); // Debug
 
         float const time = (float) ImGui::GetTime();
         float const start = Math::Abs( Math::Sin( time * 1.8f ) * ( numSegments - 5 ) );
         float const min = Math::Pi * 2.0f * ( start ) / numSegments;
         float const max = Math::Pi * 2.0f * ( numSegments - 3 ) / numSegments;
 
-        ImVec2 const center = ImVec2( pos.x + radius + padding + ( thickness / 2 ), pos.y + radius + padding + ( thickness / 2 ) );
+        ImVec2 const center = spinnerRect.GetCenter();
 
         for ( float i = 0; i < numSegments; i++ )
         {
@@ -610,186 +708,202 @@ namespace EE::ImGuiX
     // Math Widgets
     //-------------------------------------------------------------------------
 
-    constexpr static float const g_labelWidth = 16.0f;
+    constexpr static float const g_labelWidth = 24.0f;
 
-    constexpr static float const g_transformLabelColWidth = 28;
+    constexpr static float const g_transformLabelColWidth = 24;
 
-    static bool BeginElementFrame( char const* pLabel, float labelWidth, ImVec2 const& size, Color const& color )
-    {
-        EE_ASSERT( pLabel != nullptr );
-
-        ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, 0.0f );
-        ImGui::PushStyleVar( ImGuiStyleVar_ChildBorderSize, 0.0f );
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
-
-        ImGui::PushStyleColor( ImGuiCol_ChildBg, ImVec4( 0, 0, 0, 0 ) );
-        bool shouldDrawChild = ImGui::BeginChild( pLabel, size, ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse );
-        ImGui::PopStyleColor();
-
-        if ( shouldDrawChild )
-        {
-            ImGui::AlignTextToFramePadding();
-            ImGui::SetCursorPosX( 3 );
-            {
-                if ( pLabel[0] != '#' )
-                {
-                    ImGuiX::ScopedFont sf( Font::MediumBold, color );
-                    ImGui::Text( pLabel );
-                }
-            }
-
-            ImGui::SameLine( 0, 0 );
-            ImGui::SetCursorPosX( labelWidth );
-            ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 1 );
-        }
-
-        return shouldDrawChild;
-    }
-
-    static void EndElementFrame()
-    {
-        ImGui::EndChild();
-        ImGui::PopStyleVar( 3 );
-    }
-
-    static bool DrawFloatEditorElement( char const* pID, char const* pLabel, float const& width, Color const& color, float* pValue )
+    static bool DrawFloatEditorWithLabel( char const* pID, char const* pLabel, float const& width, Color const& color, float* pValue, bool isReadOnly = false )
     {
         bool result = false;
 
-        ImGuiX::ScopedFont sf( Font::Small );
+        // Label
+        //-------------------------------------------------------------------------
 
-        if ( BeginElementFrame( pLabel, g_labelWidth, ImVec2( width, ImGui::GetFrameHeight() ), color ) )
+        ImVec2 const cursorPosBefore = ImGui::GetCursorScreenPos();
+        ImGui::Dummy( ImVec2( g_labelWidth, 0 ) );
+        ImGui::SameLine();
+        ImVec2 const cursorPosAfter = ImGui::GetCursorScreenPos();
+
+        if ( pLabel[0] != '#' )
         {
-            ImGui::SetNextItemWidth( width - g_labelWidth - 1 );
-            ImGui::InputFloat( pID, pValue, 0, 0, "%.3f" );
+            ImGuiX::ScopedFont sf( Font::MediumBold, color );
+            ImGui::AlignTextToFramePadding();
+            ImVec2 const offset = ImVec2( Math::Floor( ( g_labelWidth - ImGui::CalcTextSize( pLabel ).x ) / 2 ), 0.0f );
+            ImGui::SetCursorScreenPos( cursorPosBefore + offset );
+            ImGui::Text( pLabel );
+            ImGui::SetCursorScreenPos( cursorPosAfter );
+        }
+
+        // Editor
+        //-------------------------------------------------------------------------
+
+        {
+            ImGuiX::ScopedFont sf( Font::Small );
+            ImGui::SetNextItemWidth( width - g_labelWidth );
+            ImGui::InputFloat( pID, pValue, 0, 0, "%.3f", isReadOnly ? ImGuiInputTextFlags_ReadOnly : 0 );
             result = ImGui::IsItemDeactivatedAfterEdit();
         }
-        EndElementFrame();
 
         return result;
     }
 
-    static void DrawFloatElement( char const* pLabel, float width, Color const& color, float value )
+    static void DrawFloatElementReadOnly( char const* pLabel, float const& width, Color const& color, float const& value )
     {
-        ImGuiX::ScopedFont sf( Font::Small );
-
-        if ( BeginElementFrame( pLabel, g_labelWidth, ImVec2( width, ImGui::GetFrameHeight() ), color ) )
-        {
-            ImGui::SetNextItemWidth( width - g_labelWidth - 1 );
-            ImGui::InputFloat( "##v", &value, 0, 0, "%.3f", ImGuiInputTextFlags_ReadOnly );
-        }
-        EndElementFrame();
+        InlineString ID( InlineString::CtorSprintf(), "##%s", pLabel );
+        DrawFloatEditorWithLabel( ID.c_str(), pLabel, width, color, const_cast<float*>( &value ), true );
     }
 
     //-------------------------------------------------------------------------
 
-    bool InputFloat2( char const* pID, Float2& value, float width )
+    bool InputFloat2Impl( Float2& value, float width )
     {
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, ImGui::GetStyle().ItemSpacing.y ) );
         float const contentWidth = ( width > 0 ) ? width : ImGui::GetContentRegionAvail().x;
-        float const itemSpacing = ImGui::GetStyle().ItemSpacing.x;
-        float const inputWidth = Math::Floor( ( contentWidth - itemSpacing ) / 2 );
+        float const inputWidth = Math::Round( contentWidth / 2 );
 
         //-------------------------------------------------------------------------
 
         bool valueUpdated = false;
-
-        ImGui::PushID( pID );
+        if ( DrawFloatEditorWithLabel( "##x", "X", inputWidth, Colors::MediumRed, &value.m_x ) )
         {
-            if ( DrawFloatEditorElement( "##x", "X", inputWidth, Colors::MediumRed, &value.m_x ) )
-            {
-                valueUpdated = true;
-            }
-
-            ImGui::SameLine( 0, itemSpacing );
-            if ( DrawFloatEditorElement( "##y", "Y", inputWidth, Colors::LimeGreen, &value.m_y ) )
-            {
-                valueUpdated = true;
-            }
+            valueUpdated = true;
         }
-        ImGui::PopID();
 
+        ImGui::SameLine();
+
+        if ( DrawFloatEditorWithLabel( "##y", "Y", inputWidth, Colors::LimeGreen, &value.m_y ) )
+        {
+            valueUpdated = true;
+        }
+
+        ImGui::PopStyleVar();
+
+        return valueUpdated;
+    }
+
+    bool InputFloat3Impl( Float3& value, float width )
+    {
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, ImGui::GetStyle().ItemSpacing.y ) );
+        float const contentWidth = ( width > 0 ) ? width : ImGui::GetContentRegionAvail().x;
+        float const inputWidth = Math::Round( contentWidth / 3 );
+
+        //-------------------------------------------------------------------------
+
+        bool valueUpdated = false;
+        if ( DrawFloatEditorWithLabel( "##x", "X", inputWidth, Colors::MediumRed, &value.m_x ) )
+        {
+            valueUpdated = true;
+        }
+
+        ImGui::SameLine();
+        if ( DrawFloatEditorWithLabel( "##y", "Y", inputWidth, Colors::LimeGreen, &value.m_y ) )
+        {
+            valueUpdated = true;
+        }
+
+        ImGui::SameLine();
+        if ( DrawFloatEditorWithLabel( "##z", "Z", inputWidth, Colors::RoyalBlue, &value.m_z ) )
+        {
+            valueUpdated = true;
+        }
+
+        ImGui::PopStyleVar();
+
+        return valueUpdated;
+    }
+
+    bool InputFloat4Impl( Float4& value, float width )
+    {
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, ImGui::GetStyle().ItemSpacing.y ) );
+        float const contentWidth = ( width > 0 ) ? width : ImGui::GetContentRegionAvail().x;
+        float const inputWidth = Math::Round( contentWidth / 4 );
+
+        //-------------------------------------------------------------------------
+
+        bool valueUpdated = false;
+        if ( DrawFloatEditorWithLabel( "##x", "X", inputWidth, Colors::MediumRed, &value.m_x ) )
+        {
+            valueUpdated = true;
+        }
+
+        ImGui::SameLine();
+        if ( DrawFloatEditorWithLabel( "##y", "Y", inputWidth, Colors::LimeGreen, &value.m_y ) )
+        {
+            valueUpdated = true;
+        }
+
+        ImGui::SameLine();
+        if ( DrawFloatEditorWithLabel( "##z", "Z", inputWidth, Colors::RoyalBlue, &value.m_z ) )
+        {
+            valueUpdated = true;
+        }
+
+        ImGui::SameLine();
+        if ( DrawFloatEditorWithLabel( "##w", "W", inputWidth, Colors::DarkOrange, &value.m_w ) )
+        {
+            valueUpdated = true;
+        }
+
+        ImGui::PopStyleVar();
+
+        return valueUpdated;
+    }
+
+    bool InputFloat2( void* pID, Float2& value, float width )
+    {
+        ImGui::PushID( pID );
+        bool valueUpdated = InputFloat2Impl( value, width );
+        ImGui::PopID();
+        return valueUpdated;
+    }
+
+    bool InputFloat3( void* pID, Float3& value, float width )
+    {
+        ImGui::PushID( pID );
+        bool valueUpdated = InputFloat3Impl( value, width );
+        ImGui::PopID();
+        return valueUpdated;
+    }
+
+    bool InputFloat4( void* pID, Float4& value, float width )
+    {
+        ImGui::PushID( pID );
+        bool valueUpdated = InputFloat4Impl( value, width );
+        ImGui::PopID();
+        return valueUpdated;
+    }
+
+    bool InputFloat2( char const* pID, Float2& value, float width )
+    {
+        ImGui::PushID( pID );
+        bool valueUpdated = InputFloat2Impl( value, width );
+        ImGui::PopID();
         return valueUpdated;
     }
 
     bool InputFloat3( char const* pID, Float3& value, float width )
     {
-        float const contentWidth = ( width > 0 ) ? width : ImGui::GetContentRegionAvail().x;
-        float const itemSpacing = ImGui::GetStyle().ItemSpacing.x;
-        float const inputWidth = Math::Floor( ( contentWidth - ( itemSpacing * 2 ) ) / 3 );
-
-        //-------------------------------------------------------------------------
-
-        bool valueUpdated = false;
-
         ImGui::PushID( pID );
-        {
-            if ( DrawFloatEditorElement( "##x", "X", inputWidth, Colors::MediumRed, &value.m_x ) )
-            {
-                valueUpdated = true;
-            }
-
-            ImGui::SameLine( 0, itemSpacing );
-            if ( DrawFloatEditorElement( "##y", "Y", inputWidth, Colors::LimeGreen, &value.m_y ) )
-            {
-                valueUpdated = true;
-            }
-
-            ImGui::SameLine( 0, itemSpacing );
-            if ( DrawFloatEditorElement( "##z", "Z", inputWidth, Colors::RoyalBlue, &value.m_z ) )
-            {
-                valueUpdated = true;
-            }
-        }
+        bool valueUpdated = InputFloat3Impl( value, width );
         ImGui::PopID();
-
         return valueUpdated;
     }
 
     bool InputFloat4( char const* pID, Float4& value, float width )
     {
-        float const contentWidth = ( width > 0 ) ? width : ImGui::GetContentRegionAvail().x;
-        float const itemSpacing = ImGui::GetStyle().ItemSpacing.x;
-        float const inputWidth = Math::Floor( ( contentWidth - ( itemSpacing * 3 ) ) / 4 );
-
-        //-------------------------------------------------------------------------
-
-        bool valueUpdated = false;
-
         ImGui::PushID( pID );
-        {
-            if ( DrawFloatEditorElement( "##x", "X", inputWidth, Colors::MediumRed, &value.m_x ) )
-            {
-                valueUpdated = true;
-            }
-
-            ImGui::SameLine( 0, itemSpacing );
-            if ( DrawFloatEditorElement( "##y", "Y", inputWidth, Colors::LimeGreen, &value.m_y ) )
-            {
-                valueUpdated = true;
-            }
-
-            ImGui::SameLine( 0, itemSpacing );
-            if ( DrawFloatEditorElement( "##z", "Z", inputWidth, Colors::RoyalBlue, &value.m_z ) )
-            {
-                valueUpdated = true;
-            }
-
-            ImGui::SameLine( 0, itemSpacing );
-            if ( DrawFloatEditorElement( "##w", "W", inputWidth, Colors::DarkOrange, &value.m_w ) )
-            {
-                valueUpdated = true;
-            }
-        }
+        bool valueUpdated = InputFloat4Impl( value, width );
         ImGui::PopID();
-
         return valueUpdated;
     }
 
-    bool InputTransform( char const* pID, Transform& value, float width )
+    static bool InputTransformImpl( Transform& value, float width, bool allowScaleEditing )
     {
         bool valueUpdated = false;
 
         ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 0, 2 ) );
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, ImGui::GetStyle().ItemSpacing.y ) );
+
         if ( ImGui::BeginTable( "Transform", 2, ImGuiTableFlags_None, ImVec2( width, 0 ) ) )
         {
             ImGui::TableSetupColumn( "Header", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, g_transformLabelColWidth );
@@ -799,7 +913,8 @@ namespace EE::ImGuiX
             {
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Rot" );
+                ImGui::Text( EE_ICON_ROTATE_360 );
+                ImGuiX::TextTooltip( "Rotation" );
 
                 ImGui::TableNextColumn();
                 Float3 rotation = value.GetRotation().ToEulerAngles().GetAsDegrees();
@@ -814,7 +929,8 @@ namespace EE::ImGuiX
             {
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Pos" );
+                ImGui::Text( EE_ICON_AXIS_ARROW );
+                ImGuiX::TextTooltip( "Translation" );
 
                 ImGui::TableNextColumn();
                 Float3 translation = value.GetTranslation();
@@ -825,77 +941,108 @@ namespace EE::ImGuiX
                 }
             }
 
-            ImGui::TableNextRow();
+            if ( allowScaleEditing )
             {
-                ImGui::TableNextColumn();
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Scl" );
-
-                ImGui::TableNextColumn();
-                float scale = value.GetScale();
-                ImGui::SetNextItemWidth( -1 );
-                if ( DrawFloatEditorElement( "##S", "##S", ImGui::GetContentRegionAvail().x, Colors::HotPink, &scale ) )
+                ImGui::TableNextRow();
                 {
-                    value.SetScale( scale );
-                    valueUpdated = true;
+                    ImGui::TableNextColumn();
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( EE_ICON_ARROW_TOP_RIGHT_BOTTOM_LEFT );
+                    ImGuiX::TextTooltip( "Scale" );
+
+                    ImGui::TableNextColumn();
+                    float scale = value.GetScale();
+                    if ( DrawFloatEditorWithLabel( "##S", "##S", ImGui::GetContentRegionAvail().x, Colors::HotPink, &scale ) )
+                    {
+                        value.SetScale( scale );
+                        valueUpdated = true;
+                    }
                 }
             }
 
             ImGui::EndTable();
         }
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar( 2);
 
         return valueUpdated;
     }
 
+    bool InputTransform( void* pID, Transform& value, float width, bool allowScaleEditing )
+    {
+        ImGui::PushID( pID );
+        bool valueUpdated = InputTransformImpl( value, width, allowScaleEditing );
+        ImGui::PopID();
+        return valueUpdated;
+    }
+
+    bool InputTransform( char const* pID, Transform& value, float width, bool allowScaleEditing )
+    {
+        ImGui::PushID( pID );
+        bool valueUpdated = InputTransformImpl( value, width, allowScaleEditing );
+        ImGui::PopID();
+        return valueUpdated;
+    }
+
+    //-------------------------------------------------------------------------
+
     void DrawFloat2( Float2 const& value, float width )
     {
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, ImGui::GetStyle().ItemSpacing.y ) );
         float const contentWidth = ( width > 0 ) ? width : ImGui::GetContentRegionAvail().x;
         float const itemSpacing = ImGui::GetStyle().ItemSpacing.x;
         float const inputWidth = Math::Floor( ( contentWidth - itemSpacing ) / 2 );
 
         ImGui::PushID( &value );
-        DrawFloatElement( "X", inputWidth, Colors::MediumRed, value.m_x );
-        ImGui::SameLine( 0, itemSpacing );
-        DrawFloatElement( "Y", inputWidth, Colors::LimeGreen, value.m_y );
+        DrawFloatEditorWithLabel( "##X", "X", inputWidth, Colors::MediumRed, const_cast<float*>( &value.m_x ), true );
+        ImGui::SameLine();
+        DrawFloatEditorWithLabel( "##Y", "Y", inputWidth, Colors::LimeGreen, const_cast<float*>( &value.m_y ), true );
         ImGui::PopID();
+
+        ImGui::PopStyleVar();
     }
 
     void DrawFloat3( Float3 const& value, float width )
     {
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, ImGui::GetStyle().ItemSpacing.y ) );
         float const contentWidth = ( width > 0 ) ? width : ImGui::GetContentRegionAvail().x;
         float const itemSpacing = ImGui::GetStyle().ItemSpacing.x;
         float const inputWidth = Math::Floor( ( contentWidth - ( itemSpacing * 2 ) ) / 3 );
 
         ImGui::PushID( &value );
-        DrawFloatElement( "X", inputWidth, Colors::MediumRed, value.m_x );
+        DrawFloatEditorWithLabel( "##X", "X", inputWidth, Colors::MediumRed, const_cast<float*>( &value.m_x ), true );
         ImGui::SameLine( 0, itemSpacing );
-        DrawFloatElement( "Y", inputWidth, Colors::LimeGreen, value.m_y );
+        DrawFloatEditorWithLabel( "##Y", "Y", inputWidth, Colors::LimeGreen, const_cast<float*>( &value.m_y ), true );
         ImGui::SameLine( 0, itemSpacing );
-        DrawFloatElement( "Z", inputWidth, Colors::RoyalBlue, value.m_z );
+        DrawFloatEditorWithLabel( "##Z", "Z", inputWidth, Colors::RoyalBlue, const_cast<float*>( &value.m_z ), true );
         ImGui::PopID();
+
+        ImGui::PopStyleVar();
     }
 
     void DrawFloat4( Float4 const& value, float width )
     {
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, ImGui::GetStyle().ItemSpacing.y ) );
         float const contentWidth = ( width > 0 ) ? width : ImGui::GetContentRegionAvail().x;
         float const itemSpacing = ImGui::GetStyle().ItemSpacing.x;
         float const inputWidth = Math::Floor( ( contentWidth - ( itemSpacing * 3 ) ) / 4 );
 
         ImGui::PushID( &value );
-        DrawFloatElement( "X", inputWidth, Colors::MediumRed, value.m_x );
+        DrawFloatEditorWithLabel( "##X", "X", inputWidth, Colors::MediumRed, const_cast<float*>( &value.m_x ), true );
         ImGui::SameLine( 0, itemSpacing );
-        DrawFloatElement( "Y", inputWidth, Colors::LimeGreen, value.m_y );
+        DrawFloatEditorWithLabel( "##Y", "Y", inputWidth, Colors::LimeGreen, const_cast<float*>( &value.m_y ), true );
         ImGui::SameLine( 0, itemSpacing );
-        DrawFloatElement( "Z", inputWidth, Colors::RoyalBlue, value.m_z );
+        DrawFloatEditorWithLabel( "##Z", "Z", inputWidth, Colors::RoyalBlue, const_cast<float*>( &value.m_z ), true );
         ImGui::SameLine( 0, itemSpacing );
-        DrawFloatElement( "W", inputWidth, Colors::DarkOrange, value.m_w );
+        DrawFloatEditorWithLabel( "##W", "W", inputWidth, Colors::DarkOrange, const_cast<float*>( &value.m_w ), true );
         ImGui::PopID();
+
+        ImGui::PopStyleVar();
     }
 
-    void DrawTransform( Transform const& value, float width )
+    void DrawTransform( Transform const& value, float width, bool showScale )
     {
         ImGui::PushID( &value );
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, ImGui::GetStyle().ItemSpacing.y ) );
         ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 0, 2 ) );
         if ( ImGui::BeginTable( "Transform", 2, ImGuiTableFlags_None, ImVec2( width, 0 ) ) )
         {
@@ -906,7 +1053,8 @@ namespace EE::ImGuiX
             {
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Rot" );
+                ImGui::Text( EE_ICON_ROTATE_360 );
+                ImGuiX::TextTooltip( "Rotation" );
 
                 ImGui::TableNextColumn();
                 Float3 const rotation = value.GetRotation().ToEulerAngles().GetAsDegrees();
@@ -917,28 +1065,32 @@ namespace EE::ImGuiX
             {
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Pos" );
+                ImGui::Text( EE_ICON_AXIS_ARROW );
+                ImGuiX::TextTooltip( "Translation" );
 
                 ImGui::TableNextColumn();
                 Float3 const translation = value.GetTranslation();
                 ImGuiX::DrawFloat3( translation );
             }
 
-            ImGui::TableNextRow();
+            if ( showScale )
             {
-                ImGui::TableNextColumn();
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "Scl" );
+                ImGui::TableNextRow();
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::AlignTextToFramePadding();
+                    ImGui::Text( EE_ICON_ARROW_TOP_RIGHT_BOTTOM_LEFT );
+                    ImGuiX::TextTooltip( "Scale" );
 
-                ImGui::TableNextColumn();
-                float scale = value.GetScale();
-                ImGuiX::ScopedFont sf( Font::Small );
-                DrawFloatElement( "#S", ImGui::GetContentRegionAvail().x, Colors::HotPink, scale );
+                    ImGui::TableNextColumn();
+                    float const scale = value.GetScale();
+                    DrawFloatEditorWithLabel( "##S", "", ImGui::GetContentRegionAvail().x, Colors::HotPink, const_cast<float*>( &scale ), true );
+                }
             }
 
             ImGui::EndTable();
         }
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar( 2 );
         ImGui::PopID();
     }
 
@@ -946,81 +1098,13 @@ namespace EE::ImGuiX
     // Advanced Widgets
     //-------------------------------------------------------------------------
 
-    bool FilterWidget::UpdateAndDraw( float width, TBitFlags<Flags> flags )
-    {
-        bool filterUpdated = false;
-        ImGui::PushID( this );
-
-        //-------------------------------------------------------------------------
-
-        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
-        ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, ImGui::GetStyle().FrameRounding );
-        ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGui::GetStyle().Colors[ImGuiCol_FrameBg] );
-        if ( ImGui::BeginChild( "FilterLayout", ImVec2( width, ImGui::GetFrameHeight() ), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NavFlattened ) )
-        {
-            if ( flags.IsFlagSet( Flags::TakeInitialFocus ) )
-            {
-                if ( ImGui::IsWindowAppearing() )
-                {
-                    ImGui::SetKeyboardFocusHere();
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::PushStyleColor( ImGuiCol_FrameBg, 0 );
-
-            ImVec2 const initialCursorPos = ImGui::GetCursorPos();
-
-            // Draw filter input
-            float const textInputWidth = ( ( width < 0 ) ? ImGui::GetContentRegionAvail().x : width ) - ( 26 + ImGui::GetStyle().ItemSpacing.x );
-            ImGui::SetNextItemWidth( textInputWidth );
-            if ( ImGui::InputText( "##Filter", m_buffer, s_bufferSize ) )
-            {
-                OnBufferUpdated();
-                filterUpdated = true;
-            }
-
-            // Draw clear button
-            bool const isInputFocused = ImGui::IsItemFocused() && ImGui::IsItemActive();
-            bool const isbufferEmpty = strlen( m_buffer ) == 0;
-            if ( !isbufferEmpty )
-            {
-                ImGui::SameLine();
-                if ( ImGuiX::ColoredButton( Colors::Transparent, ImGuiX::Style::s_colorText, EE_ICON_CLOSE"##Clear", ImVec2( 26, 24 ) ) )
-                {
-                    Clear();
-                    filterUpdated = true;
-                }
-            }
-
-            // Draw filter text
-            if ( isbufferEmpty && !isInputFocused )
-            {
-                ImGui::SetCursorPos( initialCursorPos + ImVec2( 8, 0 ) );
-                ImGui::AlignTextToFramePadding();
-                ImGui::TextColored( ImGuiX::Style::s_colorTextDisabled.ToFloat4(), m_filterHelpText.c_str());
-            }
-
-            ImGui::PopStyleColor( 1 );
-        }
-        ImGui::EndChild();
-        ImGui::PopStyleVar( 2 );
-        ImGui::PopStyleColor();
-
-        //-------------------------------------------------------------------------
-
-        ImGui::PopID();
-        return filterUpdated;
-    }
-
-    void FilterWidget::Clear()
+    void FilterData::Clear()
     {
         Memory::MemsetZero( m_buffer, s_bufferSize );
         m_tokens.clear();
     }
 
-    bool FilterWidget::MatchesFilter( String string )
+    bool FilterData::MatchesFilter( String string )
     {
         if ( string.empty() )
         {
@@ -1048,7 +1132,7 @@ namespace EE::ImGuiX
         return true;
     }
 
-    bool FilterWidget::MatchesFilter( InlineString string )
+    bool FilterData::MatchesFilter( InlineString string )
     {
         if ( string.empty() )
         {
@@ -1076,14 +1160,14 @@ namespace EE::ImGuiX
         return true;
     }
 
-    void FilterWidget::SetFilter( String const& filterText )
+    void FilterData::SetFilter( String const& filterText )
     {
         uint32_t const lengthToCopy = Math::Min( s_bufferSize, (uint32_t) filterText.length() );
         memcpy( m_buffer, filterText.c_str(), lengthToCopy );
-        OnBufferUpdated();
+        Update();
     }
 
-    void FilterWidget::OnBufferUpdated()
+    void FilterData::Update()
     {
         StringUtils::Split( String( m_buffer ), m_tokens );
 
@@ -1091,6 +1175,37 @@ namespace EE::ImGuiX
         {
             token.make_lower();
         }
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool FilterWidget::UpdateAndDraw( float width, TBitFlags<Flags> flags )
+    {
+        bool filterUpdated = false;
+        ImGui::PushID( this );
+
+        //-------------------------------------------------------------------------
+
+        if ( flags.IsFlagSet( Flags::TakeInitialFocus ) )
+        {
+            if ( ImGui::IsWindowAppearing() )
+            {
+                ImGui::SetKeyboardFocusHere();
+            }
+        }
+
+        ImGui::SetNextItemWidth( width );
+        filterUpdated = InputTextWithClearButton( "Input", m_data.GetFilterHelpText(), m_data.m_buffer, FilterData::s_bufferSize );
+
+        if ( filterUpdated )
+        {
+            m_data.Update();
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::PopID();
+        return filterUpdated;
     }
 
     //-------------------------------------------------------------------------

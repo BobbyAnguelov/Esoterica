@@ -2,13 +2,14 @@
 
 #include "ResourceServerContext.h"
 #include "ResourceCompilationRequest.h"
-#include "EngineTools/Core/FileSystem/FileSystemWatcher.h"
+#include "EngineTools/FileSystem/FileSystemWatcher.h"
 #include "Base/Network/IPC/IPCMessageServer.h"
 #include "Base/Resource/Settings/GlobalSettings_Resource.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Threading/TaskSystem.h"
 #include "Base/Threading/Threading.h"
 #include "Base/Settings/SettingsRegistry.h"
+#include "EngineTools/Core/DataFileUtils.h"
 
 //-------------------------------------------------------------------------
 // The network resource server
@@ -57,8 +58,8 @@ namespace EE::Resource
         inline String const& GetErrorMessage() const { return m_errorMessage; }
         inline String const& GetNetworkAddress() const { return m_pSettings->m_resourceServerNetworkAddress; }
         inline uint16_t GetNetworkPort() const { return m_pSettings->m_resourceServerPort; }
-        inline FileSystem::Path const& GetRawResourceDir() const { return m_pSettings->m_rawResourcePath; }
-        inline FileSystem::Path const& GetCompiledResourceDir() const { return m_pSettings->m_compiledResourcePath; }
+        inline FileSystem::Path const& GetRawResourceDir() const { return m_pSettings->m_sourceDataDirectoryPath; }
+        inline FileSystem::Path const& GetCompiledResourceDir() const { return m_pSettings->m_compiledResourceDirectoryPath; }
 
         // Compilers and Compilation
         //-------------------------------------------------------------------------
@@ -113,13 +114,24 @@ namespace EE::Resource
         // Start the packaging process
         void StartPackaging();
 
+        // Tools
+        //-------------------------------------------------------------------------
+
+        void RequestResaveOfDataFiles();
+        void StartResaveOfDataFiles();
+        void EndResaveOfDataFiles();
+        bool IsResavingDataFiles() const;
+        float GetDataFileResaveProgress() const;
+
     private:
 
         // Requests
         //-------------------------------------------------------------------------
 
-        CompilationRequest* CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID = 0, CompilationRequest::Origin origin = CompilationRequest::Origin::External );
+        CompilationRequest* CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID = 0, CompilationRequest::Origin origin = CompilationRequest::Origin::External, String const& extraInfo = String() );
         void ProcessCompletedRequests();
+
+        void UpdateCompileDependencyTracking( ResourceID const& resourceID, TVector<DataPath> const& compileDependencies );
 
     private:
 
@@ -151,5 +163,12 @@ namespace EE::Resource
 
         // File System Watcher
         FileSystem::Watcher                                         m_fileSystemWatcher;
+
+        // Compile Dependency Tracking
+        THashMap<FileSystem::Path, TVector<ResourceID>>             m_compileDependencyToResourceIDMap;
+        THashMap<ResourceID, TVector<FileSystem::Path>>             m_resourceIDToCompileDependencyMap;
+
+        // Tools
+        DataFileResaver*                                            m_pDataFileResaver = nullptr;
     };
 }

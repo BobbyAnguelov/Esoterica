@@ -3,6 +3,50 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
+      "Id": "b639dd28-e106-4b8e-b788-ee2c3dd2af09",
+      "Command": "-compile data://demo/renderdemo/materials/bronze/albedo.txtr"
+    },
+    {
+      "Id": "6461a3e6-6461-4acd-834c-26c20909944c",
+      "Command": "-compile data://packs/amplify/run_fwd.anim"
+    },
+    {
+      "Id": "599bbde1-ced5-4577-8547-a84f77b6e17d",
+      "Command": "-compile data://maps/br_nav.nav"
+    },
+    {
+      "Id": "964ec364-3587-472a-9d9b-52262923e08c",
+      "Command": "-compile data://packs/br/environment/sm_env_beach_staight_02.pmsh"
+    },
+    {
+      "Id": "6a05301f-6bc2-4722-a235-20ab2c26f2aa",
+      "Command": "-compile data://player/player.ec"
+    },
+    {
+      "Id": "cff83a4c-ddbf-4c5e-afa9-3ab629973b2c",
+      "Command": "-compile data://editor/skybox/editorskybox.cbmp"
+    },
+    {
+      "Id": "30207bd0-8595-4a59-a3df-e78833870d61",
+      "Command": "-compile data://demo/demograph.ag/default.agv"
+    },
+    {
+      "Id": "006fc1ed-5535-430e-bf84-a3d92bbe36fd",
+      "Command": "-compile data://physics/physicsmaterials.pmdb"
+    },
+    {
+      "Id": "c23cc38b-b927-49bb-a547-40c277a01627",
+      "Command": "-compile data://maps/test.map"
+    },
+    {
+      "Id": "956f04f3-1c7c-48a6-b9f2-7856d96a3193",
+      "Command": "-compile data://packs/br/textures/polygonbattleroyale_texture_01_a.txtr"
+    },
+    {
+      "Id": "853e0361-9107-4170-aee5-742c68b6ffc8",
+      "Command": "-compile data://iktest/testrig.ik"
+    },
+    {
       "Id": "a8475e1e-a91f-4234-b7dd-2b83403e8fc3",
       "Command": "-compile data://player/playergraph@default.agv"
     },
@@ -43,8 +87,12 @@
       "Command": "-compile data://demo/demograph.ag/default.agv"
     },
     {
+      "Id": "ba95000c-6f7d-4682-b17a-b25efea80617",
+      "Command": "-compile data://packs/br/textures/polygonbattleroyale_road_01.txtr"
+    },
+    {
       "Id": "30e1850b-75a6-47ae-86d4-0cf753a84acd",
-      "Command": "-compile data://player/Ash/Ash_hair_mat_A.txtr"
+      "Command": "-compile data://characters/Ash/Textures/Ash_Face_mat_A.txtr"
     },
     {
       "Id": "165a2ead-bf6d-4989-ba0b-92fbd4213031",

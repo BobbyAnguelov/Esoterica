@@ -15,20 +15,40 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Application\Module.h" />
+    <ClInclude Include="Encoding\FourCC.h" />
     <ClInclude Include="Encoding\Hash.h" />
     <ClInclude Include="Encoding\Quantization.h" />
+    <ClInclude Include="FileSystem\DataPath.h" />
+    <ClInclude Include="FileSystem\FileSystemExtension.h" />
+    <ClInclude Include="FileSystem\IDataFile.h" />
     <ClInclude Include="Imgui\ImguiFilteredCombo.h" />
     <ClInclude Include="Imgui\ImguiXNotifications.h" />
-    <ClInclude Include="Input\InputID.h" />
-    <ClInclude Include="Logging\LoggingSystem.h" />
+    <ClInclude Include="Input\Input.h" />
+    <ClInclude Include="Logging\LogEntry.h" />
+    <ClInclude Include="Logging\SystemLog.h" />
+    <ClInclude Include="Types\Severity.h" />
     <ClInclude Include="Math\Easing.h" />
+    <ClInclude Include="Math\Lerp.h" />
+    <ClInclude Include="Memory\IntrusivePtr.h" />
+    <ClInclude Include="Memory\SharedPtr.h" />
+    <ClInclude Include="Memory\UniquePtr.h" />
     <ClInclude Include="Platform\Platform.h" />
     <ClInclude Include="Render\Settings\GlobalSettings_Render.h" />
+    <ClInclude Include="Serialization\TypeSerialization.h" />
+    <ClInclude Include="Serialization\XmlSerialization.h" />
     <ClInclude Include="Serialization\BitSerialization.h" />
     <ClInclude Include="Settings\Settings.h" />
     <ClInclude Include="Settings\SettingsRegistry.h" />
     <ClInclude Include="ThirdParty\implot\implot.h" />
     <ClInclude Include="ThirdParty\implot\implot_internal.h" />
+    <ClInclude Include="ThirdParty\LivePP\LivePP.h" />
+    <ClInclude Include="ThirdParty\pugixml\src\pugiconfig.hpp" />
+    <ClInclude Include="ThirdParty\pugixml\src\pugixml.hpp" />
+    <ClInclude Include="TypeSystem\DataFileInfo.h" />
+    <ClInclude Include="TypeSystem\PropertyMetadata.h" />
+    <ClInclude Include="TypeSystem\TypeInstance.h" />
+    <ClInclude Include="Utils\StringKeyValueParser.h" />
     <ClInclude Include="Utils\TopologicalSort.h" />
     <ClInclude Include="Encoding\Encoding.h" />
     <ClInclude Include="Application\ApplicationGlobalState.h" />
@@ -84,7 +104,6 @@
     <ClInclude Include="Resource\ResourceHeader.h" />
     <ClInclude Include="Resource\ResourceID.h" />
     <ClInclude Include="Resource\ResourceLoader.h" />
-    <ClInclude Include="Resource\ResourcePath.h" />
     <ClInclude Include="Resource\ResourceProvider.h" />
     <ClInclude Include="Resource\ResourceProviders\NetworkResourceProvider.h" />
     <ClInclude Include="Resource\ResourceProviders\PackagedResourceProvider.h" />
@@ -97,7 +116,6 @@
     <ClInclude Include="Resource\ResourceSystem.h" />
     <ClInclude Include="Resource\ResourceTypeID.h" />
     <ClInclude Include="Serialization\BinarySerialization.h" />
-    <ClInclude Include="Serialization\JsonSerialization.h" />
     <ClInclude Include="Drawing\DebugDrawingCommands.h" />
     <ClInclude Include="Drawing\DebugDrawing.h" />
     <ClInclude Include="Settings\IniFile.h" />
@@ -374,44 +392,6 @@
     <ClInclude Include="ThirdParty\imgui\misc\freetype\imgui_freetype.h" />
     <ClInclude Include="ThirdParty\mpack\mpack-config.h" />
     <ClInclude Include="ThirdParty\mpack\mpack.h" />
-    <ClInclude Include="ThirdParty\rapidjson\allocators.h" />
-    <ClInclude Include="ThirdParty\rapidjson\cursorstreamwrapper.h" />
-    <ClInclude Include="ThirdParty\rapidjson\document.h" />
-    <ClInclude Include="ThirdParty\rapidjson\encodedstream.h" />
-    <ClInclude Include="ThirdParty\rapidjson\encodings.h" />
-    <ClInclude Include="ThirdParty\rapidjson\error\en.h" />
-    <ClInclude Include="ThirdParty\rapidjson\error\error.h" />
-    <ClInclude Include="ThirdParty\rapidjson\filereadstream.h" />
-    <ClInclude Include="ThirdParty\rapidjson\filewritestream.h" />
-    <ClInclude Include="ThirdParty\rapidjson\fwd.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\biginteger.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\clzll.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\diyfp.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\dtoa.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\ieee754.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\itoa.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\meta.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\pow10.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\regex.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\stack.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\strfunc.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\strtod.h" />
-    <ClInclude Include="ThirdParty\rapidjson\internal\swap.h" />
-    <ClInclude Include="ThirdParty\rapidjson\istreamwrapper.h" />
-    <ClInclude Include="ThirdParty\rapidjson\memorybuffer.h" />
-    <ClInclude Include="ThirdParty\rapidjson\memorystream.h" />
-    <ClInclude Include="ThirdParty\rapidjson\msinttypes\inttypes.h" />
-    <ClInclude Include="ThirdParty\rapidjson\msinttypes\stdint.h" />
-    <ClInclude Include="ThirdParty\rapidjson\ostreamwrapper.h" />
-    <ClInclude Include="ThirdParty\rapidjson\pointer.h" />
-    <ClInclude Include="ThirdParty\rapidjson\prettywriter.h" />
-    <ClInclude Include="ThirdParty\rapidjson\rapidjson.h" />
-    <ClInclude Include="ThirdParty\rapidjson\reader.h" />
-    <ClInclude Include="ThirdParty\rapidjson\schema.h" />
-    <ClInclude Include="ThirdParty\rapidjson\stream.h" />
-    <ClInclude Include="ThirdParty\rapidjson\stringbuffer.h" />
-    <ClInclude Include="ThirdParty\rapidjson\uri.h" />
-    <ClInclude Include="ThirdParty\rapidjson\writer.h" />
     <ClInclude Include="ThirdParty\stb\stb_image.h" />
     <ClInclude Include="ThirdParty\stb\stb_rect_pack.h" />
     <ClInclude Include="ThirdParty\stb\stb_truetype.h" />
@@ -427,7 +407,6 @@
     <ClInclude Include="TypeSystem\TypeID.h" />
     <ClInclude Include="TypeSystem\TypeInfo.h" />
     <ClInclude Include="TypeSystem\TypeRegistry.h" />
-    <ClInclude Include="Serialization\TypeSerialization.h" />
     <ClInclude Include="Types\Event.h" />
     <ClInclude Include="FileSystem\FileSystemPath.h" />
     <ClInclude Include="FileSystem\FileStreams.h" />
@@ -451,7 +430,6 @@
     <ClInclude Include="Math\Vector.h" />
     <ClInclude Include="Math\ViewVolume.h" />
     <ClInclude Include="Memory\Memory.h" />
-    <ClInclude Include="Memory\Pointers.h" />
     <ClInclude Include="Platform\PlatformUtils_Win32.h" />
     <ClInclude Include="Profiling.h" />
     <ClInclude Include="Systems.h" />
@@ -497,24 +475,40 @@
     <ClInclude Include="Types\StringID.h" />
     <ClInclude Include="Types\Tag.h" />
     <ClInclude Include="Types\UUID.h" />
+    <ClInclude Include="Utils\TreeLayout.h" />
     <ClInclude Include="_Module\API.h" />
     <ClInclude Include="_Module\BaseModule.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="Application\Module.cpp" />
+    <ClCompile Include="Encoding\FourCC.cpp" />
     <ClCompile Include="Encoding\Hash.cpp" />
+    <ClCompile Include="FileSystem\DataPath.cpp" />
     <ClCompile Include="FileSystem\FileSystem.cpp" />
+    <ClCompile Include="FileSystem\IDataFile.cpp" />
     <ClCompile Include="Imgui\ImguiXNotifications.cpp" />
     <ClCompile Include="Input\InputDevice.cpp" />
-    <ClCompile Include="Logging\LoggingSystem.cpp" />
-    <ClCompile Include="Logging\Platform\Log_Win32.cpp" />
+    <ClCompile Include="Input\Input.cpp" />
+    <ClCompile Include="Logging\Log.cpp" />
+    <ClCompile Include="Logging\LogEntry.cpp" />
+    <ClCompile Include="Logging\SystemLog.cpp" />
+    <ClCompile Include="Types\Severity.cpp" />
+    <ClCompile Include="Logging\Platform\SystemLog_Win32.cpp" />
     <ClCompile Include="Math\Easing.cpp" />
     <ClCompile Include="Math\Platform\Math_Win32.h" />
+    <ClCompile Include="Math\Rectangle.cpp" />
     <ClCompile Include="Platform\Platform.cpp" />
     <ClCompile Include="Render\Settings\GlobalSettings_Render.cpp" />
+    <ClCompile Include="Serialization\TypeSerialization.cpp" />
+    <ClCompile Include="Serialization\XmlSerialization.cpp" />
     <ClCompile Include="Settings\SettingsRegistry.cpp" />
     <ClCompile Include="ThirdParty\implot\implot.cpp" />
     <ClCompile Include="ThirdParty\implot\implot_demo.cpp" />
     <ClCompile Include="ThirdParty\implot\implot_items.cpp" />
+    <ClCompile Include="ThirdParty\pugixml\src\pugixml.cpp" />
+    <ClCompile Include="TypeSystem\TypeInstance.cpp" />
+    <ClCompile Include="Types\Color.cpp" />
+    <ClCompile Include="Utils\StringKeyValueParser.cpp" />
     <ClCompile Include="Utils\TopologicalSort.cpp" />
     <ClCompile Include="Encoding\Encoding.cpp" />
     <ClCompile Include="Application\ApplicationGlobalState.cpp" />
@@ -556,20 +550,17 @@
     <ClCompile Include="Render\RenderCoreResources.cpp" />
     <ClCompile Include="Render\RenderShader.cpp" />
     <ClCompile Include="Render\RenderTarget.cpp" />
-    <ClCompile Include="Render\RenderTexture.cpp" />
     <ClCompile Include="Render\RenderUtils.cpp" />
     <ClCompile Include="Render\RenderVertexFormats.cpp" />
     <ClCompile Include="Render\RenderViewport.cpp" />
     <ClCompile Include="Resource\ResourceID.cpp" />
     <ClCompile Include="Resource\ResourceLoader.cpp" />
-    <ClCompile Include="Resource\ResourcePath.cpp" />
     <ClCompile Include="Resource\ResourceProviders\NetworkResourceProvider.cpp" />
     <ClCompile Include="Resource\ResourceProviders\PackagedResourceProvider.cpp" />
     <ClCompile Include="Resource\ResourceRecord.cpp" />
     <ClCompile Include="Resource\ResourceRequest.cpp" />
     <ClCompile Include="Resource\Settings\GlobalSettings_Resource.cpp" />
     <ClCompile Include="Resource\ResourceSystem.cpp" />
-    <ClCompile Include="Resource\ResourceTypeID.cpp" />
     <ClCompile Include="FileSystem\FileSystemPath.cpp" />
     <ClCompile Include="FileSystem\FileStreams.cpp" />
     <ClCompile Include="FileSystem\FileSystemUtils.cpp" />
@@ -588,7 +579,6 @@
     <ClCompile Include="Platform\PlatformUtils_Win32.cpp" />
     <ClCompile Include="Profiling.cpp" />
     <ClCompile Include="Serialization\BinarySerialization.cpp" />
-    <ClCompile Include="Serialization\JsonSerialization.cpp" />
     <ClCompile Include="Settings\IniFile.cpp" />
     <ClCompile Include="Systems.cpp" />
     <ClCompile Include="ThirdParty\EA\EASTL\Source\allocator_eastl.cpp" />
@@ -628,27 +618,31 @@
     <ClCompile Include="TypeSystem\TypeDescriptors.cpp" />
     <ClCompile Include="TypeSystem\TypeInfo.cpp" />
     <ClCompile Include="TypeSystem\TypeRegistry.cpp" />
-    <ClCompile Include="Serialization\TypeSerialization.cpp" />
     <ClCompile Include="Types\Percentage.cpp" />
     <ClCompile Include="Types\StringID.cpp" />
-    <ClCompile Include="Types\Tag.cpp" />
     <ClCompile Include="Types\UUID.cpp" />
     <ClCompile Include="Types\Platform\Types_Win32.cpp" />
+    <ClCompile Include="Utils\TreeLayout.cpp" />
     <ClCompile Include="_Module\BaseModule.cpp" />
-    <ClCompile Include="_Module\_AutoGenerated\BaseModule.typeinfo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\cmdParser\LICENSE" />
     <None Include="ThirdParty\concurrentqueue\LICENSE.md" />
     <None Include="ThirdParty\concurrentqueue\README.md" />
     <None Include="ThirdParty\EA\EABase\doc\EABase.html" />
+    <None Include="ThirdParty\pugixml\docs\manual.html" />
+    <None Include="ThirdParty\pugixml\docs\quickstart.html" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="ThirdParty\EA\EASTL\Doc\EASTL.natvis" />
+    <Natvis Include="ThirdParty\pugixml\scripts\natvis\pugixml_compact.natvis" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="ThirdParty\iniparser\LICENSE" />
     <Text Include="ThirdParty\stb\LICENSE" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="ThirdParty\pugixml\scripts\pugixml_dll.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{07414BA8-87A7-449B-8AB7-551254B57FB3}</ProjectGuid>

@@ -13,7 +13,6 @@ namespace EE::Animation::GraphNodes
 
         RootMotionOverrideToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Root Motion Override"; }
         virtual char const* GetCategory() const override { return "Animation/Root Motion"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
@@ -23,30 +22,30 @@ namespace EE::Animation::GraphNodes
 
         // Set to negative to disable the velocity limiter
         EE_REFLECT();
-        float                m_maxLinearVelocity = -1.0f;
+        float                   m_maxLinearVelocity = -1.0f;
 
         // Set to negative to disable the velocity limiter
         EE_REFLECT();
-        float                m_maxAngularVelocity = -1.0f;
+        Degrees                 m_maxAngularVelocity = -1.0f;
 
         // Allow movement along the x axis
         EE_REFLECT();
-        bool                 m_overrideMoveDirX = true;
+        bool                    m_overrideMoveDirX = true;
 
         // Allow movement along the y axis
         EE_REFLECT();
-        bool                 m_overrideMoveDirY = true;
+        bool                    m_overrideMoveDirY = true;
 
         // Allow movement along the z axis
         EE_REFLECT();
-        bool                 m_overrideMoveDirZ = true;
+        bool                    m_overrideMoveDirZ = true;
 
         // Allow us to pitch the character facing (i.e. 3D facing)
         EE_REFLECT();
-        bool                 m_allowPitchForFacing = false;
+        bool                    m_allowPitchForFacing = false;
 
         // Events
         EE_REFLECT();
-        bool                 m_listenForRootMotionEvents = false;
+        bool                    m_listenForRootMotionEvents = false;
     };
 }

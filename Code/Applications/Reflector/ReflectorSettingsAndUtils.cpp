@@ -11,7 +11,7 @@ namespace EE::TypeSystem::Reflection
         "EE_REFLECT_TYPE",
         "EE_REFLECT",
         "EE_RESOURCE",
-        "EE_REFLECTED_RESOURCE",
+        "EE_DATA_FILE",
         "EE_ENTITY_COMPONENT",
         "EE_SINGLETON_ENTITY_COMPONENT",
         "EE_ENTITY_SYSTEM",

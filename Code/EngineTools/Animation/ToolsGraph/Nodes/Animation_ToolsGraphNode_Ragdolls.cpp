@@ -12,7 +12,7 @@ namespace EE::Animation::GraphNodes
     PoweredRagdollToolsNode::PoweredRagdollToolsNode()
         : DataSlotToolsNode()
     {
-        CreateOutputPin( "Result", GraphValueType::Pose, true );
+        CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Physics Blend Weight", GraphValueType::Float );
         CreateInputPin( "Impulse Origin", GraphValueType::Vector );
@@ -123,12 +123,12 @@ namespace EE::Animation::GraphNodes
     SimulatedRagdollToolsNode::SimulatedRagdollToolsNode()
         : DataSlotToolsNode()
     {
-        CreateOutputPin( "Result", GraphValueType::Pose, true );
+        CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Exit Option", GraphValueType::Pose );
     }
 
-    bool SimulatedRagdollToolsNode::IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const
+    bool SimulatedRagdollToolsNode::IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const
     {
         return Cast<FlowToolsNode>( pOutputPinNode )->IsAnimationClipReferenceNode();
     }

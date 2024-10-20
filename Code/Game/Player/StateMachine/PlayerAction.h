@@ -1,8 +1,8 @@
 #pragma once
 #include "Base/Encoding/Hash.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
+#include "Game/Player/Input/PlayerInput.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "Engine/Input/VirtualInputRegistry.h"
 
 #if EE_DEVELOPMENT_TOOLS
 #include "imgui.h"
@@ -23,7 +23,6 @@ namespace EE
 namespace EE::Player
 {
     class MainPlayerComponent;
-    class AnimationController;
     class CameraController;
 
     //-------------------------------------------------------------------------
@@ -66,8 +65,7 @@ namespace EE::Player
     public:
 
         EntityWorldUpdateContext const*             m_pEntityWorldUpdateContext = nullptr;
-        Input::InputSystem const*                   m_pInputSystem = nullptr; // REMOVE ONCE ALL CODE HAS BEEN REFACTORED
-        Input::VirtualInputRegistry*                m_pInputRegistry = nullptr;
+        GameInputMap*                               m_pInput = nullptr;
         Physics::PhysicsWorld*                      m_pPhysicsWorld = nullptr;
 
         MainPlayerComponent*                        m_pPlayerComponent = nullptr;
@@ -123,10 +121,10 @@ namespace EE::Player
         }
 
         // Called to update this action, this will be called directly after the try start if it succeeds
-        inline Status Update( ActionContext const& ctx )
+        inline Status Update( ActionContext const& ctx, bool isFirstUpdate )
         {
             EE_ASSERT( m_isActive );
-            return UpdateInternal( ctx );
+            return UpdateInternal( ctx, isFirstUpdate );
         }
 
         // Called to stop this action
@@ -153,7 +151,7 @@ namespace EE::Player
         virtual bool TryStartInternal( ActionContext const& ctx ) { return true; }
 
         // Called to update this action, this will be called directly after the try start if it succeeds
-        virtual Status UpdateInternal( ActionContext const& ctx ) = 0;
+        virtual Status UpdateInternal( ActionContext const& ctx, bool isFirstUpdate ) = 0;
 
         // Called to stop this action
         virtual void StopInternal( ActionContext const& ctx, StopReason reason ) = 0;

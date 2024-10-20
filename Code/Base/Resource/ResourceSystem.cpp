@@ -56,7 +56,7 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    void ResourceSystem::GetUsersForResource( ResourceRecord const* pResourceRecord, TVector<ResourceRequesterID>& userIDs ) const
+    void ResourceSystem::GetUsersForResource( ResourceRecord const* pResourceRecord, TInlineVector<ResourceRequesterID, 20>& userIDs ) const
     {
         EE_ASSERT( pResourceRecord != nullptr );
         Threading::RecursiveScopeLock lock( m_accessLock );
@@ -67,11 +67,11 @@ namespace EE::Resource
             if ( requesterID.IsInstallDependencyRequest() )
             {
                 uint32_t const resourcePathID( requesterID.GetInstallDependencyResourcePathID() );
-                auto const recordIter = m_resourceRecords.find_as( resourcePathID );
-                EE_ASSERT( recordIter != m_resourceRecords.end() );
+                auto const dependentRecordIter = m_resourceRecords.find_as( resourcePathID );
+                EE_ASSERT( dependentRecordIter != m_resourceRecords.end() );
 
-                ResourceRecord* pFoundRecord = recordIter->second;
-                GetUsersForResource( pFoundRecord, userIDs );
+                ResourceRecord* pFoundDependentRecord = dependentRecordIter->second;
+                GetUsersForResource( pFoundDependentRecord, userIDs );
             }
             else // Actual external user
             {
@@ -83,6 +83,26 @@ namespace EE::Resource
 
                 // Add unique users to the list
                 VectorEmplaceBackUnique( userIDs, requesterID );
+            }
+        }
+    }
+
+    void ResourceSystem::GetDependentResourcesForResource( ResourceRecord const* pResourceRecord, TInlineVector<ResourceID, 20>& dependentResources ) const
+    {
+        EE_ASSERT( pResourceRecord != nullptr );
+        Threading::RecursiveScopeLock lock( m_accessLock );
+
+        for ( auto const& requesterID : pResourceRecord->m_references )
+        {
+            if ( requesterID.IsInstallDependencyRequest() )
+            {
+                uint32_t const resourcePathID( requesterID.GetInstallDependencyResourcePathID() );
+                auto const dependentRecordIter = m_resourceRecords.find_as( resourcePathID );
+                EE_ASSERT( dependentRecordIter != m_resourceRecords.end() );
+
+                ResourceRecord* pFoundDependentRecord = dependentRecordIter->second;
+                dependentResources.emplace_back( pFoundDependentRecord->m_resourceID );
+                GetDependentResourcesForResource( pFoundDependentRecord, dependentResources );
             }
         }
     }
@@ -432,6 +452,14 @@ namespace EE::Resource
         // Generate a list of users for this resource
         ResourceRecord* pRecord = recordIter->second;
         GetUsersForResource( pRecord, m_usersThatRequireReload );
+
+        // Get the list of dependent resources that we also need to reload
+        TInlineVector<ResourceID, 20> dependentResources;
+        GetDependentResourcesForResource( pRecord, dependentResources );
+        for ( auto const& dependentResourceID : dependentResources )
+        {
+            RequestResourceHotReload( dependentResourceID );
+        }
 
         // Add to list of resources to be reloaded
         VectorEmplaceBackUnique( m_externallyUpdatedResources, resourceID );

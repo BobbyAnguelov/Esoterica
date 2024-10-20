@@ -20,23 +20,25 @@ namespace EE
     // It assumes little endian systems and a uint32_t format as follows: 0xAABBGGRR
     // If you need a different uint32_t format, there are conversion functions provided
 
-    struct Color
+    struct EE_BASE_API Color
     {
         EE_SERIALIZE( m_color );
 
-        union
-        {
-            struct ByteColor
-            {
-                uint8_t         m_r;
-                uint8_t         m_g;
-                uint8_t         m_b;
-                uint8_t         m_a;
-            };
+    public:
 
-            ByteColor           m_byteColor;
-            uint32_t            m_color;
-        };
+        // Blend between two colors, blend weight will be clamped to [0, 1]
+        static Color Blend( Color const& c0, Color const& c1, float blendWeight );
+
+        // Evaluate a gradient from red = 0 and green = 1
+        static Color EvaluateRedGreenGradient( float weight, bool useDistinctColorForZero = true );
+
+        // Evaluate a gradient from blue = 0 and red = 1
+        static Color EvaluateBlueRedGradient( float weight, bool useDistinctColorForZero = true );
+
+        // Evaluate a gradient from yellow = 0 and red = 1
+        static Color EvaluateYellowRedGradient( float weight, bool useDistinctColorForZero = true );
+
+    public:
 
         // Default color is transparent
         inline Color() : m_color( 0x00000000 ) {}
@@ -112,6 +114,22 @@ namespace EE
 
         // Returns a float4 color where x=R, y=G, z=B, w=A
         EE_FORCE_INLINE operator Float4() const { return ToFloat4(); }
+
+    public:
+
+        union
+        {
+            struct ByteColor
+            {
+                uint8_t         m_r;
+                uint8_t         m_g;
+                uint8_t         m_b;
+                uint8_t         m_a;
+            };
+
+            ByteColor           m_byteColor;
+            uint32_t            m_color;
+        };
     };
 }
 

@@ -1,18 +1,28 @@
 #pragma once
 
-#include "ResourceInfo.h"
-#include "TypeInfo.h"
 #include "CoreTypeIDs.h"
 #include "Base/Systems.h"
+#include "Base/Types/HashMap.h"
+#include "Base/Resource/ResourceTypeID.h"
 #include <typeinfo>
+
+//-------------------------------------------------------------------------
+
+namespace EE
+{
+    class IReflectedType;
+}
 
 //-------------------------------------------------------------------------
 
 namespace EE::TypeSystem
 {
+    class TypeInfo;
     class EnumInfo;
     class PropertyInfo;
     class PropertyPath;
+    struct ResourceInfo;
+    struct DataFileInfo;
 
     //-------------------------------------------------------------------------
 
@@ -24,8 +34,11 @@ namespace EE::TypeSystem
 
     public:
 
-        TypeRegistry();
+        TypeRegistry() = default;
         ~TypeRegistry();
+
+        void RegisterInternalTypes();
+        void UnregisterInternalTypes();
 
         //-------------------------------------------------------------------------
         // Type Info
@@ -44,11 +57,11 @@ namespace EE::TypeSystem
             return T::s_pTypeInfo;
         }
 
-        // Returns the size of a given type
-        size_t GetTypeByteSize( TypeID typeID ) const;
-
         // Returns the resolved property info for a given path
         PropertyInfo const* ResolvePropertyPath( TypeInfo const* pTypeInfo, PropertyPath const& pathID ) const;
+
+        // Is this type registered?
+        inline bool IsRegisteredType( TypeID typeID ) const { return m_registeredTypes.find( typeID ) != m_registeredTypes.end(); }
 
         // Does a given type derive from a given parent type
         bool IsTypeDerivedFrom( TypeID typeID, TypeID parentTypeID ) const;
@@ -92,20 +105,35 @@ namespace EE::TypeSystem
         //-------------------------------------------------------------------------
 
         void RegisterResourceTypeID( ResourceInfo const& resourceInfo );
-        void UnregisterResourceTypeID( TypeID typeID );
+        void UnregisterResourceTypeID( ResourceTypeID typeID );
 
-        inline THashMap<TypeID, ResourceInfo> const& GetRegisteredResourceTypes() const { return m_registeredResourceTypes; }
-        bool IsRegisteredResourceType( TypeID typeID ) const;
+        inline THashMap<ResourceTypeID, ResourceInfo*> const& GetRegisteredResourceTypes() const { return m_registeredResourceTypes; }
+        ResourceInfo const* GetResourceInfo( TypeID typeID ) const;
+        ResourceInfo const* GetResourceInfo( ResourceTypeID resourceTypeID ) const;
         bool IsRegisteredResourceType( ResourceTypeID resourceTypeID ) const;
+        inline bool IsRegisteredResourceType( TypeID typeID ) const { return GetResourceInfo( typeID ) != nullptr; }
         bool IsResourceTypeDerivedFrom( ResourceTypeID resourceTypeID, ResourceTypeID parentResourceTypeID ) const;
-        ResourceInfo const* GetResourceInfoForType( TypeID typeID ) const;
-        ResourceInfo const* GetResourceInfoForResourceType( ResourceTypeID resourceTypeID ) const;
         TVector<ResourceTypeID> GetAllDerivedResourceTypes( ResourceTypeID resourceTypeID ) const;
+
+        //-------------------------------------------------------------------------
+        // Data File Info
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        void RegisterDataFileInfo( DataFileInfo const& dataFileInfo );
+        void UnregisterDataFileInfo( TypeID typeID );
+
+        inline THashMap<TypeID, DataFileInfo*> const& GetRegisteredDataFileTypes() const { return m_registeredDataFileTypes; }
+        bool IsRegisteredDataFileType( TypeID typeID ) const;
+        bool IsRegisteredDataFileType( uint32_t extFourCC ) const;
+        DataFileInfo const* GetDataFileInfo( TypeID typeID ) const;
+        #endif
 
     private:
 
-        THashMap<TypeID, TypeInfo const*>       m_registeredTypes;
-        THashMap<TypeID, EnumInfo*>             m_registeredEnums;
-        THashMap<TypeID, ResourceInfo>          m_registeredResourceTypes;
+        THashMap<TypeID, TypeInfo const*>           m_registeredTypes;
+        THashMap<TypeID, EnumInfo*>                 m_registeredEnums;
+        THashMap<ResourceTypeID, ResourceInfo*>     m_registeredResourceTypes;
+        THashMap<TypeID, DataFileInfo*>             m_registeredDataFileTypes;
     };
 }

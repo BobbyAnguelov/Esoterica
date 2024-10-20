@@ -35,9 +35,9 @@ namespace EE
     namespace EntityModel
     {
         struct InitializationContext;
-        struct SerializedEntityDescriptor;
-        class SerializedEntityCollection;
-        struct Serializer;
+        struct EntityDescriptor;
+        class EntityCollection;
+        struct LoadingContext;
 
         #if EE_DEVELOPMENT_TOOLS
         class EntityEditor;
@@ -50,7 +50,7 @@ namespace EE
     {
         EE_REFLECT_TYPE( Entity );
 
-        friend EntityModel::Serializer;
+        friend EntityModel::EntityDescriptor;
         friend EntityModel::EntityMap;
 
         #if EE_DEVELOPMENT_TOOLS
@@ -189,7 +189,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         inline bool IsAddedToMap() const { return m_mapID.IsValid(); }
-        inline bool IsInitialized() const { return m_status == Status::Initialized; }
+        inline bool WasInitialized() const { return m_status == Status::Initialized; }
         inline bool IsRegisteredForUpdates() const { return m_updateRegistrationStatus == UpdateRegistrationStatus::Registered; }
         inline bool HasRequestedComponentLoad() const { return m_status != Status::Unloaded; }
         inline bool IsLoaded() const { return m_status == Status::Loaded; }
@@ -358,7 +358,7 @@ namespace EE
 
         EntityID                                            m_ID = EntityID::Generate();                                            // The unique ID of this entity ( globally unique and generated at runtime )
         EntityMapID                                         m_mapID;                                                                // The ID of the map that owns this entity
-        EE_REFLECT( "IsToolsReadOnly" : true ) StringID     m_name;                                                                 // The name of the entity, only unique within the context of a map
+        EE_REFLECT( ReadOnly ) StringID     m_name;                                                                 // The name of the entity, only unique within the context of a map
         Status                                              m_status = Status::Unloaded;
         UpdateRegistrationStatus                            m_updateRegistrationStatus = UpdateRegistrationStatus::Unregistered;    // Is this entity registered for frame updates
 

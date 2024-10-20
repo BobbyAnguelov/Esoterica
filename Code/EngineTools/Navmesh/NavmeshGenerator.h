@@ -2,7 +2,7 @@
 #if EE_ENABLE_NAVPOWER
 
 #include "EngineTools/_Module/API.h"
-#include "Base/Resource/ResourcePath.h"
+#include "Base/FileSystem/DataPath.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/Math/Transform.h"
 #include "Base/Threading/TaskSystem.h"
@@ -12,7 +12,7 @@
 //-------------------------------------------------------------------------
 
 namespace EE::TypeSystem { class TypeRegistry; }
-namespace EE::EntityModel { class SerializedEntityCollection; }
+namespace EE::EntityModel { class EntityCollection; }
 
 //-------------------------------------------------------------------------
 
@@ -26,8 +26,6 @@ namespace EE::Navmesh
     class NavmeshGenerator : public bfx::BuildProgressMonitor
     {
     public:
-
-        constexpr static uint32_t const s_version = 4;
 
         enum class State
         {
@@ -45,12 +43,12 @@ namespace EE::Navmesh
 
     public:
 
-        NavmeshGenerator( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& outputPath, EntityModel::SerializedEntityCollection const& entityCollection, NavmeshBuildSettings const& buildSettings );
+        NavmeshGenerator( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& outputPath, EntityModel::EntityCollection const& entityCollection, NavmeshBuildSettings const& buildSettings );
         ~NavmeshGenerator();
 
         inline char const* GetProgressMessage() const { return m_progressMessage; }
         inline float GetProgressBarValue() const { return m_progress; }
-        inline State GetState() { return m_state; }
+        inline State GetState() const { return m_state; }
 
         // Kick off the async generation task
         void GenerateAsync( TaskSystem& taskSystem );
@@ -82,12 +80,12 @@ namespace EE::Navmesh
         FileSystem::Path const                          m_rawResourceDirectoryPath;
         FileSystem::Path const                          m_outputPath;
         TypeSystem::TypeRegistry const&                 m_typeRegistry;
-        EntityModel::SerializedEntityCollection const&  m_entityCollection;
+        EntityModel::EntityCollection const&            m_entityCollection;
         NavmeshBuildSettings const&                     m_buildSettings;
         
         // Build transient data
         bfx::Instance*                                  m_pNavpowerInstance = nullptr;
-        THashMap<ResourcePath, TVector<CollisionMesh>>  m_collisionPrimitives;
+        THashMap<DataPath, TVector<CollisionMesh>>      m_collisionPrimitives;
         size_t                                          m_numCollisionPrimitivesToProcess = 0;
         TVector<bfx::BuildFace>                         m_buildFaces;
 

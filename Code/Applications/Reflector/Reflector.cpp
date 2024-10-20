@@ -2,8 +2,6 @@
 #include "ReflectorSettingsAndUtils.h"
 #include "Clang/ClangParser.h"
 #include "CodeGenerator.h"
-#include "Base/Application/ApplicationGlobalState.h"
-#include "Base/ThirdParty/cmdParser/cmdParser.h"
 
 #include "Base/FileSystem/FileSystemUtils.h"
 #include "Base/Time/Timers.h"
@@ -18,6 +16,58 @@
 
 namespace EE::TypeSystem::Reflection
 {
+    static bool SortProjectsByDependencies( TVector<ProjectInfo>& projects )
+    {
+        int32_t const numProjects = (int32_t) projects.size();
+        if ( numProjects <= 1 )
+        {
+            return true;
+        }
+
+        // Create list to sort
+        TVector<TopologicalSorter::Node > list;
+        for ( auto p = 0; p < numProjects; p++ )
+        {
+            list.push_back( TopologicalSorter::Node( p ) );
+        }
+
+        for ( auto p = 0; p < numProjects; p++ )
+        {
+            int32_t const numDependencies = (int32_t) projects[p].m_dependencies.size();
+            for ( auto d = 0; d < numDependencies; d++ )
+            {
+                for ( auto pp = 0; pp < numProjects; pp++ )
+                {
+                    if ( p != pp && projects[pp].m_ID == projects[p].m_dependencies[d] )
+                    {
+                        list[p].m_children.push_back( &list[pp] );
+                    }
+                }
+            }
+        }
+
+        // Try to sort
+        if ( !TopologicalSorter::Sort( list ) )
+        {
+            return false;
+        }
+
+        // Update type list
+        uint32_t depValue = 0;
+        TVector<ProjectInfo> sortedProjects;
+        sortedProjects.reserve( numProjects );
+
+        for ( auto& node : list )
+        {
+            sortedProjects.push_back( projects[node.m_ID] );
+            sortedProjects.back().m_dependencyCount = depValue++;
+        }
+        projects.swap( sortedProjects );
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
+
     bool Reflector::LogError( char const* pFormat, ... ) const
     {
         char buffer[256];
@@ -27,7 +77,7 @@ namespace EE::TypeSystem::Reflection
         VPrintf( buffer, 256, pFormat, args );
         va_end( args );
 
-        std::cout << std::endl << "Error: " << buffer << std::endl;
+        std::cout << std::endl << " ! Error: " << buffer << std::endl;
         EE_TRACE_MSG( buffer );
         return false;
     }
@@ -41,62 +91,11 @@ namespace EE::TypeSystem::Reflection
         VPrintf( buffer, 256, pFormat, args );
         va_end( args );
 
-        std::cout << std::endl << "Warning: " << buffer << std::endl;
+        std::cout << std::endl << " * Warning: " << buffer << std::endl;
         EE_TRACE_MSG( buffer );
     }
 
-    namespace
-    {
-        bool SortProjectsByDependencies( TVector<ProjectInfo>& projects )
-        {
-            int32_t const numProjects = (int32_t) projects.size();
-            if ( numProjects <= 1 )
-            {
-                return true;
-            }
-
-            // Create list to sort
-            TVector<TopologicalSorter::Node > list;
-            for ( auto p = 0; p < numProjects; p++ )
-            {
-                list.push_back( TopologicalSorter::Node( p ) );
-            }
-
-            for ( auto p = 0; p < numProjects; p++ )
-            {
-                int32_t const numDependencies = (int32_t) projects[p].m_dependencies.size();
-                for ( auto d = 0; d < numDependencies; d++ )
-                {
-                    for ( auto pp = 0; pp < numProjects; pp++ )
-                    {
-                        if ( p != pp && projects[pp].m_ID == projects[p].m_dependencies[d] )
-                        {
-                            list[p].m_children.push_back( &list[pp] );
-                        }
-                    }
-                }
-            }
-
-            // Try to sort
-            if ( !TopologicalSorter::Sort( list ) )
-            {
-                return false;
-            }
-
-            // Update type list
-            uint32_t depValue = 0;
-            TVector<ProjectInfo> sortedProjects;
-            sortedProjects.reserve( numProjects );
-
-            for ( auto& node : list )
-            {
-                sortedProjects.push_back( projects[node.m_ID] );
-                sortedProjects.back().m_dependencyCount = depValue++;
-            }
-            projects.swap( sortedProjects );
-            return true;
-        }
-    }
+    //-------------------------------------------------------------------------
 
     bool Reflector::ParseSolution( FileSystem::Path const& slnPath )
     {
@@ -125,8 +124,7 @@ namespace EE::TypeSystem::Reflection
                 return LogError( "Could not open solution: %s", slnPath.c_str() );
             }
 
-            m_solution.m_path = slnPath.GetParentDirectory();
-            m_reflectionDataPath = FileSystem::Path( FileSystem::GetCurrentProcessPath() + Settings::g_reflectionDatabaseDirectoryPath );
+            m_solutionPath = slnPath.GetParentDirectory();
 
             TVector<FileSystem::Path> projectFiles;
 
@@ -149,7 +147,7 @@ namespace EE::TypeSystem::Reflection
                     EE_ASSERT( projectNameEndIdx != std::string::npos );
 
                     String const projectPathString = line.substr( projectPathStartIdx, projectPathEndIdx - projectPathStartIdx );
-                    FileSystem::Path const projectPath = m_solution.m_path + projectPathString;
+                    FileSystem::Path const projectPath = m_solutionPath + projectPathString;
 
                     // Filter projects
                     //-------------------------------------------------------------------------
@@ -168,7 +166,7 @@ namespace EE::TypeSystem::Reflection
 
                     if ( excludeProject )
                     {
-                        m_solution.m_excludedProjects.emplace_back( projectPath );
+                        m_excludedProjectPaths.emplace_back( projectPath );
                     }
                     else
                     {
@@ -200,7 +198,7 @@ namespace EE::TypeSystem::Reflection
             //-------------------------------------------------------------------------
 
             // Sort projects by dependencies
-            if ( !SortProjectsByDependencies( m_solution.m_projects ) )
+            if ( !SortProjectsByDependencies( m_projects ) )
             {
                 return LogError( "Illegal dependency in projects detected!" );
             }
@@ -210,16 +208,9 @@ namespace EE::TypeSystem::Reflection
         return true;
     }
 
-    uint64_t Reflector::CalculateHeaderChecksum( FileSystem::Path const& engineIncludePath, FileSystem::Path const& filePath )
-    {
-        static char const* headerString = "Note: including file: ";
-        uint64_t checksum = FileSystem::GetFileModifiedTime( filePath );
-        return checksum;
-    }
-
     bool Reflector::ParseProject( FileSystem::Path const& prjPath )
     {
-        EE_ASSERT( prjPath.IsUnderDirectory( m_solution.m_path ) );
+        EE_ASSERT( prjPath.IsUnderDirectory( m_solutionPath ) );
 
         std::ifstream prjFile( prjPath );
         if ( !prjFile.is_open() )
@@ -288,15 +279,6 @@ namespace EE::TypeSystem::Reflection
                     continue;
                 }
 
-                // Ignore any headers on the ignored list
-                for ( int32_t k = 0; k < Settings::g_numFilenamesToIgnore; k++ )
-                {
-                    if ( headerFilePathStr.find( Settings::g_filenameToIgnore[k] ) != String::npos )
-                    {
-                        continue;
-                    }
-                }
-
                 // Is this the module header file?
                 bool isModuleHeader = false;
                 FileSystem::Path const headerFileFullPath( prj.m_path + headerFilePathStr );
@@ -321,9 +303,6 @@ namespace EE::TypeSystem::Reflection
                         headerInfo.m_filePath = headerFileFullPath;
                         headerInfo.m_timestamp = FileSystem::GetFileModifiedTime( headerFileFullPath );
                         headerInfo.m_fileContents.swap( headerFileContents );
-
-                        // Add to registered timestamp cache, use in up to date checks
-                        m_registeredHeaderTimestamps.push_back( HeaderTimestamp( headerInfo.m_ID, headerInfo.m_timestamp ) );
 
                         if ( isModuleHeader )
                         {
@@ -393,16 +372,16 @@ namespace EE::TypeSystem::Reflection
             return true;
         }
 
-        std::cout << "Done! ( " << prj.m_headerFiles.size() << " header(s) found! )";
+        std::cout << "Done! ( " << prj.m_headerFiles.size() << " header(s) found! )" << std::endl;
 
-        m_solution.m_projects.push_back( prj );
+        m_projects.push_back( prj );
         return true;
     }
 
     Reflector::HeaderProcessResult Reflector::ProcessHeaderFile( FileSystem::Path const& filePath, String& exportMacroName, TVector<String>& headerFileContents )
     {
         // Open header file
-        bool const isModuleAPIHeader = filePath.IsFilenameEqual( Settings::g_moduleAPIFileName );
+        bool const isModuleAPIHeader = filePath.IsFilenameEqual( Settings::g_moduleAPIFilename );
         std::ifstream hdrFile( filePath, std::ios::in | std::ios::binary | std::ios::ate );
         if ( !hdrFile.is_open() )
         {
@@ -434,7 +413,7 @@ namespace EE::TypeSystem::Reflection
         bool exportMacroFound = false;
         uint32_t openCommentBlock = 0;
 
-        for( auto const& line : headerFileContents )
+        for ( auto const& line : headerFileContents )
         {
             // Check for comment blocks
             if ( line.find( "/*" ) != String::npos ) openCommentBlock++;
@@ -499,13 +478,31 @@ namespace EE::TypeSystem::Reflection
         return HeaderProcessResult::IgnoreHeader;
     }
 
+    //-------------------------------------------------------------------------
+
     bool Reflector::Clean()
     {
-        std::cout << " * Cleaning Solution: " << m_solution.m_path.c_str() << std::endl;
+        TVector<FileSystem::Path> generatedFiles;
+
+        auto CreateEmptyFile = [this] ( FileSystem::Path const& filePath )
+        {
+            std::fstream outputFile( filePath.c_str(), std::ios::out | std::ios::trunc );
+            if ( !outputFile.is_open() )
+            {
+                return LogError( " * Error creating module file: %s", filePath.c_str() );
+            }
+            outputFile.close();
+
+            return true;
+        };
+
+        //-------------------------------------------------------------------------
+
+        std::cout << " * Cleaning Solution: " << m_solutionPath.c_str() << std::endl;
         std::cout << " ----------------------------------------------" << std::endl << std::endl;
 
         // Delete all auto-generated directories for valid projects
-        for ( auto& prj : m_solution.m_projects )
+        for ( auto& prj : m_projects )
         {
             std::cout << " * Cleaning Project - " << prj.m_name.c_str() << std::endl;
 
@@ -521,36 +518,21 @@ namespace EE::TypeSystem::Reflection
                 return LogError( " * Error erasing directory: %s", autoGeneratedDirectory.c_str() );
             }
 
-            // Create the module type info and code gen files
-            auto CreateEmptyFile = [this] ( FileSystem::Path const& filePath )
+            // Clean all generated files
+            prj.GetAllGeneratedFiles( generatedFiles );
+            for ( auto const& generatedFilePath : generatedFiles )
             {
-                std::fstream outputFile( filePath.c_str(), std::ios::out | std::ios::trunc );
-                if ( !outputFile.is_open() )
+                if ( !CreateEmptyFile( generatedFilePath ) )
                 {
-                    return LogError( " * Error creating module file: %s", filePath.c_str() );
+                    return false;
                 }
-                outputFile.close();
-
-                return true;
-            };
-
-            FileSystem::Path const& typeInfoFilePath = prj.GetTypeInfoFilePath();
-            if ( !CreateEmptyFile( typeInfoFilePath ) )
-            {
-                return false;
-            }
-
-            FileSystem::Path const& codeGenFilePath = prj.GetCodeGenFilePath();
-            if ( !CreateEmptyFile( codeGenFilePath ) )
-            {
-                return false;
             }
         }
 
         std::cout << std::endl;
 
         // Delete all auto-generated directories for excluded projects (just to be safe)
-        for ( auto& prjPath : m_solution.m_excludedProjects )
+        for ( auto& prjPath : m_excludedProjectPaths )
         {
             FileSystem::Path const autoGeneratedDirectory = Utils::GetAutogeneratedDirectoryNameForProject( prjPath.GetParentDirectory() );
             std::cout << " * Cleaning Excluded Project - " << autoGeneratedDirectory.c_str() << std::endl;
@@ -563,63 +545,142 @@ namespace EE::TypeSystem::Reflection
 
         std::cout << std::endl;
 
-        FileSystem::Path const globalAutoGeneratedDirectory = m_solution.m_path + Reflection::Settings::g_globalAutoGeneratedDirectory;
-        if ( FileSystem::EraseDir( globalAutoGeneratedDirectory ) )
+        FileSystem::Path engineTypeRegistrationFilePath = m_solutionPath + Reflection::Settings::g_runtimeTypeRegistrationHeaderPath;
+        if ( FileSystem::EraseFile( engineTypeRegistrationFilePath ) )
         {
-            std::cout << " * Cleaning Global Autogenerated Directory - " << globalAutoGeneratedDirectory.c_str() << std::endl;
+            std::cout << " * Cleaning Engine Type Registration - " << engineTypeRegistrationFilePath.c_str() << std::endl;
         }
         else
         {
-            return LogError( " * Error erasing directory: %s", ( m_solution.m_path + Reflection::Settings::g_globalAutoGeneratedDirectory ).c_str() );
+            return LogError( " * Error erasing file: %s", engineTypeRegistrationFilePath.c_str() );
+        }
+
+        FileSystem::Path editorTypeRegistrationFilePath = m_solutionPath + Reflection::Settings::g_toolsTypeRegistrationHeaderPath;
+        if ( FileSystem::EraseFile( editorTypeRegistrationFilePath ) )
+        {
+            std::cout << " * Cleaning Editor Type Registration - " << editorTypeRegistrationFilePath.c_str() << std::endl;
+        }
+        else
+        {
+            return LogError( " * Error erasing file: %s", editorTypeRegistrationFilePath.c_str() );
         }
 
         //-------------------------------------------------------------------------
 
         std::cout << std::endl;
-
-        FileSystem::Path const databasePath( m_reflectionDataPath + "TypeDatabase.db" );
-        bool const result = !FileSystem::Exists( databasePath ) || FileSystem::EraseFile( databasePath );
-        if ( result )
-        {
-            std::cout << " * Deleted: " << databasePath.c_str() << std::endl;
-        }
-        else
-        {
-            std::cout << " * Error deleting: " << databasePath.c_str() << std::endl;
-        }
-
-        std::cout << std::endl;
         std::cout << " >>> Cleaning - Complete!" << std::endl << std::endl;
-        return result;
+        return true;
     }
 
     bool Reflector::Build()
     {
-        std::cout << " * Reflecting Solution: " << m_solution.m_path.c_str() << std::endl;
+        ReflectionDatabase database( m_projects );
+
+        std::cout << " * Reflecting Solution: " << m_solutionPath.c_str() << std::endl;
         std::cout << " ----------------------------------------------" << std::endl << std::endl;
 
         Milliseconds time = 0;
         {
             ScopedTimer<PlatformClock> timer( time );
 
-            // Open connection to type database and read all previous data
-            FileSystem::Path databasePath( m_reflectionDataPath + "TypeDatabase.db" );
-            m_database.ReadDatabase( databasePath );
+            //-------------------------------------------------------------------------
 
-            // For now just reflect all detected headers as we have disabled the up-to-date check
-            for ( ProjectInfo& projectInfo : m_solution.m_projects )
+            // Create list of all headers to parse
+            TVector<HeaderInfo*> headersToParse;
+            for ( auto& prj : m_projects )
             {
-                for ( HeaderInfo const& headerInfo : projectInfo.m_headerFiles )
+                // Ignore projects with no module header
+                if ( !prj.m_moduleHeaderID.IsValid() )
                 {
-                    m_database.UpdateHeaderRecord( headerInfo );
+                    continue;
+                }
+
+                // Add all dirty headers to the list of file to be parsed
+                bool moduleHeaderAdded = false;
+                for ( HeaderInfo& headerInfo : prj.m_headerFiles )
+                {
+                    headersToParse.push_back( &headerInfo );
                 }
             }
 
             //-------------------------------------------------------------------------
 
-            if ( !ReflectRegisteredHeaders() )
+            if ( !headersToParse.empty() )
             {
+                std::cout << " * Reflecting C++ Code - First Pass (With Dev Tools) - ";
+
+                // Parse headers
+                ClangParser clangParser( m_solutionPath, &database );
+                if ( !clangParser.Parse( headersToParse, ClangParser::DevToolsPass ) )
+                {
+                    std::cout << "\n ! Error: " << clangParser.GetErrorMessage().c_str() << std::endl;
+                    return false;
+                }
+                Milliseconds clangParsingTime = clangParser.GetParsingTime();
+                Milliseconds clangVisitingTime = clangParser.GetVisitingTime();
+                std::cout << "Complete! ( P:" << (float) clangParsingTime << "ms, V:" << (float) clangVisitingTime << "ms )" << std::endl;
+
+                std::cout << " * Reflecting C++ Code - Second Pass (No Dev Tools) - ";
+
+                // Second parse to detect dev-only types
+                if ( !clangParser.Parse( headersToParse, ClangParser::NoDevToolsPass ) )
+                {
+                    std::cout << "\n ! Error: " << clangParser.GetErrorMessage().c_str() << std::endl;
+                    return false;
+                }
+                clangParsingTime = clangParser.GetParsingTime();
+                clangVisitingTime = clangParser.GetVisitingTime();
+                std::cout << "Complete! ( P:" << (float) clangParsingTime << "ms, V:" << (float) clangVisitingTime << "ms )" << std::endl;
+
+                // Finalize database data
+                if ( !database.ValidateDataFileRegistrations() )
+                {
+                    std::cout << "\n ! Database Validation Error: " << database.GetErrorMessage() << std::endl;
+                    return false;
+                }
+
+                if ( !database.ProcessAndValidateReflectedProperties() )
+                {
+                    std::cout << "\n ! Database Validation Error: " << database.GetErrorMessage() << std::endl;
+                    return false;
+                }
+
+                if ( database.HasWarnings() )
+                {
+                    std::cout << "\n ! Database Validation Warnings: \n" << database.GetWarningMessage() << std::endl;
+                }
+
+                database.CleanupResourceHierarchy();
+            }
+
+            //-------------------------------------------------------------------------
+
+            std::cout << " * Generating Code - ";
+            Milliseconds codeGenTime = 0;
+
+            CodeGenerator generator( m_solutionPath, database );
+            {
+                ScopedTimer<PlatformClock> codeGenTimer( codeGenTime );
+                if ( !generator.GenerateCodeForSolution() )
+                {
+                    return LogError( generator.GetErrorMessage() );
+                }
+            }
+
+            if ( !WriteGeneratedFiles( generator ) )
+            {
+                std::cout << "\n ! Error: Failed to write generated files! Attempting to clean all autogenerated folders!" << std::endl;
+                Clean();
                 return false;
+            }
+
+            std::cout << "Complete! ( " << (float) codeGenTime << "ms )" << std::endl;
+
+            //-------------------------------------------------------------------------
+
+            if ( generator.HasWarnings() )
+            {
+                LogWarning( generator.GetWarningMessage() );
             }
         }
 
@@ -629,166 +690,80 @@ namespace EE::TypeSystem::Reflection
         return true;
     }
 
-    bool Reflector::ReflectRegisteredHeaders()
+    bool Reflector::WriteGeneratedFiles( class CodeGenerator const& generator )
     {
-        // Create list of all headers to parse
-        TVector<HeaderInfo*> headersToParse;
-        for ( auto& prj : m_solution.m_projects )
+        EE_ASSERT( !generator.HasErrors() );
+        TVector<CodeGenerator::GeneratedFile> const& generatedFiles = generator.GetGeneratedFiles();
+
+        // Delete all auto-generated directories for excluded projects (just to be safe)
+        //-------------------------------------------------------------------------
+
+        for ( auto& prjPath : m_excludedProjectPaths )
         {
-            // Ignore projects with no module header
-            if ( !prj.m_moduleHeaderID.IsValid() )
+            FileSystem::Path const autoGeneratedDirectory = Utils::GetAutogeneratedDirectoryNameForProject( prjPath.GetParentDirectory() );
+            if ( autoGeneratedDirectory.Exists() && !FileSystem::EraseDir( autoGeneratedDirectory ) )
             {
-                continue;
-            }
-
-            // Add all dirty headers to the list of file to be parsed
-            bool moduleHeaderAdded = false;
-            for ( HeaderInfo& headerInfo : prj.m_headerFiles )
-            {
-                headersToParse.push_back( &headerInfo );
-
-                // Erase all types associated with this header from the database
-                m_database.DeleteTypesForHeader( headerInfo.m_ID );
+                return LogError( " * Error erasing directory: %s", autoGeneratedDirectory.c_str() );
             }
         }
 
+        // Get list of files in all known auto-generated directories
         //-------------------------------------------------------------------------
 
-        if ( !headersToParse.empty() )
+        TVector<FileSystem::Path> existingFilesOnDisk;
+        TVector<FileSystem::Path> directoryContents;
+
+        for ( auto& prj : m_projects )
         {
-            std::cout << " * Reflecting C++ Code - First Pass (With Dev Tools) - ";
+            FileSystem::Path const autoGeneratedDirectory = prj.GetAutogeneratedDirectoryPath();
+            FileSystem::GetDirectoryContents( autoGeneratedDirectory, directoryContents );
 
-            // Parse headers
-            ClangParser clangParser( &m_solution, &m_database, m_reflectionDataPath );
-            if ( !clangParser.Parse( headersToParse, ClangParser::DevToolsPass ) )
+            for ( auto const& path : directoryContents )
             {
-                std::cout << "Error occurred!\n\n  Error: " << clangParser.GetErrorMessage().c_str() << std::endl;
-                return false;
-            }
-            Milliseconds clangParsingTime = clangParser.GetParsingTime();
-            Milliseconds clangVisitingTime = clangParser.GetVisitingTime();
-            std::cout << "Complete! ( P:" << (float) clangParsingTime << "ms, V:" << (float) clangVisitingTime << "ms )" << std::endl;
-
-            std::cout << " * Reflecting C++ Code - Second Pass (No Dev Tools) - ";
-
-            // Second parse to detect dev-only types
-            if ( !clangParser.Parse( headersToParse, ClangParser::NoDevToolsPass ) )
-            {
-                std::cout << "Error occurred!\n\n  Error: " << clangParser.GetErrorMessage().c_str() << std::endl;
-                return false;
-            }
-            clangParsingTime = clangParser.GetParsingTime();
-            clangVisitingTime = clangParser.GetVisitingTime();
-            std::cout << "Complete! ( P:" << (float) clangParsingTime << "ms, V:" << (float) clangVisitingTime << "ms )" << std::endl;
-
-            // Finalize database data
-            m_database.UpdateProjectList( m_solution.m_projects );
-            m_database.CleanupResourceHierarchy();
-        }
-
-        //-------------------------------------------------------------------------
-
-        std::cout << " * Generating Code - ";
-        Milliseconds time = 0;
-
-        CodeGenerator generator( m_database );
-        {
-            ScopedTimer<PlatformClock> timer( time );
-            if ( !generator.GenerateCodeForSolution( m_solution ) )
-            {
-                return LogError( generator.GetErrorMessage() );
+                // There should be no directories inside the auto-generated folders
+                if( path.IsDirectoryPath() )
+                { 
+                    if ( !FileSystem::EraseDir( path ) )
+                    {
+                        return LogError( " * Error erasing directory: %s", path.c_str() );
+                    }
+                }
+                else // Push discovered path
+                {
+                    existingFilesOnDisk.emplace_back( path );
+                }
             }
         }
 
-        std::cout << "Complete! ( " << (float) time << "ms )" << std::endl;
+        // Add runtime and tools registration headers
+        VectorEmplaceBackUnique( existingFilesOnDisk, m_solutionPath + Reflection::Settings::g_runtimeTypeRegistrationHeaderPath );
+        VectorEmplaceBackUnique( existingFilesOnDisk, m_solutionPath + Reflection::Settings::g_toolsTypeRegistrationHeaderPath );
 
+        // Compare list of existing files with expected files and delete any files that shouldn't exist
         //-------------------------------------------------------------------------
 
-        if ( !WriteTypeData() )
+        for ( FileSystem::Path const& existingFile : existingFilesOnDisk )
         {
-            return false;
+            if ( !VectorContains( generatedFiles, existingFile, [] ( CodeGenerator::GeneratedFile const& lhs, FileSystem::Path const& rhs ) { return lhs.m_path == rhs; } ) )
+            {
+                if ( !FileSystem::EraseFile( existingFile ) )
+                {
+                    return LogError( " * Error erasing file: %s", existingFile.c_str() );
+                }
+            }
         }
 
+        // Write out any files that have actually changed
         //-------------------------------------------------------------------------
 
-        if ( generator.HasWarnings() )
+        for ( CodeGenerator::GeneratedFile const& generatedFile : generatedFiles )
         {
-            LogWarning( generator.GetWarningMessage() );
+            if ( !FileSystem::UpdateTextFile( generatedFile.m_path, generatedFile.m_contents ) )
+            {
+                return LogError( " * Error creating generated file: %s", generatedFile.m_path.c_str() );
+            }
         }
 
         return true;
     }
-
-    bool Reflector::WriteTypeData()
-    {
-        std::cout << " * Writing Type Database - ";
-
-        Milliseconds time = 0;
-        {
-            ScopedTimer<PlatformClock> timer( time );
-            if ( !m_database.WriteDatabase( m_reflectionDataPath + "TypeDatabase.db" ) )
-            {
-                return LogError( m_database.GetError().c_str() );
-            }
-        }
-
-        std::cout << "Complete! ( " << (float) time << "ms )" << std::endl;
-        return true;
-    }
-}
-
-//-------------------------------------------------------------------------
-
-int main( int argc, char *argv[] )
-{
-    EE::ApplicationGlobalState State;
-
-    // Set precision of cout
-    //-------------------------------------------------------------------------
-
-    std::cout.setf( std::ios::fixed, std::ios::floatfield );
-    std::cout.precision( 2 );
-
-    // Read CMD line arguments
-    //-------------------------------------------------------------------------
-
-    cli::Parser cmdParser( argc, argv );
-    cmdParser.set_required<std::string>( "s", "SlnPath", "Solution Path." );
-    cmdParser.set_optional<bool>( "clean", "Clean", false, "Clean Solution." );
-
-    if ( !cmdParser.run() )
-    {
-        EE_LOG_ERROR( "Type System", "Reflector", "Invalid commandline arguments" );
-        return 1;
-    }
-
-    EE::FileSystem::Path slnPath = cmdParser.get<std::string>( "s" ).c_str();
-    bool const shouldBuild = !cmdParser.get<bool>( "clean" );
-
-    // Execute reflector
-    //-------------------------------------------------------------------------
-
-    std::cout << std::endl;
-    std::cout << "===============================================" << std::endl;
-    std::cout << " * Esoterica Reflector" << std::endl;
-    std::cout << "===============================================" << std::endl << std::endl;
-
-    // Parse solution
-    EE::TypeSystem::Reflection::Reflector reflector;
-    if ( reflector.ParseSolution( slnPath ) )
-    {
-        if ( !reflector.Clean() )
-        {
-            std::cout << std::endl << "Failed to clean: " << slnPath.c_str() << std::endl;
-            EE_TRACE_MSG( "Failed to clean: %s", slnPath.c_str() );
-            return 1;
-        }
-
-        if ( shouldBuild )
-        {
-            return reflector.Build() ? 0 : 1;
-        }
-    }
-
-    return 0;
 }

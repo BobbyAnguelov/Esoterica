@@ -44,11 +44,13 @@ namespace EE::Settings
         Settings::IniFile iniFile( iniFilePath );
         if ( !iniFile.IsValid() )
         {
+            #if EE_DEVELOPMENT_TOOLS
             if ( !SaveGlobalSettingsToIniFile() )
             {
                 EE_LOG_FATAL_ERROR( "Settings", "Registry", "Failed to generate default INI file: %s", iniFilePath.c_str() );
                 return false;
             }
+            #endif
 
             // Try to load the newly created ini file
             iniFile = Settings::IniFile( iniFilePath );

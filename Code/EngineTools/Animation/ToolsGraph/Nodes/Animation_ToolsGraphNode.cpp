@@ -5,40 +5,13 @@
 namespace EE::Animation::GraphNodes
 {
     constexpr static float const g_playbackBarMinimumWidth = 120;
-    constexpr static float const g_playbackBarHeight = 10;
+    constexpr static float const g_playbackBarHeight = 12;
     constexpr static float const g_playbackBarMarkerSize = 4;
     constexpr static float const g_playbackBarRegionHeight = g_playbackBarHeight + g_playbackBarMarkerSize;
 
-    EE::StringID const FlowToolsNode::s_pinTypes[] =
-    {
-        StringID( GetNameForValueType( GraphValueType::Unknown ) ),
-        StringID( GetNameForValueType( GraphValueType::Bool ) ),
-        StringID( GetNameForValueType( GraphValueType::ID ) ),
-        StringID( GetNameForValueType( GraphValueType::Float ) ),
-        StringID( GetNameForValueType( GraphValueType::Vector ) ),
-        StringID( GetNameForValueType( GraphValueType::Target ) ),
-        StringID( GetNameForValueType( GraphValueType::BoneMask ) ),
-        StringID( GetNameForValueType( GraphValueType::Pose ) ),
-        StringID( GetNameForValueType( GraphValueType::Special ) )
-    };
-
-    GraphValueType FlowToolsNode::GetValueTypeForPinType( StringID pinType )
-    {
-        for ( uint8_t i = 0; i <= (uint8_t) GraphValueType::Special; i++ )
-        {
-            if ( s_pinTypes[i] == pinType )
-            {
-                return (GraphValueType) i;
-            }
-        }
-
-        EE_UNREACHABLE_CODE();
-        return GraphValueType::Unknown;
-    }
-
     //-------------------------------------------------------------------------
 
-    void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float canvasWidth, PoseNodeDebugInfo const* pDebugInfo )
+    void DrawPoseNodeDebugInfo( NodeGraph::DrawContext const& ctx, float canvasWidth, PoseNodeDebugInfo const* pDebugInfo )
     {
         float const availableCanvasWidth = Math::Max( canvasWidth, g_playbackBarMinimumWidth );
         ImVec2 const playbackBarSize = ctx.CanvasToWindow( ImVec2( availableCanvasWidth, g_playbackBarHeight ) );
@@ -59,15 +32,26 @@ namespace EE::Animation::GraphNodes
             float const pixelOffsetForPercentageThrough = Math::Floor( playbackBarSize.x * percentageThroughTrack );
 
             // Draw events
-            bool useAlternateColor = false;
-            ImVec2 eventTopLeft = playbackBarTopLeft;
-            ImVec2 eventBottomRight = playbackBarBottomRight;
-            for ( auto const& evt : pDebugInfo->m_pSyncTrack->GetEvents() )
+            auto GetIntervalColor = [&] ( int32_t intervalIdx ) { return Math::IsEven( intervalIdx ) ? Colors::White : Colors::DarkGray; };
+
+            TInlineVector<SyncTrack::Event, 10> const& events = pDebugInfo->m_pSyncTrack->GetEvents();
+            int32_t const numEvents = (int32_t) events.size();
+            for ( int32_t i = 0; i < numEvents; i++ )
             {
-                eventBottomRight.x = eventTopLeft.x + Math::Floor( playbackBarSize.x * evt.m_duration );
-                ctx.m_pDrawList->AddRectFilled( eventTopLeft, eventBottomRight, useAlternateColor ? Colors::White : Colors::DarkGray );
-                eventTopLeft.x = eventBottomRight.x;
-                useAlternateColor = !useAlternateColor;
+                ImVec2 const eventTopLeft( Math::Round( playbackBarTopLeft.x + playbackBarSize.x * events[i].m_startTime ), playbackBarTopLeft.y );
+                ImVec2 const eventBottomRight( Math::Min( playbackBarBottomRight.x, eventTopLeft.x + Math::Round( playbackBarSize.x * events[i].m_duration ) ), playbackBarBottomRight.y );
+
+                // Draw start line (and overflow event)
+                if( i == 0 && events[i].m_startTime != 0.0f )
+                {
+                    ImVec2 const eventBottomLeft( eventTopLeft.x, eventBottomRight.y );
+
+                    ctx.m_pDrawList->AddRectFilled( playbackBarTopLeft, eventBottomLeft, GetIntervalColor( numEvents - 1 ) );
+                    ctx.m_pDrawList->AddLine( eventTopLeft, eventBottomLeft, Colors::HotPink, 2.0f * ctx.m_viewScaleFactor );
+                }
+
+                // Draw interval
+                ctx.m_pDrawList->AddRectFilled( eventTopLeft, eventBottomRight, GetIntervalColor( i ) );
             }
 
             // Draw progress bar
@@ -103,7 +87,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void DrawRuntimeNodeIndex( VisualGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, VisualGraph::BaseNode* pNode, int16_t runtimeNodeIdx )
+    void DrawRuntimeNodeIndex( NodeGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, NodeGraph::BaseNode* pNode, int16_t runtimeNodeIdx )
     {
         ImGuiStyle const& style = ImGui::GetStyle();
 
@@ -132,12 +116,12 @@ namespace EE::Animation::GraphNodes
         ctx.m_pDrawList->AddText( pFont, pFont->FontSize * ctx.m_viewScaleFactor, startRect + scaledTextOffset, Colors::White, idxStr.c_str() );
     }
 
-    void DrawVectorInfoText( VisualGraph::DrawContext const& ctx, Vector const& value )
+    void DrawVectorInfoText( NodeGraph::DrawContext const& ctx, Float3 const& value )
     {
-        ImGui::Text( "X: %.2f, Y: %.2f, Z: %.2f, W: %.2f", value.GetX(), value.GetY(), value.GetZ(), value.GetW() );
+        ImGui::Text( "X: %.2f, Y: %.2f, Z: %.2f", value.m_x, value.m_y, value.m_z );
     }
 
-    void DrawTargetInfoText( VisualGraph::DrawContext const& ctx, Target const& value )
+    void DrawTargetInfoText( NodeGraph::DrawContext const& ctx, Target const& value )
     {
         if ( value.IsTargetSet() )
         {
@@ -169,7 +153,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void DrawValueDisplayText( VisualGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, int16_t runtimeNodeIdx, GraphValueType valueType )
+    void DrawValueDisplayText( NodeGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, int16_t runtimeNodeIdx, GraphValueType valueType )
     {
         EE_ASSERT( pGraphNodeContext != nullptr );
         EE_ASSERT( pGraphNodeContext->HasDebugData() );
@@ -211,7 +195,7 @@ namespace EE::Animation::GraphNodes
 
             case GraphValueType::Vector:
             {
-                auto const value = pGraphNodeContext->GetNodeValue<Vector>( runtimeNodeIdx );
+                auto const value = pGraphNodeContext->GetNodeValue<Float3>( runtimeNodeIdx );
                 DrawVectorInfoText( ctx, value );
             }
             break;
@@ -228,7 +212,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    static void TraverseHierarchy( VisualGraph::BaseNode const* pNode, TVector<VisualGraph::BaseNode const*>& nodePath )
+    static void TraverseHierarchy( NodeGraph::BaseNode const* pNode, TVector<NodeGraph::BaseNode const*>& nodePath )
     {
         EE_ASSERT( pNode != nullptr );
         nodePath.emplace_back( pNode );
@@ -241,13 +225,15 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void FlowToolsNode::DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void FlowToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
 
         bool const isPreviewing = pGraphNodeContext->HasDebugData();
         int16_t const runtimeNodeIdx = isPreviewing ? pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() ) : InvalidIndex;
         bool const isPreviewingAndValidRuntimeNodeIdx = isPreviewing && ( runtimeNodeIdx != InvalidIndex );
+
+        GraphValueType const nodeValueType = GetOutputValueType();
 
         //-------------------------------------------------------------------------
         // Runtime Index Info
@@ -262,7 +248,7 @@ namespace EE::Animation::GraphNodes
         // Draw Pose Node
         //-------------------------------------------------------------------------
 
-        if ( GetValueType() == GraphValueType::Pose )
+        if ( nodeValueType == GraphValueType::Pose )
         {
             if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
             {
@@ -287,15 +273,15 @@ namespace EE::Animation::GraphNodes
         {
             DrawInfoText( ctx );
 
-            if ( GetValueType() != GraphValueType::Unknown && GetValueType() != GraphValueType::BoneMask && GetValueType() != GraphValueType::Pose && GetValueType() != GraphValueType::Special )
+            if ( nodeValueType != GraphValueType::Unknown && nodeValueType != GraphValueType::BoneMask && nodeValueType != GraphValueType::Pose && nodeValueType != GraphValueType::Special )
             {
-                DrawInternalSeparator( ctx, s_genericNodeSeparatorColor );
+                DrawInternalSeparator( ctx );
 
                 BeginDrawInternalRegion( ctx );
 
                 if ( isPreviewingAndValidRuntimeNodeIdx && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) && HasOutputPin() )
                 {
-                    DrawValueDisplayText( ctx, pGraphNodeContext, runtimeNodeIdx, GetValueType() );
+                    DrawValueDisplayText( ctx, pGraphNodeContext, runtimeNodeIdx, nodeValueType );
                 }
                 else
                 {
@@ -307,7 +293,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    bool FlowToolsNode::IsActive( VisualGraph::UserContext* pUserContext ) const
+    bool FlowToolsNode::IsActive( NodeGraph::UserContext* pUserContext ) const
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
@@ -325,15 +311,15 @@ namespace EE::Animation::GraphNodes
 
     Color FlowToolsNode::GetTitleBarColor() const
     {
-        return GetColorForValueType( GetValueType() );
+        return GetColorForValueType( GetOutputValueType() );
     }
 
-    Color FlowToolsNode::GetPinColor( VisualGraph::Flow::Pin const& pin ) const
+    Color FlowToolsNode::GetPinColor( NodeGraph::Pin const& pin ) const
     {
         return GetColorForValueType( GetValueTypeForPinType( pin.m_type ) );
     }
 
-    void FlowToolsNode::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin )
+    void FlowToolsNode::DrawContextMenuOptions( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, NodeGraph::Pin* pPin )
     {
         // Draw runtime node index
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );

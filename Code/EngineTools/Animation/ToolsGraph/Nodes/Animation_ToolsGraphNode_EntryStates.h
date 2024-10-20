@@ -1,6 +1,6 @@
 #pragma once
-#include "Animation_ToolsGraphNode.h"
-#include "EngineTools/Core/VisualGraph/VisualGraph_StateMachineGraph.h"
+#include "Animation_ToolsGraphNode_Result.h"
+#include "EngineTools/NodeGraph/NodeGraph_StateMachineGraph.h"
 
 //-------------------------------------------------------------------------
 
@@ -10,7 +10,7 @@ namespace EE::Animation::GraphNodes
     //-------------------------------------------------------------------------
     // It has one input pin per state in the state machine
 
-    class EntryStateOverrideConditionsToolsNode final : public FlowToolsNode
+    class EntryStateOverrideConditionsToolsNode final : public ResultToolsNode
     {
         EE_REFLECT_TYPE( EntryStateOverrideConditionsToolsNode );
 
@@ -26,29 +26,29 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Entry State Conditions"; }
         virtual char const* GetCategory() const override { return "State Machine"; }
         virtual bool IsUserCreatable() const override { return false; }
         virtual void OnShowNode() override;
+        virtual int16_t Compile( GraphCompilationContext& context ) const override { EE_UNREACHABLE_CODE(); return InvalidIndex; }
 
     private:
 
         // For each pin, what state does it represent
-        EE_REFLECT( "IsToolsReadOnly" : true );
+        EE_REFLECT( Hidden );
         TVector<UUID>  m_pinToStateMapping;
     };
 
     // State Machine Node
     //-------------------------------------------------------------------------
 
-    class EntryStateOverrideConduitToolsNode final : public VisualGraph::SM::Node
+    class EntryStateOverrideConduitToolsNode final : public NodeGraph::StateMachineNode
     {
         EE_REFLECT_TYPE( EntryStateOverrideConduitToolsNode );
 
     public:
 
-        virtual void Initialize( VisualGraph::BaseGraph* pParent ) override;
+        EntryStateOverrideConduitToolsNode();
 
         FlowToolsNode const* GetEntryConditionNodeForState( UUID const& stateID ) const;
 

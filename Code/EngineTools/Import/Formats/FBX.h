@@ -5,7 +5,7 @@
 #include "Base/Types/String.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/Types/StringID.h"
-#include "Base/Memory/Pointers.h"
+#include "Base/Memory/UniquePtr.h"
 #include <fbxsdk.h>
 
 //-------------------------------------------------------------------------

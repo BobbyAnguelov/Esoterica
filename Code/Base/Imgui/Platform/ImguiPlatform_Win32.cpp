@@ -29,6 +29,7 @@ namespace EE::ImGuiX
             int                         MouseTrackedArea;   // 0: not tracked, 1: client are, 2: non-client area
             int                         MouseButtonsDown = 0;
             ImGuiMouseCursor            LastMouseCursor;
+            UINT32                      KeyboardCodePage;
             bool                        WantUpdateHasGamepad = false;
             bool                        WantUpdateMonitors = false;
 
@@ -395,6 +396,16 @@ namespace EE::ImGuiX
         // Input
         //-------------------------------------------------------------------------
 
+        static void ImGui_ImplWin32_UpdateKeyboardCodePage()
+        {
+            // Retrieve keyboard code page, required for handling of non-Unicode Windows.
+            ImGui_ImplWin32_Data* bd = ImGui_ImplWin32_GetBackendData();
+            HKL keyboard_layout = ::GetKeyboardLayout( 0 );
+            LCID keyboard_lcid = MAKELCID( HIWORD( keyboard_layout ), SORT_DEFAULT );
+            if ( ::GetLocaleInfoA( keyboard_lcid, ( LOCALE_RETURN_NUMBER | LOCALE_IDEFAULTANSICODEPAGE ), (LPSTR) &bd->KeyboardCodePage, sizeof( bd->KeyboardCodePage ) ) == 0 )
+                bd->KeyboardCodePage = CP_ACP; // Fallback to default ANSI code page when fails.
+        }
+
         static bool ImGui_ImplWin32_UpdateMouseCursor()
         {
             ImGuiIO& io = ImGui::GetIO();
@@ -551,7 +562,21 @@ namespace EE::ImGuiX
                 case VK_F9: return ImGuiKey_F9;
                 case VK_F10: return ImGuiKey_F10;
                 case VK_F11: return ImGuiKey_F11;
-                case VK_F12: return ImGuiKey_F12;
+                case VK_F12: return ImGuiKey_F12; 
+                case VK_F13: return ImGuiKey_F13;
+                case VK_F14: return ImGuiKey_F14;
+                case VK_F15: return ImGuiKey_F15;
+                case VK_F16: return ImGuiKey_F16;
+                case VK_F17: return ImGuiKey_F17;
+                case VK_F18: return ImGuiKey_F18;
+                case VK_F19: return ImGuiKey_F19;
+                case VK_F20: return ImGuiKey_F20;
+                case VK_F21: return ImGuiKey_F21;
+                case VK_F22: return ImGuiKey_F22;
+                case VK_F23: return ImGuiKey_F23;
+                case VK_F24: return ImGuiKey_F24;
+                case VK_BROWSER_BACK: return ImGuiKey_AppBack;
+                case VK_BROWSER_FORWARD: return ImGuiKey_AppForward;
                 default: return ImGuiKey_None;
             }
         }
@@ -766,10 +791,14 @@ namespace EE::ImGuiX
                         int vk = (int)wParam;
                         if ( ( wParam == VK_RETURN ) && ( HIWORD( lParam ) & KF_EXTENDED ) )
                             vk = IM_VK_KEYPAD_ENTER;
-
-                        // Submit key event
                         const ImGuiKey key = ImGui_ImplWin32_VirtualKeyToImGuiKey( vk );
                         const int scancode = (int)LOBYTE( HIWORD( lParam ) );
+
+                        // Special behavior for VK_SNAPSHOT / ImGuiKey_PrintScreen as Windows doesn't emit the key down event.
+                        if ( key == ImGuiKey_PrintScreen && !is_key_down )
+                            ImGui_ImplWin32_AddKeyEvent( key, true, vk, scancode );
+
+                        // Submit key event
                         if ( key != ImGuiKey_None )
                             ImGui_ImplWin32_AddKeyEvent( key, is_key_down, vk, scancode );
 
@@ -798,6 +827,12 @@ namespace EE::ImGuiX
                 case WM_KILLFOCUS:
                 {
                     io.AddFocusEvent( msg == WM_SETFOCUS );
+                }
+                break;
+
+                case WM_INPUTLANGCHANGE:
+                {
+                    ImGui_ImplWin32_UpdateKeyboardCodePage();
                 }
                 break;
 
@@ -948,14 +983,16 @@ namespace EE::ImGuiX
 
         auto pBackendData = EE::New<Platform::ImGui_ImplWin32_Data>();
 
+        io.BackendPlatformUserData = pBackendData;
+        io.BackendPlatformName = "imgui_impl_win32";
+
         pBackendData->hWnd = (HWND) EE::Platform::GetMainWindowHandle();
         pBackendData->WantUpdateHasGamepad = true;
         pBackendData->WantUpdateMonitors = true;
         pBackendData->LastMouseCursor = ImGuiMouseCursor_COUNT;
         pBackendData->m_pEngineInputSystem = m_pInputSystem;
 
-        io.BackendPlatformUserData = pBackendData;
-        io.BackendPlatformName = "imgui_impl_win32";
+        Platform::ImGui_ImplWin32_UpdateKeyboardCodePage();
 
         //-------------------------------------------------------------------------
 
@@ -1036,6 +1073,9 @@ namespace EE::ImGuiX
         ImGuiIO& io = ImGui::GetIO();
         io.BackendPlatformName = nullptr;
         io.BackendPlatformUserData = nullptr;
+        io.BackendRendererUserData = nullptr;
+        io.BackendFlags &= ~( ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos | ImGuiBackendFlags_HasGamepad );
+
         EE::Delete( pBackendData );
     }
 

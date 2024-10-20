@@ -1,11 +1,9 @@
-{
-    "TypeID": "EE::Render::MaterialResourceDescriptor",
-    "m_albedoTexture": "data://Demo/RenderDemo/materials/bronze/albedo.txtr",
-    "m_metalnessTexture": "data://Demo/RenderDemo/materials/bronze/metallic.txtr",
-    "m_roughnessTexture": "data://Demo/RenderDemo/materials/bronze/roughness.txtr",
-    "m_normalMapTexture": "data://Demo/RenderDemo/materials/copper/normal.txtr",
-    "m_albedo": "000000FF",
-    "m_metalness": "0.000000",
-    "m_roughness": "1.000000",
-    "m_normalScaler": "4.000000"
-}
+<Type TypeID="EE::Render::MaterialResourceDescriptor" Version="0">
+  <Property ID="m_albedoTexture" Value="data://demo/renderdemo/materials/bronze/albedo.txtr" />
+  <Property ID="m_metalnessTexture" Value="data://demo/renderdemo/materials/bronze/metallic.txtr" />
+  <Property ID="m_roughnessTexture" Value="data://demo/renderdemo/materials/bronze/roughness.txtr" />
+  <Property ID="m_normalMapTexture" Value="data://demo/renderdemo/materials/copper/normal.txtr" />
+  <Property ID="m_albedo" Value="000000FF" />
+  <Property ID="m_roughness" Value="1" />
+  <Property ID="m_normalScaler" Value="4" />
+</Type>

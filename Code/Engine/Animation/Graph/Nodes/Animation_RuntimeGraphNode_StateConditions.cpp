@@ -147,6 +147,12 @@ namespace EE::Animation::GraphNodes
                     m_result = DoComparision( m_pSourceStateNode->GetElapsedTimeInState(), comparisonValue );
                 }
                 break;
+
+                case ComparisonType::LoopCount:
+                {
+                    m_result = DoComparision( float( m_pSourceStateNode->GetLoopCount() ), comparisonValue );
+                }
+                break;
             }
         }
 

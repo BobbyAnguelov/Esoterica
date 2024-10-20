@@ -11,9 +11,9 @@
 namespace EE::Animation
 {
     SkeletonCompiler::SkeletonCompiler() 
-        : Resource::Compiler( "SkeletonCompiler", s_version )
+        : Resource::Compiler( "SkeletonCompiler" )
     {
-        m_outputTypes.push_back( Skeleton::GetStaticResourceTypeID() );
+        AddOutputType<Skeleton>();
     }
 
     Resource::CompilationResult SkeletonCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -28,7 +28,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         FileSystem::Path skeletonFilePath;
-        if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_skeletonPath, skeletonFilePath ) )
+        if ( !ConvertDataPathToFilePath( resourceDescriptor.m_skeletonPath, skeletonFilePath ) )
         {
             return Error( "Invalid skeleton data path: %s", resourceDescriptor.m_skeletonPath.c_str() );
         }
@@ -50,16 +50,40 @@ namespace EE::Animation
             auto const& boneData = pImportedSkeleton->GetBoneData( boneIdx );
             skeleton.m_boneIDs.push_back( boneData.m_name );
             skeleton.m_parentIndices.push_back( boneData.m_parentBoneIdx );
-            skeleton.m_localReferencePose.push_back( Transform( boneData.m_localTransform.GetRotation(), boneData.m_localTransform.GetTranslation(), boneData.m_localTransform.GetScale() ) );
+            skeleton.m_parentSpaceReferencePose.push_back( Transform( boneData.m_parentSpaceTransform.GetRotation(), boneData.m_parentSpaceTransform.GetTranslation(), boneData.m_parentSpaceTransform.GetScale() ) );
             skeleton.m_numBonesToSampleAtLowLOD = pImportedSkeleton->GetNumBonesToSampleAtLowLOD();
         }
+
+        // Generate runtime bone-masks
+        //-------------------------------------------------------------------------
+
+        TVector<StringID> missingBones;
+        TVector<BoneMask::SerializedData> serializedBoneMasks;
+
+        for ( BoneMaskDefinition const& definition : resourceDescriptor.m_boneMaskDefinitions )
+        {
+            if ( !definition.IsValid() )
+            {
+                Warning( "Invalid bone mask definition encountered (%s)", definition.m_ID.IsValid() ? definition.m_ID.c_str() : "No ID set!" );
+                continue;
+            }
+
+            BoneMask::SerializedData& serializedMask = serializedBoneMasks.emplace_back();
+            definition.GenerateSerializedBoneMask( &skeleton, serializedMask, &missingBones );
+
+            for ( StringID boneID : missingBones )
+            {
+                Warning( "Couldn't find bone (%s) while serializing bone mask (%s)", boneID.c_str(), definition.m_ID.c_str() );
+            }
+        }
+
         // Serialize skeleton
         //-------------------------------------------------------------------------
 
         Serialization::BinaryOutputArchive archive;
-        archive << Resource::ResourceHeader( s_version, Skeleton::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        archive << Resource::ResourceHeader( Skeleton::s_version, Skeleton::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         archive << skeleton;
-        archive << resourceDescriptor.m_boneMaskDefinitions;
+        archive << serializedBoneMasks;
 
         // Write preview data
         if ( ctx.IsCompilingForDevelopmentBuild() )

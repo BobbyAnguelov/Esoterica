@@ -141,7 +141,7 @@ namespace EE::Player
 
                     // Start the new state
                     m_activeBaseActionID = transition.m_targetActionID;
-                    Action::Status const newActionStatus = m_baseActions[m_activeBaseActionID]->Update( m_actionContext );
+                    Action::Status const newActionStatus = m_baseActions[m_activeBaseActionID]->Update( m_actionContext, true );
                     EE_ASSERT( newActionStatus != Action::Status::Completed ); // Why did you instantly completed the action you just started, this is likely a mistake!
 
                     return true;
@@ -159,7 +159,7 @@ namespace EE::Player
         {
             // Evaluate the current active state
             ActionID const initialStateID = m_activeBaseActionID;
-            Action::Status const status = m_baseActions[m_activeBaseActionID]->Update( m_actionContext );
+            Action::Status const status = m_baseActions[m_activeBaseActionID]->Update( m_actionContext, false );
             if ( status != Action::Status::Uninterruptible )
             {
                 // Evaluate high priority global transitions
@@ -198,7 +198,7 @@ namespace EE::Player
             bool const tryStartResult = m_baseActions[m_activeBaseActionID]->TryStart( m_actionContext );
             EE_ASSERT( tryStartResult ); // The default state MUST always be able to start
 
-            Action::Status const newActionStatus = m_baseActions[m_activeBaseActionID]->Update( m_actionContext );
+            Action::Status const newActionStatus = m_baseActions[m_activeBaseActionID]->Update( m_actionContext, true );
             EE_ASSERT( newActionStatus == Action::Status::Interruptible ); // Why did you instantly completed the action you just started, this is likely a mistake!
 
             #if EE_DEVELOPMENT_TOOLS
@@ -215,7 +215,7 @@ namespace EE::Player
             // Update running actions
             if ( pOverlayAction->IsActive() )
             {
-                if ( pOverlayAction->Update( m_actionContext ) == Action::Status::Completed )
+                if ( pOverlayAction->Update( m_actionContext, false ) == Action::Status::Completed )
                 {
                     pOverlayAction->Stop( m_actionContext, Action::StopReason::Completed );
 
@@ -227,7 +227,7 @@ namespace EE::Player
             // Try to start action
             else if ( pOverlayAction->TryStart( m_actionContext ) )
             {
-                Action::Status const newActionStatus = pOverlayAction->Update( m_actionContext );
+                Action::Status const newActionStatus = pOverlayAction->Update( m_actionContext, true );
                 EE_ASSERT( newActionStatus != Action::Status::Completed ); // Why did you instantly complete the action you just started, this is likely a mistake!
 
                 #if EE_DEVELOPMENT_TOOLS

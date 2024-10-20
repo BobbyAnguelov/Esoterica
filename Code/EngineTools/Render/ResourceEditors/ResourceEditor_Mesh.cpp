@@ -78,9 +78,9 @@ namespace EE::Render
         ImGuiID bottomDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.5f, nullptr, &topDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), topDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), topDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Info" ).c_str(), bottomDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomDockID );
     }
 
     void StaticMeshEditor::DrawMenu( UpdateContext const& context )
@@ -243,19 +243,19 @@ namespace EE::Render
             ImGui::SeparatorText( "Geometry Sections" );
         }
 
-        DrawGeometrySectionUI( GetDescriptor<MeshResourceDescriptor>(), m_pMeshComponent, pMesh );
+        DrawGeometrySectionUI( GetDataFile<MeshResourceDescriptor>(), m_pMeshComponent, pMesh );
     }
 
     void StaticMeshEditor::OnResourceLoadCompleted( Resource::ResourcePtr* pResourcePtr )
     {
         if ( pResourcePtr == &m_editedResource && IsResourceLoaded() )
         {
-            auto pMeshDescriptor = GetDescriptor<StaticMeshResourceDescriptor>();
+            auto pMeshDescriptor = GetDataFile<StaticMeshResourceDescriptor>();
             if ( pMeshDescriptor->m_materials.size() != m_editedResource->GetNumSections() )
             {
-                BeginDescriptorModification();
+                BeginDataFileModification();
                 pMeshDescriptor->m_materials.resize( m_editedResource->GetNumSections() );
-                EndDescriptorModification();
+                EndDataFileModification();
             }
         }
     }
@@ -310,8 +310,8 @@ namespace EE::Render
         ImGuiID leftBottomDockID = ImGui::DockBuilderSplitNode( leftTopDockID, ImGuiDir_Down, 0.2f, nullptr, &leftTopDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Viewport" ).c_str(), viewportDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Descriptor" ).c_str(), bottomDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), viewportDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Info" ).c_str(), bottomDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Skeleton" ).c_str(), leftTopDockID );
     }
@@ -353,12 +353,12 @@ namespace EE::Render
     {
         if ( pResourcePtr == &m_editedResource && IsResourceLoaded() )
         {
-            auto pMeshDescriptor = GetDescriptor<SkeletalMeshResourceDescriptor>();
+            auto pMeshDescriptor = GetDataFile<SkeletalMeshResourceDescriptor>();
             if ( pMeshDescriptor->m_materials.size() != m_editedResource->GetNumSections() )
             {
-                BeginDescriptorModification();
+                BeginDataFileModification();
                 pMeshDescriptor->m_materials.resize( m_editedResource->GetNumSections() );
-                EndDescriptorModification();
+                EndDataFileModification();
             }
         }
     }
@@ -432,7 +432,7 @@ namespace EE::Render
             {
                 m_editedResource->DrawBindPose( drawingCtx, Transform::Identity );
 
-                if ( m_pMeshComponent != nullptr && m_pMeshComponent->IsInitialized() )
+                if ( m_pMeshComponent != nullptr && m_pMeshComponent->WasInitialized() )
                 {
                     m_pMeshComponent->DrawPose( drawingCtx );
                 }
@@ -531,7 +531,7 @@ namespace EE::Render
 
             ImGui::SeparatorText( "Geometry Sections" );
 
-            DrawGeometrySectionUI( GetDescriptor<MeshResourceDescriptor>(), m_pMeshComponent, pSkeletalMesh );
+            DrawGeometrySectionUI( GetDataFile<MeshResourceDescriptor>(), m_pMeshComponent, pSkeletalMesh );
         }
     }
 

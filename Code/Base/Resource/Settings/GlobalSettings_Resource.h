@@ -16,7 +16,7 @@ namespace EE::Resource
         // Paths
         //-------------------------------------------------------------------------
         // Default paths are relative to the working directory of the process
-        constexpr static char const * const s_defaultRawResourcePath = "./../../Data/";
+        constexpr static char const * const s_defaultSourceDataPath = "./../../Data/";
         constexpr static char const * const s_defaultPackagedBuildName = "x64_Shipping";
 
         // Resource Compiler
@@ -54,7 +54,7 @@ namespace EE::Resource
         String                  m_compiledResourceDirectoryName = s_defaultCompiledResourceDirectoryName;
 
         #if EE_DEVELOPMENT_TOOLS
-        String                  m_rawResourcePathStr = s_defaultRawResourcePath;
+        String                  m_sourceDataDirectoryPathStr = s_defaultSourceDataPath;
         String                  m_packagedBuildName = s_defaultPackagedBuildName;
         String                  m_compiledDBName = s_defaultCompiledResourceDatabaseName;
         String                  m_resourceCompilerExeName = s_defaultResourceCompilerExecutableName;
@@ -66,11 +66,11 @@ namespace EE::Resource
         // Derived Paths
         //-------------------------------------------------------------------------
 
-        FileSystem::Path        m_compiledResourcePath;
+        FileSystem::Path        m_compiledResourceDirectoryPath;
 
         #if EE_DEVELOPMENT_TOOLS
-        FileSystem::Path        m_rawResourcePath;
-        FileSystem::Path        m_packagedBuildCompiledResourcePath;
+        FileSystem::Path        m_sourceDataDirectoryPath;
+        FileSystem::Path        m_packagedBuildCompiledResourceDirectoryPath;
         FileSystem::Path        m_compiledResourceDatabasePath;
         FileSystem::Path        m_resourceCompilerExecutablePath;
         FileSystem::Path        m_resourceServerExecutablePath;

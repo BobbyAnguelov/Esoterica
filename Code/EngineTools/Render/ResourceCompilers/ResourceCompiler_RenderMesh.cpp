@@ -194,15 +194,17 @@ namespace EE::Render
 
     bool MeshCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
-        FileSystem::Path const filePath = resourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
-        MeshResourceDescriptor resourceDescriptor;
-        if ( !Resource::ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, filePath, resourceDescriptor ) )
+        FileSystem::Path const filePath = resourceID.GetFileSystemPath( m_sourceDataDirectoryPath );
+
+        IDataFile* pDataFile = Resource::ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, filePath );
+        if ( pDataFile == nullptr )
         {
             Error( "Failed to read resource descriptor from input file: %s", filePath.c_str() );
             return false;
         }
 
-        for ( auto const& materialResourceID : resourceDescriptor.m_materials )
+        MeshResourceDescriptor* pResourceDescriptor = Cast<MeshResourceDescriptor>( pDataFile );
+        for ( auto const& materialResourceID : pResourceDescriptor->m_materials )
         {
             if ( materialResourceID.GetResourceID().IsValid() )
             {
@@ -210,15 +212,17 @@ namespace EE::Render
             }
         }
 
+        EE::Delete( pDataFile );
+
         return true;
     }
 
     //-------------------------------------------------------------------------
 
     StaticMeshCompiler::StaticMeshCompiler()
-        : MeshCompiler( "StaticMeshCompiler", s_version )
+        : MeshCompiler( "StaticMeshCompiler" )
     {
-        m_outputTypes.push_back( StaticMesh::GetStaticResourceTypeID() );
+        AddOutputType<StaticMesh>();
     }
 
     Resource::CompilationResult StaticMeshCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -238,7 +242,7 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         FileSystem::Path meshFilePath;
-        if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_meshPath, meshFilePath ) )
+        if ( !ConvertDataPathToFilePath( resourceDescriptor.m_meshPath, meshFilePath ) )
         {
             return Error( "Invalid mesh data path: %s", resourceDescriptor.m_meshPath.c_str() );
         }
@@ -271,7 +275,7 @@ namespace EE::Render
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, StaticMesh::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        Resource::ResourceHeader hdr( StaticMesh::s_version, StaticMesh::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         SetMeshInstallDependencies( staticMesh, hdr );
 
         Serialization::BinaryOutputArchive archive;
@@ -297,9 +301,9 @@ namespace EE::Render
     //-------------------------------------------------------------------------
 
     SkeletalMeshCompiler::SkeletalMeshCompiler()
-        : MeshCompiler( "SkeletalMeshCompiler", s_version )
+        : MeshCompiler( "SkeletalMeshCompiler" )
     {
-        m_outputTypes.push_back( SkeletalMesh::GetStaticResourceTypeID() );
+        AddOutputType<SkeletalMesh>();
     }
 
     Resource::CompilationResult SkeletalMeshCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -314,7 +318,7 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         FileSystem::Path meshFilePath;
-        if ( !ConvertResourcePathToFilePath( resourceDescriptor.m_meshPath, meshFilePath ) )
+        if ( !ConvertDataPathToFilePath( resourceDescriptor.m_meshPath, meshFilePath ) )
         {
             return Error( "Invalid mesh data path: %s", resourceDescriptor.m_meshPath.c_str() );
         }
@@ -346,7 +350,7 @@ namespace EE::Render
         // Serialize
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, SkeletalMesh::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        Resource::ResourceHeader hdr( StaticMesh::s_version, SkeletalMesh::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         SetMeshInstallDependencies( skeletalMesh, hdr );
 
         Serialization::BinaryOutputArchive archive;
@@ -381,8 +385,8 @@ namespace EE::Render
         {
             mesh.m_boneIDs.push_back( boneData[i].m_name );
             mesh.m_parentBoneIndices.push_back( boneData[i].m_parentBoneIdx );
-            mesh.m_bindPose.push_back( boneData[i].m_globalTransform );
-            mesh.m_inverseBindPose.push_back( boneData[i].m_globalTransform.GetInverse() );
+            mesh.m_bindPose.push_back( boneData[i].m_modelSpaceTransform );
+            mesh.m_inverseBindPose.push_back( boneData[i].m_modelSpaceTransform.GetInverse() );
         }
     }
 }

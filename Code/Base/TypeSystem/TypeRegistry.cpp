@@ -1,6 +1,7 @@
 #include "TypeRegistry.h"
 #include "PropertyPath.h"
 #include "ResourceInfo.h"
+#include "DataFileInfo.h"
 #include "EnumInfo.h"
 #include "TypeInfo.h"
 #include "ReflectedType.h"
@@ -34,6 +35,10 @@ namespace EE::TypeSystem
             m_ID = TypeSystem::TypeID( "EE::IReflectedType" );
             m_size = sizeof( IReflectedType );
             m_alignment = alignof( IReflectedType );
+
+            #if EE_DEVELOPMENT_TOOLS
+            m_friendlyName = "IReflectedType";
+            #endif
         }
 
         virtual IReflectedType* CreateType() const override
@@ -42,22 +47,12 @@ namespace EE::TypeSystem
             return nullptr;
         }
 
-        virtual void CreateTypeInPlace( IReflectedType* pAllocatedMemory ) const override
-        {
-            EE_HALT();
-        }
-
-        virtual void LoadResources( Resource::ResourceSystem* pResourceSystem, Resource::ResourceRequesterID const& requesterID, IReflectedType* pType ) const override
-        {
-        }
-
-        virtual void UnloadResources( Resource::ResourceSystem* pResourceSystem, Resource::ResourceRequesterID const& requesterID, IReflectedType* pType ) const override
-        {
-        }
-
-        virtual void GetReferencedResources( IReflectedType* pType, TVector<ResourceID>& outReferencedResources ) const override
-        {
-        }
+        virtual void CreateTypeInPlace( IReflectedType* pAllocatedMemory ) const override { EE_HALT(); }
+        virtual void ResetType( IReflectedType* pTypeInstance ) const override { EE_HALT(); }
+        virtual void CopyProperties( IReflectedType* pTypeInstance, IReflectedType const* pRHS ) const override {}
+        virtual void LoadResources( Resource::ResourceSystem* pResourceSystem, Resource::ResourceRequesterID const& requesterID, IReflectedType* pType ) const override {}
+        virtual void UnloadResources( Resource::ResourceSystem* pResourceSystem, Resource::ResourceRequesterID const& requesterID, IReflectedType* pType ) const override {}
+        virtual void GetReferencedResources( IReflectedType const* pType, TVector<ResourceID>& outReferencedResources ) const override {}
 
         virtual LoadingStatus GetResourceLoadingStatus( IReflectedType* pType ) const override
         {
@@ -69,39 +64,40 @@ namespace EE::TypeSystem
             return LoadingStatus::Unloaded;
         }
 
-        virtual uint8_t* GetArrayElementDataPtr( IReflectedType* pType, uint32_t arrayID, size_t arrayIdx ) const override
+        virtual uint8_t* GetArrayElementDataPtr( IReflectedType* pType, uint64_t arrayID, size_t arrayIdx ) const override
         {
             EE_UNREACHABLE_CODE();
             return nullptr;
         }
 
-        virtual size_t GetArraySize( IReflectedType const* pTypeInstance, uint32_t arrayID ) const override
+        virtual size_t GetArraySize( IReflectedType const* pTypeInstance, uint64_t arrayID ) const override
         {
             EE_UNREACHABLE_CODE();
             return 0;
         }
 
-        virtual size_t GetArrayElementSize( uint32_t arrayID ) const override
+        virtual size_t GetArrayElementSize( uint64_t arrayID ) const override
         {
             EE_UNREACHABLE_CODE();
             return 0;
         }
 
-        virtual void ClearArray( IReflectedType* pTypeInstance, uint32_t arrayID ) const override { EE_UNREACHABLE_CODE(); }
-        virtual void AddArrayElement( IReflectedType* pTypeInstance, uint32_t arrayID ) const override { EE_UNREACHABLE_CODE(); }
-        virtual void InsertArrayElement( IReflectedType* pTypeInstance, uint32_t arrayID, size_t insertIdx ) const { EE_UNREACHABLE_CODE(); }
-        virtual void MoveArrayElement( IReflectedType* pTypeInstance, uint32_t arrayID, size_t originalElementIdx, size_t newElementIdx ) const { EE_UNREACHABLE_CODE(); }
-        virtual void RemoveArrayElement( IReflectedType* pTypeInstance, uint32_t arrayID, size_t arrayIdx ) const override { EE_UNREACHABLE_CODE(); }
+        virtual void SetArraySize( IReflectedType* pTypeInstance, uint64_t arrayID, size_t size ) const override { EE_UNREACHABLE_CODE(); }
+        virtual void ClearArray( IReflectedType* pTypeInstance, uint64_t arrayID ) const override { EE_UNREACHABLE_CODE(); }
+        virtual void AddArrayElement( IReflectedType* pTypeInstance, uint64_t arrayID ) const override { EE_UNREACHABLE_CODE(); }
+        virtual void InsertArrayElement( IReflectedType* pTypeInstance, uint64_t arrayID, size_t insertIdx ) const { EE_UNREACHABLE_CODE(); }
+        virtual void MoveArrayElement( IReflectedType* pTypeInstance, uint64_t arrayID, size_t originalElementIdx, size_t newElementIdx ) const { EE_UNREACHABLE_CODE(); }
+        virtual void RemoveArrayElement( IReflectedType* pTypeInstance, uint64_t arrayID, size_t arrayIdx ) const override { EE_UNREACHABLE_CODE(); }
 
-        virtual ResourceTypeID GetExpectedResourceTypeForProperty( IReflectedType* pType, uint32_t propertyID ) const override
+        virtual ResourceTypeID GetExpectedResourceTypeForProperty( IReflectedType* pType, uint64_t propertyID ) const override
         {
             EE_UNREACHABLE_CODE();
             return ResourceTypeID();
         }
 
         virtual bool AreAllPropertyValuesEqual( IReflectedType const* pTypeInstance, IReflectedType const* pOtherTypeInstance ) const override { return false; }
-        virtual bool IsPropertyValueEqual( IReflectedType const* pTypeInstance, IReflectedType const* pOtherTypeInstance, uint32_t propertyID, int32_t arrayIdx = InvalidIndex ) const override { return false; }
-        virtual void ResetToDefault( IReflectedType* pTypeInstance, uint32_t propertyID ) const override {}
+        virtual bool IsPropertyValueEqual( IReflectedType const* pTypeInstance, IReflectedType const* pOtherTypeInstance, uint64_t propertyID, int32_t arrayIdx = InvalidIndex ) const override { return false; }
+        virtual void ResetToDefault( IReflectedType* pTypeInstance, uint64_t propertyID ) const override {}
     };
 }
 
@@ -109,18 +105,29 @@ namespace EE::TypeSystem
 
 namespace EE::TypeSystem
 {
+    TypeRegistry::~TypeRegistry()
+    {
+        EE_ASSERT( m_registeredEnums.empty() );
+        EE_ASSERT( m_registeredTypes.empty() );
+        EE_ASSERT( m_registeredResourceTypes.empty() );
 
-    TypeRegistry::TypeRegistry()
+        #if EE_DEVELOPMENT_TOOLS
+        EE_ASSERT( m_registeredDataFileTypes.empty() );
+        #endif
+    }
+
+    void TypeRegistry::RegisterInternalTypes()
     {
         TTypeInfo<IReflectedType>::RegisterType( *this );
     }
 
-    TypeRegistry::~TypeRegistry()
+    void TypeRegistry::UnregisterInternalTypes()
     {
         TTypeInfo<IReflectedType>::UnregisterType( *this );
-        EE_ASSERT( m_registeredEnums.empty() && m_registeredTypes.empty() && m_registeredResourceTypes.empty() );
     }
 
+    //-------------------------------------------------------------------------
+    // Type Info
     //-------------------------------------------------------------------------
 
     TypeInfo const* TypeRegistry::RegisterType( TypeInfo const* pTypeInfo )
@@ -312,6 +319,8 @@ namespace EE::TypeSystem
     }
 
     //-------------------------------------------------------------------------
+    // Enum Info
+    //-------------------------------------------------------------------------
 
     EnumInfo const* TypeRegistry::RegisterEnum( EnumInfo const& type )
     {
@@ -345,32 +354,30 @@ namespace EE::TypeSystem
     }
 
     //-------------------------------------------------------------------------
+    // Resource Info
+    //-------------------------------------------------------------------------
 
     void TypeRegistry::RegisterResourceTypeID( ResourceInfo const& resourceInfo )
     {
-        EE_ASSERT( resourceInfo.IsValid() && !CoreTypeRegistry::IsCoreType( resourceInfo.m_typeID ) );
-        EE_ASSERT( m_registeredResourceTypes.find( resourceInfo.m_typeID ) == m_registeredResourceTypes.end() );
-        m_registeredResourceTypes.insert( eastl::pair<TypeID, ResourceInfo>( resourceInfo.m_typeID, resourceInfo ) );
+        EE_ASSERT( resourceInfo.IsValid() );
+        EE_ASSERT( m_registeredResourceTypes.find( resourceInfo.m_resourceTypeID) == m_registeredResourceTypes.end() );
+        m_registeredResourceTypes.insert( eastl::pair<ResourceTypeID, ResourceInfo*>( resourceInfo.m_resourceTypeID, EE::New<ResourceInfo>( resourceInfo ) ) );
     }
 
-    void TypeRegistry::UnregisterResourceTypeID( TypeID typeID )
+    void TypeRegistry::UnregisterResourceTypeID( ResourceTypeID resourceTypeID )
     {
-        EE_ASSERT( typeID.IsValid() && !CoreTypeRegistry::IsCoreType( typeID ) );
-        auto iter = m_registeredResourceTypes.find( typeID );
+        EE_ASSERT( resourceTypeID.IsValid() );
+        auto iter = m_registeredResourceTypes.find( resourceTypeID );
         EE_ASSERT( iter != m_registeredResourceTypes.end() );
+        EE::Delete( iter->second );
         m_registeredResourceTypes.erase( iter );
-    }
-
-    bool TypeRegistry::IsRegisteredResourceType( TypeID typeID ) const
-    {
-        return m_registeredResourceTypes.find( typeID ) != m_registeredResourceTypes.end();
     }
 
     bool TypeRegistry::IsRegisteredResourceType( ResourceTypeID resourceTypeID ) const
     {
         for ( auto const& pair : m_registeredResourceTypes )
         {
-            if ( pair.second.m_resourceTypeID == resourceTypeID )
+            if ( pair.second->m_resourceTypeID == resourceTypeID )
             {
                 return true;
             }
@@ -379,33 +386,29 @@ namespace EE::TypeSystem
         return false;
     }
 
-    ResourceInfo const* TypeRegistry::GetResourceInfoForType( TypeID typeID ) const
-    {
-        auto iter = m_registeredResourceTypes.find( typeID );
-        if ( iter != m_registeredResourceTypes.end() )
-        {
-            return &iter->second;
-        }
-
-        //-------------------------------------------------------------------------
-
-        EE_HALT();
-        return nullptr;
-    }
-
-    ResourceInfo const* TypeRegistry::GetResourceInfoForResourceType( ResourceTypeID resourceTypeID ) const
+    ResourceInfo const* TypeRegistry::GetResourceInfo( ResourceTypeID resourceTypeID ) const
     {
         for ( auto const& resourceInfo : m_registeredResourceTypes )
         {
-            if ( resourceInfo.second.m_resourceTypeID == resourceTypeID )
+            if ( resourceInfo.second->m_resourceTypeID == resourceTypeID )
             {
-                return &resourceInfo.second;
+                return resourceInfo.second;
             }
         }
 
-        //-------------------------------------------------------------------------
+        return nullptr;
+    }
 
-        EE_HALT();
+    ResourceInfo const* TypeRegistry::GetResourceInfo( TypeID typeID ) const
+    {
+        for ( auto const& resourceInfo : m_registeredResourceTypes )
+        {
+            if ( resourceInfo.second->m_typeID == typeID )
+            {
+                return resourceInfo.second;
+            }
+        }
+
         return nullptr;
     }
 
@@ -416,27 +419,9 @@ namespace EE::TypeSystem
             return true;
         }
 
-        auto pChildResourceInfo = GetResourceInfoForResourceType( childResourceTypeID );
+        auto pChildResourceInfo = GetResourceInfo( childResourceTypeID );
         EE_ASSERT( pChildResourceInfo != nullptr );
         return VectorContains( pChildResourceInfo->m_parentTypes, parentResourceTypeID );
-    }
-
-    //-------------------------------------------------------------------------
-
-    size_t TypeRegistry::GetTypeByteSize( TypeID typeID ) const
-    {
-        EE_ASSERT( typeID.IsValid() );
-
-        if ( IsCoreType( typeID ) )
-        {
-            return CoreTypeRegistry::GetTypeSize( typeID );
-        }
-        else
-        {
-            auto pChildTypeInfo = GetTypeInfo( typeID );
-            EE_ASSERT( pChildTypeInfo != nullptr );
-            return pChildTypeInfo->m_size;
-        }
     }
 
     TVector<ResourceTypeID> TypeRegistry::GetAllDerivedResourceTypes( ResourceTypeID resourceTypeID ) const
@@ -444,17 +429,78 @@ namespace EE::TypeSystem
         TVector<ResourceTypeID> derivedResourceTypes;
         for ( auto const& pair: m_registeredResourceTypes )
         {
-            if ( pair.second.m_resourceTypeID == resourceTypeID )
+            if ( pair.second->m_resourceTypeID == resourceTypeID )
             {
                 continue;
             }
 
-            if ( VectorContains( pair.second.m_parentTypes, resourceTypeID ) )
+            if ( VectorContains( pair.second->m_parentTypes, resourceTypeID ) )
             {
-                derivedResourceTypes.emplace_back( pair.second.m_resourceTypeID );
+                derivedResourceTypes.emplace_back( pair.second->m_resourceTypeID );
             }
         }
 
         return derivedResourceTypes;
     }
+
+    //-------------------------------------------------------------------------
+    // Data File Info
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    void TypeRegistry::RegisterDataFileInfo( DataFileInfo const& dataFileInfo )
+    {
+        EE_ASSERT( dataFileInfo.IsValid() );
+        EE_ASSERT( m_registeredDataFileTypes.find( dataFileInfo.m_typeID ) == m_registeredDataFileTypes.end() );
+        m_registeredDataFileTypes.insert( eastl::pair<TypeID, DataFileInfo*>( dataFileInfo.m_typeID, EE::New<DataFileInfo>( dataFileInfo ) ) );
+    }
+
+    void TypeRegistry::UnregisterDataFileInfo( TypeID typeID )
+    {
+        EE_ASSERT( typeID.IsValid() );
+        auto iter = m_registeredDataFileTypes.find( typeID );
+        EE_ASSERT( iter != m_registeredDataFileTypes.end() );
+        EE::Delete( iter->second );
+        m_registeredDataFileTypes.erase( iter );
+    }
+
+    bool TypeRegistry::IsRegisteredDataFileType( TypeID typeID ) const
+    {
+        for ( auto const& pair : m_registeredDataFileTypes )
+        {
+            if ( pair.second->m_typeID == typeID )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    bool TypeRegistry::IsRegisteredDataFileType( uint32_t extFourCC ) const
+    {
+        for ( auto const& pair : m_registeredDataFileTypes )
+        {
+            if ( pair.second->m_extensionFourCC == extFourCC )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    DataFileInfo const* TypeRegistry::GetDataFileInfo( TypeID typeID ) const
+    {
+        for ( auto const& dataFileInfo : m_registeredDataFileTypes )
+        {
+            if ( dataFileInfo.second->m_typeID == typeID )
+            {
+                return dataFileInfo.second;
+            }
+        }
+
+        return nullptr;
+    }
+    #endif
 }

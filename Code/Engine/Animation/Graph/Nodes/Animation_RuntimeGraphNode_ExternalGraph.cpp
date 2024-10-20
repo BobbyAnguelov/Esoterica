@@ -83,7 +83,7 @@ namespace EE::Animation::GraphNodes
         {
             // Push the current node idx into the event debug path
             #if EE_DEVELOPMENT_TOOLS
-            context.m_pSampledEventsBuffer->PushDebugGraphPathElement( GetNodeIndex() );
+            context.PushDebugPath( GetNodeIndex() );
             #endif
 
             // Evaluate external graph
@@ -99,14 +99,9 @@ namespace EE::Animation::GraphNodes
             // Update sampled event range
             result.m_sampledEventRange.m_endIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
 
-            // Transfer root motion debug
-            #if EE_DEVELOPMENT_TOOLS
-            context.GetRootMotionDebugger()->RecordGraphSource( GetNodeIndex(), result.m_rootMotionDelta );
-            #endif
-
             // Pop debug path element
             #if EE_DEVELOPMENT_TOOLS
-            context.m_pSampledEventsBuffer->PopDebugGraphPathElement();
+            context.PopDebugPath();
             #endif
         }
 

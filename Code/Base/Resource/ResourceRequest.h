@@ -4,6 +4,7 @@
 #include "ResourceLoader.h"
 #include "Base/Types/Function.h"
 #include "Base/Time/Timers.h"
+#include "ResourceHeader.h"
 
 //-------------------------------------------------------------------------
 
@@ -113,7 +114,6 @@ namespace EE::Resource
         ResourceRecord*                         m_pResourceRecord = nullptr;
         ResourceLoader*                         m_pResourceLoader = nullptr;
         FileSystem::Path                        m_rawResourcePath;
-        Blob                                    m_rawResourceData;
         InstallDependencyList                   m_pendingInstallDependencies;
         InstallDependencyList                   m_installDependencies;
         Type                                    m_type = Type::Invalid;

@@ -5,8 +5,8 @@
 
 namespace EE::Animation::Tasks
 {
-    CachedPoseWriteTask::CachedPoseWriteTask( TaskSourceID sourceID, TaskIndex sourceTaskIdx, UUID cachedPoseID )
-        : Task( sourceID, TaskUpdateStage::Any, { sourceTaskIdx } )
+    CachedPoseWriteTask::CachedPoseWriteTask( int8_t sourceTaskIdx, UUID cachedPoseID )
+        : Task( TaskUpdateStage::Any, { sourceTaskIdx } )
         , m_cachedPoseID( cachedPoseID )
     {
         EE_ASSERT( sourceTaskIdx != InvalidIndex );
@@ -27,8 +27,8 @@ namespace EE::Animation::Tasks
 
     //-------------------------------------------------------------------------
 
-    CachedPoseReadTask::CachedPoseReadTask( TaskSourceID sourceID, UUID cachedPoseID )
-        : Task( sourceID )
+    CachedPoseReadTask::CachedPoseReadTask( UUID cachedPoseID )
+        : Task()
         , m_cachedPoseID( cachedPoseID )
     {
         EE_ASSERT( m_cachedPoseID.IsValid() );

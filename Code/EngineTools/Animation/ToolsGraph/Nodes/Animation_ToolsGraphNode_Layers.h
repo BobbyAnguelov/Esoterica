@@ -16,20 +16,19 @@ namespace EE::Animation::GraphNodes
 
         LocalLayerToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Special; }
         virtual char const* GetTypeName() const override { return "Local Layer"; }
         virtual char const* GetCategory() const override { return "Animation/Layers"; }
         virtual Color GetTitleBarColor() const override { return Colors::Tomato; }
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
-        virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
+        virtual bool IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const override;
 
     private:
 
         EE_REFLECT() bool                              m_isSynchronized = false;
         EE_REFLECT() bool                              m_ignoreEvents = false;
-        EE_REFLECT() PoseBlendMode                     m_blendMode;
+        EE_REFLECT() PoseBlendMode                     m_blendMode = PoseBlendMode::Overlay;
     };
 
     //-------------------------------------------------------------------------
@@ -44,21 +43,20 @@ namespace EE::Animation::GraphNodes
 
         StateMachineLayerToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Special; }
         virtual char const* GetTypeName() const override { return "State Machine Layer"; }
         virtual char const* GetCategory() const override { return "Animation/Layers"; }
         virtual Color GetTitleBarColor() const override { return Colors::Tomato; }
-        void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
-        virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
+        virtual bool IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const override;
 
     private:
 
         EE_REFLECT() bool                              m_isSynchronized = false;
         EE_REFLECT() bool                              m_ignoreEvents = false;
-        EE_REFLECT() PoseBlendMode                     m_blendMode;
+        EE_REFLECT() PoseBlendMode                     m_blendMode = PoseBlendMode::Overlay;
 
         float                                          m_runtimeDebugLayerWeight = 0.0f;
     };
@@ -75,22 +73,22 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Pose; }
         virtual char const* GetTypeName() const override { return "Layer Blend"; }
         virtual char const* GetCategory() const override { return "Animation/Layers"; }
         virtual Color GetTitleBarColor() const override { return Colors::Tomato; }
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
-        virtual bool IsValidConnection( UUID const& inputPinID, Node const* pOutputPinNode, UUID const& outputPinID ) const override;
+        virtual bool IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const override;
 
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
         virtual TInlineString<100> GetNewDynamicInputPinName() const override;
         virtual StringID GetDynamicInputPinValueType() const override { return GetPinTypeForValueType( GraphValueType::Special ); }
-        virtual void OnDynamicPinDestruction( UUID pinID ) override;
+        virtual void PreDynamicPinDestruction( UUID const& pinID ) override;
+        virtual void PostDynamicPinDestruction() override;
 
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
-        virtual void PreDrawUpdate( VisualGraph::UserContext* pUserContext ) override;
+        virtual void PreDrawUpdate( NodeGraph::UserContext* pUserContext ) override;
 
     private:
 

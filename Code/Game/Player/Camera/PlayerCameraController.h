@@ -20,7 +20,7 @@ namespace EE::Player
 
         CameraController( OrbitCameraComponent* pCamera );
 
-        void UpdateCamera( EntityWorldUpdateContext const& ctx );
+        void UpdateCamera( EntityWorldUpdateContext const& ctx, Float2 const& cameraInputs );
         void FinalizeCamera();
 
         Vector const& GetCameraPosition() const;

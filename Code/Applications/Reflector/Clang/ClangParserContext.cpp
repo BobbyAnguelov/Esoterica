@@ -1,5 +1,4 @@
 #include "ClangParserContext.h"
-#include "Applications/Reflector/ReflectorSettingsAndUtils.h"
 #include "EASTL/algorithm.h"
 
 //-------------------------------------------------------------------------
@@ -87,7 +86,7 @@ namespace EE::TypeSystem::Reflection
 
         //-------------------------------------------------------------------------
 
-        if ( m_type == ReflectionMacroType::ReflectProperty || type == ReflectionMacroType::Resource || type == ReflectionMacroType::ReflectedResource )
+        if ( m_type == ReflectionMacroType::ReflectType || m_type == ReflectionMacroType::ReflectProperty || type == ReflectionMacroType::Resource || type == ReflectionMacroType::DataFile )
         {
             // Read the contents of the macro
             //-------------------------------------------------------------------------
@@ -112,9 +111,7 @@ namespace EE::TypeSystem::Reflection
                 // Property macro contents are JSON, so apply some enclosing formatting
                 if ( type == ReflectionMacroType::ReflectProperty )
                 {
-                    m_macroContents = m_macroContents.substr( startIdx, endIdx - startIdx + 1 );
-                    m_macroContents.front() = '{';
-                    m_macroContents.back() = '}';
+                    m_macroContents = m_macroContents.substr( startIdx + 1, endIdx - startIdx - 1 );
                 }
                 else // Just keep the contents without the braces
                 {
@@ -126,6 +123,40 @@ namespace EE::TypeSystem::Reflection
                 m_macroContents.clear();
             }
         }
+    }
+
+    String ReflectionMacro::GetReflectedTypeName() const
+    {
+        String typeName;
+
+        switch ( m_type )
+        {
+            case ReflectionMacroType::ReflectProperty:
+            case ReflectionMacroType::ReflectType:
+            case ReflectionMacroType::EntityComponent:
+            case ReflectionMacroType::SingletonEntityComponent:
+            case ReflectionMacroType::EntitySystem:
+            case ReflectionMacroType::EntityWorldSystem:
+            {
+                typeName = m_macroContents;
+            }
+            break;
+
+            case ReflectionMacroType::DataFile:
+            {
+                size_t const endIdx = m_macroContents.find( ',', 0 );
+                typeName = m_macroContents.substr( 0, endIdx );
+            }
+            break;
+
+            default:
+            {
+                EE_UNREACHABLE_CODE();
+            }
+            break;
+        }
+
+        return typeName;
     }
 
     //-------------------------------------------------------------------------
@@ -142,7 +173,7 @@ namespace EE::TypeSystem::Reflection
         m_errorMessage = buffer;
     }
 
-    HeaderInfo const* ClangParserContext::GetHeaderInfo( HeaderID headerID ) const
+    HeaderInfo const* ClangParserContext::GetHeaderInfo( StringID headerID ) const
     {
         auto foundIter = eastl::find( m_headersToVisit.begin(), m_headersToVisit.end(), headerID );
         if ( foundIter != m_headersToVisit.end() )
@@ -191,7 +222,7 @@ namespace EE::TypeSystem::Reflection
 
     bool ClangParserContext::SetModuleClassName( FileSystem::Path const& headerFilePath, String const& moduleClassName )
     {
-        for ( auto& prj : m_pSolution->m_projects )
+        for ( auto& prj : m_pDatabase->GetReflectedProjects() )
         {
             if ( headerFilePath.IsUnderDirectory( prj.m_path ) )
             {
@@ -228,7 +259,7 @@ namespace EE::TypeSystem::Reflection
         }
     }
 
-    bool ClangParserContext::GetReflectionMacroForType( HeaderID headerID, CXCursor const& cr, ReflectionMacro& macro )
+    bool ClangParserContext::GetReflectionMacroForType( StringID headerID, CXCursor const& cr, ReflectionMacro& macro )
     {
         // Try get macros for this header
         //-------------------------------------------------------------------------
@@ -260,7 +291,7 @@ namespace EE::TypeSystem::Reflection
         return false;
     }
 
-    bool ClangParserContext::FindReflectionMacroForProperty( HeaderID headerID, uint32_t lineNumber, ReflectionMacro& reflectionMacro )
+    bool ClangParserContext::FindReflectionMacroForProperty( StringID headerID, uint32_t lineNumber, ReflectionMacro& reflectionMacro )
     {
         // Try get macros for this header
         //-------------------------------------------------------------------------
@@ -315,11 +346,11 @@ namespace EE::TypeSystem::Reflection
         return true;
     }
 
-    bool ClangParserContext::CheckForOrphanedReflectionMacros() const
+    bool ClangParserContext::CheckForUnhandledReflectionMacros() const
     {
         EE_ASSERT( !HasErrorOccured() );
 
-        bool hasOrphans = false;
+        bool hasUnprocessedMacro = false;
 
         //-------------------------------------------------------------------------
 
@@ -327,8 +358,8 @@ namespace EE::TypeSystem::Reflection
         {
             for ( auto& macro : macroHeaderPair.second )
             {
-                m_errorMessage += String( String::CtorSprintf(), "    Orphaned Macro Detected: %s:%d\n", macro.m_headerID.c_str(), macro.m_lineNumber );
-                hasOrphans = true;
+                m_errorMessage += String( String::CtorSprintf(), "    Unprocessed Macro Detected: %s:%d\n", macro.m_headerID.c_str(), macro.m_lineNumber );
+                hasUnprocessedMacro = true;
             }
         }
 
@@ -338,13 +369,13 @@ namespace EE::TypeSystem::Reflection
         {
             for ( auto& macro : macroHeaderPair.second )
             {
-                m_errorMessage += String( String::CtorSprintf(), "    Orphaned Macro Detected: %s:%d\n", macro.m_headerID.c_str(), macro.m_lineNumber );
-                hasOrphans = true;
+                m_errorMessage += String( String::CtorSprintf(), "    Unprocessed Macro Detected: %s:%d\n", macro.m_headerID.c_str(), macro.m_lineNumber );
+                hasUnprocessedMacro = true;
             }
         }
 
         //-------------------------------------------------------------------------
 
-        return hasOrphans;
+        return hasUnprocessedMacro;
     }
 }

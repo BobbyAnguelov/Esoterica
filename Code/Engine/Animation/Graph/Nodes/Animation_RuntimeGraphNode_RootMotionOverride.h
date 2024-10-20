@@ -33,7 +33,7 @@ namespace EE::Animation::GraphNodes
             int16_t                             m_linearVelocityLimitNodeIdx = InvalidIndex;
             int16_t                             m_angularVelocityLimitNodeIdx = InvalidIndex;
             float                               m_maxLinearVelocity = -1.0f;
-            float                               m_maxAngularVelocity = -1.0f;
+            Radians                             m_maxAngularVelocity = -1.0f;
             TBitFlags<OverrideFlags>            m_overrideFlags;
         };
 

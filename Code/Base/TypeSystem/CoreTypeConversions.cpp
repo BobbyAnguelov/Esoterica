@@ -52,7 +52,7 @@ namespace EE::TypeSystem::Conversion
 
         for ( int32_t i = 0; i < numFloats; i++ )
         {
-            strValue += eastl::to_string( pFloats[i] );
+            strValue.append_sprintf( "%g", pFloats[i] );
 
             if ( i != ( numFloats - 1 ) )
             {
@@ -243,6 +243,18 @@ namespace EE::TypeSystem::Conversion
         return ConvertNativeTypeToBinary( typeRegistry, typeID, templateArgumentTypeID, &value, byteArray );
     }
 
+    template<typename T>
+    bool ConvertToString( TypeRegistry const& typeRegistry, TypeID typeID, TypeID templateArgumentTypeID, Blob const& byteArray, String& strValue )
+    {
+        T type;
+        if ( !ConvertBinaryToNativeType( typeRegistry, typeID, templateArgumentTypeID, byteArray, &type ) )
+        {
+            return false;
+        }
+
+        return ConvertNativeTypeToString( typeRegistry, typeID, templateArgumentTypeID, &type, strValue );
+    }
+
     //-------------------------------------------------------------------------
 
     bool ConvertStringToNativeType( TypeRegistry const& typeRegistry, TypeID typeID, TypeID templateArgumentTypeID, String const& str, void* pValue )
@@ -295,6 +307,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
                 default:
                 {
                     EE_UNREACHABLE_CODE();
@@ -388,9 +404,15 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::Tag:
+                case CoreTypeID::Tag2:
                 {
-                    *reinterpret_cast<Tag*>( pValue ) = Tag::FromTagFormatString( str );
+                    *reinterpret_cast<Tag2*>( pValue ) = Tag2::FromString( str );
+                }
+                break;
+
+                case CoreTypeID::Tag4:
+                {
+                    *reinterpret_cast<Tag4*>( pValue ) = Tag4::FromString( str );
                 }
                 break;
 
@@ -513,9 +535,15 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::ResourcePath:
+                case CoreTypeID::DataPath:
+                case CoreTypeID::TDataFilePath:
                 {
-                    *reinterpret_cast<ResourcePath*>( pValue ) = ResourcePath( str );
+                    DataPath* pDataPath = reinterpret_cast<DataPath*>( pValue );
+                    if ( !pDataPath->TrySetFromString( str ) )
+                    {
+                        EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Invalid data path string encountered: %s", str.c_str() );
+                        return false;
+                    }
                 }
                 break;
 
@@ -632,6 +660,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
                 default:
                 {
                     EE_UNREACHABLE_CODE();
@@ -653,50 +685,68 @@ namespace EE::TypeSystem::Conversion
             EE_ASSERT( pEnumInfo != nullptr );
 
             // We only support up to 32 bit enum types...
+            int64_t enumValue;
             switch ( pEnumInfo->m_underlyingType )
             {
                 case CoreTypeID::Uint8:
                 {
-                    strValue = pEnumInfo->GetConstantLabel( *( (uint8_t*) pValue ) ).c_str();
+                    enumValue = *( (uint8_t*) pValue );
                 }
                 break;
 
                 case CoreTypeID::Int8:
                 {
-                    strValue = pEnumInfo->GetConstantLabel( *( (int8_t*) pValue ) ).c_str();
+                    enumValue = *( (int8_t*) pValue );
                 }
                 break;
 
                 case CoreTypeID::Uint16:
                 {
-                    strValue = pEnumInfo->GetConstantLabel( *( (uint16_t*) pValue ) ).c_str();
+                    enumValue = *( (uint16_t*) pValue );
                 }
                 break;
 
                 case CoreTypeID::Int16:
                 {
-                    strValue = pEnumInfo->GetConstantLabel( *( (int16_t*) pValue ) ).c_str();
+                    enumValue = *( (int16_t*) pValue );
                 }
                 break;
 
                 case CoreTypeID::Uint32:
                 {
-                    strValue = pEnumInfo->GetConstantLabel( *( (uint32_t*) pValue ) ).c_str();
+                    enumValue = *( (uint32_t*) pValue );
                 }
                 break;
 
                 case CoreTypeID::Int32:
                 {
-                    strValue = pEnumInfo->GetConstantLabel( *( (int32_t*) pValue ) ).c_str();
+                    enumValue = *( (int32_t*) pValue );
                 }
                 break;
 
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
                 default:
                 {
                     EE_UNREACHABLE_CODE();
                     return false;
                 }
                 break;
+            }
+
+            //-------------------------------------------------------------------------
+
+            StringID labelID;
+            if ( pEnumInfo->TryGetConstantLabel( enumValue, labelID ) )
+            {
+                strValue = labelID.c_str();
+            }
+            else
+            {
+                EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Failed to find enum label matching value (%d) for enum (%s)", enumValue, pEnumInfo->m_ID.c_str() );
+                strValue = pEnumInfo->m_constants[0].m_ID.c_str();
             }
         }
         else  // Real core types
@@ -760,13 +810,13 @@ namespace EE::TypeSystem::Conversion
 
                 case CoreTypeID::Float:
                 {
-                    strValue = eastl::to_string( *reinterpret_cast<float const*>( pValue ) );
+                    strValue.sprintf( "%g", *reinterpret_cast<float const*>( pValue ) );
                 }
                 break;
 
                 case CoreTypeID::Double:
                 {
-                    strValue = eastl::to_string( *reinterpret_cast<double const*>( pValue ) );
+                    strValue.sprintf( "%g", *reinterpret_cast<double const*>( pValue ) );
                 }
                 break;
 
@@ -790,9 +840,15 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::Tag:
+                case CoreTypeID::Tag2:
                 {
-                    strValue = reinterpret_cast<Tag const*>( pValue )->ToString();
+                    strValue = reinterpret_cast<Tag2 const*>( pValue )->ToString();
+                }
+                break;
+
+                case CoreTypeID::Tag4:
+                {
+                    strValue = reinterpret_cast<Tag4 const*>( pValue )->ToString();
                 }
                 break;
 
@@ -945,9 +1001,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::ResourcePath:
+                case CoreTypeID::DataPath:
+                case CoreTypeID::TDataFilePath:
                 {
-                    strValue = reinterpret_cast<ResourcePath const*>( pValue )->c_str();
+                    strValue = reinterpret_cast<DataPath const*>( pValue )->c_str();
                 }
                 break;
 
@@ -1014,6 +1071,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
                 default:
                 {
                     EE_UNREACHABLE_CODE();
@@ -1075,6 +1136,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
                 default:
                 {
                     EE_UNREACHABLE_CODE();
@@ -1166,11 +1231,18 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::Tag:
+                case CoreTypeID::Tag2:
                 {
-                    archive << *reinterpret_cast<Tag const*>( pValue );
+                    archive << *reinterpret_cast<Tag2 const*>( pValue );
                 }
                 break;
+
+                case CoreTypeID::Tag4:
+                {
+                    archive << *reinterpret_cast<Tag4 const*>( pValue );
+                }
+                break;
+
 
                 case CoreTypeID::TypeID:
                 {
@@ -1274,9 +1346,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::ResourcePath:
+                case CoreTypeID::DataPath:
+                case CoreTypeID::TDataFilePath:
                 {
-                    archive << *reinterpret_cast<ResourcePath const*>( pValue );
+                    archive << *reinterpret_cast<DataPath const*>( pValue );
                 }
                 break;
 
@@ -1324,6 +1397,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
                 default:
                 {
                     EE_UNREACHABLE_CODE();
@@ -1387,6 +1464,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
                 default:
                 {
                     EE_UNREACHABLE_CODE();
@@ -1478,9 +1559,15 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::Tag:
+                case CoreTypeID::Tag2:
                 {
-                   archive << *reinterpret_cast<Tag*>( pValue );
+                   archive << *reinterpret_cast<Tag2*>( pValue );
+                }
+                break;
+
+                case CoreTypeID::Tag4:
+                {
+                    archive << *reinterpret_cast<Tag4*>( pValue );
                 }
                 break;
 
@@ -1588,9 +1675,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::ResourcePath:
+                case CoreTypeID::DataPath:
+                case CoreTypeID::TDataFilePath:
                 {
-                    archive << *reinterpret_cast<ResourcePath*>( pValue );
+                    archive << *reinterpret_cast<DataPath*>( pValue );
                 }
                 break;
 
@@ -1638,6 +1726,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
                 default:
                 {
                     EE_UNREACHABLE_CODE();
@@ -1701,6 +1793,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
                 default:
                 {
                     EE_UNREACHABLE_CODE();
@@ -1791,9 +1887,15 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::Tag:
+                case CoreTypeID::Tag2:
                 {
-                    return ConvertToBinary<Tag>( typeRegistry, typeID, templateArgumentTypeID, strValue, byteArray );
+                    return ConvertToBinary<Tag2>( typeRegistry, typeID, templateArgumentTypeID, strValue, byteArray );
+                }
+                break;
+
+                case CoreTypeID::Tag4:
+                {
+                    return ConvertToBinary<Tag4>( typeRegistry, typeID, templateArgumentTypeID, strValue, byteArray );
                 }
                 break;
 
@@ -1899,9 +2001,10 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::ResourcePath:
+                case CoreTypeID::DataPath:
+                case CoreTypeID::TDataFilePath:
                 {
-                    return ConvertToBinary<ResourcePath>( typeRegistry, typeID, templateArgumentTypeID, strValue, byteArray );
+                    return ConvertToBinary<DataPath>( typeRegistry, typeID, templateArgumentTypeID, strValue, byteArray );
                 }
                 break;
 
@@ -1949,6 +2052,335 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
+                default:
+                {
+                    EE_UNREACHABLE_CODE();
+                }
+                break;
+            }
+        }
+
+        return false;
+    }
+
+    bool ConvertBinaryToString( TypeRegistry const& typeRegistry, TypeID typeID, TypeID templateArgumentTypeID, Blob const& byteArray, String& strValue )
+    {
+        strValue.clear();
+
+        //-------------------------------------------------------------------------
+
+        // Enums
+        if ( !IsCoreType( typeID ) )
+        {
+            EnumInfo const* pEnumInfo = typeRegistry.GetEnumInfo( typeID );
+            EE_ASSERT( pEnumInfo != nullptr );
+
+            // We only support up to 32 bit enum types...
+            switch ( pEnumInfo->m_underlyingType )
+            {
+                case CoreTypeID::Uint8:
+                {
+                    return ConvertToString<uint8_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Int8:
+                {
+                    return ConvertToString<int8_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Uint16:
+                {
+                    return ConvertToString<uint16_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Int16:
+                {
+                    return ConvertToString<int16_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Uint32:
+                {
+                    return ConvertToString<uint32_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Int32:
+                {
+                    return ConvertToString<int32_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
+                default:
+                {
+                    EE_UNREACHABLE_CODE();
+                }
+                break;
+            }
+        }
+        else // Real core types
+        {
+            CoreTypeID const typeToConvert = GetCoreType( typeID );
+            switch ( typeToConvert )
+            {
+                case CoreTypeID::Bool:
+                {
+                    return ConvertToString<bool>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Uint8:
+                {
+                    return ConvertToString<uint8_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Int8:
+                {
+                    return ConvertToString<int8_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Uint16:
+                {
+                    return ConvertToString<uint16_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Int16:
+                {
+                    return ConvertToString<int16_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Uint32:
+                {
+                    return ConvertToString<uint32_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Int32:
+                {
+                    return ConvertToString<int32_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Uint64:
+                {
+                    return ConvertToString<uint64_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Int64:
+                {
+                    return ConvertToString<int64_t>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Float:
+                {
+                    return ConvertToString<float>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Double:
+                {
+                    return ConvertToString<double>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::String:
+                {
+                    return ConvertToString<String>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::StringID:
+                {
+                    return ConvertToString<StringID>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Tag2:
+                {
+                    return ConvertToString<Tag2>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Tag4:
+                {
+                    return ConvertToString<Tag4>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::TypeID:
+                {
+                    return ConvertToString<TypeID>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::UUID:
+                {
+                    return ConvertToString<UUID>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Color:
+                {
+                    return ConvertToString<Color>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Float2:
+                {
+                    return ConvertToString<Float2>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Float3:
+                {
+                    return ConvertToString<Float3>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Float4:
+                {
+                    return ConvertToString<Float4>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Vector:
+                {
+                    return ConvertToString<Vector>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Quaternion:
+                {
+                    return ConvertToString<Quaternion>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Matrix:
+                {
+                    return ConvertToString<Matrix>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Transform:
+                {
+                    return ConvertToString<Transform>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::EulerAngles:
+                {
+                    return ConvertToString<EulerAngles>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Microseconds:
+                {
+                    return ConvertToString<Microseconds>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Milliseconds:
+                {
+                    return ConvertToString<Milliseconds>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Seconds:
+                {
+                    return ConvertToString<Seconds>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Percentage:
+                {
+                    return ConvertToString<Percentage>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Degrees:
+                {
+                    return ConvertToString<Degrees>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::Radians:
+                {
+                    return ConvertToString<Radians>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::DataPath:
+                case CoreTypeID::TDataFilePath:
+                {
+                    return ConvertToString<DataPath>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::IntRange:
+                {
+                    return ConvertToString<IntRange>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::FloatRange:
+                {
+                    return ConvertToString<FloatRange>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::FloatCurve:
+                {
+                    return ConvertToString<FloatCurve>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::ResourceTypeID:
+                {
+                    return ConvertToString<ResourceTypeID>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::ResourcePtr:
+                case CoreTypeID::TResourcePtr:
+                {
+                    return ConvertToString<Resource::ResourcePtr>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::ResourceID:
+                {
+                    return ConvertToString<ResourceID>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::BitFlags:
+                case CoreTypeID::TBitFlags:
+                {
+                    return ConvertToString<BitFlags>( typeRegistry, typeID, templateArgumentTypeID, byteArray, strValue );
+                }
+                break;
+
+                case CoreTypeID::TVector:
+                case CoreTypeID::TInlineVector:
+                case CoreTypeID::TypeInstance:
+                case CoreTypeID::TTypeInstance:
                 default:
                 {
                     EE_UNREACHABLE_CODE();

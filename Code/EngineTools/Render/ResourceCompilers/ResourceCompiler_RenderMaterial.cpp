@@ -9,9 +9,9 @@
 namespace EE::Render
 {
     MaterialCompiler::MaterialCompiler()
-        : Resource::Compiler( "MaterialCompiler", s_version )
+        : Resource::Compiler( "MaterialCompiler" )
     {
-        m_outputTypes.push_back( Material::GetStaticResourceTypeID() );
+        AddOutputType<Material>();
     }
 
     Resource::CompilationResult MaterialCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -44,7 +44,7 @@ namespace EE::Render
         // Install dependencies
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( s_version, Material::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        Resource::ResourceHeader hdr( Material::s_version, Material::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         hdr.m_installDependencies.push_back( material.m_pAlbedoTexture.GetResourceID() );
         
         if ( material.HasMetalnessTexture() )
@@ -85,7 +85,7 @@ namespace EE::Render
 
     bool MaterialCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
-        FileSystem::Path const filePath = resourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
+        FileSystem::Path const filePath = resourceID.GetFileSystemPath( m_sourceDataDirectoryPath );
         MaterialResourceDescriptor resourceDescriptor;
         if ( !Resource::ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, filePath, resourceDescriptor ) )
         {

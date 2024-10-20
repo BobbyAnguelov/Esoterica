@@ -178,7 +178,7 @@ namespace EE::Import::gltf
 
             if ( ImportedSkeleton.GetNumBones() > 0 )
             {
-                ImportedSkeleton.m_bones[0].m_localTransform = sceneCtx.ApplyUpAxisCorrection( ImportedSkeleton.m_bones[0].m_localTransform );
+                ImportedSkeleton.m_bones[0].m_parentSpaceTransform = sceneCtx.ApplyUpAxisCorrection( ImportedSkeleton.m_bones[0].m_parentSpaceTransform );
                 ImportedSkeleton.CalculateModelSpaceTransforms();
             }
         }
@@ -193,7 +193,7 @@ namespace EE::Import::gltf
             ImportedSkeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
 
             // Default Bone transform
-            ImportedSkeleton.m_bones[boneIdx].m_localTransform = sceneCtx.GetNodeTransform( pNode );
+            ImportedSkeleton.m_bones[boneIdx].m_parentSpaceTransform = sceneCtx.GetNodeTransform( pNode );
 
             // Read child bones
             for ( int i = 0; i < pNode->children_count; i++ )
@@ -692,7 +692,7 @@ namespace EE::Import::gltf
             ImportedSkeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
 
             // Default Bone transform
-            ImportedSkeleton.m_bones[boneIdx].m_globalTransform = bindPose[bindPoseIdx];
+            ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform = bindPose[bindPoseIdx];
 
             // Read child bones
             for ( int i = 0; i < pNode->children_count; i++ )
@@ -831,7 +831,7 @@ namespace EE::Import::gltf
                     if ( ImportedSkeleton.GetNumBones() > 0 )
                     {
                         ImportedSkeleton.CalculateLocalTransforms();
-                        ImportedSkeleton.m_bones[0].m_localTransform = sceneCtx.ApplyUpAxisCorrection( ImportedSkeleton.m_bones[0].m_localTransform );
+                        ImportedSkeleton.m_bones[0].m_parentSpaceTransform = sceneCtx.ApplyUpAxisCorrection( ImportedSkeleton.m_bones[0].m_parentSpaceTransform );
                         ImportedSkeleton.CalculateModelSpaceTransforms();
                     }
 

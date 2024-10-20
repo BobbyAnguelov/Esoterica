@@ -31,6 +31,7 @@ namespace EE
         EE_FORCE_INLINE void Set( uint32_t flags ) { m_flags = flags; }
         inline operator uint32_t() const { return m_flags; }
 
+        EE_FORCE_INLINE bool HasNoFlagsSet() const { return m_flags == 0; }
         EE_FORCE_INLINE bool IsAnyFlagSet() const { return m_flags != 0; }
 
         //-------------------------------------------------------------------------
@@ -42,7 +43,7 @@ namespace EE
         }
 
         template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
-        EE_FORCE_INLINE bool IsFlagSet( T enumValue )
+        EE_FORCE_INLINE bool IsFlagSet( T enumValue ) const
         {
             return IsFlagSet( (uint8_t) enumValue );
         }
@@ -160,6 +161,7 @@ namespace EE
     class TBitFlags : public BitFlags
     {
         static_assert( std::is_enum<T>::value, "TBitFlags only supports enum types" );
+        static_assert( sizeof( T ) <= sizeof( uint32_t ), "enum type is too large to be used as bitflags" );
 
     public:
 
@@ -170,6 +172,10 @@ namespace EE
         {
             EE_ASSERT( (uint32_t) value < MaxFlags );
         }
+
+        inline TBitFlags( uint32_t i )
+            : BitFlags( i )
+        {}
 
         inline TBitFlags( TBitFlags<T> const& flags )
             : BitFlags( flags.m_flags )
@@ -227,5 +233,6 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    static_assert( sizeof( TBitFlags<enum class Temp> ) == sizeof( BitFlags ), "TBitFlags is purely syntactic sugar for easy conversion of enums to flags. It must not contain any members!" );
+    enum class BitFlagsValidation : uint32_t {};
+    static_assert( sizeof( TBitFlags<BitFlagsValidation> ) == sizeof( BitFlags ), "TBitFlags is purely syntactic sugar for easy conversion of enums to flags. It must not contain any members!" );
 }

@@ -50,4 +50,143 @@ namespace EE
     Radians const Radians::OneDivTwoPi = Radians( Math::OneDivTwoPi );
     Radians const Radians::PiDivTwo = Radians( Math::PiDivTwo );
     Radians const Radians::PiDivFour = Radians( Math::PiDivFour );
+
+    //-------------------------------------------------------------------------
+
+    Axis GetOrthogonalAxis( Axis axis1, Axis axis2 )
+    {
+        EE_ASSERT( axis1 != axis2 );
+        EE_ASSERT( axis1 != GetOppositeAxis( axis2 ) );
+
+        //-------------------------------------------------------------------------
+
+        if ( axis1 == Axis::Y && axis2 == Axis::Z )
+        {
+            return Axis::X;
+        }
+
+        if ( axis1 == Axis::Z && axis2 == Axis::Y )
+        {
+            return Axis::NegX;
+        }
+
+        if ( axis1 == Axis::NegY && axis2 == Axis::Z )
+        {
+            return Axis::NegX;
+        }
+
+        if ( axis1 == Axis::Z && axis2 == Axis::NegY )
+        {
+            return Axis::X;
+        }
+
+        if ( axis1 == Axis::Y && axis2 == Axis::NegZ )
+        {
+            return Axis::NegX;
+        }
+
+        if ( axis1 == Axis::NegZ && axis2 == Axis::Y )
+        {
+            return Axis::X;
+        }
+
+        if ( axis1 == Axis::NegY && axis2 == Axis::NegZ )
+        {
+            return Axis::X;
+        }
+
+        if ( axis1 == Axis::NegZ && axis2 == Axis::NegY )
+        {
+            return Axis::NegX;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( axis1 == Axis::Z && axis2 == Axis::X )
+        {
+            return Axis::Y;
+        }
+
+        if ( axis1 == Axis::X && axis2 == Axis::Z )
+        {
+            return Axis::NegY;
+        }
+
+        if ( axis1 == Axis::NegZ && axis2 == Axis::X )
+        {
+            return Axis::NegY;
+        }
+
+        if ( axis1 == Axis::X && axis2 == Axis::NegZ )
+        {
+            return Axis::Y;
+        }
+
+        if ( axis1 == Axis::Z && axis2 == Axis::NegX )
+        {
+            return Axis::NegY;
+        }
+
+        if ( axis1 == Axis::NegX && axis2 == Axis::Z )
+        {
+            return Axis::Y;
+        }
+
+        if ( axis1 == Axis::NegZ && axis2 == Axis::NegX )
+        {
+            return Axis::Y;
+        }
+
+        if ( axis1 == Axis::NegX && axis2 == Axis::NegZ )
+        {
+            return Axis::NegY;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( axis1 == Axis::X && axis2 == Axis::Y )
+        {
+            return Axis::Z;
+        }
+
+        if ( axis1 == Axis::Y && axis2 == Axis::X )
+        {
+            return Axis::NegZ;
+        }
+
+        if ( axis1 == Axis::NegX && axis2 == Axis::Y )
+        {
+            return Axis::NegZ;
+        }
+
+        if ( axis1 == Axis::Y && axis2 == Axis::NegX )
+        {
+            return Axis::Z;
+        }
+
+        if ( axis1 == Axis::X && axis2 == Axis::NegY )
+        {
+            return Axis::NegZ;
+        }
+
+        if ( axis1 == Axis::NegY && axis2 == Axis::X )
+        {
+            return Axis::Z;
+        }
+
+        if ( axis1 == Axis::NegX && axis2 == Axis::NegY )
+        {
+            return Axis::Z;
+        }
+
+        if ( axis1 == Axis::NegY && axis2 == Axis::NegX )
+        {
+            return Axis::NegZ;
+        }
+
+        //-------------------------------------------------------------------------
+
+        EE_UNREACHABLE_CODE();
+        return Axis::X;
+    }
 }

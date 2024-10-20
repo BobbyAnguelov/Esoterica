@@ -131,7 +131,7 @@ namespace EE::Math
     // Returns the yaw angle (rotation around Z) between two vectors, relative to the reference vector
     inline Radians GetYawAngleBetweenNormalizedVectors( Vector const& reference, Vector const& v )
     {
-        Radians horizontalAngle = GetAngleBetweenVectors( reference, v );
+        Radians horizontalAngle = GetAngleBetweenNormalizedVectors( reference, v );
 
         Vector const cross = Vector::Cross3( reference, v );
         Vector const dot = Vector::Dot3( cross, Vector::UnitZ );

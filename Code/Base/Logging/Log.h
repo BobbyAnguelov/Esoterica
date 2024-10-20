@@ -1,44 +1,79 @@
 #pragma once
 
-#include "Base/_Module/API.h"
-#include <stdarg.h>
+#include "LogEntry.h"
+#include "Base/Types/Function.h"
+#include "Base/Types/Arrays.h"
+#include "Base/Threading/Threading.h"
 
 //-------------------------------------------------------------------------
-// This is the global logging API included throughout the entire engine
-//-------------------------------------------------------------------------
-// If you want access to the logging system and the engine log include "LoggingSystem.h"
 
 namespace EE::Log
 {
-    enum class Severity
+    class EE_BASE_API Storage
     {
-        Info = 0,
-        Warning,
-        Error,
-        FatalError,
+
+    public:
+
+        // Write
+        //-------------------------------------------------------------------------
+
+        void AddDetailedEntryVarArgs( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args );
+
+        inline void AddDetailedEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... )
+        {
+            va_list args;
+            va_start( args, pMessageFormat );
+            AddDetailedEntryVarArgs( severity, pCategory, pSourceInfo, pFilename, pLineNumber, pMessageFormat, args );
+            va_end( args );
+        }
+
+        inline void AddEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pMessageFormat, ... )
+        {
+            va_list args;
+            va_start( args, pMessageFormat );
+            AddDetailedEntryVarArgs( severity, pCategory, pSourceInfo, "", -1, pMessageFormat, args );
+            va_end( args );
+        }
+
+        inline void AddEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pMessageFormat, va_list args )
+        {
+            AddDetailedEntryVarArgs( severity, pCategory, pSourceInfo, "", -1, pMessageFormat, args );
+        }
+
+        // Read
+        //-------------------------------------------------------------------------
+
+        void IterateLogEntries( TFunction<bool( Entry const& entry )> const& perEntryFunction )
+        {
+            Threading::ScopeLockRead sl( m_mutex );
+            for ( auto const& entry : m_entries )
+            {
+                perEntryFunction( entry );
+            }
+        }
+
+        // Returns a copy of the entire log
+        TVector<Entry> GetEntries() const
+        {
+            Threading::ScopeLockRead sl( m_mutex );
+            return m_entries;
+        }
+
+        int32_t GetNumWarnings() const { return m_numWarnings; }
+
+        int32_t GetNumErrors() const { return m_numErrors; }
+
+        // File
+        //-------------------------------------------------------------------------
+
+        void SaveToFile( FileSystem::Path const& logFilePath );
+
+    protected:
+
+        mutable Threading::ReadWriteMutex       m_mutex;
+        TVector<Entry>                          m_entries;
+        std::atomic<int32_t>                    m_numWarnings = 0;
+        std::atomic<int32_t>                    m_numErrors = 0;
     };
-
-    // Logging
-    //-------------------------------------------------------------------------
-
-    EE_BASE_API void AddEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... );
-    EE_BASE_API void AddEntryVarArgs( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args );
-
-    // Asserts
-    //-------------------------------------------------------------------------
-
-    EE_BASE_API void LogAssert( char const* pFile, int line, char const* pAssertInfo );
-    EE_BASE_API void LogAssertVarArgs( char const* pFile, int line, char const* pAssertInfoFormat, ... );
-
-    // Trace to Output Log
-    //-------------------------------------------------------------------------
-
-    EE_BASE_API void TraceMessage( const char* format, ... );
 }
 
-//-------------------------------------------------------------------------
-
-#define EE_LOG_INFO( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::Info, category, source, __FILE__, __LINE__, __VA_ARGS__ )
-#define EE_LOG_WARNING( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::Warning, category, source, __FILE__, __LINE__, __VA_ARGS__ )
-#define EE_LOG_ERROR( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::Error, category, source, __FILE__, __LINE__, __VA_ARGS__ )
-#define EE_LOG_FATAL_ERROR( category, source, ... ) EE::Log::AddEntry( EE::Log::Severity::FatalError, category, source, __FILE__, __LINE__, __VA_ARGS__ ); EE_HALT()

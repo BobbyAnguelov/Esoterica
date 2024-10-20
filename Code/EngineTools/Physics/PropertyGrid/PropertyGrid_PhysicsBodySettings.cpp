@@ -1,5 +1,5 @@
 #include "Engine/Physics/PhysicsCollision.h"
-#include "EngineTools/Core/PropertyGrid/PropertyGridEditor.h"
+#include "EngineTools/PropertyGrid/PropertyGridEditor.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/TypeSystem/EnumInfo.h"
@@ -15,8 +15,8 @@ namespace EE::Physics
 
         using PropertyEditor::PropertyEditor;
 
-        CollisionSettingsEditor( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, void* m_pPropertyInstance ) 
-            : PropertyEditor( context, propertyInfo, m_pPropertyInstance )
+        CollisionSettingsEditor( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, IReflectedType* pTypeInstance, void* pPropertyInstance ) 
+            : PropertyEditor( context, propertyInfo, pTypeInstance, pPropertyInstance )
         {
             UpdateCollidesWithWorkingData( m_value_imgui );
         }
@@ -50,7 +50,7 @@ namespace EE::Physics
             }
         }
 
-        virtual bool InternalUpdateAndDraw() override
+        virtual Result InternalUpdateAndDraw() override
         {
             bool valueChanged = false;
 
@@ -146,7 +146,7 @@ namespace EE::Physics
 
             //-------------------------------------------------------------------------
 
-            return valueChanged;
+            return valueChanged ? Result::ValueUpdated : Result::None;
         }
 
         void UpdateCollidesWithWorkingData( CollisionSettings const& settings )

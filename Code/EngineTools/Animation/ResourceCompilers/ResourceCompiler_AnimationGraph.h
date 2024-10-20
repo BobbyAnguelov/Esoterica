@@ -8,7 +8,7 @@
 
 namespace EE::Animation
 {
-    class ToolsGraphDefinition;
+    struct GraphResourceDescriptor;
     class GraphDataSet;
 
     //-------------------------------------------------------------------------
@@ -16,7 +16,6 @@ namespace EE::Animation
     class AnimationGraphCompiler final : public Resource::Compiler
     {
         EE_REFLECT_TYPE( AnimationGraphCompiler );
-        constexpr static const int32_t s_version = 67;
 
     public:
 
@@ -30,7 +29,7 @@ namespace EE::Animation
 
         Resource::CompilationResult CompileGraphDefinition( Resource::CompileContext const& ctx ) const;
         Resource::CompilationResult CompileGraphVariation( Resource::CompileContext const& ctx ) const;
-        bool LoadAndCompileGraph( FileSystem::Path const& graphFilePath, ToolsGraphDefinition& editorGraph, GraphDefinitionCompiler& definitionCompiler ) const;
+        bool LoadAndCompileGraph( FileSystem::Path const& graphFilePath, GraphResourceDescriptor& graphDescriptor, GraphDefinitionCompiler& definitionCompiler ) const;
         bool GenerateDataSet( Resource::CompileContext const& ctx, ToolsGraphDefinition const& editorGraph, TVector<UUID> const& registeredDataSlots, GraphDataSet& dataSet ) const;
     };
 }

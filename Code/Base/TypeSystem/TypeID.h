@@ -18,12 +18,12 @@ namespace EE::TypeSystem
         TypeID( String const& type ) : m_ID( type ) {}
         TypeID( char const* pType ) : m_ID( pType ) {}
         TypeID( StringID ID ) : m_ID( ID ) {}
-        TypeID( uint32_t ID ) : m_ID( ID ) {}
+        TypeID( uint64_t ID ) : m_ID( ID ) {}
 
         EE_FORCE_INLINE bool IsValid() const { return m_ID.IsValid(); }
 
-        EE_FORCE_INLINE explicit operator uint32_t() const { return m_ID.ToUint(); }
-        EE_FORCE_INLINE uint32_t ToUint() const { return m_ID.ToUint(); }
+        EE_FORCE_INLINE explicit operator uint64_t() const { return m_ID.ToUint(); }
+        EE_FORCE_INLINE uint64_t ToUint() const { return m_ID.ToUint(); }
         EE_FORCE_INLINE StringID ToStringID() const { return m_ID; }
         EE_FORCE_INLINE char const* c_str() const { return m_ID.c_str(); }
 

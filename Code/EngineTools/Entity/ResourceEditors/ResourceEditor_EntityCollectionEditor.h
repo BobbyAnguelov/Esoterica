@@ -13,7 +13,7 @@ namespace EE::EntityModel
 
     public:
 
-        EntityCollectionEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& collectionResourceID );
+        EntityCollectionEditor( ToolsContext const* pToolsContext, ResourceID const& collectionResourceID, EntityWorld* pWorld );
 
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
@@ -23,11 +23,12 @@ namespace EE::EntityModel
         virtual bool SaveData() override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
         virtual void DrawMenu( UpdateContext const& context ) override;
+        virtual bool IsEditingFile( DataPath const& dataPath ) const override { return m_collection.GetResourcePath() == dataPath; }
 
     private:
 
-        TResourcePtr<SerializedEntityCollection>        m_collection;
-        bool                                            m_collectionInstantiated = false;
-        bool                                            m_drawGrid = true;
+        TResourcePtr<EntityCollection>          m_collection;
+        bool                                    m_collectionInstantiated = false;
+        bool                                    m_drawGrid = true;
     };
 }

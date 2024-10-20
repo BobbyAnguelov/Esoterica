@@ -1,6 +1,6 @@
 #pragma once
 
-#include "InputID.h"
+#include "Input.h"
 #include "Base/Time/Time.h"
 
 //-------------------------------------------------------------------------
@@ -18,14 +18,6 @@ namespace EE::Input
 
     //-------------------------------------------------------------------------
 
-    enum class DeviceCategory
-    {
-        KeyboardMouse,
-        Controller
-    };
-
-    //-------------------------------------------------------------------------
-
     class InputDevice
     {
 
@@ -35,20 +27,12 @@ namespace EE::Input
         {
             friend class InputDevice;
 
-            enum class State : uint8_t
-            {
-                None = 0,
-                Pressed,
-                Held,
-                Released,
-            };
-
             enum class Signal
             {
                 None = 0,
                 Pressed,
                 Released,
-                Impulse,
+                Impulse, // Instantaneous press/release signal (i.e. mousewheel)
             };
 
         private:
@@ -58,9 +42,8 @@ namespace EE::Input
 
         private:
 
-            State           m_state = State::None;
+            InputState      m_state = InputState::None;
             Signal          m_signal = Signal::None;
-            float           m_rawValue = 0.0f;
             float           m_value = 0.0f;
         };
 
@@ -74,7 +57,7 @@ namespace EE::Input
         inline bool IsConnected() const { return m_isConnected; }
 
         // Get the category for this device (controller/mice)
-        virtual DeviceCategory GetDeviceCategory() const = 0;
+        virtual DeviceType GetDeviceType() const = 0;
 
         // Called before we process any input messages
         virtual void PrepareForNewMessages() {};
@@ -90,29 +73,30 @@ namespace EE::Input
 
         //-------------------------------------------------------------------------
 
+        inline InputState GetState( InputID ID ) const
+        {
+            return GetInput( ID ).m_state;
+        }
+
         inline bool WasPressed( InputID ID ) const
         {
-            return ( GetInput( ID ).m_state == LogicalInput::State::Pressed );
+            return ( GetInput( ID ).m_state == InputState::Pressed );
         }
 
         inline bool WasReleased( InputID ID ) const
         {
-            return GetInput( ID ).m_state == LogicalInput::State::Released;
+            return GetInput( ID ).m_state == InputState::Released;
         }
 
         inline bool IsHeldDown( InputID ID ) const
         {
-            return WasPressed( ID ) || GetInput( ID ).m_state == LogicalInput::State::Held;
+            return WasPressed( ID ) || GetInput( ID ).m_state == InputState::Held;
         }
 
+        // Get the value for this input - most of the time this will be a binary (0/1) value.
         inline float GetValue( InputID ID ) const
         {
             return GetInput( ID ).m_value;
-        }
-
-        inline float GetRawValue( InputID ID ) const
-        {
-            return GetInput( ID ).m_rawValue;
         }
 
     protected:
@@ -123,17 +107,11 @@ namespace EE::Input
         // Called when we detect a pressed event for an analog button
         void Press( InputID ID, float rawValue );
 
-        // Called when we detect a pressed event for an analog button
-        void Press( InputID ID, float rawValue, float filteredValue );
-
         // Called when we detect an impulse event for an input
         void ApplyImpulse( InputID ID, float value );
 
         // Set a continuous value for an input
         void SetValue( InputID ID, float value );
-
-        // Set a continuous value for an input
-        void SetValue( InputID ID, float rawValue, float filteredValue );
 
         // Called when we detect a released event for a button
         void Release( InputID buttonIdx );

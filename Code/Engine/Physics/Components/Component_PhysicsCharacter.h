@@ -272,26 +272,26 @@ namespace EE::Physics
     protected:
 
         // The radius of the capsule's end caps
-        EE_REFLECT( "Category" : "Shape" );
+        EE_REFLECT( Category = "Shape" );
         float                                   m_defaultRadius = 0.5f;
 
         // The half-height of the cylinder portion of the capsule
-        EE_REFLECT( "Category" : "Shape" );
+        EE_REFLECT( Category = "Shape" );
         float                                   m_defaultHalfHeight = 1.0f;
 
-        EE_REFLECT( "Category" : "Collision" )
+        EE_REFLECT( Category = "Collision" )
         CollisionSettings                       m_collisionSettings;
 
         // The height at which we will automatically step over objects
-        EE_REFLECT( "Category" : "Controller" )
+        EE_REFLECT( Category = "Controller" )
         float                                   m_defaultStepHeight = 0.2f;
 
         // The maximum slope we can walk on
-        EE_REFLECT( "Category" : "Controller" )
+        EE_REFLECT( Category = "Controller" )
         Degrees                                 m_defaultSlopeLimit = 45.f;
 
         // The default gravity acceleration value, all character controllers are by default in acceleration mode
-        EE_REFLECT( "Category" : "Controller" )
+        EE_REFLECT( Category = "Controller" )
         float                                   m_defaultGravity = 30.f;
 
     private:

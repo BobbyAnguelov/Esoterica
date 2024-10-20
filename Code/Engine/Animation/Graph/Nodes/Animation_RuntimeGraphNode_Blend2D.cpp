@@ -133,31 +133,37 @@ namespace EE::Animation::GraphNodes
             uint8_t i0 = pDefinition->m_indices[i];
             uint8_t i1 = pDefinition->m_indices[i + 1];
             uint8_t i2 = pDefinition->m_indices[i + 2];
-            Vector const& a = pDefinition->m_values[i0];
-            Vector const& b = pDefinition->m_values[i1];
-            Vector const& c = pDefinition->m_values[i2];
+            Vector const a = pDefinition->m_values[i0];
+            Vector const b = pDefinition->m_values[i1];
+            Vector const c = pDefinition->m_values[i2];
 
             // Check if we are inside this triangle, if we are, then calculate the result and early out
             Float3 bcc;
             if ( Math::CalculateBarycentricCoordinates( point, a, b, c, bcc ) )
             {
-                TInlineVector<TPair<uint8_t, float>, 3> indexWeights = { { i0, bcc[0] }, { i1, bcc[1] }, { i2, bcc[2] } };
-                eastl::sort( indexWeights.begin(), indexWeights.end(), [] ( TPair<uint8_t, float> const& a, TPair<uint8_t, float> const& b ) { return a.second < b.second; } );
+                struct IndexWeight
+                {
+                    uint8_t     m_idx;
+                    float       m_weight;
+                };
+
+                TInlineVector<IndexWeight, 3> indexWeights = { { i0, bcc[0] }, { i1, bcc[1] }, { i2, bcc[2] } };
+                eastl::sort( indexWeights.begin(), indexWeights.end(), [] ( IndexWeight const& a, IndexWeight const& b ) { return a.m_weight < b.m_weight; } );
 
                 // If one weight is nearly one, we dont need to blend
-                if ( Math::IsNearEqual( indexWeights[2].second, 1.0f ) )
+                if ( Math::IsNearEqual( indexWeights[2].m_weight, 1.0f ) )
                 {
-                    m_bsr.m_pSource0 = m_sourceNodes[indexWeights[2].first];
+                    m_bsr.m_pSource0 = m_sourceNodes[indexWeights[2].m_idx];
                     m_bsr.m_pSource1 = m_bsr.m_pSource2 = nullptr;
                     m_bsr.m_blendWeightBetween0And1 =  m_bsr.m_blendWeightBetween1And2 = 0.0f;
                 }
                 else // Calculate blend weights
                 {
-                    m_bsr.m_pSource0 = m_sourceNodes[indexWeights[0].first]; // lowest weight
-                    m_bsr.m_pSource1 = m_sourceNodes[indexWeights[1].first];
-                    m_bsr.m_pSource2 = m_sourceNodes[indexWeights[2].first]; // highest weight
-                    m_bsr.m_blendWeightBetween0And1 = indexWeights[1].second / ( indexWeights[0].second + indexWeights[1].second ); // Calculate weight based on ratio of contribution
-                    m_bsr.m_blendWeightBetween1And2 = indexWeights[2].second;
+                    m_bsr.m_pSource0 = m_sourceNodes[indexWeights[0].m_idx]; // lowest weight
+                    m_bsr.m_pSource1 = m_sourceNodes[indexWeights[1].m_idx];
+                    m_bsr.m_pSource2 = m_sourceNodes[indexWeights[2].m_idx]; // highest weight
+                    m_bsr.m_blendWeightBetween0And1 = indexWeights[1].m_weight / ( indexWeights[0].m_weight + indexWeights[1].m_weight ); // Calculate weight based on ratio of contribution
+                    m_bsr.m_blendWeightBetween1And2 = indexWeights[2].m_weight;
                 }
 
                 enclosingTriangleFound = true;
@@ -241,7 +247,7 @@ namespace EE::Animation::GraphNodes
         if ( m_bsr.m_pSource1 != nullptr )
         {
             // If we're fully in source 1, remove the first blend and only keep the second one
-            if ( m_bsr.m_blendWeightBetween0And1 == 1.0f )
+            if ( Math::IsNearEqual( m_bsr.m_blendWeightBetween0And1, 1.0f ) )
             {
                 m_bsr.m_pSource0 = m_bsr.m_pSource1;
                 m_bsr.m_pSource1 = m_bsr.m_pSource2;
@@ -250,7 +256,7 @@ namespace EE::Animation::GraphNodes
                 m_bsr.m_blendWeightBetween1And2 = 0.0f;
             }
             // We're fully in the first source so there's nothing to do
-            else if ( m_bsr.m_blendWeightBetween0And1 == 0.0f )
+            else if ( Math::IsNearZero( m_bsr.m_blendWeightBetween0And1 ) )
             {
                 if ( m_bsr.m_pSource2 == nullptr )
                 {
@@ -327,9 +333,11 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
+            auto* pDefinition = GetDefinition<Blend2DNode>();
+
             Percentage const deltaPercentage = ( m_duration > 0.0f ) ? Percentage( context.m_deltaTime / m_duration ) : Percentage( 0.0f );
             Percentage const fromTime = m_currentTime;
-            Percentage const toTime = Percentage::Clamp( m_currentTime + deltaPercentage );
+            Percentage const toTime = Percentage::Clamp( m_currentTime + deltaPercentage, pDefinition->m_allowLooping );
 
             updateRange.m_startTime = m_blendedSyncTrack.GetTime( fromTime );
             updateRange.m_endTime = m_blendedSyncTrack.GetTime( toTime );
@@ -463,6 +471,7 @@ namespace EE::Animation::GraphNodes
         outState.WriteValue( FindSourceIndex( m_bsr.m_pSource2 ) );
         outState.WriteValue( m_bsr.m_blendWeightBetween0And1 );
         outState.WriteValue( m_bsr.m_blendWeightBetween1And2 );
+        outState.WriteValue( m_blendedSyncTrack );
     }
 
     void Blend2DNode::RestoreGraphState( RecordedGraphState const& inState )
@@ -482,6 +491,7 @@ namespace EE::Animation::GraphNodes
 
         inState.ReadValue( m_bsr.m_blendWeightBetween0And1 );
         inState.ReadValue( m_bsr.m_blendWeightBetween1And2 );
+        inState.ReadValue( m_blendedSyncTrack );
     }
     #endif
 }

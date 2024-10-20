@@ -12,7 +12,7 @@ namespace EE::Player
 {
     bool ShootOverlayAction::TryStartInternal( ActionContext const& ctx )
     {
-        if ( ctx.m_pAnimationController->IsWeaponDrawn() && ctx.m_pInputSystem->GetController()->GetValue( Input::InputID::Controller_RightTrigger ) >= 0.2f )
+        if ( ctx.m_pAnimationController->IsWeaponDrawn() && ctx.m_pInput->m_shoot.WasPressed() )
         {
             auto const& camFwd  = ctx.m_pCameraController->GetCameraRelativeForwardVector();
             Vector const origin = ctx.m_pCharacterComponent->GetPosition();
@@ -37,9 +37,9 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status ShootOverlayAction::UpdateInternal( ActionContext const& ctx )
+    Action::Status ShootOverlayAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
     {
-        if ( ctx.m_pInputSystem->GetController()->GetValue( Input::InputID::Controller_RightTrigger ) < 0.2f )
+        if ( ctx.m_pInput->m_shoot.WasReleased() )
         {
             return Status::Completed;
         }

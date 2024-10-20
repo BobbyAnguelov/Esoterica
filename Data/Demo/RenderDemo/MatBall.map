@@ -1,167 +1,109 @@
-{
-    "TypeID": "EE::EntityModel::EntityMapDescriptor",
-    "Entities": [
-        {
-            "Name": "Floor",
-            "Components": [
-                {
-                    "Name": "FloorMesh",
-                    "TypeData": {
-                        "TypeID": "EE::Render::StaticMeshComponent",
-                        "m_mesh": "data://Demo/RenderDemo/floor/floor.msh"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "MatBallBronze",
-            "Components": [
-                {
-                    "Name": "MatBallMeshBronze",
-                    "TypeData": {
-                        "TypeID": "EE::Render::StaticMeshComponent",
-                        "m_materialOverrides/0": "data://Demo/RenderDemo/materials/bronze.mtrl",
-                        "m_transform": "0.000000,-0.000000,0.000100,-0.000000,0.000000,2.000000,1.0",
-"m_localScale" : "2.000000, 2.000000, 2.000000",
-                        "m_mesh": "data://Demo/RenderDemo/matball/matball.msh"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "MatBallCopper",
-            "Components": [
-                {
-                    "Name": "MatBallMeshCopper",
-                    "TypeData": {
-                        "TypeID": "EE::Render::StaticMeshComponent",
-                        "m_materialOverrides/0": "data://Demo/RenderDemo/materials/copper.mtrl",
-                        "m_transform": "0.000000,-0.000000,0.000100,5.000000,0.000000,2.000000,1.0",
-"m_localScale" : "2.000000, 2.000000, 2.000000",
-                        "m_mesh": "data://Demo/RenderDemo/matball/matball.msh"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "MatBallOldIron",
-            "Components": [
-                {
-                    "Name": "MatBallMeshOldIron",
-                    "TypeData": {
-                        "TypeID": "EE::Render::StaticMeshComponent",
-                        "m_materialOverrides/0": "data://Demo/RenderDemo/materials/old_iron.mtrl",
-                        "m_transform": "0.000000,-0.000000,0.000100,10.000000,0.000000,2.000000,1.0",
-"m_localScale" : "2.000000, 2.000000, 2.000000",
-                        "m_mesh": "data://Demo/RenderDemo/matball/matball.msh"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "MatBallOldIronScratchedGold",
-            "Components": [
-                {
-                    "Name": "MatBallMeshScratchedGold",
-                    "TypeData": {
-                        "TypeID": "EE::Render::StaticMeshComponent",
-                        "m_materialOverrides/0": "data://Demo/RenderDemo/materials/scratched_gold.mtrl",
-                        "m_transform": "0.000000,-0.000000,0.000100,15.000000,0.000000,2.000000,1.0",
-"m_localScale" : "2.000000, 2.000000, 2.000000",
-                        "m_mesh": "data://Demo/RenderDemo/matball/matball.msh"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "GlobalEnvMap",
-            "Components": [
-                {
-                    "Name": "GlobalEnvMapComp",
-                    "TypeData": {
-                        "TypeID": "EE::Render::GlobalEnvironmentMapComponent",
-                        "m_skyboxTexture": "data://Demo/RenderDemo/matball/skybox.cbmp",
-                        "m_skyboxRadianceTexture": "data://Demo/RenderDemo/matball/skybox.cbmp",
-                        "m_skyboxIntensity": "2.000000"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "DirectionalLight",
-            "Components": [
-                {
-                    "Name": "DirectionalLight",
-                    "TypeData": {
-                        "TypeID": "EE::Render::DirectionalLightComponent",
-                        "m_shadowed": "True",
-                        "m_transform": "135.000000,-0.000000,0.000000,0.000000,0.000000,10.000000,1.000000,1.000000,1.000000",
-                        "m_intensity": "30.000000"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "SpotLight0",
-            "Components": [
-                {
-                    "Name": "SpotLight",
-                    "TypeData": {
-                        "TypeID": "EE::Render::SpotLightComponent",
-                        "m_color": "FFFF00FF",
-                        "m_transform": "135.000000,-0.000000,0.000000,12.000000,-5.000000,5.000000,1.000000,1.000000,1.000000",
-                        "m_intensity": "7500.000000",
-                        "m_innerUmbraAngle": "40.000000",
-                        "m_radius": "100.000000"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "SpotLight1",
-            "Components": [
-                {
-                    "Name": "SpotLight",
-                    "TypeData": {
-                        "TypeID": "EE::Render::SpotLightComponent",
-                        "m_color": "FF00FFFF",
-                        "m_transform": "135.000000,-0.000000,0.000000,3.000000,-5.000000,5.000000,1.000000,1.000000,1.000000",
-                        "m_intensity": "7500.000000",
-                        "m_innerUmbraAngle": "40.000000",
-                        "m_radius": "50.000000"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "PointLight0",
-            "Components": [
-                {
-                    "Name": "PointLight",
-                    "TypeData": {
-                        "TypeID": "EE::Render::PointLightComponent",
-                        "m_color": "1AFF00FF",
-                        "m_transform": "0.000000,-0.000000,0.000100,3.000000,5.000000,5.000000,1.000000,1.000000,1.000000",
-                        "m_intensity": "7500.000000",
-                        "m_radius": "10.000000"
-                    }
-                }
-            ]
-        },
-        {
-            "Name": "PointLight1",
-            "Components": [
-                {
-                    "Name": "PointLight",
-                    "TypeData": {
-                        "TypeID": "EE::Render::PointLightComponent",
-                        "m_color": "FF0000FF",
-                        "m_transform": "0.000000,-0.000000,0.000100,12.000000,5.000000,5.000000,1.000000,1.000000,1.000000",
-                        "m_intensity": "7500.000000",
-                        "m_radius": "10.000000"
-                    }
-                }
-            ]
-        }
-    ]
-}
+<Entities>
+  <Entity Name="DirectionalLight">
+    <Components>
+      <Type TypeID="EE::Render::DirectionalLightComponent">
+        <Property Path="m_shadowed" Value="True" />
+        <Property Path="m_transform" Value="135.000000,-0.000000,0.000000,0.000000,0.000000,10.000000,1.000000,1.000000,1.000000" />
+        <Property Path="m_intensity" Value="30.000000" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="Floor">
+    <Components>
+      <Type TypeID="EE::Render::StaticMeshComponent">
+        <Property Path="m_mesh" Value="data://Demo/RenderDemo/floor/floor.msh" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="GlobalEnvMap">
+    <Components>
+      <Type TypeID="EE::Render::GlobalEnvironmentMapComponent">
+        <Property Path="m_skyboxTexture" Value="data://Demo/RenderDemo/matball/skybox.cbmp" />
+        <Property Path="m_skyboxRadianceTexture" Value="data://Demo/RenderDemo/matball/skybox.cbmp" />
+        <Property Path="m_skyboxIntensity" Value="2.000000" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="MatBallBronze">
+    <Components>
+      <Type TypeID="EE::Render::StaticMeshComponent">
+        <Property Path="m_materialOverrides/0" Value="data://Demo/RenderDemo/materials/bronze.mtrl" />
+        <Property Path="m_transform" Value="0.000000,-0.000000,0.000100,-0.000000,0.000000,2.000000,1.0" />
+        <Property Path="m_localScale" Value="2.000000, 2.000000, 2.000000" />
+        <Property Path="m_mesh" Value="data://Demo/RenderDemo/matball/matball.msh" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="MatBallCopper">
+    <Components>
+      <Type TypeID="EE::Render::StaticMeshComponent">
+        <Property Path="m_materialOverrides/0" Value="data://Demo/RenderDemo/materials/copper.mtrl" />
+        <Property Path="m_transform" Value="0.000000,-0.000000,0.000100,5.000000,0.000000,2.000000,1.0" />
+        <Property Path="m_localScale" Value="2.000000, 2.000000, 2.000000" />
+        <Property Path="m_mesh" Value="data://Demo/RenderDemo/matball/matball.msh" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="MatBallOldIron">
+    <Components>
+      <Type TypeID="EE::Render::StaticMeshComponent">
+        <Property Path="m_materialOverrides/0" Value="data://Demo/RenderDemo/materials/old_iron.mtrl" />
+        <Property Path="m_transform" Value="0.000000,-0.000000,0.000100,10.000000,0.000000,2.000000,1.0" />
+        <Property Path="m_localScale" Value="2.000000, 2.000000, 2.000000" />
+        <Property Path="m_mesh" Value="data://Demo/RenderDemo/matball/matball.msh" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="MatBallOldIronScratchedGold">
+    <Components>
+      <Type TypeID="EE::Render::StaticMeshComponent">
+        <Property Path="m_materialOverrides/0" Value="data://Demo/RenderDemo/materials/scratched_gold.mtrl" />
+        <Property Path="m_transform" Value="0.000000,-0.000000,0.000100,15.000000,0.000000,2.000000,1.0" />
+        <Property Path="m_localScale" Value="2.000000, 2.000000, 2.000000" />
+        <Property Path="m_mesh" Value="data://Demo/RenderDemo/matball/matball.msh" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="PointLight0">
+    <Components>
+      <Type TypeID="EE::Render::PointLightComponent">
+        <Property Path="m_color" Value="1AFF00FF" />
+        <Property Path="m_transform" Value="0.000000,-0.000000,0.000100,3.000000,5.000000,5.000000,1.000000,1.000000,1.000000" />
+        <Property Path="m_intensity" Value="7500.000000" />
+        <Property Path="m_radius" Value="10.000000" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="PointLight1">
+    <Components>
+      <Type TypeID="EE::Render::PointLightComponent">
+        <Property Path="m_color" Value="FF0000FF" />
+        <Property Path="m_transform" Value="0.000000,-0.000000,0.000100,12.000000,5.000000,5.000000,1.000000,1.000000,1.000000" />
+        <Property Path="m_intensity" Value="7500.000000" />
+        <Property Path="m_radius" Value="10.000000" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="SpotLight0">
+    <Components>
+      <Type TypeID="EE::Render::SpotLightComponent">
+        <Property Path="m_color" Value="FFFF00FF" />
+        <Property Path="m_transform" Value="135.000000,-0.000000,0.000000,12.000000,-5.000000,5.000000,1.000000,1.000000,1.000000" />
+        <Property Path="m_intensity" Value="7500.000000" />
+        <Property Path="m_innerUmbraAngle" Value="40.000000" />
+        <Property Path="m_radius" Value="100.000000" />
+      </Type>
+    </Components>
+  </Entity>
+  <Entity Name="SpotLight1">
+    <Components>
+      <Type TypeID="EE::Render::SpotLightComponent">
+        <Property Path="m_color" Value="FF00FFFF" />
+        <Property Path="m_transform" Value="135.000000,-0.000000,0.000000,3.000000,-5.000000,5.000000,1.000000,1.000000,1.000000" />
+        <Property Path="m_intensity" Value="7500.000000" />
+        <Property Path="m_innerUmbraAngle" Value="40.000000" />
+        <Property Path="m_radius" Value="50.000000" />
+      </Type>
+    </Components>
+  </Entity>
+</Entities>

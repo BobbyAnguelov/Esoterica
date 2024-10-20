@@ -30,10 +30,10 @@ namespace EE
         inline static Transform Lerp( Transform const& from, Transform const& to, float t );
 
         // Spherically interpolate between two transforms - uses SLerp for rotations
-        inline static Transform Slerp( Transform const& from, Transform const& to, float t );
+        inline static Transform SLerp( Transform const& from, Transform const& to, float t );
 
         // Spherically interpolate between two transforms - uses FastSLerp (SLerp approximation) for rotations
-        inline static Transform FastSlerp( Transform const& from, Transform const& to, float t );
+        inline static Transform FastSLerp( Transform const& from, Transform const& to, float t );
 
         // Calculate a delta transform that you can concatenate to the 'from' transform to get the 'to' transform. Properly handles the non-uniform scaling case.
         inline static Transform Delta( Transform const& from, Transform const& to );
@@ -91,6 +91,8 @@ namespace EE
         EE_FORCE_INLINE Vector GetAxisX() const { return m_rotation.RotateVector( Vector::UnitX ); }
         EE_FORCE_INLINE Vector GetAxisY() const { return m_rotation.RotateVector( Vector::UnitY ); }
         EE_FORCE_INLINE Vector GetAxisZ() const { return m_rotation.RotateVector( Vector::UnitZ ); }
+
+        Vector GetAxis( Axis axis ) const;
 
         EE_FORCE_INLINE Vector GetRightVector() const { return m_rotation.RotateVector( Vector::WorldRight ); }
         EE_FORCE_INLINE Vector GetForwardVector() const { return m_rotation.RotateVector( Vector::WorldForward ); }
@@ -287,7 +289,7 @@ namespace EE
         return lerped;
     }
 
-    inline Transform Transform::Slerp( Transform const& from, Transform const& to, float t )
+    inline Transform Transform::SLerp( Transform const& from, Transform const& to, float t )
     {
         Quaternion const rotation = Quaternion::SLerp( Quaternion( from.m_rotation ), Quaternion( to.m_rotation ), t );
         Vector const translationAndScale = Vector::Lerp( Vector( from.m_translationScale ), Vector( to.m_translationScale ), t );
@@ -298,7 +300,7 @@ namespace EE
         return lerped;
     }
 
-    inline Transform Transform::FastSlerp( Transform const& from, Transform const& to, float t )
+    inline Transform Transform::FastSLerp( Transform const& from, Transform const& to, float t )
     {
         Quaternion const rotation = Quaternion::FastSLerp( Quaternion( from.m_rotation ), Quaternion( to.m_rotation ), t );
         Vector const translationAndScale = Vector::Lerp( Vector( from.m_translationScale ), Vector( to.m_translationScale ), t );

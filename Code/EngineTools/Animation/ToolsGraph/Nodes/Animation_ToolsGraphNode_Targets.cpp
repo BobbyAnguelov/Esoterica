@@ -82,7 +82,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void TargetInfoToolsNode::DrawInfoText( VisualGraph::DrawContext const& ctx )
+    void TargetInfoToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
         InlineString infoText;
         
@@ -149,6 +149,47 @@ namespace EE::Animation::GraphNodes
         }
 
         ImGui::Text( infoText.c_str() );
+    }
+
+    //-------------------------------------------------------------------------
+
+    TargetPointToolsNode::TargetPointToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Point", GraphValueType::Vector, true );
+        CreateInputPin( "Target", GraphValueType::Target );
+    }
+
+    int16_t TargetPointToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        TargetPointNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<TargetPointNode>( this, pDefinition );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
+            if ( pInputNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pInputNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
+            }
+            else
+            {
+                context.LogError( this, "Disconnected input pin!" );
+                return InvalidIndex;
+            }
+
+            //-------------------------------------------------------------------------
+
+            pDefinition->m_isWorldSpaceTarget = m_isWorldSpaceTarget;
+        }
+        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------

@@ -4,7 +4,7 @@
 
 [Esoterica Engine](https://www.esotericaengine.com) is an MIT licensed prototype game engine framework. It’s intended as a technology demonstrator, an educational tool and an R&D framework. It contains a lot of the boilerplate machinery required for resource management, serialization, gameplay, etc. It provides a lot of references for how to potentially build a resource system, basic reflection and a AAA-level animation system. It could be a good framework for experimenting with game, AI, renderer tech or as a teaching aid for how to build game engines. Additionally, if you are more interested in building your own engine, Esoterica is a really good starting point.
 
-## Important Note: Stability!
+## Important Note: Stability
 
 >Esoterica is a prototype engine that's being developed in our spare time and as such there will likely be bugs and crashes (primarily with the tooling side). It is not intended as a stable production tool. If you encounter any crashes or bugs, please file issues and we'll try to get to them as soon as we can.
 
@@ -12,7 +12,7 @@
 
 There are no examples of any of the tech supplied unfortunately since we do not have any assets that I can release publically. We are looking for folks that can create some test assets that we can distribute with the engine (e.g., a character model and some animations). We can then use those assets to provide a set of examples of the various tools and features.
 
-We are also looking for a someone to help us build out the renderer. More details can be found here: https://www.esotericaengine.com/contribute
+We are also looking for a someone to help us build out the renderer. More details can be found here: <https://www.esotericaengine.com/contribute>
 
 ## What's included
 
@@ -44,11 +44,15 @@ We are also looking for a someone to help us build out the renderer. More detail
 
 Esoterica uses vanilla msbuild for its build system. There are a set of property sheets that control all the build settings for Esoterica in the "code/property sheets" folder.
 
-1. Download the [external dependencies](https://drive.google.com/file/d/1HMQkphOrBxQo-SeeCmN_isr-HexHUsc2/view?usp=drive_link) and extract into the Esoterica root folder (X:/Esoterica Path/). You should end up with 'X:/Esoterica Path/External/'.
-2. Download and install the FBX SDK (required for editor) - <https://www.autodesk.com/developer-network/platform-technologies/fbx-sdk-2020-2-1>
-3. Open the solution "Esoterica.sln"
-4. REBUILD the "Esoterica.Scripts.Reflect" project (under the "0. Scripts" solution folder) - this will generate all the Esoterica reflection data
-5. Build the "1. Applications" solution folder - this will build all the applications needed for Esoterica to run.
+1. Get the external dependencies set up: there are two ways to do this:
+
+    * Run the ```DownloadDependencies.bat``` script found in the root folder
+    * Manually download the [external dependencies](https://data.esotericaengine.com/ExternalData.zip) archive and extract into the Esoterica root folder (X:/Esoterica Path/). You should end up with 'X:/Esoterica Path/External/'
+
+1. Open the solution "Esoterica.sln"
+1. Manually rebuild the "Esoterica.Scripts.Reflect" project (under the "0. Scripts" solution folder) - this will generate all the required Esoterica reflection code needed for the project to compile.
+    * Note: I'm using a semi-flaky VS feature to auto-include generated c++ files so this might require you to reload the solution for it to detect the new files (this is current a WIP feature and will improve...)
+1. Build the solution
 
 ## Applications
 

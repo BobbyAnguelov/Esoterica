@@ -18,7 +18,7 @@ namespace EE::Resource
 
     void PackagedResourceProvider::RequestRawResource( ResourceRequest* pRequest )
     {
-        FileSystem::Path const resourceFilePath = pRequest->GetResourceID().GetResourcePath().ToFileSystemPath( m_settings.m_compiledResourcePath );
+        FileSystem::Path const resourceFilePath = pRequest->GetResourceID().GetFileSystemPath( m_settings.m_compiledResourceDirectoryPath );
         pRequest->OnRawResourceRequestComplete( resourceFilePath.c_str(), String() );
     }
 

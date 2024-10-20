@@ -1,5 +1,6 @@
 #include "PropertyPath.h"
 #include "Base/Types/String.h"
+#include "Base/Encoding/Hash.h"
 
 //-------------------------------------------------------------------------
 
@@ -24,6 +25,8 @@ namespace EE::TypeSystem
                 m_pathElements.emplace_back( PathElement( StringID( pathStrings[i] ) ) );
             }
         }
+
+        GenerateHashCode();
     }
 
     String PropertyPath::ToString() const
@@ -61,5 +64,11 @@ namespace EE::TypeSystem
         }
 
         return pathString;
+    }
+
+    void PropertyPath::GenerateHashCode()
+    {
+        String const pathStr = ToString();
+        m_hash = Hash::GetHash64( pathStr );
     }
 }

@@ -1,10 +1,11 @@
 #pragma once
 
 #include "ReflectionDataTypes.h"
+#include "ReflectionDataTypes.h"
 #include "Base/Resource/ResourceTypeID.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/TypeSystem/PropertyPath.h"
-#include <sqlite3.h>
+#include "Base/Logging/Log.h"
 
 //-------------------------------------------------------------------------
 
@@ -12,36 +13,28 @@ namespace EE::TypeSystem::Reflection
 {
     class ReflectionDatabase
     {
-        static uint32_t const constexpr s_defaultStatementBufferSize = 8096;
 
     public:
 
-        ReflectionDatabase();
-        ~ReflectionDatabase();
+        ReflectionDatabase( TVector<ProjectInfo> const& projects );
 
-        // Database functions
+        inline bool HasErrors() const { return !m_errorMessage.empty(); }
+        char const* GetErrorMessage() const { return m_errorMessage.c_str(); }
+
+        inline bool HasWarnings() const { return !m_warningMessage.empty(); }
+        char const* GetWarningMessage() const { return m_warningMessage.c_str(); }
+
+        // Solution Info
         //-------------------------------------------------------------------------
 
-        bool IsConnected() const { return m_pDatabase != nullptr; }
-        inline bool HasErrorOccurred() const { return !m_errorMessage.empty(); }
-        inline String const& GetError() const { return m_errorMessage; }
+        TVector<ProjectInfo> const& GetReflectedProjects() const { return m_reflectedProjects; }
+        bool IsProjectRegistered( StringID projectID ) const;
+        ProjectInfo const* GetProjectDesc( StringID projectID ) const;
 
-        bool ReadDatabase( FileSystem::Path const& databasePath );
-        bool WriteDatabase( FileSystem::Path const& databasePath );
+        bool IsHeaderRegistered( StringID headerID ) const;
+        HeaderInfo const* GetHeaderInfo( StringID headerID ) const;
 
-        // Module functions
-        //-------------------------------------------------------------------------
-
-        TVector<ProjectInfo> const& GetAllRegisteredProjects() const { return m_reflectedProjects; }
-        bool IsProjectRegistered( ProjectID projectID ) const;
-        ProjectInfo const* GetProjectDesc( ProjectID projectID ) const;
-        void UpdateProjectList( TVector<ProjectInfo> const& registeredProjects );
-
-        bool IsHeaderRegistered( HeaderID headerID ) const;
-        HeaderInfo const* GetHeaderDesc( HeaderID headerID ) const;
-        void UpdateHeaderRecord( HeaderInfo const& header );
-
-        // Type functions
+        // Type Info
         //-------------------------------------------------------------------------
 
         ReflectedType const* GetType( TypeID typeID ) const;
@@ -49,72 +42,57 @@ namespace EE::TypeSystem::Reflection
         TVector<ReflectedType> const& GetAllTypes() const { return m_reflectedTypes; }
         bool IsTypeRegistered( TypeID typeID ) const;
         bool IsTypeDerivedFrom( TypeID typeID, TypeID parentTypeID ) const;
-        void GetAllTypesForHeader( HeaderID headerID, TVector<ReflectedType>& types ) const;
-        void GetAllTypesForProject( ProjectID projectID, TVector<ReflectedType>& types ) const;
-        void RegisterType( ReflectedType const* pType, bool onlyUpdateDevFlag );
+        void GetAllTypesForHeader( StringID headerID, TVector<ReflectedType>& types ) const;
+        void GetAllTypesForProject( StringID projectID, TVector<ReflectedType>& types ) const;
+        void RegisterType( ReflectedType const* pType );
+        void UpdateRegisteredType( ReflectedType const* pType );
 
-        // Property functions
+        ReflectedProperty const* GetPropertyInfo( TypeID typeID, PropertyPath const& pathID ) const;
+
+        // Parse all reflected type json metadata
+        bool ProcessAndValidateReflectedProperties();
+
+        // Resource Info
         //-------------------------------------------------------------------------
 
-        ReflectedProperty const* GetPropertyTypeDescriptor( TypeID typeID, PropertyPath const& pathID ) const;
-
-        // Resource functions
-        //-------------------------------------------------------------------------
+        ReflectedResourceType const* GetResourceType( ResourceTypeID typeID ) const;
+        ReflectedResourceType* GetResourceType( ResourceTypeID typeID ) { return const_cast<ReflectedResourceType*>( const_cast<ReflectionDatabase const*>( this )->GetResourceType( typeID ) ); }
 
         bool IsResourceRegistered( ResourceTypeID typeID ) const;
-        void RegisterResource( ReflectedResourceType const* pDesc );
+        bool IsResourceRegistered( TypeID typeID ) const;
+        void RegisterResource( ReflectedResourceType const* pResource );
+        void UpdateRegisteredResource( ReflectedResourceType const* pResource );
         TVector<ReflectedResourceType> const& GetAllRegisteredResourceTypes() const { return m_reflectedResourceTypes; }
 
         // Removes all irrelevant parents from the registered resource types
         void CleanupResourceHierarchy();
 
-        // Cleaning
+        // Data Info
         //-------------------------------------------------------------------------
 
-        void DeleteTypesForHeader( HeaderID headerID );
-        void DeleteObseleteHeadersAndTypes( TVector<HeaderID> const& registeredHeaders );
-        void DeleteObseleteProjects( TVector<ProjectInfo> const& registeredProjects );
+        ReflectedDataFileType const* GetDataFileType( TypeID typeID ) const;
+        ReflectedDataFileType* GetDataFileType( TypeID typeID ) { return const_cast<ReflectedDataFileType*>( const_cast<ReflectionDatabase const*>( this )->GetDataFileType( typeID ) ); }
+
+        bool IsDataFileRegistered( TypeID typeID ) const;
+        void RegisterDataFile( ReflectedDataFileType const* pDataFile );
+        void UpdateRegisteredDataFile( ReflectedDataFileType const* pDataFile );
+        TVector<ReflectedDataFileType> const& GetAllRegisteredDataFileTypes() const { return m_reflectedDataFileTypes; }
+
+        bool ValidateDataFileRegistrations();
 
     private:
 
-        // Data
-        //-------------------------------------------------------------------------
-
-        bool CreateTables();
-        bool DropTables();
-
-        bool ReadAdditionalTypeData( ReflectedType& type );
-        bool ReadAdditionalEnumData( ReflectedType& type );
-        bool ReadAdditionalResourceTypeData( ReflectedResourceType& type );
-
-        bool WriteAdditionalTypeData( ReflectedType const& type );
-        bool WriteAdditionalEnumData( ReflectedType const& type );
-        bool WriteAdditionalResourceTypeData( ReflectedResourceType const& type );
-
-        // SQLite
-        //-------------------------------------------------------------------------
-
-        bool Connect( FileSystem::Path const& databasePath, bool readOnlyAccess = false, bool useMutex = false );
-        bool Disconnect();
-
-        bool IsValidSQLiteResult( int result, char const* pErrorMessage = nullptr ) const;
-
-        void FillStatementBuffer( char const* pFormat, ... ) const;
-        bool ExecuteSimpleQuery( char const* pFormat, ... ) const;
-
-        bool BeginTransaction() const;
-        bool EndTransaction() const;
+        bool LogError( char const* pFormat, ... ) const;
+        void LogWarning( char const* pFormat, ... ) const;
 
     private:
 
-        sqlite3*                            m_pDatabase = nullptr;
-        mutable String                      m_errorMessage;
-        mutable char                        m_statementBuffer[s_defaultStatementBufferSize] = { 0 };
-
+        TVector<ProjectInfo>                m_reflectedProjects;
         ReflectedType                       m_reflectedTypeBase;
         TVector<ReflectedType>              m_reflectedTypes;
-        TVector<HeaderInfo>                 m_reflectedHeaders;
-        TVector<ProjectInfo>                m_reflectedProjects;
         TVector<ReflectedResourceType>      m_reflectedResourceTypes;
+        TVector<ReflectedDataFileType>      m_reflectedDataFileTypes;
+        mutable String                      m_warningMessage;
+        mutable String                      m_errorMessage;
     };
 }

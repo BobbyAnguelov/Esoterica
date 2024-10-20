@@ -116,7 +116,7 @@ namespace EE::Settings
             static_assert( std::is_base_of<EE::Settings::ISettings, T>::value, "T must be derived from ISettings" );
             static_assert( !std::is_base_of<EE::Settings::GlobalSettings, T>::value, "T is not allowed to be derived from GlobalSettings" );
 
-            auto pGroup = FindOrCreateGroup( groupID );
+            auto pGroup = FindGroup( groupID );
             EE_ASSERT( pGroup != nullptr );
             EE_ASSERT( pGroup->GetSettings<T>() == nullptr );
 

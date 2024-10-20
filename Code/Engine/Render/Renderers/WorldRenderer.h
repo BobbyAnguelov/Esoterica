@@ -110,7 +110,7 @@ namespace EE::Render
 
     public:
 
-        inline bool IsInitialized() const { return m_initialized; }
+        inline bool WasInitialized() const { return m_initialized; }
         bool Initialize( RenderDevice* pRenderDevice );
         void Shutdown();
 

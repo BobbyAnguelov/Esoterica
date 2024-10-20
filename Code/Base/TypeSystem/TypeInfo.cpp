@@ -31,9 +31,9 @@ namespace EE::TypeSystem
 
     //-------------------------------------------------------------------------
 
-    PropertyInfo const* TypeInfo::GetPropertyInfo( StringID propertyID ) const
+    PropertyInfo* TypeInfo::GetPropertyInfo( StringID propertyID )
     {
-        PropertyInfo const* pProperty = nullptr;
+        PropertyInfo* pProperty = nullptr;
 
         auto propertyIter = m_propertyMap.find( propertyID );
         if ( propertyIter != m_propertyMap.end() )

@@ -7,23 +7,23 @@ namespace EE::Animation
 {
     bool Skeleton::IsValid() const
     {
-        return !m_boneIDs.empty() && ( m_boneIDs.size() == m_parentIndices.size() ) && ( m_boneIDs.size() == m_localReferencePose.size() );
+        return !m_boneIDs.empty() && ( m_boneIDs.size() == m_parentIndices.size() ) && ( m_boneIDs.size() == m_parentSpaceReferencePose.size() );
     }
 
-    Transform Skeleton::GetBoneGlobalTransform( int32_t idx ) const
+    Transform Skeleton::GetBoneModelSpaceTransform( int32_t idx ) const
     {
-        EE_ASSERT( idx >= 0 && idx < m_localReferencePose.size() );
+        EE_ASSERT( idx >= 0 && idx < m_parentSpaceReferencePose.size() );
 
-        Transform boneGlobalTransform = m_localReferencePose[idx];
+        Transform boneModelSpaceTransform = m_parentSpaceReferencePose[idx];
         int32_t parentIdx = GetParentBoneIndex( idx );
 
         while ( parentIdx != InvalidIndex )
         {
-            boneGlobalTransform = boneGlobalTransform * m_localReferencePose[parentIdx];
+            boneModelSpaceTransform = boneModelSpaceTransform * m_parentSpaceReferencePose[parentIdx];
             parentIdx = GetParentBoneIndex( parentIdx );
         }
 
-        return boneGlobalTransform;
+        return boneModelSpaceTransform;
     }
 
     int32_t Skeleton::GetFirstChildBoneIndex( int32_t boneIdx ) const
@@ -115,18 +115,18 @@ namespace EE::Animation
 
     void Skeleton::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform ) const
     {
-        auto const numBones = m_localReferencePose.size();
+        auto const numBones = m_parentSpaceReferencePose.size();
         if ( numBones > 0 )
         {
-            TInlineVector<Transform, 256> globalTransforms;
-            globalTransforms.resize( numBones );
+            TInlineVector<Transform, 256> modelSpaceTransforms;
+            modelSpaceTransforms.resize( numBones );
 
-            globalTransforms[0] = m_localReferencePose[0] * worldTransform;
+            modelSpaceTransforms[0] = m_parentSpaceReferencePose[0] * worldTransform;
             for ( auto i = 1; i < numBones; i++ )
             {
                 auto const& parentIdx = m_parentIndices[i];
-                auto const& parentTransform = globalTransforms[parentIdx];
-                globalTransforms[i] = m_localReferencePose[i] * parentTransform;
+                auto const& parentTransform = modelSpaceTransforms[parentIdx];
+                modelSpaceTransforms[i] = m_parentSpaceReferencePose[i] * parentTransform;
             }
 
             //-------------------------------------------------------------------------
@@ -134,14 +134,14 @@ namespace EE::Animation
             for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
             {
                 auto const& parentIdx = m_parentIndices[boneIdx];
-                auto const& parentTransform = globalTransforms[parentIdx];
-                auto const& boneTransform = globalTransforms[boneIdx];
+                auto const& parentTransform = modelSpaceTransforms[parentIdx];
+                auto const& boneTransform = modelSpaceTransforms[boneIdx];
 
                 ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), Colors::HotPink, 3.0f );
                 ctx.DrawAxis( boneTransform, 0.03f, 2.0f );
             }
 
-            DrawRootBone( ctx, globalTransforms[0] );
+            DrawRootBone( ctx, modelSpaceTransforms[0] );
         }
     }
     #endif

@@ -23,7 +23,7 @@ namespace EE::Animation::GraphNodes
 
         Overlay = 0, // Regular blend
         Additive,
-        GlobalSpace,
+        ModelSpace,
     };
 
     //-------------------------------------------------------------------------
@@ -58,7 +58,7 @@ namespace EE::Animation::GraphNodes
 
             int16_t                                         m_baseNodeIdx = InvalidIndex;
             bool                                            m_onlySampleBaseRootMotion = true;
-            TInlineVector<LayerDefinition, 3>                 m_layerDefinition;
+            TInlineVector<LayerDefinition, 3>               m_layerDefinition;
         };
 
         struct Layer

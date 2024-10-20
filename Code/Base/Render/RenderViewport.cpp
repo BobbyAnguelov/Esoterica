@@ -22,7 +22,7 @@ namespace EE::Render
     void Viewport::Resize( Math::Rectangle const& rect )
     {
         m_size = rect.GetSize();
-        m_topLeftPosition = rect.GetTopLeft();
+        m_topLeftPosition = rect.GetTL();
         EE_ASSERT( IsValid() );
     }
 

@@ -48,6 +48,9 @@ namespace EE::Resource
         // Do we require a force recompile of this resource even if it's up to date
         inline bool RequiresForcedRecompiliation() const { return m_origin == Origin::ManualCompileForced || m_origin == Origin::Package; }
 
+        // Do we have any extra information for this request?
+        inline bool HasExtraInfo() const { return !m_extraInfo.empty(); }
+
         // Status
         inline Status GetStatus() const { return m_status; }
         inline bool IsPending() const { return m_status == Status::Pending; }
@@ -89,6 +92,8 @@ namespace EE::Resource
         FileSystem::Path                    m_sourceFile;
         FileSystem::Path                    m_destinationFile;
         String                              m_compilerArgs;
+
+        String                              m_extraInfo;
 
         TimeStamp                           m_timeRequested;
         Nanoseconds                         m_compilationTimeStarted = 0;

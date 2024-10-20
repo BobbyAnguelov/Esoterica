@@ -14,12 +14,11 @@ namespace EE::Player
         EE_PLAYER_ACTION_ID( GhostModeAction );
 
         virtual bool TryStartInternal( ActionContext const& ctx ) override;
-        virtual Status UpdateInternal( ActionContext const& ctx ) override;
+        virtual Status UpdateInternal( ActionContext const& ctx, bool isFirstUpdate ) override;
         virtual void StopInternal( ActionContext const& ctx, StopReason reason ) override;
 
     private:
 
-        ManualTimer m_hackTimer;
         ManualCountdownTimer m_CooldownTimer;
         float speed = 10.0f;
     };

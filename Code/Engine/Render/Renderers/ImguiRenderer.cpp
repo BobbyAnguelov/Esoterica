@@ -34,15 +34,12 @@ namespace EE::Render
 
     static void ImGui_DestroyWindowContext( ImGuiViewport* pViewport )
     {
-        ImGuiIO& io = ImGui::GetIO();
-        RenderDevice* pRenderDevice = (RenderDevice*) io.BackendRendererUserData;
-        EE_ASSERT( pRenderDevice != nullptr );
-
-        //-------------------------------------------------------------------------
-
         // The main viewport (owned by the application) will always have RendererUserData == NULL since we didn't create the data for it.
         if ( auto pSecondaryWindow = (RenderWindow*) pViewport->RendererUserData )
         {
+            ImGuiIO& io = ImGui::GetIO();
+            RenderDevice* pRenderDevice = (RenderDevice*) io.BackendRendererUserData;
+            EE_ASSERT( pRenderDevice != nullptr );
             pRenderDevice->DestroySecondaryRenderWindow( *pSecondaryWindow );
             EE::Delete( pSecondaryWindow );
         }
@@ -258,7 +255,7 @@ namespace EE::Render
 
     void ImguiRenderer::RenderViewport( Seconds const deltaTime, Viewport const& viewport, RenderTarget const& renderTarget )
     {
-        EE_ASSERT( IsInitialized() && Threading::IsMainThread() );
+        EE_ASSERT( WasInitialized() && Threading::IsMainThread() );
         EE_PROFILE_FUNCTION_RENDER();
 
         ImGuiIO& io = ImGui::GetIO();

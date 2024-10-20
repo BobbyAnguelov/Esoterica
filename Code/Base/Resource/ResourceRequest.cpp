@@ -275,31 +275,12 @@ namespace EE::Resource
         EE_ASSERT( m_stage == ResourceRequest::Stage::LoadResource );
         EE_ASSERT( m_rawResourcePath.IsValid() );
 
-        // Read file
-        //-------------------------------------------------------------------------
-
-        {
-            EE_PROFILE_SCOPE_IO( "Read File" );
-            EE_PROFILE_TAG( "filename", m_rawResourcePath.GetFilename().c_str() );
-
-            #if EE_DEVELOPMENT_TOOLS
-            ScopedTimer<PlatformClock> timer( m_pResourceRecord->m_fileReadTime );
-            #endif
-
-            if ( !FileSystem::LoadFile( m_rawResourcePath, m_rawResourceData ) )
-            {
-                EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load resource file (%s)", m_pResourceRecord->GetResourceID().c_str() );
-                m_stage = ResourceRequest::Stage::Complete;
-                m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
-                return;
-            }
-        }
-
         // Load resource
         //-------------------------------------------------------------------------
 
         {
             EE_PROFILE_SCOPE_RESOURCE( "Load Resource" );
+            EE_PROFILE_TAG( "filename", m_rawResourcePath.GetFilename().c_str() );
 
             #if EE_DEVELOPMENT_TOOLS
             char resTypeID[5];
@@ -307,14 +288,7 @@ namespace EE::Resource
             EE_PROFILE_TAG( "Loader", resTypeID );
             #endif
 
-            // Load the resource
-            EE_ASSERT( !m_rawResourceData.empty() );
-
-            #if EE_DEVELOPMENT_TOOLS
-            ScopedTimer<PlatformClock> timer( m_pResourceRecord->m_loadTime );
-            #endif
-
-            if ( !m_pResourceLoader->Load( GetResourceID(), m_rawResourceData, m_pResourceRecord ) )
+            if ( !m_pResourceLoader->Load( GetResourceID(), m_rawResourcePath, m_pResourceRecord ) )
             {
                 EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load compiled resource data (%s)", m_pResourceRecord->GetResourceID().c_str() );
                 m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
@@ -322,9 +296,6 @@ namespace EE::Resource
                 m_stage = ResourceRequest::Stage::Complete;
                 return;
             }
-
-            // Release raw data
-            m_rawResourceData.clear();
         }
 
         // Load dependencies
@@ -395,11 +366,12 @@ namespace EE::Resource
         // If dependency has failed, the resource has failed to load so immediately unload and set status to failed
         if ( status == InstallStatus::ShouldFail )
         {
-            EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load resource file due to failed dependency (%s)", m_pResourceRecord->GetResourceID().c_str() );
+            ResourceID const& resourceID = m_pResourceRecord->GetResourceID();
+            EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load resource file due to failed dependency (%s)", resourceID.c_str() );
 
             // Do not use the user ID for install dependencies! Since they are not explicitly loaded by a specific user!
             // Instead we create a ResourceRequesterID from the depending resource's resourceID
-            ResourceRequesterID const installDependencyRequesterID( m_pResourceRecord->GetResourceID() );
+            ResourceRequesterID const installDependencyRequesterID( resourceID );
 
             // Unload all install dependencies
             for ( auto& pendingDependency : m_pendingInstallDependencies )
@@ -442,7 +414,7 @@ namespace EE::Resource
             ScopedTimer<PlatformClock> timer( m_pResourceRecord->m_installTime );
             #endif
 
-            InstallResult const result = m_pResourceLoader->Install( GetResourceID(), m_pResourceRecord, m_installDependencies );
+            InstallResult const result = m_pResourceLoader->Install( GetResourceID(), m_rawResourcePath, m_installDependencies, m_pResourceRecord );
             switch ( result )
             {
                 // Finished installing the resource
@@ -474,6 +446,7 @@ namespace EE::Resource
                     EE_LOG_ERROR( "Resource", "Resource Request", "Failed to install resource (%s)", m_pResourceRecord->GetResourceID().c_str() );
 
                     m_stage = ResourceRequest::Stage::UnloadResource;
+                    m_pResourceRecord->SetLoadingStatus( LoadingStatus::Unloading );
                     UnloadResource( requestContext );
                     m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
                     m_stage = ResourceRequest::Stage::Complete;

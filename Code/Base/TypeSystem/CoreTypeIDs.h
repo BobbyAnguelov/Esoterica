@@ -7,7 +7,6 @@
 namespace EE
 {
     class UUID;
-    class Tag;
     struct Color;
     struct Float2;
     struct Float3;
@@ -28,22 +27,24 @@ namespace EE
     struct IntRange;
     struct FloatRange;
     class FloatCurve;
-    class BitFlags;
+
+    class DataPath;
+    template<typename T> class TDataFilePath;
 
     class ResourceID;
     class ResourceTypeID;
-    class ResourcePath;
 
-    template<typename T>
-    class TBitFlags;
+    class BitFlags;
+    template<typename T> class TBitFlags;
 
-    namespace Resource
-    {
-        class ResourcePtr;
-    }
+    class Tag2;
+    class Tag4;
 
-    template<typename T>
-    class TResourcePtr;
+    class TypeInstance;
+    template<typename T> class TTypeInstance;
+
+    namespace Resource { class ResourcePtr; }
+    template<typename T> class TResourcePtr;
 }
 
 //-------------------------------------------------------------------------
@@ -67,7 +68,6 @@ namespace EE::TypeSystem
         Double,
         UUID,
         StringID,
-        Tag,
         TypeID,
         String,
         Color,
@@ -89,12 +89,21 @@ namespace EE::TypeSystem
         FloatRange,
         FloatCurve,
 
+        Tag2,
+        Tag4,
+
         BitFlags,
         TBitFlags,
 
         TVector,
+        TInlineVector,
 
-        ResourcePath,
+        TypeInstance,
+        TTypeInstance,
+
+        DataPath,
+        TDataFilePath,
+
         ResourceTypeID,
         ResourceID,
         ResourcePtr,
@@ -114,8 +123,6 @@ namespace EE::TypeSystem
             inline bool operator==( TypeID ID ) const { return m_ID == ID; }
 
             TypeID          m_ID;
-            size_t          m_typeSize;
-            size_t          m_typeAlignment;
 
             #if EE_DEVELOPMENT_TOOLS
             char            m_friendlyName[30];
@@ -134,22 +141,10 @@ namespace EE::TypeSystem
 
         static bool IsCoreType( TypeID typeID );
         static CoreTypeID GetType( TypeID typeID );
-        static size_t GetTypeSize( TypeID typeID );
-        static size_t GetTypeAlignment( TypeID typeID );
 
         EE_FORCE_INLINE static TypeID GetTypeID( CoreTypeID coreType )
         {
             return s_coreTypeRecords[(uint8_t) coreType].m_ID;
-        }
-
-        EE_FORCE_INLINE static size_t GetTypeSize( CoreTypeID coreType )
-        {
-            return s_coreTypeRecords[(uint8_t) coreType].m_typeSize;
-        }
-
-        EE_FORCE_INLINE static size_t GetTypeAlignment( CoreTypeID coreType )
-        {
-            return s_coreTypeRecords[(uint8_t) coreType].m_typeAlignment;
         }
 
         #if EE_DEVELOPMENT_TOOLS
@@ -172,6 +167,7 @@ namespace EE::TypeSystem
 
     template<typename T> inline TypeID GetCoreTypeID() { return TypeID(); }
     template<template<typename> typename C> inline TypeID GetCoreTypeID() { return TypeID(); }
+    template<template<typename, size_t> typename C> inline TypeID GetCoreTypeID() { return TypeID(); }
 
     template<> inline TypeID GetCoreTypeID<bool>() { return GetCoreTypeID( CoreTypeID::Bool ); }
     template<> inline TypeID GetCoreTypeID<int8_t>() { return GetCoreTypeID( CoreTypeID::Int8 ); }
@@ -186,7 +182,6 @@ namespace EE::TypeSystem
     template<> inline TypeID GetCoreTypeID<double>() { return GetCoreTypeID( CoreTypeID::Double ); }
     template<> inline TypeID GetCoreTypeID<UUID>() { return GetCoreTypeID( CoreTypeID::UUID ); }
     template<> inline TypeID GetCoreTypeID<StringID>() { return GetCoreTypeID( CoreTypeID::StringID ); }
-    template<> inline TypeID GetCoreTypeID<Tag>() { return GetCoreTypeID( CoreTypeID::Tag ); }
     template<> inline TypeID GetCoreTypeID<TypeID>() { return GetCoreTypeID( CoreTypeID::TypeID ); }
     template<> inline TypeID GetCoreTypeID<String>() { return GetCoreTypeID( CoreTypeID::String ); }
     template<> inline TypeID GetCoreTypeID<Color>() { return GetCoreTypeID( CoreTypeID::Color ); }
@@ -207,14 +202,20 @@ namespace EE::TypeSystem
     template<> inline TypeID GetCoreTypeID<IntRange>() { return GetCoreTypeID( CoreTypeID::IntRange ); }
     template<> inline TypeID GetCoreTypeID<FloatRange>() { return GetCoreTypeID( CoreTypeID::FloatRange ); }
     template<> inline TypeID GetCoreTypeID<FloatCurve>() { return GetCoreTypeID( CoreTypeID::FloatCurve ); }
+    template<> inline TypeID GetCoreTypeID<Tag2>() { return GetCoreTypeID( CoreTypeID::Tag2 ); }
+    template<> inline TypeID GetCoreTypeID<Tag4>() { return GetCoreTypeID( CoreTypeID::Tag4 ); }
     template<> inline TypeID GetCoreTypeID<BitFlags>() { return GetCoreTypeID( CoreTypeID::BitFlags ); }
     template<> inline TypeID GetCoreTypeID<TBitFlags>() { return GetCoreTypeID( CoreTypeID::TBitFlags ); }
     template<> inline TypeID GetCoreTypeID<TVector>() { return GetCoreTypeID( CoreTypeID::TVector ); }
-    template<> inline TypeID GetCoreTypeID<ResourcePath>() { return GetCoreTypeID( CoreTypeID::ResourcePath ); }
+    template<> inline TypeID GetCoreTypeID<TInlineVector>() { return GetCoreTypeID( CoreTypeID::TInlineVector ); }
+    template<> inline TypeID GetCoreTypeID<DataPath>() { return GetCoreTypeID( CoreTypeID::DataPath ); }
+    template<> inline TypeID GetCoreTypeID<TDataFilePath>() { return GetCoreTypeID( CoreTypeID::TDataFilePath ); }
     template<> inline TypeID GetCoreTypeID<ResourceTypeID>() { return GetCoreTypeID( CoreTypeID::ResourceTypeID ); }
     template<> inline TypeID GetCoreTypeID<ResourceID>() { return GetCoreTypeID( CoreTypeID::ResourceID ); }
     template<> inline TypeID GetCoreTypeID<Resource::ResourcePtr>() { return GetCoreTypeID( CoreTypeID::ResourcePtr ); }
     template<> inline TypeID GetCoreTypeID<TResourcePtr>() { return GetCoreTypeID( CoreTypeID::TResourcePtr ); }
+    template<> inline TypeID GetCoreTypeID<TypeInstance>() { return GetCoreTypeID( CoreTypeID::TypeInstance ); }
+    template<> inline TypeID GetCoreTypeID<TTypeInstance>() { return GetCoreTypeID( CoreTypeID::TTypeInstance ); }
 
     //-------------------------------------------------------------------------
     // Validation for getters/setters

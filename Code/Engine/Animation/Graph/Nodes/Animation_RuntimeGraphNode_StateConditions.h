@@ -56,6 +56,7 @@ namespace EE::Animation::GraphNodes
             PercentageThroughState,
             PercentageThroughSyncEvent,
             ElapsedTime,
+            LoopCount
         };
 
         enum class Operator : uint8_t

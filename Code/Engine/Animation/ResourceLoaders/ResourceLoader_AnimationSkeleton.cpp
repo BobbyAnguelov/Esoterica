@@ -11,15 +11,15 @@ namespace EE::Animation
         m_loadableTypes.push_back( Skeleton::GetStaticResourceTypeID() );
     }
 
-    bool SkeletonLoader::LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    bool SkeletonLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         Skeleton* pSkeleton = EE::New<Skeleton>();
         archive << *pSkeleton;
         EE_ASSERT( pSkeleton->IsValid() );
         pResourceRecord->SetResourceData( pSkeleton );
 
-        TVector<BoneMaskDefinition> boneMaskDefinitions;
-        archive << boneMaskDefinitions;
+        TVector<BoneMask::SerializedData> serializedBoneMasks;
+        archive << serializedBoneMasks;
 
         // Preview
         //-------------------------------------------------------------------------
@@ -32,24 +32,24 @@ namespace EE::Animation
         // Create bone masks
         //-------------------------------------------------------------------------
 
-        pSkeleton->m_boneMasks.reserve( boneMaskDefinitions.size() );
-        for ( auto const& def : boneMaskDefinitions )
+        pSkeleton->m_boneMasks.reserve( serializedBoneMasks.size() );
+        for ( auto const& serializedBoneMask : serializedBoneMasks )
         {
-            EE_ASSERT( pSkeleton->GetBoneMaskIndex( def.m_ID ) == InvalidIndex ); // Ensure unique IDs
-            pSkeleton->m_boneMasks.emplace_back( pSkeleton, def );
+            EE_ASSERT( pSkeleton->GetBoneMaskIndex( serializedBoneMask.m_ID ) == InvalidIndex ); // Ensure unique IDs
+            pSkeleton->m_boneMasks.emplace_back( pSkeleton, serializedBoneMask );
         }
 
         // Calculate global reference pose
         //-------------------------------------------------------------------------
 
         int32_t const numBones = pSkeleton->GetNumBones();
-        pSkeleton->m_globalReferencePose.resize( numBones );
+        pSkeleton->m_modelSpaceReferencePose.resize( numBones );
 
-        pSkeleton->m_globalReferencePose[0] = pSkeleton->m_localReferencePose[0];
+        pSkeleton->m_modelSpaceReferencePose[0] = pSkeleton->m_parentSpaceReferencePose[0];
         for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
         {
             int32_t const parentIdx = pSkeleton->GetParentBoneIndex( boneIdx );
-            pSkeleton->m_globalReferencePose[boneIdx] = pSkeleton->m_localReferencePose[boneIdx] * pSkeleton->m_globalReferencePose[parentIdx];
+            pSkeleton->m_modelSpaceReferencePose[boneIdx] = pSkeleton->m_parentSpaceReferencePose[boneIdx] * pSkeleton->m_modelSpaceReferencePose[parentIdx];
         }
 
         //-------------------------------------------------------------------------

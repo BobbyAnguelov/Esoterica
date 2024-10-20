@@ -5,108 +5,7 @@
 #include "Base/Drawing/DebugDrawing.h"
 #include "Base/Profiling.h"
 #include "Base/TypeSystem/TypeRegistry.h"
-
-//-------------------------------------------------------------------------
-
-#if EE_DEVELOPMENT_TOOLS
-namespace EE::Animation
-{
-    namespace
-    {
-        struct TaskTreeOffsetData
-        {
-            void CalculateRelativeOffsets()
-            {
-                int32_t const numChildren = (int32_t) m_children.size();
-                if ( numChildren == 0 )
-                {
-                    m_width = 1;
-                }
-                else if ( numChildren == 1 )
-                {
-                    m_children[0]->CalculateRelativeOffsets();
-                    m_children[0]->m_relativeOffset = Float2( 0.0f, -1.0f );
-                    m_width = m_children[0]->m_width;
-                }
-                else // multiple children
-                {
-                    m_width = 0.0f;
-
-                    for ( int32_t i = 0; i < numChildren; i++ )
-                    {
-                        m_children[i]->CalculateRelativeOffsets();
-                        m_width += m_children[i]->m_width;
-                    }
-
-                    float startOffset = -( m_width / 2 );
-                    for ( int32_t i = 0; i < numChildren; i++ )
-                    {
-                        float halfWidth = m_children[i]->m_width / 2;
-                        m_children[i]->m_relativeOffset = Float2( startOffset + halfWidth, -1.0f );
-                        startOffset += m_children[i]->m_width;
-                    }
-                }
-            }
-
-            void CalculateAbsoluteOffsets( Float2 const& parentOffset )
-            {
-                m_offset = parentOffset + m_relativeOffset;
-
-                int32_t const numChildren = (int32_t) m_children.size();
-                for ( int32_t i = 0; i < numChildren; i++ )
-                {
-                    m_children[i]->CalculateAbsoluteOffsets( m_offset );
-                }
-            }
-
-        public:
-
-            Task*                           m_pTask = nullptr;
-            Float2                          m_relativeOffset;
-            Float2                          m_offset;
-            float                           m_width = 0;
-            TVector<TaskTreeOffsetData*>        m_children;
-        };
-
-        void CalculateTaskTreeOffsets( TVector<Task*> const& tasks, Transform const& worldTransform, TInlineVector<Transform, 16>& taskTransforms )
-        {
-            int32_t const numTasks = (int32_t) tasks.size();
-            TInlineVector<TaskTreeOffsetData, 16> taskOffsets;
-            taskOffsets.resize( numTasks );
-
-            for ( int32_t i = 0; i < numTasks; i++ )
-            {
-                auto pTask = tasks[i];
-                taskOffsets[i].m_pTask = pTask;
-
-                int32_t const numDependencies = pTask->GetNumDependencies();
-                for ( int32_t j = 0; j < numDependencies; j++ )
-                {
-                    taskOffsets[i].m_children.emplace_back( &taskOffsets[pTask->GetDependencyIndices()[j]] );
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
-            taskOffsets.back().CalculateRelativeOffsets();
-            taskOffsets.back().CalculateAbsoluteOffsets( Float2::Zero );
-
-            //-------------------------------------------------------------------------
-
-            Vector const offsetVectorX = worldTransform.GetAxisX() * 2.0f;
-            Vector const offsetVectorY = worldTransform.GetAxisY().GetNegated() * 1.5f;
-
-            taskTransforms.resize( numTasks, worldTransform );
-
-            for ( int32_t i = numTasks - 1; i >= 0; i-- )
-            {
-                Vector const offset = ( offsetVectorX * taskOffsets[i].m_offset.m_x ) + ( offsetVectorY * taskOffsets[i].m_offset.m_y );
-                taskTransforms[i].AddTranslation( offset );
-            }
-        }
-    }
-}
-#endif
+#include "Base/Utils/TreeLayout.h"
 
 //-------------------------------------------------------------------------
 
@@ -119,7 +18,7 @@ namespace EE::Animation
         , m_finalPoseBuffer( pSkeleton, SecondarySkeletonList() )
     {
         EE_ASSERT( pSkeleton != nullptr );
-        m_finalPoseBuffer.CalculateGlobalTransforms();
+        m_finalPoseBuffer.CalculateModelSpaceTransforms();
     }
 
     TaskSystem::~TaskSystem()
@@ -137,6 +36,10 @@ namespace EE::Animation
         m_tasks.clear();
         m_posePool.Reset();
         m_hasPhysicsDependency = false;
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_debugPathTracker.Clear();
+        #endif
     }
 
     //-------------------------------------------------------------------------
@@ -162,7 +65,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void TaskSystem::RollbackToTaskIndexMarker( TaskIndex const marker )
+    void TaskSystem::RollbackToTaskIndexMarker( int8_t const marker )
     {
         EE_ASSERT( marker >= 0 && marker <= m_tasks.size() );
 
@@ -170,12 +73,16 @@ namespace EE::Animation
         {
             EE::Delete( m_tasks[t] );
             m_tasks.erase( m_tasks.begin() + t );
+
+            #if EE_DEVELOPMENT_TOOLS
+            m_debugPathTracker.RemoveTrackedPath( t );
+            #endif
         }
     }
 
     //-------------------------------------------------------------------------
 
-    bool TaskSystem::AddTaskChainToPrePhysicsList( TaskIndex taskIdx )
+    bool TaskSystem::AddTaskChainToPrePhysicsList( int8_t taskIdx )
     {
         EE_ASSERT( taskIdx >= 0 && taskIdx < m_tasks.size() );
         EE_ASSERT( m_hasCodependentPhysicsTasks == false );
@@ -231,7 +138,7 @@ namespace EE::Animation
         {
             // Go backwards through the registered task and execute all task chains with a pre-physics requirement
             auto const numTasks = (int8_t) m_tasks.size();
-            for ( TaskIndex i = 0; i < numTasks; i++ )
+            for ( int8_t i = 0; i < numTasks; i++ )
             {
                 if ( m_tasks[i]->GetRequiredUpdateStage() == TaskUpdateStage::PrePhysics )
                 {
@@ -247,12 +154,12 @@ namespace EE::Animation
             if ( m_hasCodependentPhysicsTasks )
             {
                 EE_LOG_WARNING( "Animation", "TODO", "Co-dependent physics tasks detected!" );
-                RegisterTask<Tasks::ReferencePoseTask>( (int16_t) InvalidIndex );
+                RegisterTask<Tasks::ReferencePoseTask>( InvalidIndex );
                 m_tasks.back()->Execute( m_taskContext );
             }
             else // Execute pre-physics tasks
             {
-                for ( TaskIndex prePhysicsTaskIdx : m_prePhysicsTaskIndices )
+                for ( int8_t prePhysicsTaskIdx : m_prePhysicsTaskIndices )
                 {
                     m_taskContext.m_currentTaskIdx = prePhysicsTaskIdx;
 
@@ -319,7 +226,7 @@ namespace EE::Animation
             }
 
             // Calculate the global transforms and release the task pose buffer
-            m_finalPoseBuffer.CalculateGlobalTransforms();
+            m_finalPoseBuffer.CalculateModelSpaceTransforms();
             m_posePool.ReleasePoseBuffer( pFinalTask->GetResultBufferIndex() );
         }
         else
@@ -331,7 +238,7 @@ namespace EE::Animation
     void TaskSystem::ExecuteTasks()
     {
         int16_t const numTasks = (int8_t) m_tasks.size();
-        for ( TaskIndex i = 0; i < numTasks; i++ )
+        for ( int8_t i = 0; i < numTasks; i++ )
         {
             if ( !m_tasks[i]->IsComplete() )
             {
@@ -371,7 +278,7 @@ namespace EE::Animation
         m_serializationEnabled = false;
     }
 
-    bool TaskSystem::SerializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob& outSerializedData ) const
+    bool TaskSystem::SerializeTasks( ResourceMappings const& resourceMappings, Blob& outSerializedData ) const
     {
         auto FindTaskTypeID = [this] ( TypeSystem::TypeID typeID )
         {
@@ -393,7 +300,7 @@ namespace EE::Animation
         EE_ASSERT( !m_needsUpdate );
 
         uint8_t const numTasks = (uint8_t) m_tasks.size();
-        TaskSerializer serializer( GetSkeleton(), LUTs, numTasks );
+        TaskSerializer serializer( GetSkeleton(), resourceMappings, numTasks );
 
         // Serialize task types
         for ( auto pTask : m_tasks )
@@ -420,13 +327,13 @@ namespace EE::Animation
         return true;
     }
 
-    void TaskSystem::DeserializeTasks( TInlineVector<ResourceLUT const*, 10> const& LUTs, Blob const& inSerializedData )
+    void TaskSystem::DeserializeTasks( ResourceMappings const& resourceMappings, Blob const& inSerializedData )
     {
         EE_ASSERT( m_serializationEnabled );
         EE_ASSERT( m_tasks.empty() );
         EE_ASSERT( !m_needsUpdate );
 
-        TaskSerializer serializer( GetSkeleton(), LUTs, inSerializedData );
+        TaskSerializer serializer( GetSkeleton(), resourceMappings, inSerializedData );
         uint8_t const numTasks = serializer.GetNumSerializedTasks();
 
         // Create tasks
@@ -487,14 +394,51 @@ namespace EE::Animation
         }
         else // Draw Tree
         {
-            // Calculate task tree offsets
+            // Create Tree Layout
             //-------------------------------------------------------------------------
 
+            int32_t const numTasks = (int32_t) m_tasks.size();
+            TreeLayout layout;
+            layout.m_nodes.resize( numTasks );
+
+            for ( int32_t i = 0; i < numTasks; i++ )
+            {
+                auto pTask = m_tasks[i];
+                layout.m_nodes[i].m_pItem = pTask;
+                layout.m_nodes[i].m_width = 2.0f;
+                layout.m_nodes[i].m_height = 1.5f;
+
+                int32_t const numDependencies = pTask->GetNumDependencies();
+                if ( numDependencies > 0 )
+                {
+                    for ( int32_t j = 0; j < numDependencies; j++ )
+                    {
+                        layout.m_nodes[i].m_children.emplace_back( &layout.m_nodes[pTask->GetDependencyIndices()[j]] );
+                    }
+                }
+            }
+
+            layout.PerformLayout( Float2( 0.1f, 0.1f ) );
+
+            // Set up final world transforms
+            //-------------------------------------------------------------------------
+
+            Vector const offsetVectorX = m_taskContext.m_worldTransform.GetAxisX();
+            Vector const offsetVectorY = m_taskContext.m_worldTransform.GetAxisY();
+
             TInlineVector<Transform, 16> taskTransforms;
-            CalculateTaskTreeOffsets( m_tasks, m_taskContext.m_worldTransform, taskTransforms );
+            taskTransforms.resize( numTasks, m_taskContext.m_worldTransform );
+
+            for ( int32_t i = numTasks - 1; i >= 0; i-- )
+            {
+                Vector const offset = ( offsetVectorX * layout.m_nodes[i].m_position.m_x ) + ( offsetVectorY * layout.m_nodes[i].m_position.m_y );
+                taskTransforms[i].AddTranslation( offset );
+            }
 
             // Draw tree
             //-------------------------------------------------------------------------
+
+            InlineString strBuffer;
 
             for ( int8_t i = (int8_t) m_tasks.size() - 1; i >= 0; i-- )
             {
@@ -506,15 +450,21 @@ namespace EE::Animation
                 {
                     for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
                     {
-                        Blender::ApplyAdditiveToReferencePose( m_taskContext.m_skeletonLOD, &pPoseBuffer->m_poses[poseIdx], 1.0f, nullptr, &pPoseBuffer->m_poses[poseIdx] );
-                        pPoseBuffer->m_poses[poseIdx].CalculateModelSpaceTransforms();
+                        Pose& pose = pPoseBuffer->m_poses[poseIdx];
+                        if ( pose.IsAdditivePose() )
+                        {
+                            Blender::ApplyAdditiveToReferencePose( m_taskContext.m_skeletonLOD, &pose, 1.0f, nullptr, &pose );
+                            pPoseBuffer->m_poses[poseIdx].CalculateModelSpaceTransforms();
+                        }
                     }
                 }
 
                 //-------------------------------------------------------------------------
 
+                strBuffer.sprintf( "%s\n%s\n%.2f", m_tasks[i]->GetDebugName(), m_tasks[i]->GetDebugTextInfo().c_str(), m_tasks[i]->GetDebugProgressOrWeight() );
+
                 m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], m_taskContext.m_skeletonLOD, pPoseBuffer, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
-                drawingContext.DrawText3D( taskTransforms[i].GetTranslation(), m_tasks[i]->GetDebugText().c_str(), m_tasks[i]->GetDebugColor(), Drawing::FontSmall, Drawing::AlignMiddleCenter );
+                drawingContext.DrawText3D( taskTransforms[i].GetTranslation(), strBuffer.c_str(), m_tasks[i]->GetDebugColor(), Drawing::FontSmall, Drawing::AlignMiddleCenter );
 
                 for ( auto& dependencyIdx : m_tasks[i]->GetDependencyIndices() )
                 {

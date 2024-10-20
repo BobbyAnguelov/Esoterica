@@ -1,5 +1,7 @@
 #include "TimeStamp.h"
 #include "Base/Math/Math.h"
+#include "Base/Types/String.h"
+#include <chrono>
 #include <cmath>
 
 //-------------------------------------------------------------------------

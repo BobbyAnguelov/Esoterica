@@ -11,7 +11,7 @@ namespace EE::Physics
         m_loadableTypes.push_back( RagdollDefinition::GetStaticResourceTypeID() );
     }
 
-    bool RagdollLoader::LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    bool RagdollLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         RagdollDefinition* pRagdoll = EE::New<RagdollDefinition>();
         archive << *pRagdoll;
@@ -20,7 +20,7 @@ namespace EE::Physics
         return pRagdoll->IsValid();
     }
 
-    Resource::InstallResult RagdollLoader::Install( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord, Resource::InstallDependencyList const& installDependencies ) const
+    Resource::InstallResult RagdollLoader::Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
     {
         RagdollDefinition* pRagdoll = pResourceRecord->GetResourceData<RagdollDefinition>();
         pRagdoll->m_skeleton = GetInstallDependency( installDependencies, pRagdoll->m_skeleton.GetResourceID() );

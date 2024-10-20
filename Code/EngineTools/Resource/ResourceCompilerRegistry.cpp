@@ -36,12 +36,12 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        auto const& resourceTypes = pCompiler->GetOutputTypes();
-        for ( auto& type : resourceTypes )
+        TVector<Compiler::OutputType> const& compilerOutputTypes = pCompiler->GetOutputTypes();
+        for ( auto& type : compilerOutputTypes )
         {
             // Two compilers registering for the same resource type is not allowed
-            EE_ASSERT( m_compilerTypeMap.find( type ) == m_compilerTypeMap.end() );
-            m_compilerTypeMap.insert( TPair<ResourceTypeID, Resource::Compiler const*>( type, pCompiler ) );
+            EE_ASSERT( m_compilerTypeMap.find( type.m_typeID ) == m_compilerTypeMap.end() );
+            m_compilerTypeMap.insert( TPair<ResourceTypeID, Resource::Compiler const*>( type.m_typeID, pCompiler ) );
         }
     }
 
@@ -52,10 +52,10 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        auto const& resourceTypes = pCompiler->GetOutputTypes();
-        for ( auto& type : resourceTypes )
+        TVector<Compiler::OutputType> const& compilerOutputTypes = pCompiler->GetOutputTypes();
+        for ( auto& type : compilerOutputTypes )
         {
-            m_compilerTypeMap.erase( type );
+            m_compilerTypeMap.erase( type.m_typeID );
         }
     }
 }

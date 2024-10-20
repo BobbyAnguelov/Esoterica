@@ -6,8 +6,8 @@
 
 namespace EE::Animation::Tasks
 {
-    SampleTask::SampleTask( TaskSourceID sourceID, AnimationClip const* pAnimation, Percentage time )
-        : Task( sourceID )
+    SampleTask::SampleTask( AnimationClip const* pAnimation, Percentage time )
+        : Task()
         , m_pAnimation( pAnimation )
         , m_time( time )
     {
@@ -25,7 +25,7 @@ namespace EE::Animation::Tasks
         // Sample primary pose
         //-------------------------------------------------------------------------
 
-        m_pAnimation->GetPose( m_time, pResultBuffer->GetPrimaryPose() );
+        m_pAnimation->GetPose( m_time, pResultBuffer->GetPrimaryPose(), context.m_skeletonLOD );
 
         // Sample secondary poses
         //-------------------------------------------------------------------------
@@ -36,7 +36,7 @@ namespace EE::Animation::Tasks
             AnimationClip const* pSecondaryAnimation = m_pAnimation->GetSecondaryAnimation( pResultBuffer->m_poses[i].GetSkeleton() );
             if ( pSecondaryAnimation != nullptr )
             {
-                pSecondaryAnimation->GetPose( m_time, &pResultBuffer->m_poses[i] );
+                pSecondaryAnimation->GetPose( m_time, &pResultBuffer->m_poses[i], context.m_skeletonLOD );
             }
             else
             {
@@ -60,16 +60,11 @@ namespace EE::Animation::Tasks
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    String SampleTask::GetDebugText() const
+    InlineString SampleTask::GetDebugTextInfo() const
     {
-        if ( m_pAnimation->IsAdditive() )
-        {
-            return String( String::CtorSprintf(), "Sample (Additive): %s, %.2f%%, Fr: %.2f", m_pAnimation->GetResourceID().GetFileNameWithoutExtension().c_str(), (float) m_time * 100, m_pAnimation->GetFrameTime( m_time ).ToFloat() );
-        }
-        else
-        {
-            return String( String::CtorSprintf(), "Sample: %s, %.2f%%, Fr: %.2f", m_pAnimation->GetResourceID().GetFileNameWithoutExtension().c_str(), (float) m_time * 100, m_pAnimation->GetFrameTime( m_time ).ToFloat() );
-        }
+        InlineString str;
+        str.sprintf( "%s %s", m_pAnimation->GetResourceID().GetFilenameWithoutExtension().c_str(), m_pAnimation->IsAdditive() ? "(Additive)" : "" );
+        return str;
     }
     #endif
 }

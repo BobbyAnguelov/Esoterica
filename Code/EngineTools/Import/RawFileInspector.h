@@ -3,11 +3,10 @@
 #include "EngineTools/_Module/API.h"
 #include "Base/Imgui/MaterialDesignIcons.h"
 #include "Base/FileSystem/FileSystemPath.h"
-#include "Base/Memory/Pointers.h"
+#include "Base/FileSystem/DataPath.h"
 #include "Base/Types/Function.h"
 #include "Base/Types/StringID.h"
 #include "Base/TypeSystem/ReflectedType.h"
-#include "Base/Resource/ResourcePath.h"
 #include "Base/Time/Time.h"
 
 //-------------------------------------------------------------------------
@@ -30,7 +29,7 @@ namespace EE::Import
         EE_REFLECT_TYPE( ImportableItem );
 
         ImportableItem() = default;
-        ImportableItem( ResourcePath const& path, StringID nameID ) : m_sourceFile ( path ), m_nameID( nameID ) {}
+        ImportableItem( DataPath const& path, StringID nameID ) : m_sourceFile ( path ), m_nameID( nameID ) {}
 
         inline bool IsValid() const { return m_sourceFile.IsValid() && m_nameID.IsValid(); }
 
@@ -41,7 +40,7 @@ namespace EE::Import
 
     public:
 
-        ResourcePath                    m_sourceFile;
+        DataPath                    m_sourceFile;
         StringID                        m_nameID;
     };
 
@@ -193,7 +192,7 @@ namespace EE::Import
 
     struct InspectorContext
     {
-        inline bool IsValid() const{ return m_warningDelegate != nullptr && m_errorDelegate != nullptr && m_rawResourceDirectoryPath.IsValid(); }
+        inline bool IsValid() const{ return m_warningDelegate != nullptr && m_errorDelegate != nullptr && m_sourceDataDirectoryPath.IsValid(); }
 
     public:
 
@@ -221,7 +220,7 @@ namespace EE::Import
 
         TFunction<void( char const* )>  m_warningDelegate;
         TFunction<void( char const* )>  m_errorDelegate;
-        FileSystem::Path                m_rawResourceDirectoryPath;
+        FileSystem::Path                m_sourceDataDirectoryPath;
     };
 
     //-------------------------------------------------------------------------
@@ -236,5 +235,5 @@ namespace EE::Import
 
     EE_ENGINETOOLS_API InspectionResult InspectFile( InspectorContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<ImportableItem*>& outFileInfo );
 
-    EE_ENGINETOOLS_API bool IsImportableFileType( TInlineString<6> const& extension );
+    EE_ENGINETOOLS_API bool IsImportableFileType( FileSystem::Extension const& extension );
 }

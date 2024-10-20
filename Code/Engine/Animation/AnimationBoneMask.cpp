@@ -1,49 +1,27 @@
 #include "AnimationBoneMask.h"
 #include "Engine/Animation/AnimationSkeleton.h"
+#include "Base/Math/Lerp.h"
 #include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
-    EE_FORCE_INLINE int32_t CalculateNumWeightsToSet( int32_t numBones )
-    {
-        return Math::CeilingToInt( float( numBones ) / 4.0f ) * 4;
-    }
-
     BoneMask::BoneMask( Skeleton const* pSkeleton )
         : m_pSkeleton( pSkeleton )
     {
         EE_ASSERT( m_pSkeleton != nullptr );
         EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
 
-        int32_t const numWeightToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
-        m_weights.resize( numWeightToAllocate, 0.0f );
+        int32_t const numWeightsToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        m_weights.resize( numWeightsToAllocate, 0.0f );
         m_weightInfo = WeightInfo::Zero;
     }
 
     BoneMask::BoneMask( Skeleton const* pSkeleton, float fixedWeight )
         : m_pSkeleton( pSkeleton )
     {
-        EE_ASSERT( m_pSkeleton != nullptr );
-        EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
-        EE_ASSERT( fixedWeight >= 0.0f && fixedWeight <= 1.0f );
-
-        int32_t const numWeightToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
-        m_weights.resize( numWeightToAllocate, fixedWeight );
-
-        if ( fixedWeight == 0.0f )
-        {
-            m_weightInfo = WeightInfo::Zero;
-        }
-        else if ( fixedWeight == 1.0f )
-        {
-            m_weightInfo = WeightInfo::One;
-        }
-        else
-        {
-            m_weightInfo = WeightInfo::Mixed;
-        }
+        ResetWeights( fixedWeight );
     }
 
     BoneMask::BoneMask( BoneMask const& rhs )
@@ -63,64 +41,19 @@ namespace EE::Animation
         m_weightInfo = rhs.m_weightInfo;
     }
 
-    BoneMask::BoneMask( Skeleton const* pSkeleton, BoneMaskDefinition const& definition )
-        : m_ID( definition.m_ID )
+    BoneMask::BoneMask( Skeleton const* pSkeleton, SerializedData const& serializedMask )
+        : m_ID( serializedMask.m_ID )
         , m_pSkeleton( pSkeleton )
     {
         EE_ASSERT( m_pSkeleton != nullptr );
         EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
 
-        int32_t const numWeightToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
-        m_weights.resize( numWeightToAllocate );
-        ResetWeights( definition );
+        int32_t const numWeightsToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        m_weights.resize( numWeightsToAllocate );
+        ResetWeights( serializedMask );
     }
 
     //-------------------------------------------------------------------------
-
-    #if EE_DEVELOPMENT_TOOLS
-    Color BoneMask::GetColorForWeight( float w )
-    {
-        EE_ASSERT( ( w >= 0.0f && w <= 1.0f ) || w == -1.0f );
-
-        // 0%
-        if ( w <= 0.0f )
-        {
-            return Colors::Gray;
-        }
-        // 1~20%
-        else if ( w > 0.0f && w < 0.2f )
-        {
-            return Color( 0xFF0D0DFF );
-        }
-        // 20~40%
-        else if ( w >= 0.2f && w < 0.4f )
-        {
-            return Color( 0xFF114EFF );
-        }
-        // 40~60%
-        else if ( w >= 0.4f && w < 0.6f )
-        {
-            return Color( 0xFF158EFF );
-        }
-        // 60~80%
-        else if ( w >= 0.6f && w < 0.8f )
-        {
-            return Color( 0xFF33B7FA );
-        }
-        // 80~99%
-        else if ( w >= 0.08f && w < 1.0f )
-        {
-            return Color( 0xFF34B3AC );
-        }
-        // 100%
-        else if ( w == 1.0f )
-        {
-            return Colors::Green;
-        }
-
-        return Colors::White;
-    }
-    #endif
 
     bool BoneMask::IsValid() const
     {
@@ -132,6 +65,9 @@ namespace EE::Animation
         m_pSkeleton = rhs.m_pSkeleton;
         m_weights = rhs.m_weights;
         m_weightInfo = rhs.m_weightInfo;
+
+        EE_ASSERT( m_weights.size() % 4 == 0 );
+
         return *this;
     }
 
@@ -140,6 +76,9 @@ namespace EE::Animation
         m_pSkeleton = rhs.m_pSkeleton;
         m_weights.swap( rhs.m_weights );
         m_weightInfo = rhs.m_weightInfo;
+
+        EE_ASSERT( m_weights.size() % 4 == 0 );
+
         return *this;
     }
 
@@ -147,27 +86,33 @@ namespace EE::Animation
 
     void BoneMask::ResetWeights( float fixedWeight )
     {
+        EE_ASSERT( m_pSkeleton != nullptr );
+        EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
         EE_ASSERT( fixedWeight >= 0.0f && fixedWeight <= 1.0f );
-        for ( auto& weight : m_weights )
-        {
-            weight = fixedWeight;
-        }
 
+        int32_t const numWeightsToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        m_weights.resize( numWeightsToAllocate, fixedWeight );
         SetWeightInfo( fixedWeight );
     }
 
-    void BoneMask::ResetWeights( TVector<float> const& weights )
+    void BoneMask::ResetWeights( TVector<float> const& boneWeights )
     {
         EE_ASSERT( m_pSkeleton != nullptr );
         EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
-        EE_ASSERT( weights.size() == m_pSkeleton->GetNumBones() );
-        m_weights = weights;
-        m_weightInfo = WeightInfo::Zero;
+        EE_ASSERT( boneWeights.size() == m_pSkeleton->GetNumBones() );
+        
+        int32_t const numWeightsToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        m_weights.resize( numWeightsToAllocate, 0.0f );
+        EE_ASSERT( m_weights.size() >= boneWeights.size() );
+
+        memcpy( m_weights.data(), boneWeights.data(), sizeof( float ) * boneWeights.size() );
 
         //-------------------------------------------------------------------------
 
+        m_weightInfo = WeightInfo::Zero;
+
         float fixedWeight = m_weights[0];
-        for ( float weight : weights )
+        for ( float weight : boneWeights )
         {
             if ( weight != fixedWeight )
             {
@@ -180,121 +125,98 @@ namespace EE::Animation
         SetWeightInfo( fixedWeight );
     }
 
-    void BoneMask::ResetWeights( BoneMaskDefinition const& definition, bool shouldFeatherIntermediateBones )
+    void BoneMask::ResetWeights( SerializedData const& serializedMask )
     {
+        int32_t const numWeights = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        int32_t const numSerializedWeights = (int32_t) serializedMask.m_weights.size();
+
         EE_ASSERT( m_pSkeleton != nullptr );
+        EE_ASSERT( m_weights.size() == numWeights );
+        EE_ASSERT( numSerializedWeights == numWeights );
 
         TInlineVector<float, 255> originalWeights;
+        originalWeights.resize( numWeights );
 
-        if ( shouldFeatherIntermediateBones )
-        {
-            // Set all weights to -1 so we know what needs to be feathered!
-            for ( auto& weight : m_weights )
-            {
-                weight = -1.0f;
-                originalWeights.emplace_back( -1.0f );
-            }
-        }
-        else
-        {
-            ResetWeights();
-        }
-
-        // Relatively expensive remap
-        m_weightInfo = WeightInfo::Zero;
-        for ( auto const& boneWeight : definition.m_weights )
-        {
-            EE_ASSERT( boneWeight.m_weight >= 0.0f && boneWeight.m_weight <= 1.0f );
-            int32_t const boneIdx = m_pSkeleton->GetBoneIndex( boneWeight.m_boneID );
-            EE_ASSERT( boneIdx != InvalidIndex );
-            m_weights[boneIdx] = boneWeight.m_weight;
-
-            if ( shouldFeatherIntermediateBones )
-            {
-                originalWeights[boneIdx] = boneWeight.m_weight;
-            }
-        }
+        memcpy( m_weights.data(), serializedMask.m_weights.data(), sizeof( float ) * numWeights );
+        memcpy( originalWeights.data(), serializedMask.m_weights.data(), sizeof( float ) * numWeights );
 
         //-------------------------------------------------------------------------
 
         // Feather intermediate weights
-        if ( shouldFeatherIntermediateBones )
+        TInlineVector<int32_t, 50> boneChainIndices;
+
+        for ( int32_t boneIdx = m_pSkeleton->GetNumBones() - 1; boneIdx > 0; boneIdx-- )
         {
-            TInlineVector<int32_t, 50> boneChainIndices;
-
-            for ( int32_t boneIdx = m_pSkeleton->GetNumBones() - 1; boneIdx > 0; boneIdx-- )
+            // Check for zero chains
+            if ( m_weights[boneIdx] == -1 )
             {
-                // Check for zero chains
-                if ( m_weights[boneIdx] == -1 )
+                boneChainIndices.clear();
+                boneChainIndices.emplace_back( boneIdx );
+
+                float chainWeight = 0.0f;
+                int32_t parentBoneIdx = m_pSkeleton->GetParentBoneIndex( boneIdx );
+                while ( parentBoneIdx != InvalidIndex )
                 {
-                    boneChainIndices.clear();
-                    boneChainIndices.emplace_back( boneIdx );
-
-                    float chainWeight = 0.0f;
-                    int32_t parentBoneIdx = m_pSkeleton->GetParentBoneIndex( boneIdx );
-                    while ( parentBoneIdx != InvalidIndex )
+                    // Exit when we encounter the first parent with a weight
+                    if ( originalWeights[parentBoneIdx] != -1 )
                     {
-                        // Exit when we encounter the first parent with a weight
-                        if ( originalWeights[parentBoneIdx] != -1 )
-                        {
-                            chainWeight = originalWeights[parentBoneIdx];
-                            break;
-                        }
-
-                        boneChainIndices.emplace_back( parentBoneIdx );
-                        parentBoneIdx = m_pSkeleton->GetParentBoneIndex( parentBoneIdx );
+                        chainWeight = originalWeights[parentBoneIdx];
+                        break;
                     }
 
-                    // Do not update the root bone via this operation
-                    if ( parentBoneIdx == InvalidIndex )
-                    {
-                        boneChainIndices.pop_back();
-                    }
-
-                    // Set all weights in the chain to 0.0f
-                    for ( auto i : boneChainIndices )
-                    {
-                        m_weights[i] = chainWeight;
-                    }
+                    boneChainIndices.emplace_back( parentBoneIdx );
+                    parentBoneIdx = m_pSkeleton->GetParentBoneIndex( parentBoneIdx );
                 }
-                // Check for feather chains
-                else if ( m_weights[m_pSkeleton->GetParentBoneIndex( boneIdx )] == -1 )
+
+                // Do not update the root bone via this operation
+                if ( parentBoneIdx == InvalidIndex )
                 {
-                    float endWeight = m_weights[boneIdx];
-                    EE_ASSERT( endWeight != -1.0f );
-                    float startWeight = -1.0f;
+                    boneChainIndices.pop_back();
+                }
 
-                    boneChainIndices.clear();
-                    boneChainIndices.emplace_back( boneIdx );
+                // Set all weights in the chain to 0.0f
+                for ( auto i : boneChainIndices )
+                {
+                    m_weights[i] = chainWeight;
+                }
+            }
+            // Check for feather chains
+            else if ( m_weights[m_pSkeleton->GetParentBoneIndex( boneIdx )] == -1 )
+            {
+                float endWeight = m_weights[boneIdx];
+                EE_ASSERT( endWeight != -1.0f );
+                float startWeight = -1.0f;
 
-                    int32_t parentBoneIdx = m_pSkeleton->GetParentBoneIndex( boneIdx );
-                    while ( parentBoneIdx != InvalidIndex )
+                boneChainIndices.clear();
+                boneChainIndices.emplace_back( boneIdx );
+
+                int32_t parentBoneIdx = m_pSkeleton->GetParentBoneIndex( boneIdx );
+                while ( parentBoneIdx != InvalidIndex )
+                {
+                    boneChainIndices.emplace_back( parentBoneIdx );
+
+                    // Exit when we encounter the first parent with a weight
+                    if ( originalWeights[parentBoneIdx] != -1 )
                     {
-                        boneChainIndices.emplace_back( parentBoneIdx );
-
-                        // Exit when we encounter the first parent with a weight
-                        if ( originalWeights[parentBoneIdx] != -1 )
-                        {
-                            startWeight = originalWeights[parentBoneIdx];
-                            break;
-                        }
-
-                        parentBoneIdx = m_pSkeleton->GetParentBoneIndex( parentBoneIdx );
+                        startWeight = originalWeights[parentBoneIdx];
+                        break;
                     }
 
-                    // Interpolate all weights in the chain
-                    int32_t const numBonesInChain = (int32_t) boneChainIndices.size();
-                    for ( int32_t i = numBonesInChain - 2; i > 0; i-- )
+                    parentBoneIdx = m_pSkeleton->GetParentBoneIndex( parentBoneIdx );
+                }
+
+                // Interpolate all weights in the chain
+                int32_t const numBonesInChain = (int32_t) boneChainIndices.size();
+                for ( int32_t i = numBonesInChain - 2; i > 0; i-- )
+                {
+                    float const percentageThrough = float( i ) / ( numBonesInChain - 1 );
+                    if ( startWeight != -1 )
                     {
-                        float const percentageThrough = float( i ) / ( numBonesInChain - 1 );
-                        if ( startWeight != -1 )
-                        {
-                            m_weights[boneChainIndices[i]] = Math::Lerp( endWeight, startWeight, percentageThrough );
-                        }
-                        else
-                        {
-                            m_weights[boneChainIndices[i]] = 0.0f;
-                        }
+                        m_weights[boneChainIndices[i]] = Math::Lerp( endWeight, startWeight, percentageThrough );
+                    }
+                    else
+                    {
+                        m_weights[boneChainIndices[i]] = 0.0f;
                     }
                 }
             }
@@ -309,23 +231,20 @@ namespace EE::Animation
         // Weight info
         //-------------------------------------------------------------------------
 
-        SetWeightInfo( m_weights[0] );
+        m_weightInfo = WeightInfo::Zero;
+        float fixedWeight = m_weights[0];
+        for ( int32_t i = 1; i < m_weights.size(); i++ )
+        {
+            if ( m_weights[i] != fixedWeight )
+            {
+                m_weightInfo = WeightInfo::Mixed;
+                break;
+            }
+        }
+
         if ( m_weightInfo != WeightInfo::Mixed )
         {
-            float fixedWeight = m_weights[0];
-            for ( int32_t i = 1; i < m_weights.size(); i++ )
-            {
-                if ( m_weights[i] != fixedWeight )
-                {
-                    m_weightInfo = WeightInfo::Mixed;
-                    break;
-                }
-            }
-
-            if ( m_weightInfo != WeightInfo::Mixed )
-            {
-                SetWeightInfo( fixedWeight );
-            }
+            SetWeightInfo( fixedWeight );
         }
     }
 

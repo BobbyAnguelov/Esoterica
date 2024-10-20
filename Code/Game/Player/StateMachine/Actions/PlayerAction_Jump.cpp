@@ -45,7 +45,7 @@ namespace EE::Player
 
     bool JumpAction::TryStartInternal( ActionContext const& ctx )
     {
-        if( ctx.m_pInputSystem->GetController()->WasReleased( Input::InputID::Controller_FaceButtonDown ) )
+        if( ctx.m_pInput->m_jump.WasReleased() )
         {
             ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::Ability );
             ctx.m_pAnimationController->StartJump();
@@ -64,9 +64,9 @@ namespace EE::Player
         else // Check hold state
         {
             m_isChargedJumpReady = false;
-            Seconds jumpHoldTime = 0.0f;
-            if( ctx.m_pInputSystem->GetController()->IsHeldDown( Input::InputID::Controller_FaceButtonDown ) )
+            if( ctx.m_pInput->m_jump.IsHeld() )
             {
+                Seconds jumpHoldTime = ctx.m_pInput->m_jump.GetHoldTime();
                 if( jumpHoldTime > g_bigJumpHoldTime && ctx.m_pPlayerComponent->HasEnoughEnergy( g_bigJumpEnergyCost ) )
                 {
                     m_isChargedJumpReady = true;
@@ -77,7 +77,7 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status JumpAction::UpdateInternal( ActionContext const& ctx )
+    Action::Status JumpAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
     {
         static StringID const jumpTransitionMarkerID( "Jump" );
 
@@ -97,13 +97,10 @@ namespace EE::Player
             float verticalVelocity = deltaHeight / ctx.GetDeltaTime();
             m_previousHeight += deltaHeight;
 
-            auto const pControllerState = ctx.m_pInputSystem->GetController();
-            EE_ASSERT( pControllerState != nullptr );
-
             // Calculate desired player displacement
             //-------------------------------------------------------------------------
 
-            Vector const movementInputs = pControllerState->GetLeftStickValue();
+            Vector const movementInputs = ctx.m_pInput->m_move.GetValue();
             auto const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
             auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
 

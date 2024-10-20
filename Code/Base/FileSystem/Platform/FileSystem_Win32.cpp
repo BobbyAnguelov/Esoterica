@@ -3,6 +3,7 @@
 #include "Base/Platform/PlatformUtils_Win32.h"
 #include "Base/Encoding/Hash.h"
 #include "Base/Math/Math.h"
+#include "Base/Types/UUID.h"
 #include <windows.h>
 #include <shlwapi.h>
 #include <shlobj.h>
@@ -14,74 +15,6 @@
 
 namespace EE::FileSystem
 {
-    char const Settings::s_pathDelimiter = '\\';
-
-    constexpr static DWORD const g_maxPathBufferLength = 1024;
-
-    //-------------------------------------------------------------------------
-
-    bool GetFullPathString( char const* pPath, String& outPath )
-    {
-        if ( pPath != nullptr && pPath[0] != 0 )
-        {
-            // Warning: this function is slow, so use sparingly
-            outPath.reserve( g_maxPathBufferLength );
-            DWORD const length = GetFullPathNameA( pPath, g_maxPathBufferLength, outPath.data(), nullptr);
-            EE_ASSERT( length != 0 && length != g_maxPathBufferLength );
-            outPath.force_size( length );
-
-            // Ensure directory paths have the final slash appended
-            DWORD const result = GetFileAttributesA( outPath.c_str() );
-            if ( result != INVALID_FILE_ATTRIBUTES && ( result & FILE_ATTRIBUTE_DIRECTORY ) && outPath[length - 1] != Settings::s_pathDelimiter )
-            {
-                outPath += Settings::s_pathDelimiter;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    bool GetCorrectCaseForPath( char const* pPath, String& outPath )
-    {
-        bool failed = false;
-
-        HANDLE hFile = CreateFile( pPath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
-        if ( hFile != INVALID_HANDLE_VALUE )
-        {
-            char buffer[g_maxPathBufferLength];
-            DWORD dwRet = GetFinalPathNameByHandle( hFile, buffer, g_maxPathBufferLength, FILE_NAME_NORMALIZED );
-            if ( dwRet < g_maxPathBufferLength )
-            {
-                outPath = buffer + 4;
-            }
-            else
-            {
-                failed = true;
-            }
-
-            CloseHandle( hFile );
-        }
-        else // Invalid handle i.e. file doesnt exist
-        {
-            failed = true;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( failed )
-        {
-            outPath = pPath;
-        }
-
-        //-------------------------------------------------------------------------
-
-        return !failed;
-    }
-
-    //-------------------------------------------------------------------------
-
     bool Exists( char const* pPath )
     {
         DWORD dwAttrib = GetFileAttributes( pPath );
@@ -136,6 +69,12 @@ namespace EE::FileSystem
         // TODO: replace with appropriate windows call
         std::error_code ec;
         std::filesystem::create_directories( path, ec );
+
+        if ( ec.value() != 0 )
+        {
+            EE_LOG_ERROR( "FileSystem", "Create Directory", "Error creating directory %s - %s", path, ec.message().c_str() );
+        }
+
         return ec.value() == 0;
     }
 
@@ -144,17 +83,162 @@ namespace EE::FileSystem
         // TODO: replace with appropriate windows call
         std::error_code ec;
         std::filesystem::remove_all( path, ec );
+
+        if ( ec.value() != 0 )
+        {
+            EE_LOG_ERROR( "FileSystem", "Erase Directory", "Error deleting directory %s - %s", path, ec.message().c_str() );
+        }
+
         return ec.value() == 0;
     }
 
     bool EraseFile( char const* path )
     {
-        return DeleteFile( path );
+        if ( IsExistingFile( path ) )
+        {
+            return DeleteFile( path );
+        }
+
+        return true;
+    }
+
+    bool CopyExistingFile( char const* fromFilePath, char const* toFilePath )
+    {
+        std::error_code ec;
+        std::filesystem::copy( fromFilePath, toFilePath, std::filesystem::copy_options::overwrite_existing, ec );
+
+        if ( ec.value() != 0 )
+        {
+            EE_LOG_ERROR( "FileSystem", "Copy File", "Error copying from %s to %s - %s", fromFilePath, toFilePath, ec.message().c_str() );
+        }
+
+        return ec.value() == 0;
+    }
+
+    bool MoveExistingFile( char const* fromFilePath, char const* toFilePath )
+    {
+        std::error_code ec;
+        std::filesystem::rename( fromFilePath, toFilePath, ec );
+
+        if ( ec.value() != 0 )
+        {
+            EE_LOG_ERROR( "FileSystem", "Move File", "Error moving from %s to %s - %s", fromFilePath, toFilePath, ec.message().c_str() );
+        }
+
+        return ec.value() == 0;
     }
 
     //-------------------------------------------------------------------------
 
-    bool LoadFile( char const* pPath, Blob& fileData )
+    static bool WriteFile( char const* pPath, void const* pData, size_t size, bool isBinary )
+    {
+        EE_ASSERT( pPath != nullptr );
+        EE_ASSERT( pData != nullptr && size > 0 );
+
+        // Write to a temp file first
+        //-------------------------------------------------------------------------
+
+        Path tmpPath( pPath );
+        tmpPath = tmpPath.GetParentDirectory();
+        tmpPath.Append( UUID::GenerateID().ToString().c_str() );
+
+        FILE* pFile = fopen( tmpPath.c_str(), isBinary ? "wb" : "w" );
+        if ( pFile == nullptr )
+        {
+            EE_LOG_ERROR( "FileSystem", "Write File", "Error writing temp file %s.", tmpPath.c_str() );
+            return false;
+        }
+
+        fwrite( pData, size, 1, pFile );
+        fclose( pFile );
+
+        // Rename to final name
+        //-------------------------------------------------------------------------
+
+        std::error_code ec;
+        std::filesystem::rename( tmpPath.c_str(), pPath, ec );
+
+        if ( ec.value() != 0 )
+        {
+            EE_LOG_ERROR( "FileSystem", "Write File", "Failed to rename tmp path (%s) to final path (%s) during file write. Error: %s", tmpPath.c_str(), pPath, ec.message().c_str() );
+            return false;
+        }
+
+        return ec.value() == 0;
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool ReadTextFile( char const* pFilePath, String& fileData )
+    {
+        // Open the stream to 'lock' the file.
+        std::ifstream f( pFilePath, std::ios::in );
+        if ( f.fail() )
+        {
+            return false;
+        }
+
+        // Obtain the size of the file.
+        uintmax_t const fileSize = std::filesystem::file_size( pFilePath );
+
+        // Create a buffer.
+        fileData.resize( fileSize );
+        Memory::MemsetZero( fileData.data(), fileSize );
+
+        // Read the whole file into the buffer.
+        f.read( fileData.data(), fileSize );
+
+        // Handle any EOL conversions that result in a smaller string than expected
+        fileData.resize( f.gcount() );
+
+        return true;
+    }
+
+    bool WriteTextFile( char const* pPath, char const* pData, size_t size )
+    {
+        return WriteFile( pPath, pData, size, false );
+    }
+
+    bool UpdateTextFile( char const* pFilePath, char const* pData, size_t size )
+    {
+        EE_ASSERT( pFilePath != nullptr );
+        EE_ASSERT( pData != nullptr && size > 0 );
+
+        bool shouldUpdateFile = false;
+        if ( Exists( pFilePath ) )
+        {
+            String currentFileContents;
+            if ( !FileSystem::ReadTextFile( pFilePath, currentFileContents ) )
+            {
+                EE_LOG_ERROR( "FileSystem", "Update File", "Failed to read file (%s) during file update!", pFilePath );
+                return false;
+            }
+
+            if ( currentFileContents != pData )
+            {
+                shouldUpdateFile = true;
+            }
+        }
+        else
+        {
+            shouldUpdateFile = true;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( shouldUpdateFile )
+        {
+            return FileSystem::WriteTextFile( pFilePath, pData );
+        }
+        else
+        {
+            return true;
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool ReadBinaryFile( char const* pPath, Blob& fileData )
     {
         EE_ASSERT( pPath != nullptr );
 
@@ -194,6 +278,62 @@ namespace EE::FileSystem
         CloseHandle( hFile );
         return true;
     }
-}
 
+    bool WriteBinaryFile( char const* pPath, void const* pData, size_t size )
+    {
+        return WriteFile( pPath, pData, size, true );
+    }
+
+    bool UpdateBinaryFile( char const* pFilePath, void const* pData, size_t size )
+    {
+        EE_ASSERT( pFilePath != nullptr );
+        EE_ASSERT( pData != nullptr && size > 0 );
+
+        bool shouldUpdateFile = false;
+        if ( Exists( pFilePath ) )
+        {
+            // Note: this is a very naive and sub-optimal way to do this
+            // TODO: if this is proving to be too slow, then replace this naive code below with a proper file diff
+
+            Blob currentFileContents;
+            if ( !FileSystem::ReadBinaryFile( pFilePath, currentFileContents ) )
+            {
+                EE_LOG_ERROR( "FileSystem", "Update File", "Failed to read file (%s) during file update!", pFilePath );
+                return false;
+            }
+
+            if ( currentFileContents.size() != size )
+            {
+                shouldUpdateFile = true;
+            }
+            else
+            {
+                uint8_t const* pByteData = (uint8_t const*) pData;
+                for ( int32_t i = 0; i < size; i++ )
+                {
+                    if ( pByteData[i] != currentFileContents[i] )
+                    {
+                        shouldUpdateFile = true;
+                        break;
+                    }
+                }
+            }
+        }
+        else
+        {
+            shouldUpdateFile = true;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( shouldUpdateFile )
+        {
+            return FileSystem::WriteBinaryFile( pFilePath, pData, size );
+        }
+        else
+        {
+            return true;
+        }
+    }
+}
 #endif

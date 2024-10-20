@@ -1,6 +1,6 @@
 #pragma once
 
-#include "EngineTools/Core/PropertyGrid/PropertyGrid.h"
+#include "EngineTools/PropertyGrid/PropertyGrid.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/Resource/ResourceID.h"
 
@@ -38,7 +38,7 @@ namespace EE::Resource
     protected:
 
         ToolsContext const*                         m_pToolsContext = nullptr;
-        Resource::ResourceDescriptor*               m_pDescriptor = nullptr;
+        Resource::ResourceDescriptor*               m_pDataFile = nullptr;
         PropertyGrid                                m_propertyGrid;
         FileSystem::Path                            m_startingPath;
     };

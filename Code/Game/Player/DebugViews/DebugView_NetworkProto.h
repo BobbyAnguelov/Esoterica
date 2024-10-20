@@ -34,7 +34,7 @@ namespace EE::Player
         virtual void Shutdown() override;
 
         virtual void Update( EntityWorldUpdateContext const& context ) override;
-        virtual void HotReload_UnloadResources( TVector<Resource::ResourceRequesterID> const& usersToReload, TVector<ResourceID> const& resourcesToBeReloaded ) override;
+        virtual void HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) override;
 
         void ProcessRecording( int32_t simulatedJoinInProgressFrame = -1, bool useLayerInitInfo = false );
         void ResetRecordingData();

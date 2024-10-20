@@ -30,7 +30,7 @@ namespace EE::Physics
 
     public:
 
-        bool IsInitialized() const { return m_initialized; }
+        bool WasInitialized() const { return m_initialized; }
         bool Initialize( Render::RenderDevice* pRenderDevice );
         void Shutdown();
         void RenderWorld( Seconds const deltaTime, Render::Viewport const& viewport, Render::RenderTarget const& renderTarget, EntityWorld* pWorld ) override final;

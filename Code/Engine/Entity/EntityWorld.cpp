@@ -401,7 +401,7 @@ namespace EE
 
     EntityModel::EntityMap const* EntityWorld::GetMap( ResourceID const& mapResourceID ) const
     {
-        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
+        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() );
         auto const foundMapIter = VectorFind( m_maps, mapResourceID, [] ( EntityModel::EntityMap const* pMap, ResourceID const& mapResourceID ) { return pMap->GetMapResourceID() == mapResourceID; } );
         EE_ASSERT( foundMapIter != m_maps.end() );
         return *foundMapIter;
@@ -426,7 +426,7 @@ namespace EE
 
     EntityMapID EntityWorld::LoadMap( ResourceID const& mapResourceID )
     {
-        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
+        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() );
 
         EE_ASSERT( !HasMap( mapResourceID ) );
         auto pNewMap = m_maps.emplace_back( EE::New<EntityModel::EntityMap>( mapResourceID ) );
@@ -436,7 +436,7 @@ namespace EE
 
     void EntityWorld::UnloadMap( ResourceID const& mapResourceID )
     {
-        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::SerializedEntityMap::GetStaticResourceTypeID() );
+        EE_ASSERT( mapResourceID.IsValid() && mapResourceID.GetResourceTypeID() == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() );
 
         auto const foundMapIter = VectorFind( m_maps, mapResourceID, [] ( EntityModel::EntityMap const* pMap, ResourceID const& mapResourceID ) { return pMap->GetMapResourceID() == mapResourceID; } );
         EE_ASSERT( foundMapIter != m_maps.end() );
@@ -493,7 +493,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void EntityWorld::HotReload_UnloadEntities( TVector<Resource::ResourceRequesterID> const& usersToReload )
+    void EntityWorld::HotReload_UnloadEntities( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload )
     {
         EE_ASSERT( !usersToReload.empty() );
         for ( auto& pMap : m_maps )
@@ -502,11 +502,11 @@ namespace EE
         }
     }
 
-    void EntityWorld::HotReload_ReloadEntities()
+    void EntityWorld::HotReload_ReloadEntities( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload )
     {
         for ( auto& pMap : m_maps )
         {
-            pMap->HotReload_ReloadEntities( m_loadingContext );
+            pMap->HotReload_ReloadEntities( m_loadingContext, usersToReload );
         }
     }
     #endif

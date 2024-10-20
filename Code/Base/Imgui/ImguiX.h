@@ -32,8 +32,6 @@ namespace EE::ImGuiX
     // General helpers
     //-------------------------------------------------------------------------
 
-    EE_BASE_API void MakeTabVisible( char const* const pWindowName );
-
     EE_BASE_API ImVec2 ClampToRect( ImRect const& rect, ImVec2 const& inPoint );
 
     // Returns the closest point on the rect border to the specified point
@@ -90,75 +88,181 @@ namespace EE::ImGuiX
     // Draw a tooltip for the immediately preceding item
     EE_BASE_API void ItemTooltip( const char* fmt, ... );
 
-    // Draw a tooltip with a custom hover delay for the immediately preceding item
-    EE_BASE_API void ItemTooltipDelayed( float tooltipDelay, const char* fmt, ... );
-
-    // For use with text widget
+    // For use with text items - needed because the GImGui->HoveredIdTimer is not updated for text items
     EE_BASE_API void TextTooltip( const char* fmt, ... );
 
     // A smaller check box allowing us to use a larger frame padding value
     EE_BASE_API bool Checkbox( char const* pLabel, bool* pValue );
 
-    // Draw a button with an explicit icon
-    EE_BASE_API bool IconButton( char const* pIcon, char const* pLabel, Color const& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false );
+    // Buttons
+    //-------------------------------------------------------------------------
+    // Custom buttons allowing colors and icons
+
+    // Custom EE Button - support all various options - syntactic sugar option below
+    EE_BASE_API bool ButtonEx( char const* pIcon, char const* pLabel, ImVec2 const& size = ImVec2( 0, 0 ), Color const& backgroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Button] ), Color const& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), Color const& foregroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), bool shouldCenterContents = false );
 
     // Draw a colored button
-    EE_BASE_API bool ColoredButton( Color const& backgroundColor, Color const& foregroundColor, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) );
+    inline bool ButtonColored( char const* pLabel, Color const& backgroundColor, Color const& foregroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2( 0, 0 ) )
+    {
+        return ButtonEx( nullptr, pLabel, size, backgroundColor, Colors::Transparent, foregroundColor );
+    }
 
-    // Draw a colored icon button
-    EE_BASE_API bool ColoredIconButton( Color const& backgroundColor, Color const& foregroundColor, Color const& iconColor, char const* pIcon, char const* label, ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false );
+    // Draw a button with an explicit icon (mainly useful if you want to control icon color explicitly and separately from the label color )
+    inline bool IconButton( char const* pIcon, char const* pLabel, Color const& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false )
+    {
+        return ButtonEx( pIcon, pLabel, size, ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Button] ), iconColor, ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), shouldCenterContents );
+    }
+
+    // Draw a colored icon button  (mainly useful if you want to control icon color explicitly and separately from the label color )
+    inline bool IconButtonColored( char const* pIcon, char const* pLabel, Color const& backgroundColor, Color const& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), Color const& foregroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false )
+    {
+        return ButtonEx( pIcon, pLabel, size, backgroundColor, iconColor, foregroundColor, shouldCenterContents );
+    }
 
     // Draws a flat button - a button with no background
-    EE_BASE_API bool FlatButton( char const* label, ImVec2 const& size = ImVec2( 0, 0 ) );
-
-    // Draws a flat button - with a custom text color
-    EE_FORCE_INLINE bool FlatButtonColored( Color const& foregroundColor, char const* label, ImVec2 const& size = ImVec2( 0, 0 ) )
+    inline bool FlatButton( char const* pLabel, ImVec2 const& size = ImVec2( 0, 0 ), Color const& foregroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) )
     {
-        ImGui::PushStyleColor( ImGuiCol_Button, 0 );
-        ImGui::PushStyleColor( ImGuiCol_Text, ImVec4( foregroundColor ) );
-        bool const result = ImGui::Button( label, size );
-        ImGui::PopStyleColor( 2 );
+        return ButtonEx( nullptr, pLabel, size, Colors::Transparent, Colors::Transparent, ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) );
+    }
+
+    // Draw a colored icon button
+    inline bool FlatIconButton( char const* pIcon, char const* pLabel, Color const& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false )
+    {
+        return ButtonEx( pIcon, pLabel, size, Colors::Transparent, iconColor, ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), shouldCenterContents );
+    }
+
+    // Drop Down Button
+    //-------------------------------------------------------------------------
+    // A button that creates a menu when clicked
+
+    // Button that creates a drop down menu once clicked
+    EE_BASE_API void DropDownButtonEx( char const* pIcon, char const* pLabel, TFunction<void()> const& contextMenuCallback, ImVec2 const& size = ImVec2( 0, 0 ), Color const& backgroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Button] ), Color const& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), Color const& foregroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), bool shouldCenterContents = false );
+
+    // Button that creates a drop down menu once clicked
+    inline void DropDownButton( char const* pLabel, TFunction<void()> const& contextMenuCallback, ImVec2 const& size = ImVec2( 0, 0 ) )
+    {
+        return DropDownButtonEx( nullptr, pLabel, contextMenuCallback, size );
+    }
+
+    // Button that creates a drop down menu once clicked
+    inline void DropDownIconButton( char const* pIcon, char const* pLabel, TFunction<void()> const& contextMenuCallback, Color const& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2( 0, 0 ) )
+    {
+        return DropDownButtonEx( pIcon, pLabel, contextMenuCallback, size, ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Button] ), iconColor, ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) );
+    }
+
+    // Button that creates a drop down menu once clicked
+    inline void DropDownIconButtonColored( char const* pIcon, char const* pLabel, TFunction<void()> const& contextMenuCallback, Color const& backgroundColor, Color const& iconColor, Color const& foregroundColor, ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false )
+    {
+        return DropDownButtonEx( pIcon, pLabel, contextMenuCallback, size, backgroundColor, iconColor, foregroundColor, shouldCenterContents );
+    }
+
+    // Combo Button
+    //-------------------------------------------------------------------------
+    // A button that has an attached combo menu
+
+    EE_BASE_API bool ComboButtonEx( char const* pIcon, const char* pLabel, TFunction<void()> const& comboCallback, ImVec2 const& size = ImVec2( 0, 0 ), Color const& backgroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Button] ), Color const& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), Color const& foregroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), bool shouldCenterContents = false );
+
+    inline bool ComboButton( char const* pLabel, TFunction<void()> const& comboCallback, ImVec2 const& size = ImVec2( 0, 0 ) )
+    {
+        return ComboButtonEx( nullptr, pLabel, comboCallback, size );
+    }
+
+    inline bool ComboIconButton( char const* pIcon, char const* pLabel, TFunction<void()> const& comboCallback, Color const& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2( 0, 0 ) )
+    {
+        return ComboButtonEx( pIcon, pLabel, comboCallback, size, ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Button] ), iconColor );
+    }
+
+    inline bool ComboIconButtonColored( char const* pIcon, const char* pLabel, TFunction<void()> const& comboCallback, Color const& backgroundColor, Color const& iconColor, Color const& foregroundColor, ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false )
+    {
+        return ComboButtonEx( pIcon, pLabel, comboCallback, size, backgroundColor, iconColor, foregroundColor, shouldCenterContents );
+    }
+
+    // Custom InputText
+    //-------------------------------------------------------------------------
+    // Note these will all return true if deactivated after edit as that is the most common use case in esoterica
+
+    EE_BASE_API bool InputTextEx( const char* pInputTextID, char* pBuffer, size_t bufferSize, bool hasClearButton, char const* pHelpText, TFunction<void()> const& comboCallback, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr, void* pUserData = nullptr );
+
+    // Draw an input text field that has an attached combo menu
+    inline bool InputTextCombo( const char* pInputTextID, char* pBuffer, size_t bufferSize, TFunction<void()> const& comboCallback, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr, void* pUserData = nullptr )
+    {
+        EE_ASSERT( comboCallback != nullptr );
+        return InputTextEx( pInputTextID, pBuffer, bufferSize, false, nullptr, comboCallback, flags, callback, pUserData );
+    }
+
+    // Draw an input text field that show some help-text when empty and that has a clear button
+    inline bool InputTextWithClearButton( const char* pInputTextID, char const* pHelpText, char* pBuffer, size_t bufferSize, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr, void* pUserData = nullptr )
+    {
+        return InputTextEx( pInputTextID, pBuffer, bufferSize, true, pHelpText, nullptr, flags, callback, pUserData );
+    }
+
+    // Draw an input text field that show some help-text when empty and that has a clear button
+    inline bool InputTextComboWithClearButton( const char* pInputTextID, char const* pHelpText, char* pBuffer, size_t bufferSize, TFunction<void()> const& comboCallback, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback callback = nullptr, void* pUserData = nullptr )
+    {
+        EE_ASSERT( comboCallback != nullptr );
+        return InputTextEx( pInputTextID, pBuffer, bufferSize, true, pHelpText, comboCallback, flags, callback, pUserData );
+    }
+
+    // Toggle Buttons
+    //-------------------------------------------------------------------------
+    // A button that can toggle between on and off
+
+    // Toggle button
+    EE_BASE_API bool ToggleButtonEx( char const* pOnIcon, char const* pOnLabel, char const* pOffIcon, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), Color const& onForegroundColor = ImGuiX::Style::s_colorAccent0, Color const& onIconColor = ImGuiX::Style::s_colorAccent0, Color const& offForegroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), Color const& offIconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) );
+
+    // Toggle button
+    inline bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), Color const& onColor = ImGuiX::Style::s_colorAccent0, Color const& offColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) )
+    {
+        return ToggleButtonEx( nullptr, pOnLabel, nullptr, pOffLabel, value, size, onColor, Colors::Transparent, offColor );
+    }
+
+    // Toggle button with no background
+    inline bool FlatToggleButton( char const* pOnIcon, char const* pOnLabel, char const* pOffIcon, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), Color const& onForegroundColor = ImGuiX::Style::s_colorAccent0, Color const& onIconColor = ImGuiX::Style::s_colorAccent0, Color const& offForegroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), Color const& offIconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) )
+    {
+        ImGui::PushStyleColor( ImGuiCol_Button, ImVec4( 0, 0, 0, 0 ) );
+        bool result = ToggleButtonEx( pOnIcon, pOnLabel, pOnLabel, pOffLabel, value, size, onForegroundColor, onIconColor, offForegroundColor, offIconColor );
+        ImGui::PopStyleColor( 1 );
 
         return result;
     }
 
-    // Draw a colored icon button
-    EE_BASE_API bool FlatIconButton( char const* pIcon, char const* pLabel, Color const& iconColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 const& size = ImVec2( 0, 0 ), bool shouldCenterContents = false );
-
-    // Button with extra drop down options - returns true if the primary button was pressed
-    EE_BASE_API bool IconButtonWithDropDown( char const* widgetID, char const* pIcon, char const* pButtonLabel, Color const& iconColor, float buttonWidth, TFunction<void()> const& comboCallback, bool shouldCenterContents = false );
-
     // Toggle button
-    EE_BASE_API bool ToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), Color const& onColor = ImGuiX::Style::s_colorAccent0, Color const& offColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) );
+    inline bool FlatToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), Color const& onColor = ImGuiX::Style::s_colorAccent0, Color const& offColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) )
+    {
+        return FlatToggleButton( nullptr, pOnLabel, nullptr, pOffLabel, value, size, onColor, offColor );
+    }
 
-    // Toggle button
-    EE_BASE_API bool FlatToggleButton( char const* pOnLabel, char const* pOffLabel, bool& value, ImVec2 const& size = ImVec2( 0, 0 ), Color const& onColor = ImGuiX::Style::s_colorAccent0, Color const& offColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ) );
-
-    // Button that creates a drop down menu once clicked
-    EE_BASE_API void DropDownButton( char const* pLabel, TFunction<void()> const& contextMenuCallback, ImVec2 const& size = ImVec2( 0, 0 ) );
+    //-------------------------------------------------------------------------
 
     // Draw an arrow between two points
     EE_BASE_API void DrawArrow( ImDrawList* pDrawList, ImVec2 const& arrowStart, ImVec2 const& arrowEnd, Color const& color, float arrowWidth, float arrowHeadWidth = 5.0f );
 
-    // Draw an overlaid icon in a window, returns true if clicked
-    EE_BASE_API bool DrawOverlayIcon( ImVec2 const& iconPos, char icon[4], void* iconID, bool isSelected = false, Color const& selectedColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] ) );
-
-    // Draw a basic spinner
-    EE_BASE_API bool DrawSpinner( char const* pLabel, Color const& color = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), ImVec2 size = ImVec2( 0, 0 ), float thickness = 3.0f, float padding = ImGui::GetStyle().FramePadding.y );
+    // Draw a basic spinner - the spinner acts like an invisible button for all intents and purposes
+    EE_BASE_API bool DrawSpinner( char const* pButtonLabel, Color const& color = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Text] ), float size = 0, float thickness = 3.0f, float padding = ImGui::GetStyle().FramePadding.y );
 
     //-------------------------------------------------------------------------
 
     EE_BASE_API bool InputFloat2( char const* pID, Float2& value, float width = -1 );
-    EE_BASE_API bool InputFloat3( char const* pID, Float3& value, float width = -1 );
-    EE_BASE_API bool InputFloat4( char const* pID, Float4& value, float width = -1 );
+    EE_BASE_API bool InputFloat2( void* pID, Float2& value, float width = -1 );
+    EE_FORCE_INLINE bool InputFloat2( Float2* pValue, float width = -1 ) { return InputFloat2( pValue, *pValue, width ); }
 
-    EE_BASE_API bool InputTransform( char const* pID, Transform& value, float width = -1 );
+    EE_BASE_API bool InputFloat3( char const* pID, Float3& value, float width = -1 );
+    EE_BASE_API bool InputFloat3( void* pID, Float3& value, float width = -1 );
+    EE_FORCE_INLINE bool InputFloat3( Float3* pValue, float width = -1 ) { return InputFloat3( pValue, *pValue, width ); }
+
+    EE_BASE_API bool InputFloat4( char const* pID, Float4& value, float width = -1 );
+    EE_BASE_API bool InputFloat4( void* pID, Float4& value, float width = -1 );
+    EE_FORCE_INLINE bool InputFloat4( Float4* pValue, float width = -1 ) { return InputFloat4( pValue, *pValue, width ); }
+
+    EE_BASE_API bool InputTransform( char const* pID, Transform& value, float width = -1, bool allowScaleEditing = true );
+    EE_BASE_API bool InputTransform( void* pID, Transform& value, float width = -1, bool allowScaleEditing = true );
+    EE_FORCE_INLINE bool InputTransform( Transform* pValue, float width = -1, bool allowScaleEditing = true ) { return InputTransform( pValue, *pValue, width, allowScaleEditing ); }
 
     EE_BASE_API void DrawFloat2( Float2 const& value, float width = -1 );
     EE_BASE_API void DrawFloat3( Float3 const& value, float width = -1 );
     EE_BASE_API void DrawFloat4( Float4 const& value, float width = -1 );
 
-    EE_BASE_API void DrawTransform( Transform const& value, float width = -1 );
+    EE_BASE_API void DrawTransform( Transform const& value, float width = -1, bool showScale = true );
 
     //-------------------------------------------------------------------------
 
@@ -201,28 +305,27 @@ namespace EE::ImGuiX
     // Advanced widgets
     //-------------------------------------------------------------------------
 
-    // A simple filter entry widget that allows you to string match to some entered text
-    class EE_BASE_API FilterWidget
+    // Helper that maintains all the state needed to create a filter widget
+    // The widget below simply combines this state with a 'InputTextWithClearButton' widget as a convenience
+    class EE_BASE_API FilterData
     {
+    public:
+
         constexpr static uint32_t const s_bufferSize = 255;
 
     public:
-
-        enum Flags : uint8_t
-        {
-            TakeInitialFocus = 0
-        };
-
-    public:
-
-        // Draws the filter. Returns true if the filter has been updated
-        bool UpdateAndDraw( float width = -1, TBitFlags<Flags> flags = TBitFlags<Flags>() );
 
         // Manually set the filter buffer
         void SetFilter( String const& filterText );
 
         // Set the help text shown when we dont have focus and the filter is empty
         void SetFilterHelpText( String const& helpText ) { m_filterHelpText = helpText; }
+
+        // Get the filter help text
+        char const* GetFilterHelpText() { return m_filterHelpText.c_str(); }
+
+        // Regenerated the tokens
+        void Update();
 
         // Clear the filter
         inline void Clear();
@@ -242,15 +345,62 @@ namespace EE::ImGuiX
         // Does a provided string match the current filter
         bool MatchesFilter( char const* pString ) { return MatchesFilter( InlineString( pString ) ); }
 
-    private:
-
-        void OnBufferUpdated();
-
-    private:
+    public:
 
         char                m_buffer[s_bufferSize] = { 0 };
+
+    private:
+
         TVector<String>     m_tokens;
         String              m_filterHelpText = "Filter...";
+    };
+
+    //-------------------------------------------------------------------------
+
+    // A simple filter entry widget that allows you to string match to some entered text
+    class EE_BASE_API FilterWidget
+    {
+        constexpr static uint32_t const s_bufferSize = 255;
+
+    public:
+
+        enum Flags : uint8_t
+        {
+            TakeInitialFocus = 0
+        };
+
+    public:
+
+        // Draws the filter. Returns true if the filter has been updated
+        bool UpdateAndDraw( float width = -1, TBitFlags<Flags> flags = TBitFlags<Flags>() );
+
+        // Manually set the filter buffer
+        inline void SetFilter( String const& filterText ) { m_data.SetFilter( filterText ); }
+
+        // Set the help text shown when we dont have focus and the filter is empty
+        inline void SetFilterHelpText( String const& helpText ) { m_data.SetFilterHelpText( helpText ); }
+
+        // Clear the filter
+        inline void Clear() { m_data.Clear(); }
+
+        // Do we have a filter set?
+        inline bool HasFilterSet() const { return m_data.HasFilterSet(); }
+
+        // Get the split filter text token
+        inline TVector<String> const& GetFilterTokens() const { return m_data.GetFilterTokens(); }
+
+        // Does a provided string match the current filter
+        inline bool MatchesFilter( String const& string ) { return m_data.MatchesFilter( string ); }
+
+        // Does a provided string match the current filter
+        inline bool MatchesFilter( InlineString const& string ) { return m_data.MatchesFilter( string ); }
+
+        // Does a provided string match the current filter
+        inline bool MatchesFilter( char const* pString ) { return m_data.MatchesFilter( InlineString( pString ) ); }
+
+    private:
+
+        FilterData m_data;
     };
 
     //-------------------------------------------------------------------------

@@ -12,40 +12,37 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void StateMachineGraph::Initialize( VisualGraph::BaseNode* pParentNode )
-    {
-        VisualGraph::StateMachineGraph::Initialize( pParentNode );
-    }
-
     GraphNodes::EntryStateOverrideConduitToolsNode const* StateMachineGraph::GetEntryStateOverrideConduit() const
     {
-        auto const foundNodes = FindAllNodesOfType<EntryStateOverrideConduitToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+        auto const foundNodes = FindAllNodesOfType<EntryStateOverrideConduitToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
         EE_ASSERT( foundNodes.size() == 1 );
         return foundNodes[0];
     }
 
     GraphNodes::GlobalTransitionConduitToolsNode const* StateMachineGraph::GetGlobalTransitionConduit() const
     {
-        auto const foundNodes = FindAllNodesOfType<GlobalTransitionConduitToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Exact );
+        auto const foundNodes = FindAllNodesOfType<GlobalTransitionConduitToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
         EE_ASSERT( foundNodes.size() == 1 );
         return foundNodes[0];
     }
 
-    VisualGraph::SM::TransitionConduit* StateMachineGraph::CreateTransitionNode() const
+    NodeGraph::TransitionConduitNode* StateMachineGraph::CreateTransitionConduit( NodeGraph::StateNode const* pStartState, NodeGraph::StateNode const* pEndState )
     {
-        return EE::New<TransitionConduitToolsNode>();
+        auto pConduit = CreateNode<TransitionConduitToolsNode>( pStartState, pEndState );
+
+        return pConduit;
     }
 
-    bool StateMachineGraph::CanDeleteNode( VisualGraph::BaseNode const* pNode ) const
+    bool StateMachineGraph::CanDestroyNode( NodeGraph::BaseNode const* pNode ) const
     {
         auto pStateNode = TryCast<StateToolsNode>( pNode );
         if ( pStateNode != nullptr )
         {
-            auto const stateNodes = FindAllNodesOfType<StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+            auto const stateNodes = FindAllNodesOfType<StateToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
             return stateNodes.size() > 1;
         }
 
-        return VisualGraph::StateMachineGraph::CanDeleteNode( pNode );
+        return NodeGraph::StateMachineGraph::CanDestroyNode( pNode );
     }
 
     void StateMachineGraph::UpdateDependentNodes()
@@ -56,25 +53,25 @@ namespace EE::Animation
 
     UUID StateMachineGraph::RegenerateIDs( THashMap<UUID, UUID>& IDMapping )
     {
-        UUID const originalID = VisualGraph::StateMachineGraph::RegenerateIDs( IDMapping );
+        UUID const originalID = NodeGraph::StateMachineGraph::RegenerateIDs( IDMapping );
         GetEntryStateOverrideConduit()->UpdateStateMapping( IDMapping );
         GetGlobalTransitionConduit()->UpdateStateMapping( IDMapping );
         return originalID;
     }
 
-    void StateMachineGraph::PostPasteNodes( TInlineVector<VisualGraph::BaseNode*, 20> const& pastedNodes )
+    void StateMachineGraph::PostPasteNodes( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes )
     {
-        VisualGraph::StateMachineGraph::PostPasteNodes( pastedNodes );
+        NodeGraph::StateMachineGraph::PostPasteNodes( pastedNodes );
         UpdateDependentNodes();
     }
 
     void StateMachineGraph::PostDestroyNode( UUID const& nodeID )
     {
-        VisualGraph::StateMachineGraph::PostDestroyNode( nodeID );
+        NodeGraph::StateMachineGraph::PostDestroyNode( nodeID );
         UpdateDependentNodes();
     }
 
-    bool StateMachineGraph::DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens )
+    bool StateMachineGraph::DrawContextMenuOptions( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, TVector<String> const& filterTokens )
     {
         if ( ctx.m_isReadOnly )
         {
@@ -85,7 +82,7 @@ namespace EE::Animation
 
         auto const CreateState = [&, this] ( StateToolsNode::StateType type )
         {
-            VisualGraph::ScopedGraphModification sgm( this );
+            NodeGraph::ScopedGraphModification sgm( this );
             auto pStateNode = CreateNode<StateToolsNode>( type );
             pStateNode->SetPosition( mouseCanvasPos );
             UpdateDependentNodes();
@@ -112,7 +109,7 @@ namespace EE::Animation
         return false;
     }
 
-    void StateMachineGraph::OnDoubleClick( VisualGraph::UserContext* pUserContext )
+    NodeGraph::BaseGraph* StateMachineGraph::GetNavigationTarget()
     {
         auto pParentNode = GetParentNode();
         auto pGrandParentNode = pParentNode->GetParentGraph()->GetParentNode();
@@ -120,19 +117,18 @@ namespace EE::Animation
         {
             if ( pStateNode->IsStateMachineState() )
             {
-                pUserContext->NavigateTo( pStateNode->GetParentGraph() );
-                return;
+                return pStateNode->GetParentGraph();
             }
         }
 
-        VisualGraph::StateMachineGraph::OnDoubleClick( pUserContext );
+        return pParentNode->GetParentGraph();
     }
 
-    void StateMachineGraph::DrawExtraInformation( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext )
+    void StateMachineGraph::DrawExtraInformation( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         float const scaledIconOffset = ctx.CanvasToWindow( 4.0f );
 
-        auto const stateNodes = FindAllNodesOfType<StateToolsNode>( VisualGraph::SearchMode::Localized, VisualGraph::SearchTypeMatch::Derived );
+        auto const stateNodes = FindAllNodesOfType<StateToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
         for ( auto pStateNode : stateNodes )
         {
             ImRect const nodeRect = ctx.CanvasToWindow( pStateNode->GetRect() );

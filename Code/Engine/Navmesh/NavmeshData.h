@@ -9,7 +9,7 @@ namespace EE::Navmesh
 {
     class EE_ENGINE_API NavmeshData : public Resource::IResource
     {
-        EE_RESOURCE( 'nav', "Navmesh");
+        EE_RESOURCE( 'nav', "Navmesh", 4, false );
         friend class NavmeshGenerator;
         friend class NavmeshLoader;
 

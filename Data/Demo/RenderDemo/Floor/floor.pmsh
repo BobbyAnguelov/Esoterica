@@ -1,6 +1,3 @@
-{
-  "TypeID": "EE::Physics::PhysicsCollisionMeshResourceDescriptor",
-  "m_resourceTypeID": "pmsh",
-  "m_sourcePath": "data://Demo/RenderDemo/Floor/floor.fbx",
-  "m_isConvexMesh" : "false"
-}
+<Type TypeID="EE::Physics::PhysicsCollisionMeshResourceDescriptor" Version="0">
+  <Property ID="m_sourcePath" Value="data://demo/renderdemo/floor/floor.fbx" />
+</Type>

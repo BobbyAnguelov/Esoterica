@@ -73,7 +73,7 @@ namespace EE::Render
 
     TVector<TResourcePtr<Render::Material>> const& SkeletalMeshComponent::GetDefaultMaterials() const
     {
-        EE_ASSERT( IsInitialized() && HasMeshResourceSet() );
+        EE_ASSERT( WasInitialized() && HasMeshResourceSet() );
         return m_mesh->GetMaterials();
     }
 
@@ -88,7 +88,7 @@ namespace EE::Render
             auto const boneIdx = m_mesh->GetBoneIndex( socketID );
             if ( boneIdx != InvalidIndex )
             {
-                if ( IsInitialized() )
+                if ( WasInitialized() )
                 {
                     outSocketWorldTransform = m_boneTransforms[boneIdx] * outSocketWorldTransform;
                 }
@@ -129,7 +129,7 @@ namespace EE::Render
     void SkeletalMeshComponent::SetPose( Animation::Pose const* pPose )
     {
         EE_PROFILE_FUNCTION_RENDER();
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
         EE_ASSERT( HasMeshResourceSet() && HasSkeletonResourceSet() );
         EE_ASSERT( !m_animToMeshBoneMap.empty() );
         EE_ASSERT( pPose != nullptr && pPose->HasModelSpaceTransforms() );
@@ -140,7 +140,7 @@ namespace EE::Render
             int32_t const meshBoneIdx = m_animToMeshBoneMap[animBoneIdx];
             if ( meshBoneIdx != InvalidIndex )
             {
-                Transform const boneTransform = pPose->GetGlobalTransform( animBoneIdx );
+                Transform const boneTransform = pPose->GetModelSpaceTransform( animBoneIdx );
                 m_boneTransforms[meshBoneIdx] = boneTransform;
             }
         }
@@ -148,7 +148,7 @@ namespace EE::Render
 
     void SkeletalMeshComponent::ResetPose()
     {
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
 
         if ( HasSkeletonResourceSet() )
         {
@@ -210,7 +210,7 @@ namespace EE::Render
     #if EE_DEVELOPMENT_TOOLS
     void SkeletalMeshComponent::DrawPose( Drawing::DrawContext& drawingContext ) const
     {
-        EE_ASSERT( IsInitialized() );
+        EE_ASSERT( WasInitialized() );
 
         if ( !m_mesh.IsSet() || !m_mesh.IsLoaded() )
         {

@@ -33,7 +33,7 @@ namespace EE
 
         int32_t Run( int32_t argc, char** argv );
 
-        inline bool IsInitialized() const { return m_initialized; }
+        inline bool WasInitialized() const { return m_initialized; }
 
         // Win32 Window process
         virtual LRESULT WindowMessageProcessor( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam );

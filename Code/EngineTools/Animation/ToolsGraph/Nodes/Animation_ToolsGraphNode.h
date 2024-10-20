@@ -1,6 +1,6 @@
 #pragma once
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_UserContext.h"
-#include "EngineTools/Core/VisualGraph/VisualGraph_FlowGraph.h"
+#include "EngineTools/NodeGraph/NodeGraph_FlowGraph.h"
 
 //-------------------------------------------------------------------------
 
@@ -17,7 +17,7 @@ namespace EE::Animation
 
         BlendTree,
         ValueTree,
-        TransitionTree,
+        TransitionConduit,
     };
 }
 
@@ -25,31 +25,29 @@ namespace EE::Animation
 
 namespace EE::Animation::GraphNodes
 {
-    void DrawPoseNodeDebugInfo( VisualGraph::DrawContext const& ctx, float canvasWidth, PoseNodeDebugInfo const* pDebugInfo );
-    void DrawRuntimeNodeIndex( VisualGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, VisualGraph::BaseNode* pNode, int16_t runtimeNodeIdx );
-    void DrawVectorInfoText( VisualGraph::DrawContext const& ctx, Vector const& vector );
-    void DrawTargetInfoText( VisualGraph::DrawContext const& ctx, Target const& target );
-    void DrawValueDisplayText( VisualGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, int16_t runtimeNodeIdx, GraphValueType valueType );
+    void DrawPoseNodeDebugInfo( NodeGraph::DrawContext const& ctx, float canvasWidth, PoseNodeDebugInfo const* pDebugInfo );
+    void DrawRuntimeNodeIndex( NodeGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, NodeGraph::BaseNode* pNode, int16_t runtimeNodeIdx );
+    void DrawVectorInfoText( NodeGraph::DrawContext const& ctx, Float3 const& vector );
+    void DrawTargetInfoText( NodeGraph::DrawContext const& ctx, Target const& target );
+    void DrawValueDisplayText( NodeGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, int16_t runtimeNodeIdx, GraphValueType valueType );
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINETOOLS_API FlowToolsNode : public VisualGraph::Flow::Node
+    class EE_ENGINETOOLS_API FlowToolsNode : public NodeGraph::FlowNode
     {
         EE_REFLECT_TYPE( FlowToolsNode );
 
     public:
 
-        static StringID const s_pinTypes[];
-        static StringID GetPinTypeForValueType( GraphValueType valueType ) { return s_pinTypes[(uint8_t) valueType]; }
-        static GraphValueType GetValueTypeForPinType( StringID pinType );
+        static inline StringID GetPinTypeForValueType( GraphValueType valueType ) { return GetIDForValueType( valueType ); }
+        static inline GraphValueType GetValueTypeForPinType( StringID pinType ) { return GetValueTypeForID( pinType ); }
 
     public:
 
-        using VisualGraph::Flow::Node::Node;
+        using NodeGraph::FlowNode::FlowNode;
 
-        virtual GraphValueType GetValueType() const = 0;
         virtual Color GetTitleBarColor() const override;
-        virtual Color GetPinColor( VisualGraph::Flow::Pin const& pin ) const override;
+        virtual Color GetPinColor( NodeGraph::Pin const& pin ) const override;
 
         // Get the types of graphs that this node is allowed to be placed in
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const = 0;
@@ -63,6 +61,9 @@ namespace EE::Animation::GraphNodes
         // Is this an anim clip reference node - i.e. a node that represents a singular anim clip
         virtual bool IsAnimationClipReferenceNode() const { return false; }
 
+        // Get the graph value type for the output pin
+        inline GraphValueType GetOutputValueType() const { return HasOutputPin() ? GetValueTypeForPinType( GetOutputPin( 0 )->m_type ) : GraphValueType::Unknown; }
+
         // IDs
         //-------------------------------------------------------------------------
 
@@ -74,13 +75,13 @@ namespace EE::Animation::GraphNodes
 
     protected:
 
-        EE_FORCE_INLINE void CreateInputPin( char const* pPinName, GraphValueType pinType ) { VisualGraph::Flow::Node::CreateInputPin( pPinName, GetPinTypeForValueType( pinType ) ); }
-        EE_FORCE_INLINE void CreateOutputPin( char const* pPinName, GraphValueType pinType, bool allowMultipleOutputConnections = false ) { VisualGraph::Flow::Node::CreateOutputPin( pPinName, GetPinTypeForValueType( pinType ), allowMultipleOutputConnections ); }
+        EE_FORCE_INLINE void CreateInputPin( char const* pPinName, GraphValueType pinType ) { NodeGraph::FlowNode::CreateInputPin( pPinName, GetPinTypeForValueType( pinType ) ); }
+        EE_FORCE_INLINE void CreateOutputPin( char const* pPinName, GraphValueType pinType, bool allowMultipleOutputConnections = false ) { NodeGraph::FlowNode::CreateOutputPin( pPinName, GetPinTypeForValueType( pinType ), allowMultipleOutputConnections ); }
 
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) {}
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) {}
 
-        virtual bool IsActive( VisualGraph::UserContext* pUserContext ) const override;
-        virtual void DrawExtraControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext ) override;
-        virtual void DrawContextMenuOptions( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, VisualGraph::Flow::Pin* pPin ) override;
+        virtual bool IsActive( NodeGraph::UserContext* pUserContext ) const override;
+        virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
+        virtual void DrawContextMenuOptions( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, NodeGraph::Pin* pPin ) override;
     };
 }

@@ -11,7 +11,6 @@ namespace EE::Render
     class MaterialCompiler : public Resource::Compiler
     {
         EE_REFLECT_TYPE( MaterialCompiler );
-        static const int32_t s_version = 1;
 
     public:
 

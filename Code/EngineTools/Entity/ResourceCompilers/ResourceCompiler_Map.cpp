@@ -12,14 +12,14 @@
 namespace EE::EntityModel
 {
     EntityMapCompiler::EntityMapCompiler()
-        : Resource::Compiler( "EntityMapCompiler", s_version )
+        : Resource::Compiler( "EntityMapCompiler" )
     {
-        m_outputTypes.push_back( SerializedEntityMap::GetStaticResourceTypeID() );
+        AddOutputType<EntityMapDescriptor>();
     }
 
     Resource::CompilationResult EntityMapCompiler::Compile( Resource::CompileContext const& ctx ) const
     {
-        SerializedEntityMap map;
+        EntityMapDescriptor map;
 
         //-------------------------------------------------------------------------
         // Read collection
@@ -29,12 +29,50 @@ namespace EE::EntityModel
         {
             ScopedTimer<PlatformClock> timer( elapsedTime );
 
-            if ( !ReadSerializedEntityMapFromFile( *m_pTypeRegistry, ctx.m_inputFilePath, map ) )
+            if ( !ReadMapDescriptorFromFile( *m_pTypeRegistry, ctx.m_inputFilePath, map ) )
             {
                 return Resource::CompilationResult::Failure;
             }
         }
         Message( "Entity map read in: %.2fms", elapsedTime.ToFloat() );
+
+        //-------------------------------------------------------------------------
+        // Sanitize collection
+        //-------------------------------------------------------------------------
+
+        bool const isCompilingForPackagedBuild = ctx.IsCompilingForPackagedBuild();
+        TVector<EntityDescriptor>& descriptors = map.GetMutableEntityDescriptors();
+        for ( int32_t e = int32_t( descriptors.size() ) - 1; e >= 0; e-- )
+        {
+            // Remove invalid and dev-only components
+            for ( int32_t c = int32_t( descriptors[e].m_components.size() ) - 1; c >= 0; c-- )
+            {
+                ComponentDescriptor& componentDesc = descriptors[e].m_components[c];
+                TypeSystem::TypeInfo const* pComponentTypeInfo = m_pTypeRegistry->GetTypeInfo( componentDesc.m_typeID );
+
+                if ( pComponentTypeInfo == nullptr || ( isCompilingForPackagedBuild && pComponentTypeInfo->m_isForDevelopmentUseOnly ) )
+                {
+                    descriptors[e].m_components.erase( descriptors[e].m_components.begin() + c );
+                }
+            }
+
+            // Remove invalid and dev-only systems
+            for ( int32_t s = int32_t( descriptors[e].m_systems.size() ) - 1; s >= 0; s-- )
+            {
+                SystemDescriptor& systemDesc = descriptors[e].m_systems[s];
+                TypeSystem::TypeInfo const* pSystemTypeInfo = m_pTypeRegistry->GetTypeInfo( systemDesc.m_typeID );
+                if ( pSystemTypeInfo == nullptr || ( isCompilingForPackagedBuild && pSystemTypeInfo->m_isForDevelopmentUseOnly ) )
+                {
+                    descriptors[e].m_systems.erase( descriptors[e].m_systems.begin() + s );
+                }
+            }
+
+            // Remove any empty entities
+            if ( ( descriptors[e].m_components.size() + descriptors[e].m_systems.size() ) == 0 )
+            {
+                descriptors.erase( descriptors.begin() + e );
+            }
+        }
 
         //-------------------------------------------------------------------------
         // Component Modifications
@@ -50,37 +88,29 @@ namespace EE::EntityModel
             }
 
             // TODO: see if there is a smart way to avoid using strings for property access
-            TypeSystem::PropertyPath const navmeshResourcePropertyPath( "m_pNavmeshData" );
+            TypeSystem::PropertyPath const navmeshResourcePropertyPath( "m_navmeshData" );
 
             // Remove any values for the navmesh resource property
-            auto pNavmeshComponentDesc = navmeshComponents[0].m_pComponent;
+            ComponentDescriptor* pNavmeshComponentDesc = navmeshComponents[0].m_pComponent;
             pNavmeshComponentDesc->RemovePropertyValue( navmeshResourcePropertyPath );
 
             // Set navmesh resource ptr
-            ResourcePath navmeshResourcePath = ctx.m_resourceID.GetResourcePath();
+            DataPath navmeshResourcePath = ctx.m_resourceID.GetResourcePath();
             navmeshResourcePath.ReplaceExtension( Navmesh::NavmeshData::GetStaticResourceTypeID().ToString() );
-            pNavmeshComponentDesc->m_properties.emplace_back( TypeSystem::PropertyDescriptor( *m_pTypeRegistry, navmeshResourcePropertyPath, GetCoreTypeID( TypeSystem::CoreTypeID::TResourcePtr ), TypeSystem::TypeID(), navmeshResourcePath.GetString() ) );
-        }
 
-        //-------------------------------------------------------------------------
-        // List of install dependencies
-        //-------------------------------------------------------------------------
+            TypeSystem::PropertyDescriptor navmeshPtrPropertyDesc;
+            navmeshPtrPropertyDesc.m_path = navmeshResourcePropertyPath;
+            navmeshPtrPropertyDesc.m_stringValue = navmeshResourcePath.GetString();
+            TypeSystem::Conversion::ConvertStringToBinary( *m_pTypeRegistry, GetCoreTypeID( TypeSystem::CoreTypeID::TResourcePtr ), TypeSystem::TypeID(), navmeshResourcePath.GetString(), navmeshPtrPropertyDesc.m_byteValue );
 
-        // Get all referenced resources
-        TVector<ResourceID> referencedResources;
-        map.GetAllReferencedResources( referencedResources );
-
-        Resource::ResourceHeader hdr( s_version, SerializedEntityMap::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
-
-        for ( auto const& referencedResourceID : referencedResources )
-        {
-            hdr.AddInstallDependency( referencedResourceID );
+            pNavmeshComponentDesc->m_properties.emplace_back( navmeshPtrPropertyDesc );
         }
 
         //-------------------------------------------------------------------------
         // Serialize
         //-------------------------------------------------------------------------
 
+        Resource::ResourceHeader hdr( EntityMapDescriptor::s_version, EntityMapDescriptor::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
         Serialization::BinaryOutputArchive archive;
         archive << hdr << map;
 
@@ -96,13 +126,13 @@ namespace EE::EntityModel
 
     bool EntityMapCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
     {
-        EE_ASSERT( resourceID.GetResourceTypeID() == SerializedEntityMap::GetStaticResourceTypeID() );
+        EE_ASSERT( resourceID.GetResourceTypeID() == EntityMapDescriptor::GetStaticResourceTypeID() );
 
-        SerializedEntityMap map;
+        EntityMapDescriptor map;
 
         // Read map descriptor
-        FileSystem::Path const collectionFilePath = resourceID.GetResourcePath().ToFileSystemPath( m_rawResourceDirectoryPath );
-        if ( !ReadSerializedEntityMapFromFile( *m_pTypeRegistry, collectionFilePath, map ) )
+        FileSystem::Path const collectionFilePath = resourceID.GetFileSystemPath( m_sourceDataDirectoryPath );
+        if ( !ReadMapDescriptorFromFile( *m_pTypeRegistry, collectionFilePath, map ) )
         {
             return false;
         }

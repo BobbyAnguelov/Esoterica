@@ -42,7 +42,7 @@ namespace EE::ImGuiX
 
         ImageCache& operator=( ImageCache const& ) = default;
 
-        inline bool IsInitialized() const { return m_pRenderDevice != nullptr; }
+        inline bool WasInitialized() const { return m_pRenderDevice != nullptr; }
         void Initialize( Render::RenderDevice* pRenderDevice );
         void Shutdown();
 

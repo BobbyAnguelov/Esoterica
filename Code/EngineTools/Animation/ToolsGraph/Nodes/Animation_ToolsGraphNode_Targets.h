@@ -14,10 +14,9 @@ namespace EE::Animation::GraphNodes
 
         IsTargetSetToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Bool; }
         virtual char const* GetTypeName() const override { return "Is Target Set"; }
         virtual char const* GetCategory() const override { return "Values/Target"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
@@ -31,16 +30,35 @@ namespace EE::Animation::GraphNodes
 
         TargetInfoToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Float; }
         virtual char const* GetTypeName() const override { return "Target Info"; }
         virtual char const* GetCategory() const override { return "Values/Target"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( VisualGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
 
     private:
 
         EE_REFLECT() TargetInfoNode::Info     m_infoType = TargetInfoNode::Info::Distance;
+        EE_REFLECT() bool                     m_isWorldSpaceTarget = true;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class TargetPointToolsNode final : public FlowToolsNode
+    {
+        EE_REFLECT_TYPE( TargetPointToolsNode );
+
+    public:
+
+        TargetPointToolsNode();
+
+        virtual char const* GetTypeName() const override { return "Target Point"; }
+        virtual char const* GetCategory() const override { return "Values/Target"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+
+    private:
+
         EE_REFLECT() bool                     m_isWorldSpaceTarget = true;
     };
 
@@ -54,10 +72,9 @@ namespace EE::Animation::GraphNodes
 
         TargetOffsetToolsNode();
 
-        virtual GraphValueType GetValueType() const override { return GraphValueType::Target; }
         virtual char const* GetTypeName() const override { return "Target Offset"; }
         virtual char const* GetCategory() const override { return "Values/Target"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
     private:

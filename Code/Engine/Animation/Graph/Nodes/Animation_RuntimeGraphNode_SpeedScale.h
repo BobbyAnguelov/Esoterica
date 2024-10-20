@@ -7,60 +7,71 @@
 
 namespace EE::Animation::GraphNodes
 {
-    class EE_ENGINE_API SpeedScaleNode final : public PassthroughNode
+    class EE_ENGINE_API SpeedScaleBaseNode : public PassthroughNode
+    {
+
+    public:
+
+        struct EE_ENGINE_API Definition : public PassthroughNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PassthroughNode::Definition, m_inputValueNodeIdx, m_defaultInputValue );
+
+            int16_t                 m_inputValueNodeIdx = InvalidIndex;
+            float                   m_defaultInputValue = 0.0f;
+        };
+
+    protected:
+
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
+
+        virtual float CalculateSpeedScaleMultiplier( GraphContext& context ) const = 0;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API SpeedScaleNode final : public SpeedScaleBaseNode
     {
     public:
 
-        struct EE_ENGINE_API Definition final : public PassthroughNode::Definition
+        struct EE_ENGINE_API Definition final : public SpeedScaleBaseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PassthroughNode::Definition, m_scaleValueNodeIdx, m_blendInTime );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( SpeedScaleBaseNode::Definition );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
-
-            float                   m_blendInTime = 0.2f; // Amount of time to blend in the speed scale modifier
-            int16_t                 m_scaleValueNodeIdx = InvalidIndex;
         };
 
     private:
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
-
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual float CalculateSpeedScaleMultiplier( GraphContext& context ) const override;
 
     private:
 
         FloatValueNode*             m_pScaleValueNode = nullptr;
-        float                       m_blendWeight = 1.0f; // Used to ensure the modifier is slowly blended in when coming from a sync'd transition that ends
     };
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API DurationScaleNode final : public PassthroughNode
+    class EE_ENGINE_API DurationScaleNode final : public SpeedScaleBaseNode
     {
     public:
 
-        struct EE_ENGINE_API Definition final : public PassthroughNode::Definition
+        struct EE_ENGINE_API Definition final : public SpeedScaleBaseNode::Definition
         {
-            EE_REFLECT_TYPE ( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION ( PassthroughNode::Definition, m_durationValueNodeIdx, m_desiredDuration );
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( SpeedScaleBaseNode::Definition );
 
-            virtual void InstantiateNode ( InstantiationContext const& context, InstantiationOptions options ) const override;
-
-            int16_t                 m_durationValueNodeIdx = InvalidIndex;
-            float                   m_desiredDuration = 0.0f;
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
         };
 
     private:
 
         virtual void InitializeInternal ( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal ( GraphContext& context ) override;
-        virtual GraphPoseNodeResult Update ( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
+        virtual float CalculateSpeedScaleMultiplier( GraphContext& context ) const override;
 
     private:
 
@@ -69,39 +80,26 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API VelocityBasedSpeedScaleNode final : public PoseNode
+    class EE_ENGINE_API VelocityBasedSpeedScaleNode final : public SpeedScaleBaseNode
     {
     public:
 
-        struct EE_ENGINE_API Definition final : public PoseNode::Definition
+        struct EE_ENGINE_API Definition final : public SpeedScaleBaseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_childNodeIdx, m_desiredVelocityValueNodeIdx, m_blendInTime );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( SpeedScaleBaseNode::Definition );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
-
-            int16_t                 m_childNodeIdx = InvalidIndex;
-            int16_t                 m_desiredVelocityValueNodeIdx = InvalidIndex;
-            float                   m_blendInTime = 0.2f; // Amount of time to blend in the speed scale modifier
         };
 
     private:
 
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
-        virtual bool IsValid() const override { return PoseNode::IsValid() && m_pChildNode->IsValid(); }
-        virtual SyncTrack const& GetSyncTrack() const override;
-        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
-
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual float CalculateSpeedScaleMultiplier( GraphContext& context ) const override;
 
     private:
 
-        AnimationClipReferenceNode* m_pChildNode = nullptr;
         FloatValueNode*             m_pDesiredVelocityValueNode = nullptr;
-        float                       m_blendWeight = 1.0f; // Used to ensure the modifier is slowly blended in when coming from a sync'd transition that ends
     };
 }

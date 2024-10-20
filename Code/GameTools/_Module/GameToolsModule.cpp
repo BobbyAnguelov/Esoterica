@@ -4,12 +4,12 @@
 
 namespace EE
 {
-    bool GameToolsModule::InitializeModule( ModuleContext& context )
+    bool GameToolsModule::InitializeModule( ModuleContext const& context )
     {
         return true;
     }
 
-    void GameToolsModule::ShutdownModule( ModuleContext& context )
+    void GameToolsModule::ShutdownModule( ModuleContext const& context )
     {
 
     }

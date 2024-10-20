@@ -1,9 +1,8 @@
 #pragma once
 
 #include "Base/_Module/API.h"
-#include "Base/Esoterica.h"
-#include "Base/Types/String.h"
-#include <chrono>
+#include "Base/Types/Containers_ForwardDecl.h"
+#include <time.h>
 
 //-------------------------------------------------------------------------
 // Timestamp

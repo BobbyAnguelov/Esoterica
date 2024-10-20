@@ -2,7 +2,7 @@
 #include "EngineTools/Import/RawFileInspector.h"
 #include "EngineTools/Core/EditorTool.h"
 #include "EngineTools/Core/CategoryTree.h"
-#include "EngineTools/Core/Widgets/TreeListView.h"
+#include "EngineTools/Widgets/TreeListView.h"
 
 //-------------------------------------------------------------------------
 
@@ -35,10 +35,10 @@ namespace EE::Resource
 
         public:
 
-            ResourcePath                                    m_resourcePath;
+            DataPath                                    m_resourcePath;
             FileSystem::Path                                m_filePath;
             String                                          m_extension;
-            TVector<ResourcePath>                           m_dependentResources;
+            TVector<DataPath>                           m_dependentResources;
             TVector<Import::ImportableItem*>                m_importableItems;
             String                                          m_warnings;
             String                                          m_errors;

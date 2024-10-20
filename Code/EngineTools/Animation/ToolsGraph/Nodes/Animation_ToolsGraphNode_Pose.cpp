@@ -73,21 +73,22 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    bool AnimationPoseToolsNode::DrawPinControls( VisualGraph::DrawContext const& ctx, VisualGraph::UserContext* pUserContext, VisualGraph::Flow::Pin const& pin )
+    void AnimationPoseToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
     {
-        DataSlotToolsNode::DrawPinControls( ctx, pUserContext, pin );
-
-        // Add parameter value input field
-        if ( pin.IsInputPin() && pin.m_type == GetPinTypeForValueType( GraphValueType::Float ) )
+        if ( GetConnectedInputNode( 0 ) == nullptr )
         {
-            int32_t const pinIdx = GetInputPinIndex( pin.m_ID );
-
-            ImGui::SetNextItemWidth( 50 * ctx.m_viewScaleFactor );
-            ImGui::InputFloat( "##parameter", &m_fixedTimeValue, 0.0f, 0.0f, "%.2f" );
-
-            return true;
+            BeginDrawInternalRegion( ctx );
+            if ( m_useFramesAsInput )
+            {
+                ImGui::Text( "Frame: %2.f", m_fixedTimeValue );
+            }
+            else
+            {
+                ImGui::Text( "Time: %2.f", m_fixedTimeValue );
+            }
+            EndDrawInternalRegion( ctx );
         }
 
-        return false;
+        DataSlotToolsNode::DrawInfoText( ctx );
     }
 }

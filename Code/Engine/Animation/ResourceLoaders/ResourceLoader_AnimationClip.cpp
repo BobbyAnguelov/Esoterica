@@ -18,7 +18,7 @@ namespace EE::Animation
         m_pTypeRegistry = pTypeRegistry;
     }
 
-    bool AnimationClipLoader::LoadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    bool AnimationClipLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         EE_ASSERT(  m_pTypeRegistry != nullptr );
 
@@ -58,7 +58,7 @@ namespace EE::Animation
         return true;
     }
 
-    void AnimationClipLoader::UnloadInternal( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord ) const
+    void AnimationClipLoader::UnloadInternal( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
     {
         auto pAnimClip = pResourceRecord->GetResourceData<AnimationClip>();
         if ( pAnimClip != nullptr )
@@ -76,10 +76,10 @@ namespace EE::Animation
             }
         }
 
-        ResourceLoader::UnloadInternal( resID, pResourceRecord );
+        ResourceLoader::UnloadInternal( resourceID, pResourceRecord );
     }
 
-    Resource::InstallResult AnimationClipLoader::Install( ResourceID const& resID, Resource::ResourceRecord* pResourceRecord, Resource::InstallDependencyList const& installDependencies ) const
+    Resource::InstallResult AnimationClipLoader::Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
     {
         auto pAnimClip = pResourceRecord->GetResourceData<AnimationClip>();
         EE_ASSERT( pAnimClip->m_skeleton.GetResourceID().IsValid() );
@@ -95,7 +95,7 @@ namespace EE::Animation
             EE_ASSERT( pSecondaryAnimation->IsValid() );
         }
 
-        ResourceLoader::Install( resID, pResourceRecord, installDependencies );
+        ResourceLoader::Install( resourceID, resourcePath, installDependencies, pResourceRecord );
 
         return Resource::InstallResult::Succeeded;
     }

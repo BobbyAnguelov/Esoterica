@@ -2,9 +2,10 @@
 
 #include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsRagdoll.h"
 #include "EngineTools/Core/EditorTool.h"
-#include "EngineTools/Resource/ResourcePicker.h"
+#include "EngineTools/Widgets/Pickers.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
+#include "Base/Imgui/ImguiGizmo.h"
 
 //-------------------------------------------------------------------------
 
@@ -57,7 +58,7 @@ namespace EE::Physics
 
     public:
 
-        RagdollEditor( ToolsContext const* pToolsContext, EntityWorld* pWorld, ResourceID const& resourceID );
+        RagdollEditor( ToolsContext const* pToolsContext, ResourceID const& resourceID, EntityWorld* pWorld );
         virtual ~RagdollEditor();
 
     private:
@@ -67,7 +68,7 @@ namespace EE::Physics
         virtual bool SaveData() override;
         virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
-        virtual void PreWorldUpdate( EntityWorldUpdateContext const& updateContext ) override;
+        virtual void WorldUpdate( EntityWorldUpdateContext const& updateContext ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
         virtual bool HasTitlebarIcon() const override { return true; }
@@ -88,12 +89,12 @@ namespace EE::Physics
 
         EE_FORCE_INLINE RagdollResourceDescriptor* GetRagdollDescriptor()
         {
-            return GetDescriptor<RagdollResourceDescriptor>();
+            return GetDataFile<RagdollResourceDescriptor>();
         }
 
         EE_FORCE_INLINE RagdollResourceDescriptor const* GetRagdollDescriptor() const
         {
-            return GetDescriptor<RagdollResourceDescriptor>();
+            return GetDataFile<RagdollResourceDescriptor>();
         }
 
         bool IsValidDefinition() const { return GetRagdollDescriptor()->IsValid(); }
@@ -155,8 +156,8 @@ namespace EE::Physics
         // Hot-Reload
         //-------------------------------------------------------------------------
 
-        virtual void OnDescriptorUnload() override;
-        virtual void OnDescriptorLoadCompleted() override;
+        virtual void OnDataFileUnload() override;
+        virtual void OnDataFileLoadCompleted() override;
         virtual void OnResourceUnload( Resource::ResourcePtr* pResourcePtr ) override;
         virtual void OnResourceLoadCompleted( Resource::ResourcePtr* pResourcePtr ) override;
 
@@ -184,7 +185,7 @@ namespace EE::Physics
         bool                                            m_isolateSelectedBody = false;
 
         // Preview
-        Resource::ResourcePicker                        m_resourceFilePicker;
+        ResourcePicker                                  m_resourceFilePicker;
         TResourcePtr<Animation::AnimationClip>          m_previewAnimation;
         Animation::Pose*                                m_pPose = nullptr;
         Animation::Pose*                                m_pFinalPose = nullptr;

@@ -104,7 +104,7 @@ namespace EE
             #if EE_DEVELOPMENT_TOOLS
             if ( m_useDebugCamera && m_pDebugCamera != m_pActiveCamera )
             {
-                if ( m_pDebugCamera != nullptr && m_pDebugCamera->IsInitialized() )
+                if ( m_pDebugCamera != nullptr && m_pDebugCamera->WasInitialized() )
                 {
                     m_pActiveCamera = m_pDebugCamera;
                 }
@@ -205,7 +205,7 @@ namespace EE
         // Only switch active camera if the debug camera is initialized
         m_pPreviousCamera = m_pActiveCamera;
         
-        if ( m_pDebugCamera->IsInitialized() )
+        if ( m_pDebugCamera->WasInitialized() )
         {
             m_pActiveCamera = m_pDebugCamera;
         }

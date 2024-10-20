@@ -32,10 +32,11 @@ namespace EE::Resource
 
     private:
 
-        void DrawRequests();
-        void DrawServerControls();
-        void DrawConnectionInfo();
-        void DrawPackagingControls();
+        void DrawRequestWindow();
+        void DrawServerInfoWindow();
+        void DrawConnectionInfoWindow();
+        void DrawPackagingWindow();
+        void DrawDataToolsWindow();
 
     private:
 
@@ -49,5 +50,6 @@ namespace EE::Resource
 
         ImGuiX::ImageCache*                             m_pImageCache = nullptr;
         ImGuiX::ImageInfo                               m_resourceServerIcon;
+        ImGuiX::FilterWidget                            m_requestsFilter;
     };
 }

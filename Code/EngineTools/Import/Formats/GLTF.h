@@ -4,7 +4,7 @@
 #include "EngineTools/ThirdParty/cgltf/cgltf.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/Math/Transform.h"
-#include "Base/Memory/Pointers.h"
+#include "Base/Memory/UniquePtr.h"
 
 //-------------------------------------------------------------------------
 
