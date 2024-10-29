@@ -50,6 +50,12 @@ namespace EE::EntityModel
 
         FileDialog::Result result = FileDialog::Save( m_pToolsContext, EntityMapDescriptor::GetStaticResourceTypeID(), m_pToolsContext->m_pFileRegistry->GetSourceDataDirectoryPath().c_str() );
 
+        if ( !result )
+        {
+            // user canceled request
+            return;
+        }
+
         FileSystem::Path const mapFilePath( result.m_filePaths[0].c_str() );
         if ( FileSystem::Exists( mapFilePath ) )
         {
