@@ -111,7 +111,7 @@ namespace EE::Resource
         m_filter.SetFilterHelpText( "Search..." );
 
         // Rebuild the tree whenever the file registry updates
-        m_resourceDatabaseUpdateEventBindingID = m_pToolsContext->m_pFileRegistry->OnFileSystemCacheUpdated().Bind( [this] () { m_rebuildTree = true; } );
+        m_resourceDatabaseUpdateEventBindingID = m_pToolsContext->m_pFileRegistry->OnFileSystemCacheUpdated().Bind( [this] () { m_updateFolderAndFileViews = true; } );
 
         // Create descriptor category tree
         //-------------------------------------------------------------------------
@@ -194,10 +194,11 @@ namespace EE::Resource
         treeViewContext.m_rebuildTreeFunction = [this] ( TreeListViewItem* pRootItem ) { RebuildFolderTreeView( pRootItem ); };
         treeViewContext.m_drawItemContextMenuFunction = [this] ( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus ) { DrawFolderContextMenu( selectedItemsWithContextMenus ); };
 
-        if ( m_rebuildTree )
+        if ( m_updateFolderAndFileViews )
         {
             m_folderTreeView.RebuildTree( treeViewContext, true );
-            m_rebuildTree = false;
+            GenerateFileList();
+            m_updateFolderAndFileViews = false;
         }
 
         //-------------------------------------------------------------------------
@@ -322,7 +323,7 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    bool ResourceBrowserEditorTool::DrawDeleteConfirmationDialog( UpdateContext const& context )
+    bool ResourceBrowserEditorTool::DrawDeleteFileConfirmationDialog( UpdateContext const& context, FileRegistry::FileInfo const& fileToDelete )
     {
         bool shouldClose = false;
 
@@ -330,11 +331,9 @@ namespace EE::Resource
         ImGui::Text( "This cannot be undone!" );
 
         if ( ImGui::Button( "Ok", ImVec2( 143, 0 ) ) )
-        {
-            auto pResourceItem = (ResourceBrowserTreeItem*) m_folderTreeView.GetSelection()[0];
-            FileSystem::Path const fileToDelete = pResourceItem->GetFilePath();
+        {            
             m_folderTreeView.ClearSelection();
-            FileSystem::EraseFile( fileToDelete );
+            FileSystem::EraseFile( fileToDelete.m_filePath );
             shouldClose = true;
         }
 
@@ -952,7 +951,8 @@ namespace EE::Resource
 
                     if ( ImGui::MenuItem( EE_ICON_ALERT_OCTAGON" Delete" ) )
                     {
-                        m_dialogManager.CreateModalDialog( "Delete", [this] ( UpdateContext const& context ) { return DrawDeleteConfirmationDialog( context ); } );
+                        m_dialogManager.CreateModalDialog( "Delete", [this, &fileInfo] ( UpdateContext const& context )
+                            { return DrawDeleteFileConfirmationDialog( context, fileInfo ); } );
                     }
 
                     ImGui::EndPopup();

@@ -83,7 +83,7 @@ namespace EE::Resource
 
         void DrawCreationControls( UpdateContext const& context );
         void DrawDescriptorMenuCategory( FileSystem::Path const& path, Category<TypeSystem::TypeInfo const*> const& category );
-        bool DrawDeleteConfirmationDialog( UpdateContext const& context );
+        bool DrawDeleteFileConfirmationDialog( UpdateContext const& context, FileRegistry::FileInfo const& fileToDelete );
 
         void DrawControlRow( UpdateContext const& context );
         void DrawResourceTypeFilterRow( UpdateContext const& context );
@@ -115,7 +115,7 @@ namespace EE::Resource
         TVector<int32_t>                                    m_selectedTypeFilterIndices;
         bool                                                m_showRawFiles = false;
         bool                                                m_filterUpdated = false;
-        bool                                                m_rebuildTree = false;
+        bool                                                m_updateFolderAndFileViews = false;
         SortRule                                            m_sortRule = SortRule::NameAscending;
 
         EventBindingID                                      m_resourceDatabaseUpdateEventBindingID;
