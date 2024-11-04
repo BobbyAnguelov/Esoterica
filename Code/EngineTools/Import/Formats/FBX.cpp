@@ -896,8 +896,14 @@ namespace EE::Import::Fbx
                 if ( numMaterials == 1 )
                 {
                     FbxGeometryElementMaterial* pMaterialElement = pMesh->GetElementMaterial( 0 );
-                    FbxSurfaceMaterial* pMaterial = pMeshNode->GetMaterial( pMaterialElement->GetIndexArray().GetAt( 0 ) );
-                    meshData.m_materialNameID = StringID( pMaterial->GetName() );
+                    if ( FbxSurfaceMaterial* pMaterial = pMeshNode->GetMaterial( pMaterialElement->GetIndexArray().GetAt( 0 ) ) )
+                    {
+                        meshData.m_materialNameID = StringID( pMaterial->GetName() );
+                    }
+                    else
+                    {
+                        ImportedMesh.LogWarning( "Mesh section (%s) materials are not properly exported.", meshData.m_name.c_str() );
+                    }
                 }
                 else if ( numMaterials > 1 )
                 {
