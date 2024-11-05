@@ -111,7 +111,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc )
+    void AnimationDebugView::DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance, DebugPath const& filterPath, NavigateToSourceFunc const& navigateToNodeFunc )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
@@ -181,17 +181,35 @@ namespace EE::Animation
             ImVec2 const windowPosWithAllOffsets = windowPos + offset - windowScrollOffset;
             ImDrawList* pDrawList = ImGui::GetWindowDrawList();
 
+            // Resolve debug paths
+            //-------------------------------------------------------------------------
+
+            TInlineVector<DebugPath, 20> resolvedPaths;
+            for ( int8_t i = 0; i < numTasks; i++ )
+            {
+                resolvedPaths.emplace_back( pGraphInstance->ResolveTaskDebugPath( i ) );
+            }
+
             // Draw lines
             //-------------------------------------------------------------------------
 
-            for ( auto& node : layout.m_nodes )
+            for ( TreeLayout::Node_t& node : layout.m_nodes )
             {
                 ImVec2 const nodeScreenPos = windowPosWithAllOffsets + node.m_position;
                 int32_t const numDependencies = node.GetNumChildren();
                 for ( int32_t j = 0; j < numDependencies; j++ )
                 {
+                    int32_t taskIdx = layout.GetNodeIndex( node.m_children[j] );
+                    EE_ASSERT( taskIdx != InvalidIndex );
+
+                    bool wasCreatedByCurrentDebugInstance = true;
+                    if ( filterPath.IsValid() && !filterPath.IsParentOf( resolvedPaths[taskIdx] ) )
+                    {
+                        wasCreatedByCurrentDebugInstance = false;
+                    }
+
                     ImVec2 const childScreenPos = windowPosWithAllOffsets + node.m_children[j]->m_position;
-                    pDrawList->AddLine( nodeScreenPos, childScreenPos, Colors::Lime, 2.0f );
+                    pDrawList->AddLine( nodeScreenPos, childScreenPos, wasCreatedByCurrentDebugInstance ? Colors::Lime : Colors::Gray, 2.0f );
                 }
             }
 
@@ -205,8 +223,14 @@ namespace EE::Animation
                 auto const& node = layout.m_nodes[i];
 ;               auto pTask = ( Task const* ) node.m_pItem;
 
-                DebugPath const path = pGraphInstance->ResolveTaskDebugPath( i );
-                InlineString const sourcePath = path.GetFlattenedPath();
+                InlineString const sourcePath = resolvedPaths[i].GetFlattenedPath();
+
+                // Is this item from the current debug instance?
+                bool wasCreatedByCurrentDebugInstance = true;
+                if ( filterPath.IsValid() && !filterPath.IsParentOf( resolvedPaths[i] ) )
+                {
+                    wasCreatedByCurrentDebugInstance = false;
+                }
 
                 // Calculate item size
                 //-------------------------------------------------------------------------
@@ -221,8 +245,15 @@ namespace EE::Animation
 
                 ImGui::SetCursorPos( offset - itemHalfSize + node.m_position );
                 ImGui::PushID( &node );
+
                 ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray2 );
-                if ( ImGui::BeginChild( "child", itemSize, ImGuiChildFlags_AlwaysUseWindowPadding ) )
+                ImGui::PushStyleColor( ImGuiCol_Border, wasCreatedByCurrentDebugInstance ? Colors::Lime : Colors::Gray );
+                ImGui::PushStyleVar( ImGuiStyleVar_ChildBorderSize, 1.0f );
+                bool drawChild = ImGui::BeginChild( "child", itemSize, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_Borders );
+                ImGui::PopStyleVar();
+                ImGui::PopStyleColor( 2 );
+
+                if ( drawChild )
                 {
                     auto pLocalDrawList = ImGui::GetWindowDrawList();
 
@@ -263,15 +294,14 @@ namespace EE::Animation
                         if ( navigateToNodeFunc != nullptr )
                         {
                             ImGui::SetMouseCursor( ImGuiMouseCursor_Hand );
-                            if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
+                            if ( wasCreatedByCurrentDebugInstance && ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
                             {
-                                navigateToNodeFunc( path );
+                                navigateToNodeFunc( resolvedPaths[i] );
                             }
                         }
                     }
                 }
                 ImGui::EndChild();
-                ImGui::PopStyleColor();
                 ImGui::PopID();
             }
 
@@ -286,7 +316,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void AnimationDebugView::DrawRootMotionRow( GraphInstance* pGraphInstance, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx, NavigateToSourceFunc const& navigateToNodeFunc )
+    void AnimationDebugView::DrawRootMotionRow( GraphInstance* pGraphInstance, DebugPath const& filterPath, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx, NavigateToSourceFunc const& navigateToNodeFunc )
     {
         RootMotionDebugger::RecordedAction const* pAction = nullptr;
         if ( currentActionIdx != InvalidIndex )
@@ -303,10 +333,18 @@ namespace EE::Animation
             DebugPath const path = pGraphInstance->ResolveRootMotionDebugPath( currentActionIdx );
             InlineString const sourcePath = path.GetFlattenedPath();
 
+            bool wasSampledFromDebuggedInstance = true;
+            if ( filterPath.IsValid() && !filterPath.IsParentOf( path ) )
+            {
+                wasSampledFromDebuggedInstance = false;
+            }
+
+            //-------------------------------------------------------------------------
+
             ImGui::TableNextColumn();
             InlineString const nodeName( InlineString::CtorSprintf(), "%s##%d_%s", RootMotionDebugger::s_actionTypeLabels[(int32_t) pAction->m_actionType], currentActionIdx, sourcePath.c_str());
             ImGui::AlignTextToFramePadding();
-            uint32_t const nodeFlags = ImGuiTreeNodeFlags_SpanAllColumns | ( pAction->m_dependencies.empty() ? ImGuiTreeNodeFlags_Bullet : 0 );
+            uint32_t const nodeFlags = ( pAction->m_dependencies.empty() ? ImGuiTreeNodeFlags_Bullet : 0 );
             ImGui::SetNextItemOpen( true );
             ImGui::PushStyleColor( ImGuiCol_Text, RootMotionDebugger::s_actionTypeColors[(int32_t) pAction->m_actionType] );
             bool isRowOpen = ImGui::TreeNodeEx( nodeName.c_str(), nodeFlags );
@@ -337,13 +375,25 @@ namespace EE::Animation
 
             ImGui::TableNextColumn();
             ImGui::AlignTextToFramePadding();
-            if ( navigateToNodeFunc != nullptr )
+
+            if ( wasSampledFromDebuggedInstance )
             {
-                if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN ) )
+                if ( navigateToNodeFunc != nullptr )
                 {
-                    navigateToNodeFunc( path );
+                    ImGui::PushID( currentActionIdx );
+                    if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN ) )
+                    {
+                        navigateToNodeFunc( path );
+                    }
+                    ImGuiX::ItemTooltip( sourcePath.c_str() );
+                    ImGui::PopID();
                 }
-                ImGuiX::ItemTooltip( sourcePath.c_str() );
+            }
+            else
+            {
+                ImGui::SameLine( 14.0f );
+                ImGui::Text( EE_ICON_INFORMATION );
+                ImGuiX::TextTooltip( "Sampled from another instance: %s", sourcePath.c_str() );
             }
 
             //-------------------------------------------------------------------------
@@ -352,7 +402,7 @@ namespace EE::Animation
             {
                 for ( int16_t dependencyIdx : pAction->m_dependencies )
                 {
-                    DrawRootMotionRow( pGraphInstance, pRootMotionRecorder, dependencyIdx, navigateToNodeFunc );
+                    DrawRootMotionRow( pGraphInstance, filterPath, pRootMotionRecorder, dependencyIdx, navigateToNodeFunc );
                 }
 
                 ImGui::TreePop();
@@ -365,7 +415,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawRootMotionDebugView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc )
+    void AnimationDebugView::DrawRootMotionDebugView( GraphInstance* pGraphInstance, DebugPath const& filterPath, NavigateToSourceFunc const& navigateToNodeFunc )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
@@ -387,7 +437,7 @@ namespace EE::Animation
                 ImGui::TableSetupColumn( "", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 30 );
                 ImGui::TableHeadersRow();
 
-                DrawRootMotionRow( pGraphInstance, pRootMotionRecorder, pRootMotionRecorder->GetLastActionIndex(), navigateToNodeFunc );
+                DrawRootMotionRow( pGraphInstance, filterPath, pRootMotionRecorder, pRootMotionRecorder->GetLastActionIndex(), navigateToNodeFunc );
 
                 ImGui::EndTable();
             }
@@ -401,7 +451,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void AnimationDebugView::DrawSampledAnimationEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc )
+    void AnimationDebugView::DrawSampledAnimationEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath, NavigateToSourceFunc const& navigateToNodeFunc )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
@@ -439,6 +489,15 @@ namespace EE::Animation
                     continue;
                 }
 
+                DebugPath const path = pGraphInstance->ResolveSampledEventDebugPath( i );
+                bool wasSampledFromDebuggedInstance = true;
+                if ( filterPath.IsValid() && !filterPath.IsParentOf( path ) )
+                {
+                    wasSampledFromDebuggedInstance = false;
+                }
+
+                ImGui::PushID( i );
+
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextRow();
@@ -462,6 +521,7 @@ namespace EE::Animation
                 ImGui::TableNextColumn();
                 if ( sampledEvent.IsIgnored() )
                 {
+                    ImGui::SameLine( 4.0f );
                     ImGui::TextColored( Colors::LightGray.ToFloat4(), EE_ICON_CLOSE );
                     ImGuiX::TextTooltip( "Ignored" );
                 }
@@ -486,21 +546,35 @@ namespace EE::Animation
                 ImGuiX::TextTooltip( debugString.c_str() );
 
                 ImGui::TableNextColumn();
-                DebugPath const path = pGraphInstance->ResolveSampledEventDebugPath( i );
                 InlineString const sourcePath = path.GetFlattenedPath();
-                if ( navigateToNodeFunc != nullptr )
+
+                if ( wasSampledFromDebuggedInstance )
                 {
-                    if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN ) )
+                    if ( navigateToNodeFunc != nullptr )
                     {
-                        navigateToNodeFunc( path );
+                        if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN ) )
+                        {
+                            navigateToNodeFunc( path );
+                        }
+                        ImGuiX::ItemTooltip( sourcePath.c_str() );
                     }
-                    ImGuiX::ItemTooltip( sourcePath.c_str() );
+                    else
+                    {
+                        ImGui::SameLine( 14.0f );
+                        ImGui::Text( EE_ICON_INFORMATION );
+                        ImGuiX::TextTooltip( sourcePath.c_str() );
+                    }
                 }
                 else
                 {
+                    ImGui::SameLine( 14.0f );
                     ImGui::Text( EE_ICON_INFORMATION );
-                    ImGuiX::TextTooltip( sourcePath.c_str() );
+                    ImGuiX::TextTooltip( "Sampled from another instance: %s", sourcePath.c_str() );
                 }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::PopID();
             }
 
             ImGui::EndTable();
@@ -512,7 +586,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawSampledStateEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc )
+    void AnimationDebugView::DrawSampledStateEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath, NavigateToSourceFunc const& navigateToNodeFunc )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
@@ -549,6 +623,15 @@ namespace EE::Animation
                 {
                     continue;
                 }
+
+                DebugPath const path = pGraphInstance->ResolveSampledEventDebugPath( i );
+                bool wasSampledFromDebuggedInstance = true;
+                if ( filterPath.IsValid() && !filterPath.IsParentOf( path ) )
+                {
+                    wasSampledFromDebuggedInstance = false;
+                }
+
+                ImGui::PushID( i );
 
                 //-------------------------------------------------------------------------
 
@@ -600,21 +683,35 @@ namespace EE::Animation
                 }
 
                 ImGui::TableNextColumn();
-                DebugPath const path = pGraphInstance->ResolveSampledEventDebugPath( i );
                 InlineString const sourcePath = path.GetFlattenedPath();
-                if ( navigateToNodeFunc != nullptr )
+                
+                if ( wasSampledFromDebuggedInstance )
                 {
-                    if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN ) )
+                    if ( navigateToNodeFunc != nullptr )
                     {
-                        navigateToNodeFunc( path );
+                        if ( ImGuiX::FlatButton( EE_ICON_MAGNIFY_SCAN ) )
+                        {
+                            navigateToNodeFunc( path );
+                        }
+                        ImGuiX::ItemTooltip( sourcePath.c_str() );
                     }
-                    ImGuiX::ItemTooltip( sourcePath.c_str() );
+                    else
+                    {
+                        ImGui::SameLine( 14.0f );
+                        ImGui::Text( EE_ICON_INFORMATION );
+                        ImGuiX::TextTooltip( sourcePath.c_str() );
+                    }
                 }
                 else
                 {
+                    ImGui::SameLine( 14.0f );
                     ImGui::Text( EE_ICON_INFORMATION );
-                    ImGuiX::TextTooltip( sourcePath.c_str() );
+                    ImGuiX::TextTooltip( "Sampled from another instance: %s", sourcePath.c_str() );
                 }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::PopID();
             }
 
             if ( !hasStateEvent )
@@ -626,7 +723,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawCombinedSampledEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc )
+    void AnimationDebugView::DrawCombinedSampledEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath, NavigateToSourceFunc const& navigateToNodeFunc )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
@@ -636,8 +733,8 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        DrawSampledAnimationEventsView( pGraphInstance, navigateToNodeFunc );
-        DrawSampledStateEventsView( pGraphInstance, navigateToNodeFunc );
+        DrawSampledAnimationEventsView( pGraphInstance, filterPath, navigateToNodeFunc );
+        DrawSampledStateEventsView( pGraphInstance, filterPath, navigateToNodeFunc );
     }
 
     //-------------------------------------------------------------------------

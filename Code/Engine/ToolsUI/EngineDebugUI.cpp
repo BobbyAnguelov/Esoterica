@@ -613,7 +613,7 @@ namespace EE
 
         if ( m_debugOverlayEnabled )
         {
-            ImVec2 const guidePosition = ImGui::GetWindowPos() + ImGui::GetWindowContentRegionMax() - ( ImGuiX::OrientationGuide::GetSize() / 2 );
+            ImVec2 const guidePosition = ImGui::GetContentRegionAvail() - ( ImGuiX::OrientationGuide::GetSize() / 2 );
             ImGuiX::OrientationGuide::Draw( guidePosition, *pViewport );
         }
     }

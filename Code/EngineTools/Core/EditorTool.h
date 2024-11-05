@@ -4,6 +4,7 @@
 #include "DialogManager.h"
 #include "EngineTools/PropertyGrid/PropertyGrid.h"
 #include "EngineTools/FileSystem/FileRegistry.h"
+#include "EngineTools/Resource/ResourceDescriptor.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Utils/GlobalRegistryBase.h"
 #include "Base/Resource/ResourcePtr.h"
@@ -101,7 +102,7 @@ namespace EE
 
         struct ViewportInfo
         {
-            ImTextureID                                     m_pViewportRenderTargetTexture = nullptr;
+            ImTextureID                                     m_viewportRenderTargetTextureID = 0;
             TFunction<Render::PickingID( Int2 const& )>     m_retrievePickingID;
         };
 
@@ -191,6 +192,15 @@ namespace EE
 
         // Draws the tool toolbar menu
         virtual void DrawMenu( UpdateContext const& context ) {}
+
+        // New file creation
+        //-------------------------------------------------------------------------
+
+        // Do we support creating a new file from this tool?
+        virtual bool SupportsNewFileCreation() const { return false; }
+
+        // This function is called whenever the user requests a new file to be created
+        virtual void CreateNewFile() const { EE_ASSERT( SupportsNewFileCreation() ); }
 
         // Undo/Redo
         //-------------------------------------------------------------------------
@@ -706,6 +716,10 @@ namespace EE
         }
 
         virtual bool IsEditingResourceDescriptor() const override final { return true; }
+
+        virtual bool SupportsNewFileCreation() const { return GetDataFile<Resource::ResourceDescriptor>()->IsUserCreateableDescriptor(); }
+
+        virtual void CreateNewFile() const override { m_pToolsContext->TryCreateNewResourceDescriptor( GetDataFile<Resource::ResourceDescriptor>()->GetTypeID() ); }
 
         // Resource Status
         //-------------------------------------------------------------------------

@@ -245,6 +245,18 @@ namespace EE
 
     void EditorTool::DrawMainMenu( UpdateContext const& context )
     {
+        // New
+        //-------------------------------------------------------------------------
+
+        if ( SupportsNewFileCreation() )
+        {
+            if ( ImGui::MenuItem( EE_ICON_FILE_PLUS_OUTLINE"##New" ) )
+            {
+                CreateNewFile();
+            }
+            ImGuiX::ItemTooltip( "Create New" );
+        }
+
         // Save
         //-------------------------------------------------------------------------
 
@@ -640,7 +652,7 @@ namespace EE
 
     void EditorTool::DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo )
     {
-        EE_ASSERT( viewportInfo.m_pViewportRenderTargetTexture != nullptr && viewportInfo.m_retrievePickingID != nullptr );
+        EE_ASSERT( viewportInfo.m_viewportRenderTargetTextureID != 0 && viewportInfo.m_retrievePickingID != nullptr );
 
         ImVec2 const viewportSize( Math::Max( ImGui::GetContentRegionAvail().x, 64.0f ), Math::Max( ImGui::GetContentRegionAvail().y, 64.0f ) );
         ImVec2 const windowPos = ImGui::GetWindowPos();
@@ -669,7 +681,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         ImVec2 const viewportImageCursorPos = ImGui::GetCursorPos();
-        ImGui::Image( viewportInfo.m_pViewportRenderTargetTexture, viewportSize );
+        ImGui::Image( viewportInfo.m_viewportRenderTargetTextureID, viewportSize );
 
         if ( ImGui::BeginDragDropTarget() )
         {
@@ -740,7 +752,7 @@ namespace EE
         // Draw viewport toolbar
         //-------------------------------------------------------------------------
 
-        ImGui::SetCursorPos( ImGui::GetWindowContentRegionMin() + style.ItemSpacing );
+        ImGui::SetCursorPos( style.ItemSpacing );
         DrawViewportToolbar( context, pEngineViewport );
 
         // Handle picking

@@ -3,10 +3,6 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
-      "Id": "b639dd28-e106-4b8e-b788-ee2c3dd2af09",
-      "Command": "-compile data://demo/renderdemo/materials/bronze/albedo.txtr"
-    },
-    {
       "Id": "6461a3e6-6461-4acd-834c-26c20909944c",
       "Command": "-compile data://packs/amplify/run_fwd.anim"
     },

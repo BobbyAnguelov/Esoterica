@@ -110,7 +110,7 @@ namespace EE
 
             String                                                  m_name;
             FileSystem::Path                                        m_filePath;
-            DataPath                                                m_resourcePath;
+            DataPath                                                m_dataPath;
             TVector<DirectoryInfo>                                  m_directories;
             TVector<FileInfo*>                                      m_files;
         };
@@ -159,7 +159,7 @@ namespace EE
         inline FileSystem::Path const& GetCompiledResourceDirectoryPath() const { return m_compiledResourceDirPath; }
 
         // Get a structured representation of all known raw resources
-        inline DirectoryInfo const* GetRawResourceDirectoryEntry() const { return &m_reflectedDataDirectory; }
+        inline DirectoryInfo const* GetRawResourceDirectoryEntry() const { return &m_sourceDataDirectoryInfo; }
 
         // Try to get the directory info for a given path
         inline DirectoryInfo const* FindDirectoryEntry( FileSystem::Path const& path ) const 
@@ -276,7 +276,7 @@ namespace EE
         EventBindingID                                              m_massiveFileSystemChangeDetectedEventBinding;
 
         // Database data
-        DirectoryInfo                                               m_reflectedDataDirectory;
+        DirectoryInfo                                               m_sourceDataDirectoryInfo;
         THashMap<ResourceTypeID, TVector<FileInfo*>>                m_resourcesPerType;
         THashMap<uint32_t, TVector<FileInfo*>>                      m_dataFilesPerExtension;
         THashMap<DataPath, FileInfo*>                               m_filesPerPath;

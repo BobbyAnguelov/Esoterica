@@ -227,7 +227,7 @@ namespace EE::NodeGraph
 
             m_hasFocus = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_NoPopupHierarchy );
             m_isViewHovered = ImGui::IsWindowHovered();
-            m_canvasSize = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ) * ( 1.0f / GetViewScaleFactor() );
+            m_canvasSize = ( ImGui::GetContentRegionAvail() ) * ( 1.0f / GetViewScaleFactor() );
 
             // Background
             //-------------------------------------------------------------------------

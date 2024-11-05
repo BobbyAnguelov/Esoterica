@@ -70,6 +70,19 @@ namespace EE
         }
     }
 
+    int32_t TreeLayout::GetNodeIndex( Node_t const* pNode ) const
+    {
+        for ( int32_t i = 0; i < (int32_t) m_nodes.size(); i++ )
+        {
+            if ( &m_nodes[i] == pNode )
+            {
+                return i;
+            }
+        }
+
+        return InvalidIndex;
+    }
+
     void TreeLayout::PerformLayout( Float2 const &nodeSpacing, Float2 const &rootNodePos )
     {
         m_nodes.back().CalculateRelativePositions( nodeSpacing );

@@ -23,6 +23,8 @@ struct RkIkBody
 	RkVector3 CenterOfMass;
 	RkVector3 Radius;
 
+    float Resistance = 0.0f;
+
 	inline float GetMassInv() const
 		{
 		return Mass > 0.0f ? 1.0f / Mass : 0.0f;

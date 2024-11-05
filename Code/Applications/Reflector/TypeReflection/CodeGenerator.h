@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Applications/Reflector/Database/ReflectionDatabase.h"
+#include "Applications/Reflector/TypeReflection/ReflectionDatabase.h"
 #include <sstream>
 
 //-------------------------------------------------------------------------
@@ -40,11 +40,11 @@ namespace EE::TypeSystem::Reflection
     private:
 
         // Solution/Project Generation Entry Points
-        bool GenerateCodeForProject( ProjectInfo const& projectInfo );
+        bool GenerateCodeForProject( ReflectedProject const& project );
         bool GenerateSolutionTypeRegistrationFile( CompilationMode mode );
-        bool GenerateProjectTypeInfoHeaderFile( ProjectInfo const& projectInfo );
-        bool GenerateProjectTypeInfoSourceFile( ProjectInfo const& projectInfo );
-        bool GenerateTypeInfoFileForHeader( ProjectInfo const& projectInfo, HeaderInfo const& headerInfo, TVector<ReflectedType> const& typesInHeader, FileSystem::Path const& outputPath );
+        bool GenerateProjectTypeInfoHeaderFile( ReflectedProject const& project );
+        bool GenerateProjectTypeInfoSourceFile( ReflectedProject const& project );
+        bool GenerateTypeInfoFileForHeader( ReflectedProject const& project, ReflectedHeader const& header, TVector<ReflectedType> const& typesInHeader, FileSystem::Path const& outputPath );
 
         // Resources And Data files
         bool GenerateResourceRegistrationMethods( std::stringstream& outputFileStream, CompilationMode mode );
@@ -86,7 +86,7 @@ namespace EE::TypeSystem::Reflection
 
     private:
 
-        FileSystem::Path                    m_solutionPath;
+        FileSystem::Path                    m_solutionDirectoryPath;
         ReflectionDatabase const*           m_pDatabase;
         mutable String                      m_warningMessage;
         mutable String                      m_errorMessage;

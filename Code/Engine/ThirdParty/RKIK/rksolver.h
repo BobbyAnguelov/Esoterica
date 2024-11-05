@@ -33,19 +33,20 @@ void rkSolveAngular( const RkIkJoint& Joint, const RkArray< RkIkBody >& Bodies, 
 void rkSolveLinear( const RkIkJoint& Joint, const RkArray< RkIkBody >& Bodies, RkArray< RkTransform >& BodyTransforms );
 void rkSolveAngular( const RkIkEffector& Effector, const RkArray< RkIkBody >& Bodies, RkArray< RkTransform >& BodyTransforms );
 void rkSolveLinear( const RkIkEffector& Effector, const RkArray< RkIkBody >& Bodies, RkArray< RkTransform >& BodyTransforms );
+void rkSolveAngular( const RkIkBody& Body, const RkTransform& Transform0, RkTransform& Transform );
+void rkSolveLinear( const RkIkBody& Body, const RkTransform& Transform0, RkTransform& Transform );
 void rkSolveJoint( const RkIkJoint& Joint, const RkArray< RkIkBody >& Bodies, RkArray< RkTransform >& BodyTransforms );
 void rkSolveEffector( const RkIkEffector& Effector, const RkArray< RkIkBody >& Bodies, RkArray< RkTransform >& BodyTransforms );
+void rkSolveBody( const RkIkBody& Body, const RkTransform& BodyTransform0, RkTransform& BodyTransform );
+
 
 class RkSolver
 {
 public:
-
 	RkSolver( RkArray< RkIkBody > Bodies, RkArray< RkIkJoint > Joints);
 
 	int32 GetNumBodies() const { return mBodies.Size(); }
-
     RkArray< RkIkBody > const& GetBodies() const { return mBodies; }
-
     RkArray< RkIkJoint > const& GetJoints() const { return mJoints; }
 
 	void Solve( const RkArray< RkIkEffector >& Effectors, RkArray< RkTransform >& BodyTransforms, int Iterations = 4 );

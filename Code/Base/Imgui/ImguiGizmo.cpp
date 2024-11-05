@@ -134,7 +134,7 @@ namespace EE::ImGuiX
     Gizmo::Result Gizmo::Draw( Vector const& positionWS, Quaternion const& orientationWS, Render::Viewport const& viewport )
     {
         Render::Viewport offsetViewport = viewport;
-        offsetViewport.Resize( Float2( ImGui::GetWindowPos() + ImGui::GetWindowContentRegionMin() ), viewport.GetDimensions() );
+        offsetViewport.Resize( Float2( ImGui::GetContentRegionAvail() ), viewport.GetDimensions() );
 
         //-------------------------------------------------------------------------
 

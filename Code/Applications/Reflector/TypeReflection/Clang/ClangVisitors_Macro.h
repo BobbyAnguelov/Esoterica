@@ -6,5 +6,5 @@
 
 namespace EE::TypeSystem::Reflection
 {
-    CXChildVisitResult VisitMacro( ClangParserContext* pContext, HeaderInfo const* pHeaderInfo, CXCursor cr, String const& cursorName );
+    CXChildVisitResult VisitMacro( ClangParserContext* pContext, ReflectedHeader const* pReflectedHeader, CXCursor cr, String const& cursorName );
 }

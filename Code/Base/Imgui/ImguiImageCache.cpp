@@ -51,7 +51,7 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         ImageInfo info;
-        info.m_ID = (void*) &pTexture->GetShaderResourceView();
+        info.m_ID = (intptr_t) &pTexture->GetShaderResourceView();
         info.m_pTexture = pTexture;
         info.m_size = Float2( pTexture->GetDimensions() );
 
@@ -78,7 +78,7 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         ImageInfo info;
-        info.m_ID = (void*) &pTexture->GetShaderResourceView();
+        info.m_ID = (intptr_t) &pTexture->GetShaderResourceView();
         info.m_pTexture = pTexture;
         info.m_size = Float2( pTexture->GetDimensions() );
 
@@ -118,7 +118,7 @@ namespace EE::ImGuiX
 
     ImTextureID GetImTextureID( Render::Texture const* pTexture )
     {
-        return (void*) &pTexture->GetShaderResourceView();
+        return (intptr_t) &pTexture->GetShaderResourceView();
     }
 }
 #endif

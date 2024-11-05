@@ -14,7 +14,8 @@ namespace EE
     class EntityWorldManager;
     class GamePreviewer;
     namespace EntityModel { class EntityMapEditor; }
-    namespace Render{ class RenderingSystem; }
+    namespace Render { class RenderingSystem; }
+    namespace Resource { class ResourceDescriptorCreator; }
 
     //-------------------------------------------------------------------------
 
@@ -71,6 +72,7 @@ namespace EE
         virtual EntityWorldManager* GetWorldManager() const override final { return m_pWorldManager; }
         virtual bool TryOpenDataFile( DataPath const& path ) const override;
         virtual bool TryFindInResourceBrowser( DataPath const& path ) const override;
+        virtual void TryCreateNewResourceDescriptor( TypeSystem::TypeID descriptorTypeID, FileSystem::Path const& startingDir = FileSystem::Path() ) const override;
 
         // Title bar
         //-------------------------------------------------------------------------
@@ -206,10 +208,11 @@ namespace EE
         bool                                            m_isImguiPlotDemoWindowOpen = false;
         bool                                            m_isUITestWindowOpen = false;
 
-        // Resource Browser
+        // Resources
         FileRegistry                                    m_fileRegistry;
         EventBindingID                                  m_resourceDeletedEventID;
         float                                           m_resourceBrowserViewWidth = 150;
+        Resource::ResourceDescriptorCreator*            m_pResourceDescriptorCreator = nullptr;
 
         // Tools
         TVector<EditorTool*>                            m_editorTools;

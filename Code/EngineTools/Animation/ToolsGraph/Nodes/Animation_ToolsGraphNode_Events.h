@@ -80,7 +80,7 @@ namespace EE::Animation::GraphNodes
 
         IDEventToolsNode();
 
-        virtual char const* GetTypeName() const override { return "ID Event"; }
+        virtual char const* GetTypeName() const override { return "ID Event Value"; }
         virtual char const* GetCategory() const override { return "Events"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;

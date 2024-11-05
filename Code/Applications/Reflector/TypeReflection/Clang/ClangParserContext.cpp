@@ -71,22 +71,22 @@ namespace EE::TypeSystem::Reflection
 
     //-------------------------------------------------------------------------
 
-    ReflectionMacro::ReflectionMacro( HeaderInfo const* pHeaderInfo, CXCursor cursor, CXSourceRange sourceRange, ReflectionMacroType type )
-        : m_headerID( pHeaderInfo->m_ID )
+    ReflectionMacro::ReflectionMacro( ReflectedHeader const* pReflectedHeader, CXCursor cursor, CXSourceRange sourceRange, ReflectedHeader::ReflectionMacro type )
+        : m_headerID( pReflectedHeader->m_ID )
         , m_type( type )
         , m_position( sourceRange.begin_int_data )
     {
-        EE_ASSERT( m_type < ReflectionMacroType::NumMacros );
+        EE_ASSERT( m_type < ReflectedHeader::ReflectionMacro::NumMacros );
 
         clang_getExpansionLocation( clang_getRangeStart( sourceRange ), nullptr, &m_lineNumber, nullptr, nullptr );
 
         //-------------------------------------------------------------------------
 
-        m_macroComment = TryToParseMacro( pHeaderInfo->m_fileContents, m_lineNumber );
+        m_macroComment = TryToParseMacro( pReflectedHeader->m_fileContents, m_lineNumber );
 
         //-------------------------------------------------------------------------
 
-        if ( m_type == ReflectionMacroType::ReflectType || m_type == ReflectionMacroType::ReflectProperty || type == ReflectionMacroType::Resource || type == ReflectionMacroType::DataFile )
+        if ( m_type == ReflectedHeader::ReflectionMacro::ReflectType || m_type == ReflectedHeader::ReflectionMacro::ReflectProperty || type == ReflectedHeader::ReflectionMacro::Resource || type == ReflectedHeader::ReflectionMacro::DataFile )
         {
             // Read the contents of the macro
             //-------------------------------------------------------------------------
@@ -109,7 +109,7 @@ namespace EE::TypeSystem::Reflection
             if ( startIdx != String::npos && endIdx != String::npos && endIdx > startIdx )
             {
                 // Property macro contents are JSON, so apply some enclosing formatting
-                if ( type == ReflectionMacroType::ReflectProperty )
+                if ( type == ReflectedHeader::ReflectionMacro::ReflectProperty )
                 {
                     m_macroContents = m_macroContents.substr( startIdx + 1, endIdx - startIdx - 1 );
                 }
@@ -131,18 +131,18 @@ namespace EE::TypeSystem::Reflection
 
         switch ( m_type )
         {
-            case ReflectionMacroType::ReflectProperty:
-            case ReflectionMacroType::ReflectType:
-            case ReflectionMacroType::EntityComponent:
-            case ReflectionMacroType::SingletonEntityComponent:
-            case ReflectionMacroType::EntitySystem:
-            case ReflectionMacroType::EntityWorldSystem:
+            case ReflectedHeader::ReflectionMacro::ReflectProperty:
+            case ReflectedHeader::ReflectionMacro::ReflectType:
+            case ReflectedHeader::ReflectionMacro::EntityComponent:
+            case ReflectedHeader::ReflectionMacro::SingletonEntityComponent:
+            case ReflectedHeader::ReflectionMacro::EntitySystem:
+            case ReflectedHeader::ReflectionMacro::EntityWorldSystem:
             {
                 typeName = m_macroContents;
             }
             break;
 
-            case ReflectionMacroType::DataFile:
+            case ReflectedHeader::ReflectionMacro::DataFile:
             {
                 size_t const endIdx = m_macroContents.find( ',', 0 );
                 typeName = m_macroContents.substr( 0, endIdx );
@@ -173,12 +173,12 @@ namespace EE::TypeSystem::Reflection
         m_errorMessage = buffer;
     }
 
-    HeaderInfo const* ClangParserContext::GetHeaderInfo( StringID headerID ) const
+    ReflectedHeader const* ClangParserContext::GetReflectedHeader( StringID headerID ) const
     {
         auto foundIter = eastl::find( m_headersToVisit.begin(), m_headersToVisit.end(), headerID );
         if ( foundIter != m_headersToVisit.end() )
         {
-            return foundIter->m_pHeaderInfo;
+            return foundIter->m_pReflectedHeader;
         }
 
         return nullptr;
@@ -224,7 +224,7 @@ namespace EE::TypeSystem::Reflection
     {
         for ( auto& prj : m_pDatabase->GetReflectedProjects() )
         {
-            if ( headerFilePath.IsUnderDirectory( prj.m_path ) )
+            if ( headerFilePath.IsUnderDirectory( prj.m_parentDirectoryPath ) )
             {
                 EE_ASSERT( prj.m_moduleClassName.empty() );
                 prj.m_moduleClassName = moduleClassName;
@@ -245,9 +245,9 @@ namespace EE::TypeSystem::Reflection
     void ClangParserContext::AddFoundReflectionMacro( ReflectionMacro const& foundMacro )
     {
         EE_ASSERT( foundMacro.m_headerID.IsValid() );
-        EE_ASSERT( foundMacro.m_type != ReflectionMacroType::Unknown );
+        EE_ASSERT( foundMacro.m_type != ReflectedHeader::ReflectionMacro::Unknown );
 
-        if ( foundMacro.m_type == ReflectionMacroType::ReflectProperty )
+        if ( foundMacro.m_type == ReflectedHeader::ReflectionMacro::ReflectProperty )
         {
             TVector<ReflectionMacro>& macrosForHeader = m_propertyReflectionMacros[foundMacro.m_headerID];
             macrosForHeader.push_back( foundMacro );

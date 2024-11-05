@@ -61,7 +61,7 @@ namespace EE
                 // Allow pasting valid paths
                 if ( ImGui::IsItemFocused() )
                 {
-                    if ( ImGui::IsKeyDown( ImGuiMod_Shortcut ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
+                    if ( ImGui::IsKeyDown( ImGuiMod_Ctrl ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
                     {
                         String clipboardText = ImGui::GetClipboardText();
                         if ( clipboardText.length() > 256 )
@@ -280,7 +280,7 @@ namespace EE
                 // Allow pasting valid paths
                 if ( ImGui::IsItemFocused() )
                 {
-                    if ( ImGui::IsKeyDown( ImGuiMod_Shortcut ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
+                    if ( ImGui::IsKeyDown( ImGuiMod_Ctrl ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
                     {
                         valueUpdated |= TryUpdatePathFromClipboard();
                     }
@@ -323,7 +323,7 @@ namespace EE
 
                     //-------------------------------------------------------------------------
 
-                    if ( ImGui::BeginChild( "##OptList", childSize, false, ImGuiWindowFlags_NavFlattened ) )
+                    if ( ImGui::BeginChild( "##OptList", childSize, false, ImGuiChildFlags_NavFlattened ) )
                     {
                         ImGuiX::ScopedFont const sfo( ImGuiX::Font::Medium );
 
@@ -675,7 +675,7 @@ namespace EE
                 // Allow pasting valid paths
                 if ( ImGui::IsItemFocused() )
                 {
-                    if ( ImGui::IsKeyDown( ImGuiMod_Shortcut ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
+                    if ( ImGui::IsKeyDown( ImGuiMod_Ctrl ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
                     {
                         valueUpdated |= TryUpdateResourceFromClipboard();
                     }
@@ -727,7 +727,7 @@ namespace EE
 
                     //-------------------------------------------------------------------------
 
-                    if ( ImGui::BeginChild( "##OptList", childSize, false, ImGuiWindowFlags_NavFlattened ) )
+                    if ( ImGui::BeginChild( "##OptList", childSize, false, ImGuiChildFlags_NavFlattened ) )
                     {
                         ImGuiX::ScopedFont const sfo( ImGuiX::Font::Medium );
 

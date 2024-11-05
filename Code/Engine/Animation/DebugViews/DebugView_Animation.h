@@ -41,16 +41,16 @@ namespace EE::Animation
     public:
 
         static void DrawGraphControlParameters( GraphInstance* pGraphInstance );
-        static void DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
-        static void DrawRootMotionDebugView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
+        static void DrawGraphActiveTasksDebugView( GraphInstance* pGraphInstance, DebugPath const& filterPath = DebugPath(), NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc());
+        static void DrawRootMotionDebugView( GraphInstance* pGraphInstance, DebugPath const& filterPath = DebugPath(), NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
 
-        static void DrawSampledAnimationEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
-        static void DrawSampledStateEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
-        static void DrawCombinedSampledEventsView( GraphInstance* pGraphInstance, NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
+        static void DrawSampledAnimationEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath = DebugPath(), NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
+        static void DrawSampledStateEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath = DebugPath(), NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
+        static void DrawCombinedSampledEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath = DebugPath(), NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
 
     private:
 
-        static void DrawRootMotionRow( GraphInstance* pGraphInstance, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx, NavigateToSourceFunc const& navigateToNodeFunc );
+        static void DrawRootMotionRow( GraphInstance* pGraphInstance, DebugPath const& filterPath, RootMotionDebugger const* pRootMotionRecorder, int16_t currentActionIdx, NavigateToSourceFunc const& navigateToNodeFunc );
 
     public:
 

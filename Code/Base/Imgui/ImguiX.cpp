@@ -254,7 +254,7 @@ namespace EE::ImGuiX
 
             // Render frame
             ImU32 const color = ImGui::GetColorU32( ( held && hovered ) ? ImGuiCol_ButtonActive : hovered ? ImGuiCol_ButtonHovered : ImGuiCol_Button );
-            ImGui::RenderNavHighlight( bb, ID );
+            ImGui::RenderNavCursor( bb, ID );
             ImGui::RenderFrame( bb.Min, bb.Max, color, true, style.FrameRounding );
 
             bool const isDisabled = g.CurrentItemFlags & ImGuiItemFlags_Disabled;
@@ -495,7 +495,7 @@ namespace EE::ImGuiX
         if ( hasCombo ) requiredExtraWidth += comboButtonWidth;
 
         float totalWidgetWidth = 0;
-        if ( g.NextItemData.Flags & ImGuiNextItemDataFlags_HasWidth )
+        if ( g.NextItemData.HasFlags & ImGuiNextItemDataFlags_HasWidth )
         {
             totalWidgetWidth = g.NextItemData.Width;
         }

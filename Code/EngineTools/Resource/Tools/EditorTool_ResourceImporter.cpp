@@ -374,7 +374,7 @@ namespace EE::Resource
             , m_toolsContext( toolsContext )
             , m_nameID( pDirectoryEntry->m_filePath.GetDirectoryName() )
             , m_path( pDirectoryEntry->m_filePath )
-            , m_resourcePath( pDirectoryEntry->m_resourcePath )
+            , m_resourcePath( pDirectoryEntry->m_dataPath )
             , m_type( Type::Directory )
         {
             EE_ASSERT( m_path.IsValid() );

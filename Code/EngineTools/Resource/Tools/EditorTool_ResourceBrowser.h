@@ -124,7 +124,6 @@ namespace EE::Resource
         TVector<FileSystem::Path>                           m_foundPaths;
 
         CategoryTree<TypeSystem::TypeInfo const*>           m_categorizedDescriptorTypes;
-        ResourceDescriptorCreator*                          m_pResourceDescriptorCreator = nullptr;
 
         NavigationRequest                                   m_navigationRequest;
         bool                                                m_setFocusToSelectedItem = false;

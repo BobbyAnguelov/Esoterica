@@ -1,7 +1,6 @@
 #include "ClangParser.h"
 #include "ClangVisitors_TranslationUnit.h"
-#include "Applications/Reflector/ReflectorSettingsAndUtils.h"
-#include "Applications/Reflector/Database/ReflectionDatabase.h"
+#include "Applications/Reflector/TypeReflection/ReflectionDatabase.h"
 #include "Base/Time/Timers.h"
 #include "Base/Platform/PlatformUtils_Win32.h"
 #include "Base/FileSystem/FileSystemUtils.h"
@@ -11,14 +10,34 @@
 
 namespace EE::TypeSystem::Reflection
 {
+    static char const* const g_includePaths[] =
+    {
+        "Code\\",
+        "Code\\Base\\ThirdParty\\EA\\EABase\\include\\common\\",
+        "Code\\Base\\ThirdParty\\EA\\EASTL\\include\\",
+        "Code\\Base\\ThirdParty\\",
+        "Code\\Base\\ThirdParty\\imgui\\",
+        "External\\PhysX\\physx\\include\\",
+        "External\\Optick\\include\\",
+        #if EE_ENABLE_NAVPOWER
+        "External\\NavPower\\include\\"
+        #endif
+    };
+
+    constexpr static int const g_numIncludePaths = sizeof( g_includePaths ) / sizeof( g_includePaths[0] );
+
+    constexpr static char const* const g_tempDataPath = "\\..\\_Temp\\";
+
+    //-------------------------------------------------------------------------
+
     ClangParser::ClangParser( FileSystem::Path const& solutionPath, ReflectionDatabase* pDatabase )
         : m_context( solutionPath, pDatabase )
         , m_totalParsingTime( 0 )
         , m_totalVisitingTime( 0 )
-        , m_reflectionDataPath( FileSystem::GetCurrentProcessPath() + Settings::g_reflectionTempDataPath )
+        , m_reflectionDataPath( FileSystem::GetCurrentProcessPath() + g_tempDataPath )
     {}
 
-    bool ClangParser::Parse( TVector<HeaderInfo*> const& headers, Pass pass )
+    bool ClangParser::Parse( TVector<ReflectedHeader*> const& headers, Pass pass )
     {
         m_context.m_detectDevOnlyTypesAndProperties = ( pass == NoDevToolsPass );
 
@@ -33,16 +52,16 @@ namespace EE::TypeSystem::Reflection
 
         String includeStr;
         m_context.m_headersToVisit.clear();
-        for ( HeaderInfo const* pHeader : headers )
+        for ( ReflectedHeader const* pHeader : headers )
         {
             // Exclude dev tools
-            if ( pass == NoDevToolsPass && pHeader->IsInToolsLayer() )
+            if ( pass == NoDevToolsPass && pHeader->m_isToolsHeader )
             {
                 continue;
             }
 
             m_context.m_headersToVisit.emplace_back( pHeader->m_ID, pHeader );
-            includeStr += "#include \"" + pHeader->m_filePath.GetString() + "\"\n";
+            includeStr += "#include \"" + pHeader->m_path.GetString() + "\"\n";
         }
 
         reflectorFileStream.write( includeStr.c_str(), includeStr.size() );
@@ -51,10 +70,9 @@ namespace EE::TypeSystem::Reflection
         // Clang args
         TInlineVector<String, 10> fullIncludePaths;
         TInlineVector<char const*, 10> clangArgs;
-        int32_t const numIncludePaths = sizeof( Settings::g_includePaths ) / sizeof( Settings::g_includePaths[0] );
-        for ( auto i = 0; i < numIncludePaths; i++ )
+        for ( auto i = 0; i < g_numIncludePaths; i++ )
         {
-            String const fullPath = m_context.m_solutionPath.GetString() + Settings::g_includePaths[i];
+            String const fullPath = m_context.m_solutionDirectoryPath.GetString() + g_includePaths[i];
             String const shortPath = Platform::Win32::GetShortPath( fullPath );
             fullIncludePaths.push_back( "-I" + shortPath );
             clangArgs.push_back( fullIncludePaths.back().c_str() );
@@ -85,7 +103,7 @@ namespace EE::TypeSystem::Reflection
         // Exclude dev tools
         if ( pass == NoDevToolsPass )
         {
-            clangArgs.push_back( Settings::g_devToolsExclusionDefine );
+            clangArgs.push_back( "-D EE_SHIPPING" );
         }
 
         //-------------------------------------------------------------------------

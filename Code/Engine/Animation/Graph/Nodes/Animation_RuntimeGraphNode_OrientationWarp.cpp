@@ -255,14 +255,11 @@ namespace EE::Animation::GraphNodes
                     result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
                 }
             }
-
         }
         else
         {
             result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
-
-        EE_ASSERT( m_duration != 0.0f );
 
         return result;
     }

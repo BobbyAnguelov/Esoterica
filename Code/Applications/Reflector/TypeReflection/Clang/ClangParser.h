@@ -7,6 +7,10 @@
 
 namespace EE::TypeSystem::Reflection
 {
+    class ReflectedHeader;
+
+    //-------------------------------------------------------------------------
+
     class ClangParser
     {
     public:
@@ -24,7 +28,7 @@ namespace EE::TypeSystem::Reflection
         inline Milliseconds GetParsingTime() const { return m_totalParsingTime; }
         inline Milliseconds GetVisitingTime() const { return m_totalVisitingTime; }
 
-        bool Parse( TVector<HeaderInfo*> const& headers, Pass pass );
+        bool Parse( TVector<ReflectedHeader*> const& headers, Pass pass );
         String GetErrorMessage() const { return m_context.GetErrorMessage(); }
 
     private:

@@ -1,11 +1,13 @@
 #pragma once
 
-#include "ReflectionDataTypes.h"
-#include "ReflectionDataTypes.h"
-#include "Base/Resource/ResourceTypeID.h"
-#include "Base/FileSystem/FileSystemPath.h"
-#include "Base/TypeSystem/PropertyPath.h"
-#include "Base/Logging/Log.h"
+#include "ReflectedSolution.h"
+#include "ReflectedType.h"
+#include "ReflectedResourceType.h"
+#include "ReflectedDataFileType.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE::TypeSystem { class PropertyPath; }
 
 //-------------------------------------------------------------------------
 
@@ -16,7 +18,7 @@ namespace EE::TypeSystem::Reflection
 
     public:
 
-        ReflectionDatabase( TVector<ProjectInfo> const& projects );
+        ReflectionDatabase( TVector<ReflectedProject> const& projects );
 
         inline bool HasErrors() const { return !m_errorMessage.empty(); }
         char const* GetErrorMessage() const { return m_errorMessage.c_str(); }
@@ -27,12 +29,12 @@ namespace EE::TypeSystem::Reflection
         // Solution Info
         //-------------------------------------------------------------------------
 
-        TVector<ProjectInfo> const& GetReflectedProjects() const { return m_reflectedProjects; }
+        TVector<ReflectedProject> const& GetReflectedProjects() const { return m_reflectedProjects; }
         bool IsProjectRegistered( StringID projectID ) const;
-        ProjectInfo const* GetProjectDesc( StringID projectID ) const;
+        ReflectedProject const* GetProjectDesc( StringID projectID ) const;
 
         bool IsHeaderRegistered( StringID headerID ) const;
-        HeaderInfo const* GetHeaderInfo( StringID headerID ) const;
+        ReflectedHeader const* GetReflectedHeader( StringID headerID ) const;
 
         // Type Info
         //-------------------------------------------------------------------------
@@ -87,7 +89,7 @@ namespace EE::TypeSystem::Reflection
 
     private:
 
-        TVector<ProjectInfo>                m_reflectedProjects;
+        TVector<ReflectedProject>           m_reflectedProjects;
         ReflectedType                       m_reflectedTypeBase;
         TVector<ReflectedType>              m_reflectedTypes;
         TVector<ReflectedResourceType>      m_reflectedResourceTypes;

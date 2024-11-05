@@ -32,6 +32,19 @@ namespace EE::Animation
         }
     }
 
+    bool DebugPath::IsParentOf( DebugPath const& potentialChild ) const
+    {
+        for ( size_t i = 0; i < m_path.size(); i++ )
+        {
+            if ( m_path[i].m_itemID != potentialChild.m_path[i].m_itemID )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     //-------------------------------------------------------------------------
 
     DebugPathTracker::~DebugPathTracker()

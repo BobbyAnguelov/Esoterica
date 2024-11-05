@@ -1,5 +1,4 @@
 #include "ClangVisitors_Enum.h"
-#include "Applications/Reflector/Database/ReflectionDataTypes.h"
 
 //-------------------------------------------------------------------------
 

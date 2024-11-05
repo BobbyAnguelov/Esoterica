@@ -136,33 +136,46 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Clang\ClangParserContext.cpp" />
-    <ClCompile Include="Clang\ClangParser.cpp" />
-    <ClCompile Include="Clang\ClangUtils.cpp" />
-    <ClCompile Include="Clang\ClangVisitors_Enum.cpp" />
-    <ClCompile Include="Clang\ClangVisitors_Macro.cpp" />
-    <ClCompile Include="Clang\ClangVisitors_Structure.cpp" />
-    <ClCompile Include="Clang\ClangVisitors_TranslationUnit.cpp" />
-    <ClCompile Include="CodeGenerator.cpp" />
-    <ClCompile Include="Database\ReflectionDatabase.cpp" />
-    <ClCompile Include="Database\ReflectionDataTypes.cpp" />
+    <ClCompile Include="TypeReflection\Clang\ClangParserContext.cpp" />
+    <ClCompile Include="TypeReflection\Clang\ClangParser.cpp" />
+    <ClCompile Include="TypeReflection\Clang\ClangUtils.cpp" />
+    <ClCompile Include="TypeReflection\Clang\ClangVisitors_Enum.cpp" />
+    <ClCompile Include="TypeReflection\Clang\ClangVisitors_Macro.cpp" />
+    <ClCompile Include="TypeReflection\Clang\ClangVisitors_Structure.cpp" />
+    <ClCompile Include="TypeReflection\Clang\ClangVisitors_TranslationUnit.cpp" />
+    <ClCompile Include="TypeReflection\CodeGenerator.cpp" />
+    <ClCompile Include="TypeReflection\ReflectionSettings.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedDataFileType.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedHeader.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedProject.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedProperty.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedResourceType.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedSolution.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedType.cpp" />
+    <ClCompile Include="TypeReflection\ReflectionDatabase.cpp" />
     <ClCompile Include="ReflectorApplication.cpp" />
-    <ClCompile Include="ReflectorSettingsAndUtils.cpp" />
-    <ClCompile Include="Reflector.cpp" />
+    <ClCompile Include="TypeReflection\TypeReflector.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Clang\ClangParserContext.h" />
-    <ClInclude Include="Clang\ClangParser.h" />
-    <ClInclude Include="Clang\ClangUtils.h" />
-    <ClInclude Include="Clang\ClangVisitors_Enum.h" />
-    <ClInclude Include="Clang\ClangVisitors_Macro.h" />
-    <ClInclude Include="Clang\ClangVisitors_Structure.h" />
-    <ClInclude Include="Clang\ClangVisitors_TranslationUnit.h" />
-    <ClInclude Include="CodeGenerator.h" />
-    <ClInclude Include="Database\ReflectionDatabase.h" />
-    <ClInclude Include="Database\ReflectionDataTypes.h" />
-    <ClInclude Include="Reflector.h" />
-    <ClInclude Include="ReflectorSettingsAndUtils.h" />
+    <ClInclude Include="TypeReflection\Clang\ClangParserContext.h" />
+    <ClInclude Include="TypeReflection\Clang\ClangParser.h" />
+    <ClInclude Include="TypeReflection\Clang\ClangUtils.h" />
+    <ClInclude Include="TypeReflection\Clang\ClangVisitors_Enum.h" />
+    <ClInclude Include="TypeReflection\Clang\ClangVisitors_Macro.h" />
+    <ClInclude Include="TypeReflection\Clang\ClangVisitors_Structure.h" />
+    <ClInclude Include="TypeReflection\Clang\ClangVisitors_TranslationUnit.h" />
+    <ClInclude Include="TypeReflection\CodeGenerator.h" />
+    <ClInclude Include="TypeReflection\ReflectionSettings.h" />
+    <ClInclude Include="TypeReflection\ReflectedDataFileType.h" />
+    <ClInclude Include="TypeReflection\ReflectedEnumConstant.h" />
+    <ClInclude Include="TypeReflection\ReflectedHeader.h" />
+    <ClInclude Include="TypeReflection\ReflectedProject.h" />
+    <ClInclude Include="TypeReflection\ReflectedProperty.h" />
+    <ClInclude Include="TypeReflection\ReflectedResourceType.h" />
+    <ClInclude Include="TypeReflection\ReflectedSolution.h" />
+    <ClInclude Include="TypeReflection\ReflectedType.h" />
+    <ClInclude Include="TypeReflection\ReflectionDatabase.h" />
+    <ClInclude Include="TypeReflection\TypeReflector.h" />
     <ClInclude Include="Resources\Resource.h" />
   </ItemGroup>
   <ItemGroup>

@@ -1,8 +1,7 @@
 #pragma once
 
 #include "ClangUtils.h"
-#include "Applications/Reflector/ReflectorSettingsAndUtils.h"
-#include "Applications/Reflector/Database/ReflectionDatabase.h"
+#include "Applications/Reflector/TypeReflection/ReflectionDatabase.h"
 #include "Base/Types/HashMap.h"
 #include "Base/Types/StringID.h"
 
@@ -20,38 +19,38 @@ namespace EE::TypeSystem::Reflection
     public:
 
         ReflectionMacro() = default;
-        ReflectionMacro( HeaderInfo const* pHeaderInfo, CXCursor cursor, CXSourceRange sourceRange, ReflectionMacroType type );
+        ReflectionMacro( ReflectedHeader const* pReflectedHeader, CXCursor cursor, CXSourceRange sourceRange, ReflectedHeader::ReflectionMacro type );
 
-        inline bool IsValid() const { return m_type != ReflectionMacroType::Unknown; }
-        inline bool IsModuleMacro() const { return m_type == ReflectionMacroType::ReflectModule; }
-        inline bool IsEnumMacro() const { return m_type == ReflectionMacroType::ReflectEnum; }
-        inline bool IsEntitySystemMacro() const { return m_type == ReflectionMacroType::EntitySystem; }
-        inline bool IsEntityWorldSystemMacro() const { return m_type == ReflectionMacroType::EntityWorldSystem; }
-        inline bool IsEntityComponentMacro() const { return m_type == ReflectionMacroType::EntityComponent || m_type == ReflectionMacroType::SingletonEntityComponent; }
-        inline bool IsDataFileMacro() const { return m_type == ReflectionMacroType::DataFile; }
+        inline bool IsValid() const { return m_type != ReflectedHeader::ReflectionMacro::Unknown; }
+        inline bool IsModuleMacro() const { return m_type == ReflectedHeader::ReflectionMacro::ReflectModule; }
+        inline bool IsEnumMacro() const { return m_type == ReflectedHeader::ReflectionMacro::ReflectEnum; }
+        inline bool IsEntitySystemMacro() const { return m_type == ReflectedHeader::ReflectionMacro::EntitySystem; }
+        inline bool IsEntityWorldSystemMacro() const { return m_type == ReflectedHeader::ReflectionMacro::EntityWorldSystem; }
+        inline bool IsEntityComponentMacro() const { return m_type == ReflectedHeader::ReflectionMacro::EntityComponent || m_type == ReflectedHeader::ReflectionMacro::SingletonEntityComponent; }
+        inline bool IsDataFileMacro() const { return m_type == ReflectedHeader::ReflectionMacro::DataFile; }
 
         // Should be registered as a type
         inline bool IsReflectedTypeMacro() const 
         { 
-            return m_type == ReflectionMacroType::ReflectType || IsEntitySystemMacro() || IsEntityWorldSystemMacro() || IsEntityComponentMacro() || m_type == ReflectionMacroType::DataFile;
+            return m_type == ReflectedHeader::ReflectionMacro::ReflectType || IsEntitySystemMacro() || IsEntityWorldSystemMacro() || IsEntityComponentMacro() || m_type == ReflectedHeader::ReflectionMacro::DataFile;
         }
         
         // Should be registered as a resource
         inline bool IsRegisteredResourceMacro() const
         { 
-            return m_type == ReflectionMacroType::Resource;
+            return m_type == ReflectedHeader::ReflectionMacro::Resource;
         }
 
         String GetReflectedTypeName() const;
 
     public:
 
-        StringID            m_headerID;
-        uint32_t            m_lineNumber = 0;
-        uint32_t            m_position = 0xFFFFFFFF;
-        ReflectionMacroType m_type = ReflectionMacroType::Unknown;
-        String              m_macroComment;
-        String              m_macroContents;
+        StringID                            m_headerID;
+        uint32_t                            m_lineNumber = 0;
+        uint32_t                            m_position = 0xFFFFFFFF;
+        ReflectedHeader::ReflectionMacro    m_type = ReflectedHeader::ReflectionMacro::Unknown;
+        String                              m_macroComment;
+        String                              m_macroContents;
     };
 
     //-------------------------------------------------------------------------
@@ -63,21 +62,21 @@ namespace EE::TypeSystem::Reflection
 
         struct HeaderToVisit
         {
-            HeaderToVisit( StringID ID, HeaderInfo const* pHeaderInfo ) : m_ID( ID ), m_pHeaderInfo( pHeaderInfo ) {}
+            HeaderToVisit( StringID ID, ReflectedHeader const* pReflectedHeader ) : m_ID( ID ), m_pReflectedHeader( pReflectedHeader ) {}
 
             inline bool operator==( StringID const& ID ) const { return m_ID == ID; }
 
         public:
 
-            StringID            m_ID;
-            HeaderInfo const*   m_pHeaderInfo;
+            StringID                    m_ID;
+            ReflectedHeader const*      m_pReflectedHeader;
         };
 
     public:
 
-        ClangParserContext( FileSystem::Path const& solutionPath, ReflectionDatabase* pDatabase )
+        ClangParserContext( FileSystem::Path const& solutionDirectoryPath, ReflectionDatabase* pDatabase )
             : m_pTU( nullptr )
-            , m_solutionPath( solutionPath )
+            , m_solutionDirectoryPath( solutionDirectoryPath )
             , m_pDatabase( pDatabase )
             , m_pParentReflectedType( nullptr )
             , m_inEngineNamespace( false )
@@ -89,7 +88,7 @@ namespace EE::TypeSystem::Reflection
         char const* GetErrorMessage() const { return m_errorMessage.c_str(); }
         inline bool HasErrorOccured() const { return !m_errorMessage.empty(); }
 
-        HeaderInfo const* GetHeaderInfo( StringID headerID ) const;
+        ReflectedHeader const* GetReflectedHeader( StringID headerID ) const;
 
         void Reset( CXTranslationUnit* pTU );
         void PushNamespace( String const& name );
@@ -125,7 +124,7 @@ namespace EE::TypeSystem::Reflection
         // Should we do a full pass or just update the flags?
         bool                                                    m_detectDevOnlyTypesAndProperties = false;
 
-        FileSystem::Path                                        m_solutionPath;
+        FileSystem::Path                                        m_solutionDirectoryPath;
         ReflectionDatabase*                                     m_pDatabase;
         TVector<HeaderToVisit>                                  m_headersToVisit;
 

@@ -189,10 +189,10 @@ namespace EE::Animation::GraphNodes
     GraphPoseNodeResult AnimationClipNode::CalculateResult( GraphContext& context ) const
     {
         EE_ASSERT( m_pAnimation != nullptr );
+        EE_ASSERT( m_currentTime.ToFloat() >= 0.0f && m_currentTime.ToFloat() <= 1.0f );
 
         GraphPoseNodeResult result;
         result.m_sampledEventRange = context.GetEmptySampledEventRange();
-
         // Events
         //-------------------------------------------------------------------------
 
@@ -265,7 +265,7 @@ namespace EE::Animation::GraphNodes
                     result.m_rootMotionDelta = postLoopDelta * preLoopDelta;
                 }
             }
-            else //[[likely]] - enable with C++ 20
+            else [[likely]]
             {
                 result.m_rootMotionDelta = m_pAnimation->GetRootMotionDelta( m_previousTime, m_currentTime );
             }

@@ -304,7 +304,7 @@ namespace EE::Physics
         // Preview Button
         //-------------------------------------------------------------------------
 
-        ImVec2 const menuDimensions = ImGui::GetContentRegionMax();
+        ImVec2 const menuDimensions = ImGui::GetContentRegionAvail();
         float buttonDimensions = 130;
         ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
 

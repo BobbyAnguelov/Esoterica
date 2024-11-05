@@ -22,6 +22,7 @@
 #include "Base/ThirdParty/implot/implot.h"
 #include "Base/Logging/SystemLog.h"
 #include "Base/Profiling.h"
+#include "EngineTools/Resource/ResourceDescriptorCreator.h"
 
 //-------------------------------------------------------------------------
 
@@ -29,6 +30,8 @@ namespace EE
 {
     EditorUI::~EditorUI()
     {
+        EE::Delete( m_pResourceDescriptorCreator );
+
         EE_ASSERT( m_editorTools.empty() );
         EE_ASSERT( m_pMapEditor == nullptr );
         EE_ASSERT( m_pGamePreviewer == nullptr );
@@ -171,6 +174,13 @@ namespace EE
 
         pResourceBrowser->TryFindAndSelectFile( path );
         return true;
+    }
+
+    void EditorUI::TryCreateNewResourceDescriptor( TypeSystem::TypeID descriptorTypeID, FileSystem::Path const& startingDir ) const
+    {
+        Resource::ResourceDescriptorCreator*& pDescCreator = const_cast<Resource::ResourceDescriptorCreator*&>( m_pResourceDescriptorCreator );
+        EE::Delete( pDescCreator );
+        pDescCreator = EE::New<Resource::ResourceDescriptorCreator>( this, descriptorTypeID, startingDir.IsValid() ? startingDir : m_fileRegistry.GetSourceDataDirectoryPath() );
     }
 
     //-------------------------------------------------------------------------
@@ -504,6 +514,15 @@ namespace EE
             // We need to defer this to the start of the update since we may have references resources that we might unload (i.e. textures)
             QueueDestroyTool( pEditorToolToClose );
         }
+
+        // Resource descriptor creator
+        if ( m_pResourceDescriptorCreator != nullptr )
+        {
+            if ( !m_pResourceDescriptorCreator->Draw() )
+            {
+                EE::Delete( m_pResourceDescriptorCreator );
+            }
+        }
     }
 
     void EditorUI::EndFrame( UpdateContext const& context )
@@ -675,8 +694,9 @@ namespace EE
         {
             EE_ASSERT( request.m_path.IsValid() );
 
-            // Don't try to open files that dont exist
-            if ( !m_fileRegistry.DoesFileExist( request.m_path ) )
+            // Don't try to open files that don't exist
+            FileSystem::Path const path = request.m_path.GetFileSystemPath( m_fileRegistry.GetSourceDataDirectoryPath() );
+            if ( !FileSystem::Exists( path ) )
             {
                 return false;
             }
@@ -1183,7 +1203,7 @@ namespace EE
                     EE_ASSERT( pEditorTool->HasEntityWorld() && pWorld != nullptr );
 
                     EditorTool::ViewportInfo viewportInfo;
-                    viewportInfo.m_pViewportRenderTargetTexture = (void*) &m_pRenderingSystem->GetRenderTargetTextureForViewport( pWorld->GetViewport() );
+                    viewportInfo.m_viewportRenderTargetTextureID = (intptr_t) &m_pRenderingSystem->GetRenderTargetTextureForViewport( pWorld->GetViewport() );
                     viewportInfo.m_retrievePickingID = [this, pWorld] ( Int2 const& pixelCoords ) { return m_pRenderingSystem->GetViewportPickingID( pWorld->GetViewport(), pixelCoords ); };
 
                     ImGuiWindowFlags const viewportWindowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;

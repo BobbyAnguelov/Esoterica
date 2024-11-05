@@ -108,4 +108,9 @@ namespace EE::FileSystem
     EE_BASE_API bool EraseDir( char const* path );
     EE_FORCE_INLINE bool EraseDir( String const& path ) { return EraseDir( path.c_str() ); }
     EE_FORCE_INLINE bool EraseDir( Path const& path ) { EE_ASSERT( path.IsDirectoryPath() ); return EraseDir( path.c_str() ); }
+
+    // Check if the directory exists, if it doesn't then create it
+    EE_BASE_API bool EnsureDirectoryExists( char const* path );
+    EE_FORCE_INLINE bool EnsureDirectoryExists( String const& path ) { return EnsureDirectoryExists( path.c_str() ); }
+    EE_FORCE_INLINE bool EnsureDirectoryExists( Path const& path ) { EE_ASSERT( path.IsDirectoryPath() ); return EnsureDirectoryExists( path.c_str() ); }
 }

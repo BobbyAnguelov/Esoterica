@@ -163,7 +163,7 @@ namespace EE::EntityModel
 
     bool CreateEntityMapDescriptor( TypeSystem::TypeRegistry const& typeRegistry, EntityMap const* pMap, EntityMapDescriptor& outDesc )
     {
-        EE_ASSERT( pMap->IsLoaded() );
+        //EE_ASSERT( pMap->IsLoaded() );
         EE_ASSERT( !pMap->HasPendingAddOrRemoveRequests() );
 
         THashMap<StringID, StringID> entityNameMap;

@@ -27,6 +27,8 @@ struct RkIkJoint
 	float MinTwistLimit;
 	float MaxTwistLimit;
 
+    float Weight = 1.0f;
+
 	inline RkVector3 GetOrigin1( const RkTransform& Transform1 ) const
 		{
 		return Transform1 * LocalFrame.Translation;

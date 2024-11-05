@@ -123,7 +123,7 @@ namespace EE
     FileRegistry::~FileRegistry()
     {
         EE_ASSERT( m_state == DatabaseState::Empty );
-        EE_ASSERT( m_reflectedDataDirectory.IsEmpty() && m_resourcesPerType.empty() && m_filesPerPath.empty() );
+        EE_ASSERT( m_sourceDataDirectoryInfo.IsEmpty() && m_resourcesPerType.empty() && m_filesPerPath.empty() );
     }
 
     float FileRegistry::GetProgress() const
@@ -263,7 +263,7 @@ namespace EE
     {
         m_resourcesPerType.clear();
         m_filesPerPath.clear();
-        m_reflectedDataDirectory.Clear();
+        m_sourceDataDirectoryInfo.Clear();
         m_dataFilesToLoad.empty();
         m_numItemsProcessed = m_totalItemsToProcess = 0;
         m_state = DatabaseState::Empty;
@@ -316,9 +316,10 @@ namespace EE
             // Reset the root dir
             //-------------------------------------------------------------------------
 
-            m_reflectedDataDirectory.Clear();
-            m_reflectedDataDirectory.m_name = m_sourceDataDirPath.GetDirectoryName();
-            m_reflectedDataDirectory.m_filePath = m_sourceDataDirPath;
+            m_sourceDataDirectoryInfo.Clear();
+            m_sourceDataDirectoryInfo.m_name = m_sourceDataDirPath.GetDirectoryName();
+            m_sourceDataDirectoryInfo.m_filePath = m_sourceDataDirPath;
+            m_sourceDataDirectoryInfo.m_dataPath = DataPath::FromFileSystemPath( m_sourceDataDirPath, m_sourceDataDirPath );
 
             // Get all files in the data directory
             //-------------------------------------------------------------------------
@@ -635,7 +636,7 @@ namespace EE
     {
         EE_ASSERT( dirPathToFind.IsDirectoryPath() );
 
-        DirectoryInfo* pCurrentDir = &m_reflectedDataDirectory;
+        DirectoryInfo* pCurrentDir = &m_sourceDataDirectoryInfo;
         FileSystem::Path directoryPath = m_sourceDataDirPath;
         TInlineVector<String, 10> splitPath = dirPathToFind.Split();
 
@@ -669,7 +670,7 @@ namespace EE
     {
         EE_ASSERT( dirPathToFind.IsDirectoryPath() );
 
-        DirectoryInfo* pCurrentDir = &m_reflectedDataDirectory;
+        DirectoryInfo* pCurrentDir = &m_sourceDataDirectoryInfo;
         FileSystem::Path directoryPath = m_sourceDataDirPath;
         TInlineVector<String, 10> splitPath = dirPathToFind.Split();
 
@@ -694,7 +695,7 @@ namespace EE
                 auto& newDirectory = pCurrentDir->m_directories.emplace_back( DirectoryInfo() );
                 newDirectory.m_name = splitPath[i];
                 newDirectory.m_filePath = directoryPath;
-                newDirectory.m_resourcePath = DataPath::FromFileSystemPath( m_sourceDataDirPath, newDirectory.m_filePath );
+                newDirectory.m_dataPath = DataPath::FromFileSystemPath( m_sourceDataDirPath, newDirectory.m_filePath );
 
                 pCurrentDir = &newDirectory;
             }

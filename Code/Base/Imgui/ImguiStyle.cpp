@@ -54,10 +54,12 @@ namespace EE::ImGuiX
         colors[ImGuiCol_FrameBgActive] = s_colorGray5;
 
         colors[ImGuiCol_Tab] = s_colorGray6;
-        colors[ImGuiCol_TabActive] = s_colorGray4;
+        colors[ImGuiCol_TabSelected] = s_colorGray4;
+        colors[ImGuiCol_TabSelectedOverline] = s_colorAccent0;
         colors[ImGuiCol_TabHovered] = s_colorGray3;
-        colors[ImGuiCol_TabUnfocused] = s_colorGray6;
-        colors[ImGuiCol_TabUnfocusedActive] = s_colorGray5;
+        colors[ImGuiCol_TabDimmed] = s_colorGray6;
+        colors[ImGuiCol_TabDimmedSelected] = s_colorGray5;
+        colors[ImGuiCol_TabDimmedSelectedOverline] = s_colorGray0;
 
         colors[ImGuiCol_Header] = s_colorGray3;
         colors[ImGuiCol_HeaderHovered] = s_colorGray2;
@@ -67,7 +69,7 @@ namespace EE::ImGuiX
         colors[ImGuiCol_SeparatorHovered] = s_colorGray1;
         colors[ImGuiCol_SeparatorActive] = s_colorGray0;
 
-        colors[ImGuiCol_NavHighlight] = s_colorGray1;
+        colors[ImGuiCol_NavCursor] = s_colorGray1;
         colors[ImGuiCol_DockingPreview] = s_colorGray1;
 
         colors[ImGuiCol_ScrollbarBg] = s_colorGray6;

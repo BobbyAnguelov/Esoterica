@@ -1134,7 +1134,7 @@ namespace EE::Animation
         ImGui::Text( "Are you sure you want to delete this bone mask?" );
         ImGui::NewLine();
 
-        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
+        float const dialogWidth = ImGui::GetContentRegionAvail().x;
         ImGui::SameLine( 0, dialogWidth - 64 );
 
         if ( ImGui::Button( "Yes", ImVec2( 30, 0 ) ) )
@@ -1204,7 +1204,7 @@ namespace EE::Animation
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
         ImGui::NewLine();
 
-        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
+        float const dialogWidth = ImGui::GetContentRegionAvail().x;
         ImGui::SameLine( 0, dialogWidth - 104 );
 
         ImGui::BeginDisabled( !isValidName );

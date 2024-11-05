@@ -1,7 +1,6 @@
 #include "ClangVisitors_Structure.h"
 #include "ClangVisitors_Enum.h"
-#include "Applications/Reflector/ReflectorSettingsAndUtils.h"
-#include "Applications/Reflector/Database/ReflectionDatabase.h"
+#include "Applications/Reflector/TypeReflection/ReflectionDatabase.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "ClangVisitors_Macro.h"
 
@@ -442,10 +441,10 @@ namespace EE::TypeSystem::Reflection
                 }
 
                 // Verify the resource hierarchy
-                static TypeSystem::TypeID const resourceTypeID( Settings::g_baseResourceFullTypeName );
+                static TypeSystem::TypeID const resourceTypeID( ReflectedResourceType::s_baseResourceFullTypeName );
                 if ( !VectorContains( resource.m_parents, resourceTypeID ) )
                 {
-                    pContext->LogError( "Resource %s doesnt derive from %s", resource.m_className.c_str(), Settings::g_baseResourceFullTypeName );
+                    pContext->LogError( "Resource %s doesnt derive from %s", resource.m_className.c_str(), ReflectedResourceType::s_baseResourceFullTypeName );
                     return CXChildVisit_Break;
                 }
 
@@ -552,9 +551,9 @@ namespace EE::TypeSystem::Reflection
                 ReflectedType classDescriptor( typeID, cursorName );
                 classDescriptor.m_headerID = headerID;
                 classDescriptor.m_namespace = pContext->GetCurrentNamespace();
-                classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntity, ( cursorName == Reflection::Settings::g_baseEntityClassName ) );
-                classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntityComponent, ( macro.IsEntityComponentMacro() || cursorName == Reflection::Settings::g_baseEntityComponentClassName ) );
-                classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntitySystem, ( macro.IsEntitySystemMacro() || cursorName == Reflection::Settings::g_baseEntitySystemClassName ) );
+                classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntity, ( cursorName == ReflectedType::s_baseEntityClassName ) );
+                classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntityComponent, ( macro.IsEntityComponentMacro() || cursorName == ReflectedType::s_baseEntityComponentClassName ) );
+                classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntitySystem, ( macro.IsEntitySystemMacro() || cursorName == ReflectedType::s_baseEntitySystemClassName ) );
                 classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntityWorldSystem, ( macro.IsEntityWorldSystemMacro() ) );
                 classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsAbstract, pRecordDecl->isAbstract() );
 

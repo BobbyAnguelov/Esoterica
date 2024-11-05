@@ -625,7 +625,7 @@ namespace EE::Animation
         return DebugPath();
     }
 
-    DebugPath GraphInstance::ResolveSourcePath( TInlineVector<int64_t, 5>const& sourcePath ) const
+    DebugPath GraphInstance::ResolveSourcePath( TInlineVector<int64_t, 5> const& sourcePath ) const
     {
         EE_ASSERT( IsStandaloneInstance() );
 

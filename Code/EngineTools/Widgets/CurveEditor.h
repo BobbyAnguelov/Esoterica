@@ -128,7 +128,6 @@ namespace EE
         String                                              m_valueBeforeEdit;
         bool                                                m_isEditing = false;
 
-        Float2                                              m_windowPos;
         Float2                                              m_canvasStart;
         Float2                                              m_canvasEnd;
         float                                               m_canvasWidth;

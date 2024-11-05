@@ -1,72 +1,81 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="ReflectorSettingsAndUtils.cpp" />
-    <ClCompile Include="Reflector.cpp" />
-    <ClCompile Include="Clang\ClangParserContext.cpp">
+    <ClCompile Include="TypeReflection\TypeReflector.cpp" />
+    <ClCompile Include="TypeReflection\Clang\ClangParserContext.cpp">
       <Filter>Clang</Filter>
     </ClCompile>
-    <ClCompile Include="Clang\ClangParser.cpp">
+    <ClCompile Include="TypeReflection\Clang\ClangParser.cpp">
       <Filter>Clang</Filter>
     </ClCompile>
-    <ClCompile Include="Clang\ClangUtils.cpp">
+    <ClCompile Include="TypeReflection\Clang\ClangUtils.cpp">
       <Filter>Clang</Filter>
     </ClCompile>
-    <ClCompile Include="Clang\ClangVisitors_Enum.cpp">
+    <ClCompile Include="TypeReflection\Clang\ClangVisitors_Enum.cpp">
       <Filter>Clang</Filter>
     </ClCompile>
-    <ClCompile Include="Clang\ClangVisitors_Macro.cpp">
+    <ClCompile Include="TypeReflection\Clang\ClangVisitors_Macro.cpp">
       <Filter>Clang</Filter>
     </ClCompile>
-    <ClCompile Include="Clang\ClangVisitors_Structure.cpp">
+    <ClCompile Include="TypeReflection\Clang\ClangVisitors_Structure.cpp">
       <Filter>Clang</Filter>
     </ClCompile>
-    <ClCompile Include="Clang\ClangVisitors_TranslationUnit.cpp">
+    <ClCompile Include="TypeReflection\Clang\ClangVisitors_TranslationUnit.cpp">
       <Filter>Clang</Filter>
     </ClCompile>
-    <ClCompile Include="Database\ReflectionDatabase.cpp">
+    <ClCompile Include="TypeReflection\ReflectionDatabase.cpp">
       <Filter>Database</Filter>
     </ClCompile>
-    <ClCompile Include="Database\ReflectionDataTypes.cpp">
-      <Filter>Database</Filter>
-    </ClCompile>
-    <ClCompile Include="CodeGenerator.cpp" />
+    <ClCompile Include="TypeReflection\CodeGenerator.cpp" />
     <ClCompile Include="ReflectorApplication.cpp" />
+    <ClCompile Include="TypeReflection\ReflectionSettings.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedHeader.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedProject.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedProperty.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedSolution.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedType.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedResourceType.cpp" />
+    <ClCompile Include="TypeReflection\ReflectedDataFileType.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Reflector.h" />
-    <ClInclude Include="ReflectorSettingsAndUtils.h" />
+    <ClInclude Include="TypeReflection\TypeReflector.h" />
     <ClInclude Include="Resources\Resource.h">
       <Filter>Resources</Filter>
     </ClInclude>
-    <ClInclude Include="Clang\ClangParserContext.h">
+    <ClInclude Include="TypeReflection\Clang\ClangParserContext.h">
       <Filter>Clang</Filter>
     </ClInclude>
-    <ClInclude Include="Clang\ClangParser.h">
+    <ClInclude Include="TypeReflection\Clang\ClangParser.h">
       <Filter>Clang</Filter>
     </ClInclude>
-    <ClInclude Include="Clang\ClangUtils.h">
+    <ClInclude Include="TypeReflection\Clang\ClangUtils.h">
       <Filter>Clang</Filter>
     </ClInclude>
-    <ClInclude Include="Clang\ClangVisitors_Enum.h">
+    <ClInclude Include="TypeReflection\Clang\ClangVisitors_Enum.h">
       <Filter>Clang</Filter>
     </ClInclude>
-    <ClInclude Include="Clang\ClangVisitors_Macro.h">
+    <ClInclude Include="TypeReflection\Clang\ClangVisitors_Macro.h">
       <Filter>Clang</Filter>
     </ClInclude>
-    <ClInclude Include="Clang\ClangVisitors_Structure.h">
+    <ClInclude Include="TypeReflection\Clang\ClangVisitors_Structure.h">
       <Filter>Clang</Filter>
     </ClInclude>
-    <ClInclude Include="Clang\ClangVisitors_TranslationUnit.h">
+    <ClInclude Include="TypeReflection\Clang\ClangVisitors_TranslationUnit.h">
       <Filter>Clang</Filter>
     </ClInclude>
-    <ClInclude Include="Database\ReflectionDatabase.h">
+    <ClInclude Include="TypeReflection\ReflectionDatabase.h">
       <Filter>Database</Filter>
     </ClInclude>
-    <ClInclude Include="Database\ReflectionDataTypes.h">
-      <Filter>Database</Filter>
-    </ClInclude>
-    <ClInclude Include="CodeGenerator.h" />
+    <ClInclude Include="TypeReflection\CodeGenerator.h" />
+    <ClInclude Include="TypeReflection\ReflectionSettings.h" />
+    <ClInclude Include="TypeReflection\ReflectedDataFileType.h" />
+    <ClInclude Include="TypeReflection\ReflectedHeader.h" />
+    <ClInclude Include="TypeReflection\ReflectedProject.h" />
+    <ClInclude Include="TypeReflection\ReflectedProperty.h" />
+    <ClInclude Include="TypeReflection\ReflectedResourceType.h" />
+    <ClInclude Include="TypeReflection\ReflectedSolution.h" />
+    <ClInclude Include="TypeReflection\ReflectedType.h" />
+    <ClInclude Include="TypeReflection\ReflectedEnumConstant.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Resources">

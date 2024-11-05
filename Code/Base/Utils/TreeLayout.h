@@ -42,6 +42,8 @@ namespace EE
 
         inline bool HasNodes() const { return !m_nodes.empty(); }
 
+        int32_t GetNodeIndex( Node_t const* pNode ) const;
+
         void PerformLayout( Float2 const &nodeSpacing, Float2 const &rootNodePos = Float2::Zero );
 
     public:

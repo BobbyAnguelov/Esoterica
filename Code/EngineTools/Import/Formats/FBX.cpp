@@ -897,6 +897,12 @@ namespace EE::Import::Fbx
                 {
                     FbxGeometryElementMaterial* pMaterialElement = pMesh->GetElementMaterial( 0 );
                     FbxSurfaceMaterial* pMaterial = pMeshNode->GetMaterial( pMaterialElement->GetIndexArray().GetAt( 0 ) );
+                    if ( pMaterial == nullptr )
+                    {
+                        ImportedMesh.LogWarning( "Mesh section (%s) has an invalid material setup.", meshData.m_name.c_str() );
+                        return;
+                    }
+
                     meshData.m_materialNameID = StringID( pMaterial->GetName() );
                 }
                 else if ( numMaterials > 1 )

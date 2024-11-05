@@ -25,14 +25,12 @@ namespace EE::EntityModel
 
         virtual void Initialize( UpdateContext const& context ) override;
 
+        // Map
+        //-------------------------------------------------------------------------
+
         inline bool HasLoadedMap() const { return m_loadedMap.IsValid(); }
         inline ResourceID GetLoadedMap() const { return m_loadedMap; }
-
-        void CreateNewMap();
-        void SelectAndLoadMap();
         void LoadMap( TResourcePtr<EntityModel::EntityMapDescriptor> const& mapToLoad );
-        void SaveMap();
-        void SaveMapAs();
 
         // Game Preview
         //-------------------------------------------------------------------------
@@ -48,6 +46,8 @@ namespace EE::EntityModel
         EntityMap* GetEditedMap() const;
 
         virtual bool IsEditingFile( DataPath const& dataPath ) const override { return m_loadedMap.GetResourcePath() == dataPath; }
+        virtual bool SupportsNewFileCreation() const override { return true; }
+        virtual void CreateNewFile() const override;
         virtual bool SaveData() override;
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_EARTH; }
@@ -55,6 +55,13 @@ namespace EE::EntityModel
         virtual void DrawHelpMenu() const override;
         virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
+
+        // Map
+        //-------------------------------------------------------------------------
+
+        void SelectAndLoadMap();
+        void SaveMap();
+        void SaveMapAs();
 
         // Navmesh
         //-------------------------------------------------------------------------

@@ -44,9 +44,8 @@ namespace EE
 
     void CurveEditor::InitializeDrawingState()
     {
-        m_windowPos = ImGui::GetWindowPos();
-        m_canvasStart = m_windowPos + Float2( ImGui::GetCursorPos() );
-        m_canvasEnd = m_windowPos + Float2( ImGui::GetWindowContentRegionMax() );
+        m_canvasStart = Float2( ImGui::GetCursorScreenPos() );
+        m_canvasEnd = m_canvasStart + Float2( ImGui::GetContentRegionAvail() );
         m_canvasWidth = m_canvasEnd.m_x - m_canvasStart.m_x;
         m_canvasHeight = m_canvasEnd.m_y - m_canvasStart.m_y;
 

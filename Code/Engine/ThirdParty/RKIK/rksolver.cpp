@@ -108,7 +108,7 @@ void rkSolveTwist(const RkIkJoint& Joint, const RkArray< RkIkBody >& Bodies, RkA
     float EffectiveMass = EffectiveMassInv * EffectiveMassInv > 1000.0f * RK_F32_MIN ? 1.0f / EffectiveMassInv : 0.0f;
 
     float C = Twist < MinTwistLimit ? Twist - MinTwistLimit : Twist - MaxTwistLimit;
-    float DeltaLambda = EffectiveMass * -C;
+    float DeltaLambda = Joint.Weight * EffectiveMass * -C;
 
     RkVector3 Push = Axis * DeltaLambda;
     rkApplyAngularPush(-Push, Body1, Transform1);
@@ -157,7 +157,7 @@ void rkSolveSwing(const RkIkJoint& Joint, const RkArray< RkIkBody >& Bodies, RkA
     float EffectiveMass = EffectiveMassInv * EffectiveMassInv > 1000.0f * RK_F32_MIN ? 1.0f / EffectiveMassInv : 0.0f;
 
     float C = Swing - SwingLimit;
-    float DeltaLambda = EffectiveMass * -C;
+    float DeltaLambda = Joint.Weight * EffectiveMass * -C;
 
     RkVector3 Push = Axis * DeltaLambda;
     rkApplyAngularPush(-Push, Body1, Transform1);
@@ -203,7 +203,7 @@ void rkSolveAngular(const RkIkJoint& Joint, const RkArray< RkIkBody >& Bodies, R
     RkMatrix2 EffectiveMass = rkInvert(EffectiveMassInv);
 
     RkVector2 C(RelQ.X, RelQ.Y);
-    RkVector2 DeltaLambda = EffectiveMass * -C;
+    RkVector2 DeltaLambda = Joint.Weight * EffectiveMass * -C;
 
     RkVector3 Push = DeltaLambda.X * AxisX + DeltaLambda.Y * AxisY;
     rkApplyAngularPush(-Push, Body1, Transform1);
@@ -225,6 +225,7 @@ void rkSolveLinear(const RkIkJoint& Joint, const RkArray< RkIkBody >& Bodies, Rk
     RkVector3 Center1 = Body1.GetCenter(Transform1);
     RkVector3 Origin1 = Joint.GetOrigin1(Transform1);
     RkVector3 Offset1 = Origin1 - Center1;
+    RkMatrix3 Skew1 = rkSkew( Offset1 );
 
     // Body2 
     int BodyIndex2 = Joint.BodyIndex;
@@ -235,16 +236,15 @@ void rkSolveLinear(const RkIkJoint& Joint, const RkArray< RkIkBody >& Bodies, Rk
     RkVector3 Center2 = Body2.GetCenter(Transform2);
     RkVector3 Origin2 = Joint.GetOrigin2(Transform2);
     RkVector3 Offset2 = Origin2 - Center2;
+    RkMatrix3 Skew2 = rkSkew( Offset2 );
 
     // Solve
     float InvM = InvM1 + InvM2;
-    RkMatrix3 Skew1 = rkSkew(Offset1);
-    RkMatrix3 Skew2 = rkSkew(Offset2);
     RkMatrix3 EffectiveMassInv = RkMatrix3(InvM, InvM, InvM) - Skew1 * InvI1 * Skew1 - Skew2 * InvI2 * Skew2;
     RkMatrix3 EffectiveMass = rkInvertT(EffectiveMassInv);
 
     RkVector3 C = Origin2 - Origin1;
-    RkVector3 DeltaLambda = EffectiveMass * -C;
+    RkVector3 DeltaLambda = Joint.Weight * EffectiveMass * -C;
 
     RkVector3 Push = DeltaLambda;
     rkApplyLinearPushAt(-Push, Offset1, Body1, Transform1);
@@ -257,7 +257,6 @@ void rkSolveLinear(const RkIkJoint& Joint, const RkArray< RkIkBody >& Bodies, Rk
 //--------------------------------------------------------------------------------------------------
 void rkSolveAngular(const RkIkEffector& Effector, const RkArray< RkIkBody >& Bodies, RkArray< RkTransform >& BodyTransforms)
 {
-
     RK_ASSERT(Effector.Enabled);
 
     // Body
@@ -280,23 +279,48 @@ void rkSolveAngular(const RkIkEffector& Effector, const RkArray< RkIkBody >& Bod
     RkMatrix3 EffectiveMass = rkInvert(EffectiveMassInv);
 
     RkVector3 C = Basis * -Omega.V;
-    RkVector3 DeltaLambda = EffectiveMass * -C;
+    RkVector3 DeltaLambda = Effector.Weight * EffectiveMass * -C;
 
     RkVector3 Push = DeltaLambda;
     rkApplyAngularPush(-Push, Body, Transform);
     BodyTransforms[BodyIndex] = Transform;
 }
 
-
 //--------------------------------------------------------------------------------------------------
-void rkSolveLinear(const RkIkEffector& Effector, const RkArray< RkIkBody >& Bodies, RkArray< RkTransform >& BodyTransforms)
+void rkSolveAngular( const RkIkBody& Body, const RkTransform& Transform0, RkTransform& Transform )
 {
-    RK_ASSERT(Effector.Enabled);
+    RK_ASSERT( Body.Resistance > 0.0f );
 
     // Body
-    int BodyIndex = Effector.BodyIndex;
-    const RkIkBody& Body = Bodies[BodyIndex];
-    RkTransform Transform = BodyTransforms[BodyIndex];
+    RkMatrix3 InvI = Body.GetInertiaInv( Transform );
+    RkQuaternion Basis = Transform.Rotation;
+
+    // Relative quaternion
+    RkQuaternion RelQ = rkCMul( Basis, Transform0.Rotation );
+    if ( rkDot( RelQ, RK_QUAT_IDENTITY ) < 0.0f )
+    {
+        RelQ = -RelQ;
+    }
+    RkQuaternion Omega = 2.0f * ( RK_QUAT_IDENTITY - RelQ ) * rkConjugate( RelQ );
+
+    // Solve
+    RkMatrix3 EffectiveMassInv = InvI;
+    RkMatrix3 EffectiveMass = rkInvert( EffectiveMassInv );
+
+    RkVector3 C = Basis * -Omega.V;
+    RkVector3 DeltaLambda = Body.Resistance * EffectiveMass * -C;
+
+    RkVector3 Push = DeltaLambda;
+    rkApplyAngularPush( -Push, Body, Transform );
+}
+
+
+//--------------------------------------------------------------------------------------------------
+void rkSolveLinear( const RkIkBody& Body, const RkTransform& Transform0, RkTransform& Transform )
+{
+    RK_ASSERT( Body.Resistance > 0.0f );
+
+    // Body
     float InvM = Body.GetMassInv();
     RkMatrix3 InvI = Body.GetInertiaInv(Transform);
     RkVector3 Center = Body.GetCenter(Transform);
@@ -308,11 +332,39 @@ void rkSolveLinear(const RkIkEffector& Effector, const RkArray< RkIkBody >& Bodi
     RkMatrix3 EffectiveMassInv = RkMatrix3(InvM, InvM, InvM) - Skew * InvI * Skew;
     RkMatrix3 EffectiveMass = rkInvertT(EffectiveMassInv);
 
-    RkVector3 C = Effector.TargetPosition - Origin;
-    RkVector3 DeltaLambda = EffectiveMass * -C;
+    RkVector3 C = Transform0.Translation - Origin;
+    RkVector3 DeltaLambda = Body.Resistance * EffectiveMass * -C;
 
     RkVector3 Push = DeltaLambda;
     rkApplyLinearPushAt(-Push, Offset, Body, Transform);
+}
+
+
+//--------------------------------------------------------------------------------------------------
+void rkSolveLinear( const RkIkEffector& Effector, const RkArray< RkIkBody >& Bodies, RkArray< RkTransform >& BodyTransforms )
+{
+    RK_ASSERT( Effector.Enabled );
+
+    // Body
+    int BodyIndex = Effector.BodyIndex;
+    const RkIkBody& Body = Bodies[BodyIndex];
+    RkTransform Transform = BodyTransforms[BodyIndex];
+    float InvM = Body.GetMassInv();
+    RkMatrix3 InvI = Body.GetInertiaInv( Transform );
+    RkVector3 Center = Body.GetCenter( Transform );
+    RkVector3 Origin = Transform.Translation;
+    RkVector3 Offset = Origin - Center;
+
+    // Solve
+    RkMatrix3 Skew = rkSkew( Offset );
+    RkMatrix3 EffectiveMassInv = RkMatrix3( InvM, InvM, InvM ) - Skew * InvI * Skew;
+    RkMatrix3 EffectiveMass = rkInvertT( EffectiveMassInv );
+
+    RkVector3 C = Effector.TargetPosition - Origin;
+    RkVector3 DeltaLambda = Effector.Weight * EffectiveMass * -C;
+
+    RkVector3 Push = DeltaLambda;
+    rkApplyLinearPushAt( -Push, Offset, Body, Transform );
     BodyTransforms[BodyIndex] = Transform;
 }
 
@@ -346,6 +398,15 @@ void rkSolveEffector(const RkIkEffector& Effector, const RkArray< RkIkBody >& Bo
     rkSolveLinear(Effector, Bodies, BodyTransforms);
 }
 
+
+//--------------------------------------------------------------------------------------------------
+void rkSolveBody( const RkIkBody& Body, const RkTransform& BodyTransform0, RkTransform& BodyTransform )
+{
+    rkSolveAngular( Body, BodyTransform0, BodyTransform );
+    rkSolveLinear( Body, BodyTransform0, BodyTransform );
+}
+
+
 //--------------------------------------------------------------------------------------------------
 RkSolver::RkSolver(RkArray< RkIkBody > Bodies, RkArray< RkIkJoint > Joints )
     : mBodies( Bodies)
@@ -373,13 +434,12 @@ RkSolver::RkSolver(RkArray< RkIkBody > Bodies, RkArray< RkIkJoint > Joints )
 //--------------------------------------------------------------------------------------------------
 void RkSolver::Solve( const RkArray< RkIkEffector >& Effectors, RkArray< RkTransform >& BodyTransforms, int Iterations)
 {
-    int BodyCount = mBodies.Size();
-    if (BodyCount == 0)
+    if (mBodies.Empty())
     {
         return;
     }
-
-    RK_ASSERT(BodyTransforms.Size() == BodyCount);
+    RK_ASSERT(BodyTransforms.Size() == mBodies.Size());
+    RkArray< RkTransform > BodyTransforms0 = BodyTransforms;
 
     for (int Iteration = 0; Iteration < Iterations; ++Iteration)
     {
@@ -389,7 +449,8 @@ void RkSolver::Solve( const RkArray< RkIkEffector >& Effectors, RkArray< RkTrans
         {
             // Get effector target (skip if disabled)
             const RkIkEffector& Effector = Effectors[EffectorIndex];
-            RK_ASSERT( Effector.BodyIndex >= 0 && Effector.BodyIndex < BodyCount );
+            RK_ASSERT( 0 <= Effector.BodyIndex && Effector.BodyIndex < mBodies.Size() );
+
             if (!Effector.Enabled)
             {
                 continue;
@@ -400,10 +461,25 @@ void RkSolver::Solve( const RkArray< RkIkEffector >& Effectors, RkArray< RkTrans
 
         // Relax joints
         int JointCount = mJoints.Size();
-        for (int JointIndex = 0; JointIndex < JointCount; ++JointIndex)
+        for ( int JointIndex = 0; JointIndex < JointCount; ++JointIndex )
         {
             const RkIkJoint& Joint = mJoints[JointIndex];
-            rkSolveJoint(Joint, mBodies, BodyTransforms);
+            RK_ASSERT( 0 <= Joint.BodyIndex && Joint.BodyIndex < mBodies.Size() );
+
+            rkSolveJoint( Joint, mBodies, BodyTransforms );
+        }
+
+        // Relax bodies
+        int BodyCount = mBodies.Size();
+        for (int BodyIndex = 0; BodyIndex < BodyCount; ++BodyIndex)
+        {
+            const RkIkBody& Body = mBodies[BodyIndex];
+            if ( Body.Resistance == 0.0f )
+            {
+                continue;
+            }
+
+            rkSolveBody( Body, BodyTransforms0[BodyIndex], BodyTransforms[BodyIndex] );
         }
     }
 }

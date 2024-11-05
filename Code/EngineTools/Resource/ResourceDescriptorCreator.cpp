@@ -17,6 +17,7 @@ namespace EE::Resource
     {
         EE_ASSERT( m_pToolsContext != nullptr );
         EE_ASSERT( m_pToolsContext->m_pTypeRegistry->IsTypeDerivedFrom( descriptorTypeID, ResourceDescriptor::GetStaticTypeID() ) );
+        EE_ASSERT( startingDir.IsValid() && startingDir.IsDirectoryPath() );
 
         auto pTypeInfo = m_pToolsContext->m_pTypeRegistry->GetTypeInfo( descriptorTypeID );
         EE_ASSERT( pTypeInfo != nullptr );
@@ -110,6 +111,9 @@ namespace EE::Resource
         {
             InlineString const str( InlineString::CtorSprintf(), "Failed to write descriptor file (%s) to disk!", result.m_filePaths[0].c_str() );
             MessageDialog::Error( "Error Saving Descriptor!", str.c_str() );
+            return;
         }
+
+        m_pToolsContext->TryOpenDataFile( DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), result.m_filePaths[0] ) );
     }
 }

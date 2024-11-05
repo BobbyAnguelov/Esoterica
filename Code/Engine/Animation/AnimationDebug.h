@@ -36,6 +36,8 @@ namespace EE::Animation
 
         InlineString GetFlattenedPath() const;
 
+        bool IsParentOf( DebugPath const& potentialChild ) const;
+
         void PopFront( size_t numElements );
 
         //-------------------------------------------------------------------------

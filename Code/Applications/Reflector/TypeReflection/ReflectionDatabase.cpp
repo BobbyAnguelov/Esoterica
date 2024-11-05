@@ -1,14 +1,13 @@
 #include "ReflectionDatabase.h"
-#include "Applications/Reflector/ReflectorSettingsAndUtils.h"
 #include "Base/FileSystem/FileSystem.h"
 #include "Base/TypeSystem/TypeRegistry.h"
-
+#include "Base/TypeSystem/PropertyPath.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::TypeSystem::Reflection
 {
-    ReflectionDatabase::ReflectionDatabase( TVector<ProjectInfo> const& projects )
+    ReflectionDatabase::ReflectionDatabase( TVector<ReflectedProject> const& projects )
         : m_reflectedProjects( projects )
     {
         // Create the base class for all registered engine types
@@ -16,8 +15,8 @@ namespace EE::TypeSystem::Reflection
 
         TInlineString<100> str;
 
-        str.sprintf( "%s::%s", Settings::g_engineNamespace, Settings::g_reflectedTypeInterfaceClassName );
-        m_reflectedTypeBase = ReflectedType( TypeID( str.c_str() ), Settings::g_reflectedTypeInterfaceClassName );
+        str.sprintf( "%s::%s", Settings::g_engineNamespace, ReflectedType::s_reflectedTypeInterfaceClassName );
+        m_reflectedTypeBase = ReflectedType( TypeID( str.c_str() ), ReflectedType::s_reflectedTypeInterfaceClassName );
         m_reflectedTypeBase.m_flags.SetFlag( ReflectedType::Flags::IsAbstract );
 
         str.sprintf( "%s::", Settings::g_engineNamespace );
@@ -64,7 +63,7 @@ namespace EE::TypeSystem::Reflection
         return false;
     }
 
-    ProjectInfo const* ReflectionDatabase::GetProjectDesc( StringID projectID ) const
+    ReflectedProject const* ReflectionDatabase::GetProjectDesc( StringID projectID ) const
     {
         for ( auto& prj : m_reflectedProjects )
         {
@@ -93,7 +92,7 @@ namespace EE::TypeSystem::Reflection
         return false;
     }
 
-    HeaderInfo const* ReflectionDatabase::GetHeaderInfo( StringID headerID ) const
+    ReflectedHeader const* ReflectionDatabase::GetReflectedHeader( StringID headerID ) const
     {
         for ( auto const& prj : m_reflectedProjects )
         {
@@ -336,7 +335,7 @@ namespace EE::TypeSystem::Reflection
 
     void ReflectionDatabase::CleanupResourceHierarchy()
     {
-        static TypeID const baseResourceTypeID( Settings::g_baseResourceFullTypeName );
+        static TypeID const baseResourceTypeID( ReflectedResourceType::s_baseResourceFullTypeName );
 
         for ( auto& resourceType : m_reflectedResourceTypes )
         {

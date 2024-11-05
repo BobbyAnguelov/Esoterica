@@ -1,6 +1,6 @@
 #include "Base/Application/ApplicationGlobalState.h"
 #include "Base/ThirdParty/cmdParser/cmdParser.h"
-#include "Reflector.h"
+#include "TypeReflection/TypeReflector.h"
 
 //-------------------------------------------------------------------------
 
@@ -42,13 +42,13 @@ int main( int argc, char *argv[] )
     std::cout << "===============================================" << std::endl << std::endl;
 
     // Parse solution
-    EE::TypeSystem::Reflection::Reflector reflector;
-    if ( reflector.ParseSolution( slnPath ) )
+    EE::TypeSystem::Reflection::TypeInfoReflector typeReflector( slnPath );
+    if ( typeReflector.ParseSolution() )
     {
         // Clean data
         if ( shouldClean || shouldRebuild )
         {
-            if ( !reflector.Clean() )
+            if ( !typeReflector.Clean() )
             {
                 std::cout << std::endl << "Failed to clean: " << slnPath.c_str() << std::endl;
                 EE_TRACE_MSG( "Failed to clean: %s", slnPath.c_str() );
@@ -64,7 +64,7 @@ int main( int argc, char *argv[] )
         // Incremental Build
         if ( shouldRebuild || !shouldClean )
         {
-            return reflector.Build() ? 0 : 1;
+            return typeReflector.Build() ? 0 : 1;
         }
     }
 

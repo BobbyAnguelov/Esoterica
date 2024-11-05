@@ -253,7 +253,7 @@ namespace EE::Animation
             constexpr float const limitWidth = 40;
 
             ImGui::SetNextItemWidth( limitWidth );
-            if ( ImGui::InputFloat( "##min", &m_min, 0.0f, 0.0f, "%.1f", ImGuiInputTextFlags_EnterReturnsTrue ) )
+            if ( ImGui::InputFloat( "##min", &m_min, 0.0f, 0.0f, "%.1f" ) )
             {
                 UpdateLimits();
             }
@@ -277,7 +277,7 @@ namespace EE::Animation
 
             ImGui::SameLine();
             ImGui::SetNextItemWidth( limitWidth );
-            if ( ImGui::InputFloat( "##max", &m_max, 0.0f, 0.0f, "%.1f", ImGuiInputTextFlags_EnterReturnsTrue ) )
+            if ( ImGui::InputFloat( "##max", &m_max, 0.0f, 0.0f, "%.1f" ) )
             {
                 UpdateLimits();
             }
@@ -1960,7 +1960,14 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto pDebuggerInstance = ( m_pParentGraphInstance != nullptr ) ? m_pParentGraphInstance : m_pDebugGraphInstance;
+        GraphInstance* pDebuggerInstance = m_pDebugGraphInstance;
+        DebugPath pathToInstance;
+
+        if ( m_pParentGraphInstance != nullptr )
+        {
+            pDebuggerInstance = m_pParentGraphInstance;
+            pathToInstance = m_pParentGraphInstance->GetDebugPathForChildOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
+        }
 
         bool const showDebugData = IsDebugging() && pDebuggerInstance != nullptr && pDebuggerInstance->WasInitialized();
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
@@ -1968,7 +1975,7 @@ namespace EE::Animation
         {
             if ( showDebugData )
             {
-                AnimationDebugView::DrawGraphActiveTasksDebugView( pDebuggerInstance, NavigateToSourceNode );
+                AnimationDebugView::DrawGraphActiveTasksDebugView( pDebuggerInstance, pathToInstance, NavigateToSourceNode );
             }
             else
             {
@@ -1981,7 +1988,7 @@ namespace EE::Animation
         {
             if ( showDebugData )
             {
-                AnimationDebugView::DrawRootMotionDebugView( pDebuggerInstance, NavigateToSourceNode );
+                AnimationDebugView::DrawRootMotionDebugView( pDebuggerInstance, pathToInstance, NavigateToSourceNode );
             }
             else
             {
@@ -1994,7 +2001,7 @@ namespace EE::Animation
         {
             if ( showDebugData )
             {
-                AnimationDebugView::DrawSampledAnimationEventsView( pDebuggerInstance, NavigateToSourceNode );
+                AnimationDebugView::DrawSampledAnimationEventsView( pDebuggerInstance, pathToInstance, NavigateToSourceNode );
             }
             else
             {
@@ -2007,7 +2014,7 @@ namespace EE::Animation
         {
             if ( showDebugData )
             {
-                AnimationDebugView::DrawSampledStateEventsView( pDebuggerInstance, NavigateToSourceNode );
+                AnimationDebugView::DrawSampledStateEventsView( pDebuggerInstance, pathToInstance, NavigateToSourceNode );
             }
             else
             {
@@ -4027,7 +4034,7 @@ namespace EE::Animation
 
         ImGui::NewLine();
 
-        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
+        float const dialogWidth = ImGui::GetContentRegionAvail().x;
         ImGui::SameLine( 0, dialogWidth - 104 );
 
         //-------------------------------------------------------------------------
@@ -4077,7 +4084,7 @@ namespace EE::Animation
         ImGui::Text( "Are you sure you want to delete this parameter?" );
         ImGui::NewLine();
 
-        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
+        float const dialogWidth = ImGui::GetContentRegionAvail().x;
         ImGui::SameLine( 0, dialogWidth - 64 );
 
         if ( ImGui::Button( "Yes", ImVec2( 30, 0 ) ) )
@@ -5353,7 +5360,7 @@ namespace EE::Animation
         ImGui::PopStyleColor();
         ImGui::NewLine();
 
-        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
+        float const dialogWidth = ImGui::GetContentRegionAvail().x;
 
         // Buttons
         //-------------------------------------------------------------------------
@@ -5425,7 +5432,7 @@ namespace EE::Animation
         ImGui::Text( "Are you sure you want to delete this variation?" );
         ImGui::NewLine();
 
-        float const dialogWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x;
+        float const dialogWidth = ImGui::GetContentRegionAvail().x;
         ImGui::SameLine( 0, dialogWidth - 64 );
 
         if ( ImGui::Button( "Yes", ImVec2( 30, 0 ) ) )

@@ -19,7 +19,7 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
-    class ResourceDescriptorCreator
+    class EE_ENGINETOOLS_API ResourceDescriptorCreator
     {
         constexpr static char const* s_title = "Create Descriptor";
 

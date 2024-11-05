@@ -174,7 +174,7 @@ namespace EE::Animation
         PoseBufferPool                          m_posePool;
         BoneMaskPool                            m_boneMaskPool;
         TaskContext                             m_taskContext;
-        TInlineVector<int8_t, 16>            m_prePhysicsTaskIndices;
+        TInlineVector<int8_t, 16>               m_prePhysicsTaskIndices;
         PoseBuffer                              m_finalPoseBuffer;
         bool                                    m_hasPhysicsDependency = false;
         bool                                    m_hasCodependentPhysicsTasks = false;

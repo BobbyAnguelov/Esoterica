@@ -2,7 +2,6 @@
 #include "ClangVisitors_Macro.h"
 #include "ClangVisitors_Enum.h"
 #include "Clangvisitors_Structure.h"
-#include "Applications/Reflector/ReflectorSettingsAndUtils.h"
 
 //-------------------------------------------------------------------------
 
@@ -23,15 +22,15 @@ namespace EE::TypeSystem::Reflection
         }
 
         // Dont parse non-solution files
-        if ( !headerFilePath.IsUnderDirectory( pContext->m_solutionPath ) )
+        if ( !headerFilePath.IsUnderDirectory( pContext->m_solutionDirectoryPath ) )
         {
             return CXChildVisit_Continue;
         }
 
         // Ensure that the header file is part of the list of headers to visit
-        StringID const headerID = HeaderInfo::GetHeaderID( headerFilePath );
-        HeaderInfo const* pHeaderInfo = pContext->GetHeaderInfo( headerID );
-        if ( pHeaderInfo == nullptr )
+        StringID const headerID = ReflectedHeader::GetHeaderID( headerFilePath );
+        ReflectedHeader const* pReflectedHeader = pContext->GetReflectedHeader( headerID );
+        if ( pReflectedHeader == nullptr )
         {
             return CXChildVisit_Continue;
         }
@@ -100,7 +99,7 @@ namespace EE::TypeSystem::Reflection
             // Macros
             case CXCursor_MacroExpansion:
             {
-                return VisitMacro( pContext, pHeaderInfo, cr, cursorName );
+                return VisitMacro( pContext, pReflectedHeader, cr, cursorName );
             }
             break;
 

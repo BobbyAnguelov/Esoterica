@@ -21,4 +21,6 @@ struct RkIkEffector
 	int BodyIndex;
 	RkVector3 TargetPosition;
 	RkQuaternion TargetOrientation;
+    
+    float Weight = 1.0f;
 };

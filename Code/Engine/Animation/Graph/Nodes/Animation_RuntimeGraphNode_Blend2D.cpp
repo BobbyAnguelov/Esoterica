@@ -108,6 +108,7 @@ namespace EE::Animation::GraphNodes
             return;
         }
 
+        m_bsr.Reset();
         m_bsr.m_updateID = context.m_updateID;
 
         //-------------------------------------------------------------------------

@@ -395,7 +395,7 @@ namespace EE::Resource
                 ImGuiX::ScopedFont const scopedFont( ImGuiX::Font::Medium );
 
                 constexpr static float const buttonWidth = 140;
-                float const textfieldWidth = ( ImGui::GetWindowContentRegionMax() - ImGui::GetWindowContentRegionMin() ).x - ( ( buttonWidth + itemSpacing.x ) * 5 );
+                float const textfieldWidth = ImGui::GetContentRegionAvail().x - ( ( buttonWidth + itemSpacing.x ) * 5 );
 
                 if ( m_pSelectedRequest != nullptr )
                 {

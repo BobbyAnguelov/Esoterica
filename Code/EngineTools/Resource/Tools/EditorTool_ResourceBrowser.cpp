@@ -27,7 +27,7 @@ namespace EE::Resource
             , m_toolsContext( toolsContext )
             , m_nameID( pDirectoryEntry->m_filePath.GetDirectoryName() )
             , m_path( pDirectoryEntry->m_filePath )
-            , m_dataPath( pDirectoryEntry->m_resourcePath )
+            , m_dataPath( pDirectoryEntry->m_dataPath )
         {
             EE_ASSERT( m_path.IsValid() );
             EE_ASSERT( m_dataPath.IsValid() );
@@ -52,7 +52,7 @@ namespace EE::Resource
         }
 
         virtual StringID GetNameID() const { return m_nameID; }
-        virtual uint64_t GetUniqueID() const override { return m_dataPath.GetID(); }
+        virtual uint64_t GetUniqueID() const override { return m_path.GetHashCode(); }
         virtual bool HasContextMenu() const override { return true; }
         virtual bool IsActivatable() const override { return false; }
 
@@ -144,7 +144,6 @@ namespace EE::Resource
     ResourceBrowserEditorTool::~ResourceBrowserEditorTool()
     {
         m_pToolsContext->m_pFileRegistry->OnFileSystemCacheUpdated().Unbind( m_resourceDatabaseUpdateEventBindingID );
-        EE::Delete( m_pResourceDescriptorCreator );
     }
 
     void ResourceBrowserEditorTool::Initialize( UpdateContext const& context )
@@ -179,6 +178,8 @@ namespace EE::Resource
         };
 
         eastl::sort( m_allPossibleTypeFilters.begin(), m_allPossibleTypeFilters.end(), SortPredicate );
+
+        m_rebuildTree = true;
     }
 
     void ResourceBrowserEditorTool::Update( UpdateContext const& context, bool isVisible, bool isFocused )
@@ -206,16 +207,6 @@ namespace EE::Resource
         {
             HandleNavigationRequest();
             m_navigationRequest.Clear();
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( m_pResourceDescriptorCreator != nullptr )
-        {
-            if ( !m_pResourceDescriptorCreator->Draw() )
-            {
-                EE::Delete( m_pResourceDescriptorCreator );
-            }
         }
     }
 
@@ -260,7 +251,7 @@ namespace EE::Resource
             if ( !isTextFilterSet )
             {
                 ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 1, 0 ) );
-                ImGui::BeginChild( "left pane", ImVec2( 150, 0 ), ImGuiChildFlags_Border | ImGuiChildFlags_ResizeX | ImGuiChildFlags_AlwaysUseWindowPadding );
+                ImGui::BeginChild( "left pane", ImVec2( 150, 0 ), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX | ImGuiChildFlags_AlwaysUseWindowPadding );
                 ImGui::PopStyleVar();
                 {
                     DrawFolderView( context );
@@ -382,7 +373,7 @@ namespace EE::Resource
             {
                 if ( ImGui::MenuItem( item.m_name.c_str() ) )
                 {
-                    m_pResourceDescriptorCreator = EE::New<ResourceDescriptorCreator>( m_pToolsContext, item.m_data->m_ID, path );
+                    m_pToolsContext->TryCreateNewResourceDescriptor( item.m_data->m_ID, path );
                 }
             }
         };
@@ -518,11 +509,8 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         pRootItem->DestroyChildren();
-
-        for ( auto const& childDirectory : pDataDirectory->m_directories )
-        {
-            pRootItem->CreateChild<ResourceBrowserTreeItem>( *m_pToolsContext, &childDirectory );
-        }
+        auto pDataDirItem = pRootItem->CreateChild<ResourceBrowserTreeItem>( *m_pToolsContext, pDataDirectory );
+        pDataDirItem->SetExpanded( true, false );
 
         //-------------------------------------------------------------------------
 

@@ -49,6 +49,8 @@ namespace EE
             return TryFindInResourceBrowser( finalResourceID.GetResourcePath() );
         }
 
+        virtual void TryCreateNewResourceDescriptor( TypeSystem::TypeID descriptorTypeID, FileSystem::Path const& startingDir = FileSystem::Path() ) const = 0;
+
         // Debugging
         //-------------------------------------------------------------------------
 

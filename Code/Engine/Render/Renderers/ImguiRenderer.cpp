@@ -183,7 +183,7 @@ namespace EE::Render
         EE_ASSERT( pPixels != nullptr );
         m_pRenderDevice->CreateDataTexture( m_fontTexture, TextureFormat::Raw, pPixels, textureDataSize );
 
-        io.Fonts->TexID = const_cast<ViewSRVHandle*>( &m_fontTexture.GetShaderResourceView() );
+        io.Fonts->TexID = (intptr_t) &m_fontTexture.GetShaderResourceView();
 
         //-------------------------------------------------------------------------
 
@@ -194,7 +194,7 @@ namespace EE::Render
     void ImguiRenderer::Shutdown()
     {
         ImGuiIO& io = ::ImGui::GetIO();
-        io.Fonts->TexID = nullptr;
+        io.Fonts->TexID = 0;
 
         //-------------------------------------------------------------------------
 

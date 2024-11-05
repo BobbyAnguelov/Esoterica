@@ -34,21 +34,16 @@ namespace EE::EntityModel
         return m_pWorld->GetMap( m_editedMapID );
     }
 
-    void EntityMapEditor::CreateNewMap()
+    void EntityMapEditor::CreateNewFile() const
     {
-        // Should we save the current map before unloading?
-        if ( IsDirty() )
-        {
-            if ( MessageDialog::Confirmation( Severity::Warning, "Unsaved Changes", "You have unsaved changes! Do you want to save map?" ) )
-            {
-                Save();
-            }
-        }
-
         // Get new map filename
         //-------------------------------------------------------------------------
 
-        FileDialog::Result result = FileDialog::Save( m_pToolsContext, EntityMapDescriptor::GetStaticResourceTypeID(), m_pToolsContext->m_pFileRegistry->GetSourceDataDirectoryPath().c_str() );
+        FileDialog::Result const result = FileDialog::Save( m_pToolsContext, EntityMapDescriptor::GetStaticResourceTypeID(), m_pToolsContext->m_pFileRegistry->GetSourceDataDirectoryPath().c_str() );
+        if ( !result )
+        {
+            return;
+        }
 
         FileSystem::Path const mapFilePath( result.m_filePaths[0].c_str() );
         if ( FileSystem::Exists( mapFilePath ) )
@@ -59,14 +54,14 @@ namespace EE::EntityModel
             }
         }
 
-        ResourceID const mapResourceID = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), mapFilePath );
-        if ( mapResourceID == m_loadedMap )
+        ResourceID const newMapResourceID = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), mapFilePath );
+        if ( newMapResourceID == m_loadedMap )
         {
             MessageDialog::Error( "Error", "Cant override currently loaded map!" );
             return;
         }
 
-        if ( mapResourceID.GetResourceTypeID() != EntityMapDescriptor::GetStaticResourceTypeID() )
+        if ( newMapResourceID.GetResourceTypeID() != EntityMapDescriptor::GetStaticResourceTypeID() )
         {
             MessageDialog::Error( "Error", "Invalid map extension provided! Maps need to have the .map extension!" );
             return;
@@ -77,7 +72,7 @@ namespace EE::EntityModel
 
         if ( WriteMapToFile( *m_pToolsContext->m_pTypeRegistry, EntityMap(), mapFilePath ) )
         {
-            LoadMap( mapResourceID );
+            m_pToolsContext->TryOpenResource( newMapResourceID );
         }
         else
         {
@@ -187,12 +182,6 @@ namespace EE::EntityModel
 
     void EntityMapEditor::DrawMenu( UpdateContext const& context )
     {
-        if ( ImGui::MenuItem( EE_ICON_FILE"##NewMap" ) )
-        {
-            CreateNewMap();
-        }
-        ImGuiX::ItemTooltip( "New" );
-
         EntityEditor::DrawMenu( context );
 
         // Tools
