@@ -9,6 +9,9 @@ namespace EE::Animation
     using SecondarySkeletonList = TInlineVector<Skeleton const*, 3>;
 
     //-------------------------------------------------------------------------
+    // Pose Buffer
+    //-------------------------------------------------------------------------
+    // Storage for all the poses for a given animation update setup
 
     struct EE_ENGINE_API PoseBuffer
     {
@@ -52,6 +55,32 @@ namespace EE::Animation
     };
 
     //-------------------------------------------------------------------------
+    // Cached Pose Buffer
+    //-------------------------------------------------------------------------
+    // Cached storage for all the poses for a given animation update setup - used for forced transitions
+
+    struct CachedPoseID
+    {
+        EE_SERIALIZE( m_ID );
+
+        static constexpr uint8_t const s_maxAllowableValue = 64;
+        static constexpr uint8_t const s_requiredBitsToSerialize = 6;
+
+    public:
+
+        CachedPoseID() = default;
+        CachedPoseID( uint8_t ID ) : m_ID( Math::Min( ID, s_maxAllowableValue ) ) {}
+
+        inline bool IsValid() const { return m_ID < s_maxAllowableValue; }
+        inline void Clear() { m_ID = s_maxAllowableValue; }
+
+        inline bool operator==( CachedPoseID const& rhs ) const { return m_ID == rhs.m_ID; }
+        inline bool operator!=( CachedPoseID const& rhs ) const { return m_ID != rhs.m_ID; }
+
+    public:
+
+        uint8_t m_ID = s_maxAllowableValue;
+    };
 
     struct EE_ENGINE_API CachedPoseBuffer : public PoseBuffer
     {
@@ -63,21 +92,20 @@ namespace EE::Animation
 
     private:
 
-        inline void Release( Pose::Type poseType = Pose::Type::None )
-        {
-            PoseBuffer::Release( poseType );
-            m_ID.Clear();
-            m_shouldBeReset = false;
-        }
+        void Release( Pose::Type poseType = Pose::Type::None );
 
     public:
 
-        UUID                                m_ID;
+        CachedPoseID                        m_ID;
+        bool                                m_isLifetimeInternallyManaged = false; // Is the lifetime of this buffer controlled by the pose pool
+        bool                                m_wasAccessed = false; // Did we either read or write to this buffer in a given update
         bool                                m_shouldBeReset = false;
     };
 
     //-------------------------------------------------------------------------
-    // TODO: Store all poses in a contiguos block of memory and profile if this is in fact faster or not
+    // Pose Buffer Pool
+    //-------------------------------------------------------------------------
+    // TODO: Store all poses in a contiguous block of memory and profile if this is in fact faster or not
 
     class EE_ENGINE_API PoseBufferPool
     {
@@ -129,10 +157,18 @@ namespace EE::Animation
         // Cached Poses
         //-------------------------------------------------------------------------
 
-        UUID CreateCachedPoseBuffer();
-        void DestroyCachedPoseBuffer( UUID const& cachedPoseID );
-        void ResetCachedPoseBuffer( UUID const& cachedPoseID );
-        PoseBuffer* GetCachedPoseBuffer( UUID const& cachedPoseID );
+        bool IsValidCachedPose( CachedPoseID cachedPoseID ) const;
+
+        CachedPoseID CreateCachedPoseBuffer();
+        void DestroyCachedPoseBuffer( CachedPoseID cachedPoseID );
+        void ResetCachedPoseBuffer( CachedPoseID cachedPoseID );
+
+        // Try to get a pose-buffer with the specified ID, returns null if it cant find a buffer with the specified ID
+        PoseBuffer* GetCachedPoseBuffer( CachedPoseID cachedPoseID ) { return GetCachedPoseBufferInternal( cachedPoseID ); }
+
+        // Get a pose-buffer with the specified ID.
+        // NOTE! This will create a buffer if one does not exist!!!
+        PoseBuffer* GetOrCreateCachedPoseBuffer( CachedPoseID cachedPoseID, bool isLifetimeManagedByPosePool = false );
 
         // Debug
         //-------------------------------------------------------------------------
@@ -147,11 +183,17 @@ namespace EE::Animation
 
     private:
 
+        CachedPoseBuffer* GetCachedPoseBufferInternal( CachedPoseID cachedPoseID );
+        CachedPoseBuffer* CreateCachedPoseBufferInternal( CachedPoseID bufferID = CachedPoseID() );
+
+    private:
+
         TInlineVector<PoseBuffer, 10>               m_poseBuffers;
         TInlineVector<CachedPoseBuffer, 10>         m_cachedBuffers;
         TInlineVector<UUID, 5>                      m_cachedPoseBuffersToDestroy;
         int8_t                                      m_firstFreeCachedBuffer = 0;
         int8_t                                      m_firstFreeBuffer = 0;
+        uint8_t                                     m_nextCachedPoseID = 0;
 
         Skeleton const*                             m_pPrimarySkeleton = nullptr;
         SecondarySkeletonList                       m_secondarySkeletons;

@@ -67,6 +67,21 @@ namespace EE::Animation
         m_modelSpaceTransforms.swap( rhs.m_modelSpaceTransforms );
     }
 
+    void Pose::ChangeSkeleton( Skeleton const* pSkeleton )
+    {
+        EE_ASSERT( pSkeleton != nullptr );
+
+        if ( m_pSkeleton == pSkeleton )
+        {
+            return;
+        }
+
+        m_pSkeleton = pSkeleton;
+        m_parentSpaceTransforms.resize( pSkeleton->GetNumBones() );
+        m_modelSpaceTransforms.clear();
+        m_state = State::Unset;
+    }
+
     //-------------------------------------------------------------------------
 
     void Pose::Reset( Type initialState, bool calculateModelSpacePose )

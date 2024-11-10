@@ -172,8 +172,8 @@ namespace EE::Animation
         // Draw Visualization
         //-------------------------------------------------------------------------
 
-        ImVec2 const windowSize( Math::Max( ImGui::GetContentRegionAvail().x, layout.m_dimensions.m_x ), layout.m_dimensions.m_y + itemWindowHeight );
-        if ( ImGui::BeginChild( "TL", windowSize, ImGuiChildFlags_AlwaysUseWindowPadding | ImGuiChildFlags_ResizeY, ImGuiWindowFlags_HorizontalScrollbar ) )
+        ImVec2 const windowSize( Math::Max( ImGui::GetContentRegionAvail().x, layout.m_dimensions.m_x ), Math::Max( ImGui::GetContentRegionAvail().y, layout.m_dimensions.m_y + itemWindowHeight ) );
+        if ( ImGui::BeginChild( "TL", windowSize, ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_HorizontalScrollbar ) )
         {
             ImVec2 const offset = ImVec2( windowSize.x / 2, itemWindowHeight / 2 );
             ImVec2 const windowPos = ImGui::GetWindowPos();
@@ -411,7 +411,14 @@ namespace EE::Animation
         else
         {
             ImGui::TableNextColumn();
-            ImGui::Text( "No Root Motion" );
+
+            InlineString const nodeName( InlineString::CtorSprintf(), "No Root Motion##%d", currentActionIdx );
+            ImGui::AlignTextToFramePadding();
+            ImGui::SetNextItemOpen( true );
+            if ( ImGui::TreeNodeEx( nodeName.c_str(), ImGuiTreeNodeFlags_Bullet ) )
+            {
+                ImGui::TreePop();
+            }
         }
     }
 

@@ -1028,7 +1028,7 @@ namespace EE::Animation
         EE::Delete( m_loadedGraphStack[0] );
 
         EE_ASSERT( m_pDebugGraphInstance == nullptr );
-        EE_ASSERT( m_pParentGraphInstance == nullptr );
+        EE_ASSERT( m_pHostGraphInstance == nullptr );
     }
 
     bool AnimationGraphEditor::IsEditingFile( DataPath const& dataPath ) const
@@ -1929,8 +1929,8 @@ namespace EE::Animation
 
             if ( !m_pDebugGraphInstance->IsStandaloneInstance() )
             {
-                EE_ASSERT( m_pParentGraphInstance != nullptr );
-                DebugPath const pathToInstance = m_pParentGraphInstance->GetDebugPathForChildOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
+                EE_ASSERT( m_pHostGraphInstance != nullptr );
+                DebugPath const pathToInstance = m_pHostGraphInstance->GetDebugPathForChildOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
                 finalPath.PopFront( pathToInstance.size() );
             }
 
@@ -1963,10 +1963,10 @@ namespace EE::Animation
         GraphInstance* pDebuggerInstance = m_pDebugGraphInstance;
         DebugPath pathToInstance;
 
-        if ( m_pParentGraphInstance != nullptr )
+        if ( m_pHostGraphInstance != nullptr )
         {
-            pDebuggerInstance = m_pParentGraphInstance;
-            pathToInstance = m_pParentGraphInstance->GetDebugPathForChildOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
+            pDebuggerInstance = m_pHostGraphInstance;
+            pathToInstance = m_pHostGraphInstance->GetDebugPathForChildOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
         }
 
         bool const showDebugData = IsDebugging() && pDebuggerInstance != nullptr && pDebuggerInstance->WasInitialized();
@@ -2111,7 +2111,7 @@ namespace EE::Animation
             }
 
             m_pDebugGraphInstance = nullptr; // This will be set later when the component initializes
-            m_pParentGraphInstance = nullptr;
+            m_pHostGraphInstance = nullptr;
 
             m_pPreviewEntity->AddComponent( m_pDebugGraphComponent );
             m_pPreviewEntity->CreateSystem<AnimationSystem>();
@@ -2135,8 +2135,8 @@ namespace EE::Animation
 
                 case DebugTargetType::ChildGraph:
                 {
-                    m_pParentGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
-                    m_pDebugGraphInstance = const_cast<GraphInstance*>( m_pParentGraphInstance->GetChildGraphDebugInstance( m_requestedDebugTarget.m_childGraphID ) );
+                    m_pHostGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
+                    m_pDebugGraphInstance = const_cast<GraphInstance*>( m_pHostGraphInstance->GetChildGraphDebugInstance( m_requestedDebugTarget.m_childGraphID ) );
                     EE_ASSERT( m_pDebugGraphInstance != nullptr );
                 }
                 break;
@@ -2144,8 +2144,8 @@ namespace EE::Animation
                 case DebugTargetType::ExternalGraph:
                 {
                     m_debugExternalGraphSlotID = m_requestedDebugTarget.m_externalSlotID;
-                    m_pParentGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
-                    m_pDebugGraphInstance = const_cast<GraphInstance*>( m_pParentGraphInstance->GetExternalGraphDebugInstance( m_debugExternalGraphSlotID ) );
+                    m_pHostGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
+                    m_pDebugGraphInstance = const_cast<GraphInstance*>( m_pHostGraphInstance->GetExternalGraphDebugInstance( m_debugExternalGraphSlotID ) );
                     EE_ASSERT( m_pDebugGraphInstance != nullptr );
                 }
                 break;
@@ -2286,7 +2286,7 @@ namespace EE::Animation
         m_pDebugGraphComponent = nullptr;
         m_pDebugMeshComponent = nullptr;
         m_pDebugGraphInstance = nullptr;
-        m_pParentGraphInstance = nullptr;
+        m_pHostGraphInstance = nullptr;
         m_debugExternalGraphSlotID.Clear();
 
         // Release variation reference

@@ -526,6 +526,7 @@ namespace EE::Animation::GraphNodes
             // If we should cache, register the write task here
             if ( m_cachedPoseBufferID.IsValid() )
             {
+                EE_ASSERT( context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
                 sourceNodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::CachedPoseWriteTask>( GetNodeIndex(), sourceNodeResult.m_taskIdx, m_cachedPoseBufferID );
             }
         }
@@ -663,6 +664,17 @@ namespace EE::Animation::GraphNodes
 
         MarkNodeActive( context );
 
+        // Recreate buffers
+        #if EE_DEVELOPMENT_TOOLS
+        if ( m_recreateCachedBuffer )
+        {
+            EE_ASSERT( m_cachedPoseBufferID.IsValid() );
+            EE_ASSERT( !context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
+            context.m_pTaskSystem->EnsureCachedPoseExists( m_cachedPoseBufferID );
+            m_recreateCachedBuffer = false;
+        }
+        #endif
+
         // Calculate update range and whether to sync or not
         //-------------------------------------------------------------------------
         
@@ -729,6 +741,7 @@ namespace EE::Animation::GraphNodes
 
         if ( IsSourceACachedPose() )
         {
+            EE_ASSERT( context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
             sourceNodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::CachedPoseReadTask>( GetNodeIndex(), m_cachedPoseBufferID );
             sourceNodeResult.m_sampledEventRange = context.GetEmptySampledEventRange();
 
@@ -864,7 +877,7 @@ namespace EE::Animation::GraphNodes
         outState.WriteValue( m_cachedPoseBufferID );
         outState.WriteValue( m_sourceType );
 
-        outState.WriteValue( m_pSourceNode->GetNodeIndex() );
+        outState.WriteValue( m_pSourceNode != nullptr ? m_pSourceNode->GetNodeIndex() : InvalidIndex );
     }
 
     void TransitionNode::RestoreGraphState( RecordedGraphState const& inState )
@@ -880,7 +893,23 @@ namespace EE::Animation::GraphNodes
 
         int16_t sourceNodeIdx = InvalidIndex;
         inState.ReadValue( sourceNodeIdx );
-        m_pSourceNode = inState.GetNode<PoseNode>( sourceNodeIdx );
+
+        // Either reading or writing to a cached buffer
+        if ( m_cachedPoseBufferID.IsValid() )
+        {
+            m_recreateCachedBuffer = true;
+        }
+
+        // Serialize source node idx
+        if ( sourceNodeIdx != InvalidIndex )
+        {
+            m_pSourceNode = inState.GetNode<PoseNode>( sourceNodeIdx );
+        }
+        else // Mid-forced transition
+        {
+            EE_ASSERT( m_cachedPoseBufferID.IsValid() );
+            m_pSourceNode = nullptr;
+        }
     }
     #endif
 }

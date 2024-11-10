@@ -142,6 +142,14 @@ namespace EE::Animation
         // Set root node
         m_pRootNode = reinterpret_cast<PoseNode*>( m_nodes[pGraphDef->m_rootNodeIdx] );
         EE_ASSERT( !m_pRootNode->WasInitialized() );
+
+        // Resource Mappings needed for serialization
+        //-------------------------------------------------------------------------
+
+        if ( m_isStandaloneGraph )
+        {
+            GenerateResourceMappings();
+        }
     }
 
     GraphInstance::~GraphInstance()
@@ -209,25 +217,21 @@ namespace EE::Animation
 
     void GraphInstance::GenerateResourceMappings()
     {
-        if ( m_pTaskSystem->IsSerializationEnabled() )
-        {
-            TInlineVector<ResourceLUT const*, 10> LUTs;
-            GetResourceLookupTables( LUTs );
+        m_resourceMappings.Clear();
+        TInlineVector<ResourceLUT const*, 10> LUTs;
+        GetResourceLookupTables( LUTs );
+        m_resourceMappings.Generate( LUTs );
+    }
 
-            m_resourceMappings.Generate( LUTs );
-        }
-        else
-        {
-            m_resourceMappings.Clear();
-        }
+    bool GraphInstance::DoesTaskSystemNeedUpdate() const
+    {
+        EE_ASSERT( m_isStandaloneGraph );
+        return m_pTaskSystem->RequiresUpdate();
     }
 
     void GraphInstance::SerializeTaskList( Blob& outBlob ) const
     {
         EE_ASSERT( !DoesTaskSystemNeedUpdate() );
-        EE_ASSERT( m_pTaskSystem->IsSerializationEnabled() );
-
-        // Serialize tasks
         m_pTaskSystem->SerializeTasks( m_resourceMappings, outBlob );
     }
 
@@ -928,7 +932,7 @@ namespace EE::Animation
 
     void GraphInstance::RecordTasks()
     {
-        if ( m_pRecorder == nullptr || !m_pTaskSystem->IsSerializationEnabled() )
+        if ( m_pRecorder == nullptr )
         {
             return;
         }

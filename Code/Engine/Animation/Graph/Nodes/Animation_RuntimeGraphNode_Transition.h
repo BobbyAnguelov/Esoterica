@@ -3,6 +3,7 @@
 #include "Animation_RuntimeGraphNode_State.h"
 #include "Engine/Animation/AnimationBoneMask.h"
 #include "Engine/Animation/AnimationBlender.h"
+#include "Engine/Animation/TaskSystem/Animation_TaskPosePool.h"
 #include "Base/Math/Easing.h"
 
 //-------------------------------------------------------------------------
@@ -128,8 +129,15 @@ namespace EE::Animation::GraphNodes
         inline void CalculateBlendWeight()
         {
             auto pDefinition = GetDefinition<TransitionNode>();
-            m_blendWeight = Math::Easing::Evaluate( pDefinition->m_blendWeightEasingOp, m_transitionProgress );
-            m_blendWeight = Math::Clamp( m_blendWeight, 0.0f, 1.0f );
+            if ( m_transitionLength == 0.0f )
+            {
+                m_blendWeight = 1.0f;
+            }
+            else
+            {
+                m_blendWeight = Math::Easing::Evaluate( pDefinition->m_blendWeightEasingOp, m_transitionProgress );
+                m_blendWeight = Math::Clamp( m_blendWeight, 0.0f, 1.0f );
+            }
         }
 
         #if EE_DEVELOPMENT_TOOLS
@@ -161,11 +169,12 @@ namespace EE::Animation::GraphNodes
         float                                   m_blendWeight = 0;
         Seconds                                 m_blendedDuration = 0.0f;
 
-        UUID                                    m_cachedPoseBufferID;
+        CachedPoseID                            m_cachedPoseBufferID;
         SourceType                              m_sourceType = SourceType::State;
         BoneMaskTaskList                        m_boneMaskTaskList;
 
         #if EE_DEVELOPMENT_TOOLS
+        bool                                    m_recreateCachedBuffer = false; // Needed in the scenario where we are restoring from a recorded state
         int16_t                                 m_rootMotionActionIdxSource = InvalidIndex;
         int16_t                                 m_rootMotionActionIdxTarget = InvalidIndex;
         #endif

@@ -38,6 +38,7 @@ namespace EE::Player
 
         void ProcessRecording( int32_t simulatedJoinInProgressFrame = -1, bool useLayerInitInfo = false );
         void ResetRecordingData();
+        void UpdateActualGraphInstance();
         void GenerateTaskSystemPose();
 
         void DrawWindow( EntityWorldUpdateContext const& context );

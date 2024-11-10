@@ -12,6 +12,173 @@
 
 namespace EE::Animation::GraphNodes
 {
+    void Blend2DNode::CalculateBlendSpaceWeights( TInlineVector<Float2, 10> const &points, TInlineVector<uint8_t, 30> const &indices, TInlineVector<uint8_t, 10> const &hullIndices, Float2 const &point, BlendSpaceResult &result )
+    {
+        result.Reset();
+        result.m_finalParameter = point;
+
+        //-------------------------------------------------------------------------
+
+        bool bEnclosingTriangleFound = false;
+        int32_t const numIndices = (int32_t) indices.size();
+
+        for ( int32_t i = 0; i < numIndices; i += 3 )
+        {
+            uint8_t i0 = indices[i];
+            uint8_t i1 = indices[i + 1];
+            uint8_t i2 = indices[i + 2];
+            Float2 const a = points[i0];
+            Float2 const b = points[i1];
+            Float2 const c = points[i2];
+
+            // Check if we are inside this triangle, if we are, then calculate the result and early out
+            Float3 bcc = Float3::Zero;
+            if ( Math::CalculateBarycentricCoordinates( point, a, b, c, bcc ) )
+            {
+                struct IndexWeight
+                {
+                    uint8_t m_nIdx;
+                    float m_Weight;
+                };
+
+                TInlineVector<IndexWeight, 3> indexWeights = { { i0, bcc[0] }, { i1, bcc[1] }, { i2, bcc[2] } };
+                eastl::sort( indexWeights.begin(), indexWeights.end(), [] ( IndexWeight const &a, IndexWeight const &b ) { return a.m_Weight < b.m_Weight; } );
+
+                // If one weight is nearly one, we dont need to blend
+                if ( Math::IsNearEqual( indexWeights[2].m_Weight, 1.0f, 1.0e-04f ) )
+                {
+                    result.m_sourceIndices[0] = indexWeights[2].m_nIdx;
+                    result.m_sourceIndices[2] = result.m_sourceIndices[1] = InvalidIndex;
+                    result.m_blendWeightBetween0And1 = result.m_blendWeightBetween1And2 = 0.0f;
+                }
+                else // Calculate blend weights
+                {
+                    result.m_sourceIndices[0] = indexWeights[0].m_nIdx; // lowest weight
+                    result.m_sourceIndices[1] = indexWeights[1].m_nIdx;
+                    result.m_sourceIndices[2] = indexWeights[2].m_nIdx; // highest weight
+                    result.m_blendWeightBetween0And1 = indexWeights[1].m_Weight / ( indexWeights[0].m_Weight + indexWeights[1].m_Weight ); // Calculate weight based on ratio of contribution
+                    result.m_blendWeightBetween1And2 = indexWeights[2].m_Weight;
+                }
+
+                bEnclosingTriangleFound = true;
+                break;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( !bEnclosingTriangleFound )
+        {
+            struct Edge
+            {
+                Edge() = default;
+
+                Edge( int32_t nHullIndex, Float2 const &a, Float2 const &b )
+                    : m_nStartHullIdx( nHullIndex )
+                    , m_segmentStart( a.m_x, a.m_y, 0.0f )
+                    , m_segmentEnd( b.m_x, b.m_y, 0.0f )
+                {
+                }
+
+                void Evaluate( Float2 const &point )
+                {
+                    LineSegment ls( m_segmentStart, m_segmentEnd );
+                    Vector const cp = ls.VectorProjectionOnSegment( point, m_T );
+                    m_closestPointOnEdge = cp.ToFloat2();
+                }
+
+                inline float GetLength() const
+                {
+                    return ( m_segmentEnd - m_segmentStart ).GetLength2();
+                }
+
+                int32_t			m_nStartHullIdx = InvalidIndex;
+                Vector			m_segmentStart = Vector::Zero;
+                Vector			m_segmentEnd = Vector::One;
+                Float2		    m_closestPointOnEdge;
+                float			m_T = 0.0f; // Parameter representing the closest point between the start and the end
+            };
+
+            float closestDistance = FLT_MAX;
+            Edge closestEdge;
+
+            // Hull has the first index duplicated at the end
+            int32_t const numHullPoints = (int32_t) hullIndices.size();
+            for ( int32_t i = 1; i < numHullPoints; i++ )
+            {
+                uint8_t const idx0 = hullIndices[i - 1];
+                uint8_t const idx1 = hullIndices[i];
+
+                Edge edge( i - 1, points[idx0], points[idx1] );
+                edge.Evaluate( point );
+
+                float const flDistanceToPoint = Vector( edge.m_closestPointOnEdge ).GetDistance2( point );
+                if ( flDistanceToPoint < closestDistance )
+                {
+                    closestDistance = flDistanceToPoint;
+                    closestEdge = edge;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            EE_ASSERT( closestDistance != FLT_MAX );
+            result.m_finalParameter = closestEdge.m_closestPointOnEdge;
+
+            // Generate the result for the closest hull edge
+            //-------------------------------------------------------------------------
+
+            float const flWeight = closestEdge.m_T;
+
+            result.m_sourceIndices[0] = hullIndices[closestEdge.m_nStartHullIdx];
+            result.m_sourceIndices[1] = hullIndices[closestEdge.m_nStartHullIdx + 1];
+            result.m_sourceIndices[2] = InvalidIndex;
+            result.m_blendWeightBetween0And1 = flWeight;
+            result.m_blendWeightBetween1And2 = 0.0f;
+        }
+
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( result.m_sourceIndices[0] != InvalidIndex );
+        EE_ASSERT( result.m_blendWeightBetween0And1 >= 0 && result.m_blendWeightBetween0And1 <= 1.0f );
+        EE_ASSERT( result.m_blendWeightBetween1And2 >= 0 && result.m_blendWeightBetween1And2 < 1.0f ); // 3-way blend is guaranteed to not have a 1.0f weight
+
+        //-------------------------------------------------------------------------
+
+        // Check if we can simplify the first blend
+        if ( result.m_sourceIndices[0] != InvalidIndex )
+        {
+            // If we're fully in source 1, remove the first blend and only keep the second one
+            if ( Math::IsNearEqual( result.m_blendWeightBetween0And1, 1.0f ) )
+            {
+                result.m_sourceIndices[0] = result.m_sourceIndices[1];
+                result.m_sourceIndices[1] = result.m_sourceIndices[2];
+                result.m_sourceIndices[2] = InvalidIndex;
+                result.m_blendWeightBetween0And1 = result.m_blendWeightBetween1And2;
+                result.m_blendWeightBetween1And2 = 0.0f;
+            }
+            // We're fully in the first source so there's nothing to do
+            else if ( Math::IsNearZero( result.m_blendWeightBetween0And1 ) )
+            {
+                if ( result.m_sourceIndices[2] == InvalidIndex )
+                {
+                    result.m_sourceIndices[1] = InvalidIndex;
+                }
+                else // Only keep second blend
+                {
+                    EE_ASSERT( result.m_blendWeightBetween1And2 > 0.0f && result.m_blendWeightBetween1And2 < 1.0f ); // Ensure this cannot be simplified further
+                    result.m_sourceIndices[0] = result.m_sourceIndices[1];
+                    result.m_sourceIndices[1] = result.m_sourceIndices[2];
+                    result.m_sourceIndices[2] = InvalidIndex;
+                    result.m_blendWeightBetween0And1 = result.m_blendWeightBetween1And2;
+                    result.m_blendWeightBetween1And2 = 0.0f;
+                }
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     void Blend2DNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<Blend2DNode>( context, options );
@@ -101,206 +268,52 @@ namespace EE::Animation::GraphNodes
     void Blend2DNode::EvaluateBlendSpace( GraphContext& context )
     {
         // Ensure we only update the blend space once per update
-        //-------------------------------------------------------------------------
-
-        if ( context.m_updateID == m_bsr.m_updateID )
+        if ( context.m_updateID == m_blendSpaceUpdateID )
         {
             return;
         }
 
-        m_bsr.Reset();
-        m_bsr.m_updateID = context.m_updateID;
-
+        // Calculate the weights
         //-------------------------------------------------------------------------
 
         auto pDefinition = GetDefinition<Blend2DNode>();
-
         Float2 const point( m_pInputParameterNode0->GetValue<float>( context ), m_pInputParameterNode1->GetValue<float>( context ) );
-
-        #if EE_DEVELOPMENT_TOOLS
-        m_bsr.m_parameter = point;
-        #endif
-
-        //-------------------------------------------------------------------------
-        // Check all triangles
-        //-------------------------------------------------------------------------
-
-        bool enclosingTriangleFound = false;
-
-        int32_t const numIndices = (int32_t) pDefinition->m_indices.size();
-
-        for ( int32_t i = 0; i < numIndices; i += 3 )
-        {
-            uint8_t i0 = pDefinition->m_indices[i];
-            uint8_t i1 = pDefinition->m_indices[i + 1];
-            uint8_t i2 = pDefinition->m_indices[i + 2];
-            Vector const a = pDefinition->m_values[i0];
-            Vector const b = pDefinition->m_values[i1];
-            Vector const c = pDefinition->m_values[i2];
-
-            // Check if we are inside this triangle, if we are, then calculate the result and early out
-            Float3 bcc;
-            if ( Math::CalculateBarycentricCoordinates( point, a, b, c, bcc ) )
-            {
-                struct IndexWeight
-                {
-                    uint8_t     m_idx;
-                    float       m_weight;
-                };
-
-                TInlineVector<IndexWeight, 3> indexWeights = { { i0, bcc[0] }, { i1, bcc[1] }, { i2, bcc[2] } };
-                eastl::sort( indexWeights.begin(), indexWeights.end(), [] ( IndexWeight const& a, IndexWeight const& b ) { return a.m_weight < b.m_weight; } );
-
-                // If one weight is nearly one, we dont need to blend
-                if ( Math::IsNearEqual( indexWeights[2].m_weight, 1.0f ) )
-                {
-                    m_bsr.m_pSource0 = m_sourceNodes[indexWeights[2].m_idx];
-                    m_bsr.m_pSource1 = m_bsr.m_pSource2 = nullptr;
-                    m_bsr.m_blendWeightBetween0And1 =  m_bsr.m_blendWeightBetween1And2 = 0.0f;
-                }
-                else // Calculate blend weights
-                {
-                    m_bsr.m_pSource0 = m_sourceNodes[indexWeights[0].m_idx]; // lowest weight
-                    m_bsr.m_pSource1 = m_sourceNodes[indexWeights[1].m_idx];
-                    m_bsr.m_pSource2 = m_sourceNodes[indexWeights[2].m_idx]; // highest weight
-                    m_bsr.m_blendWeightBetween0And1 = indexWeights[1].m_weight / ( indexWeights[0].m_weight + indexWeights[1].m_weight ); // Calculate weight based on ratio of contribution
-                    m_bsr.m_blendWeightBetween1And2 = indexWeights[2].m_weight;
-                }
-
-                enclosingTriangleFound = true;
-                break;
-            }
-        }
-
-        //-------------------------------------------------------------------------
-        // Project onto hull
-        //-------------------------------------------------------------------------
-
-        if ( !enclosingTriangleFound )
-        {
-            struct Edge
-            {
-                Edge() = default;
-
-                Edge( Vector const& a, Vector const& b )
-                    : m_segment( a, b )
-                {}
-
-                int32_t         m_startHullIdx = InvalidIndex;
-                LineSegment     m_segment = LineSegment( Vector::Zero, Vector::One );
-                float           m_scalarProjection = 0.0f;
-            };
-
-            float closestDistance = FLT_MAX;
-            Edge closestEdge;
-
-            // Hull has the first index duplicated at the end
-            int32_t const numHullPoints = (int32_t) pDefinition->m_hullIndices.size();
-            for ( int32_t i = 1; i < numHullPoints; i++ )
-            {
-                uint8_t const idx0 = pDefinition->m_hullIndices[i-1];
-                uint8_t const idx1 = pDefinition->m_hullIndices[i];
-
-                Edge edge( pDefinition->m_values[idx0], pDefinition->m_values[idx1] );
-                edge.m_startHullIdx = i - 1;
-                edge.m_scalarProjection = edge.m_segment.ScalarProjectionOnSegment( point );
-
-                Vector const closestPointOnEdge = edge.m_segment.GetPointAlongLine( edge.m_scalarProjection );
-                float const distanceToPoint = closestPointOnEdge.GetDistance2( point );
-                if ( distanceToPoint < closestDistance )
-                {
-                    closestDistance = distanceToPoint;
-                    closestEdge = edge;
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
-            EE_ASSERT( closestDistance != FLT_MAX );
-
-            #if EE_DEVELOPMENT_TOOLS
-            m_bsr.m_parameter = closestEdge.m_segment.GetPointAlongLine( closestEdge.m_scalarProjection );
-            #endif
-
-            // Generate the result for the closest hull edge
-            //-------------------------------------------------------------------------
-
-            float const weight = closestEdge.m_scalarProjection / closestEdge.m_segment.GetLength();
-
-            m_bsr.m_pSource0 = m_sourceNodes[pDefinition->m_hullIndices[closestEdge.m_startHullIdx]];
-            m_bsr.m_pSource1 = m_sourceNodes[pDefinition->m_hullIndices[closestEdge.m_startHullIdx + 1]];
-            m_bsr.m_pSource2 = nullptr;
-            m_bsr.m_blendWeightBetween0And1 = weight;
-            m_bsr.m_blendWeightBetween1And2 = 0.0f;
-        }
-
-        //-------------------------------------------------------------------------
-        // Finalize result
-        //-------------------------------------------------------------------------
-
-        EE_ASSERT( m_bsr.m_pSource0 != nullptr );
-        EE_ASSERT( m_bsr.m_blendWeightBetween0And1 >= 0 && m_bsr.m_blendWeightBetween0And1 <= 1.0f );
-        EE_ASSERT( m_bsr.m_blendWeightBetween1And2 >= 0 && m_bsr.m_blendWeightBetween1And2 < 1.0f ); // 3-way blend is guaranteed to not have a 1.0f weight
-
-        //-------------------------------------------------------------------------
-
-        // Check if we can simplify the first blend
-        if ( m_bsr.m_pSource1 != nullptr )
-        {
-            // If we're fully in source 1, remove the first blend and only keep the second one
-            if ( Math::IsNearEqual( m_bsr.m_blendWeightBetween0And1, 1.0f ) )
-            {
-                m_bsr.m_pSource0 = m_bsr.m_pSource1;
-                m_bsr.m_pSource1 = m_bsr.m_pSource2;
-                m_bsr.m_pSource2 = nullptr;
-                m_bsr.m_blendWeightBetween0And1 = m_bsr.m_blendWeightBetween1And2;
-                m_bsr.m_blendWeightBetween1And2 = 0.0f;
-            }
-            // We're fully in the first source so there's nothing to do
-            else if ( Math::IsNearZero( m_bsr.m_blendWeightBetween0And1 ) )
-            {
-                if ( m_bsr.m_pSource2 == nullptr )
-                {
-                    m_bsr.m_pSource1 = nullptr;
-                }
-                else // Only keep second blend
-                {
-                    EE_ASSERT( m_bsr.m_blendWeightBetween1And2 > 0.0f && m_bsr.m_blendWeightBetween1And2 < 1.0f ); // Ensure this cannot be simplified further
-                    m_bsr.m_pSource0 = m_bsr.m_pSource1;
-                    m_bsr.m_pSource1 = m_bsr.m_pSource2;
-                    m_bsr.m_pSource2 = nullptr;
-                    m_bsr.m_blendWeightBetween0And1 = m_bsr.m_blendWeightBetween1And2;
-                    m_bsr.m_blendWeightBetween1And2 = 0.0f;
-                }
-            }
-        }
+        CalculateBlendSpaceWeights( pDefinition->m_values, pDefinition->m_indices, pDefinition->m_hullIndices, point, m_bsr );
 
         // Calculate blended sync-track and duration
         //-------------------------------------------------------------------------
 
         // 1-way blend
-        if ( m_bsr.m_pSource1 == nullptr )
+        if ( m_bsr.m_sourceIndices[1] == InvalidIndex )
         {
-            m_blendedSyncTrack = m_bsr.m_pSource0->GetSyncTrack();
-            m_duration = m_bsr.m_pSource0->GetDuration();
+            PoseNode *pSource = m_sourceNodes[m_bsr.m_sourceIndices[0]];
+            m_blendedSyncTrack = pSource->GetSyncTrack();
+            m_duration = pSource->GetDuration();
         }
         else // 2-way blend
         {
-            SyncTrack const& syncTrack0 = m_bsr.m_pSource0->GetSyncTrack();
-            SyncTrack const& syncTrack1 = m_bsr.m_pSource1->GetSyncTrack();
+            PoseNode *pSource0 = m_sourceNodes[m_bsr.m_sourceIndices[0]];
+            PoseNode *pSource1 = m_sourceNodes[m_bsr.m_sourceIndices[1]];
+
+            SyncTrack const& syncTrack0 = pSource0->GetSyncTrack();
+            SyncTrack const& syncTrack1 = pSource1->GetSyncTrack();
             m_blendedSyncTrack = SyncTrack( syncTrack0, syncTrack1, m_bsr.m_blendWeightBetween0And1 );
-            m_duration = SyncTrack::CalculateDurationSynchronized( m_bsr.m_pSource0->GetDuration(), m_bsr.m_pSource1->GetDuration(), syncTrack0.GetNumEvents(), syncTrack1.GetNumEvents(), m_blendedSyncTrack.GetNumEvents(), m_bsr.m_blendWeightBetween0And1 );
+            m_duration = SyncTrack::CalculateDurationSynchronized( pSource0->GetDuration(), pSource1->GetDuration(), syncTrack0.GetNumEvents(), syncTrack1.GetNumEvents(), m_blendedSyncTrack.GetNumEvents(), m_bsr.m_blendWeightBetween0And1 );
         }
 
         // 3-way blend
-        if ( m_bsr.m_pSource2 != nullptr )
+        if ( m_bsr.m_sourceIndices[2] != InvalidIndex )
         {
-            SyncTrack const& syncTrack2 = m_bsr.m_pSource2->GetSyncTrack();
+            PoseNode *pSource2 = m_sourceNodes[m_bsr.m_sourceIndices[2]];
+
+            SyncTrack const& syncTrack2 = pSource2->GetSyncTrack();
             Seconds const durationOf2WayBlend = m_duration;
             int32_t const numEventsIn2WayBlendedSyncTrack = m_blendedSyncTrack.GetNumEvents(); // Cache this since it might change when we calculate the new blended result
             m_blendedSyncTrack = SyncTrack( m_blendedSyncTrack, syncTrack2, m_bsr.m_blendWeightBetween1And2 );
-            m_duration = SyncTrack::CalculateDurationSynchronized( durationOf2WayBlend, m_bsr.m_pSource2->GetDuration(), numEventsIn2WayBlendedSyncTrack, syncTrack2.GetNumEvents(), m_blendedSyncTrack.GetNumEvents(), m_bsr.m_blendWeightBetween1And2 );
+            m_duration = SyncTrack::CalculateDurationSynchronized( durationOf2WayBlend, pSource2->GetDuration(), numEventsIn2WayBlendedSyncTrack, syncTrack2.GetNumEvents(), m_blendedSyncTrack.GetNumEvents(), m_bsr.m_blendWeightBetween1And2 );
         }
+
+        m_blendSpaceUpdateID = context.m_updateID;
     }
 
     GraphPoseNodeResult Blend2DNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
@@ -347,14 +360,15 @@ namespace EE::Animation::GraphNodes
         // Only a single source
         //-------------------------------------------------------------------------
 
-        if ( m_bsr.m_pSource1 == nullptr )
+        if ( m_bsr.m_sourceIndices[1] == InvalidIndex )
         {
-            result = m_bsr.m_pSource0->Update( context, &updateRange );
+            PoseNode *pSource = m_sourceNodes[m_bsr.m_sourceIndices[0]];
+            result = pSource->Update( context, &updateRange );
 
-            m_duration = m_bsr.m_pSource0->GetDuration();
-            m_previousTime = m_bsr.m_pSource0->GetPreviousTime();
-            m_currentTime = m_bsr.m_pSource0->GetCurrentTime();
-            m_blendedSyncTrack = m_bsr.m_pSource0->GetSyncTrack();
+            m_duration = pSource->GetDuration();
+            m_previousTime = pSource->GetPreviousTime();
+            m_currentTime = pSource->GetCurrentTime();
+            m_blendedSyncTrack = pSource->GetSyncTrack();
         }
 
         // 2-Way Blend
@@ -362,14 +376,17 @@ namespace EE::Animation::GraphNodes
 
         else
         {
+            PoseNode *pSource0 = m_sourceNodes[m_bsr.m_sourceIndices[0]];
+            PoseNode *pSource1 = m_sourceNodes[m_bsr.m_sourceIndices[1]];
+
             // Update Source 0
-            GraphPoseNodeResult const sourceResult0 = m_bsr.m_pSource0->Update( context, &updateRange );
+            GraphPoseNodeResult const sourceResult0 = pSource0->Update( context, &updateRange );
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource0 = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
 
             // Update Source 1
-            GraphPoseNodeResult const sourceResult1 = m_bsr.m_pSource1->Update( context, &updateRange );
+            GraphPoseNodeResult const sourceResult1 = pSource1->Update( context, &updateRange );
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource1 = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
@@ -403,12 +420,15 @@ namespace EE::Animation::GraphNodes
         // 3-Way Blend
         //-------------------------------------------------------------------------
 
-        if ( m_bsr.m_pSource2 != nullptr )
+        if ( m_bsr.m_sourceIndices[2] != InvalidIndex )
         {
             GraphPoseNodeResult const baseResult = result;
 
+            PoseNode *pSource2 = m_sourceNodes[m_bsr.m_sourceIndices[2]];
+
             // Update Source 2
-            GraphPoseNodeResult const sourceResult2 = m_bsr.m_pSource2->Update( context, &updateRange );
+            GraphPoseNodeResult const sourceResult2 = pSource2->Update( context, &updateRange );
+
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource2 = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
@@ -448,28 +468,9 @@ namespace EE::Animation::GraphNodes
     {
         PoseNode::RecordGraphState( outState );
 
-        auto FindSourceIndex = [&] ( PoseNode* pNode ) -> int32_t
-        {
-            if ( pNode == nullptr )
-            {
-                return InvalidIndex;
-            }
-
-            int32_t const numSourceNodes = (int32_t) m_sourceNodes.size();
-            for ( int32_t i = 0; i < numSourceNodes; i++ )
-            {
-                if ( m_sourceNodes[i] == pNode )
-                {
-                    return i;
-                }
-            }
-
-            return InvalidIndex;
-        };
-
-        outState.WriteValue( FindSourceIndex( m_bsr.m_pSource0 ) );
-        outState.WriteValue( FindSourceIndex( m_bsr.m_pSource1 ) );
-        outState.WriteValue( FindSourceIndex( m_bsr.m_pSource2 ) );
+        outState.WriteValue( m_bsr.m_sourceIndices[0] );
+        outState.WriteValue( m_bsr.m_sourceIndices[1] );
+        outState.WriteValue( m_bsr.m_sourceIndices[2] );
         outState.WriteValue( m_bsr.m_blendWeightBetween0And1 );
         outState.WriteValue( m_bsr.m_blendWeightBetween1And2 );
         outState.WriteValue( m_blendedSyncTrack );
@@ -479,17 +480,9 @@ namespace EE::Animation::GraphNodes
     {
         PoseNode::RestoreGraphState( inState );
 
-        int32_t idx = InvalidIndex;
-
-        inState.ReadValue( idx );
-        m_bsr.m_pSource0 = idx != InvalidIndex ? m_sourceNodes[idx] : nullptr;
-
-        inState.ReadValue( idx );
-        m_bsr.m_pSource1 = idx != InvalidIndex ? m_sourceNodes[idx] : nullptr;
-
-        inState.ReadValue( idx );
-        m_bsr.m_pSource2 = idx != InvalidIndex ? m_sourceNodes[idx] : nullptr;
-
+        inState.ReadValue( m_bsr.m_sourceIndices[0] );
+        inState.ReadValue( m_bsr.m_sourceIndices[1] );
+        inState.ReadValue( m_bsr.m_sourceIndices[2] );
         inState.ReadValue( m_bsr.m_blendWeightBetween0And1 );
         inState.ReadValue( m_bsr.m_blendWeightBetween1And2 );
         inState.ReadValue( m_blendedSyncTrack );

@@ -57,6 +57,9 @@ namespace EE::Animation
         // Swap all internals with another pose
         void SwapWith( Pose& rhs );
 
+        // This is a slightly cheaper way to switch a pose skeleton vs copy ctor but will still reset the pose.
+        void ChangeSkeleton( Skeleton const* pSkeleton );
+
         //-------------------------------------------------------------------------
 
         inline int32_t GetNumBones() const { return m_pSkeleton->GetNumBones(); }

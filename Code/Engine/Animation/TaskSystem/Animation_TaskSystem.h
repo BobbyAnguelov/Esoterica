@@ -35,6 +35,12 @@ namespace EE::Animation
 
     public:
 
+        static void InitializeTaskTypesList( TypeSystem::TypeRegistry const& typeRegistry );
+        static void ShutdownTaskTypesList();
+        static TVector<TypeSystem::TypeInfo const*> const* GetTaskTypesList();
+
+    public:
+
         TaskSystem( Skeleton const* pSkeleton );
         ~TaskSystem();
 
@@ -91,9 +97,22 @@ namespace EE::Animation
         // Cached Pose storage
         //-------------------------------------------------------------------------
 
-        inline UUID CreateCachedPose() { return m_posePool.CreateCachedPoseBuffer(); }
-        inline void ResetCachedPose( UUID const& cachedPoseID ) { return m_posePool.ResetCachedPoseBuffer( cachedPoseID ); }
-        inline void DestroyCachedPose( UUID const& cachedPoseID ) { m_posePool.DestroyCachedPoseBuffer( cachedPoseID ); }
+        // Is there a valid cached pose buffer for this ID?
+        bool IsValidCachedPose( CachedPoseID cachedPoseID ) const;
+
+        // Create storage for a cached pose - returns the ID for the cached pose storage
+        CachedPoseID CreateCachedPose();
+
+        // Reset the pose in the allocated cached pose buffer
+        void ResetCachedPose( CachedPoseID cachedPoseID );
+
+        // Destroy an allocated cached pose buffer - frees the ID to be reused
+        void DestroyCachedPose( CachedPoseID cachedPoseID );
+
+        #if EE_DEVELOPMENT_TOOLS
+        // Ensure that we have a valid cached pose buffer with the given ID. Needed for restoring from a recorded state
+        void EnsureCachedPoseExists( CachedPoseID cachedPoseID );
+        #endif
 
         // Task Registration
         //-------------------------------------------------------------------------
@@ -121,15 +140,6 @@ namespace EE::Animation
 
         // Task Serialization
         //-------------------------------------------------------------------------
-
-        // Have we enabled serialization
-        bool IsSerializationEnabled() const { return m_serializationEnabled; }
-
-        // Enable serialization
-        void EnableSerialization( TypeSystem::TypeRegistry const& typeRegistry );
-
-        // Disable Serialization
-        void DisableSerialization();
 
         // Serialized the current executed tasks - NOTE: this can fail since some tasks (i.e. physics) cannot be serialized!
         // Only do this if there are no currently pending tasks!
@@ -179,12 +189,7 @@ namespace EE::Animation
         bool                                    m_hasPhysicsDependency = false;
         bool                                    m_hasCodependentPhysicsTasks = false;
         bool                                    m_needsUpdate = false;
-
-        //-------------------------------------------------------------------------
-
-        TVector<TypeSystem::TypeInfo const*>    m_taskTypeRemapTable;
         uint32_t                                m_maxBitsForTaskTypeID = 0;
-        bool                                    m_serializationEnabled = false;
 
         //-------------------------------------------------------------------------
 

@@ -12,13 +12,15 @@ namespace EE::Animation::Tasks
 
     public:
 
-        CachedPoseWriteTask( int8_t sourceTaskIdx, UUID cachedPoseID );
+        CachedPoseWriteTask( int8_t sourceTaskIdx, CachedPoseID cachedPoseID );
         virtual void Execute( TaskContext const& context ) override;
-        virtual bool AllowsSerialization() const override { return false; }
+        virtual bool AllowsSerialization() const override { return true; }
+        virtual void Serialize( TaskSerializer& serializer ) const override;
+        virtual void Deserialize( TaskSerializer& serializer ) override;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetDebugName() const override { return "Write Cached Pose"; }
-        virtual Color GetDebugColor() const override { return Colors::Red; }
+        virtual Color GetDebugColor() const override { return Colors::HotPink; }
         #endif
 
     private:
@@ -27,7 +29,8 @@ namespace EE::Animation::Tasks
 
     private:
 
-        UUID m_cachedPoseID;
+        CachedPoseID    m_cachedPoseID;
+        bool            m_isDeserializedTask = false;
     };
 
     //-------------------------------------------------------------------------
@@ -38,13 +41,15 @@ namespace EE::Animation::Tasks
 
     public:
 
-        CachedPoseReadTask( UUID cachedPoseID );
+        CachedPoseReadTask( CachedPoseID cachedPoseID );
         virtual void Execute( TaskContext const& context ) override;
-        virtual bool AllowsSerialization() const override { return false; }
+        virtual bool AllowsSerialization() const override { return true; }
+        virtual void Serialize( TaskSerializer& serializer ) const override;
+        virtual void Deserialize( TaskSerializer& serializer ) override;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetDebugName() const override { return "Read Cached Pose"; }
-        virtual Color GetDebugColor() const override { return Colors::Red; }
+        virtual Color GetDebugColor() const override { return Colors::HotPink; }
         #endif
 
     private:
@@ -53,6 +58,7 @@ namespace EE::Animation::Tasks
 
     private:
 
-        UUID m_cachedPoseID;
+        CachedPoseID    m_cachedPoseID;
+        bool            m_isDeserializedTask = false;
     };
 }

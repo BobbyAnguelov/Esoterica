@@ -192,6 +192,7 @@ namespace EE::Animation
     {
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
+        EE_ASSERT( pSourcePose->IsPoseSet() && pTargetPose->IsPoseSet() );
 
         Pose::State const finalState = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
 
@@ -238,6 +239,7 @@ namespace EE::Animation
     {
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
+        EE_ASSERT( pSourcePose->IsPoseSet() && pTargetPose->IsPoseSet() );
         EE_ASSERT( pBoneMask != nullptr );
 
         Pose::State const finalState = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
@@ -290,6 +292,7 @@ namespace EE::Animation
     {
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pResultPose != nullptr );
+        EE_ASSERT( pSourcePose->IsPoseSet() );
 
         Pose::State const finalState = ( pSourcePose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
 
@@ -333,6 +336,7 @@ namespace EE::Animation
     {
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pTargetPose != nullptr && pResultPose != nullptr );
+        EE_ASSERT( pTargetPose->IsPoseSet() );
 
         Pose::State const finalState = ( pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
 

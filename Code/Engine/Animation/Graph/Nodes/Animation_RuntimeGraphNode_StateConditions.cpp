@@ -51,10 +51,18 @@ namespace EE::Animation::GraphNodes
                 transitionDuration = m_pDurationOverrideNode->GetValue<float>( context );
             }
 
-            Percentage const transitionTime( transitionDuration / m_pSourceStateNode->GetDuration() );
-            Percentage const transitionPoint = 1.0f - transitionTime;
+            Seconds const sourceDuration = m_pSourceStateNode->GetDuration();
+            if ( sourceDuration == 0.0f )
+            {
+                m_result = true;
+            }
+            else
+            {
+                Percentage const transitionTime( transitionDuration / m_pSourceStateNode->GetDuration() );
+                Percentage const transitionPoint = 1.0f - transitionTime;
+                m_result = ( m_pSourceStateNode->GetCurrentTime() >= transitionPoint );
+            }
 
-            m_result = ( m_pSourceStateNode->GetCurrentTime() >= transitionPoint );
             MarkNodeActive( context );
         }
 

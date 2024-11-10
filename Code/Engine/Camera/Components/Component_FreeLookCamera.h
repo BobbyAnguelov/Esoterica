@@ -43,6 +43,9 @@ namespace EE
         virtual void Initialize() override;
         virtual void OnWorldTransformUpdated() override;
 
+        // Generic focus on function that takes in a set of point that define the extents of an area to focus on
+        void FocusOn( Vector const& position, TInlineVector<Vector, 8> const& boundingPoints );
+
         // Called whenever we explicitly set the camera position (so that derived classes can clear any buffered data)
         virtual void OnTeleport() {}
 

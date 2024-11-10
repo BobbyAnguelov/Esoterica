@@ -11,6 +11,28 @@
 
 namespace EE::Animation
 {
+    static TVector<EE::TypeSystem::TypeInfo const*> const * g_pTaskTypeTable;
+
+    void TaskSystem::InitializeTaskTypesList( TypeSystem::TypeRegistry const& typeRegistry )
+    {
+        EE_ASSERT( g_pTaskTypeTable == nullptr );
+        g_pTaskTypeTable = EE::New<TVector<EE::TypeSystem::TypeInfo const*>>( typeRegistry.GetAllDerivedTypes( Task::GetStaticTypeID(), false, false, true ) );
+    }
+
+    void TaskSystem::ShutdownTaskTypesList()
+    {
+        EE_ASSERT( g_pTaskTypeTable != nullptr );
+        EE::Delete( g_pTaskTypeTable );
+    }
+
+    TVector<EE::TypeSystem::TypeInfo const*> const* TaskSystem::GetTaskTypesList()
+    {
+        EE_ASSERT( g_pTaskTypeTable != nullptr );
+        return g_pTaskTypeTable;
+    }
+
+    //-------------------------------------------------------------------------
+
     TaskSystem::TaskSystem( Skeleton const* pSkeleton )
         : m_posePool( pSkeleton )
         , m_boneMaskPool( pSkeleton )
@@ -19,6 +41,10 @@ namespace EE::Animation
     {
         EE_ASSERT( pSkeleton != nullptr );
         m_finalPoseBuffer.CalculateModelSpaceTransforms();
+
+        auto pTaskTypesTable = GetTaskTypesList();
+        m_maxBitsForTaskTypeID = Math::GetMostSignificantBit( (uint32_t) pTaskTypesTable->size() ) + 1;
+        EE_ASSERT( m_maxBitsForTaskTypeID <= 8 );
     }
 
     TaskSystem::~TaskSystem()
@@ -262,30 +288,44 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void TaskSystem::EnableSerialization( TypeSystem::TypeRegistry const& typeRegistry )
+    bool TaskSystem::IsValidCachedPose( CachedPoseID cachedPoseID ) const
     {
-        m_taskTypeRemapTable = typeRegistry.GetAllDerivedTypes( Task::GetStaticTypeID(), false, false, true );
-        m_maxBitsForTaskTypeID = Math::GetMostSignificantBit( (uint32_t) m_taskTypeRemapTable.size() ) + 1;
-        EE_ASSERT( m_maxBitsForTaskTypeID <= 8 );
-
-        m_serializationEnabled = true;
+        return m_posePool.IsValidCachedPose( cachedPoseID );
     }
 
-    void TaskSystem::DisableSerialization()
+    CachedPoseID TaskSystem::CreateCachedPose()
     {
-        m_taskTypeRemapTable.clear();
-        m_maxBitsForTaskTypeID = 0;
-        m_serializationEnabled = false;
+        return m_posePool.CreateCachedPoseBuffer();
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void TaskSystem::EnsureCachedPoseExists( CachedPoseID cachedPoseID )
+    {
+        m_posePool.GetOrCreateCachedPoseBuffer( cachedPoseID );
+    }
+    #endif
+
+    void TaskSystem::ResetCachedPose( CachedPoseID cachedPoseID )
+    {
+        m_posePool.ResetCachedPoseBuffer( cachedPoseID );
+    }
+
+    void TaskSystem::DestroyCachedPose( CachedPoseID cachedPoseID )
+    {
+        m_posePool.DestroyCachedPoseBuffer( cachedPoseID );
+    }
+
+    //-------------------------------------------------------------------------
 
     bool TaskSystem::SerializeTasks( ResourceMappings const& resourceMappings, Blob& outSerializedData ) const
     {
-        auto FindTaskTypeID = [this] ( TypeSystem::TypeID typeID )
+        auto FindTaskTypeID = [] ( TypeSystem::TypeID typeID )
         {
-            uint8_t const numTaskTypes = (uint8_t) m_taskTypeRemapTable.size();
+            auto const& taskTypeTable = *GetTaskTypesList();
+            uint8_t const numTaskTypes = (uint8_t) taskTypeTable.size();
             for ( uint8_t i = 0; i < numTaskTypes; i++ )
             {
-                if ( m_taskTypeRemapTable[i]->m_ID == typeID )
+                if ( taskTypeTable[i]->m_ID == typeID )
                 {
                     return i;
                 }
@@ -296,7 +336,6 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        EE_ASSERT( m_serializationEnabled );
         EE_ASSERT( !m_needsUpdate );
 
         uint8_t const numTasks = (uint8_t) m_tasks.size();
@@ -329,7 +368,6 @@ namespace EE::Animation
 
     void TaskSystem::DeserializeTasks( ResourceMappings const& resourceMappings, Blob const& inSerializedData )
     {
-        EE_ASSERT( m_serializationEnabled );
         EE_ASSERT( m_tasks.empty() );
         EE_ASSERT( !m_needsUpdate );
 
@@ -339,8 +377,9 @@ namespace EE::Animation
         // Create tasks
         for ( uint8_t i = 0; i < numTasks; i++ )
         {
+            auto const& taskTypeTable = *GetTaskTypesList();
             uint8_t const taskTypeID = (uint8_t) serializer.ReadUInt( m_maxBitsForTaskTypeID );
-            Task* pTask = Cast<Task>( m_taskTypeRemapTable[taskTypeID]->CreateType() );
+            Task* pTask = Cast<Task>( taskTypeTable[taskTypeID]->CreateType() );
             EE_ASSERT( pTask->AllowsSerialization() );
             m_tasks.emplace_back( pTask );
         }

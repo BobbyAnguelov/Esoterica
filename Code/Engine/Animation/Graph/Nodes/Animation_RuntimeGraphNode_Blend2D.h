@@ -33,14 +33,13 @@ namespace EE::Animation::GraphNodes
         {
             void Reset() { *this = BlendSpaceResult(); }
 
-            Float2                                  m_parameter;
-            PoseNode*                               m_pSource0 = nullptr;
-            PoseNode*                               m_pSource1 = nullptr;
-            PoseNode*                               m_pSource2 = nullptr;
+            int32_t                                 m_sourceIndices[3] = { InvalidIndex, InvalidIndex, InvalidIndex };
             float                                   m_blendWeightBetween0And1 = 0.0f;
             float                                   m_blendWeightBetween1And2 = 0.0f;
-            uint32_t                                m_updateID = 0;
+            Float2                                  m_finalParameter;
         };
+
+        static void CalculateBlendSpaceWeights( TInlineVector<Float2, 10> const &points, TInlineVector<uint8_t, 30> const &indices, TInlineVector<uint8_t, 10> const &hullIndices, Float2 const &point, BlendSpaceResult &result );
 
     public:
 
@@ -48,7 +47,7 @@ namespace EE::Animation::GraphNodes
         virtual SyncTrack const& GetSyncTrack() const override { return m_blendedSyncTrack; }
 
         #if EE_DEVELOPMENT_TOOLS
-        inline Float2 GetParameter() const { return m_bsr.m_parameter; }
+        inline Float2 GetParameter() const { return m_bsr.m_finalParameter; }
         #endif
 
     protected:
@@ -75,5 +74,6 @@ namespace EE::Animation::GraphNodes
         FloatValueNode*                             m_pInputParameterNode1 = nullptr;
         SyncTrack                                   m_blendedSyncTrack;
         BlendSpaceResult                            m_bsr;
+        uint32_t                                    m_blendSpaceUpdateID = 0;
     };
 }

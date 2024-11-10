@@ -111,14 +111,8 @@ namespace EE::Animation
         // Task System
         //-------------------------------------------------------------------------
 
-        // Enable task serialization
-        inline void EnableTaskSystemSerialization( TypeSystem::TypeRegistry const& typeRegistry ) { EE_ASSERT( m_isStandaloneGraph ); m_pTaskSystem->EnableSerialization( typeRegistry ); GenerateResourceMappings(); }
-
-        // Disable task serialization
-        inline void DisableTaskSystemSerialization() { EE_ASSERT( m_isStandaloneGraph ); m_pTaskSystem->DisableSerialization(); m_resourceMappings.Clear(); }
-
         // Does the task system have any pending pose tasks
-        inline bool DoesTaskSystemNeedUpdate() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->RequiresUpdate(); }
+        bool DoesTaskSystemNeedUpdate() const;
 
         // Serialize the currently registered pose tasks. Note: This can only be done after the task system has executed!
         void SerializeTaskList( Blob& outBlob ) const;

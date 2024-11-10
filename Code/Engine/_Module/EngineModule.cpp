@@ -1,5 +1,6 @@
 #include "EngineModule.h"
 #include "Engine/Entity/EntityLog.h"
+#include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Navmesh/NavPower.h"
 #include "Engine/Physics/Physics.h"
 #include "Base/Resource/ResourceSystem.h"
@@ -71,6 +72,12 @@ namespace EE
             return false;
         }
         #endif
+
+        //-------------------------------------------------------------------------
+        // Animation
+        //-------------------------------------------------------------------------
+
+        Animation::TaskSystem::InitializeTaskTypesList( *context.m_pTypeRegistry );
 
         //-------------------------------------------------------------------------
         // Register systems
@@ -181,6 +188,12 @@ namespace EE
         #if EE_DEVELOPMENT_TOOLS
         context.m_pSystemRegistry->UnregisterSystem( &m_console );
         #endif
+
+        //-------------------------------------------------------------------------
+        // Animation
+        //-------------------------------------------------------------------------
+
+        Animation::TaskSystem::ShutdownTaskTypesList();
 
         //-------------------------------------------------------------------------
         // Unregister and shutdown renderers

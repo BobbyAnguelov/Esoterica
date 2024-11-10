@@ -94,7 +94,6 @@ namespace EE::Player
             if ( ImGuiX::IconButton( EE_ICON_STOP, "Stop Recording", Colors::White, ImVec2( 200, 0 ) ) )
             {
                 m_pPlayerGraphComponent->GetDebugGraphInstance()->StopRecording();
-                m_pPlayerGraphComponent->GetDebugGraphInstance()->DisableTaskSystemSerialization();
 
                 //-------------------------------------------------------------------------
 
@@ -103,13 +102,12 @@ namespace EE::Player
                 m_pGeneratedPose = EE::New<Animation::Pose>( m_pPlayerGraphComponent->GetPrimarySkeleton() );
 
                 m_pTaskSystem = EE::New<Animation::TaskSystem>( m_pPlayerGraphComponent->GetPrimarySkeleton() );
-                m_pTaskSystem->EnableSerialization( *context.GetSystem<TypeSystem::TypeRegistry>() );
-                m_pPlayerGraphComponent->GetDebugGraphInstance()->EnableTaskSystemSerialization( *context.GetSystem<TypeSystem::TypeRegistry>() );
 
                 ProcessRecording();
                 m_updateFrameIdx = 0;
                 m_isRecording = false;
 
+                UpdateActualGraphInstance();
                 GenerateTaskSystemPose();
             }
         }
@@ -118,7 +116,6 @@ namespace EE::Player
             if ( ImGuiX::IconButton( EE_ICON_RECORD, " Start Recording", Colors::Red, ImVec2( 200, 0 ) ) )
             {
                 ResetRecordingData();
-                m_pPlayerGraphComponent->GetDebugGraphInstance()->EnableTaskSystemSerialization( *context.GetSystem<TypeSystem::TypeRegistry>() );
                 m_pPlayerGraphComponent->GetDebugGraphInstance()->StartRecording( &m_graphRecorder );
                 m_isRecording = true;
             }
@@ -164,6 +161,7 @@ namespace EE::Player
                 if ( newFrameIdx != m_updateFrameIdx )
                 {
                     m_updateFrameIdx = Math::Clamp( newFrameIdx, 0, m_graphRecorder.GetNumRecordedFrames() - 1 );
+                    UpdateActualGraphInstance();
                     GenerateTaskSystemPose();
                 }
             };
@@ -178,6 +176,7 @@ namespace EE::Player
             ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ( ImGui::GetStyle().ItemSpacing.x * 5 ) - 360 - 60 );
             if ( ImGui::SliderInt( "##timeline", &m_updateFrameIdx, 0, m_graphRecorder.GetNumRecordedFrames() - 1 ) )
             {
+                UpdateActualGraphInstance();
                 GenerateTaskSystemPose();
             }
 
@@ -412,7 +411,7 @@ namespace EE::Player
                         //-------------------------------------------------------------------------
 
                         ImGui::TableNextColumn();
-                        Animation::AnimationDebugView::DrawGraphActiveTasksDebugView( m_pPlayerGraphComponent->GetDebugGraphInstance() );
+                        Animation::AnimationDebugView::DrawGraphActiveTasksDebugView( m_pActualInstance );
 
                         ImGui::EndTable();
                     }
@@ -711,6 +710,30 @@ namespace EE::Player
 
             auto& pose = m_replicatedPoses.emplace_back( Animation::Pose( m_pReplicatedInstance->GetPrimaryPose()->GetSkeleton() ) );
             pose.CopyFrom( *m_pReplicatedInstance->GetPrimaryPose() );
+        }
+    }
+
+    void NetworkProtoDebugView::UpdateActualGraphInstance()
+    {
+        EE_ASSERT( m_graphRecorder.HasRecordedData() && !m_isRecording );
+
+        m_graphRecorder.m_initialState.PrepareForReading();
+        m_pActualInstance->SetToRecordedState( m_graphRecorder.m_initialState );
+
+        for ( auto i = 0; i <= m_updateFrameIdx; i++ )
+        {
+            auto const& frameData = m_graphRecorder.m_recordedData[i];
+            int32_t const nextFrameIdx = ( i < m_graphRecorder.GetNumRecordedFrames() - 1 ) ? i + 1 : i;
+            auto const& nextRecordedFrameData = m_graphRecorder.m_recordedData[nextFrameIdx];
+
+            // Set parameters
+            m_pActualInstance->SetRecordedFrameUpdateData( frameData );
+            m_pActualInstance->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr, nullptr, false );
+            m_pActualInstance->ExecutePrePhysicsPoseTasks( nextRecordedFrameData.m_characterWorldTransform );
+            m_pActualInstance->ExecutePostPhysicsPoseTasks();
+
+            auto& pose = m_actualPoses.emplace_back( Animation::Pose( m_pActualInstance->GetPrimaryPose()->GetSkeleton() ) );
+            pose.CopyFrom( *m_pActualInstance->GetPrimaryPose() );
         }
     }
 

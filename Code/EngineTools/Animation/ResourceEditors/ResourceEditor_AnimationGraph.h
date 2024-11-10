@@ -608,7 +608,7 @@ namespace EE::Animation
         GraphComponent*                                                     m_pDebugGraphComponent = nullptr;
         Render::SkeletalMeshComponent*                                      m_pDebugMeshComponent = nullptr;
         GraphInstance*                                                      m_pDebugGraphInstance = nullptr;
-        GraphInstance*                                                      m_pParentGraphInstance = nullptr;
+        GraphInstance*                                                      m_pHostGraphInstance = nullptr;
         StringID                                                            m_debugExternalGraphSlotID = StringID();
         GraphDebugMode                                                      m_graphDebugMode = GraphDebugMode::On;
         RootMotionDebugMode                                                 m_rootMotionDebugMode = RootMotionDebugMode::Off;

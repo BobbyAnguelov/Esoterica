@@ -68,24 +68,38 @@ namespace EE
         OnTeleport();
     }
 
-    void FreeLookCameraComponent::FocusOn( OBB const& bounds )
+    void FreeLookCameraComponent::FocusOn( Vector const& position, TInlineVector<Vector, 8> const& boundingPoints )
     {
-        // TODO: Fix this!
-        Vector const currentForward = GetForwardVector();
-        Vector const newCameraPos = bounds.m_center - ( currentForward * 5 );
-        SetPositionAndLookAtDirection( newCameraPos, currentForward );
+        EE_ASSERT( !Math::IsNearZero( GetViewVolume().GetFOV().ToFloat() ) );
+
+        float const recipTanHalfFOV = 1.0f / Math::Tan( GetViewVolume().GetFOV().ToFloat() / 2.0f );
+
+        // Find the maximum distance at which every bound point is inside the view volume.
+        float maxDist = 1.0f;
+        for ( Vector const& bp : boundingPoints )
+        {
+            Vector const centerToCorner = bp - position;
+            float const hDist = recipTanHalfFOV * Math::Abs( GetRightVector().GetDot3( centerToCorner ) );
+            float const vDist = recipTanHalfFOV * GetViewVolume().GetAspectRatio() * Math::Abs( GetUpVector().GetDot3( centerToCorner ) );
+            float const fDist = GetForwardVector().GetDot3( centerToCorner );
+            maxDist = Math::Max( Math::Max( hDist, vDist ) + fDist, maxDist );
+        }
+        SetPositionAndLookAtDirection( position - GetForwardVector() * maxDist, GetForwardVector() );
 
         OnTeleport();
     }
 
+    void FreeLookCameraComponent::FocusOn( OBB const& bounds )
+    {
+        TInlineVector<Vector, 8> corners;
+        bounds.GetCorners( corners.begin() );
+        FocusOn( bounds.m_center, corners );
+    }
     void FreeLookCameraComponent::FocusOn( AABB const& bounds )
     {
-        // TODO: Fix this!
-        Vector const currentForward = GetForwardVector();
-        Vector const newCameraPos = bounds.m_center - ( currentForward * 5 );
-        SetPositionAndLookAtDirection( newCameraPos, currentForward );
-
-        OnTeleport();
+        TInlineVector<Vector, 8> corners;
+        bounds.GetCorners( corners.begin() );
+        FocusOn( bounds.GetCenter(), corners );
     }
 
     void FreeLookCameraComponent::SetPositionAndLookAtTarget( Vector const& cameraPosition, Vector const& lookAtTarget )

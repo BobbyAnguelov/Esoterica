@@ -1041,7 +1041,7 @@ namespace EE::EntityModel
             // Update Gizmo
             //-------------------------------------------------------------------------
 
-            auto const gizmoResult = m_gizmo.Draw( m_selectionTransform.GetTranslation(), m_selectionTransform.GetRotation(), *m_pWorld->GetViewport() );
+            auto const gizmoResult = m_gizmo.Draw( m_selectionTransform.GetTranslation(), m_selectionTransform.GetRotation(), *pViewport );
             switch ( gizmoResult.m_state )
             {
                 case ImGuiX::Gizmo::State::StartedManipulating:

@@ -4,6 +4,10 @@
 
 namespace EE::Animation
 {
+    //-------------------------------------------------------------------------
+    // Pose Buffer
+    //-------------------------------------------------------------------------
+
     PoseBuffer::PoseBuffer( Skeleton const* pSkeleton, SecondarySkeletonList const& secondarySkeletons )
     {
         m_poses.emplace_back( pSkeleton );
@@ -46,21 +50,51 @@ namespace EE::Animation
 
     void PoseBuffer::UpdateSecondarySkeletonList( SecondarySkeletonList const& secondarySkeletons )
     {
-        // TODO: see how we can do this in a smarter way
+        int32_t const numExistingSecondarySkeletons = int32_t( m_poses.size() ) - 1;
+        int32_t const numRequiredSecondarySkeletons = int32_t( secondarySkeletons.size() );
+        int32_t const numSkeletonsToUpdate = Math::Min( numRequiredSecondarySkeletons, numExistingSecondarySkeletons );
 
-        // Remove all secondary poses
-        while ( m_poses.size() > 1 )
+        for ( int32_t i = 1; i < numSkeletonsToUpdate; i++ )
         {
-            m_poses.pop_back();
+            // If the skeleton differs, then change it
+            if ( m_poses[i].GetSkeleton() != secondarySkeletons[i - 1] )
+            {
+                m_poses[i].ChangeSkeleton( secondarySkeletons[i - 1] );
+            }
         }
 
-        // Create required secondary poses
-        for ( auto pSecondarySkeleton : secondarySkeletons )
+        // If we need less poses, then just destroy the extras
+        if ( numExistingSecondarySkeletons > numRequiredSecondarySkeletons )
         {
-            m_poses.emplace_back( pSecondarySkeleton );
+            while( m_poses.size() > numRequiredSecondarySkeletons )
+            {
+                m_poses.pop_back();
+            }
+        }
+        // If we need more poses, then create the excess
+        else if( numExistingSecondarySkeletons < numRequiredSecondarySkeletons )
+        {
+            for ( int32_t i = numExistingSecondarySkeletons; i < numRequiredSecondarySkeletons; i++ )
+            {
+                m_poses.emplace_back( secondarySkeletons[i] );
+            }
         }
     }
 
+    //-------------------------------------------------------------------------
+    // Cached Pose Buffer
+    //-------------------------------------------------------------------------
+
+    void CachedPoseBuffer::Release( Pose::Type poseType )
+    {
+        PoseBuffer::Release( poseType );
+        m_ID.Clear();
+        m_wasAccessed = false;
+        m_shouldBeReset = false;
+    }
+
+    //-------------------------------------------------------------------------
+    // Pose Buffer Pool
     //-------------------------------------------------------------------------
 
     PoseBufferPool::PoseBufferPool( Skeleton const* pPrimarySkeleton, SecondarySkeletonList const& secondarySkeletons )
@@ -102,12 +136,27 @@ namespace EE::Animation
 
         m_firstFreeBuffer = 0;
 
-        // Process all cached buffer destruction requests
+        // Update cached buffer states
         int8_t const numCachedBuffers = (int8_t) m_cachedBuffers.size();
         for ( int8_t i = 0; i < numCachedBuffers; i++ )
         {
+            // Release any used but unaccessed buffers
+            if ( m_cachedBuffers[i].m_isUsed )
+            {
+                if ( m_cachedBuffers[i].m_isLifetimeInternallyManaged && !m_cachedBuffers[i].m_wasAccessed )
+                {
+                    m_cachedBuffers[i].m_shouldBeReset = true;
+                }
+                else
+                {
+                    m_cachedBuffers[i].m_wasAccessed = false;
+                }
+            }
+
+            // Release any buffers that are no longer needed
             if ( m_cachedBuffers[i].m_shouldBeReset )
             {
+                EE_ASSERT( m_cachedBuffers[i].m_isUsed );
                 m_cachedBuffers[i].Release();
                 m_firstFreeCachedBuffer = Math::Min( m_firstFreeCachedBuffer, i );
             }
@@ -196,9 +245,32 @@ namespace EE::Animation
         m_firstFreeBuffer = Math::Min( bufferIdx, m_firstFreeBuffer );
     }
 
-    UUID PoseBufferPool::CreateCachedPoseBuffer()
+    //-------------------------------------------------------------------------
+
+    bool PoseBufferPool::IsValidCachedPose( CachedPoseID cachedPoseID ) const
+    {
+        for ( auto& cachedBuffer : m_cachedBuffers )
+        {
+            if ( cachedBuffer.m_ID == cachedPoseID )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    CachedPoseID PoseBufferPool::CreateCachedPoseBuffer()
+    {
+        return CreateCachedPoseBufferInternal()->m_ID;
+    }
+
+    CachedPoseBuffer* PoseBufferPool::CreateCachedPoseBufferInternal( CachedPoseID bufferID )
     {
         CachedPoseBuffer* pCachedPoseBuffer = nullptr;
+
+        // Find/create a free buffer
+        //-------------------------------------------------------------------------
 
         if ( m_firstFreeCachedBuffer == m_cachedBuffers.size() )
         {
@@ -215,15 +287,59 @@ namespace EE::Animation
             EE_ASSERT( !pCachedPoseBuffer->m_isUsed );
         }
 
+        // Create a new ID for the cached pose
         //-------------------------------------------------------------------------
 
-        // Create a new ID for the cached pose
-        pCachedPoseBuffer->m_ID = UUID::GenerateID();
+        if ( bufferID.IsValid() )
+        {
+            EE_ASSERT( !IsValidCachedPose( bufferID ) );
+            pCachedPoseBuffer->m_ID = bufferID;
+            m_nextCachedPoseID = bufferID.m_ID;
+        }
+        else [[likely]] // Generate a new ID
+        {
+            pCachedPoseBuffer->m_ID = CachedPoseID( m_nextCachedPoseID );
+        }
+
+        // Update ID
+        //-------------------------------------------------------------------------
+
+        m_nextCachedPoseID++;
+
+        // If we need to wrap around the IDs
+        if ( m_nextCachedPoseID >= CachedPoseID::s_maxAllowableValue )
+        {
+            m_nextCachedPoseID = 0;
+        }
+
+        // Ensure the new ID is unused
+        while ( true )
+        {
+            bool isUsedID = false;
+            for ( auto const& buffer : m_cachedBuffers )
+            {
+                if ( buffer.m_isUsed && buffer.m_ID == m_nextCachedPoseID )
+                {
+                    isUsedID = true;
+                    break;
+                }
+            }
+
+            if ( isUsedID )
+            {
+                m_nextCachedPoseID++;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        // Update free buffer index
+        //-------------------------------------------------------------------------
+
         pCachedPoseBuffer->m_isUsed = true;
 
-        //-------------------------------------------------------------------------
-
-        // Update free index
         int32_t const numCachedBuffers = (int32_t) m_cachedBuffers.size();
         for ( ; m_firstFreeCachedBuffer < numCachedBuffers; m_firstFreeCachedBuffer++ )
         {
@@ -233,10 +349,13 @@ namespace EE::Animation
             }
         }
 
-        return pCachedPoseBuffer->m_ID;
+        // Flag as accessed
+        pCachedPoseBuffer->m_wasAccessed = true;
+
+        return pCachedPoseBuffer;
     }
 
-    void PoseBufferPool::DestroyCachedPoseBuffer( UUID const& cachedPoseID )
+    void PoseBufferPool::DestroyCachedPoseBuffer( CachedPoseID cachedPoseID )
     {
         EE_ASSERT( cachedPoseID.IsValid() );
 
@@ -253,7 +372,7 @@ namespace EE::Animation
         EE_UNREACHABLE_CODE();
     }
 
-    void PoseBufferPool::ResetCachedPoseBuffer( UUID const& cachedPoseID )
+    void PoseBufferPool::ResetCachedPoseBuffer( CachedPoseID cachedPoseID )
     {
         for ( auto& cachedBuffer : m_cachedBuffers )
         {
@@ -266,22 +385,33 @@ namespace EE::Animation
         }
     }
 
-    PoseBuffer* PoseBufferPool::GetCachedPoseBuffer( UUID const& cachedPoseID )
+    CachedPoseBuffer* PoseBufferPool::GetCachedPoseBufferInternal( CachedPoseID cachedPoseID )
     {
         EE_ASSERT( cachedPoseID.IsValid() );
-        PoseBuffer* pFoundCachedPoseBuffer = nullptr;
+        CachedPoseBuffer* pFoundCachedPoseBuffer = nullptr;
 
         for ( auto& cachedBuffer : m_cachedBuffers )
         {
             if ( cachedBuffer.m_ID == cachedPoseID )
             {
                 pFoundCachedPoseBuffer = &cachedBuffer;
+                cachedBuffer.m_wasAccessed = true;
                 break;
             }
         }
 
-        EE_ASSERT( pFoundCachedPoseBuffer != nullptr );
         return pFoundCachedPoseBuffer;
+    }
+
+    PoseBuffer* PoseBufferPool::GetOrCreateCachedPoseBuffer( CachedPoseID cachedPoseID, bool isLifetimeManagedByPosePool )
+    {
+        CachedPoseBuffer* pBuffer = GetCachedPoseBufferInternal( cachedPoseID );
+        if ( pBuffer == nullptr )
+        {
+            pBuffer = CreateCachedPoseBufferInternal( cachedPoseID );
+            pBuffer->m_isLifetimeInternallyManaged = isLifetimeManagedByPosePool;
+        }
+        return pBuffer;
     }
 
     //-------------------------------------------------------------------------

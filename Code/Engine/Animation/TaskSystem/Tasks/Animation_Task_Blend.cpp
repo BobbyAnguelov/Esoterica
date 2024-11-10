@@ -84,7 +84,24 @@ namespace EE::Animation::Tasks
         if ( m_boneMaskTaskList.HasTasks() )
         {
             auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
+
+            bool const hasSourcePose = pSourceBuffer->m_poses[0].IsPoseSet();
+            bool const hasTargetPose = pTargetBuffer->m_poses[0].IsPoseSet();
+
+            // If no source pose but valid target (can occur when deserializing cached pose reads in bad network situations) - blend the target onto the reference pose
+            if ( !hasSourcePose && hasTargetPose )
+            {
+                Blender::LocalBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
+            }
+            // Has both poses
+            else if ( hasSourcePose && hasTargetPose )
+            {
+                Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
+            }
+            else // Undefined scenarios (should never happen): No poses set or target unset
+            {
+                EE_UNREACHABLE_CODE();
+            }
 
             //-------------------------------------------------------------------------
 
@@ -102,8 +119,26 @@ namespace EE::Animation::Tasks
         }
         else // Perform a simple blend
         {
-            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
+            bool const hasSourcePose = pSourceBuffer->m_poses[0].IsPoseSet();
+            bool const hasTargetPose = pTargetBuffer->m_poses[0].IsPoseSet();
+
+            // If no source pose but valid target (can occur when deserializing cached pose reads in bad network situations) - just use the target pose
+            if ( !hasSourcePose && hasTargetPose )
+            {
+                pFinalBuffer->m_poses[0].CopyFrom( pTargetBuffer->m_poses[0] );
+            }
+            // Has both poses
+            else if ( hasSourcePose && hasTargetPose )
+            {
+                Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
+            }
+            else // Undefined scenarios (should never happen): No poses set or target unset
+            {
+                EE_UNREACHABLE_CODE();
+            }
         }
+
+        EE_ASSERT( pFinalBuffer->GetPrimaryPose()->IsPoseSet() );
 
         // Secondary Poses
         //-------------------------------------------------------------------------
