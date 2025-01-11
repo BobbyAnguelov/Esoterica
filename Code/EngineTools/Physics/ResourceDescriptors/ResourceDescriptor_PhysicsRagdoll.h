@@ -23,7 +23,7 @@ namespace EE::Physics
 
         virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
         {
-            outDependencies.emplace_back( m_skeleton.GetResourcePath() );
+            outDependencies.emplace_back( m_skeleton.GetDataPath() );
         }
 
         virtual bool IsValid() const override

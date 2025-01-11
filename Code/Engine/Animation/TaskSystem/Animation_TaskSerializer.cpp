@@ -41,16 +41,16 @@ namespace EE::Animation
         , m_resourceMappings( resourceMappings )
         , m_numSerializedTasks( numTasksToSerialize )
     {
-        m_maxBitsForDependencies = Math::GetMostSignificantBit( m_numSerializedTasks ) + 1;
+        m_maxBitsForDependencies = Math::GetMaxNumberOfBitsForValue( m_numSerializedTasks );
         EE_ASSERT( m_maxBitsForDependencies <= 8 );
 
-        m_maxBitsForBoneMask = Math::GetMostSignificantBit( pSkeleton->GetNumBoneMasks() ) + 1;
+        m_maxBitsForBoneMask = Math::GetMaxNumberOfBitsForValue( pSkeleton->GetNumBoneMasks() );
         EE_ASSERT( m_maxBitsForBoneMask <= 8 );
 
-        m_maxBitsForResourceIDs = Math::GetMostSignificantBit( m_resourceMappings.GetNumMappings() ) + 1;
+        m_maxBitsForResourceIDs = Math::GetMaxNumberOfBitsForValue( m_resourceMappings.GetNumMappings() );
         EE_ASSERT( m_maxBitsForResourceIDs > 0 && m_maxBitsForResourceIDs <= 16 );
 
-        m_maxBitsForBoneIndices = Math::GetMostSignificantBit( pSkeleton->GetNumBones() ) + 1;
+        m_maxBitsForBoneIndices = Math::GetMaxNumberOfBitsForValue( pSkeleton->GetNumBones() );
         EE_ASSERT( m_maxBitsForBoneIndices > 0 && m_maxBitsForBoneIndices <= 16 );
 
         // Serialize number of tasks
@@ -66,13 +66,13 @@ namespace EE::Animation
         m_maxBitsForDependencies = (uint8_t) ReadUInt( 4 );
         EE_ASSERT( m_maxBitsForDependencies <= 8 );
 
-        m_maxBitsForBoneMask = Math::GetMostSignificantBit( pSkeleton->GetNumBoneMasks() ) + 1;
+        m_maxBitsForBoneMask = Math::GetMaxNumberOfBitsForValue( pSkeleton->GetNumBoneMasks() );
         EE_ASSERT( m_maxBitsForBoneMask <= 8 );
 
-        m_maxBitsForResourceIDs = Math::GetMostSignificantBit( m_resourceMappings.GetNumMappings() ) + 1;
+        m_maxBitsForResourceIDs = Math::GetMaxNumberOfBitsForValue( m_resourceMappings.GetNumMappings() );
         EE_ASSERT( m_maxBitsForResourceIDs > 0 && m_maxBitsForResourceIDs <= 16 );
 
-        m_maxBitsForBoneIndices = Math::GetMostSignificantBit( pSkeleton->GetNumBones() ) + 1;
+        m_maxBitsForBoneIndices = Math::GetMaxNumberOfBitsForValue( pSkeleton->GetNumBones() );
         EE_ASSERT( m_maxBitsForBoneIndices > 0 && m_maxBitsForBoneIndices <= 16 );
 
         m_numSerializedTasks = (uint8_t) ReadUInt( m_maxBitsForDependencies );

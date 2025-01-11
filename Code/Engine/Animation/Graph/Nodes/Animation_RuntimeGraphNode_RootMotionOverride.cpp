@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void RootMotionOverrideNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -87,7 +87,7 @@ namespace EE::Animation::GraphNodes
 
         for ( auto const& sampledEvent : *context.m_pSampledEventsBuffer )
         {
-            if ( sampledEvent.IsIgnored() || !sampledEvent.IsFromActiveBranch() || sampledEvent.IsStateEvent() )
+            if ( sampledEvent.IsIgnored() || !sampledEvent.IsFromActiveBranch() || sampledEvent.IsGraphEvent() )
             {
                 continue;
             }

@@ -2,7 +2,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void PassthroughNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -62,6 +62,8 @@ namespace EE::Animation::GraphNodes
         MarkNodeActive( context );
 
         GraphPoseNodeResult result;
+        result.m_sampledEventRange = context.GetEmptySampledEventRange();
+        result.m_taskIdx = InvalidIndex;
 
         // Forward child node results
         if ( IsValid() )
@@ -70,10 +72,6 @@ namespace EE::Animation::GraphNodes
             m_duration = m_pChildNode->GetDuration();
             m_previousTime = m_pChildNode->GetPreviousTime();
             m_currentTime = m_pChildNode->GetCurrentTime();
-        }
-        else
-        {
-            result.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
 
         return result;

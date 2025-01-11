@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void FloatSwitchNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {

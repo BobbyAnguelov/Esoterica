@@ -475,7 +475,7 @@ namespace EE::Resource
         inline bool IsFile() const { return m_type == Type::File; }
         inline bool IsDirectory() const { return m_type == Type::Directory; }
         inline FileSystem::Path const& GetFilePath() const { return m_path; }
-        inline DataPath const& GetResourcePath() const { return m_resourcePath; }
+        inline DataPath const& GetDataPath() const { return m_resourcePath; }
 
         // Resource Info
         //-------------------------------------------------------------------------
@@ -697,10 +697,10 @@ namespace EE::Resource
         if ( pSelectedFileItem != nullptr )
         {
             // Update selected file
-            m_selectedFile.m_resourcePath = pSelectedFileItem->GetResourcePath();
+            m_selectedFile.m_resourcePath = pSelectedFileItem->GetDataPath();
             m_selectedFile.m_filePath = pSelectedFileItem->GetFilePath();
             m_selectedFile.m_extension = m_selectedFile.m_filePath.GetExtension();
-            m_selectedFile.m_dependentResources = m_pToolsContext->m_pFileRegistry->GetAllDependentResources( pSelectedFileItem->GetResourcePath() );
+            m_selectedFile.m_dependentResources = m_pToolsContext->m_pFileRegistry->GetAllDependentResources( pSelectedFileItem->GetDataPath() );
 
             Import::InspectorContext ctx;
             ctx.m_sourceDataDirectoryPath = m_pToolsContext->GetSourceDataDirectory();
@@ -737,7 +737,7 @@ namespace EE::Resource
         auto VisibilityFunc = [this] ( TreeListViewItem const* pItem )
         {
             auto pImporterItem = static_cast<ImporterTreeItem const*>( pItem );
-            return m_filter.MatchesFilter( pImporterItem->GetResourcePath().c_str() );
+            return m_filter.MatchesFilter( pImporterItem->GetDataPath().c_str() );
         };
 
         //-------------------------------------------------------------------------
@@ -829,7 +829,7 @@ namespace EE::Resource
 
         if ( ImGui::MenuItem( "Copy Resource Path" ) )
         {
-            ImGui::SetClipboardText( pResourceItem->GetResourcePath().c_str() );
+            ImGui::SetClipboardText( pResourceItem->GetDataPath().c_str() );
         }
     }
 
@@ -1150,8 +1150,10 @@ namespace EE::Resource
                     // Draw Item Rows
                     //-------------------------------------------------------------------------
 
-                    for ( auto pItem : validItems )
+                    for ( Import::ImportableItem* pItem : validItems )
                     {
+                        ImGui::PushID( pItem );
+
                         uint32_t treeNodeflags = ImGuiTreeNodeFlags_SpanAllColumns | ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_FramePadding;
                         Color itemColor = ImGuiX::Style::s_colorText;
                         if ( VectorContains( m_selectedImportableItems, pItem ) )
@@ -1178,6 +1180,8 @@ namespace EE::Resource
                             ImGui::TableNextColumn();
                             ImGui::Text( pItem->GetExtraInfoColumnValue( c ).c_str() );
                         }
+
+                        ImGui::PopID();
                     }
 
                     ImGui::EndTable();

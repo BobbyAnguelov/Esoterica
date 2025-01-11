@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     Blend1DToolsNode::Blend1DToolsNode()
         : FlowToolsNode()
@@ -181,8 +181,8 @@ namespace EE::Animation::GraphNodes
         int16_t const runtimeNodeIdx = pGraphNodeContext->HasDebugData() ? pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() ) : InvalidIndex;
         if ( runtimeNodeIdx != InvalidIndex )
         {
-            auto pBlendNode = static_cast<GraphNodes::Blend1DNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
-            if ( pBlendNode->WasInitialized() )
+            auto pBlendNode = static_cast<Blend1DNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
+            if ( pBlendNode->IsInitialized() )
             {
                 pBlendNode->GetDebugInfo( sourceRuntimeIdx0, sourceRuntimeIdx1, blendWeight );
             }

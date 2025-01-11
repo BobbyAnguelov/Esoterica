@@ -4,7 +4,7 @@
 
 namespace EE::Animation
 {
-    void Blender::GlobalBlend( Skeleton::LOD skeletonLOD, Pose const* pBasePose, Pose const* pLayerPose, float layerWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    void Blender::ModelSpaceBlend( Skeleton::LOD skeletonLOD, Pose const* pBasePose, Pose const* pLayerPose, float layerWeight, BoneMask const* pBoneMask, Pose* pResultPose )
     {
         EE_ASSERT( pBoneMask != nullptr ); // Global space blends require a bone mask!
         EE_ASSERT( pBasePose != nullptr && pLayerPose != nullptr && pResultPose != nullptr );
@@ -102,7 +102,7 @@ namespace EE::Animation
         // Blend the results of the global mask onto the base pose
         //-------------------------------------------------------------------------
 
-        LocalBlend<BlendFunction>( skeletonLOD, pBasePose, pResultPose, layerWeight, pResultPose, false );
+        ParentSpaceBlend<BlendFunction>( skeletonLOD, pBasePose, pResultPose, layerWeight, pResultPose, false );
         pResultPose->ClearModelSpaceTransforms();
         pResultPose->m_state = Pose::State::Pose;
     }

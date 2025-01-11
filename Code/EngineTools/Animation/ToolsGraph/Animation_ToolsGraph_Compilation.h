@@ -6,6 +6,10 @@
 
 namespace EE::Animation
 {
+    class VariationHierarchy;
+
+    //-------------------------------------------------------------------------
+
     enum NodeCompilationState
     {
         NeedCompilation,
@@ -24,7 +28,7 @@ namespace EE::Animation
 
         String              m_message;
         UUID                m_nodeID;
-        Severity       m_severity;
+        Severity            m_severity;
     };
 
     //-------------------------------------------------------------------------
@@ -43,16 +47,65 @@ namespace EE::Animation
 
         void Reset();
 
+        // Variation Data
+        //-------------------------------------------------------------------------
+
+        void SetVariationData( VariationHierarchy const* pVariationHierarchy, StringID ID );
+        
+        VariationHierarchy const& GetVariationHierarchy() const { EE_ASSERT( m_pVariationHierarchy != nullptr ); return *m_pVariationHierarchy; }
+        StringID GetVariationID() const { return m_variationID; }
+
+
         // Logging
         //-------------------------------------------------------------------------
 
-        void LogMessage( NodeGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Info, pNode->GetID(), message ) ); }
-        void LogWarning( NodeGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Warning, pNode->GetID(), message ) ); }
-        void LogError( NodeGraph::BaseNode const* pNode, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Error, pNode->GetID(), message ) ); }
+        void LogMessage( NodeGraph::BaseNode const* pNode, char const* pFormat, ... )
+        { 
+            va_list args;
+            va_start( args, pFormat );
+            AddToLog( Severity::Info, pNode->GetID(), String( String::CtorSprintf(), pFormat, args ) );
+            va_end( args );
+        }
 
-        void LogMessage( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Info, UUID(), message ) ); }
-        void LogWarning( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Warning, UUID(), message ) ); }
-        void LogError( String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( Severity::Error, UUID(), message ) ); }
+        void LogWarning( NodeGraph::BaseNode const* pNode, char const* pFormat, ... )
+        {
+            va_list args;
+            va_start( args, pFormat );
+            AddToLog( Severity::Warning, pNode->GetID(), String( String::CtorSprintf(), pFormat, args ) );
+            va_end( args );
+        }
+
+        void LogError( NodeGraph::BaseNode const* pNode, char const* pFormat, ... )
+        {
+            va_list args;
+            va_start( args, pFormat );
+            AddToLog( Severity::Error, pNode->GetID(), String( String::CtorSprintf(), pFormat, args ) );
+            va_end( args );
+        }
+
+        void LogMessage( char const* pFormat, ... )
+        {
+            va_list args;
+            va_start( args, pFormat );
+            AddToLog( Severity::Info, UUID(), String( String::CtorSprintf(), pFormat, args ) );
+            va_end( args );
+        }
+
+        void LogWarning( char const* pFormat, ... )
+        {
+            va_list args;
+            va_start( args, pFormat );
+            AddToLog( Severity::Warning, UUID(), String( String::CtorSprintf(), pFormat, args ) );
+            va_end( args );
+        }
+
+        void LogError( char const* pFormat, ... )
+        {
+            va_list args;
+            va_start( args, pFormat );
+            AddToLog( Severity::Error, UUID(), String(String::CtorSprintf(), pFormat, args));
+            va_end( args );
+        }
 
         // General Compilation
         //-------------------------------------------------------------------------
@@ -102,14 +155,22 @@ namespace EE::Animation
             return NodeCompilationState::NeedCompilation;
         }
 
-        // This will return an index that can be used to look up the data resource at runtime
-        inline int16_t RegisterDataSlotNode( UUID const& nodeID )
+        // This will return an index that can be used to look up the resource at runtime
+        inline int16_t RegisterResource( ResourceID const& resourceID )
         {
-            EE_ASSERT( !VectorContains( m_registeredDataSlots, nodeID ) );
+            if ( !resourceID.IsValid() )
+            {
+                return InvalidIndex;
+            }
 
-            int16_t slotIdx = (int16_t) m_registeredDataSlots.size();
-            m_registeredDataSlots.emplace_back( nodeID );
-            return slotIdx;
+            int32_t resourceIdx = VectorFindIndex( m_registeredResources, resourceID );
+            if ( resourceIdx == InvalidIndex )
+            {
+                resourceIdx = (int32_t) m_registeredResources.size();
+                m_registeredResources.emplace_back( resourceID );
+            }
+
+            return (int16_t) resourceIdx;
         }
 
         // Record all compiled external graph nodes
@@ -130,14 +191,14 @@ namespace EE::Animation
             return slotIdx;
         }
 
-        // Record all child graph node indices
-        inline int16_t RegisterChildGraphNode( int16_t nodeIdx, UUID const& nodeID )
+        // Record all referenced graph node indices
+        inline int16_t RegisterReferencedGraphNode( int16_t nodeIdx, UUID const& nodeID, ResourceID const& graphDefinitionResourceID )
         {
-            int16_t const dataSlotIdx = RegisterDataSlotNode( nodeID );
+            int16_t const resourceSlotIdx = RegisterResource( graphDefinitionResourceID );
 
-            GraphDefinition::ChildGraphSlot const newSlot( nodeIdx, dataSlotIdx );
-            m_registeredChildGraphSlots.emplace_back( newSlot );
-            return (int16_t) m_registeredChildGraphSlots.size() - 1;
+            GraphDefinition::ReferencedGraphSlot const newSlot( nodeIdx, resourceSlotIdx );
+            m_registeredReferencedGraphSlots.emplace_back( newSlot );
+            return (int16_t) m_registeredReferencedGraphSlots.size() - 1;
         }
 
         // State Machine Compilation
@@ -202,24 +263,31 @@ namespace EE::Animation
 
         void TryAddPersistentNode( NodeGraph::BaseNode const* pNode, GraphNode::Definition* pDefinition );
 
+        inline void AddToLog( Severity severity, UUID nodeID, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( severity, nodeID, message ) ); }
+
     private:
 
+        StringID                                        m_variationID;
+        VariationHierarchy const*                       m_pVariationHierarchy = nullptr;
+
         TVector<NodeCompilationLogEntry>                m_log;
+
         THashMap<UUID, int16_t>                         m_nodeIDToIndexMap;
         THashMap<int16_t, UUID>                         m_nodeIndexToIDMap;
         TVector<int16_t>                                m_persistentNodeIndices;
         TVector<String>                                 m_compiledNodePaths;
-        TVector<GraphNode::Definition*>                   m_nodeDefinitions;
+        TVector<GraphNode::Definition*>                 m_nodeDefinitions;
         TVector<uint32_t>                               m_nodeMemoryOffsets;
         uint32_t                                        m_currentNodeMemoryOffset = 0;
         uint32_t                                        m_graphInstanceRequiredAlignment = alignof( bool );
 
-        TVector<UUID>                                   m_registeredDataSlots;
-        TVector<GraphDefinition::ChildGraphSlot>        m_registeredChildGraphSlots;
+        TVector<GraphDefinition::ReferencedGraphSlot>   m_registeredReferencedGraphSlots;
         TVector<GraphDefinition::ExternalGraphSlot>     m_registeredExternalGraphSlots;
         int16_t                                         m_conduitSourceStateCompiledNodeIdx = InvalidIndex;
         Seconds                                         m_transitionDuration = 0;
         int16_t                                         m_transitionDurationOverrideIdx = InvalidIndex;
+
+        TVector<ResourceID>                             m_registeredResources;
     };
 }
 
@@ -237,11 +305,10 @@ namespace EE::Animation
 
     public:
 
-        bool CompileGraph( ToolsGraphDefinition const& editorGraph );
+        bool CompileGraph( ToolsGraphDefinition const& editorGraph, StringID variationID );
 
         inline GraphDefinition const* GetCompiledGraph() const { return &m_runtimeGraph; }
         inline TVector<NodeCompilationLogEntry> const& GetLog() const { return m_context.m_log; }
-        inline TVector<UUID> const& GetRegisteredDataSlots() const { return m_context.m_registeredDataSlots; }
         inline THashMap<UUID, int16_t> const& GetUUIDToRuntimeIndexMap() const { return m_context.m_nodeIDToIndexMap; }
         inline THashMap<int16_t, UUID> const& GetRuntimeIndexToUUIDMap() const { return m_context.m_nodeIndexToIDMap; }
 

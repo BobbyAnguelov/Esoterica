@@ -2,7 +2,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void ConstBoolNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {

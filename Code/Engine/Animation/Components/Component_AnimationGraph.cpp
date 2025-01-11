@@ -13,15 +13,15 @@ namespace EE::Animation
     {
         EntityComponent::Initialize();
 
-        if ( m_pGraphVariation == nullptr )
+        if ( m_graphDefinition == nullptr )
         {
             return;
         }
 
         //-------------------------------------------------------------------------
 
-        EE_ASSERT( m_pGraphVariation.IsLoaded() );
-        m_pGraphInstance = EE::New<GraphInstance>( m_pGraphVariation.GetPtr(), GetEntityID().m_value );
+        EE_ASSERT( m_graphDefinition.IsLoaded() );
+        m_pGraphInstance = EE::New<GraphInstance>( m_graphDefinition.GetPtr(), GetEntityID().m_value );
 
         if ( !m_secondarySkeletons.empty() )
         {
@@ -38,11 +38,11 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void GraphComponent::SetGraphVariation( ResourceID graphResourceID )
+    void GraphComponent::SetGraphDefinition( ResourceID graphResourceID )
     {
         EE_ASSERT( IsUnloaded() );
         EE_ASSERT( graphResourceID.IsValid() );
-        m_pGraphVariation = graphResourceID;
+        m_graphDefinition = graphResourceID;
     }
 
     void GraphComponent::SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons )
@@ -74,7 +74,7 @@ namespace EE::Animation
 
     Skeleton const* GraphComponent::GetPrimarySkeleton() const
     {
-        return ( m_pGraphVariation != nullptr ) ? m_pGraphVariation->GetPrimarySkeleton() : nullptr;
+        return ( m_graphDefinition != nullptr ) ? m_graphDefinition->GetPrimarySkeleton() : nullptr;
     }
 
     Pose const* GraphComponent::GetPrimaryPose() const
@@ -189,7 +189,7 @@ namespace EE::Animation
 
     void GraphComponent::DrawDebug( Drawing::DrawContext& drawingContext )
     {
-        if ( !HasGraph() || !WasInitialized() || m_pGraphInstance == nullptr )
+        if ( !HasGraph() || !IsInitialized() || m_pGraphInstance == nullptr )
         {
             return;
         }

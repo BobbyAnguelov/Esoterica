@@ -1,18 +1,18 @@
 #pragma once
 
 #include "Animation_RuntimeGraphNode_Passthrough.h"
+#include "Engine/Physics/PhysicsRagdoll.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
     class Ragdoll;
-    struct RagdollDefinition;
 }
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class AnimationClipReferenceNode;
 
@@ -39,8 +39,8 @@ namespace EE::Animation::GraphNodes
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
-            int16_t                                         m_entryNodeIdx = InvalidIndex;
             int16_t                                         m_dataSlotIdx = InvalidIndex;
+            int16_t                                         m_entryNodeIdx = InvalidIndex;
             StringID                                        m_entryProfileID;
             StringID                                        m_simulatedProfileID;
             StringID                                        m_exitProfileID;

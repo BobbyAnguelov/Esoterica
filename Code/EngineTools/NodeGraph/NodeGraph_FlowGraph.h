@@ -282,10 +282,16 @@ namespace EE::NodeGraph
 
         void DestroyPin( UUID const& pinID );
 
+        // Event when a node is double clicked and doesnt result in a navigation operation, by default if a node has a navigation target, a double-click performs a navigation operation
+        // Return true if you handle the double-click, false otherwise so the event is sent to the listeners on the context
+        virtual bool HandleDoubleClick( UserContext* pUserContext, UUID const& hoveredPinID ) { return false; }
+
     private:
 
         FlowNode( FlowNode const& ) = delete;
         FlowNode& operator=( FlowNode const& ) = delete;
+
+        virtual bool HandleDoubleClick( UserContext* pUserContext ) override final { return HandleDoubleClick( pUserContext, UUID() ); }
 
     private:
 

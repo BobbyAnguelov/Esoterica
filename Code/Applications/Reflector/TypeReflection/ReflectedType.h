@@ -20,6 +20,7 @@ namespace EE::TypeSystem::Reflection
         };
 
         constexpr static char const* const s_reflectedTypeInterfaceClassName = "IReflectedType";
+        constexpr static char const* const s_defaultInstanceCustomCtorArgTypename = "EE::DefaultInstanceCtor_t";
         constexpr static char const* const s_baseEntityClassName = "Entity";
         constexpr static char const* const s_baseEntityComponentClassName = "EntityComponent";
         constexpr static char const* const s_baseEntitySystemClassName = "IEntitySystem";
@@ -72,6 +73,7 @@ namespace EE::TypeSystem::Reflection
         CoreTypeID                                      m_underlyingType = CoreTypeID::Uint8;
         TVector<ReflectedEnumConstant>                  m_enumConstants;
 
+        bool                                            m_hasCustomDefaultInstanceCtor = false;
         bool                                            m_isDevOnly = true;
     };
 }

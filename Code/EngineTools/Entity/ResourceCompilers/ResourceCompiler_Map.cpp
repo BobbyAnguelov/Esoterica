@@ -95,7 +95,7 @@ namespace EE::EntityModel
             pNavmeshComponentDesc->RemovePropertyValue( navmeshResourcePropertyPath );
 
             // Set navmesh resource ptr
-            DataPath navmeshResourcePath = ctx.m_resourceID.GetResourcePath();
+            DataPath navmeshResourcePath = ctx.m_resourceID.GetDataPath();
             navmeshResourcePath.ReplaceExtension( Navmesh::NavmeshData::GetStaticResourceTypeID().ToString() );
 
             TypeSystem::PropertyDescriptor navmeshPtrPropertyDesc;

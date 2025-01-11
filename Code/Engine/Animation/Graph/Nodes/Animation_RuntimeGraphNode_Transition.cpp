@@ -5,10 +5,9 @@
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Blend.h"
 #include "Engine/Animation/AnimationBlender.h"
 
-
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void TransitionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -20,40 +19,20 @@ namespace EE::Animation::GraphNodes
         context.SetOptionalNodePtrFromIndex( m_targetSyncIDNodeIdx, pNode->m_pTargetSyncIDNode );
     }
 
-    GraphPoseNodeResult TransitionNode::StartTransitionFromState( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, StateNode* pSourceState, bool startCachingSourcePose )
+    GraphPoseNodeResult TransitionNode::InitializeTargetStateAndUpdateTransition( GraphContext& context, StartOptions const& startOptions )
     {
-        EE_ASSERT( pSourceState != nullptr && m_pSourceNode == nullptr && WasInitialized() );
+        EE_ASSERT( startOptions.m_pSourceNode != nullptr && m_pSourceNode == nullptr && IsInitialized() );
 
-        m_pSourceNode = pSourceState;
-        m_sourceType = SourceType::State;
-
-        if ( startCachingSourcePose )
-        {
-            StartCachingSourcePose( context );
-        }
-
-        return InitializeTargetStateAndUpdateTransition( context, pUpdateRange, sourceNodeResult );
-    }
-
-    GraphPoseNodeResult TransitionNode::StartTransitionFromTransition( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, TransitionNode* pSourceTransition, bool startCachingSourcePose )
-    {
-        EE_ASSERT( pSourceTransition != nullptr && m_pSourceNode == nullptr && WasInitialized() );
-
-        m_pSourceNode = pSourceTransition;
-        m_sourceType = SourceType::Transition;
-
-        if( startCachingSourcePose )
-        {
-            StartCachingSourcePose( context );
-        }
-
-        return InitializeTargetStateAndUpdateTransition( context, pUpdateRange, sourceNodeResult );
-    }
-
-    GraphPoseNodeResult TransitionNode::InitializeTargetStateAndUpdateTransition( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult sourceNodeResult )
-    {
         auto pDefinition = GetDefinition<TransitionNode>();
 
+        m_pSourceNode = startOptions.m_pSourceNode;
+        m_sourceType = startOptions.m_isSourceATransition ? SourceType::Transition : SourceType::State;
+
+        if ( startOptions.m_startCachingSourcePose )
+        {
+            StartCachingSourcePose( context );
+        }
+   
         //-------------------------------------------------------------------------
 
         MarkNodeActive( context );
@@ -65,9 +44,14 @@ namespace EE::Animation::GraphNodes
         m_rootMotionActionIdxSource = context.GetRootMotionDebugger()->GetLastActionIndex();
         #endif
 
-        // Starting a transition out may generate additional state events so we need to update the sampled event range
+        // Copy the source node result as we are gonna potentially modify both the sampled event indices and the task idx
+        GraphPoseNodeResult sourceNodeResult = startOptions.m_sourceNodeResult;
+
+        // Starting a transition out may generate additional graph events so we need to update the sampled event range
         auto StartTransitionOutForSource = [&] ()
         {
+            bool const isInstantTransition = ( m_transitionDuration == 0.0f );
+
             if ( m_sourceType == SourceType::State )
             {
                 sourceNodeResult.m_sampledEventRange = GetSourceStateNode()->StartTransitionOut( context );
@@ -76,6 +60,21 @@ namespace EE::Animation::GraphNodes
             {
                 SampledEventRange const newTargetEventRange = GetSourceTransitionNode()->m_pTargetNode->StartTransitionOut( context );
                 sourceNodeResult.m_sampledEventRange.m_endIdx = newTargetEventRange.m_endIdx;
+            }
+
+            if ( isInstantTransition )
+            {
+                if ( IsSourceATransition() )
+                {
+                    EndSourceTransition( context );
+                }
+
+                // Shutdown the source node
+                m_pSourceNode->Shutdown( context );
+                m_pSourceNode = nullptr;
+
+                // Rollback the task system as we dont need to execute any of these tasks
+                context.m_pTaskSystem->RollbackToTaskIndexMarker( startOptions.m_sourceTasksStartMarker );
             }
         };
 
@@ -91,7 +90,13 @@ namespace EE::Animation::GraphNodes
         }
 
         // Cache source node pose
-        RegisterSourceCachePoseTask( context, sourceNodeResult );
+        //-------------------------------------------------------------------------
+
+        if ( m_cachedPoseBufferID.IsValid() && sourceNodeResult.HasRegisteredTasks() )
+        {
+            EE_ASSERT( context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
+            sourceNodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::CachedPoseWriteTask>( GetNodeIndex(), sourceNodeResult.m_taskIdx, m_cachedPoseBufferID );
+        }
 
         // Use sync events to initialize the target state
         //-------------------------------------------------------------------------
@@ -99,7 +104,7 @@ namespace EE::Animation::GraphNodes
         SyncTrackTimeRange targetUpdateRange;
         GraphPoseNodeResult targetNodeResult;
 
-        if ( pDefinition->IsSynchronized() || pUpdateRange != nullptr )
+        if ( pDefinition->IsSynchronized() || startOptions.m_pUpdateRange != nullptr )
         {
             EE_ASSERT( m_pSourceNode != nullptr );
             SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
@@ -109,10 +114,55 @@ namespace EE::Animation::GraphNodes
             sourceUpdateRange.m_startTime = sourceSyncTrack.GetTime( m_pSourceNode->GetPreviousTime() );
             sourceUpdateRange.m_endTime = sourceSyncTrack.GetTime( m_pSourceNode->GetCurrentTime() );
 
+            // Calculate transition duration
+            if ( pDefinition->ShouldClampTransitionLength() )
+            {
+                // Calculate the real end of the source state i.e. the percentage through for the end of the last sync event
+                SyncTrackTime const sourceRealEndSyncTime = sourceSyncTrack.GetEndTime();
+                Percentage const sourceRealEndTime = sourceSyncTrack.GetPercentageThrough( sourceRealEndSyncTime );
+                Percentage const sourceCurrentTime = sourceSyncTrack.GetPercentageThrough( sourceUpdateRange.m_startTime );
+
+                // Calculate the delta between the current position and the real end of the source
+                float deltaBetweenCurrentTimeAndRealEndTime = 0.0f;
+                if ( sourceRealEndTime > sourceCurrentTime )
+                {
+                    deltaBetweenCurrentTimeAndRealEndTime = sourceRealEndTime - sourceCurrentTime;
+                }
+                else
+                {
+                    deltaBetweenCurrentTimeAndRealEndTime = ( 1.0f - ( sourceCurrentTime - sourceRealEndTime ) );
+                }
+
+                // If the end of the source occurs before the transition completes, then we need to clamp the transition duration
+                Seconds const sourceDuration = m_pSourceNode->GetDuration();
+                if ( sourceDuration > 0.0f )
+                {
+                    Percentage const sourceTransitionDuration = Percentage( pDefinition->m_duration / sourceDuration );
+                    bool const shouldClamp = deltaBetweenCurrentTimeAndRealEndTime < sourceTransitionDuration;
+
+                    // Calculate the target end position for this transition
+                    SyncTrackTime transitionEndSyncTime;
+                    if ( shouldClamp )
+                    {
+                        // Clamp to the last sync event in the source
+                        transitionEndSyncTime = sourceRealEndSyncTime;
+                    }
+                    else
+                    {
+                        // Clamp to the estimated end position after the transition time
+                        Percentage const sourceEndTimeAfterTransition = ( sourceCurrentTime + sourceTransitionDuration ).GetNormalizedTime();
+                        transitionEndSyncTime = sourceSyncTrack.GetTime( sourceEndTimeAfterTransition );
+                    }
+
+                    // Calculate the transition duration in terms of event distance and update the progress for this transition
+                    m_transitionDuration = sourceSyncTrack.CalculatePercentageCovered( sourceUpdateRange.m_startTime, transitionEndSyncTime );
+                }
+            }
+
             // Calculate the sync event offset for this transition
             // We dont care about the percentage since we are synchronized to the source
             // Only apply sync offset if we are not part of a sync'ed update
-            if ( pUpdateRange == nullptr )
+            if ( startOptions.m_pUpdateRange == nullptr )
             {
                 if ( m_pEventOffsetOverrideNode != nullptr )
                 {
@@ -148,51 +198,6 @@ namespace EE::Animation::GraphNodes
             #if EE_DEVELOPMENT_TOOLS
             m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
-
-            // Calculate transition duration
-            if ( pDefinition->ShouldClampTransitionLength() )
-            {
-                // Calculate the real end of the source state i.e. the percentage through for the end of the last sync event
-                SyncTrackTime const sourceRealEndSyncTime = sourceSyncTrack.GetEndTime();
-                Percentage const sourceRealEndTime = sourceSyncTrack.GetPercentageThrough( sourceRealEndSyncTime );
-                Percentage const sourceCurrentTime = sourceSyncTrack.GetPercentageThrough( sourceUpdateRange.m_startTime );
-
-                // Calculate the delta between the current position and the real end of the source
-                float deltaBetweenCurrentTimeAndRealEndTime = 0.0f;
-                if ( sourceRealEndTime > sourceCurrentTime )
-                {
-                    deltaBetweenCurrentTimeAndRealEndTime = sourceRealEndTime - sourceCurrentTime;
-                }
-                else
-                {
-                    deltaBetweenCurrentTimeAndRealEndTime = ( 1.0f - ( sourceCurrentTime - sourceRealEndTime ) );
-                }
-
-                // If the end of the source occurs before the transition completes, then we need to clamp the transition duration
-                Seconds const sourceDuration = m_pSourceNode->GetDuration();
-                if ( sourceDuration > 0.0f )
-                {
-                    Percentage const sourceTransitionDuration = Percentage( pDefinition->m_duration / m_pSourceNode->GetDuration() );
-                    bool const shouldClamp = deltaBetweenCurrentTimeAndRealEndTime < sourceTransitionDuration;
-
-                    // Calculate the target end position for this transition
-                    SyncTrackTime transitionEndSyncTime;
-                    if ( shouldClamp )
-                    {
-                        // Clamp to the last sync event in the source
-                        transitionEndSyncTime = sourceRealEndSyncTime;
-                    }
-                    else
-                    {
-                        // Clamp to the estimated end position after the transition time
-                        Percentage const sourceEndTimeAfterTransition = ( sourceCurrentTime + sourceTransitionDuration ).GetNormalizedTime();
-                        transitionEndSyncTime = sourceSyncTrack.GetTime( sourceEndTimeAfterTransition );
-                    }
-
-                    // Calculate the transition duration in terms of event distance and update the progress for this transition
-                    m_transitionLength = sourceSyncTrack.CalculatePercentageCovered( sourceUpdateRange.m_startTime, transitionEndSyncTime );
-                }
-            }
         }
 
         // Unsynchronized Transition
@@ -210,6 +215,17 @@ namespace EE::Animation::GraphNodes
             else
             {
                 m_syncEventOffset = pDefinition->m_syncEventOffset;
+            }
+
+            // Should we clamp how long the transition is active for?
+            if ( pDefinition->ShouldClampTransitionLength() )
+            {
+                Seconds const sourceDuration = m_pSourceNode->GetDuration();
+                if ( sourceDuration > 0.0f )
+                {
+                    float const remainingNodeTime = ( 1.0f - m_pSourceNode->GetCurrentTime() ) * sourceDuration;
+                    m_transitionDuration = Math::Min( m_transitionDuration, remainingNodeTime );
+                }
             }
 
             // If we have a sync offset or we need to match the source state time, we need to create a target state initial time
@@ -301,17 +317,6 @@ namespace EE::Animation::GraphNodes
             #if EE_DEVELOPMENT_TOOLS
             m_rootMotionActionIdxTarget = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
-
-            // Should we clamp how long the transition is active for?
-            if ( pDefinition->ShouldClampTransitionLength() )
-            {
-                Seconds const sourceDuration = m_pSourceNode->GetDuration();
-                if ( sourceDuration > 0.0f )
-                {
-                    float const remainingNodeTime = ( 1.0f - m_pSourceNode->GetCurrentTime() ) * sourceDuration;
-                    m_transitionLength = Math::Min( m_transitionLength, remainingNodeTime );
-                }
-            }
         }
 
         // Calculate the blend weight, register pose task and update layer weights
@@ -332,22 +337,32 @@ namespace EE::Animation::GraphNodes
         // Update internal time and events
         //-------------------------------------------------------------------------
 
-        if ( pDefinition->IsSynchronized() || pUpdateRange != nullptr )
-        {
-            // Create the blended sync track
-            SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
-            SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
-            m_syncTrack = SyncTrack( sourceSyncTrack, targetSyncTrack, m_blendWeight );
-
-            m_blendedDuration = SyncTrack::CalculateDurationSynchronized( m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), sourceSyncTrack.GetNumEvents(), targetSyncTrack.GetNumEvents(), m_syncTrack.GetNumEvents(), m_blendWeight );
-            m_previousTime = m_syncTrack.GetPercentageThrough( targetUpdateRange.m_startTime );
-            m_currentTime = m_syncTrack.GetPercentageThrough( targetUpdateRange.m_endTime );
-        }
-        else
+        if ( m_pSourceNode == nullptr )
         {
             m_previousTime = 0.0f;
             m_currentTime = 0.0f;
-            m_blendedDuration = Math::Lerp( IsSourceACachedPose() ? Seconds( 0.0f ) : m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), m_blendWeight );
+            m_blendedDuration = m_pTargetNode->GetDuration();
+            m_syncTrack = m_pTargetNode->GetSyncTrack();
+        }
+        else
+        {
+            if ( pDefinition->IsSynchronized() || startOptions.m_pUpdateRange != nullptr )
+            {
+                // Create the blended sync track
+                SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
+                SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
+                m_syncTrack = SyncTrack( sourceSyncTrack, targetSyncTrack, m_blendWeight );
+
+                m_blendedDuration = SyncTrack::CalculateDurationSynchronized( m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), sourceSyncTrack.GetNumEvents(), targetSyncTrack.GetNumEvents(), m_syncTrack.GetNumEvents(), m_blendWeight );
+                m_previousTime = m_syncTrack.GetPercentageThrough( targetUpdateRange.m_startTime );
+                m_currentTime = m_syncTrack.GetPercentageThrough( targetUpdateRange.m_endTime );
+            }
+            else
+            {
+                m_previousTime = 0.0f;
+                m_currentTime = 0.0f;
+                m_blendedDuration = Math::Lerp( IsSourceACachedPose() ? Seconds( 0.0f ) : m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), m_blendWeight );
+            }
         }
 
         // Set the exposed-duration of the transition to the target to ensure that any "state completed" nodes trigger correctly
@@ -371,12 +386,12 @@ namespace EE::Animation::GraphNodes
         if ( m_pDurationOverrideNode != nullptr )
         {
             m_pDurationOverrideNode->Initialize( context );
-            m_transitionLength = Math::Clamp( m_pDurationOverrideNode->GetValue<float>( context ), 0.0f, 10.0f );
+            m_transitionDuration = Math::Clamp( m_pDurationOverrideNode->GetValue<float>( context ), 0.0f, 10.0f );
             m_pDurationOverrideNode->Shutdown( context );
         }
         else
         {
-            m_transitionLength = pDefinition->m_duration;
+            m_transitionDuration = pDefinition->m_duration;
         }
 
         m_transitionProgress = 0.0f;
@@ -409,7 +424,10 @@ namespace EE::Animation::GraphNodes
         }
         else
         {
-            EE_ASSERT( IsSourceACachedPose() );
+            if ( m_transitionDuration != 0.0f )
+            {
+                EE_ASSERT( IsSourceACachedPose() );
+            }
         }
 
         PoseNode::ShutdownInternal( context );
@@ -437,12 +455,12 @@ namespace EE::Animation::GraphNodes
 
     bool TransitionNode::IsComplete( GraphContext& context ) const
     {
-        if ( m_transitionLength <= 0.0f )
+        if ( m_transitionDuration <= 0.0f )
         {
             return true;
         }
 
-        return ( m_transitionProgress + Percentage( context.m_deltaTime / m_transitionLength ).ToFloat() ) >= 1.0f;
+        return ( m_transitionProgress + Percentage( context.m_deltaTime / m_transitionDuration ).ToFloat() ) >= 1.0f;
     }
 
     //-------------------------------------------------------------------------
@@ -454,7 +472,7 @@ namespace EE::Animation::GraphNodes
         EE_ASSERT( m_cachedPoseBufferID.IsValid() );
     }
 
-    void TransitionNode::NotifyNewTransitionStarting( GraphContext& context, StateNode* pTargetStateNode, TInlineVector<StateNode const *, 20> const& forceableFutureTargetStates )
+    void TransitionNode::NotifyNewTransitionStarting( GraphContext& context, StateNode* pTargetStateNode, TInlineVector<StateNode const *, 20> const& forceableFutureTargetStatesUsingCachedPoses )
     {
         if ( IsSourceATransition() )
         {
@@ -478,7 +496,7 @@ namespace EE::Animation::GraphNodes
             // If the source transition is to a future forceable state, we need to cache the result
             else if ( !m_cachedPoseBufferID.IsValid() )
             {
-                if ( VectorContains( forceableFutureTargetStates, pSourceTransitionNode->m_pTargetNode ) )
+                if ( VectorContains( forceableFutureTargetStatesUsingCachedPoses, pSourceTransitionNode->m_pTargetNode ) )
                 {
                     StartCachingSourcePose( context );
                 }
@@ -497,7 +515,7 @@ namespace EE::Animation::GraphNodes
             {
                 if ( !m_cachedPoseBufferID.IsValid() )
                 {
-                    if ( VectorContains( forceableFutureTargetStates, GetSourceStateNode() ) )
+                    if ( VectorContains( forceableFutureTargetStatesUsingCachedPoses, GetSourceStateNode() ) )
                     {
                         StartCachingSourcePose( context );
                     }
@@ -515,20 +533,7 @@ namespace EE::Animation::GraphNodes
         if ( IsSourceATransition() )
         {
             auto pSourceTransitionNode = GetSourceTransitionNode();
-            pSourceTransitionNode->NotifyNewTransitionStarting( context, pTargetStateNode, forceableFutureTargetStates );
-        }
-    }
-
-    void TransitionNode::RegisterSourceCachePoseTask( GraphContext& context, GraphPoseNodeResult& sourceNodeResult )
-    {
-        if ( sourceNodeResult.HasRegisteredTasks() )
-        {
-            // If we should cache, register the write task here
-            if ( m_cachedPoseBufferID.IsValid() )
-            {
-                EE_ASSERT( context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
-                sourceNodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::CachedPoseWriteTask>( GetNodeIndex(), sourceNodeResult.m_taskIdx, m_cachedPoseBufferID );
-            }
+            pSourceTransitionNode->NotifyNewTransitionStarting( context, pTargetStateNode, forceableFutureTargetStatesUsingCachedPoses );
         }
     }
 
@@ -537,6 +542,18 @@ namespace EE::Animation::GraphNodes
     void TransitionNode::RegisterPoseTasksAndUpdateRootMotion( GraphContext& context, GraphPoseNodeResult const& sourceResult, GraphPoseNodeResult const& targetResult, GraphPoseNodeResult& outResult )
     {
         auto pDefinition = GetDefinition<TransitionNode>();
+
+        // Do we need to skip registering the blend?
+        if ( m_pSourceNode == nullptr && !IsSourceACachedPose() )
+        {
+            EE_ASSERT( m_transitionDuration == 0.0f );
+            EE_ASSERT( m_blendWeight == 1.0f );
+            outResult.m_taskIdx = targetResult.m_taskIdx;
+            outResult.m_rootMotionDelta = targetResult.m_rootMotionDelta;
+            return;
+        }
+
+        //-------------------------------------------------------------------------
 
         if ( sourceResult.HasRegisteredTasks() && targetResult.HasRegisteredTasks() )
         {
@@ -654,10 +671,11 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult TransitionNode::Update( GraphContext& context, SyncTrackTimeRange const* pExternallySuppliedUpdateRange )
     {
-        EE_ASSERT( WasInitialized() && !IsComplete( context ) );
+        EE_ASSERT( IsInitialized() && !IsComplete( context ) );
+
         if ( !IsSourceACachedPose() )
         {
-            EE_ASSERT( m_pSourceNode != nullptr && m_pSourceNode->WasInitialized() );
+            EE_ASSERT( m_pSourceNode != nullptr && m_pSourceNode->IsInitialized() );
         }
 
         auto pDefinition = GetDefinition<TransitionNode>();
@@ -666,12 +684,12 @@ namespace EE::Animation::GraphNodes
 
         // Recreate buffers
         #if EE_DEVELOPMENT_TOOLS
-        if ( m_recreateCachedBuffer )
+        if ( m_recreateCachedPoseBuffer )
         {
             EE_ASSERT( m_cachedPoseBufferID.IsValid() );
             EE_ASSERT( !context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
             context.m_pTaskSystem->EnsureCachedPoseExists( m_cachedPoseBufferID );
-            m_recreateCachedBuffer = false;
+            m_recreateCachedPoseBuffer = false;
         }
         #endif
 
@@ -708,7 +726,7 @@ namespace EE::Animation::GraphNodes
         // Update transition progress
         //-------------------------------------------------------------------------
 
-        EE_ASSERT( m_transitionLength > 0.0f );
+        EE_ASSERT( m_transitionDuration > 0.0f );
 
         // Handle source transition completion
         if ( IsSourceATransition() && GetSourceTransitionNode()->IsComplete( context ) )
@@ -720,11 +738,11 @@ namespace EE::Animation::GraphNodes
         if ( shouldRunSyncUpdate && pDefinition->ShouldClampTransitionLength() )
         {
             float const eventDistance = m_syncTrack.CalculatePercentageCovered( updateRange );
-            m_transitionProgress = m_transitionProgress + ( eventDistance / m_transitionLength );
+            m_transitionProgress = m_transitionProgress + ( eventDistance / m_transitionDuration );
         }
         else // Update the transition progress using the last frame time delta and store current time delta
         {
-            m_transitionProgress = m_transitionProgress + Percentage( context.m_deltaTime / m_transitionLength );
+            m_transitionProgress = m_transitionProgress + Percentage( context.m_deltaTime / m_transitionDuration );
         }
 
         m_transitionProgress = Math::Clamp( m_transitionProgress, 0.0f, 1.0f );
@@ -786,7 +804,11 @@ namespace EE::Animation::GraphNodes
             #endif
 
             // Cache source node pose
-            RegisterSourceCachePoseTask( context, sourceNodeResult );
+            if ( m_cachedPoseBufferID.IsValid() && sourceNodeResult.HasRegisteredTasks() )
+            {
+                EE_ASSERT( context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
+                sourceNodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::CachedPoseWriteTask>( GetNodeIndex(), sourceNodeResult.m_taskIdx, m_cachedPoseBufferID );
+            }
         }
 
         // Update the target state
@@ -871,7 +893,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::RecordGraphState( outState );
 
         outState.WriteValue( m_transitionProgress );
-        outState.WriteValue( m_transitionLength );
+        outState.WriteValue( m_transitionDuration );
         outState.WriteValue( m_syncEventOffset );
         outState.WriteValue( m_blendWeight );
         outState.WriteValue( m_cachedPoseBufferID );
@@ -885,7 +907,7 @@ namespace EE::Animation::GraphNodes
         PoseNode::RestoreGraphState( inState );
 
         inState.ReadValue( m_transitionProgress );
-        inState.ReadValue( m_transitionLength );
+        inState.ReadValue( m_transitionDuration );
         inState.ReadValue( m_syncEventOffset );
         inState.ReadValue( m_blendWeight );
         inState.ReadValue( m_cachedPoseBufferID );
@@ -897,7 +919,7 @@ namespace EE::Animation::GraphNodes
         // Either reading or writing to a cached buffer
         if ( m_cachedPoseBufferID.IsValid() )
         {
-            m_recreateCachedBuffer = true;
+            m_recreateCachedPoseBuffer = true;
         }
 
         // Serialize source node idx

@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class EE_GAME_API AimIKNode final : public PassthroughNode
     {

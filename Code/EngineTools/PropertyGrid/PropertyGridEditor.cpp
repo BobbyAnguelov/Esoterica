@@ -1,6 +1,8 @@
 ﻿#include "PropertyGridEditor.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "EngineTools/Widgets/Pickers.h"
+#include "EngineTools/Widgets/Pickers/DataPathPicker.h"
+#include "EngineTools/Widgets/Pickers/ResourcePickers.h"
+#include "EngineTools/Widgets/Pickers/TypeInfoPicker.h"
 #include "EngineTools/Widgets/CurveEditor.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Resource/ResourcePtr.h"
@@ -1388,14 +1390,14 @@ namespace EE::PG
 
         virtual void UpdatePropertyValue() override
         {
-            m_value_cached = m_picker.GetPath();
+            m_value_cached = m_picker.GetDataPath();
             *reinterpret_cast<DataPath*>( m_pPropertyInstance ) = m_value_cached.IsValid() ? m_value_cached : DataPath();
         }
 
         virtual void ResetWorkingCopy() override
         {
             m_value_cached = *reinterpret_cast<DataPath*>( m_pPropertyInstance );
-            m_picker.SetPath( m_value_cached );
+            m_picker.SetDataPath( m_value_cached );
         }
 
         virtual void HandleExternalUpdate() override
@@ -1405,7 +1407,7 @@ namespace EE::PG
             {
                 m_value_cached = value_external;
             }
-            m_picker.SetPath( m_value_cached );
+            m_picker.SetDataPath( m_value_cached );
         }
 
     private:

@@ -5,7 +5,7 @@
 
 namespace EE::Render
 {
-    bool ShaderLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::ResourceLoader::LoadResult ShaderLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         EE_ASSERT( m_pRenderDevice != nullptr );
 
@@ -27,7 +27,7 @@ namespace EE::Render
         }
         else
         {
-            return false;
+            return Resource::ResourceLoader::LoadResult::Failed;
         }
 
         EE_ASSERT( pShaderResource != nullptr );
@@ -37,10 +37,10 @@ namespace EE::Render
         m_pRenderDevice->CreateShader( *pShaderResource );
         m_pRenderDevice->UnlockDevice();
         pResourceRecord->SetResourceData( pShaderResource );
-        return true;
+        return Resource::ResourceLoader::LoadResult::Succeeded;
     }
 
-    void ShaderLoader::UnloadInternal( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
+    void ShaderLoader::Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
     {
         EE_ASSERT( m_pRenderDevice != nullptr );
 
@@ -52,6 +52,6 @@ namespace EE::Render
             m_pRenderDevice->UnlockDevice();
         }
 
-        ResourceLoader::UnloadInternal( resourceID, pResourceRecord );
+        ResourceLoader::Unload( resourceID, pResourceRecord );
     }
 }

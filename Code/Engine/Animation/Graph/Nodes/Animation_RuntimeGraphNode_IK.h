@@ -2,18 +2,18 @@
 
 #include "Game/_Module/API.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Passthrough.h"
+#include "Engine/Animation/IK/IKRig.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
-    class IKRigDefinition;
     class IKRig;
 }
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class EE_ENGINE_API IKRigNode final : public PassthroughNode
     {

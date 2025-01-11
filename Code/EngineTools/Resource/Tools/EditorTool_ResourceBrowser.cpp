@@ -137,6 +137,7 @@ namespace EE::Resource
             category = category.substr( 0, foundIdx );
 
             auto pResourceInfo = pTypeRegistry->GetResourceInfo( pRD->GetCompiledResourceTypeID() );
+            EE_ASSERT( pResourceInfo != nullptr );
             m_categorizedDescriptorTypes.AddItem( category, pResourceInfo->m_friendlyName.c_str(), pTypeInfo );
         }
     }

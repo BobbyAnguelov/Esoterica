@@ -23,7 +23,7 @@ namespace EE::Animation
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void DrawPoseNodeDebugInfo( NodeGraph::DrawContext const& ctx, float canvasWidth, PoseNodeDebugInfo const* pDebugInfo );
     void DrawRuntimeNodeIndex( NodeGraph::DrawContext const& ctx, ToolsGraphUserContext* pGraphNodeContext, NodeGraph::BaseNode* pNode, int16_t runtimeNodeIdx );
@@ -78,7 +78,7 @@ namespace EE::Animation::GraphNodes
         EE_FORCE_INLINE void CreateInputPin( char const* pPinName, GraphValueType pinType ) { NodeGraph::FlowNode::CreateInputPin( pPinName, GetPinTypeForValueType( pinType ) ); }
         EE_FORCE_INLINE void CreateOutputPin( char const* pPinName, GraphValueType pinType, bool allowMultipleOutputConnections = false ) { NodeGraph::FlowNode::CreateOutputPin( pPinName, GetPinTypeForValueType( pinType ), allowMultipleOutputConnections ); }
 
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) {}
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) {}
 
         virtual bool IsActive( NodeGraph::UserContext* pUserContext ) const override;
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;

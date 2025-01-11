@@ -27,7 +27,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        inline bool HasGraph() const { return m_pGraphVariation != nullptr; }
+        inline bool HasGraph() const { return m_graphDefinition != nullptr; }
         inline bool HasGraphInstance() const { return m_pGraphInstance != nullptr; }
 
         // Does this component require a manual update via a custom entity system?
@@ -43,11 +43,11 @@ namespace EE::Animation
         // Gets the root motion delta for the last update (Note: this delta is in character space!)
         inline Transform const& GetRootMotionDelta() const { return m_rootMotionDelta; }
 
-        // Get the graph variation ID
-        inline ResourceID const& GetGraphVariationID() const { return m_pGraphVariation.GetResourceID(); }
+        // Get the graph definition ID
+        inline ResourceID const& GetGraphDefinitionID() const { return m_graphDefinition.GetResourceID(); }
 
         // This function will change the graph and data-set used! Note: this can only be called for unloaded components
-        void SetGraphVariation( ResourceID graphResourceID );
+        void SetGraphDefinition( ResourceID graphResourceID );
 
         // Poses and Skeleton
         //-------------------------------------------------------------------------
@@ -156,15 +156,21 @@ namespace EE::Animation
 
     private:
 
-        EE_REFLECT() TResourcePtr<GraphVariation>               m_pGraphVariation = nullptr;
+        EE_REFLECT();
+        TResourcePtr<GraphDefinition>                           m_graphDefinition = nullptr;
 
         GraphInstance*                                          m_pGraphInstance = nullptr;
         SecondarySkeletonList                                   m_secondarySkeletons;
         SampledEventsBuffer                                     m_sampledEventsBuffer;
         Transform                                               m_rootMotionDelta = Transform::Identity;
         Skeleton::LOD                                           m_skeletonLOD = Skeleton::LOD::High;
-        EE_REFLECT() bool                                       m_requiresManualUpdate = false; // Does this component require a manual update via a custom entity system?
-        EE_REFLECT() bool                                       m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
+        
+        EE_REFLECT();
+        bool                                                    m_requiresManualUpdate = false; // Does this component require a manual update via a custom entity system?
+        
+        EE_REFLECT();
+        bool                                                    m_applyRootMotionToEntity = false; // Should we apply the root motion delta automatically to the character once we evaluate the graph. (Note: only works if we dont require a manual update)
+
         bool                                                    m_graphStateResetRequested = false;
     };
 }

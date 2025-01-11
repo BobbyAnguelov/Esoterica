@@ -1,10 +1,10 @@
 #pragma once
-#include "Animation_ToolsGraphNode_DataSlot.h"
+#include "Animation_ToolsGraphNode_VariationData.h"
 #include "Engine/Animation/AnimationBoneMask.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class BoneMaskToolsNode final : public FlowToolsNode
     {
@@ -18,7 +18,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionConduit, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
     private:
 
@@ -40,7 +40,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionConduit, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
         EE_REFLECT();
         float                                   m_boneWeight = 0.0f;

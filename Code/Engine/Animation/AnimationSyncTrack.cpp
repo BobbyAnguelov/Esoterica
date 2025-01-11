@@ -13,7 +13,7 @@ namespace EE::Animation
         m_syncEvents.emplace_back( Event() );
     }
 
-    SyncTrack::SyncTrack( TInlineVector<EventMarker, 10> const& inMarkers, int32_t eventOffset )
+    SyncTrack::SyncTrack( TInlineVector<EventMarker, 10> const& inMarkers, int32_t startEventOffset )
     {
         // If there are no markers, then just default-construct
         if ( inMarkers.empty() )
@@ -55,10 +55,14 @@ namespace EE::Animation
         // Set event offset
         //-------------------------------------------------------------------------
 
-        m_startEventOffset = ClampIndexToTrack( eventOffset );
+        m_startEventOffset = ClampIndexToTrack( startEventOffset );
     }
 
-    //-------------------------------------------------------------------------
+    SyncTrack::SyncTrack( TInlineVector<Event, 10> const& inEvents, int32_t startEventOffset )
+        : m_syncEvents( inEvents )
+    {
+        m_startEventOffset = ClampIndexToTrack( startEventOffset );
+    }
 
     SyncTrack::SyncTrack( SyncTrack const& track0, SyncTrack const& track1, float const blendWeight )
     {

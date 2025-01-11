@@ -18,7 +18,7 @@ namespace EE::Animation
         m_pTypeRegistry = pTypeRegistry;
     }
 
-    bool AnimationClipLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::ResourceLoader::LoadResult AnimationClipLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         EE_ASSERT(  m_pTypeRegistry != nullptr );
 
@@ -55,10 +55,10 @@ namespace EE::Animation
             pAnimation->m_secondaryAnimations.emplace_back( pSecondaryAnimation );
         }
 
-        return true;
+        return Resource::ResourceLoader::LoadResult::Succeeded;
     }
 
-    void AnimationClipLoader::UnloadInternal( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
+    void AnimationClipLoader::Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
     {
         auto pAnimClip = pResourceRecord->GetResourceData<AnimationClip>();
         if ( pAnimClip != nullptr )
@@ -76,10 +76,10 @@ namespace EE::Animation
             }
         }
 
-        ResourceLoader::UnloadInternal( resourceID, pResourceRecord );
+        ResourceLoader::Unload( resourceID, pResourceRecord );
     }
 
-    Resource::InstallResult AnimationClipLoader::Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
+    Resource::ResourceLoader::LoadResult AnimationClipLoader::Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
     {
         auto pAnimClip = pResourceRecord->GetResourceData<AnimationClip>();
         EE_ASSERT( pAnimClip->m_skeleton.GetResourceID().IsValid() );
@@ -95,8 +95,8 @@ namespace EE::Animation
             EE_ASSERT( pSecondaryAnimation->IsValid() );
         }
 
-        ResourceLoader::Install( resourceID, resourcePath, installDependencies, pResourceRecord );
+        ResourceLoader::Install( resourceID, installDependencies, pResourceRecord );
 
-        return Resource::InstallResult::Succeeded;
+        return ResourceLoader::LoadResult::Succeeded;
     }
 }

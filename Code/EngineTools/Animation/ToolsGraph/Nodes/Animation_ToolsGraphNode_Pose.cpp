@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     ZeroPoseToolsNode::ZeroPoseToolsNode()
         : FlowToolsNode()
@@ -37,10 +37,12 @@ namespace EE::Animation::GraphNodes
     //-------------------------------------------------------------------------
 
     AnimationPoseToolsNode::AnimationPoseToolsNode()
-        : DataSlotToolsNode()
+        : VariationDataToolsNode()
     {
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Time", GraphValueType::Float );
+
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
     }
 
     int16_t AnimationPoseToolsNode::Compile( GraphCompilationContext& context ) const
@@ -65,7 +67,8 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pDefinition->m_dataSlotIndex = context.RegisterDataSlotNode( GetID() );
+            auto pData = GetResolvedVariationDataAs<Data>( context.GetVariationHierarchy(), context.GetVariationID() );
+            pDefinition->m_dataSlotIdx = context.RegisterResource( pData->m_animClip.GetResourceID() );
             pDefinition->m_inputTimeRemapRange = m_inputTimeRemapRange;
             pDefinition->m_userSpecifiedTime = m_fixedTimeValue;
             pDefinition->m_useFramesAsInput = m_useFramesAsInput;
@@ -73,7 +76,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void AnimationPoseToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void AnimationPoseToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         if ( GetConnectedInputNode( 0 ) == nullptr )
         {
@@ -89,6 +92,6 @@ namespace EE::Animation::GraphNodes
             EndDrawInternalRegion( ctx );
         }
 
-        DataSlotToolsNode::DrawInfoText( ctx );
+        VariationDataToolsNode::DrawInfoText( ctx, pUserContext );
     }
 }

@@ -281,7 +281,7 @@ namespace EE::Resource
             return Resource::CompilationResult::Failure;
         }
 
-        // Check that target file isnt read-only
+        // Check that target file isn't read-only
         if ( FileSystem::Exists( m_pCompileContext->m_outputFilePath ) && FileSystem::IsFileReadOnly( m_pCompileContext->m_outputFilePath ) )
         {
             EE_LOG_ERROR( "Resource", "Resource Compiler", "Error: Destination file (%s) is read-only!", m_pCompileContext->m_outputFilePath.GetFullPath().c_str() );
@@ -300,7 +300,7 @@ namespace EE::Resource
             // Check compile dependency and if this resource needs compilation
             m_uniqueCompileDependencies.clear();
             m_compileDependencyTreeRoot.Reset();
-            if ( !FillCompileDependencyNode( &m_compileDependencyTreeRoot, m_pCompileContext->m_resourceID.GetResourcePath() ) )
+            if ( !FillCompileDependencyNode( &m_compileDependencyTreeRoot, m_pCompileContext->m_resourceID.GetDataPath() ) )
             {
                 EE_LOG_ERROR( "Resource", "Resource Compiler", "Failed to create dependency tree: %s", m_errorMessage.c_str() );
                 return Resource::CompilationResult::Failure;
@@ -317,6 +317,7 @@ namespace EE::Resource
 
         if ( pCompiler->RequiresAdvancedUpToDateCheck( m_pCompileContext->m_resourceID.GetResourceTypeID() ) )
         {
+            // Always calculate the advanced hash
             Milliseconds advancedUpToDateCheckTime = 0.0f;
             {
                 ScopedTimer<PlatformClock> advancedUpToDateCheckTimer( advancedUpToDateCheckTime );
@@ -325,8 +326,8 @@ namespace EE::Resource
 
             EE_LOG_INFO( "Resource", "Resource Compiler", "Advanced Up to Date Check took: %.2fms", advancedUpToDateCheckTime.ToFloat() );
 
-            // Only take into account the advanced check when we failed the basic check
-            if ( requiresCompilation )
+            // If we passed the basic up to date check, check the advanced hash
+            if ( !requiresCompilation )
             {
                 CompiledResourceRecord compiledRecord;
                 if ( m_compiledResourceDB.GetRecord( m_pCompileContext->m_resourceID, compiledRecord ) )
@@ -384,7 +385,7 @@ namespace EE::Resource
         m_errorMessage.clear();
         m_uniqueCompileDependencies.clear();
         m_compileDependencyTreeRoot.Reset();
-        return FillCompileDependencyNode( &m_compileDependencyTreeRoot, resourceID.GetResourcePath() );
+        return FillCompileDependencyNode( &m_compileDependencyTreeRoot, resourceID.GetDataPath() );
     }
 
     bool ResourceCompilerApplication::TryReadCompileDependencies( ResourceID const& resourceID, TVector<DataPath>& outDependencies )
@@ -409,7 +410,7 @@ namespace EE::Resource
                 return false;
             }
 
-            outDependencies.emplace_back( parentResourceID.GetResourcePath() );
+            outDependencies.emplace_back( parentResourceID.GetDataPath() );
         }
         else
         {

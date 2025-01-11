@@ -6,7 +6,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     TransitionToolsNode::TransitionToolsNode()
         : ResultToolsNode()
@@ -18,38 +18,40 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "Target Sync ID", GraphValueType::ID );
     }
 
-    void TransitionToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void TransitionToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         BeginDrawInternalRegion( ctx );
 
         //-------------------------------------------------------------------------
 
-        switch ( m_rootMotionBlend )
-        {
-            case RootMotionBlendMode::Blend:
-            ImGui::Text( "Blend Root Motion" );
-            break;
-
-            case RootMotionBlendMode::Additive:
-            ImGui::Text( "Blend Root Motion (Additive)" );
-            break;
-
-            case RootMotionBlendMode::IgnoreSource:
-            ImGui::Text( "Ignore Source Root Motion" );
-            break;
-
-            case RootMotionBlendMode::IgnoreTarget:
-            ImGui::Text( "Ignore Target Root Motion" );
-            break;
-        }
-
-        //-------------------------------------------------------------------------
-
         ImGui::Text( "Duration: %.2fs", m_duration.ToFloat() );
 
-        if ( m_clampDurationToSource )
+        bool const isInstantTransition = ( m_duration == 0.0f );
+        if ( !isInstantTransition )
         {
-            ImGui::Text( "Clamped To Source" );
+            if ( m_clampDurationToSource )
+            {
+                ImGui::Text( "Clamped To Source" );
+            }
+
+            switch ( m_rootMotionBlend )
+            {
+                case RootMotionBlendMode::Blend:
+                ImGui::Text( "Blend Root Motion" );
+                break;
+
+                case RootMotionBlendMode::Additive:
+                ImGui::Text( "Blend Root Motion (Additive)" );
+                break;
+
+                case RootMotionBlendMode::IgnoreSource:
+                ImGui::Text( "Ignore Source Root Motion" );
+                break;
+
+                case RootMotionBlendMode::IgnoreTarget:
+                ImGui::Text( "Ignore Target Root Motion" );
+                break;
+            }
         }
 
         //-------------------------------------------------------------------------
@@ -133,13 +135,24 @@ namespace EE::Animation::GraphNodes
 
         virtual HiddenState IsHidden( StringID const& propertyID ) override
         {
-            StringID const boneMaskBlendPropertyID( "m_boneMaskBlendInTimePercentage" );
+            static StringID const boneMaskBlendPropertyID( "m_boneMaskBlendInTimePercentage" );
             if ( propertyID == boneMaskBlendPropertyID )
             {
                 if( m_pTypeInstance->GetConnectedInputNode<FlowToolsNode>( 3 ) == nullptr )
                 {
                     return HiddenState::Hidden;
                 }
+            }
+
+            //-------------------------------------------------------------------------
+
+            static StringID const clampPropertyID( "m_clampDurationToSource" );
+            static StringID const easingPropertyID( "m_blendWeightEasing" );
+            static StringID const rootMotionPropertyID( "m_rootMotionBlend" );
+
+            if ( propertyID == clampPropertyID || propertyID == easingPropertyID || propertyID == boneMaskBlendPropertyID || propertyID == rootMotionPropertyID )
+            {
+                return ( m_pTypeInstance->m_duration <= 0.0f ) ? HiddenState::Hidden : HiddenState::Visible;
             }
 
             return HiddenState::Unhandled;
@@ -205,8 +218,8 @@ namespace EE::Animation::GraphNodes
                 if ( runtimeNodeIdx != InvalidIndex && pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
                 {
                     float progress = 0.0f;
-                    auto pTransitionNode = static_cast<GraphNodes::TransitionNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
-                    if ( pTransitionNode->WasInitialized() )
+                    auto pTransitionNode = static_cast<TransitionNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
+                    if ( pTransitionNode->IsInitialized() )
                     {
                         progress = pTransitionNode->GetProgressPercentage();
                     }

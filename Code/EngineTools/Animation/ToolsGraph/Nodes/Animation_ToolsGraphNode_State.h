@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class ResultToolsNode;
 
@@ -60,6 +60,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
+        StateToolsNode( DefaultInstanceCtor_t ) : NodeGraph::StateNode() {}
         StateToolsNode();
         StateToolsNode( StateType type );
 
@@ -91,8 +92,6 @@ namespace EE::Animation::GraphNodes
 
         bool CanConvertToStateMachineState();
         void ConvertToStateMachineState();
-
-        void SharedConstructor();
 
     private:
 

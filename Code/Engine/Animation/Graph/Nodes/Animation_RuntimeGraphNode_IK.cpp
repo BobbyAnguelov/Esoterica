@@ -2,20 +2,19 @@
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_IK.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
-#include "Engine/Animation/IK/IKRig.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_DataSet.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void IKRigNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<IKRigNode>( context, options );
         PassthroughNode::Definition::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
 
-        auto pRigDefinition = context.m_pDataSet->GetResource<IKRigDefinition>( m_dataSlotIdx );
-        if ( pRigDefinition != nullptr )
+        // Get rig definition
+        auto pRigDefinition = context.GetResource<IKRigDefinition>( m_dataSlotIdx );
+        if ( pRigDefinition )
         {
             pNode->m_pRig = EE::New<IKRig>( pRigDefinition );
         }

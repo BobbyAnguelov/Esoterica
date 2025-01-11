@@ -97,7 +97,7 @@ namespace EE::Animation
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetDebugName() const { return ""; }
-        virtual InlineString GetDebugTextInfo() const { return InlineString(); }
+        virtual InlineString GetDebugTextInfo( bool isDetailedModeEnabled ) const { return InlineString(); }
         virtual Color GetDebugColor() const { return Colors::White; }
         virtual float GetDebugProgressOrWeight() const { return 0.0f; }
         virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const;

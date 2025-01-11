@@ -23,7 +23,7 @@ namespace EE::EntityModel
         virtual bool SaveData() override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
         virtual void DrawMenu( UpdateContext const& context ) override;
-        virtual bool IsEditingFile( DataPath const& dataPath ) const override { return m_collection.GetResourcePath() == dataPath; }
+        virtual bool IsEditingFile( DataPath const& dataPath ) const override { return m_collection.GetDataPath() == dataPath; }
 
     private:
 

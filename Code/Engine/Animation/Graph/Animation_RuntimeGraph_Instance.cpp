@@ -1,6 +1,7 @@
 #include "Animation_RuntimeGraph_Instance.h"
 #include "Animation_RuntimeGraph_Node.h"
 #include "Nodes/Animation_RuntimeGraphNode_ExternalGraph.h"
+#include "Nodes/Animation_RuntimeGraphNode_ReferencedGraph.h"
 #include "Nodes/Animation_RuntimeGraphNode_Layers.h"
 #include "Base/Profiling.h"
 
@@ -8,12 +9,12 @@
 
 namespace EE::Animation
 {
-    GraphInstance::GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID, TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer, RootMotionDebugger* pRootMotionDebugger )
-        : m_pGraphVariation( pGraphVariation )
+    GraphInstance::GraphInstance( GraphDefinition const* pGraphDefinition, uint64_t ownerID, TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer, RootMotionDebugger* pRootMotionDebugger )
+        : m_pGraphDefinition( pGraphDefinition )
         , m_ownerID( ownerID )
-        , m_graphContext( ownerID, pGraphVariation->GetPrimarySkeleton() )
+        , m_graphContext( ownerID, pGraphDefinition->GetPrimarySkeleton() )
     {
-        EE_ASSERT( pGraphVariation != nullptr );
+        EE_ASSERT( pGraphDefinition != nullptr );
 
         //-------------------------------------------------------------------------
 
@@ -25,7 +26,7 @@ namespace EE::Animation
         m_isStandaloneGraph = ( pTaskSystem == nullptr );
         if ( m_isStandaloneGraph )
         {
-            m_pTaskSystem = EE::New<TaskSystem>( m_pGraphVariation->GetPrimarySkeleton() );
+            m_pTaskSystem = EE::New<TaskSystem>( m_pGraphDefinition->GetPrimarySkeleton() );
             m_pSampledEventsBuffer = EE::New<SampledEventsBuffer>();
 
             #if EE_DEVELOPMENT_TOOLS
@@ -52,61 +53,60 @@ namespace EE::Animation
         // Allocate memory
         //-------------------------------------------------------------------------
 
-        auto pGraphDef = m_pGraphVariation->m_pGraphDefinition.GetPtr();
-        size_t const numNodes = pGraphDef->m_instanceNodeStartOffsets.size();
-        EE_ASSERT( pGraphDef->m_nodeDefinitions.size() == numNodes );
+        size_t const numNodes = m_pGraphDefinition->m_instanceNodeStartOffsets.size();
+        EE_ASSERT( m_pGraphDefinition->m_nodeDefinitions.size() == numNodes );
 
-        m_pAllocatedInstanceMemory = reinterpret_cast<uint8_t*>( EE::Alloc( pGraphDef->m_instanceRequiredMemory, pGraphDef->m_instanceRequiredAlignment ) );
+        m_pAllocatedInstanceMemory = reinterpret_cast<uint8_t*>( EE::Alloc( m_pGraphDefinition->m_instanceRequiredMemory, m_pGraphDefinition->m_instanceRequiredAlignment ) );
 
         m_nodes.reserve( numNodes );
 
-        for ( auto const& nodeOffset : pGraphDef->m_instanceNodeStartOffsets )
+        for ( auto const& nodeOffset : m_pGraphDefinition->m_instanceNodeStartOffsets )
         {
             // Create ptrs to the future nodes!
             // The nodes are not actually created yet but the ptrs are valid
             m_nodes.emplace_back( reinterpret_cast<GraphNode*>( m_pAllocatedInstanceMemory + nodeOffset ) );
         }
 
-        // Create child graph instances
+        // Create referenced graph instances
         //-------------------------------------------------------------------------
 
-        size_t const numChildGraphs = pGraphDef->m_childGraphSlots.size();
-        m_childGraphs.reserve( numChildGraphs );
+        size_t const numReferencedGraphs = m_pGraphDefinition->m_referencedGraphSlots.size();
+        m_referencedGraphs.reserve( numReferencedGraphs );
 
-        TInlineVector<GraphInstance*, 20> createdChildGraphInstances;
-        createdChildGraphInstances.reserve( numChildGraphs );
+        TInlineVector<GraphInstance*, 20> createdReferencedGraphInstances;
+        createdReferencedGraphInstances.reserve( numReferencedGraphs );
 
-        for ( auto const& childGraphSlot : pGraphDef->m_childGraphSlots )
+        for ( auto const& referencedGraphSlot : m_pGraphDefinition->m_referencedGraphSlots )
         {
-            auto pChildGraphVariation = m_pGraphVariation->m_dataSet.GetResource<GraphVariation>( childGraphSlot.m_dataSlotIdx );
-            if ( pChildGraphVariation != nullptr )
+            GraphDefinition const* pReferencedGraphDefinition = m_pGraphDefinition->GetResource<GraphDefinition>( referencedGraphSlot.m_dataSlotIdx );
+            if ( pReferencedGraphDefinition != nullptr && pReferencedGraphDefinition->IsValid() )
             {
-                if ( pChildGraphVariation->GetPrimarySkeleton() == pGraphVariation->GetPrimarySkeleton() )
+                if ( pReferencedGraphDefinition->GetPrimarySkeleton() == pGraphDefinition->GetPrimarySkeleton() )
                 {
-                    ChildGraph cg;
-                    cg.m_nodeIdx = childGraphSlot.m_nodeIdx;
-                    cg.m_pInstance = EE::New<GraphInstance>( pChildGraphVariation, m_ownerID, pFinalTaskSystem, pFinalSampledEventsBuffer, pFinalRootMotionDebugger );
-                    m_childGraphs.emplace_back( cg );
+                    ReferencedGraph cg;
+                    cg.m_nodeIdx = referencedGraphSlot.m_nodeIdx;
+                    cg.m_pInstance = EE::New<GraphInstance>( pReferencedGraphDefinition, m_ownerID, pFinalTaskSystem, pFinalSampledEventsBuffer, pFinalRootMotionDebugger );
+                    m_referencedGraphs.emplace_back( cg );
 
-                    createdChildGraphInstances.emplace_back( cg.m_pInstance );
+                    createdReferencedGraphInstances.emplace_back( cg.m_pInstance );
                 }
                 else
                 {
-                    createdChildGraphInstances.emplace_back( nullptr );
-                    EE_LOG_ERROR( "Animation", "Graph Instance", "Different skeleton for child graph detected, this is not allowed. Trying to use '%s' within '%s'", pChildGraphVariation->GetResourceID().c_str(), pGraphVariation->GetResourceID().c_str() );
+                    createdReferencedGraphInstances.emplace_back( nullptr );
+                    EE_LOG_ERROR( "Animation", "Graph Instance", "Different skeleton for referenced graph detected, this is not allowed. Trying to use '%s' within '%s'", pReferencedGraphDefinition->GetResourceID().c_str(), pGraphDefinition->GetResourceID().c_str() );
                 }
             }
             else
             {
-                createdChildGraphInstances.emplace_back( nullptr );
-                m_childGraphs.emplace_back( ChildGraph() );
+                createdReferencedGraphInstances.emplace_back( nullptr );
+                m_referencedGraphs.emplace_back( ReferencedGraph() );
             }
         }
 
         // Instantiate individual nodes
         //-------------------------------------------------------------------------
 
-        InstantiationContext instantiationContext = { (int16_t) InvalidIndex, m_nodes, createdChildGraphInstances, m_pGraphVariation->m_pGraphDefinition->m_parameterLookupMap, &m_pGraphVariation->m_dataSet, m_ownerID };
+        InstantiationContext instantiationContext = { (int16_t) InvalidIndex, m_nodes, createdReferencedGraphInstances, m_pGraphDefinition->m_skeleton.GetPtr(), m_pGraphDefinition->m_parameterLookupMap, &m_pGraphDefinition->m_resources, m_ownerID };
 
         #if EE_DEVELOPMENT_TOOLS
         instantiationContext.m_pLog = &m_log;
@@ -115,7 +115,7 @@ namespace EE::Animation
         for ( int16_t i = 0; i < numNodes; i++ )
         {
             instantiationContext.m_currentNodeIdx = i;
-            pGraphDef->m_nodeDefinitions[i]->InstantiateNode( instantiationContext, InstantiationOptions::CreateNode );
+            m_pGraphDefinition->m_nodeDefinitions[i]->InstantiateNode( instantiationContext, InstantiationOptions::CreateNode );
         }
 
         // Set up graph context
@@ -134,14 +134,14 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Initialize persistent graph nodes
-        for ( auto nodeIdx : pGraphDef->m_persistentNodeIndices )
+        for ( auto nodeIdx : m_pGraphDefinition->m_persistentNodeIndices )
         {
             m_nodes[nodeIdx]->Initialize( m_graphContext );
         }
 
         // Set root node
-        m_pRootNode = reinterpret_cast<PoseNode*>( m_nodes[pGraphDef->m_rootNodeIdx] );
-        EE_ASSERT( !m_pRootNode->WasInitialized() );
+        m_pRootNode = reinterpret_cast<PoseNode*>( m_nodes[m_pGraphDefinition->m_rootNodeIdx] );
+        EE_ASSERT( !m_pRootNode->IsInitialized() );
 
         // Resource Mappings needed for serialization
         //-------------------------------------------------------------------------
@@ -158,14 +158,13 @@ namespace EE::Animation
         EE_ASSERT( m_externalGraphs.empty() );
 
         // Shutdown persistent graph nodes
-        auto pGraphDef = m_pGraphVariation->m_pGraphDefinition.GetPtr();
-        for ( auto nodeIdx : pGraphDef->m_persistentNodeIndices )
+        for ( int16_t nodeIdx : m_pGraphDefinition->m_persistentNodeIndices )
         {
             m_nodes[nodeIdx]->Shutdown( m_graphContext );
         }
 
         // shutdown and clear root node
-        if ( m_pRootNode->WasInitialized() )
+        if ( m_pRootNode->IsInitialized() )
         {
             m_pRootNode->Shutdown( m_graphContext );
         }
@@ -184,15 +183,15 @@ namespace EE::Animation
         }
         m_nodes.clear();
 
-        // Destroy child graph instances
-        for ( ChildGraph& childGraph : m_childGraphs )
+        // Destroy referenced graph instances
+        for ( ReferencedGraph& referencedGraph : m_referencedGraphs )
         {
-            if ( childGraph.m_pInstance != nullptr )
+            if ( referencedGraph.m_pInstance != nullptr )
             {
-                EE::Delete( childGraph.m_pInstance );
+                EE::Delete( referencedGraph.m_pInstance );
             }
         }
-        m_childGraphs.clear();
+        m_referencedGraphs.clear();
 
         EE::Free( m_pAllocatedInstanceMemory );
         EE::Delete( m_pTaskSystem );
@@ -207,7 +206,7 @@ namespace EE::Animation
 
     void GraphInstance::GetResourceLookupTables( TInlineVector<ResourceLUT const*, 10>& LUTs ) const
     {
-        LUTs.emplace_back( &m_pGraphVariation->GetDataSet().m_resourceLUT );
+        LUTs.emplace_back( &m_pGraphDefinition->m_resourceLUT );
 
         for ( auto const& externalGraph : m_externalGraphs )
         {
@@ -239,10 +238,10 @@ namespace EE::Animation
 
     int32_t GraphInstance::GetExternalGraphSlotIndex( StringID slotID ) const
     {
-        int32_t const numSlots = (int32_t) m_pGraphVariation->m_pGraphDefinition->m_externalGraphSlots.size();
+        int32_t const numSlots = (int32_t) m_pGraphDefinition->m_externalGraphSlots.size();
         for ( int32_t i = 0; i < numSlots; i++ )
         {
-            auto const& graphSlot = m_pGraphVariation->m_pGraphDefinition->m_externalGraphSlots[i];
+            auto const& graphSlot = m_pGraphDefinition->m_externalGraphSlots[i];
             if ( graphSlot.m_slotID == slotID )
             {
                 return i;
@@ -254,10 +253,10 @@ namespace EE::Animation
 
     int16_t GraphInstance::GetExternalGraphNodeIndex( StringID slotID ) const
     {
-        int32_t const numSlots = (int32_t) m_pGraphVariation->m_pGraphDefinition->m_externalGraphSlots.size();
+        int32_t const numSlots = (int32_t) m_pGraphDefinition->m_externalGraphSlots.size();
         for ( int32_t i = 0; i < numSlots; i++ )
         {
-            auto const& graphSlot = m_pGraphVariation->m_pGraphDefinition->m_externalGraphSlots[i];
+            auto const& graphSlot = m_pGraphDefinition->m_externalGraphSlots[i];
             if ( graphSlot.m_slotID == slotID )
             {
                 return graphSlot.m_nodeIdx;
@@ -281,13 +280,13 @@ namespace EE::Animation
         return InvalidIndex;
     }
 
-    GraphInstance* GraphInstance::ConnectExternalGraph( StringID slotID, GraphVariation const* pExternalGraphVariation )
+    GraphInstance* GraphInstance::ConnectExternalGraph( StringID slotID, GraphDefinition const* pExternalGraphDefinition )
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Connect External Graph" );
 
-        if ( pExternalGraphVariation->GetPrimarySkeleton() != m_pGraphVariation->GetPrimarySkeleton() )
+        if ( pExternalGraphDefinition->GetPrimarySkeleton() != m_pGraphDefinition->GetPrimarySkeleton() )
         {
-            EE_LOG_ERROR( "Animation", "Graph Instance", "Cannot insert external graph (%s) since skeletons dont match! Expected: %s, supplied: %s", pExternalGraphVariation->GetResourceID().c_str(), m_pGraphVariation->GetPrimarySkeleton()->GetResourceID().c_str(), pExternalGraphVariation->GetPrimarySkeleton()->GetResourceID().c_str() );
+            EE_LOG_ERROR( "Animation", "Graph Instance", "Cannot insert external graph (%s) since skeletons dont match! Expected: %s, supplied: %s", pExternalGraphDefinition->GetResourceID().c_str(), m_pGraphDefinition->GetPrimarySkeleton()->GetResourceID().c_str(), pExternalGraphDefinition->GetPrimarySkeleton()->GetResourceID().c_str() );
             return nullptr;
         }
 
@@ -302,24 +301,24 @@ namespace EE::Animation
         // Create the new connected graph record
         ExternalGraph& connectedGraph = m_externalGraphs.emplace_back();
         connectedGraph.m_slotID = slotID;
-        connectedGraph.m_nodeIdx = m_pGraphVariation->m_pGraphDefinition->m_externalGraphSlots[slotIdx].m_nodeIdx;
+        connectedGraph.m_nodeIdx = m_pGraphDefinition->m_externalGraphSlots[slotIdx].m_nodeIdx;
 
         // Create graph instance
         //-------------------------------------------------------------------------
 
-        connectedGraph.m_pInstance = new ( EE::Alloc( sizeof( GraphInstance ) ) ) GraphInstance( pExternalGraphVariation, m_ownerID, m_pTaskSystem, m_pSampledEventsBuffer );
+        connectedGraph.m_pInstance = new ( EE::Alloc( sizeof( GraphInstance ) ) ) GraphInstance( pExternalGraphDefinition, m_ownerID, m_pTaskSystem, m_pSampledEventsBuffer );
         EE_ASSERT( connectedGraph.m_pInstance != nullptr );
 
         // Attach instance to the node
         //-------------------------------------------------------------------------
 
-        auto pExternalGraphNode = reinterpret_cast<GraphNodes::ExternalGraphNode*> ( m_nodes[connectedGraph.m_nodeIdx] );
+        auto pExternalGraphNode = reinterpret_cast<ExternalGraphNode*> ( m_nodes[connectedGraph.m_nodeIdx] );
         pExternalGraphNode->AttachExternalGraphInstance( m_graphContext, connectedGraph.m_pInstance );
 
         // Update resource mappings
         //-------------------------------------------------------------------------
 
-        // TODO: re-evaluate this whole thing with the context of child graphs and how we ensure that the resource mappings are 100% consistent between client and server. 
+        // TODO: re-evaluate this whole thing with the context of referenced graphs and how we ensure that the resource mappings are 100% consistent between client and server. 
         GenerateResourceMappings();
 
         return connectedGraph.m_pInstance;
@@ -338,7 +337,7 @@ namespace EE::Animation
         // Detach from node and destroy graph instance
         //-------------------------------------------------------------------------
 
-        auto pExternalGraphNode = reinterpret_cast<GraphNodes::ExternalGraphNode*> ( m_nodes[connectedGraph.m_nodeIdx] );
+        auto pExternalGraphNode = reinterpret_cast<ExternalGraphNode*> ( m_nodes[connectedGraph.m_nodeIdx] );
         pExternalGraphNode->DetachExternalGraphInstance( m_graphContext );
 
         connectedGraph.m_pInstance->~GraphInstance();
@@ -362,7 +361,7 @@ namespace EE::Animation
     {
         EE_ASSERT( initTime.m_percentageThrough >= 0.0f && initTime.m_percentageThrough <= 1.0f );
 
-        if ( m_pRootNode->WasInitialized() )
+        if ( m_pRootNode->IsInitialized() )
         {
             m_pRootNode->Shutdown( m_graphContext );
         }
@@ -402,7 +401,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        if ( resetGraphState || !m_pRootNode->WasInitialized() )
+        if ( resetGraphState || !m_pRootNode->IsInitialized() )
         {
             ResetGraphState();
         }
@@ -425,7 +424,7 @@ namespace EE::Animation
         return result;
     }
 
-    GraphPoseNodeResult GraphInstance::EvaluateChildGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, GraphLayerContext* pLayerContext )
+    GraphPoseNodeResult GraphInstance::EvaluateReferencedGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, GraphLayerContext* pLayerContext )
     {
         m_graphContext.m_pLayerContext = pLayerContext;
         GraphPoseNodeResult result = EvaluateGraph( deltaTime, startWorldTransform, pPhysicsWorld, pUpdateRange );
@@ -472,13 +471,13 @@ namespace EE::Animation
     {
         for ( auto activeNodeIdx : m_activeNodes )
         {
-            auto pNodeDefinition = m_pGraphVariation->GetDefinition()->m_nodeDefinitions[activeNodeIdx];
-            if ( IsOfType<GraphNodes::LayerBlendNode::Definition>( pNodeDefinition ) )
+            auto pNodeDefinition = m_pGraphDefinition->m_nodeDefinitions[activeNodeIdx];
+            if ( IsOfType<LayerBlendNode::Definition>( pNodeDefinition ) )
             {
                 auto& layerUpdateRange = outRanges.emplace_back();
                 layerUpdateRange.m_nodeIdx = activeNodeIdx;
 
-                auto pNode = static_cast<GraphNodes::LayerBlendNode*>( m_nodes[activeNodeIdx] );
+                auto pNode = static_cast<LayerBlendNode*>( m_nodes[activeNodeIdx] );
                 pNode->GetSyncUpdateRangesForUnsynchronizedLayers( layerUpdateRange.m_updateRanges );
             }
         }
@@ -501,30 +500,30 @@ namespace EE::Animation
         return m_pTaskSystem->GetCharacterWorldTransform();
     }
 
-    void GraphInstance::GetChildGraphsForDebug( TVector<DebuggableChildGraph>& outChildGraphInstances, DebugPath const& parentPath ) const
+    void GraphInstance::GetReferencedGraphsForDebug( TVector<DebuggableReferencedGraph>& outReferencedGraphInstances, DebugPath const& parentPath ) const
     {
-        for ( auto const& childGraph : m_childGraphs )
+        for ( auto const& referencedGraph : m_referencedGraphs )
         {
             DebugPath currentPath = parentPath;
-            currentPath.m_path.emplace_back( childGraph.m_nodeIdx, m_pGraphVariation->GetDefinition()->m_nodePaths[childGraph.m_nodeIdx].c_str() );
+            currentPath.m_path.emplace_back( referencedGraph.m_nodeIdx, m_pGraphDefinition->m_nodePaths[referencedGraph.m_nodeIdx].c_str() );
 
-            auto& debuggableGraph = outChildGraphInstances.emplace_back();
-            debuggableGraph.m_pInstance = childGraph.m_pInstance;
+            auto& debuggableGraph = outReferencedGraphInstances.emplace_back();
+            debuggableGraph.m_pInstance = referencedGraph.m_pInstance;
             debuggableGraph.m_path = currentPath;
 
             //-------------------------------------------------------------------------
 
-            childGraph.m_pInstance->GetChildGraphsForDebug( outChildGraphInstances, currentPath );
+            referencedGraph.m_pInstance->GetReferencedGraphsForDebug( outReferencedGraphInstances, currentPath );
         }
     }
 
-    GraphInstance const* GraphInstance::GetChildGraphDebugInstance( int16_t nodeIdx ) const
+    GraphInstance const* GraphInstance::GetReferencedGraphDebugInstance( int16_t nodeIdx ) const
     {
-        for ( auto const& childGraph : m_childGraphs )
+        for ( auto const& referencedGraph : m_referencedGraphs )
         {
-            if ( childGraph.m_nodeIdx == nodeIdx )
+            if ( referencedGraph.m_nodeIdx == nodeIdx )
             {
-                return childGraph.m_pInstance;
+                return referencedGraph.m_pInstance;
             }
         }
 
@@ -532,16 +531,16 @@ namespace EE::Animation
         return nullptr;
     }
 
-    GraphInstance const* GraphInstance::GetChildGraphDebugInstance( PointerID childGraphInstanceID ) const
+    GraphInstance const* GraphInstance::GetReferencedGraphDebugInstance( PointerID referencedGraphInstanceID ) const
     {
-        TVector<DebuggableChildGraph> debuggableChildGraphs;
-        GetChildGraphsForDebug( debuggableChildGraphs );
+        TVector<DebuggableReferencedGraph> debuggableReferencedGraphs;
+        GetReferencedGraphsForDebug( debuggableReferencedGraphs );
 
-        for ( auto const& childGraph : debuggableChildGraphs )
+        for ( auto const& referencedGraph : debuggableReferencedGraphs )
         {
-            if ( PointerID( childGraph.m_pInstance ) == childGraphInstanceID )
+            if ( PointerID( referencedGraph.m_pInstance ) == referencedGraphInstanceID )
             {
-                return childGraph.m_pInstance;
+                return referencedGraph.m_pInstance;
             }
         }
 
@@ -560,15 +559,15 @@ namespace EE::Animation
         return m_externalGraphs[connectedGraphIdx].m_pInstance;
     }
 
-    GraphInstance const* GraphInstance::GetChildOrExternalGraphDebugInstance( int16_t nodeIdx ) const
+    GraphInstance const* GraphInstance::GetReferencedOrExternalGraphDebugInstance( int16_t nodeIdx ) const
     {
         EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
 
-        for ( auto const& childGraphRecord : m_childGraphs )
+        for ( auto const& referencedGraphRecord : m_referencedGraphs )
         {
-            if ( childGraphRecord.m_nodeIdx == nodeIdx )
+            if ( referencedGraphRecord.m_nodeIdx == nodeIdx )
             {
-                return childGraphRecord.m_pInstance;
+                return referencedGraphRecord.m_pInstance;
             }
         }
 
@@ -583,32 +582,32 @@ namespace EE::Animation
         return nullptr;
     }
 
-    DebugPath GraphInstance::GetDebugPathForChildGraphInstance( PointerID instanceID ) const
+    DebugPath GraphInstance::GetDebugPathForReferencedGraphInstance( PointerID instanceID ) const
     {
-        TVector<DebuggableChildGraph> debuggableChildGraphs;
-        GetChildGraphsForDebug( debuggableChildGraphs );
+        TVector<DebuggableReferencedGraph> debuggableReferencedGraphs;
+        GetReferencedGraphsForDebug( debuggableReferencedGraphs );
 
-        for ( auto const& childGraph : debuggableChildGraphs )
+        for ( auto const& referencedGraph : debuggableReferencedGraphs )
         {
-            if ( PointerID( childGraph.m_pInstance ) == instanceID )
+            if ( PointerID( referencedGraph.m_pInstance ) == instanceID )
             {
-                return childGraph.m_path;
+                return referencedGraph.m_path;
             }
         }
 
         return DebugPath();
     }
 
-    DebugPath GraphInstance::GetDebugPathForChildOrExternalGraphDebugInstance( PointerID instanceID ) const
+    DebugPath GraphInstance::GetDebugPathForReferencedOrExternalGraphDebugInstance( PointerID instanceID ) const
     {
-        TVector<DebuggableChildGraph> debuggableChildGraphs;
-        GetChildGraphsForDebug( debuggableChildGraphs );
+        TVector<DebuggableReferencedGraph> debuggableReferencedGraphs;
+        GetReferencedGraphsForDebug( debuggableReferencedGraphs );
 
-        for ( auto const& childGraph : debuggableChildGraphs )
+        for ( auto const& referencedGraph : debuggableReferencedGraphs )
         {
-            if ( PointerID( childGraph.m_pInstance ) == instanceID )
+            if ( PointerID( referencedGraph.m_pInstance ) == instanceID )
             {
-                return childGraph.m_path;
+                return referencedGraph.m_path;
             }
         }
 
@@ -619,7 +618,7 @@ namespace EE::Animation
             if ( PointerID( externalGraphRecord.m_pInstance ) == instanceID )
             {
                 DebugPath path;
-                path.m_path.emplace_back( externalGraphRecord.m_nodeIdx, m_pGraphVariation->GetDefinition()->m_nodePaths[externalGraphRecord.m_nodeIdx].c_str() );
+                path.m_path.emplace_back( externalGraphRecord.m_nodeIdx, m_pGraphDefinition->m_nodePaths[externalGraphRecord.m_nodeIdx].c_str() );
                 return path;
             }
         }
@@ -647,13 +646,13 @@ namespace EE::Animation
             if ( i == ( numElements - 1 ) )
             {
                 element.m_itemID = sourcePath[i];
-                element.m_pathString = pFinalGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( (int16_t) sourcePath[i] ).c_str();
+                element.m_pathString = pFinalGraphInstance->m_pGraphDefinition->GetNodePath( (int16_t) sourcePath[i] ).c_str();
             }
-            else // Resolve to child or external graph
+            else // Resolve to referenced or external graph
             {
                 element.m_itemID = sourcePath[i];
-                element.m_pathString = pFinalGraphInstance->m_pGraphVariation->GetDefinition()->GetNodePath( (int16_t) sourcePath[i] ).c_str();
-                pFinalGraphInstance = pFinalGraphInstance->GetChildOrExternalGraphDebugInstance( (int16_t) sourcePath[i] );
+                element.m_pathString = pFinalGraphInstance->m_pGraphDefinition->GetNodePath( (int16_t) sourcePath[i] ).c_str();
+                pFinalGraphInstance = pFinalGraphInstance->GetReferencedOrExternalGraphDebugInstance( (int16_t) sourcePath[i] );
             }
 
             // This should only ever happen if we detach an external graph directly after updating a graph instance and before drawing this debug display
@@ -667,11 +666,8 @@ namespace EE::Animation
         return debugPath;
     }
 
-    void GraphInstance::DrawDebug( Drawing::DrawContext& drawContext )
+    void GraphInstance::DrawNodeDebug( GraphContext& graphContext, Drawing::DrawContext& drawContext )
     {
-        // Graph
-        //-------------------------------------------------------------------------
-
         if ( m_debugMode != GraphDebugMode::Off )
         {
             for ( auto graphNodeIdx : m_activeNodes )
@@ -691,6 +687,14 @@ namespace EE::Animation
                 }
             }
         }
+    }
+
+    void GraphInstance::DrawDebug( Drawing::DrawContext& drawContext )
+    {
+        // Graph
+        //-------------------------------------------------------------------------
+
+        DrawNodeDebug( m_graphContext, drawContext );
 
         // Root Motion
         //-------------------------------------------------------------------------
@@ -708,7 +712,7 @@ namespace EE::Animation
         for ( m_lastOutputtedLogItemIdx; m_lastOutputtedLogItemIdx < m_log.size(); m_lastOutputtedLogItemIdx++ )
         {
             auto const& item = m_log[m_lastOutputtedLogItemIdx];
-            InlineString const source( InlineString::CtorSprintf(), "%s (%d)", m_pGraphVariation->GetDefinition()->GetNodePath( item.m_nodeIdx ).c_str(), item.m_nodeIdx );
+            InlineString const source( InlineString::CtorSprintf(), "%s (%d)", m_pGraphDefinition->GetNodePath( item.m_nodeIdx ).c_str(), item.m_nodeIdx );
             SystemLog::AddEntry( item.m_severity, "Animation", source.c_str(), "", 0, item.m_message.c_str() );
         }
     }
@@ -732,22 +736,22 @@ namespace EE::Animation
 
         if ( m_pRecorder != nullptr )
         {
-            m_pRecorder->m_graphID = m_pGraphVariation->m_pGraphDefinition->GetResourceID();
-            m_pRecorder->m_variationID = m_pGraphVariation->m_dataSet.m_variationID;
-            m_pRecorder->m_recordedResourceHash = GetGraphVariation()->GetSourceResourceHash();
+            m_pRecorder->m_graphID = m_pGraphDefinition->GetResourceID();
+            m_pRecorder->m_variationID = m_pGraphDefinition->m_variationID;
+            m_pRecorder->m_recordedResourceHash = GetGraphDefinition()->GetSourceResourceHash();
         }
     }
 
     void GraphInstance::RecordGraphState( RecordedGraphState& recordedState )
     {
-        recordedState.m_graphID = m_pGraphVariation->m_pGraphDefinition->GetResourceID();
-        recordedState.m_variationID = m_pGraphVariation->m_dataSet.m_variationID;
-        recordedState.m_recordedResourceHash = GetGraphVariation()->GetSourceResourceHash();
+        recordedState.m_graphID = m_pGraphDefinition->GetResourceID();
+        recordedState.m_variationID = m_pGraphDefinition->m_variationID;
+        recordedState.m_recordedResourceHash = GetGraphDefinition()->GetSourceResourceHash();
         recordedState.m_initializedNodeIndices.clear();
 
         for ( int16_t i = 0; i < m_nodes.size(); i++ )
         {
-            if ( m_nodes[i]->WasInitialized() )
+            if ( m_nodes[i]->IsInitialized() )
             {
                 recordedState.m_initializedNodeIndices.emplace_back( i );
                 m_nodes[i]->RecordGraphState( recordedState );
@@ -851,8 +855,8 @@ namespace EE::Animation
     void GraphInstance::SetToRecordedState( RecordedGraphState const& recordedState )
     {
         EE_ASSERT( !IsRecording() );
-        EE_ASSERT( recordedState.m_graphID == m_pGraphVariation->m_pGraphDefinition->GetResourceID() );
-        EE_ASSERT( recordedState.m_variationID == m_pGraphVariation->m_dataSet.m_variationID );
+        EE_ASSERT( recordedState.m_graphID == m_pGraphDefinition->GetResourceID() );
+        EE_ASSERT( recordedState.m_variationID == m_pGraphDefinition->m_variationID );
 
         // Shutdown this graph if it was initialized
         if ( WasInitialized() )

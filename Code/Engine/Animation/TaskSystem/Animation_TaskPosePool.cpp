@@ -89,6 +89,7 @@ namespace EE::Animation
     {
         PoseBuffer::Release( poseType );
         m_ID.Clear();
+        m_isLifetimeInternallyManaged = false;
         m_wasAccessed = false;
         m_shouldBeReset = false;
     }

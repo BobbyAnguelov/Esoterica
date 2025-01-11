@@ -24,15 +24,24 @@ namespace EE::Animation
             RelativeToAnimationClip
         };
 
+        enum class DurationOverride
+        {
+            EE_REFLECT_ENUM
+
+            None,
+            Multiplier,
+            FixedValue,
+        };
+
         struct SecondaryAnimationDescriptor : public IReflectedType
         {
             EE_REFLECT_TYPE( SecondaryAnimationDescriptor );
 
             EE_REFLECT();
-            DataPath                m_animationPath;
+            DataPath                            m_animationPath;
 
             EE_REFLECT();
-            TResourcePtr<Skeleton>      m_skeleton = nullptr;
+            TResourcePtr<Skeleton>              m_skeleton = nullptr;
         };
 
     public:
@@ -48,7 +57,7 @@ namespace EE::Animation
         {
             if ( m_skeleton.IsSet() )
             {
-                outDependencies.emplace_back( m_skeleton.GetResourcePath() );
+                outDependencies.emplace_back( m_skeleton.GetDataPath() );
             }
 
             if ( m_animationPath.IsValid() )
@@ -57,21 +66,7 @@ namespace EE::Animation
             }
         }
 
-        virtual void Clear() override
-        {
-            m_animationPath.Clear();
-            m_skeleton = nullptr;
-            m_animationName.clear();
-            m_limitFrameRange.Clear();
-            m_regenerateRootMotion = false;
-            m_rootMotionGenerationRestrictToHorizontalPlane = false;
-            m_rootMotionGenerationBoneID.Clear();
-            m_rootMotionGenerationPreRotation = EulerAngles();
-            m_additiveType = AdditiveType::None;
-            m_additiveBaseAnimation = nullptr;
-            m_additiveBaseFrameIndex = 0;
-            m_secondaryAnimations.clear();
-        }
+        virtual void Clear() override;
 
     public:
 
@@ -85,8 +80,14 @@ namespace EE::Animation
         EE_REFLECT();
         String                                  m_animationName;
 
-        EE_REFLECT();
+        EE_REFLECT( Category = "Import Modifiers" );
         IntRange                                m_limitFrameRange;
+
+        EE_REFLECT( Category = "Import Modifiers" );
+        DurationOverride                        m_durationOverride = DurationOverride::None;
+
+        EE_REFLECT( Category = "Import Modifiers" );
+        float                                   m_durationOverrideValue = 1.0f;
 
         // Force regeneration of root motion track from the specified bone
         EE_REFLECT( Category = "Root Motion" );

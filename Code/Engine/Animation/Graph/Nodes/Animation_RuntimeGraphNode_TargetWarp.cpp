@@ -9,7 +9,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     constexpr float const g_curveBlowoutDetectionThreshold = 2.5f;
 

@@ -89,9 +89,9 @@ namespace EE::Resource
             }
             break;
 
-            case Stage::CancelWaitForLoadDependencies:
+            case Stage::CancelWaitForInstallDependencies:
             {
-                m_stage = Stage::WaitForLoadDependencies;
+                m_stage = Stage::WaitForInstallDependencies;
             }
             break;
 
@@ -117,6 +117,7 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
+        // Note: The stage is set to the current stage to be run!
         switch ( m_stage )
         {
             case Stage::WaitForRawResourceRequest:
@@ -132,20 +133,21 @@ namespace EE::Resource
             }
             break;
 
-            case Stage::WaitForLoadDependencies:
+            case Stage::WaitForInstallDependencies:
             {
-                m_stage = Stage::CancelWaitForLoadDependencies;
+                m_stage = Stage::CancelWaitForInstallDependencies;
             }
             break;
 
             case Stage::InstallResource:
-            case Stage::WaitForInstallResource:
+            case Stage::LoadingResource:
             {
                 m_stage = Stage::UnloadResource;
             }
             break;
 
             case Stage::Complete:
+            case Stage::InstallingResource:
             {
                 m_stage = Stage::UninstallResource;
             }
@@ -185,9 +187,15 @@ namespace EE::Resource
             }
             break;
 
-            case ResourceRequest::Stage::WaitForLoadDependencies:
+            case ResourceRequest::Stage::LoadingResource:
             {
-                WaitForLoadDependencies( requestContext );
+                UpdateLoadingResource( requestContext );
+            }
+            break;
+
+            case ResourceRequest::Stage::WaitForInstallDependencies:
+            {
+                WaitForInstallDependencies( requestContext );
             }
             break;
 
@@ -197,9 +205,9 @@ namespace EE::Resource
             }
             break;
 
-            case ResourceRequest::Stage::WaitForInstallResource:
+            case ResourceRequest::Stage::InstallingResource:
             {
-                WaitForInstallResource( requestContext );
+                UpdateInstallingResource( requestContext );
             }
             break;
 
@@ -225,7 +233,7 @@ namespace EE::Resource
             }
             break;
 
-            case ResourceRequest::Stage::CancelWaitForLoadDependencies:
+            case ResourceRequest::Stage::CancelWaitForInstallDependencies:
             {
                 // Execute all unload operations immediately
                 m_pendingInstallDependencies.clear();
@@ -278,6 +286,8 @@ namespace EE::Resource
         // Load resource
         //-------------------------------------------------------------------------
 
+        ResourceLoader::LoadResult loadResult = ResourceLoader::LoadResult::Failed;
+
         {
             EE_PROFILE_SCOPE_RESOURCE( "Load Resource" );
             EE_PROFILE_TAG( "filename", m_rawResourcePath.GetFilename().c_str() );
@@ -288,7 +298,8 @@ namespace EE::Resource
             EE_PROFILE_TAG( "Loader", resTypeID );
             #endif
 
-            if ( !m_pResourceLoader->Load( GetResourceID(), m_rawResourcePath, m_pResourceRecord ) )
+            loadResult = m_pResourceLoader->Load( GetResourceID(), m_rawResourcePath, m_pResourceRecord );
+            if ( loadResult == ResourceLoader::LoadResult::Failed )
             {
                 EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load compiled resource data (%s)", m_pResourceRecord->GetResourceID().c_str() );
                 m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
@@ -298,7 +309,7 @@ namespace EE::Resource
             }
         }
 
-        // Load dependencies
+        // Request install dependencies
         //-------------------------------------------------------------------------
 
         // Create the resource ptrs for the install dependencies and request their load
@@ -314,18 +325,91 @@ namespace EE::Resource
             requestContext.m_loadResourceFunction( installDependencyRequesterID, m_pendingInstallDependencies[i] );
         }
 
-        m_stage = ResourceRequest::Stage::WaitForLoadDependencies;
+        // Set new stage
+        //-------------------------------------------------------------------------
 
-        #if EE_DEVELOPMENT_TOOLS
-        m_pResourceRecord->m_waitForDependenciesTime = 0.0f;
-        m_stageTimer.Start();
-        #endif
+        if ( loadResult == ResourceLoader::LoadResult::InProgress )
+        {
+            m_stage = ResourceRequest::Stage::LoadingResource;
+        }
+        else // Loading is complete
+        {
+            if ( numInstallDependencies > 0 )
+            {
+                m_stage = ResourceRequest::Stage::WaitForInstallDependencies;
+
+                #if EE_DEVELOPMENT_TOOLS
+                m_pResourceRecord->m_waitForDependenciesTime = 0.0f;
+                m_stageTimer.Start();
+                #endif
+            }
+            else // Nothing to wait for
+            {
+                m_stage = ResourceRequest::Stage::InstallResource;
+            }
+        }
     }
 
-    void ResourceRequest::WaitForLoadDependencies( RequestContext& requestContext )
+    void ResourceRequest::UpdateLoadingResource( RequestContext& requestContext )
     {
         EE_PROFILE_FUNCTION_RESOURCE();
-        EE_ASSERT( m_stage == ResourceRequest::Stage::WaitForLoadDependencies );
+        EE_ASSERT( m_stage == ResourceRequest::Stage::LoadingResource );
+
+        ResourceLoader::LoadResult const loadResult = m_pResourceLoader->UpdateLoad( GetResourceID(), m_rawResourcePath, m_pResourceRecord );
+
+        switch ( loadResult )
+        {
+            // Load completed
+            case ResourceLoader::LoadResult::Succeeded:
+            {
+                uint32_t const numInstallDependencies = (uint32_t) m_pResourceRecord->m_installDependencyResourceIDs.size();
+                if ( numInstallDependencies > 0 )
+                {
+                    m_stage = ResourceRequest::Stage::WaitForInstallDependencies;
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_pResourceRecord->m_waitForDependenciesTime = 0.0f;
+                    m_stageTimer.Start();
+                    #endif
+                }
+                else // Nothing to wait for
+                {
+                    m_stage = ResourceRequest::Stage::InstallResource;
+                }
+            }
+            break;
+
+            // Wait for load to complete
+            case ResourceLoader::LoadResult::InProgress:
+            {
+                // Do Nothing
+            }
+            break;
+
+            // Load operation failed, unload resource and set status to failed
+            case ResourceLoader::LoadResult::Failed:
+            {
+                EE_LOG_ERROR( "Resource", "Resource Request", "Failed to load resource (%s)", m_pResourceRecord->GetResourceID().c_str() );
+
+                m_stage = ResourceRequest::Stage::UnloadResource;
+                UnloadResource( requestContext );
+                m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
+                m_stage = ResourceRequest::Stage::Complete;
+            }
+            break;
+
+            default:
+            {
+                EE_UNREACHABLE_CODE();
+            }
+            break;
+        }
+    }
+
+    void ResourceRequest::WaitForInstallDependencies( RequestContext& requestContext )
+    {
+        EE_PROFILE_FUNCTION_RESOURCE();
+        EE_ASSERT( m_stage == ResourceRequest::Stage::WaitForInstallDependencies );
 
         enum class InstallStatus
         {
@@ -414,11 +498,12 @@ namespace EE::Resource
             ScopedTimer<PlatformClock> timer( m_pResourceRecord->m_installTime );
             #endif
 
-            InstallResult const result = m_pResourceLoader->Install( GetResourceID(), m_rawResourcePath, m_installDependencies, m_pResourceRecord );
-            switch ( result )
+            ResourceLoader::LoadResult const loadResult = m_pResourceLoader->Install( GetResourceID(), m_installDependencies, m_pResourceRecord );
+
+            switch ( loadResult )
             {
-                // Finished installing the resource
-                case InstallResult::Succeeded :
+                // Install complete
+                case ResourceLoader::LoadResult::Succeeded:
                 {
                     EE_ASSERT( m_pResourceRecord->GetResourceData() != nullptr );
                     m_installDependencies.clear();
@@ -432,16 +517,14 @@ namespace EE::Resource
                 break;
 
                 // Wait for install to complete
-                case InstallResult::InProgress:
+                case ResourceLoader::LoadResult::InProgress:
                 {
-                    EE_ASSERT( m_pResourceRecord->GetResourceData() != nullptr );
-                    m_installDependencies.clear();
-                    m_stage = ResourceRequest::Stage::WaitForInstallResource;
+                    m_stage = ResourceRequest::Stage::InstallingResource;
                 }
                 break;
 
                 // Install operation failed, unload resource and set status to failed
-                case InstallResult::Failed:
+                case ResourceLoader::LoadResult::Failed:
                 {
                     EE_LOG_ERROR( "Resource", "Resource Request", "Failed to install resource (%s)", m_pResourceRecord->GetResourceID().c_str() );
 
@@ -452,58 +535,59 @@ namespace EE::Resource
                     m_stage = ResourceRequest::Stage::Complete;
                 }
                 break;
-
-                default:
-                {
-                    EE_UNREACHABLE_CODE();
-                }
-                break;
             }
         }
     }
 
-    void ResourceRequest::WaitForInstallResource( RequestContext& requestContext )
+    void ResourceRequest::UpdateInstallingResource( RequestContext& requestContext )
     {
         EE_PROFILE_FUNCTION_RESOURCE();
-        EE_ASSERT( m_stage == ResourceRequest::Stage::WaitForInstallResource );
+        EE_ASSERT( m_stage == ResourceRequest::Stage::InstallingResource );
         EE_ASSERT( m_pendingInstallDependencies.empty() );
-        EE_ASSERT( m_pResourceRecord->GetResourceData() != nullptr );
 
-        InstallResult const result = m_pResourceLoader->UpdateInstall( GetResourceID(), m_pResourceRecord );
-        switch ( result )
         {
-            // Finished installing the resource
-            case InstallResult::Succeeded:
-            {
-                m_pResourceRecord->SetLoadingStatus( LoadingStatus::Loaded );
-                m_stage = ResourceRequest::Stage::Complete;
-            }
-            break;
+            #if EE_DEVELOPMENT_TOOLS
+            ScopedTimer<PlatformClock> timer( m_pResourceRecord->m_installTime );
+            #endif
 
-            // Wait for install to complete
-            case InstallResult::InProgress:
-            {
-                // Do Nothing
-            }
-            break;
+            ResourceLoader::LoadResult const loadResult = m_pResourceLoader->UpdateInstall( GetResourceID(), m_pResourceRecord );
 
-            // Install operation failed, unload resource and set status to failed
-            case InstallResult::Failed:
+            switch ( loadResult )
             {
-                EE_LOG_ERROR( "Resource", "Resource Request", "Failed to install resource (%s)", m_pResourceRecord->GetResourceID().c_str() );
+                // Install complete
+                case ResourceLoader::LoadResult::Succeeded:
+                {
+                    EE_ASSERT( m_pResourceRecord->GetResourceData() != nullptr );
+                    m_installDependencies.clear();
+                    m_pResourceRecord->SetLoadingStatus( LoadingStatus::Loaded );
+                    m_stage = ResourceRequest::Stage::Complete;
 
-                m_stage = ResourceRequest::Stage::UnloadResource;
-                UnloadResource( requestContext );
-                m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
-                m_stage = ResourceRequest::Stage::Complete;
-            }
-            break;
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_pResourceRecord->m_installTime = m_stageTimer.GetElapsedTimeMilliseconds();
+                    #endif
+                }
+                break;
 
-            default:
-            {
-                EE_UNREACHABLE_CODE();
+                // Wait for install to complete
+                case ResourceLoader::LoadResult::InProgress:
+                {
+                    // Do nothing
+                }
+                break;
+
+                // Install operation failed, unload resource and set status to failed
+                case ResourceLoader::LoadResult::Failed:
+                {
+                    EE_LOG_ERROR( "Resource", "Resource Request", "Failed to install resource (%s)", m_pResourceRecord->GetResourceID().c_str() );
+
+                    m_stage = ResourceRequest::Stage::UnloadResource;
+                    m_pResourceRecord->SetLoadingStatus( LoadingStatus::Unloading );
+                    UnloadResource( requestContext );
+                    m_pResourceRecord->SetLoadingStatus( LoadingStatus::Failed );
+                    m_stage = ResourceRequest::Stage::Complete;
+                }
+                break;
             }
-            break;
         }
     }
 

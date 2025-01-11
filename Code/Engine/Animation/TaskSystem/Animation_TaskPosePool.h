@@ -82,6 +82,8 @@ namespace EE::Animation
         uint8_t m_ID = s_maxAllowableValue;
     };
 
+    //-------------------------------------------------------------------------
+
     struct EE_ENGINE_API CachedPoseBuffer : public PoseBuffer
     {
         friend class PoseBufferPool;

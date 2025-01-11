@@ -5,11 +5,8 @@
 
 namespace EE::Animation
 {
-    namespace GraphNodes
-    {
-        class EntryStateOverrideConduitToolsNode;
-        class GlobalTransitionConduitToolsNode;
-    }
+    class EntryStateOverrideConduitToolsNode;
+    class GlobalTransitionConduitToolsNode;
 
     //-------------------------------------------------------------------------
 
@@ -22,10 +19,10 @@ namespace EE::Animation
 
         using NodeGraph::StateMachineGraph::CreateNode;
 
-        GraphNodes::EntryStateOverrideConduitToolsNode const* GetEntryStateOverrideConduit() const;
-        GraphNodes::EntryStateOverrideConduitToolsNode* GetEntryStateOverrideConduit() { return const_cast<GraphNodes::EntryStateOverrideConduitToolsNode*>( const_cast<StateMachineGraph const*>( this )->GetEntryStateOverrideConduit() ); }
-        GraphNodes::GlobalTransitionConduitToolsNode const* GetGlobalTransitionConduit() const;
-        GraphNodes::GlobalTransitionConduitToolsNode* GetGlobalTransitionConduit() { return const_cast<GraphNodes::GlobalTransitionConduitToolsNode*>( const_cast<StateMachineGraph const*>( this )->GetGlobalTransitionConduit() ); }
+        EntryStateOverrideConduitToolsNode const* GetEntryStateOverrideConduit() const;
+        EntryStateOverrideConduitToolsNode* GetEntryStateOverrideConduit() { return const_cast<EntryStateOverrideConduitToolsNode*>( const_cast<StateMachineGraph const*>( this )->GetEntryStateOverrideConduit() ); }
+        GlobalTransitionConduitToolsNode const* GetGlobalTransitionConduit() const;
+        GlobalTransitionConduitToolsNode* GetGlobalTransitionConduit() { return const_cast<GlobalTransitionConduitToolsNode*>( const_cast<StateMachineGraph const*>( this )->GetGlobalTransitionConduit() ); }
         
         void UpdateDependentNodes();
 

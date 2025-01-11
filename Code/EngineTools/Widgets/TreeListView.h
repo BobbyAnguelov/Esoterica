@@ -339,6 +339,12 @@ namespace EE
         // Set all option flags
         void SetFlags( TBitFlags<Flags> flags ) { m_flags = flags; }
 
+        // Expand all items
+        void ExpandAll() { m_rootItem.SetExpanded( true, true ); RefreshVisualState(); }
+
+        // Collapse all items
+        void CollapseAll() { m_rootItem.SetExpanded( false, true ); RefreshVisualState(); }
+
         // Activation
         //-------------------------------------------------------------------------
 

@@ -97,8 +97,8 @@ namespace EE::Player
 
                 //-------------------------------------------------------------------------
 
-                m_pActualInstance = EE::New<Animation::GraphInstance>( m_pPlayerGraphComponent->GetDebugGraphInstance()->GetGraphVariation(), 1 );
-                m_pReplicatedInstance = EE::New<Animation::GraphInstance>( m_pPlayerGraphComponent->GetDebugGraphInstance()->GetGraphVariation(), 2 );
+                m_pActualInstance = EE::New<Animation::GraphInstance>( m_pPlayerGraphComponent->GetDebugGraphInstance()->GetGraphDefinition(), 1 );
+                m_pReplicatedInstance = EE::New<Animation::GraphInstance>( m_pPlayerGraphComponent->GetDebugGraphInstance()->GetGraphDefinition(), 2 );
                 m_pGeneratedPose = EE::New<Animation::Pose>( m_pPlayerGraphComponent->GetPrimarySkeleton() );
 
                 m_pTaskSystem = EE::New<Animation::TaskSystem>( m_pPlayerGraphComponent->GetPrimarySkeleton() );

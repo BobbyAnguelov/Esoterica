@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     SpeedScaleToolsNode::SpeedScaleToolsNode()
         : FlowToolsNode()
@@ -62,13 +62,16 @@ namespace EE::Animation::GraphNodes
                     return InvalidIndex;
                 }
             }
+
+            //-------------------------------------------------------------------------
+
+            pDefinition->m_defaultInputValue = m_multiplier;
         }
 
-        pDefinition->m_defaultInputValue = m_multiplier;
         return pDefinition->m_nodeIdx;
     }
 
-    void SpeedScaleToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void SpeedScaleToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         auto pSpeedInputNode = GetConnectedInputNode<FlowToolsNode>( 1 );
         if ( pSpeedInputNode == nullptr )
@@ -137,15 +140,18 @@ namespace EE::Animation::GraphNodes
                     return InvalidIndex;
                 }
             }
+
+            //-------------------------------------------------------------------------
+
+            pDefinition->m_defaultInputValue = m_desiredDuration;
         }
 
         //-------------------------------------------------------------------------
 
-        pDefinition->m_defaultInputValue = m_desiredDuration;
         return pDefinition->m_nodeIdx;
     }
 
-    void DurationScaleToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void DurationScaleToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         auto pDurationInputNode = GetConnectedInputNode<FlowToolsNode>( 1 );
         if ( pDurationInputNode == nullptr )
@@ -225,13 +231,16 @@ namespace EE::Animation::GraphNodes
                     return InvalidIndex;
                 }
             }
+
+            //-------------------------------------------------------------------------
+
+            pDefinition->m_defaultInputValue = m_desiredVelocity;
         }
 
-        pDefinition->m_defaultInputValue = m_desiredVelocity;
         return pDefinition->m_nodeIdx;
     }
 
-    void VelocityBasedSpeedScaleToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void VelocityBasedSpeedScaleToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         auto pSpeedInputNode = GetConnectedInputNode<FlowToolsNode>( 1 );
         if ( pSpeedInputNode == nullptr )

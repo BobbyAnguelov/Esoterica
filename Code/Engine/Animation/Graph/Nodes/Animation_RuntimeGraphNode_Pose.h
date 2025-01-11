@@ -2,11 +2,13 @@
 
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Node.h"
 #include "Engine/Animation/AnimationPose.h"
+#include "Engine/Animation/AnimationClip.h"
 #include "Base/Math/NumericRange.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class EE_ENGINE_API ZeroPoseNode final : public PoseNode
     {
@@ -53,12 +55,12 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_poseTimeValueNodeIdx, m_dataSlotIndex, m_inputTimeRemapRange, m_userSpecifiedTime, m_useFramesAsInput );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_poseTimeValueNodeIdx, m_dataSlotIdx, m_inputTimeRemapRange, m_userSpecifiedTime, m_useFramesAsInput );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
+            int16_t                             m_dataSlotIdx = InvalidIndex;
             int16_t                             m_poseTimeValueNodeIdx = InvalidIndex;
-            int16_t                             m_dataSlotIndex = InvalidIndex;
             FloatRange                          m_inputTimeRemapRange = FloatRange( 0, 1 ); // Time range allows for remapping a time value that is not a normalized time to the animation
             float                               m_userSpecifiedTime = 0.0f;
             bool                                m_useFramesAsInput = false;

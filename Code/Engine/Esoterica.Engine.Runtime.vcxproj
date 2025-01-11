@@ -77,14 +77,13 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp" />
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ReferencedGraph.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Context.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Controller.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_SampledEvents.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Instance.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Node.cpp" />
-    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Definition.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_RootMotionDebugger.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_AnimationClip.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend1D.cpp" />
@@ -112,6 +111,7 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_ValueTypes.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TwoBoneIK.cpp" />
+    <ClCompile Include="Animation\IK\IKChainSolver.cpp" />
     <ClCompile Include="Animation\IK\IKRig.cpp" />
     <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationClip.cpp" />
     <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationGraph.cpp" />
@@ -123,7 +123,7 @@
     <ClCompile Include="Animation\TaskSystem\Animation_TaskPosePool.cpp" />
     <ClCompile Include="Animation\TaskSystem\Animation_TaskSystem.cpp" />
     <ClCompile Include="Animation\TaskSystem\Animation_TaskSerializer.cpp" />
-    <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_TwoBoneIK.cpp" />
+    <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_ChainSolver.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_IK.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_Blend.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_CachedPose.cpp" />
@@ -239,7 +239,7 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ReferencedGraph.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Context.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Controller.h" />
@@ -274,6 +274,7 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_ValueTypes.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TwoBoneIK.h" />
+    <ClInclude Include="Animation\IK\IKChainSolver.h" />
     <ClInclude Include="Animation\IK\IKRig.h" />
     <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationClip.h" />
     <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationGraph.h" />
@@ -281,12 +282,11 @@
     <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_IKRig.h" />
     <ClInclude Include="Animation\Systems\EntitySystem_Animation.h" />
     <ClInclude Include="Animation\Systems\WorldSystem_Animation.h" />
-    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_DataSet.h" />
     <ClInclude Include="Animation\TaskSystem\Animation_Task.h" />
     <ClInclude Include="Animation\TaskSystem\Animation_TaskPosePool.h" />
     <ClInclude Include="Animation\TaskSystem\Animation_TaskSystem.h" />
     <ClInclude Include="Animation\TaskSystem\Animation_TaskSerializer.h" />
-    <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_TwoBoneIK.h" />
+    <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_ChainSolver.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_IK.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_Blend.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_CachedPose.h" />

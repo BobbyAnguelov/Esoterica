@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     GlobalTransitionConduitToolsNode::GlobalTransitionConduitToolsNode()
         : NodeGraph::StateMachineNode()

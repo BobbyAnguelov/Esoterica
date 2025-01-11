@@ -12,17 +12,17 @@ namespace EE::Render
         m_loadableTypes.push_back( Material::GetStaticResourceTypeID() );
     }
 
-    bool MaterialLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::ResourceLoader::LoadResult MaterialLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         // Create mesh resource
         Material* pMaterial = EE::New<Material>();
         archive << *pMaterial;
 
         pResourceRecord->SetResourceData( pMaterial );
-        return true;
+        return Resource::ResourceLoader::LoadResult::Succeeded;
     }
 
-    Resource::InstallResult MaterialLoader::Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
+    Resource::ResourceLoader::LoadResult MaterialLoader::Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
     {
         Material* pMaterial = pResourceRecord->GetResourceData<Material>();
 
@@ -52,13 +52,13 @@ namespace EE::Render
         if ( !pMaterial->IsValid() )
         {
             EE_LOG_ERROR( "Render", "Material Loader", "Failed to install resource: %s", resourceID.ToString().c_str());
-            return Resource::InstallResult::Failed;
+            return ResourceLoader::LoadResult::Failed;
         }
         else
         {
-            ResourceLoader::Install( resourceID, resourcePath, installDependencies, pResourceRecord );
+            ResourceLoader::Install( resourceID, installDependencies, pResourceRecord );
         }
 
-        return Resource::InstallResult::Succeeded;
+        return Resource::ResourceLoader::LoadResult::Succeeded;
     }
 }

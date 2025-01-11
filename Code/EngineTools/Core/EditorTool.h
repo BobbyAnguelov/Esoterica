@@ -692,7 +692,7 @@ namespace EE
     public:
 
         TResourceEditor( ToolsContext const* pToolsContext, ResourceID const& resourceID, EntityWorld* pWorld = nullptr )
-            : DataFileEditor( pToolsContext, resourceID.GetResourcePath(), pWorld )
+            : DataFileEditor( pToolsContext, resourceID.GetDataPath(), pWorld )
             , m_editedResource( resourceID )
         {
             EE_ASSERT( resourceID.IsValid() );

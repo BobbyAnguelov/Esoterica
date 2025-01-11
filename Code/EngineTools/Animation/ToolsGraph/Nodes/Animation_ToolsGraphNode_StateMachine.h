@@ -10,7 +10,7 @@ namespace EE::Animation
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class TransitionToolsNode;
     class StateToolsNode;
@@ -26,6 +26,7 @@ namespace EE::Animation::GraphNodes
 
     public:
 
+        StateMachineToolsNode( DefaultInstanceCtor_t );
         StateMachineToolsNode();
 
         virtual bool IsRenameable() const override final { return true; }
@@ -47,8 +48,8 @@ namespace EE::Animation::GraphNodes
         int16_t CompileTransition( GraphCompilationContext& context, TransitionToolsNode const* pTransitionNode, int16_t targetStateNodeIdx ) const;
 
         EntryStateOverrideConduitToolsNode const* GetEntryStateOverrideConduit() const;
-        inline GraphNodes::EntryStateOverrideConduitToolsNode* GetEntryStateOverrideConduit() { return const_cast<GraphNodes::EntryStateOverrideConduitToolsNode*>( const_cast<StateMachineToolsNode const*>( this )->GetEntryStateOverrideConduit() ); }
+        inline EntryStateOverrideConduitToolsNode* GetEntryStateOverrideConduit() { return const_cast<EntryStateOverrideConduitToolsNode*>( const_cast<StateMachineToolsNode const*>( this )->GetEntryStateOverrideConduit() ); }
         GlobalTransitionConduitToolsNode const* GetGlobalTransitionConduit() const;
-        inline GraphNodes::GlobalTransitionConduitToolsNode* GetGlobalTransitionConduit() { return const_cast<GraphNodes::GlobalTransitionConduitToolsNode*>( const_cast<StateMachineToolsNode const*>( this )->GetGlobalTransitionConduit() ); }
+        inline GlobalTransitionConduitToolsNode* GetGlobalTransitionConduit() { return const_cast<GlobalTransitionConduitToolsNode*>( const_cast<StateMachineToolsNode const*>( this )->GetGlobalTransitionConduit() ); }
     };
 }

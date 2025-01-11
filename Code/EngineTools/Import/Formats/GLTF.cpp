@@ -468,7 +468,7 @@ namespace EE::Import::gltf
             return true;
         }
 
-        static void ReadMeshGeometry( gltf::SceneContext const& ctx, gltfImportedMesh& ImportedMesh, cgltf_mesh const& meshData )
+        static void ReadMeshGeometry( gltf::SceneContext const& ctx, gltfImportedMesh& ImportedMesh, cgltf_mesh const& meshData, Transform const& nodeTransform = Transform::Identity )
         {
             EE_ASSERT( IsValidTriangleMesh( meshData ) );
 
@@ -524,7 +524,7 @@ namespace EE::Import::gltf
                             {
                                 Float3 position;
                                 cgltf_accessor_read_float( primitive.attributes[a].data, i, &position.m_x, 3 );
-                                geometrySection.m_vertices[i].m_position = ctx.ApplyUpAxisCorrection( Vector( position ) );
+                                geometrySection.m_vertices[i].m_position = ctx.ApplyUpAxisCorrection( nodeTransform.TransformPoint( Vector( position ) ) );
                                 geometrySection.m_vertices[i].m_position.m_w = 1.0f;
                             }
                         }
@@ -715,60 +715,75 @@ namespace EE::Import::gltf
             //-------------------------------------------------------------------------
 
             gltf::SceneContext sceneCtx( sourceFilePath );
-            if ( sceneCtx.IsValid() )
+            if ( !sceneCtx.IsValid() )
             {
-                auto pSceneData = sceneCtx.GetSceneData();
-                if ( meshesToInclude.empty() )
+                pImportedMesh->LogError( "Failed to read gltf file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                return pMesh;
+            }
+
+            // Read all meshes
+            auto pSceneData = sceneCtx.GetSceneData();
+            if ( meshesToInclude.empty() )
+            {
+                for ( auto n = 0; n < pSceneData->nodes_count; n++ )
                 {
-                    for ( auto m = 0; m < pSceneData->meshes_count; m++ )
+                    cgltf_node& node = pSceneData->nodes[n];
+                    if ( node.mesh )
                     {
-                        if ( IsValidTriangleMesh( pSceneData->meshes[m] ) )
+                        if ( IsValidTriangleMesh( *node.mesh ) )
                         {
-                            ReadMeshGeometry( sceneCtx, *pImportedMesh, pSceneData->meshes[m] );
+                            Transform nodeTransform = sceneCtx.GetNodeTransform( &node, true );
+                            ReadMeshGeometry( sceneCtx, *pImportedMesh, *node.mesh, nodeTransform );
                         }
                         else
                         {
-                            pImportedMesh->LogError( "Non-triangle mesh skipped: %s", pSceneData->meshes[m].name );
+                            pImportedMesh->LogError( "Non-triangle mesh skipped: %s", node.mesh->name );
                         }
-                    }
-                }
-                else // Try to find the mesh to read
-                {
-                    bool meshFound = false;
-                    for ( auto m = 0; m < pSceneData->meshes_count; m++ )
-                    {
-                        if ( VectorContains( meshesToInclude, pSceneData->meshes[m].name ) )
-                        {
-                            if ( IsValidTriangleMesh( pSceneData->meshes[m] ) )
-                            {
-                                ReadMeshGeometry( sceneCtx, *pImportedMesh, pSceneData->meshes[m] );
-                            }
-                            else
-                            {
-                                pImportedMesh->LogError( "Specified mesh is not a triangle mesh: %s", pSceneData->meshes[m].name );
-                            }
-
-                            meshFound = true;
-                            break;
-                        }
-                    }
-
-                    if ( !meshFound )
-                    {
-                        InlineString meshNames;
-                        for ( auto const& meshName : meshesToInclude )
-                        {
-                            meshNames.append_sprintf( "%s, ", meshName.c_str() );
-                        }
-                        meshNames = meshNames.substr( 0, meshNames.length() - 2 );
-
-                        pImportedMesh->LogError( "Failed to find any of the specified meshes in gltf file: %s", meshNames.c_str() );
                     }
                 }
             }
-            else
+            else // Try to find the meshes to read
             {
-                pImportedMesh->LogError( "Failed to read gltf file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                TInlineVector<bool, 10> meshFound( meshesToInclude.size(), false );
+                for ( size_t n = 0; n < pSceneData->nodes_count; n++ )
+                {
+                    cgltf_node& node = pSceneData->nodes[n];
+                    if ( node.mesh )
+                    {
+                        int32_t const meshIdx = VectorFindIndex( meshesToInclude, String( node.mesh->name ) );
+                        if ( meshIdx != InvalidIndex )
+                        {
+                            meshFound[meshIdx] = true;
+
+                            if ( IsValidTriangleMesh( *node.mesh ) )
+                            {
+                                bool const includeParentTransform = true;
+                                Transform nodeTransform = sceneCtx.GetNodeTransform( &node, includeParentTransform );
+                                ReadMeshGeometry( sceneCtx, *pImportedMesh, *node.mesh, nodeTransform );
+                            }
+                            else
+                            {
+                                pImportedMesh->LogError( "Specified mesh is not a triangle mesh: %s", node.mesh->name );
+                            }
+                        }
+                    }
+                }
+
+                if ( VectorContains( meshFound, false ) )
+                {
+                    InlineString meshNames;
+                    for ( int32_t i = 0; i < meshesToInclude.size(); i++ )
+                    {
+                        if ( !meshFound[i] )
+                        {
+                            meshNames.append_sprintf( "%s, ", meshesToInclude[i].c_str() );
+                        }
+                    }
+
+                    EE_ASSERT( meshNames.length() > 2 );
+                    meshNames = meshNames.substr( 0, meshNames.length() - 2 );
+                    pImportedMesh->LogError( "Failed to find some of the specified meshes in gltf file: %s", meshNames.c_str() );
+                }
             }
 
             return pMesh;

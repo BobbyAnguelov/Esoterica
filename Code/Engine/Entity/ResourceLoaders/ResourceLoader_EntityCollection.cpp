@@ -18,7 +18,7 @@ namespace EE::EntityModel
         m_pTypeRegistry = pTypeRegistry;
     }
 
-    bool EntityCollectionLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::ResourceLoader::LoadResult EntityCollectionLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         EE_ASSERT( m_pTypeRegistry != nullptr );
 
@@ -39,6 +39,6 @@ namespace EE::EntityModel
 
         // Set loaded resource
         pResourceRecord->SetResourceData( pCollectionDesc );
-        return true;
+        return Resource::ResourceLoader::LoadResult::Succeeded;
     }
 }

@@ -30,7 +30,7 @@ namespace EE::Animation
 
     void AnimationClipPlayerComponent::SetAnimTime( Seconds inTime )
     {
-        if ( !WasInitialized() )
+        if ( !IsInitialized() )
         {
             EE_LOG_ENTITY_ERROR( this, "Animation", "Anim Clip Player", "Trying to set anim time on an uninitialized component!" );
             return;

@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class AndToolsNode final : public FlowToolsNode
     {

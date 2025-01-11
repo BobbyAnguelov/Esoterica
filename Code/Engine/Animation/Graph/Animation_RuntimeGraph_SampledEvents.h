@@ -16,16 +16,17 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    enum class StateEventType : uint8_t
+    enum class GraphEventType : uint8_t
     {
         Entry = 0,         // Is this a state transition in event
         FullyInState,      // Is this a "fully in state" event
         Exit,              // Is this a state transition out event
         Timed,             // Timed event coming from a state
+        Generic,           // Event emitted from non-state nodes
     };
 
     // Use this enum when performing event type comparisons
-    enum class StateEventTypeCondition : uint8_t
+    enum class GraphEventTypeCondition : uint8_t
     {
         EE_REFLECT_ENUM
 
@@ -33,16 +34,17 @@ namespace EE::Animation
         FullyInState,      // Is this a "fully in state" event
         Exit,              // Is this a state transition out event
         Timed,             // Timed event coming from a state
-        Any                // Any kind of state event
+        Generic,           // Event emitted from non-state nodes
+        Any                // Any kind of graph event
     };
 
     #if EE_DEVELOPMENT_TOOLS
-    EE_ENGINE_API char const* GetNameForStateEventType( StateEventType type );
+    EE_ENGINE_API char const* GetNameForGraphEventType( GraphEventType type );
     #endif
 
-    EE_FORCE_INLINE bool DoesStateEventTypesMatchCondition( StateEventTypeCondition condition, StateEventType eventType )
+    EE_FORCE_INLINE bool DoesGraphEventTypesMatchCondition( GraphEventTypeCondition condition, GraphEventType eventType )
     {
-        if ( condition == StateEventTypeCondition::Any ) 
+        if ( condition == GraphEventTypeCondition::Any ) 
         {
             return true;
         }
@@ -60,48 +62,48 @@ namespace EE::Animation
 
     public:
 
-        struct AnimationData
+        struct AnimationEventData
         {
             Event const*                        m_pEvent = nullptr;
             Percentage                          m_percentageThrough = 1.0f;     // The percentage through the event when we sampled it
         };
 
-        struct StateData
+        struct GraphEventData
         {
             StringID                            m_ID;
-            StateEventType                      m_type;
+            GraphEventType                      m_type;
         };
 
     public:
 
-        explicit SampledEvent( float weight, bool isFromActiveBranch, StateEventType eventType, StringID eventID )
+        explicit SampledEvent( float weight, bool isFromActiveBranch, GraphEventType eventType, StringID eventID )
             : m_weight( weight )
             , m_isFromActiveBranch( isFromActiveBranch )
             , m_isIgnored( false )
-            , m_isStateEvent( true )
+            , m_isGraphEvent( true )
         {
             EE_ASSERT( eventID.IsValid() );
-            m_stateData.m_ID = eventID;
-            m_stateData.m_type = eventType;
+            m_graphEventData.m_ID = eventID;
+            m_graphEventData.m_type = eventType;
         }
 
         explicit SampledEvent( float weight, bool isFromActiveBranch, Event const* pEvent, Percentage percentageThrough )
             : m_weight( weight )
             , m_isFromActiveBranch( isFromActiveBranch )
             , m_isIgnored( false )
-            , m_isStateEvent( false )
+            , m_isGraphEvent( false )
         {
             EE_ASSERT( pEvent != nullptr );
             EE_ASSERT( percentageThrough >= 0 && percentageThrough <= 1.0f );
-            m_animData.m_pEvent = pEvent;
-            m_animData.m_percentageThrough = percentageThrough;
+            m_animEventData.m_pEvent = pEvent;
+            m_animEventData.m_percentageThrough = percentageThrough;
         }
 
         // Sampled Event
         //-------------------------------------------------------------------------
 
-        inline bool IsAnimationEvent() const { return !m_isStateEvent; }
-        inline bool IsStateEvent() const { return m_isStateEvent; }
+        inline bool IsAnimationEvent() const { return !m_isGraphEvent; }
+        inline bool IsGraphEvent() const { return m_isGraphEvent; }
 
         inline bool IsFromActiveBranch() const { return m_isFromActiveBranch; }
         inline bool IsIgnored() const { return m_isIgnored; }
@@ -111,45 +113,46 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Get the raw animation event
-        inline Event const* GetEvent() const { EE_ASSERT( IsAnimationEvent() ); return m_animData.m_pEvent; }
+        inline Event const* GetEvent() const { EE_ASSERT( IsAnimationEvent() ); return m_animEventData.m_pEvent; }
 
         // Get the percentage through the event when it was sampled
-        inline Percentage GetPercentageThrough() const { EE_ASSERT( IsAnimationEvent() ); return m_animData.m_percentageThrough; }
+        inline Percentage GetPercentageThrough() const { EE_ASSERT( IsAnimationEvent() ); return m_animEventData.m_percentageThrough; }
 
         // Checks if the sampled event is of a specified runtime type
         template<typename T>
-        inline bool IsEventOfType() const { EE_ASSERT( IsAnimationEvent() ); return IsOfType<T>( m_animData.m_pEvent ); }
+        inline bool IsEventOfType() const { EE_ASSERT( IsAnimationEvent() ); return IsOfType<T>( m_animEventData.m_pEvent ); }
 
         // Returns the event cast to the desired type! Warning: this function assumes you know the exact type of the event!
         template<typename T>
-        inline T const* GetEvent() const { EE_ASSERT( IsAnimationEvent() ); return Cast<T>( m_animData.m_pEvent ); }
+        inline T const* GetEvent() const { EE_ASSERT( IsAnimationEvent() ); return Cast<T>( m_animEventData.m_pEvent ); }
 
         // Attempts to return the event cast to the desired type! This function will return null if the event cant be cast successfully
         template<typename T>
-        inline T const* TryGetEvent() const { return IsAnimationEvent() ? TryCast<T>( m_animData.m_pEvent ) : nullptr; }
+        inline T const* TryGetEvent() const { return IsAnimationEvent() ? TryCast<T>( m_animEventData.m_pEvent ) : nullptr; }
 
-        // State Events
+        // Graph Events
         //-------------------------------------------------------------------------
 
-        inline StringID GetStateEventID() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_ID; }
-        inline StateEventType GetStateEventType() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type; }
+        inline StringID GetGraphEventID() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_ID; }
+        inline GraphEventType GetGraphEventType() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type; }
 
-        inline bool IsEntryEvent() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type == StateEventType::Entry; }
-        inline bool IsFullyInStateEvent() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type == StateEventType::FullyInState; }
-        inline bool IsExitEvent() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type == StateEventType::Exit; }
-        inline bool IsTimedEvent() const { EE_ASSERT( IsStateEvent() ); return m_stateData.m_type == StateEventType::Timed; }
+        inline bool IsEntryEvent() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type == GraphEventType::Entry; }
+        inline bool IsFullyInStateEvent() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type == GraphEventType::FullyInState; }
+        inline bool IsExitEvent() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type == GraphEventType::Exit; }
+        inline bool IsTimedEvent() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type == GraphEventType::Timed; }
+        inline bool IsGenericEvent() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type == GraphEventType::Generic; }
 
     private:
 
         float                               m_weight = 1.0f;                // The weight of the event when sampled
         bool                                m_isFromActiveBranch = false;
         bool                                m_isIgnored = false;
-        bool                                m_isStateEvent = false;
+        bool                                m_isGraphEvent = false;
 
         union
         {
-            AnimationData                   m_animData;
-            StateData                       m_stateData;
+            AnimationEventData              m_animEventData;
+            GraphEventData                  m_graphEventData;
         };
     };
 
@@ -188,10 +191,10 @@ namespace EE::Animation
         // Empty the buffer
         void Clear();
 
-        // Get the total number of sampled events (for both anim and state events )
+        // Get the total number of sampled events (for both anim and graph events )
         inline int16_t GetNumSampledEvents() const { return (int16_t) m_sampledEvents.size(); }
 
-        // Get the total number of sampled events (for both anim and state events )
+        // Get the total number of sampled events (for both anim and graph events )
         inline TVector<SampledEvent> const& GetSampledEvents() const { return m_sampledEvents; }
 
         // Get the event at specified index
@@ -288,10 +291,10 @@ namespace EE::Animation
 
         inline int16_t GetNumAnimationEventsSampled() const { return m_numAnimEventsSampled; }
 
-        // State Events
+        // Graph Events
         //-------------------------------------------------------------------------
 
-        inline SampledEvent& EmplaceStateEvent( int16_t nodeIdx, StateEventType type, StringID ID, bool isFromActiveBranch )
+        inline SampledEvent& EmplaceGraphEvent( int16_t nodeIdx, GraphEventType type, StringID ID, bool isFromActiveBranch )
         {
             EE_ASSERT( nodeIdx >= 0 );
 
@@ -299,24 +302,24 @@ namespace EE::Animation
             m_debugPathTracker.AddTrackedPath( nodeIdx );
             #endif
 
-            m_numStateEventsSampled++;
+            m_numGraphEventsSampled++;
             return m_sampledEvents.emplace_back( 1.0f, isFromActiveBranch, type, ID );
         }
 
-        inline int16_t GetNumStateEventsSampled() const { return m_numStateEventsSampled; }
+        inline int16_t GetNumGraphEventsSampled() const { return m_numGraphEventsSampled; }
 
-        bool ContainsStateEvent( StringID ID, bool onlyFromActiveBranch = false ) const;
-        bool ContainsStateEvent( SampledEventRange const& range, StringID ID, bool onlyFromActiveBranch = false ) const;
-        bool ContainsSpecificStateEvent( StateEventType eventType, StringID ID, bool onlyFromActiveBranch = false ) const;
-        bool ContainsSpecificStateEvent( SampledEventRange const& range, StateEventType eventType, StringID ID, bool onlyFromActiveBranch = false ) const;
+        bool ContainsGraphEvent( StringID ID, bool onlyFromActiveBranch = false ) const;
+        bool ContainsGraphEvent( SampledEventRange const& range, StringID ID, bool onlyFromActiveBranch = false ) const;
+        bool ContainsSpecificGraphEvent( GraphEventType eventType, StringID ID, bool onlyFromActiveBranch = false ) const;
+        bool ContainsSpecificGraphEvent( SampledEventRange const& range, GraphEventType eventType, StringID ID, bool onlyFromActiveBranch = false ) const;
 
-        // Mark all state events in the range as ignored
-        inline void MarkOnlyStateEventsAsIgnored( SampledEventRange range )
+        // Mark all graph events in the range as ignored
+        inline void MarkOnlyGraphEventsAsIgnored( SampledEventRange range )
         {
             EE_ASSERT( IsValidRange( range ) );
             for ( int16_t i = range.m_startIdx; i < range.m_endIdx; i++ )
             {
-                if ( m_sampledEvents[i].IsStateEvent() )
+                if ( m_sampledEvents[i].IsGraphEvent() )
                 {
                     m_sampledEvents[i].m_isIgnored = true;
                 }
@@ -357,7 +360,7 @@ namespace EE::Animation
 
         TVector<SampledEvent>                       m_sampledEvents;
         int16_t                                     m_numAnimEventsSampled = 0;
-        int16_t                                     m_numStateEventsSampled = 0;
+        int16_t                                     m_numGraphEventsSampled = 0;
 
         #if EE_DEVELOPMENT_TOOLS
         DebugPathTracker                            m_debugPathTracker;

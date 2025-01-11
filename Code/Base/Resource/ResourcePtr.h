@@ -33,7 +33,7 @@ namespace EE
             inline bool IsSet() const { return m_resourceID.IsValid(); }
 
             inline ResourceID const& GetResourceID() const { return m_resourceID; }
-            inline DataPath const& GetResourcePath() const { return m_resourceID.GetResourcePath(); }
+            inline DataPath const& GetDataPath() const { return m_resourceID.GetDataPath(); }
             inline ResourceTypeID GetResourceTypeID() const { return m_resourceID.GetResourceTypeID(); }
 
             inline void Clear()
@@ -43,7 +43,10 @@ namespace EE
             }
 
             template<typename T>
-            inline T* GetPtr() { return (T*) m_pResourceRecord->GetResourceData(); }
+            inline T const* GetPtr() { return static_cast<T const*>( m_pResourceRecord->GetResourceData() ); }
+
+            template<typename T>
+            inline T const* GetPtr() const { return static_cast<T const*>( m_pResourceRecord->GetResourceData() ); }
 
             inline bool operator==( nullptr_t ) { return m_pResourceRecord == nullptr; }
             inline bool operator!=( nullptr_t ) { return m_pResourceRecord != nullptr; }

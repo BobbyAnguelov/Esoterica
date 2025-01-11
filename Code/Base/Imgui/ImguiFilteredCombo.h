@@ -137,6 +137,7 @@ namespace EE::ImGuiX
 
                 for ( int32_t i = 0; i < m_filteredOptions.size(); i++ )
                 {
+                    ImGui::PushID( i );
                     if ( DrawOption( m_filteredOptions[i] ) )
                     {
                         if ( !m_filteredOptions[i].m_isSeparator )
@@ -146,6 +147,7 @@ namespace EE::ImGuiX
                             ImGui::CloseCurrentPopup();
                         }
                     }
+                    ImGui::PopID();
                 }
 
                 ImGui::EndCombo();

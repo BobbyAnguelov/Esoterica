@@ -45,7 +45,7 @@ namespace EE::EntityModel
 
         EntityMap* GetEditedMap() const;
 
-        virtual bool IsEditingFile( DataPath const& dataPath ) const override { return m_loadedMap.GetResourcePath() == dataPath; }
+        virtual bool IsEditingFile( DataPath const& dataPath ) const override { return m_loadedMap.GetDataPath() == dataPath; }
         virtual bool SupportsNewFileCreation() const override { return true; }
         virtual void CreateNewFile() const override;
         virtual bool SaveData() override;

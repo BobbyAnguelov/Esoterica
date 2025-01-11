@@ -15,12 +15,13 @@ namespace EE::Animation
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     // The result node for a transition
     class TransitionToolsNode : public ResultToolsNode
     {
         friend class StateMachineToolsNode;
+        friend class TransitionEditingRules;
         EE_REFLECT_TYPE( TransitionToolsNode );
 
         enum class TimeMatchMode
@@ -52,7 +53,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Transitions"; }
         virtual bool IsUserCreatable() const override { return true; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit ); }
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
         virtual Color GetTitleBarColor() const override;
         virtual int16_t Compile( GraphCompilationContext& context ) const override { EE_UNREACHABLE_CODE(); return InvalidIndex; }
 

@@ -180,29 +180,35 @@ namespace EE::Serialization
             auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
             if ( pTypeInfo == nullptr )
             {
-                EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered: %s", typeID.c_str() );
+                EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered: '%s'", typeID.c_str() );
                 return false;
             }
 
             if ( strcmp( typeNode.name(), g_typeNodeName ) != 0 )
             {
-                EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown node encountered: %s", typeNode.name() );
+                EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown node encountered: '%s'", typeNode.name() );
                 return false;
             }
 
             xml_attribute typeAttr = typeNode.attribute( g_typeIDAttrName );
             if ( typeAttr.empty() )
             {
-                EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing typeID from xml representation: %s", typeID.c_str() );
+                EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing typeID from xml representation: '%s'", typeID.c_str() );
                 return false;
             }
 
             TypeID const actualTypeID( typeAttr.as_string() );
 
+            if ( !typeRegistry.IsRegisteredType( actualTypeID ) )
+            {
+                EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered '%s'", actualTypeID.c_str() );
+                return false;
+            }
+
             // If you hit this the type in the xml file and the type you are trying to deserialize do not match
             if ( typeID != actualTypeID && !typeRegistry.IsTypeDerivedFrom( actualTypeID, typeID ) )
             {
-                EE_LOG_ERROR( "TypeSystem", "Serialization", "Type mismatch, expected %s, encountered %s", typeID.c_str(), actualTypeID.c_str() );
+                EE_LOG_ERROR( "TypeSystem", "Serialization", "Type mismatch, expected '%s', encountered '%s'", typeID.c_str(), actualTypeID.c_str() );
                 return false;
             }
 

@@ -64,7 +64,7 @@ namespace EE
 
         inline bool IsPathSet() const { return m_path.IsValid(); }
         inline uint32_t GetPathID() const { return m_path.GetID(); }
-        inline DataPath const& GetResourcePath() const { return m_path; }
+        inline DataPath const& GetDataPath() const { return m_path; }
         inline String GetFilenameWithoutExtension() const { EE_ASSERT( m_path.IsValid() ); return m_path.GetFilenameWithoutExtension(); }
 
         // Sub-resources

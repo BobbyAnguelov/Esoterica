@@ -27,7 +27,7 @@ namespace EE::Animation
 
         virtual bool IsInputFileRequired() const override { return false; }
 
-        Resource::CompilationResult CompileGraphDefinition( Resource::CompileContext const& ctx ) const;
+        Resource::CompilationResult CompileGraphDefinition( Resource::CompileContext const& ctx, StringID variationID ) const;
         Resource::CompilationResult CompileGraphVariation( Resource::CompileContext const& ctx ) const;
         bool LoadAndCompileGraph( FileSystem::Path const& graphFilePath, GraphResourceDescriptor& graphDescriptor, GraphDefinitionCompiler& definitionCompiler ) const;
         bool GenerateDataSet( Resource::CompileContext const& ctx, ToolsGraphDefinition const& editorGraph, TVector<UUID> const& registeredDataSlots, GraphDataSet& dataSet ) const;

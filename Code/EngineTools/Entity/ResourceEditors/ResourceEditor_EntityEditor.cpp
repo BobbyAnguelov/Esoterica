@@ -678,21 +678,10 @@ namespace EE::EntityModel
         , m_allSystemTypes( pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( EntitySystem::GetStaticTypeID(), false, false, true ) )
         , m_allComponentTypes( pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( EntityComponent::GetStaticTypeID(), false, false, true ) )
         , m_propertyGrid( pToolsContext )
-    {
-        // Get all component visualizer options
-        //-------------------------------------------------------------------------
-
-        TVector<TypeSystem::TypeInfo const*> const visualizerTypes = m_pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( ComponentVisualizer::GetStaticTypeID(), false, false );
-        for ( auto pType : visualizerTypes )
-        {
-            m_visualizerDefaultInstances.emplace_back( Cast<ComponentVisualizer>( pType->m_pDefaultInstance ) );
-        }
-    }
+    {}
 
     EntityEditor::~EntityEditor()
-    {
-        EE::Delete( m_pComponentVisualizer );
-    }
+    {}
 
     //-------------------------------------------------------------------------
 
@@ -880,21 +869,6 @@ namespace EE::EntityModel
             ImGuiX::ItemTooltip( "Scale" );
         }
         EndViewportToolbarGroup();
-
-        // Component Visualizer
-        //-------------------------------------------------------------------------
-
-        if ( m_pComponentVisualizer != nullptr && m_pComponentVisualizer->HasToolbar() )
-        {
-            ImGui::SameLine();
-
-            if ( BeginViewportToolbarGroup( "Component Visualizer", ImVec2( requiredWidth, 0 ), ImVec2( 0, 0 ) ) )
-            {
-                ComponentVisualizerContext visualizerContext( context, pViewport, m_pWorld, [this] ( EntityComponent* pComponent ) { PreVisualizerEdit( pComponent ); }, [this] ( EntityComponent* pComponent ) { PostVisualizerEdit( pComponent ); } );
-                m_pComponentVisualizer->DrawToolbar( visualizerContext );
-            }
-            EndViewportToolbarGroup();
-        }
     }
 
     void EntityEditor::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
@@ -1068,15 +1042,6 @@ namespace EE::EntityModel
                 break;
             }
         }
-
-        // Component Visualizer
-        //-------------------------------------------------------------------------
-
-        if ( m_pComponentVisualizer != nullptr )
-        {
-            ComponentVisualizerContext visualizerContext( context, pViewport, m_pWorld, [this] ( EntityComponent* pComponent ) { PreVisualizerEdit( pComponent ); }, [this] ( EntityComponent* pComponent ) { PostVisualizerEdit( pComponent ); } );
-            m_pComponentVisualizer->Visualize( visualizerContext );
-        }
     }
 
     //-------------------------------------------------------------------------
@@ -1104,7 +1069,7 @@ namespace EE::EntityModel
                 pMeshEntity->AddComponent( pMeshComponent );
 
                 // Try create optional physics collision component
-                DataPath physicsResourcePath = resourceID.GetResourcePath();
+                DataPath physicsResourcePath = resourceID.GetDataPath();
                 physicsResourcePath.ReplaceExtension( Physics::CollisionMesh::GetStaticResourceTypeID().ToString() );
                 ResourceID const physicsResourceID( physicsResourcePath );
                 if ( m_pToolsContext->m_pFileRegistry->DoesFileExist( physicsResourceID ) )
@@ -2378,7 +2343,7 @@ namespace EE::EntityModel
 
             if ( m_structureEditorTreeView.UpdateAndDraw( m_structureEditorContext ) )
             {
-                UpdateComponentVisualizer();
+                // Do Nothing
             }
         }
 
@@ -2410,7 +2375,6 @@ namespace EE::EntityModel
                     if ( pSelectedItem->IsComponent() )
                     {
                         DestroyComponent( pSelectedItem->m_pComponent );
-                        UpdateComponentVisualizer();
                     }
                     else if ( pSelectedItem->IsSystem() )
                     {
@@ -2490,11 +2454,6 @@ namespace EE::EntityModel
 
             pSystemsHeaderItem->SortChildren();
         }
-
-        // Component Visualizer
-        //-------------------------------------------------------------------------
-
-        UpdateComponentVisualizer();
     }
 
     void EntityEditor::DrawStructureEditorContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus )
@@ -3212,120 +3171,6 @@ namespace EE::EntityModel
     }
 
     //-------------------------------------------------------------------------
-    // Component Visualizer
-    //-------------------------------------------------------------------------
-
-    void EntityEditor::UpdateComponentVisualizer()
-    {
-        EntityComponent* pSelectedComponent = nullptr;
-        TVector<TreeListViewItem*> const& selection = m_structureEditorTreeView.GetSelection();
-        if ( selection.size() == 1 )
-        {
-            auto pSelectedItem = static_cast<StructureEditorItem*> ( selection[0] );
-            pSelectedComponent = pSelectedItem->m_pComponent;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( pSelectedComponent == nullptr )
-        {
-            if ( m_pComponentVisualizer != nullptr )
-            {
-                EE::Delete( m_pComponentVisualizer );
-            }
-        }
-        else
-        {
-            // Check if we need to update the visualizer
-            if ( m_pComponentVisualizer != nullptr )
-            {
-                // If we are already visualizing this component, do nothing
-                if ( m_pComponentVisualizer->GetVisualizedComponent() == pSelectedComponent )
-                {
-                    return;
-                }
-
-                // If we have an exact supported type match, just update the component
-                if ( pSelectedComponent->GetTypeID() == m_pComponentVisualizer->GetSupportedType() )
-                {
-                    m_pComponentVisualizer->UpdateVisualizedComponent( pSelectedComponent );
-                    return;
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
-            EE::Delete( m_pComponentVisualizer );
-
-            // Find appropriate visualizer type
-            TypeSystem::TypeInfo const* pExactMatchVisualizerType = nullptr;
-            TypeSystem::TypeInfo const* pDerivedMatchVisualizerType = nullptr;
-
-            for ( ComponentVisualizer const* pDefaultInstance : m_visualizerDefaultInstances )
-            {
-                // Try find exact match
-                if ( pSelectedComponent->GetTypeID() == pDefaultInstance->GetSupportedType() )
-                {
-                    pExactMatchVisualizerType = pDefaultInstance->GetTypeInfo();
-                    break;
-                }
-
-                // Find first matching visualizer
-                if ( pDerivedMatchVisualizerType == nullptr && pSelectedComponent->s_pTypeInfo->IsDerivedFrom( pDefaultInstance->GetSupportedType() ) )
-                {
-                    pDerivedMatchVisualizerType = pDefaultInstance->GetTypeInfo();
-                }
-            }
-
-            // Create the visualizer
-            TypeSystem::TypeInfo const* pFinalVisualizerType = ( pExactMatchVisualizerType != nullptr ) ? pExactMatchVisualizerType : pDerivedMatchVisualizerType;
-            if ( pFinalVisualizerType != nullptr )
-            {
-                EE_ASSERT( m_pComponentVisualizer == nullptr );
-                m_pComponentVisualizer = Cast<ComponentVisualizer>( pFinalVisualizerType->CreateType() );
-                m_pComponentVisualizer->UpdateVisualizedComponent( pSelectedComponent );
-            }
-        }
-    }
-
-    void EntityEditor::PreVisualizerEdit( EntityComponent* pComponent )
-    {
-        EE_ASSERT( m_pActiveUndoableAction == nullptr );
-
-        //-------------------------------------------------------------------------
-
-        Entity* pEntity = m_pWorld->FindEntity( pComponent->GetEntityID() );
-
-        //-------------------------------------------------------------------------
-
-        auto pMap = m_pWorld->GetMap( pEntity->GetMapID() );
-        EE_ASSERT( pMap != nullptr );
-        auto pUndoAction = EE::New<EntityUndoableAction>( this );
-        pUndoAction->RecordBeginEdit( { pEntity } );
-        m_pActiveUndoableAction = pUndoAction;
-
-        //-------------------------------------------------------------------------
-
-        m_pWorld->BeginComponentEdit( pComponent );
-    }
-
-    void EntityEditor::PostVisualizerEdit( EntityComponent* pComponent )
-    {
-        EE_ASSERT( m_pActiveUndoableAction != nullptr );
-
-        //-------------------------------------------------------------------------
-
-        auto pUndoAction = (EntityUndoableAction*) m_pActiveUndoableAction;
-        pUndoAction->RecordEndEdit();
-        m_undoStack.RegisterAction( pUndoAction );
-        m_pActiveUndoableAction = nullptr;
-
-        //-------------------------------------------------------------------------
-
-        m_pWorld->EndComponentEdit( pComponent );
-    }
-
-    //-------------------------------------------------------------------------
     // Update
     //-------------------------------------------------------------------------
 
@@ -3429,7 +3274,6 @@ namespace EE::EntityModel
             }
 
             m_selectionSwitchRequest.Clear();
-            UpdateComponentVisualizer();
         }
 
         // Handle input

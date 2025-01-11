@@ -25,9 +25,14 @@ namespace EE::Resource
         struct CompileDependencyNode
         {
             void Reset();
+
+            // Destroy all allocated dependency nodes
             void DestroyDependencies();
 
+            // Is this a resource we can actually compile or is it just a data file dependency
             bool IsCompileableResource() const { return m_compilerVersion >= 0; }
+
+            // Check if this resource is up-to-date, checks existence of source and target files as well as their modified timestamps
             bool IsUpToDate() const;
 
         public:
@@ -42,7 +47,7 @@ namespace EE::Resource
             int32_t                                 m_compilerVersion = -1;
             CompiledResourceRecord                  m_compiledRecord;
             uint64_t                                m_timestamp = 0;
-            uint64_t                                m_combinedHash = 0;
+            uint64_t                                m_combinedHash = 0; // The sum of the source timestamp for this resource and all dependency timestamps
 
             CompileDependencyNode*                  m_pParentNode = nullptr;
             TVector<CompileDependencyNode*>         m_dependencies;

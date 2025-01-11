@@ -100,7 +100,7 @@ namespace EE::Serialization
     void BitArchive<N>::WriteUInt( uint64_t value, uint32_t maxBitsToUse )
     {
         EE_ASSERT( !m_isReading );
-        EE_ASSERT( ( Math::GetMostSignificantBit( value ) + 1 ) <= maxBitsToUse );
+        EE_ASSERT( Math::GetMaxNumberOfBitsForValue( value ) <= maxBitsToUse );
         EE_ASSERT( ( m_bitPos + maxBitsToUse ) < N );
 
         for ( uint32_t i = 0u; i < maxBitsToUse; i++ )

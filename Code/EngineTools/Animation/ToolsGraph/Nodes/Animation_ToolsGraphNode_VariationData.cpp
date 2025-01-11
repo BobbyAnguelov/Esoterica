@@ -1,43 +1,41 @@
-#include "Animation_ToolsGraphNode_DataSlot.h"
+#include "Animation_ToolsGraphNode_VariationData.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Variations.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
-    DataSlotToolsNode::DataSlotToolsNode()
+    VariationDataToolsNode::VariationDataToolsNode()
         : FlowToolsNode()
-    {
-        Rename( GetDefaultSlotName() );
-    }
+    {}
 
-    ResourceID DataSlotToolsNode::GetResolvedResourceID( VariationHierarchy const& variationHierarchy, StringID variationID ) const
+    VariationDataToolsNode::Data* VariationDataToolsNode::GetResolvedVariationData( VariationHierarchy const& variationHierarchy, StringID variationID )
     {
         EE_ASSERT( variationHierarchy.IsValidVariation( variationID ) );
 
+        VariationDataToolsNode::Data* pVariationData = m_defaultVariationData.Get();
+
         if ( variationID == Variation::s_defaultVariationID )
         {
-            return m_defaultResourceID;
+            return pVariationData;
         }
 
         //-------------------------------------------------------------------------
 
-        ResourceID resourceID;
-
-        auto TryGetResourceID = [this, &resourceID] ( StringID variationID )
+        auto TryGetVariationData = [this, &pVariationData] ( StringID variationID )
         {
             if ( variationID == Variation::s_defaultVariationID )
             {
-                resourceID = m_defaultResourceID;
+                pVariationData = m_defaultVariationData.Get();
                 return true;
             }
 
-            for ( auto const& variation : m_overrides )
+            for ( auto& variation : m_overrides )
             {
                 if ( variation.m_variationID == variationID )
                 {
-                    resourceID = variation.m_resourceID;
+                    pVariationData = variation.m_variationData.Get();
                     return true;
                 }
             }
@@ -48,16 +46,16 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         // Try get the resource ID for this variation
-        if ( TryGetResourceID( variationID ) )
+        if ( TryGetVariationData( variationID ) )
         {
-            return resourceID;
+            return pVariationData;
         }
 
         // Go up the hierarchy and return the first if a override exists
         StringID parentVariationID = variationHierarchy.GetParentVariationID( variationID );
         while ( parentVariationID.IsValid() )
         {
-            if ( TryGetResourceID( parentVariationID ) )
+            if ( TryGetVariationData( parentVariationID ) )
             {
                 break;
             }
@@ -65,58 +63,12 @@ namespace EE::Animation::GraphNodes
             parentVariationID = variationHierarchy.GetParentVariationID( parentVariationID );
         }
 
-        return resourceID;
+        //-------------------------------------------------------------------------
+
+        return pVariationData;
     }
 
-    void DataSlotToolsNode::SetVariationResourceID( ResourceID const& resourceID, StringID variationID )
-    {
-        EE_ASSERT( variationID.IsValid() );
-        EE_ASSERT( !resourceID.IsValid() || resourceID.GetResourceTypeID() == GetSlotResourceTypeID() );
-
-        if ( variationID == Variation::s_defaultVariationID )
-        {
-            NodeGraph::ScopedNodeModification const snm( this );
-            m_defaultResourceID = resourceID;
-        }
-        else
-        {
-            EE_ASSERT( HasVariationOverride( variationID ) );
-
-            for ( auto& variation : m_overrides )
-            {
-                if ( variation.m_variationID == variationID )
-                {
-                    NodeGraph::ScopedNodeModification const snm( this );
-                    variation.m_resourceID = resourceID;
-                    return;
-                }
-            }
-        }
-    }
-
-    ResourceID const* DataSlotToolsNode::GetVariationResourceID( StringID variationID ) const
-    {
-        EE_ASSERT( variationID.IsValid() );
-
-        if ( variationID == Variation::s_defaultVariationID )
-        {
-            return &m_defaultResourceID;
-        }
-        else // Check all actual overrides
-        {
-            for ( auto& variation : m_overrides )
-            {
-                if ( variation.m_variationID == variationID )
-                {
-                    return &variation.m_resourceID;
-                }
-            }
-        }
-
-        return nullptr;
-    }
-
-    bool DataSlotToolsNode::HasVariationOverride( StringID variationID ) const
+    bool VariationDataToolsNode::HasVariationOverride( StringID variationID ) const
     {
         // This query makes no sense on the default variation
         EE_ASSERT( variationID != Variation::s_defaultVariationID );
@@ -132,7 +84,7 @@ namespace EE::Animation::GraphNodes
         return false;
     }
 
-    void DataSlotToolsNode::CreateVariationOverride( StringID variationID )
+    void VariationDataToolsNode::CreateVariationOverride( StringID variationID )
     {
         EE_ASSERT( variationID.IsValid() && variationID != Variation::s_defaultVariationID );
         EE_ASSERT( !HasVariationOverride( variationID ) );
@@ -141,9 +93,10 @@ namespace EE::Animation::GraphNodes
 
         auto& createdOverride = m_overrides.emplace_back();
         createdOverride.m_variationID = variationID;
+        createdOverride.m_variationData.CreateInstance( GetVariationDataTypeInfo() );
     }
 
-    void DataSlotToolsNode::RenameVariationOverride( StringID oldVariationID, StringID newVariationID )
+    void VariationDataToolsNode::RenameVariationOverride( StringID oldVariationID, StringID newVariationID )
     {
         EE_ASSERT( oldVariationID.IsValid() && newVariationID.IsValid() );
         EE_ASSERT( oldVariationID != Variation::s_defaultVariationID && newVariationID != Variation::s_defaultVariationID );
@@ -159,7 +112,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void DataSlotToolsNode::RemoveVariationOverride( StringID variationID )
+    void VariationDataToolsNode::RemoveVariationOverride( StringID variationID )
     {
         EE_ASSERT( variationID.IsValid() && variationID != Variation::s_defaultVariationID );
 
@@ -177,7 +130,7 @@ namespace EE::Animation::GraphNodes
         EE_UNREACHABLE_CODE();
     }
 
-    void DataSlotToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
+    void VariationDataToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
 
@@ -185,14 +138,16 @@ namespace EE::Animation::GraphNodes
 
         //-------------------------------------------------------------------------
 
-        ResourceID const resourceID = GetResolvedResourceID( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
-        if ( resourceID.IsValid() )
+        VariationDataToolsNode::Data* pVariationData = GetResolvedVariationData( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
+
+        TInlineVector<ResourceID, 2> referencedResources;
+        pVariationData->GetReferencedResources( referencedResources );
+        if ( !referencedResources.empty() )
         {
-            ImGui::Text( EE_ICON_CUBE" %s", resourceID.c_str() + 7 );
-        }
-        else
-        {
-            ImGui::Text( EE_ICON_CUBE_OUTLINE" Empty Slot!" );
+            for ( ResourceID const& ID : referencedResources )
+            {
+                ImGui::Text( EE_ICON_CUBE" %s", ID.c_str() + 7 );
+            }
         }
 
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + ImGui::GetStyle().ItemSpacing.y );

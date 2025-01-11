@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     //-------------------------------------------------------------------------
     // Basic Selector Node
@@ -114,11 +114,12 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_optionNodeIndices, m_parameterNodeIdx );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_optionNodeIndices, m_optionWeights, m_parameterNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             TInlineVector<int16_t, 5>                       m_optionNodeIndices;
+            TInlineVector<uint8_t, 5>                       m_optionWeights;
             int16_t                                         m_parameterNodeIdx;
         };
 
@@ -160,11 +161,12 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_optionNodeIndices, m_parameterNodeIdx );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_optionNodeIndices, m_optionWeights, m_parameterNodeIdx );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             TInlineVector<int16_t, 5>                       m_optionNodeIndices;
+            TInlineVector<uint8_t, 5>                       m_optionWeights;
             int16_t                                         m_parameterNodeIdx;
         };
 

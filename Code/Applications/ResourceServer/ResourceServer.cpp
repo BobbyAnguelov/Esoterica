@@ -485,23 +485,27 @@ namespace EE::Resource
                     }
 
                     // Check if this is a resource ID, if so then just notify everyone that something has changed
-                    ResourceID resourceID( resourcePath );
-                    if ( resourceID.IsValid() )
+                    auto const pExtension = resourcePath.GetExtension();
+                    if ( pExtension != nullptr && ResourceTypeID::IsValidResourceFourCC( pExtension ) )
                     {
-                        auto pResourceInfo = m_typeRegistry.GetResourceInfo( resourceID.GetResourceTypeID() );
-                        if ( pResourceInfo != nullptr )
+                        ResourceID const resourceID( resourcePath );
+                        if ( resourceID.IsValid() )
                         {
-                            CreateResourceRequest( resourceID, 0, CompilationRequest::Origin::FileWatcher, "External file system change detected!" );
-                        }
-                        else // Check if this is a compile dependency for any previously loaded resources
-                        {
-                            auto foundIter = m_compileDependencyToResourceIDMap.find( fsEvent.m_path );
-                            if ( foundIter != m_compileDependencyToResourceIDMap.end() )
+                            auto pResourceInfo = m_typeRegistry.GetResourceInfo( resourceID.GetResourceTypeID() );
+                            if ( pResourceInfo != nullptr )
                             {
-                                TVector<ResourceID> dependents = foundIter->second; // Need to copy since the create request updates the dependency table
-                                for ( auto const& dependentResourceID : dependents )
+                                CreateResourceRequest( resourceID, 0, CompilationRequest::Origin::FileWatcher, "External file system change detected!" );
+                            }
+                            else // Check if this is a compile dependency for any previously loaded resources
+                            {
+                                auto foundIter = m_compileDependencyToResourceIDMap.find( fsEvent.m_path );
+                                if ( foundIter != m_compileDependencyToResourceIDMap.end() )
                                 {
-                                    CreateResourceRequest( dependentResourceID, 0, CompilationRequest::Origin::FileWatcher, String( String::CtorSprintf(), "Compile dependency change detected (%s)!", fsEvent.m_path.c_str() ) );
+                                    TVector<ResourceID> dependents = foundIter->second; // Need to copy since the create request updates the dependency table
+                                    for ( auto const& dependentResourceID : dependents )
+                                    {
+                                        CreateResourceRequest( dependentResourceID, 0, CompilationRequest::Origin::FileWatcher, String( String::CtorSprintf(), "Compile dependency change detected (%s)!", fsEvent.m_path.c_str() ) );
+                                    }
                                 }
                             }
                         }
@@ -552,7 +556,7 @@ namespace EE::Resource
             pRequest->m_origin = origin;
             pRequest->m_resourceID = resourceID;
             pRequest->m_sourceFile = pRequest->m_resourceID.GetParentResourceFileSystemPath( m_pSettings->m_sourceDataDirectoryPath );
-            pRequest->m_compilerArgs = pRequest->m_resourceID.GetResourcePath().c_str();
+            pRequest->m_compilerArgs = pRequest->m_resourceID.GetDataPath().c_str();
             pRequest->m_status = CompilationRequest::Status::Pending;
             pRequest->m_extraInfo = extraInfo;
 

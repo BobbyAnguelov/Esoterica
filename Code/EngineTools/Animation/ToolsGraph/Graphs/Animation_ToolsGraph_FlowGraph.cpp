@@ -1,7 +1,7 @@
 #include "Animation_ToolsGraph_FlowGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_Parameters.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode.h"
-#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_DataSlot.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_VariationData.h"
 #include "EngineTools/Core/CommonToolTypes.h"
 #include "EngineTools/Core/CategoryTree.h"
 #include "Engine/Animation/AnimationClip.h"
@@ -47,7 +47,7 @@ namespace EE::Animation
     static bool IsNodeTypeValidForSelection( FlowGraph* pFlowGraph, CategoryItem<TypeSystem::TypeInfo const*> const& item, TVector<String> const& filterTokens = TVector<String>(), NodeGraph::FlowNode* pSourceNode = nullptr, NodeGraph::Pin* pFilterPin = nullptr )
     {
         // Parameter references are already handled
-        if ( item.m_data->IsDerivedFrom( GraphNodes::ParameterReferenceToolsNode::GetStaticTypeID() ) )
+        if ( item.m_data->IsDerivedFrom( ParameterReferenceToolsNode::GetStaticTypeID() ) )
         {
             return false;
         }
@@ -64,7 +64,7 @@ namespace EE::Animation
             return false;
         }
 
-        auto pDefaultNode = Cast<GraphNodes::FlowToolsNode>( item.m_data->m_pDefaultInstance );
+        auto pDefaultNode = Cast<FlowToolsNode>( item.m_data->m_pDefaultInstance );
 
         // Filter based on pin
         if ( pFilterPin != nullptr )
@@ -141,7 +141,7 @@ namespace EE::Animation
             }
             else
             {
-                auto pDefaultNode = Cast<GraphNodes::FlowToolsNode const>( item.m_data->m_pDefaultInstance );
+                auto pDefaultNode = Cast<FlowToolsNode const>( item.m_data->m_pDefaultInstance );
                 outItems.AddItem( pDefaultNode->GetCategory(), pDefaultNode->GetTypeName(), item.m_data );
             }
         }
@@ -182,7 +182,7 @@ namespace EE::Animation
         {
             for ( auto const& item : category.m_items )
             {
-                auto pDefaultNode = Cast<GraphNodes::FlowToolsNode>( item.m_data->m_pDefaultInstance );
+                auto pDefaultNode = Cast<FlowToolsNode>( item.m_data->m_pDefaultInstance );
                 ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pDefaultNode->GetTitleBarColor() );
                 ImGui::Bullet();
                 ImGui::PopStyleColor();
@@ -254,7 +254,7 @@ namespace EE::Animation
             return true;
         }
 
-        if ( !pNodeTypeInfo->IsDerivedFrom( GraphNodes::FlowToolsNode::s_pTypeInfo->m_ID ) )
+        if ( !pNodeTypeInfo->IsDerivedFrom( FlowToolsNode::s_pTypeInfo->m_ID ) )
         {
             return false;
         }
@@ -265,7 +265,7 @@ namespace EE::Animation
             return true;
         }
 
-        auto pFlowNode = Cast<GraphNodes::FlowToolsNode>( pNodeTypeInfo->GetDefaultInstance() );
+        auto pFlowNode = Cast<FlowToolsNode>( pNodeTypeInfo->GetDefaultInstance() );
         return pFlowNode->GetAllowedParentGraphTypes().AreAnyFlagsSet( m_type );
     }
 
@@ -282,12 +282,12 @@ namespace EE::Animation
         bool const hasAdvancedFilter = !filterTokens.empty() || pOriginPin != nullptr;
 
         TypeSystem::TypeInfo const* pNodeTypeToCreate = nullptr;
-        GraphNodes::ParameterBaseToolsNode* pParameterToReference = nullptr;
+        ParameterBaseToolsNode* pParameterToReference = nullptr;
 
         // Parameters
         //-------------------------------------------------------------------------
 
-        TInlineVector<GraphNodes::ParameterBaseToolsNode*, 20> parameters = pToolsGraphContext->GetParameters();
+        TInlineVector<ParameterBaseToolsNode*, 20> parameters = pToolsGraphContext->GetParameters();
 
         // Filter parameters based on origin pin
         for ( int32_t i = 0; i < parameters.size(); i++ )
@@ -301,7 +301,7 @@ namespace EE::Animation
             }
 
             // Filter by pin type
-            if ( pOriginPin != nullptr && ( pSourceNode->IsOutputPin( pOriginPin ) || GraphNodes::FlowToolsNode::GetValueTypeForPinType( pOriginPin->m_type ) != parameters[i]->GetOutputValueType() ) )
+            if ( pOriginPin != nullptr && ( pSourceNode->IsOutputPin( pOriginPin ) || FlowToolsNode::GetValueTypeForPinType( pOriginPin->m_type ) != parameters[i]->GetOutputValueType() ) )
             {
                 excludeParameter = true;
             }
@@ -315,7 +315,7 @@ namespace EE::Animation
         }
 
         // Sort parameters by name
-        auto SortPredicate = [] ( GraphNodes::ParameterBaseToolsNode* const& pA, GraphNodes::ParameterBaseToolsNode* const& pB )
+        auto SortPredicate = [] ( ParameterBaseToolsNode* const& pA, ParameterBaseToolsNode* const& pB )
         {
             return _stricmp( pA->GetName(), pB->GetName() ) < 0;
         };
@@ -349,7 +349,7 @@ namespace EE::Animation
                     for ( auto pParameter : parameters )
                     {
                         ImGui::PushStyleColor( ImGuiCol_Text, (ImVec4) pParameter->GetTitleBarColor() );
-                        ImGui::Text( IsOfType<GraphNodes::ControlParameterToolsNode>( pParameter ) ? EE_ICON_ALPHA_C_BOX : EE_ICON_ALPHA_V_CIRCLE );
+                        ImGui::Text( IsOfType<ControlParameterToolsNode>( pParameter ) ? EE_ICON_ALPHA_C_BOX : EE_ICON_ALPHA_V_CIRCLE );
                         ImGui::PopStyleColor();
 
                         ImGui::SameLine();
@@ -357,7 +357,7 @@ namespace EE::Animation
                         bool const isMenuItemTriggered = ImGui::MenuItem( pParameter->GetName() );
                         if ( isMenuItemTriggered || ( ImGui::IsItemFocused() && ImGui::IsKeyReleased( ImGuiKey_Enter ) ) )
                         {
-                            pNodeTypeToCreate = GraphNodes::ParameterReferenceToolsNode::s_pTypeInfo;
+                            pNodeTypeToCreate = ParameterReferenceToolsNode::s_pTypeInfo;
                             pParameterToReference = pParameter;
                         }
                     }
@@ -389,7 +389,7 @@ namespace EE::Animation
             NodeGraph::FlowNode* pCreatedNode = nullptr;
             if ( pParameterToReference )
             {
-                pCreatedNode = GraphNodes::ParameterReferenceToolsNode::Create( this, pParameterToReference );
+                pCreatedNode = ParameterReferenceToolsNode::Create( this, pParameterToReference );
             }
             else
             {
@@ -482,10 +482,13 @@ namespace EE::Animation
                     if ( ImGui::MenuItem( "Drop As Clip" ) )
                     {
                         NodeGraph::ScopedGraphModification sgm( this );
-                        auto pDataSlotNode = CreateNode<GraphNodes::AnimationClipToolsNode>();
+                        auto pDataSlotNode = CreateNode<AnimationClipToolsNode>();
                         pDataSlotNode->SetPosition( dragAndDropState.m_mouseCanvasPos );
                         pDataSlotNode->Rename( resourceID.GetFilenameWithoutExtension() );
-                        pDataSlotNode->SetVariationResourceID( resourceID );
+
+                        auto pData = pDataSlotNode->GetDefaultVariationDataAs<AnimationClipToolsNode::Data>();
+                        pData->m_animClip = resourceID;
+
                         actionComplete = true;
                         ImGui::CloseCurrentPopup();
                     }
@@ -493,10 +496,13 @@ namespace EE::Animation
                     if ( ImGui::MenuItem( "Drop As Pose" ) )
                     {
                         NodeGraph::ScopedGraphModification sgm( this );
-                        auto pDataSlotNode = CreateNode<GraphNodes::AnimationPoseToolsNode>();
+                        auto pDataSlotNode = CreateNode<AnimationPoseToolsNode>();
                         pDataSlotNode->SetPosition( dragAndDropState.m_mouseCanvasPos );
                         pDataSlotNode->Rename( resourceID.GetFilenameWithoutExtension() );
-                        pDataSlotNode->SetVariationResourceID( resourceID );
+
+                        auto pData = pDataSlotNode->GetDefaultVariationDataAs<AnimationPoseToolsNode::Data>();
+                        pData->m_animClip = resourceID;
+
                         actionComplete = true;
                         ImGui::CloseCurrentPopup();
                     }
@@ -505,35 +511,6 @@ namespace EE::Animation
                 }
 
                 return actionComplete;
-            }
-            else // Handle other resource types
-            {
-                ResourceTypeID const resourceTypeID = resourceID.GetResourceTypeID();
-
-                // Try to find a matching slot node type
-                TypeSystem::TypeInfo const* pFoundNodeTypeInfo = nullptr;
-                auto const dataSlotTypeInfos = pToolsGraphContext->m_pTypeRegistry->GetAllDerivedTypes( GraphNodes::DataSlotToolsNode::GetStaticTypeID(), false, false, true );
-                for ( auto pTypeInfo : dataSlotTypeInfos )
-                {
-                    auto pDefaultSlotNodeInstance = Cast<GraphNodes::DataSlotToolsNode>( pTypeInfo->m_pDefaultInstance );
-                    if ( pDefaultSlotNodeInstance->GetSlotResourceTypeID() == resourceTypeID )
-                    {
-                        pFoundNodeTypeInfo = pTypeInfo;
-                        break;
-                    }
-                }
-
-                if ( pFoundNodeTypeInfo == nullptr )
-                {
-                    return true;
-                }
-
-                //-------------------------------------------------------------------------
-
-                NodeGraph::ScopedGraphModification sgm( this );
-                auto pDataSlotNode = Cast<GraphNodes::DataSlotToolsNode>( CreateNode( pFoundNodeTypeInfo, dragAndDropState.m_mouseCanvasPos ) );
-                pDataSlotNode->Rename( resourceID.GetFilenameWithoutExtension() );
-                pDataSlotNode->SetVariationResourceID( resourceID );
             }
         }
 
@@ -549,7 +526,7 @@ namespace EE::Animation
                 if ( pControlParameter->GetParameterName().comparei( pPayloadStr ) == 0 )
                 {
                     NodeGraph::ScopedGraphModification sgm( this );
-                    auto pNode = GraphNodes::ParameterReferenceToolsNode::Create( this, pControlParameter );
+                    auto pNode = ParameterReferenceToolsNode::Create( this, pControlParameter );
                     pNode->SetPosition( dragAndDropState.m_mouseCanvasPos );
                     break;
                 }

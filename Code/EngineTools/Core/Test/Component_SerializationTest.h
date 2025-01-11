@@ -25,6 +25,9 @@ namespace EE::SerializationTest
     {
         EE_REFLECT_TYPE( SimpleStruct );
 
+        SimpleStruct() {}
+        SimpleStruct( DefaultInstanceCtor_t ) {}
+
         EE_REFLECT();
         bool                                        m_bool = false;
 

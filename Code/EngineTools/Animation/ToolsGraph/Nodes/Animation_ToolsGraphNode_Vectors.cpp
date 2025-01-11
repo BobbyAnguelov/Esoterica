@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     VectorInfoToolsNode::VectorInfoToolsNode()
         : FlowToolsNode()
@@ -44,7 +44,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void VectorInfoToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void VectorInfoToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         switch ( m_desiredInfo )
         {

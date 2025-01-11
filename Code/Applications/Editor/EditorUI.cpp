@@ -335,23 +335,26 @@ namespace EE
 
         // Destroy all required editor tools
         // We needed to defer this to the start of the update since we may have references resources that we might unload (i.e. textures)
-        for ( ToolOperation& request : m_toolOperations )
+        for ( size_t i = 0; i < m_toolOperations.size(); i++ )
         {
-            if ( request.m_type == ToolOperation::DestroyTool )
+            if ( m_toolOperations[i].m_type == ToolOperation::DestroyTool )
             {
-                ExecuteToolOperation( context, request );
+                ExecuteToolOperation( context, m_toolOperations[i] );
+                m_toolOperations.erase( m_toolOperations.begin() + i );
+                i--;
             }
         }
 
         // Execute all other editor tool operations
-        for ( ToolOperation& request : m_toolOperations )
+        for ( size_t i = 0; i < m_toolOperations.size(); i++ )
         {
-            if ( request.m_type != ToolOperation::DestroyTool )
+            if ( m_toolOperations[i].m_type != ToolOperation::DestroyTool )
             {
-                ExecuteToolOperation( context, request );
+                ExecuteToolOperation( context, m_toolOperations[i] );
+                m_toolOperations.erase( m_toolOperations.begin() + i );
+                i--;
             }
         }
-        m_toolOperations.clear();
 
         //-------------------------------------------------------------------------
         // Title Bar
@@ -749,7 +752,7 @@ namespace EE
                     if ( !pDataFileEditor->IsDataFileLoaded() )
                     {
                         MessageDialog::Error( "Error Loading Data File", "There was an error loading the data file for %s! Please check the log for details.", request.m_path.c_str() );
-                        DestroyTool( context, pCreatedTool );
+                        QueueDestroyTool( pCreatedTool );
                         return false;
                     }
                 }

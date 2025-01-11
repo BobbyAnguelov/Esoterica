@@ -8,7 +8,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     // Creates a parameterization for a given set of values (each value corresponds to an input node and are initially ordered as such)
     ParameterizedBlendNode::Parameterization ParameterizedBlendNode::Parameterization::CreateParameterization( TInlineVector<float, 5> const& values )
@@ -193,7 +193,8 @@ namespace EE::Animation::GraphNodes
             m_bsr.m_pSource0 = m_sourceNodes[blendRange.m_inputIdx0];
             m_bsr.m_pSource1 = nullptr;
 
-            m_blendedSyncTrack = m_bsr.m_pSource0->GetSyncTrack();
+            // We need to create a blended sync track to remove any offsets
+            m_blendedSyncTrack = SyncTrack( m_bsr.m_pSource0->GetSyncTrack(), m_bsr.m_pSource0->GetSyncTrack(), 0.0f );
             m_duration = m_bsr.m_pSource0->GetDuration();
         }
         else if ( m_bsr.m_blendWeight == 1.0f )
@@ -201,7 +202,8 @@ namespace EE::Animation::GraphNodes
             m_bsr.m_pSource0 = m_sourceNodes[blendRange.m_inputIdx1];
             m_bsr.m_pSource1 = nullptr;
 
-            m_blendedSyncTrack = m_bsr.m_pSource0->GetSyncTrack();
+            // We need to create a blended sync track to remove any offsets
+            m_blendedSyncTrack = SyncTrack( m_bsr.m_pSource0->GetSyncTrack(), m_bsr.m_pSource0->GetSyncTrack(), 0.0f );
             m_duration = m_bsr.m_pSource0->GetDuration();
         }
         else
@@ -256,8 +258,8 @@ namespace EE::Animation::GraphNodes
         if ( m_bsr.m_pSource1 == nullptr )
         {
             result = m_bsr.m_pSource0->Update( context, &updateRange );
-            m_previousTime = m_bsr.m_pSource0->GetPreviousTime();
-            m_currentTime = m_bsr.m_pSource0->GetCurrentTime();
+            m_previousTime = GetSyncTrack().GetPercentageThrough( updateRange.m_startTime );
+            m_currentTime = GetSyncTrack().GetPercentageThrough( updateRange.m_endTime );
         }
 
         // 2-Way Blend

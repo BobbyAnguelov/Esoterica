@@ -3,14 +3,13 @@
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_PoweredRagdoll.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_SimulatedRagdoll.h"
-#include "Engine/Physics/PhysicsRagdoll.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     PoweredRagdollToolsNode::PoweredRagdollToolsNode()
-        : DataSlotToolsNode()
+        : VariationDataToolsNode()
     {
         CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
@@ -18,6 +17,7 @@ namespace EE::Animation::GraphNodes
         CreateInputPin( "Impulse Origin", GraphValueType::Vector );
         CreateInputPin( "Impulse Force", GraphValueType::Vector );
 
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
     }
 
     int16_t PoweredRagdollToolsNode::Compile( GraphCompilationContext& context ) const
@@ -105,7 +105,8 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pDefinition->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
+            auto pData = GetResolvedVariationDataAs<Data>( context.GetVariationHierarchy(), context.GetVariationID() );
+            pDefinition->m_dataSlotIdx = context.RegisterResource( pData->m_ragdollDefinition.GetResourceID() );
             pDefinition->m_profileID = m_profileID;
             pDefinition->m_physicsBlendWeight = m_physicsBlendWeight;
             pDefinition->m_isGravityEnabled = m_isGravityEnabled;
@@ -113,19 +114,16 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    ResourceTypeID PoweredRagdollToolsNode::GetSlotResourceTypeID() const
-    {
-        return Physics::RagdollDefinition::GetStaticResourceTypeID();
-    }
-
     //-------------------------------------------------------------------------
 
     SimulatedRagdollToolsNode::SimulatedRagdollToolsNode()
-        : DataSlotToolsNode()
+        : VariationDataToolsNode()
     {
         CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Exit Option", GraphValueType::Pose );
+
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
     }
 
     bool SimulatedRagdollToolsNode::IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const
@@ -204,16 +202,12 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pDefinition->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
+            auto pData = GetResolvedVariationDataAs<Data>( context.GetVariationHierarchy(), context.GetVariationID() );
+            pDefinition->m_dataSlotIdx = context.RegisterResource( pData->m_ragdollDefinition.GetResourceID() );
             pDefinition->m_entryProfileID = m_entryProfileID;
             pDefinition->m_simulatedProfileID = m_simulatedProfileID;
             pDefinition->m_exitProfileID = m_exitProfileID;
         }
         return pDefinition->m_nodeIdx;
-    }
-
-    ResourceTypeID SimulatedRagdollToolsNode::GetSlotResourceTypeID() const
-    {
-        return Physics::RagdollDefinition::GetStaticResourceTypeID();
     }
 }

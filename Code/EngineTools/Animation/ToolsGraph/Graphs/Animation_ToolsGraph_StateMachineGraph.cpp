@@ -8,18 +8,14 @@
 
 namespace EE::Animation
 {
-    using namespace EE::Animation::GraphNodes;
-
-    //-------------------------------------------------------------------------
-
-    GraphNodes::EntryStateOverrideConduitToolsNode const* StateMachineGraph::GetEntryStateOverrideConduit() const
+    EntryStateOverrideConduitToolsNode const* StateMachineGraph::GetEntryStateOverrideConduit() const
     {
         auto const foundNodes = FindAllNodesOfType<EntryStateOverrideConduitToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
         EE_ASSERT( foundNodes.size() == 1 );
         return foundNodes[0];
     }
 
-    GraphNodes::GlobalTransitionConduitToolsNode const* StateMachineGraph::GetGlobalTransitionConduit() const
+    GlobalTransitionConduitToolsNode const* StateMachineGraph::GetGlobalTransitionConduit() const
     {
         auto const foundNodes = FindAllNodesOfType<GlobalTransitionConduitToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
         EE_ASSERT( foundNodes.size() == 1 );
@@ -113,7 +109,7 @@ namespace EE::Animation
     {
         auto pParentNode = GetParentNode();
         auto pGrandParentNode = pParentNode->GetParentGraph()->GetParentNode();
-        if ( auto pStateNode = TryCast<GraphNodes::StateToolsNode>( pGrandParentNode ) )
+        if ( auto pStateNode = TryCast<StateToolsNode>( pGrandParentNode ) )
         {
             if ( pStateNode->IsStateMachineState() )
             {

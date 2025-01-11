@@ -155,6 +155,18 @@ namespace EE
         m_pTaskSystem = pTaskSystem;
         m_pTypeRegistry = pTypeRegistry;
 
+        // Get list of all known resource descriptors
+        //-------------------------------------------------------------------------
+
+        m_resourceTypesWithDescriptors.clear();
+
+        TVector<TypeSystem::TypeInfo const*> descriptorTypeInfos = m_pTypeRegistry->GetAllDerivedTypes( Resource::ResourceDescriptor::GetStaticTypeID(), false, false, false );
+        for ( auto pTypeInfo : descriptorTypeInfos )
+        {
+            auto pDescriptorDefaultInstance = Cast<Resource::ResourceDescriptor>( pTypeInfo->GetDefaultInstance() );
+            m_resourceTypesWithDescriptors.emplace_back( pDescriptorDefaultInstance->GetCompiledResourceTypeID() );
+        }
+
         // Start database build
         //-------------------------------------------------------------------------
 
@@ -190,6 +202,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        m_resourceTypesWithDescriptors.clear();
         m_sourceDataDirPath.Clear();
         m_pTypeRegistry = nullptr;
     }
@@ -735,6 +748,7 @@ namespace EE
         pNewEntry->m_dataPath = dataPath;
         pNewEntry->m_extensionFourCC = 0;
         pNewEntry->m_extension = pExtension ? pExtension : "";
+        pNewEntry->m_fileType = FileType::Unknown;
 
         // Process extension
         if ( FourCC::IsValidLowercase( pNewEntry->m_extension.c_str() ) )
@@ -759,7 +773,7 @@ namespace EE
                 {
                     pNewEntry->m_fileType = FileType::EntityDescriptor;
                 }
-                else
+                else if( VectorContains( m_resourceTypesWithDescriptors, resourceTypeID ) )
                 {
                     pNewEntry->m_fileType = FileType::ResourceDescriptor;
                 }

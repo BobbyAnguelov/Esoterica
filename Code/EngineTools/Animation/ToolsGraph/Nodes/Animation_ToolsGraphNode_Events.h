@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     enum class EventPriorityRule : uint8_t
     {
@@ -34,7 +34,7 @@ namespace EE::Animation::GraphNodes
             EE_REFLECT_ENUM
 
             SearchAll = 0,
-            OnlySearchStateEvents,
+            OnlySearchGraphEvents,
             OnlySearchAnimEvents,
         };
 
@@ -46,7 +46,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Events"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
         virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
@@ -84,7 +84,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Events"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
     private:
 
@@ -118,7 +118,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Events"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_eventID ); }
         virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override { if ( m_eventID == oldID ) { NodeGraph::ScopedNodeModification snm( this ); m_eventID = newID; } }
 
@@ -141,9 +141,9 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    class StateEventConditionToolsNode final : public FlowToolsNode
+    class GraphEventConditionToolsNode final : public FlowToolsNode
     {
-        EE_REFLECT_TYPE( StateEventConditionToolsNode );
+        EE_REFLECT_TYPE( GraphEventConditionToolsNode );
 
         struct Condition : public IReflectedType
         {
@@ -153,18 +153,18 @@ namespace EE::Animation::GraphNodes
             StringID                                    m_eventID;
 
             EE_REFLECT();
-            StateEventTypeCondition                     m_type = StateEventTypeCondition::Any;
+            GraphEventTypeCondition                     m_type = GraphEventTypeCondition::Any;
         };
 
     public:
 
-        StateEventConditionToolsNode();
+        GraphEventConditionToolsNode();
 
-        virtual char const* GetTypeName() const override { return "State Event Condition"; }
+        virtual char const* GetTypeName() const override { return "Graph Event Condition"; }
         virtual char const* GetCategory() const override { return "Events"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::BlendTree, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
         virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
@@ -199,7 +199,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Events"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
     private:
 
@@ -229,7 +229,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Events"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
     private:
 
@@ -291,7 +291,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Events"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
     private:
 
@@ -364,7 +364,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Events"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::ValueTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_markerIDToMatch ); }
         virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override { if ( m_markerIDToMatch == oldID ) { NodeGraph::ScopedNodeModification snm( this ); m_markerIDToMatch = newID; } }
 

@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class RootMotionOverrideToolsNode final : public FlowToolsNode
     {

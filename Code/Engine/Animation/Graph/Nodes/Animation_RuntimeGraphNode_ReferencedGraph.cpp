@@ -1,17 +1,18 @@
-#include "Animation_RuntimeGraphNode_ChildGraph.h"
+#include "Animation_RuntimeGraphNode_ReferencedGraph.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 
-
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
-    void ChildGraphNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void ReferencedGraphNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<ChildGraphNode>( context, options );
-        pNode->m_pGraphInstance = context.m_childGraphInstances[m_childGraphIdx];
+        auto pNode = CreateNode<ReferencedGraphNode>( context, options );
+        pNode->m_pGraphInstance = context.m_referencedGraphInstances[m_referencedGraphIdx];
+
+        context.SetOptionalNodePtrFromIndex( m_fallbackNodeIdx, pNode->m_pFallbackNode );
 
         // Create parameter mapping
         //-------------------------------------------------------------------------
@@ -41,8 +42,7 @@ namespace EE::Animation::GraphNodes
                     else
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        GraphVariation const* pGraphVariation = pNode->m_pGraphInstance->GetGraphVariation();
-                        context.LogWarning( "Mismatch parameter type for child graph '%s', parent type: '%s', child type: '%s'", pGraphVariation->GetDefinition()->GetResourceID().c_str(), GetNameForValueType( parentParamType ), GetNameForValueType( childParamType ) );
+                        context.LogWarning( "Mismatch parameter type for referenced graph '%s', parent type: '%s', child type: '%s'", pNode->m_pGraphInstance->GetDefinitionResourceID().c_str(), GetNameForValueType( parentParamType ), GetNameForValueType( childParamType ) );
                         #endif 
                     }
                 }
@@ -55,7 +55,22 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void ChildGraphNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
+    bool ReferencedGraphNode::IsValid() const
+    {
+        if ( m_pGraphInstance != nullptr )
+        {
+            return m_pGraphInstance->IsValid();
+        }
+
+        if ( m_pFallbackNode != nullptr )
+        {
+            return m_pFallbackNode->IsValid();
+        }
+
+        return false;
+    }
+
+    void ReferencedGraphNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         PoseNode::InitializeInternal( context, initialTime );
 
@@ -67,7 +82,7 @@ namespace EE::Animation::GraphNodes
             m_pGraphInstance->ResetGraphState( initialTime );
 
             auto pRootNode = const_cast<PoseNode*>( m_pGraphInstance->GetRootNode() );
-            EE_ASSERT( pRootNode->WasInitialized() );
+            EE_ASSERT( pRootNode->IsInitialized() );
             m_previousTime = pRootNode->GetCurrentTime();
             m_currentTime = pRootNode->GetCurrentTime();
             m_duration = pRootNode->GetDuration();
@@ -76,22 +91,42 @@ namespace EE::Animation::GraphNodes
         {
             m_previousTime = m_currentTime = 0.0f;
             m_duration = 0;
+
+            // Initialize the fallback node if set
+            if ( m_pFallbackNode != nullptr )
+            {
+                m_pFallbackNode->Initialize( context, initialTime );
+
+                if ( m_pFallbackNode->IsValid() )
+                {
+                    m_duration = m_pFallbackNode->GetDuration();
+                    m_previousTime = m_pFallbackNode->GetPreviousTime();
+                    m_currentTime = m_pFallbackNode->GetCurrentTime();
+                }
+            }
         }
     }
 
-    void ChildGraphNode::ShutdownInternal( GraphContext& context )
+    void ReferencedGraphNode::ShutdownInternal( GraphContext& context )
     {
         if ( m_pGraphInstance != nullptr )
         {
             auto pRootNode = const_cast<PoseNode*>( m_pGraphInstance->GetRootNode() );
-            EE_ASSERT( pRootNode->WasInitialized() );
+            EE_ASSERT( pRootNode->IsInitialized() );
             pRootNode->Shutdown( context );
+        }
+        else
+        {
+            if ( m_pFallbackNode != nullptr )
+            {
+                m_pFallbackNode->Shutdown( context );
+            }
         }
     }
 
     //-------------------------------------------------------------------------
 
-    SyncTrack const& ChildGraphNode::GetSyncTrack() const
+    SyncTrack const& ReferencedGraphNode::GetSyncTrack() const
     {
         if ( m_pGraphInstance != nullptr )
         {
@@ -101,11 +136,15 @@ namespace EE::Animation::GraphNodes
                 return pRootNode->GetSyncTrack();
             }
         }
+        else if( m_pFallbackNode != nullptr )
+        {
+            return m_pFallbackNode->GetSyncTrack();
+        }
 
         return SyncTrack::s_defaultTrack;
     }
 
-    void ChildGraphNode::ReflectControlParameters( GraphContext& context )
+    void ReferencedGraphNode::ReflectControlParameters( GraphContext& context )
     {
         EE_ASSERT( m_pGraphInstance != nullptr );
         size_t const numChildParams = m_pGraphInstance->GetNumControlParameters();
@@ -168,7 +207,7 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    GraphPoseNodeResult ChildGraphNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
+    GraphPoseNodeResult ReferencedGraphNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( context.IsValid() );
         MarkNodeActive( context );
@@ -190,8 +229,8 @@ namespace EE::Animation::GraphNodes
             context.PushDebugPath( GetNodeIndex() );
             #endif
 
-            // Evaluate child graph
-            result = m_pGraphInstance->EvaluateChildGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, pUpdateRange, context.m_pLayerContext );
+            // Evaluate referenced graph
+            result = m_pGraphInstance->EvaluateReferencedGraph( context.m_deltaTime, context.m_worldTransform, context.m_pPhysicsWorld, pUpdateRange, context.m_pLayerContext );
 
             // Transfer graph state
             auto pRootNode = m_pGraphInstance->GetRootNode();
@@ -207,6 +246,13 @@ namespace EE::Animation::GraphNodes
             context.PopDebugPath();
             #endif
         }
+        else if( m_pFallbackNode != nullptr && m_pFallbackNode->IsValid() )
+        {
+            result = m_pFallbackNode->Update( context, pUpdateRange );
+            m_duration = m_pFallbackNode->GetDuration();
+            m_previousTime = m_pFallbackNode->GetPreviousTime();
+            m_currentTime = m_pFallbackNode->GetCurrentTime();
+        }
 
         return result;
     }
@@ -214,22 +260,36 @@ namespace EE::Animation::GraphNodes
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void ChildGraphNode::RecordGraphState( RecordedGraphState& outState )
+    void ReferencedGraphNode::DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx )
+    {
+        if ( m_pGraphInstance != nullptr )
+        {
+            m_pGraphInstance->DrawNodeDebug( graphContext, drawCtx );
+        }
+    }
+
+    void ReferencedGraphNode::RecordGraphState( RecordedGraphState& outState )
     {
         PoseNode::RecordGraphState( outState );
 
-        // Record the child graph initial state
-        RecordedGraphState* pChildGraphState = outState.CreateChildGraphStateRecording( GetNodeIndex() );
-        m_pGraphInstance->RecordGraphState( *pChildGraphState );
+        // Record the referenced graph initial state
+        if ( m_pGraphInstance != nullptr )
+        {
+            RecordedGraphState* pGraphState = outState.CreateReferencedGraphStateRecording( GetNodeIndex() );
+            m_pGraphInstance->RecordGraphState( *pGraphState );
+        }
     }
 
-    void ChildGraphNode::RestoreGraphState( RecordedGraphState const& inState )
+    void ReferencedGraphNode::RestoreGraphState( RecordedGraphState const& inState )
     {
         PoseNode::RestoreGraphState( inState );
 
-        // Restore child graph state
-        RecordedGraphState* pChildGraphState = inState.GetChildGraphRecording( GetNodeIndex() );
-        m_pGraphInstance->SetToRecordedState( *pChildGraphState );
+        // Restore referenced graph state
+        if ( m_pGraphInstance != nullptr )
+        {
+            RecordedGraphState* pGraphState = inState.GetReferencedGraphRecording( GetNodeIndex() );
+            m_pGraphInstance->SetToRecordedState( *pGraphState );
+        }
     }
     #endif
 }

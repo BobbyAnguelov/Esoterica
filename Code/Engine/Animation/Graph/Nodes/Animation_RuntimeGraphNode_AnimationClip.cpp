@@ -4,11 +4,10 @@
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Sample.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_DataSet.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void AnimationClipNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -16,17 +15,31 @@ namespace EE::Animation::GraphNodes
         context.SetOptionalNodePtrFromIndex( m_playInReverseValueNodeIdx, pNode->m_pPlayInReverseValueNode );
         context.SetOptionalNodePtrFromIndex( m_resetTimeValueNodeIdx, pNode->m_pResetTimeValueNode );
 
-        pNode->m_pAnimation = context.m_pDataSet->GetResource<AnimationClip>( m_dataSlotIdx );
+        pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIdx );
+
+        //-------------------------------------------------------------------------
+
+        if ( pNode->m_pAnimation != nullptr && pNode->m_pAnimation->GetSkeleton() != context.m_pSkeleton )
+        {
+            pNode->m_pAnimation = nullptr;
+        }
 
         //-------------------------------------------------------------------------
 
         if ( pNode->m_pAnimation != nullptr )
         {
-            if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetPrimarySkeleton() )
+            if ( m_startSyncEventOffset != 0 )
             {
-                pNode->m_pAnimation = nullptr;
+                pNode->m_pSyncTrack = EE::New<SyncTrack>( pNode->m_pAnimation->GetSyncTrack().GetEvents(), m_startSyncEventOffset );
             }
         }
+    }
+
+    //-------------------------------------------------------------------------
+
+    AnimationClipNode::~AnimationClipNode()
+    {
+        EE::Delete( m_pSyncTrack );
     }
 
     bool AnimationClipNode::IsValid() const
@@ -38,7 +51,15 @@ namespace EE::Animation::GraphNodes
     {
         if ( IsValid() )
         {
-            return m_pAnimation->GetSyncTrack();
+            [[likely]]
+            if ( m_pSyncTrack == nullptr )
+            {
+                return m_pAnimation->GetSyncTrack();
+            }
+            else
+            {
+                return *m_pSyncTrack;
+            }
         }
         else
         {
@@ -60,8 +81,9 @@ namespace EE::Animation::GraphNodes
         // Initialize state data
         if ( m_pAnimation != nullptr )
         {
-            m_duration = m_pAnimation->GetDuration();
-            m_currentTime = m_previousTime = m_pAnimation->GetSyncTrack().GetPercentageThrough( initialTime );
+            EE_ASSERT( pDefinition->m_speedMultiplier >= 0.0 );
+            m_duration = m_pAnimation->GetDuration() / pDefinition->m_speedMultiplier;
+            m_currentTime = m_previousTime = GetSyncTrack().GetPercentageThrough( initialTime );
             EE_ASSERT( m_currentTime >= 0.0f && m_currentTime <= 1.0f );
         }
         else
@@ -86,10 +108,9 @@ namespace EE::Animation::GraphNodes
         AnimationClipReferenceNode::ShutdownInternal( context );
     }
 
-
     GraphPoseNodeResult AnimationClipNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
-        EE_ASSERT( context.IsValid() && WasInitialized() );
+        EE_ASSERT( context.IsValid() && IsInitialized() );
 
         if ( !IsValid() )
         {
@@ -193,6 +214,7 @@ namespace EE::Animation::GraphNodes
 
         GraphPoseNodeResult result;
         result.m_sampledEventRange = context.GetEmptySampledEventRange();
+
         // Events
         //-------------------------------------------------------------------------
 

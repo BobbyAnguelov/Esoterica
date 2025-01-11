@@ -22,7 +22,7 @@ namespace EE::Render
 
     TVector<TResourcePtr<Render::Material>> const& StaticMeshComponent::GetDefaultMaterials() const
     {
-        EE_ASSERT( WasInitialized() && HasMeshResourceSet() );
+        EE_ASSERT( IsInitialized() && HasMeshResourceSet() );
         return m_mesh->GetMaterials();
     }
 

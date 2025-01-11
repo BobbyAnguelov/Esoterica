@@ -7,7 +7,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     StateLayerDataToolsNode::StateLayerDataToolsNode()
         : ResultToolsNode()
@@ -21,40 +21,36 @@ namespace EE::Animation::GraphNodes
 
     StateToolsNode::StateToolsNode()
         : NodeGraph::StateNode()
-    {
-        SharedConstructor();
-    }
-
-    StateToolsNode::StateToolsNode( StateType type )
-        : NodeGraph::StateNode()
-        , m_type( type )
-    {
-        if ( m_type == StateType::OffState )
-        {
-            m_name = "Off";
-        }
-
-        SharedConstructor();
-    }
-
-    void StateToolsNode::SharedConstructor()
+        , m_type( StateType::BlendTreeState )
     {
         auto pBlendTree = CreateChildGraph<FlowGraph>( GraphType::BlendTree );
         pBlendTree->CreateNode<PoseResultToolsNode>();
 
         auto pValueTree = CreateSecondaryGraph<FlowGraph>( GraphType::ValueTree );
         pValueTree->CreateNode<StateLayerDataToolsNode>();
+    }
+
+    StateToolsNode::StateToolsNode( StateType type )
+        : StateToolsNode::StateToolsNode()
+    {
+        m_type = type;
 
         // Create a state machine if this is a state machine state
         if ( m_type == StateType::StateMachineState )
         {
+            auto pBlendTree = GetChildGraphAs<FlowGraph>();
             auto pStateMachineNode = pBlendTree->CreateNode<StateMachineToolsNode>();
 
-            auto resultNodes = GetChildGraph()->FindAllNodesOfType<ResultToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+            auto resultNodes = pBlendTree->FindAllNodesOfType<ResultToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
             EE_ASSERT( resultNodes.size() == 1 );
             auto pBlendTreeResultNode = resultNodes[0];
 
             pBlendTree->TryMakeConnection( pStateMachineNode, pStateMachineNode->GetOutputPin( 0 ), pBlendTreeResultNode, pBlendTreeResultNode->GetInputPin( 0 ) );
+        }
+        // Change the name for off states
+        else if ( m_type == StateType::OffState )
+        {
+            m_name = "Off";
         }
     }
 

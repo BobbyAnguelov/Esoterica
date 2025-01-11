@@ -78,7 +78,7 @@ namespace EE::Animation::Tasks
 
                 // Get the ragdoll pose and blend it with the animation pose
                 m_pRagdoll->GetPose( context.m_worldTransform, pTempPrimaryPose );
-                Animation::Blender::LocalBlend( context.m_skeletonLOD, pPrimaryPose, pTempPrimaryPose, m_physicsBlendWeight, nullptr, pPrimaryPose );
+                Animation::Blender::ParentSpaceBlend( context.m_skeletonLOD, pPrimaryPose, pTempPrimaryPose, m_physicsBlendWeight, nullptr, pPrimaryPose );
 
                 ReleaseTemporaryPoseBuffer( context, tmpBufferIdx );
             }

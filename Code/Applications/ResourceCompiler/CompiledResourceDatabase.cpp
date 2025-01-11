@@ -95,7 +95,7 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         constexpr char const* const statement = "SELECT * FROM `CompiledResources` WHERE `DataPath` = \"%s\" AND `ResourceType` = %d;";
-        sqlite3_snprintf( s_defaultStatementBufferSize, m_statementBuffer, statement, resourceID.GetResourcePath().c_str(), (uint32_t) resourceID.GetResourceTypeID() );
+        sqlite3_snprintf( s_defaultStatementBufferSize, m_statementBuffer, statement, resourceID.GetDataPath().c_str(), (uint32_t) resourceID.GetResourceTypeID() );
 
         sqlite3_stmt* pStatement = nullptr;
         int32_t result = sqlite3_prepare_v2( m_pDatabase, m_statementBuffer, -1, &pStatement, nullptr );
@@ -137,7 +137,7 @@ namespace EE::Resource
         EE_ASSERT( IsConnected() );
 
         constexpr char const* const statement = "BEGIN TRANSACTION;INSERT OR REPLACE INTO `CompiledResources` ( `DataPath`, `ResourceType`, `CompilerVersion`, `FileTimestamp`, `SourceTimestampHash`, `AdvancedUpToDateHash` ) VALUES ( \"%s\", %d, %d, %llu, %llu, %llu );END TRANSACTION;";
-        sqlite3_snprintf( s_defaultStatementBufferSize, m_statementBuffer, statement, record.m_resourceID.GetResourcePath().c_str(), (uint32_t) record.m_resourceID.GetResourceTypeID(), record.m_compilerVersion, record.m_fileTimestamp, record.m_sourceTimestampHash, record.m_advancedUpToDateHash );
+        sqlite3_snprintf( s_defaultStatementBufferSize, m_statementBuffer, statement, record.m_resourceID.GetDataPath().c_str(), (uint32_t) record.m_resourceID.GetResourceTypeID(), record.m_compilerVersion, record.m_fileTimestamp, record.m_sourceTimestampHash, record.m_advancedUpToDateHash );
         int32_t result = sqlite3_exec( m_pDatabase, m_statementBuffer, nullptr, nullptr, nullptr );
 
         if ( result != SQLITE_OK )

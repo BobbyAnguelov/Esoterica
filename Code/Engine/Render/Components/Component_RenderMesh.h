@@ -82,7 +82,7 @@ namespace EE::Render
         TVector<Material const*>                                m_materials;
 
         EE_REFLECT( ReadOnly );
-        uint64_t                                                m_sectionVisibilityMask = 0xFFFFFFFF;
+        uint64_t                                                m_sectionVisibilityMask = ~( 0ull );
 
         // Should this component be rendered
         bool                                                    m_isVisible = true;

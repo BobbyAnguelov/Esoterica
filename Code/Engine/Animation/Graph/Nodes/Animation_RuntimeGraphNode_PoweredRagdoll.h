@@ -1,18 +1,18 @@
 #pragma once
 
 #include "Animation_RuntimeGraphNode_Passthrough.h"
+#include "Engine/Physics/PhysicsRagdoll.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
     class Ragdoll;
-    struct RagdollDefinition;
 }
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class EE_ENGINE_API PoweredRagdollNode final : public PassthroughNode
     {

@@ -13,7 +13,59 @@ namespace EE::Animation
 
     class Target
     {
-        EE_SERIALIZE( m_transform, m_boneID, m_isUsingBoneSpaceOffsets, m_hasOffsets, m_isSet );
+        EE_CUSTOM_SERIALIZE_WRITE_FUNCTION( archive )
+        {
+            archive << m_isSet;
+            if ( m_isSet )
+            {
+                archive << m_isBoneTarget;
+
+                if ( m_isBoneTarget )
+                {
+                    archive << m_boneID;
+                    archive << m_hasOffsets;
+                    archive << m_isUsingBoneSpaceOffsets;
+
+                    if ( m_hasOffsets )
+                    {
+                        archive << m_transform;
+                    }
+                }
+                else
+                {
+                    archive << m_transform;
+                }
+            }
+
+            return archive;
+        }
+
+        EE_CUSTOM_SERIALIZE_READ_FUNCTION( archive )
+        {
+            archive << m_isSet;
+            if ( m_isSet )
+            {
+                archive << m_isBoneTarget;
+
+                if ( m_isBoneTarget )
+                {
+                    archive << m_boneID;
+                    archive << m_hasOffsets;
+                    archive << m_isUsingBoneSpaceOffsets;
+
+                    if ( m_hasOffsets )
+                    {
+                        archive << m_transform;
+                    }
+                }
+                else
+                {
+                    archive << m_transform;
+                }
+            }
+
+            return archive;
+        }
 
     public:
 
@@ -79,7 +131,7 @@ namespace EE::Animation
 
     private:
 
-        Transform           m_transform = Transform::Identity;
+        Transform           m_transform = Transform::Identity;  // Either the actual transform or the offsets that need to be applied
         StringID            m_boneID;
         bool                m_isBoneTarget = false;
         bool                m_isUsingBoneSpaceOffsets = true;

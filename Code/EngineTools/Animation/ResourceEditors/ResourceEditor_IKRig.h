@@ -3,11 +3,11 @@
 #include "EngineTools/Core/EditorTool.h"
 #include "EngineTools/Animation/Shared/AnimationClipBrowser.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_IKRig.h"
+#include "EngineTools/Widgets/Pickers/ResourcePickers.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Animation/IK/IKRig.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Imgui/ImguiGizmo.h"
-#include "EngineTools/Widgets/Pickers.h"
 
 //-------------------------------------------------------------------------
 

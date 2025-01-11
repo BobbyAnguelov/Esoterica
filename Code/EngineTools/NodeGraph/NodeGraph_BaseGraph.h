@@ -201,6 +201,14 @@ namespace EE::NodeGraph
         // Get the child graph for this node
         inline BaseGraph* GetChildGraph() { return m_childGraph.TryGetAs<BaseGraph>(); }
 
+        // Get the child graph for this node
+        template<typename T>
+        inline T const* GetChildGraphAs() const { return m_childGraph.TryGetAs<T>(); }
+
+        // Get the child graph for this node
+        template<typename T>
+        inline T* GetChildGraphAs() { return m_childGraph.TryGetAs<T>(); }
+
         // Does this node have a graph that needs to be displayed in the secondary view? e.g. a condition graph for a selector node
         inline bool HasSecondaryGraph() const { return m_secondaryGraph.IsSet(); }
 
@@ -209,6 +217,14 @@ namespace EE::NodeGraph
 
         // Get the secondary graph for this node
         inline BaseGraph const* GetSecondaryGraph() const { return m_secondaryGraph.TryGetAs<BaseGraph>(); }
+
+        // Get the secondary graph for this node
+        template<typename T>
+        inline T const* GetSecondaryGraphAs() const { return m_childGraph.TryGetAs<T>(); }
+
+        // Get the secondary graph for this node
+        template<typename T>
+        inline T* GetSecondaryGraphAs() { return m_childGraph.TryGetAs<T>(); }
 
     protected:
 
@@ -229,6 +245,10 @@ namespace EE::NodeGraph
 
         // Override this if you want to add extra controls to this node (the derived nodes will determine where this content is placed)
         virtual void DrawExtraControls( DrawContext const& ctx, UserContext* pUserContext ) {}
+
+        // Event when a node is double clicked and doesnt result in a navigation operation, by default if a node has a navigation target, a double-click performs a navigation operation
+        // Return true if you handle the double-click, false otherwise so the event is sent to the listeners on the context
+        virtual bool HandleDoubleClick( UserContext* pUserContext ) { return false; }
 
         // Called whenever we switch the view to this node
         virtual void OnShowNode() {}
@@ -604,6 +624,10 @@ namespace EE::NodeGraph
 
         // Called whenever a drag and drop payload has been accepted - return true to complete the drag and drop action
         virtual bool HandleDragAndDrop( UserContext* pUserContext, DragAndDropState const& state ) { return true; }
+
+        // Event when a graph is double clicked and doesnt result in a navigation operation, by default if a graph has a navigation target, a double-click performs a navigation operation
+        // Return true if you handle the double-click, false otherwise so the event is sent to the listeners on the context
+        virtual bool HandleDoubleClick( UserContext* pUserContext ) { return false; }
 
         // Called after we finish pasting nodes (allows for child graphs to run further processes)
         virtual void PostPasteNodes( TInlineVector<BaseNode*, 20> const& pastedNodes ) {}

@@ -18,13 +18,15 @@ namespace EE::Animation
         EE_REFLECT_TYPE( GraphResourceDescriptor );
 
         virtual bool IsValid() const override { return true; }
-        virtual int32_t GetFileVersion() const override { return 0; }
+        virtual int32_t GetFileVersion() const override { return 1; }
         virtual bool IsUserCreateableDescriptor() const override { return true; }
         virtual ResourceTypeID GetCompiledResourceTypeID() const override { return GraphDefinition::GetStaticResourceTypeID(); }
         virtual FileSystem::Extension GetExtension() const override final { return GraphDefinition::GetStaticResourceTypeID().ToString(); }
         virtual char const* GetFriendlyName() const override final { return GraphDefinition::s_friendlyName; }
         virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override {}
         virtual void Clear() override {}
+
+        virtual bool UpgradeSourceData( TypeSystem::TypeRegistry const& typeRegistry, pugi::xml_document& document, int32_t versionDetected ) const override;
 
     public:
 

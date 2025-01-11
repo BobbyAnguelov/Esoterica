@@ -1158,7 +1158,7 @@ namespace EE::ImGuiX
         pDrawList->AddCircleFilled( originSS.ToFloat2(), g_originCircleWidth, g_originColor );
 
         // Draw preview
-        if ( isManipulating )
+        if ( isManipulating && pHoveredAxisInfo != nullptr )
         {
             constexpr uint32_t const numCirclePoints = 100;
             constexpr uint32_t const numPreviewCirclePoints = numCirclePoints / 2;

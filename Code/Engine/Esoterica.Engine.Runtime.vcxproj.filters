@@ -100,9 +100,6 @@
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Node.cpp">
       <Filter>Animation\Graph</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Definition.cpp">
-      <Filter>Animation\Graph</Filter>
-    </ClCompile>
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_RootMotionDebugger.cpp">
       <Filter>Animation\Graph</Filter>
     </ClCompile>
@@ -112,7 +109,7 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.cpp">
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ReferencedGraph.cpp">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClCompile>
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp">
@@ -421,7 +418,8 @@
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="Render\RenderingSystem.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TwoBoneIK.cpp" />
-    <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_TwoBoneIK.cpp" />
+    <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_ChainSolver.cpp" />
+    <ClCompile Include="Animation\IK\IKChainSolver.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="UpdateContext.h" />
@@ -540,16 +538,13 @@
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_RootMotionDebugger.h">
       <Filter>Animation\Graph</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_DataSet.h">
-      <Filter>Animation\Graph</Filter>
-    </ClInclude>
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClInclude>
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ChildGraph.h">
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ReferencedGraph.h">
       <Filter>Animation\Graph\Nodes</Filter>
     </ClInclude>
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h">
@@ -933,7 +928,8 @@
     <ClInclude Include="Render\RenderingSystem.h" />
     <ClInclude Include="Navmesh\Components\Component_NavmeshTester.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TwoBoneIK.h" />
-    <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_TwoBoneIK.h" />
+    <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_ChainSolver.h" />
+    <ClInclude Include="Animation\IK\IKChainSolver.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Render\Shaders\Imgui\PS_imgui.hlsl">

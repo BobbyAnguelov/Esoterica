@@ -54,7 +54,7 @@ namespace EE::EntityModel
             return false;
         }
 
-        FileSystem::Path const filePath = GetFileSystemPath( m_collection.GetResourcePath() );
+        FileSystem::Path const filePath = GetFileSystemPath( m_collection.GetDataPath() );
         if ( !WriteEntityCollectionToFile( *m_pToolsContext->m_pTypeRegistry, sem, filePath ) )
         {
             return false;

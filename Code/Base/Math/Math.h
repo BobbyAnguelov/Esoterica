@@ -276,6 +276,8 @@ namespace EE
         EE_FORCE_INLINE uint64_t RoundUpToNearestMultiple64( uint64_t value, uint64_t multiple ) { return ( ( value + multiple - 1 ) / multiple ) * multiple; }
         EE_FORCE_INLINE uint32_t RoundDownToNearestMultiple32( uint32_t value, uint32_t multiple ) { return value - value % multiple; }
         EE_FORCE_INLINE uint64_t RoundDownToNearestMultiple64( uint64_t value, uint64_t multiple ) { return value - value % multiple; }
+
+        EE_FORCE_INLINE uint32_t GetMaxNumberOfBitsForValue( uint64_t value ) { return Math::GetMostSignificantBit( value ) + 1; }
     }
 
     //-------------------------------------------------------------------------
@@ -1089,8 +1091,10 @@ namespace EE
     public:
 
         inline AxisAngle() = default;
-        inline explicit AxisAngle( Float3 axis, Radians angle ) : m_axis( axis ), m_angle( angle ) {}
-        inline explicit AxisAngle( Float3 axis, Degrees angle ) : m_axis( axis ), m_angle( angle.ToRadians() ) {}
+        inline explicit AxisAngle( Float3&& axis, Radians angle ) : m_axis( axis ), m_angle( angle ) {}
+        inline explicit AxisAngle( Float3&& axis, Degrees angle ) : m_axis( axis ), m_angle( angle.ToRadians() ) {}
+        inline explicit AxisAngle( Float3 const& axis, Radians angle ) : m_axis( axis ), m_angle( angle ) {}
+        inline explicit AxisAngle( Float3 const& axis, Degrees angle ) : m_axis( axis ), m_angle( angle.ToRadians() ) {}
 
         inline bool IsValid() const
         {

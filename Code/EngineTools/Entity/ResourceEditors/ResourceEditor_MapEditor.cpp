@@ -120,7 +120,7 @@ namespace EE::EntityModel
             // Load map
             m_loadedMap = mapToLoad.GetResourceID();
             m_editedMapID = m_pWorld->LoadMap( m_loadedMap );
-            SetDisplayName( m_loadedMap.GetResourcePath().GetFilenameWithoutExtension() );
+            SetDisplayName( m_loadedMap.GetDataPath().GetFilenameWithoutExtension() );
         }
     }
 
@@ -331,7 +331,7 @@ namespace EE::EntityModel
     void EntityMapEditor::CreateNavmeshComponent()
     {
         // Create the appropriate resource ID for the navmesh data
-        DataPath navmeshResourcePath = GetEditedMap()->GetMapResourceID().GetResourcePath();
+        DataPath navmeshResourcePath = GetEditedMap()->GetMapResourceID().GetDataPath();
         navmeshResourcePath.ReplaceExtension( Navmesh::NavmeshData::GetStaticResourceTypeID().ToString().c_str() );
         ResourceID const navmeshResourceID( navmeshResourcePath );
 

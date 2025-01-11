@@ -11,20 +11,20 @@ namespace EE::Animation
         m_loadableTypes.push_back( IKRigDefinition::GetStaticResourceTypeID() );
     }
 
-    bool IKRigLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::ResourceLoader::LoadResult IKRigLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         IKRigDefinition* pDefinition = EE::New<IKRigDefinition>();
         archive << *pDefinition;
 
         pResourceRecord->SetResourceData( pDefinition );
-        return pDefinition->IsValid();
+        return pDefinition->IsValid() ? Resource::ResourceLoader::LoadResult::Succeeded : Resource::ResourceLoader::LoadResult::Failed;
     }
 
-    Resource::InstallResult IKRigLoader::Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
+    Resource::ResourceLoader::LoadResult IKRigLoader::Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
     {
         IKRigDefinition* pDefinition = pResourceRecord->GetResourceData<IKRigDefinition>();
         pDefinition->m_skeleton = GetInstallDependency( installDependencies, pDefinition->m_skeleton.GetResourceID() );
         pDefinition->CreateRuntimeData();
-        return Resource::InstallResult::Succeeded;
+        return ResourceLoader::LoadResult::Succeeded;
     }
 }

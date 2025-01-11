@@ -1,14 +1,26 @@
 #pragma once
 
-#include "Animation_ToolsGraphNode.h"
+#include "Animation_ToolsGraphNode_VariationData.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
-    class TwoBoneIKToolsNode final : public FlowToolsNode
+    class TwoBoneIKToolsNode final : public VariationDataToolsNode
     {
         EE_REFLECT_TYPE( TwoBoneIKToolsNode );
+
+    public:
+
+        struct Data final : public VariationDataToolsNode::Data
+        {
+            EE_REFLECT_TYPE( Data );
+
+        public:
+
+            EE_REFLECT();
+            StringID            m_effectorBoneID;
+        };
 
     public:
 
@@ -21,11 +33,11 @@ namespace EE::Animation::GraphNodes
 
     private:
 
-        EE_REFLECT();
-        StringID            m_effectorBoneID;
+        virtual TypeSystem::TypeInfo const* GetVariationDataTypeInfo() const override { return TwoBoneIKToolsNode::Data::s_pTypeInfo; }
 
-        EE_REFLECT();
-        Percentage          m_allowedStretchPercentage = 0.0f;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
+
+    private:
 
         EE_REFLECT();
         bool                m_isTargetInWorldSpace = false;

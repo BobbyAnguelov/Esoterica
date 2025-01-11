@@ -1,17 +1,15 @@
 #include "Animation_RuntimeGraphNode_SimulatedRagdoll.h"
 #include "Animation_RuntimeGraphNode_AnimationClip.h"
 #include "Engine/Animation/Events/AnimationEvent_Ragdoll.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_DataSet.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Ragdoll.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
 #include "Engine/Physics/PhysicsWorld.h"
 
-
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void SimulatedRagdollNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -29,7 +27,7 @@ namespace EE::Animation::GraphNodes
         }
 
         // Get ragdoll definition
-        pNode->m_pRagdollDefinition = context.m_pDataSet->GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
+        pNode->m_pRagdollDefinition = context.GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
     }
 
     bool SimulatedRagdollNode::IsValid() const
@@ -133,7 +131,7 @@ namespace EE::Animation::GraphNodes
 
     GraphPoseNodeResult SimulatedRagdollNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
-        EE_ASSERT( WasInitialized() );
+        EE_ASSERT( IsInitialized() );
 
         if ( m_isFirstUpdate )
         {

@@ -2,7 +2,6 @@
 
 #include "EngineTools/Core/EditorTool.h"
 #include "EngineTools/Widgets/TreeListView.h"
-#include "EngineTools/Entity/ComponentVisualizer.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/Entity/Entity.h"
 #include "Base/Imgui/ImguiGizmo.h"
@@ -169,13 +168,6 @@ namespace EE::EntityModel
         void ApplyTransformManipulation( Transform const& newTransform );
         void EndTransformManipulation( Transform const& newTransform );
 
-        // Component Visualizer
-        //-------------------------------------------------------------------------
-
-        void UpdateComponentVisualizer();
-        void PreVisualizerEdit( EntityComponent* pComponent );
-        void PostVisualizerEdit( EntityComponent* pComponent );
-
     protected:
 
         // All the entities requested for deletion in a frame, treated as a single operation
@@ -243,7 +235,5 @@ namespace EE::EntityModel
 
         TVector<TypeSystem::TypeInfo const*>            m_volumeTypes;
         TVector<TypeSystem::TypeInfo const*>            m_visualizedVolumeTypes;
-        TVector<ComponentVisualizer const*>             m_visualizerDefaultInstances;
-        ComponentVisualizer*                            m_pComponentVisualizer = nullptr;
     };
 }

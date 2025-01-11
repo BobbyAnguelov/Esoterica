@@ -45,7 +45,7 @@ namespace EE::Animation
         static void DrawRootMotionDebugView( GraphInstance* pGraphInstance, DebugPath const& filterPath = DebugPath(), NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
 
         static void DrawSampledAnimationEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath = DebugPath(), NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
-        static void DrawSampledStateEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath = DebugPath(), NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
+        static void DrawSampledGraphEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath = DebugPath(), NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
         static void DrawCombinedSampledEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath = DebugPath(), NavigateToSourceFunc const& navigateToNodeFunc = NavigateToSourceFunc() );
 
     private:

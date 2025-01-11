@@ -41,7 +41,7 @@ namespace EE::Animation
 
     public:
 
-        struct ChildGraph
+        struct ReferencedGraph
         {
             int16_t             m_nodeIdx = InvalidIndex;
             GraphInstance*      m_pInstance = nullptr;
@@ -55,7 +55,7 @@ namespace EE::Animation
         };
 
         #if EE_DEVELOPMENT_TOOLS
-        struct DebuggableChildGraph
+        struct DebuggableReferencedGraph
         {
             PointerID GetID() const { return PointerID( m_pInstance ); }
 
@@ -67,21 +67,21 @@ namespace EE::Animation
     public:
 
         // Main instance
-        inline GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID ) : GraphInstance( pGraphVariation, ownerID, nullptr, nullptr ) {}
+        inline GraphInstance( GraphDefinition const* pGraphDefinition, uint64_t ownerID ) : GraphInstance( pGraphDefinition, ownerID, nullptr, nullptr ) {}
 
-        // Child instance
-        explicit GraphInstance( GraphVariation const* pGraphVariation, uint64_t ownerID, TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer, class RootMotionDebugger* pRootMotionDebugger = nullptr );
+        // Referenced graph instance
+        explicit GraphInstance( GraphDefinition const* pGraphDefinition, uint64_t ownerID, TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer, class RootMotionDebugger* pRootMotionDebugger = nullptr );
 
         ~GraphInstance();
 
         // Info
         //-------------------------------------------------------------------------
 
-        inline GraphVariation const* GetGraphVariation() const { return m_pGraphVariation; }
-        inline StringID const& GetVariationID() const { return m_pGraphVariation->m_dataSet.m_variationID; }
-        inline ResourceID const& GetDefinitionResourceID() const { return m_pGraphVariation->m_pGraphDefinition->GetResourceID(); }
+        inline GraphDefinition const* GetGraphDefinition() const { return m_pGraphDefinition; }
+        inline ResourceID const& GetDefinitionResourceID() const { return m_pGraphDefinition->GetResourceID(); }
+        inline StringID const& GetVariationID() const { return m_pGraphDefinition->m_variationID; }
 
-        // Is this a full self-contained instance i.e. not a child or a external graph instance
+        // Is this a full self-contained instance i.e. not a referenced or a external graph instance
         inline bool IsStandaloneInstance() const { return m_pTaskSystem != nullptr; }
 
         // Pose
@@ -127,7 +127,7 @@ namespace EE::Animation
         bool IsValid() const { return m_pRootNode != nullptr && m_pRootNode->IsValid(); }
 
         // Is this a valid instance that has been correctly initialized
-        bool WasInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid() && m_pRootNode->WasInitialized(); }
+        bool WasInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid() && m_pRootNode->IsInitialized(); }
 
         // Reset/Initialize the graph state with an initial time
         void ResetGraphState( SyncTrackTime initTime = SyncTrackTime(), TVector<GraphLayerUpdateState> const* pLayerInitInfo = nullptr );
@@ -140,10 +140,10 @@ namespace EE::Animation
         // If the sync track update range is not set, it will run unsynchronized and use the frame delta time instead
         GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, bool resetGraphState = false );
 
-        // Run the graph logic - as a child graph
+        // Run the graph logic - as a referenced graph
         // If the sync track update range is set, this will perform a synchronized update
         // If the sync track update range is not set, it will run unsynchronized and use the frame delta time instead
-        GraphPoseNodeResult EvaluateChildGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, GraphLayerContext* pLayerContext );
+        GraphPoseNodeResult EvaluateReferencedGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, GraphLayerContext* pLayerContext );
 
         // Execute any pre-physics pose tasks (assumes the character is at its final position for this frame)
         void ExecutePrePhysicsPoseTasks( Transform const& endWorldTransform );
@@ -168,17 +168,17 @@ namespace EE::Animation
 
         inline bool IsValidNodeIndex( int16_t nodeIdx ) const 
         {
-            return nodeIdx < m_pGraphVariation->m_pGraphDefinition->m_nodeDefinitions.size();
+            return nodeIdx < m_pGraphDefinition->m_nodeDefinitions.size();
         }
 
         // Control Parameters
         //-------------------------------------------------------------------------
 
-        inline int32_t GetNumControlParameters() const { return (int32_t) m_pGraphVariation->m_pGraphDefinition->m_controlParameterIDs.size(); }
+        inline int32_t GetNumControlParameters() const { return (int32_t) m_pGraphDefinition->m_controlParameterIDs.size(); }
 
         inline int16_t GetControlParameterIndex( StringID parameterID ) const
         {
-            auto const& parameterLookupMap = m_pGraphVariation->m_pGraphDefinition->m_parameterLookupMap;
+            auto const& parameterLookupMap = m_pGraphDefinition->m_parameterLookupMap;
             auto const foundIter = parameterLookupMap.find( parameterID );
             if ( foundIter != parameterLookupMap.end() )
             {
@@ -191,7 +191,7 @@ namespace EE::Animation
         inline StringID GetControlParameterID( int16_t parameterNodeIdx ) const
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            return m_pGraphVariation->m_pGraphDefinition->m_controlParameterIDs[parameterNodeIdx];
+            return m_pGraphDefinition->m_controlParameterIDs[parameterNodeIdx];
         }
 
         inline GraphValueType GetControlParameterType( int16_t parameterNodeIdx ) const
@@ -218,35 +218,35 @@ namespace EE::Animation
         void SetControlParameterValue<bool>( int16_t parameterNodeIdx, bool const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<GraphNodes::ControlParameterBoolNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+            reinterpret_cast<ControlParameterBoolNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
         template<>
         void SetControlParameterValue<StringID>( int16_t parameterNodeIdx, StringID const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<GraphNodes::ControlParameterIDNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+            reinterpret_cast<ControlParameterIDNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
         template<>
         void SetControlParameterValue<float>( int16_t parameterNodeIdx, float const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<GraphNodes::ControlParameterFloatNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+            reinterpret_cast<ControlParameterFloatNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
         template<>
         void SetControlParameterValue<Float3>( int16_t parameterNodeIdx, Float3 const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<GraphNodes::ControlParameterVectorNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+            reinterpret_cast<ControlParameterVectorNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
         template<>
         void SetControlParameterValue<Target>( int16_t parameterNodeIdx, Target const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<GraphNodes::ControlParameterTargetNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+            reinterpret_cast<ControlParameterTargetNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
         // External Graphs
@@ -262,7 +262,7 @@ namespace EE::Animation
         inline bool IsExternalGraphSlotFilled( StringID slotID ) const { return GetConnectedExternalGraphIndex( slotID ) != InvalidIndex; }
 
         // Connects a supplied external graph to the specified slot. Note, it is the callers responsibility to ensure that the slot ID is valid!
-        GraphInstance* ConnectExternalGraph( StringID slotID, GraphVariation const* pGraphVariation );
+        GraphInstance* ConnectExternalGraph( StringID slotID, GraphDefinition const* pGraphDefinition );
 
         // Disconnects an external graph, will destroy the created instance
         void DisconnectExternalGraph( StringID slotID );
@@ -314,16 +314,16 @@ namespace EE::Animation
         }
 
         // Get the connected external graph instance
-        GraphInstance const* GetChildGraphDebugInstance( int16_t nodeIdx ) const;
+        GraphInstance const* GetReferencedGraphDebugInstance( int16_t nodeIdx ) const;
 
         // Get the connected external graph instance
-        GraphInstance const* GetChildGraphDebugInstance( PointerID childGraphInstanceID ) const;
+        GraphInstance const* GetReferencedGraphDebugInstance( PointerID referencedGraphInstanceID ) const;
 
         // Get the connected external graph instance
-        DebugPath GetDebugPathForChildGraphInstance( PointerID instanceID ) const;
+        DebugPath GetDebugPathForReferencedGraphInstance( PointerID instanceID ) const;
 
-        // Get all child graphs - this will return all child graph instances (recursively)
-        void GetChildGraphsForDebug( TVector<DebuggableChildGraph>& outChildGraphInstances ) const { GetChildGraphsForDebug( outChildGraphInstances, DebugPath() ); }
+        // Get all referenced graphs - this will return all referenced graph instances (recursively)
+        void GetReferencedGraphsForDebug( TVector<DebuggableReferencedGraph>& outReferencedGraphInstances ) const { GetReferencedGraphsForDebug( outReferencedGraphInstances, DebugPath() ); }
 
         // Get the connected external graph instance
         GraphInstance const* GetExternalGraphDebugInstance( StringID slotID ) const;
@@ -332,10 +332,10 @@ namespace EE::Animation
         inline TVector<ExternalGraph> const& GetExternalGraphsForDebug() const { return m_externalGraphs; }
 
         // Get the connected external graph instance
-        GraphInstance const* GetChildOrExternalGraphDebugInstance( int16_t nodeIdx ) const;
+        GraphInstance const* GetReferencedOrExternalGraphDebugInstance( int16_t nodeIdx ) const;
 
         // Get the connected external graph instance
-        DebugPath GetDebugPathForChildOrExternalGraphDebugInstance( PointerID instanceID ) const;
+        DebugPath GetDebugPathForReferencedOrExternalGraphDebugInstance( PointerID instanceID ) const;
 
         // Get the value of a specified value node
         template<typename T>
@@ -371,8 +371,11 @@ namespace EE::Animation
         // Log any errors/warnings occurring from the graph update!
         void OutputLog();
 
-        // Draw graph debug visualizations
+        // Draw full graph debug visualizations
         void DrawDebug( Drawing::DrawContext& drawContext );
+
+        // Draw only the node debug (primarily needed for referenced/external graphs)
+        void DrawNodeDebug( GraphContext& graphContext, Drawing::DrawContext& drawContext );
         #endif
 
         // Recording
@@ -424,7 +427,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void GetChildGraphsForDebug( TVector<DebuggableChildGraph>& outChildGraphInstances, DebugPath const& parentPath ) const;
+        void GetReferencedGraphsForDebug( TVector<DebuggableReferencedGraph>& outReferencedGraphInstances, DebugPath const& parentPath ) const;
         DebugPath ResolveSourcePath( TInlineVector<int64_t, 5>const& sourcePath ) const;
         #endif
 
@@ -442,7 +445,7 @@ namespace EE::Animation
 
     private:
 
-        GraphVariation const* const             m_pGraphVariation = nullptr;
+        GraphDefinition const* const            m_pGraphDefinition = nullptr;
         TVector<GraphNode*>                     m_nodes;
         uint8_t*                                m_pAllocatedInstanceMemory = nullptr;
         PoseNode*                               m_pRootNode = nullptr;
@@ -453,7 +456,7 @@ namespace EE::Animation
         ResourceMappings                        m_resourceMappings;
         SampledEventsBuffer*                    m_pSampledEventsBuffer = nullptr;
         GraphContext                            m_graphContext;
-        TVector<ChildGraph>                     m_childGraphs;
+        TVector<ReferencedGraph>                m_referencedGraphs;
         TVector<ExternalGraph>                  m_externalGraphs;
 
         #if EE_DEVELOPMENT_TOOLS

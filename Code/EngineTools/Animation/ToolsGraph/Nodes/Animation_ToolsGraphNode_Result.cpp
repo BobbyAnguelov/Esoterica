@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     ResultToolsNode::ResultToolsNode()
         : FlowToolsNode()

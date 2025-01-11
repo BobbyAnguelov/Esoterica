@@ -20,11 +20,7 @@ namespace EE::TypeSystem { class TypeInfo; }
 namespace EE::Animation
 {
     class VariationHierarchy;
-
-    namespace GraphNodes
-    {
-        class ParameterBaseToolsNode;
-    }
+    class ParameterBaseToolsNode;
 
     //-------------------------------------------------------------------------
 
@@ -33,7 +29,7 @@ namespace EE::Animation
         // Node Helpers
         //-------------------------------------------------------------------------
 
-        inline TInlineVector<GraphNodes::ParameterBaseToolsNode*, 20> const& GetParameters() const { EE_ASSERT( m_pParameters != nullptr ); return *m_pParameters; }
+        inline TInlineVector<ParameterBaseToolsNode*, 20> const& GetParameters() const { EE_ASSERT( m_pParameters != nullptr ); return *m_pParameters; }
         inline Category<TypeSystem::TypeInfo const*> const& GetCategorizedNodeTypes() const { return *m_pCategorizedNodeTypes; }
 
         // Debug Data
@@ -94,7 +90,7 @@ namespace EE::Animation
         GraphInstance*                                                      m_pGraphInstance = nullptr;
         THashMap<UUID, int16_t>                                             m_nodeIDtoIndexMap;
         THashMap<int16_t, UUID>                                             m_nodeIndexToIDMap;
-        TInlineVector<GraphNodes::ParameterBaseToolsNode*, 20> const*       m_pParameters = nullptr;
+        TInlineVector<ParameterBaseToolsNode*, 20> const*                   m_pParameters = nullptr;
         Category<TypeSystem::TypeInfo const*> const*                        m_pCategorizedNodeTypes = nullptr;
         TypeSystem::TypeRegistry const*                                     m_pTypeRegistry = nullptr;
         bool                                                                m_showRuntimeIndices = false;

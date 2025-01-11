@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void StateCompletedConditionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {

@@ -388,7 +388,7 @@ namespace EE::EntityModel
                     for ( uint64_t i = range.start; i < range.end; ++i )
                     {
                         auto pEntity = m_entitiesToShutdown[i];
-                        if ( pEntity->WasInitialized() )
+                        if ( pEntity->IsInitialized() )
                         {
                             // Only shutdown non-spatial and root spatial entities. Attached entities will be shutdown by their parents
                             if ( !pEntity->IsSpatialEntity() || !pEntity->HasSpatialParent() )
@@ -424,7 +424,7 @@ namespace EE::EntityModel
         // Unload and destroy map entities
         for ( auto& pEntity : m_entities )
         {
-            EE_ASSERT( !pEntity->WasInitialized() );
+            EE_ASSERT( !pEntity->IsInitialized() );
             if ( pEntity->IsLoaded() )
             {
                 pEntity->UnloadComponents( loadingContext );
@@ -460,7 +460,7 @@ namespace EE::EntityModel
         for ( int32_t i = (int32_t) m_entitiesToRemove.size() - 1; i >= 0; i-- )
         {
             auto pEntityToShutdown = m_entitiesToRemove[i].m_pEntity;
-            if ( pEntityToShutdown->WasInitialized() )
+            if ( pEntityToShutdown->IsInitialized() )
             {
                 pEntityToShutdown->Shutdown( initializationContext );
             }
@@ -475,7 +475,7 @@ namespace EE::EntityModel
         {
             auto& removalRequest = m_entitiesToRemove[i];
             auto pEntityToRemove = removalRequest.m_pEntity;
-            EE_ASSERT( !pEntityToRemove->WasInitialized() );
+            EE_ASSERT( !pEntityToRemove->IsInitialized() );
 
             // Remove from currently loading list
             m_entitiesCurrentlyLoading.erase_first_unsorted( pEntityToRemove );
@@ -504,7 +504,7 @@ namespace EE::EntityModel
         for ( auto pEntityToAdd : m_entitiesToLoad )
         {
             // Ensure that the entity to add, is not already part of a collection and that it's shutdown
-            EE_ASSERT( pEntityToAdd != nullptr && pEntityToAdd->m_mapID == m_ID && !pEntityToAdd->WasInitialized() );
+            EE_ASSERT( pEntityToAdd != nullptr && pEntityToAdd->m_mapID == m_ID && !pEntityToAdd->IsInitialized() );
 
             // Request component load
             pEntityToAdd->LoadComponents( loadingContext );
@@ -537,7 +537,7 @@ namespace EE::EntityModel
                         #if EE_DEVELOPMENT_TOOLS
                         for ( auto pComponent : pEntity->GetComponents() )
                         {
-                            EE_ASSERT( pComponent->WasInitialized() || pComponent->HasLoadingFailed() );
+                            EE_ASSERT( pComponent->IsInitialized() || pComponent->HasLoadingFailed() );
                         }
                         #endif
 
@@ -549,7 +549,7 @@ namespace EE::EntityModel
                             {
                                 // We need to recheck the initialization state of this entity since while waiting for the lock, it could have been initialized by the parent
                                 Threading::RecursiveScopeLock parentLock( pEntity->GetSpatialParent()->m_internalStateMutex );
-                                if ( !pEntity->WasInitialized() && pEntity->GetSpatialParent()->WasInitialized() )
+                                if ( !pEntity->IsInitialized() && pEntity->GetSpatialParent()->IsInitialized() )
                                 {
                                     pEntity->Initialize( m_initializationContext );
                                 }
@@ -623,7 +623,7 @@ namespace EE::EntityModel
             while ( initializationContext.m_registerForEntityUpdate.try_dequeue( pEntity ) )
             {
                 EE_ASSERT( pEntity != nullptr );
-                EE_ASSERT( pEntity->WasInitialized() );
+                EE_ASSERT( pEntity->IsInitialized() );
                 EE_ASSERT( pEntity->m_updateRegistrationStatus == Entity::UpdateRegistrationStatus::QueuedForRegister );
                 EE_ASSERT( !pEntity->HasSpatialParent() ); // Attached entities are not allowed to be directly updated
                 initializationContext.m_entityUpdateList.push_back( pEntity );
@@ -666,7 +666,7 @@ namespace EE::EntityModel
                         auto pComponent = m_componentsToUnregister[c].m_pComponent;
 
                         EE_ASSERT( pEntity != nullptr );
-                        EE_ASSERT( pComponent != nullptr && pComponent->WasInitialized() && pComponent->m_isRegisteredWithWorld );
+                        EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() && pComponent->m_isRegisteredWithWorld );
                         pSystem->UnregisterComponent( pEntity, pComponent );
                     }
 
@@ -678,8 +678,8 @@ namespace EE::EntityModel
                         auto pEntity = m_componentsToRegister[c].m_pEntity;
                         auto pComponent = m_componentsToRegister[c].m_pComponent;
 
-                        EE_ASSERT( pEntity != nullptr && pEntity->WasInitialized() && !pComponent->m_isRegisteredWithWorld );
-                        EE_ASSERT( pComponent != nullptr && pComponent->WasInitialized() );
+                        EE_ASSERT( pEntity != nullptr && pEntity->IsInitialized() && !pComponent->m_isRegisteredWithWorld );
+                        EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() );
                         pSystem->RegisterComponent( pEntity, pComponent );
                     }
                 }
@@ -913,7 +913,7 @@ namespace EE::EntityModel
         EE_ASSERT( pEntity != nullptr );
         EE_ASSERT( !VectorContains( m_editedEntities, pEntity ) ); // Starting multiple edits for the same entity?!
 
-        if ( pEntity->WasInitialized() )
+        if ( pEntity->IsInitialized() )
         {
             pEntity->Shutdown( initializationContext );
             ProcessEntityRegistrationRequests( initializationContext );
@@ -971,7 +971,7 @@ namespace EE::EntityModel
         bool someEntitiesRequireShutdown = false;
         for ( auto pEntityToHotReload : m_entitiesToHotReload )
         {
-            if ( pEntityToHotReload->WasInitialized() )
+            if ( pEntityToHotReload->IsInitialized() )
             {
                 pEntityToHotReload->Shutdown( initializationContext );
                 someEntitiesRequireShutdown = true;
@@ -987,7 +987,7 @@ namespace EE::EntityModel
         // Unload entities
         for ( auto pEntityToHotReload : m_entitiesToHotReload )
         {
-            EE_ASSERT( !pEntityToHotReload->WasInitialized() );
+            EE_ASSERT( !pEntityToHotReload->IsInitialized() );
 
             // We might still be loading this entity so remove it from the loading requests
             m_entitiesCurrentlyLoading.erase_first_unsorted( pEntityToHotReload );

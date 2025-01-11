@@ -189,7 +189,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         inline bool IsAddedToMap() const { return m_mapID.IsValid(); }
-        inline bool WasInitialized() const { return m_status == Status::Initialized; }
+        inline bool IsInitialized() const { return m_status == Status::Initialized; }
         inline bool IsRegisteredForUpdates() const { return m_updateRegistrationStatus == UpdateRegistrationStatus::Registered; }
         inline bool HasRequestedComponentLoad() const { return m_status != Status::Unloaded; }
         inline bool IsLoaded() const { return m_status == Status::Loaded; }

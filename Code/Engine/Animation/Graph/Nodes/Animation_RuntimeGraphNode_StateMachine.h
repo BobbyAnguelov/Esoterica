@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class TransitionNode;
     class StateNode;
@@ -34,7 +34,7 @@ namespace EE::Animation::GraphNodes
 
             int16_t                                                 m_stateNodeIdx = InvalidIndex;
             int16_t                                                 m_entryConditionNodeIdx = InvalidIndex;
-            TInlineVector<TransitionDefinition, 5>                    m_transitionDefinition;
+            TInlineVector<TransitionDefinition, 5>                  m_transitionDefinition;
         };
 
         //-------------------------------------------------------------------------
@@ -50,7 +50,7 @@ namespace EE::Animation::GraphNodes
 
         public:
 
-            TInlineVector<StateDefinition, 5>                         m_stateDefinition;
+            TInlineVector<StateDefinition, 5>                       m_stateDefinition;
             StateIndex                                              m_defaultStateIndex = InvalidIndex;
         };
 
@@ -89,7 +89,7 @@ namespace EE::Animation::GraphNodes
         void InitializeTransitionConditions( GraphContext& context );
         void ShutdownTransitionConditions( GraphContext& context );
 
-        void EvaluateTransitions( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult& NodeResult );
+        void EvaluateTransitions( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult& NodeResult, int8_t sourceTasksStartMarker );
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;

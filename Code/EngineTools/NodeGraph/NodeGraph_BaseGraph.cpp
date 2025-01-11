@@ -333,6 +333,11 @@ namespace EE::NodeGraph
     {
         for ( TTypeInstance<BaseNode>& nodeInstance : m_nodes )
         {
+            if ( !nodeInstance.IsSet() )
+            {
+                continue;
+            }
+
             nodeInstance->m_pParentGraph = nullptr;
             nodeInstance->m_ID.Clear();
             nodeInstance.DestroyInstance();

@@ -73,7 +73,7 @@ namespace EE::Render
 
     TVector<TResourcePtr<Render::Material>> const& SkeletalMeshComponent::GetDefaultMaterials() const
     {
-        EE_ASSERT( WasInitialized() && HasMeshResourceSet() );
+        EE_ASSERT( IsInitialized() && HasMeshResourceSet() );
         return m_mesh->GetMaterials();
     }
 
@@ -88,7 +88,7 @@ namespace EE::Render
             auto const boneIdx = m_mesh->GetBoneIndex( socketID );
             if ( boneIdx != InvalidIndex )
             {
-                if ( WasInitialized() )
+                if ( IsInitialized() )
                 {
                     outSocketWorldTransform = m_boneTransforms[boneIdx] * outSocketWorldTransform;
                 }
@@ -129,7 +129,7 @@ namespace EE::Render
     void SkeletalMeshComponent::SetPose( Animation::Pose const* pPose )
     {
         EE_PROFILE_FUNCTION_RENDER();
-        EE_ASSERT( WasInitialized() );
+        EE_ASSERT( IsInitialized() );
         EE_ASSERT( HasMeshResourceSet() && HasSkeletonResourceSet() );
         EE_ASSERT( !m_animToMeshBoneMap.empty() );
         EE_ASSERT( pPose != nullptr && pPose->HasModelSpaceTransforms() );
@@ -148,7 +148,7 @@ namespace EE::Render
 
     void SkeletalMeshComponent::ResetPose()
     {
-        EE_ASSERT( WasInitialized() );
+        EE_ASSERT( IsInitialized() );
 
         if ( HasSkeletonResourceSet() )
         {
@@ -210,7 +210,7 @@ namespace EE::Render
     #if EE_DEVELOPMENT_TOOLS
     void SkeletalMeshComponent::DrawPose( Drawing::DrawContext& drawingContext ) const
     {
-        EE_ASSERT( WasInitialized() );
+        EE_ASSERT( IsInitialized() );
 
         if ( !m_mesh.IsSet() || !m_mesh.IsLoaded() )
         {

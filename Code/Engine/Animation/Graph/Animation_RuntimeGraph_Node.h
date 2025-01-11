@@ -8,12 +8,14 @@
 #include "Engine/Animation/AnimationTarget.h"
 #include "Base/TypeSystem/ReflectedType.h"
 #include "Base/Serialization/BinarySerialization.h"
+#include "Base/Resource/ResourcePtr.h"
 #include "Base/Types/Color.h"
 #include "Base/Time/Time.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Drawing { class DrawContext; }
+namespace EE::Resource { class ResourcePtr; }
 
 //-------------------------------------------------------------------------
 
@@ -76,6 +78,25 @@ namespace EE::Animation
             }
         }
 
+        template<typename T>
+        inline T const* GetResource( int16_t slotIdx ) const
+        {
+            if ( slotIdx == InvalidIndex )
+            {
+                return nullptr;
+            }
+
+            TVector<Resource::ResourcePtr> const& resources = *m_pResources;
+            EE_ASSERT( slotIdx >= 0 && slotIdx < resources.size() );
+
+            if ( resources[slotIdx].IsSet() )
+            {
+                return (T const*) resources[slotIdx].GetPtr<Resource::IResource>();
+            }
+            
+            return nullptr;
+        }
+
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
@@ -86,9 +107,10 @@ namespace EE::Animation
 
         int16_t                                     m_currentNodeIdx;
         TVector<GraphNode*> const&                  m_nodePtrs;
-        TInlineVector<GraphInstance*, 20> const&    m_childGraphInstances;
+        TInlineVector<GraphInstance*, 20> const&    m_referencedGraphInstances;
+        Skeleton const*                             m_pSkeleton;
         THashMap<StringID, int16_t> const&          m_parameterLookupMap;
-        GraphDataSet const*                         m_pDataSet;
+        TVector<Resource::ResourcePtr> const*       m_pResources;
         uint64_t                                    m_userID;
 
         #if EE_DEVELOPMENT_TOOLS
@@ -105,8 +127,9 @@ namespace EE::Animation
 
     public:
 
-        // This is the base for each node's individual definition
-        // The definition are all shared for all graph instances since they are immutable, the nodes themselves contain the actual graph state
+        // Node Definition
+        //-------------------------------------------------------------------------
+        // This contains all the immutable shared node settings stored within a graph definition
         struct EE_ENGINE_API Definition : public IReflectedType
         {
             EE_REFLECT_TYPE( Definition );
@@ -163,7 +186,7 @@ namespace EE::Animation
         virtual GraphValueType GetValueType() const = 0;
         inline int16_t GetNodeIndex() const { return m_pDefinition->m_nodeIdx; }
 
-        inline bool WasInitialized() const { return m_initializationCount > 0; }
+        inline bool IsInitialized() const { return m_initializationCount > 0; }
         virtual void Initialize( GraphContext& context );
         void Shutdown( GraphContext& context );
 

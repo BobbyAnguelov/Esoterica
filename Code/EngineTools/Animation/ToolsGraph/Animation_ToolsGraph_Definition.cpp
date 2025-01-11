@@ -7,10 +7,6 @@
 
 namespace EE::Animation
 {
-    using namespace EE::Animation::GraphNodes;
-
-    //-------------------------------------------------------------------------
-
     void ToolsGraphDefinition::CreateDefaultRootGraph()
     {
         m_variationHierarchy.Reset();
@@ -83,7 +79,7 @@ namespace EE::Animation
             }
             else // Create missing parameter
             {
-                auto pParameter = GraphNodes::ControlParameterToolsNode::Create( m_rootGraph.Get(), referencedParameterValueType, pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterGroup() );
+                auto pParameter = ControlParameterToolsNode::Create( m_rootGraph.Get(), referencedParameterValueType, pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterGroup() );
 
                 // Set the reference to the newly created parameter
                 SetReferencedParameter( pReferenceNode, pParameter );
@@ -105,12 +101,12 @@ namespace EE::Animation
     void ToolsGraphDefinition::ReflectParameters( ToolsGraphDefinition const& otherGraphDefinition, bool reflectVirtualParameters, TVector<String>* pOptionalOutputLog )
     {
         FlowGraph const* pOtherRootGraph = otherGraphDefinition.m_rootGraph.Get();
-        auto otherControlParameters = pOtherRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
-        auto otherVirtualParameters = pOtherRootGraph->FindAllNodesOfType<GraphNodes::VirtualParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        auto otherControlParameters = pOtherRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        auto otherVirtualParameters = pOtherRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
 
         FlowGraph* pRootGraph = GetRootGraph();
-        auto controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
-        auto virtualParameters = pRootGraph->FindAllNodesOfType<GraphNodes::VirtualParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        auto controlParameters = pRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        auto virtualParameters = pRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
 
         //-------------------------------------------------------------------------
 
@@ -165,13 +161,13 @@ namespace EE::Animation
             return SearchResult::CanAdd;
         };
 
-        auto ProcessResult = [&] ( SearchResult result, GraphValueType type, String const& parameterName, String const& parameterCategory, GraphNodes::ControlParameterToolsNode const* pOtherParameterNode = nullptr )
+        auto ProcessResult = [&] ( SearchResult result, GraphValueType type, String const& parameterName, String const& parameterCategory, ControlParameterToolsNode const* pOtherParameterNode = nullptr )
         {
             switch ( result )
             {
                 case SearchResult::CanAdd:
                 {
-                    auto pCreatedParameterNode = GraphNodes::ControlParameterToolsNode::Create( pRootGraph, type, parameterName, parameterCategory );
+                    auto pCreatedParameterNode = ControlParameterToolsNode::Create( pRootGraph, type, parameterName, parameterCategory );
                     pCreatedParameterNode->ReflectPreviewValues( pOtherParameterNode );
 
                     if ( pOptionalOutputLog != nullptr )

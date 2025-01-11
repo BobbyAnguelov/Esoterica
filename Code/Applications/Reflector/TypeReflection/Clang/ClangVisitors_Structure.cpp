@@ -145,6 +145,26 @@ namespace EE::TypeSystem::Reflection
             }
             break;
 
+            case CXCursor_Constructor:
+            {
+                int32_t numArgs = clang_Cursor_getNumArguments( cr );
+                if ( numArgs == 1 )
+                {
+                    CXCursor const argCursor = clang_Cursor_getArgument( cr, 0 );
+                    CXType const ctorArgType = clang_getCursorType( argCursor );
+
+                    String argumentTypeName;
+                    if ( ClangUtils::GetQualifiedNameForType( ClangUtils::GetQualType( ctorArgType ), argumentTypeName ) )
+                    {
+                        if ( argumentTypeName == ReflectedType::s_defaultInstanceCustomCtorArgTypename )
+                        {
+                            pClass->m_hasCustomDefaultInstanceCtor = true;
+                        }
+                    }
+                }
+            }
+            break;
+
             // Extract property info
             case CXCursor_FieldDecl:
             {
@@ -171,12 +191,12 @@ namespace EE::TypeSystem::Reflection
                         propertyDesc.m_reflectedDescription = propertyReflectionMacro.m_macroComment;
                     }
 
-                    auto type = clang_getCursorType( cr );
-                    auto const pFieldQualType = ClangUtils::GetQualType( type );
-                    auto typeSpelling = ClangUtils::GetString( clang_getTypeSpelling( type ) );
+                    CXType type = clang_getCursorType( cr );
+                    clang::QualType const fieldQualType = ClangUtils::GetQualType( type );
+                    String typeSpelling = ClangUtils::GetString( clang_getTypeSpelling( type ) );
 
                     // Check if template parameter
-                    if ( pFieldQualType->isTemplateTypeParmType() )
+                    if ( fieldQualType->isTemplateTypeParmType() )
                     {
                         pContext->LogError( "Cannot expose template argument member (%s) in class (%s)!", propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
                         return CXChildVisit_Break;
@@ -185,15 +205,15 @@ namespace EE::TypeSystem::Reflection
                     // Check if this field is a c-style array
                     //-------------------------------------------------------------------------
 
-                    if ( pFieldQualType->isArrayType() )
+                    if ( fieldQualType->isArrayType() )
                     {
-                        if ( pFieldQualType->isVariableArrayType() || pFieldQualType->isIncompleteArrayType() )
+                        if ( fieldQualType->isVariableArrayType() || fieldQualType->isIncompleteArrayType() )
                         {
                             pContext->LogError( "Variable size array properties are not supported! Please change to TVector or fixed size!" );
                             return CXChildVisit_Break;
                         }
 
-                        auto const pArrayType = (clang::ConstantArrayType*) pFieldQualType.getTypePtr();
+                        auto const pArrayType = (clang::ConstantArrayType*) fieldQualType.getTypePtr();
                         propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsArray );
                         propertyDesc.m_arraySize = (int32_t) pArrayType->getSize().getSExtValue();
 

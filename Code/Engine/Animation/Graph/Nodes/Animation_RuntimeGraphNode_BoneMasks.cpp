@@ -3,12 +3,12 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void BoneMaskNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<BoneMaskNode>( context, options );
-        int32_t const maskIdx = context.m_pDataSet->GetPrimarySkeleton()->GetBoneMaskIndex( m_boneMaskID );
+        int32_t const maskIdx = context.m_pSkeleton->GetBoneMaskIndex( m_boneMaskID );
         if ( maskIdx != InvalidIndex )
         {
             EE_ASSERT( maskIdx >= 0 && maskIdx < 255 );

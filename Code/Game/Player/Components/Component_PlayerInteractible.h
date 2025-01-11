@@ -15,10 +15,10 @@ namespace EE::Player
 
     public:
 
-        Animation::GraphVariation const* GetGraph() const { return m_pGraph.GetPtr(); }
+        Animation::GraphDefinition const* GetGraph() const { return m_pGraph.GetPtr(); }
 
     private:
 
-        EE_REFLECT() TResourcePtr<Animation::GraphVariation> m_pGraph;
+        EE_REFLECT() TResourcePtr<Animation::GraphDefinition> m_pGraph;
     };
 }

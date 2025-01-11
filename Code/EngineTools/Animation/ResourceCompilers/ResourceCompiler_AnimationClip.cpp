@@ -56,7 +56,7 @@ namespace EE::Animation
 
         TUniquePtr<Import::ImportedAnimation> ImportedAnimationPtr = nullptr;
         TVector<TUniquePtr<Import::ImportedAnimation>> secondaryAnimations;
-        result = CombineResultCode( result, ReadImportedAnimation( resourceDescriptor.m_skeleton.GetResourcePath(), resourceDescriptor.m_animationPath, ImportedAnimationPtr ) );
+        result = CombineResultCode( result, ReadImportedAnimation( resourceDescriptor.m_skeleton.GetDataPath(), resourceDescriptor.m_animationPath, ImportedAnimationPtr ) );
         if ( result == Resource::CompilationResult::Failure )
         {
             return Error( "Failed to read raw animation data!" );
@@ -80,7 +80,7 @@ namespace EE::Animation
             }
 
             // Read raw animation data
-            result = CombineResultCode( result, ReadImportedAnimation( resourceDescriptor.m_secondaryAnimations[i].m_skeleton.GetResourcePath(), resourceDescriptor.m_secondaryAnimations[i].m_animationPath, secondaryAnimations.emplace_back() ) );
+            result = CombineResultCode( result, ReadImportedAnimation( resourceDescriptor.m_secondaryAnimations[i].m_skeleton.GetDataPath(), resourceDescriptor.m_secondaryAnimations[i].m_animationPath, secondaryAnimations.emplace_back() ) );
             if ( result == Resource::CompilationResult::Failure )
             {
                 return Error( "Failed to read secondary animation data!" );
@@ -151,19 +151,19 @@ namespace EE::Animation
         // Compress raw animation data into runtime format
         //-------------------------------------------------------------------------
 
-        AnimationClip animData;
+        AnimationClip animClip;
         TVector<AnimationClip> secondaryAnimData;
 
         {
             ScopedTimer<PlatformClock> timer( timeTaken );
-            animData.m_skeleton = resourceDescriptor.m_skeleton;
-            result = CombineResultCode( result, TransferAndCompressAnimationData( *ImportedAnimationPtr, animData, resourceDescriptor.m_limitFrameRange, false ) );
+            animClip.m_skeleton = resourceDescriptor.m_skeleton;
+            result = CombineResultCode( result, TransferAndCompressAnimationData( *ImportedAnimationPtr, animClip, resourceDescriptor.m_limitFrameRange, false ) );
             if ( result == Resource::CompilationResult::Failure )
             {
                 return Error( "Failed to compress animation!" );
             }
 
-            IntRange const parentFrameRange( 0, animData.GetNumFrames() - 1 ); // Inclusive frame index range
+            IntRange const parentFrameRange( 0, animClip.GetNumFrames() - 1 ); // Inclusive frame index range
             for ( int32_t i = 0; i < numSecondaryAnims; i++ )
             {
                 secondaryAnimData.emplace_back();
@@ -191,6 +191,34 @@ namespace EE::Animation
         }
         Message( "Read Animation Events: %.3fms", timeTaken.ToFloat() );
 
+        // Duration override
+        //-------------------------------------------------------------------------
+
+        if ( !animClip.IsSingleFrameAnimation() && resourceDescriptor.m_durationOverride != AnimationClipResourceDescriptor::DurationOverride::None )
+        {
+            float durationMultiplier = resourceDescriptor.m_durationOverrideValue;
+
+            if ( resourceDescriptor.m_durationOverride == AnimationClipResourceDescriptor::DurationOverride::FixedValue )
+            {
+                EE_ASSERT( animClip.GetDuration() != 0.0f );
+                durationMultiplier = resourceDescriptor.m_durationOverrideValue / animClip.GetDuration();
+            }
+
+            if ( durationMultiplier <= 0.0f )
+            {
+                return Error( "Invalid duration override value set!" );
+            }
+
+            //-------------------------------------------------------------------------
+
+            animClip.m_duration *= durationMultiplier;
+
+            for ( AnimationClip& secondaryClip : secondaryAnimData )
+            {
+                secondaryClip.m_duration *= durationMultiplier;
+            }
+        }
+
         // Serialize animation data
         //-------------------------------------------------------------------------
 
@@ -204,7 +232,7 @@ namespace EE::Animation
         }
 
         Serialization::BinaryOutputArchive archive;
-        archive << hdr << animData;
+        archive << hdr << animClip;
         archive << eventData.m_syncEventMarkers;
         archive << eventData.m_collection;
 
@@ -325,24 +353,24 @@ namespace EE::Animation
         {
             EE_ASSERT( !isSecondaryAnimation );
 
-            if( !resourceDescriptor.m_additiveBaseAnimation.GetResourcePath().IsValid() )
+            if( !resourceDescriptor.m_additiveBaseAnimation.GetDataPath().IsValid() )
             {
                 return Error( "Additive (RelativeToClip): No base animation clip set!" );
             }
 
             AnimationClipResourceDescriptor baseAnimResourceDescriptor;
-            if ( !TryLoadResourceDescriptor( resourceDescriptor.m_additiveBaseAnimation.GetResourcePath(), baseAnimResourceDescriptor ) )
+            if ( !TryLoadResourceDescriptor( resourceDescriptor.m_additiveBaseAnimation.GetDataPath(), baseAnimResourceDescriptor ) )
             {
                 return Error( "Additive (RelativeToClip): Failed to load base animation descriptor!" );
             }
 
             if ( baseAnimResourceDescriptor.m_skeleton != resourceDescriptor.m_skeleton )
             {
-                return Error( "Additive (RelativeToClip): Base additive animation skeleton does not match animation! Expected: %s, instead got: %s", resourceDescriptor.m_skeleton.GetResourcePath().c_str(), baseAnimResourceDescriptor.m_skeleton.GetResourcePath().c_str() );
+                return Error( "Additive (RelativeToClip): Base additive animation skeleton does not match animation! Expected: %s, instead got: %s", resourceDescriptor.m_skeleton.GetDataPath().c_str(), baseAnimResourceDescriptor.m_skeleton.GetDataPath().c_str() );
             }
 
             TUniquePtr<Import::ImportedAnimation> pBaseImportedAnimation = nullptr;
-            if ( ReadImportedAnimation( baseAnimResourceDescriptor.m_skeleton.GetResourcePath(), baseAnimResourceDescriptor.m_animationPath, pBaseImportedAnimation ) == Resource::CompilationResult::Failure )
+            if ( ReadImportedAnimation( baseAnimResourceDescriptor.m_skeleton.GetDataPath(), baseAnimResourceDescriptor.m_animationPath, pBaseImportedAnimation ) == Resource::CompilationResult::Failure )
             {
                 return Error( "Additive (RelativeToClip): Failed to load base animation data!" );
             }
@@ -375,7 +403,7 @@ namespace EE::Animation
             }
             else
             {
-                Error( "Root Motion Generation: No bone specified for root motion generation!" );
+                return Error( "Root Motion Generation: No bone specified for root motion generation!" );
             }
         }
 

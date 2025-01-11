@@ -25,7 +25,7 @@ namespace EE::Player
             Animation::ExternalGraphController::PostGraphUpdate( deltaTime );
 
             static StringID const completionEventID( "InteractionComplete" );
-            m_isComplete = GetSampledEvents().ContainsStateEvent( completionEventID );
+            m_isComplete = GetSampledEvents().ContainsGraphEvent( completionEventID );
         }
 
     public:

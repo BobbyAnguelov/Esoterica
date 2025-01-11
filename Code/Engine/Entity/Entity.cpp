@@ -106,10 +106,10 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            if ( pComponent->WasInitialized() )
+            if ( pComponent->IsInitialized() )
             {
                 pComponent->Shutdown();
-                EE_ASSERT( !pComponent->WasInitialized() ); // Did you forget to call the parent class shutdown?
+                EE_ASSERT( !pComponent->IsInitialized() ); // Did you forget to call the parent class shutdown?
             }
 
             pComponent->Unload( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
@@ -134,7 +134,7 @@ namespace EE
         if ( HasSpatialParent() )
         {
             // If we are attached to another entity we CANNOT be initialized if our parent is not. This ensures that attachment chains have consistent initialization state
-            EE_ASSERT( m_pParentSpatialEntity->WasInitialized() );
+            EE_ASSERT( m_pParentSpatialEntity->IsInitialized() );
 
             if ( !m_isSpatialAttachmentCreated )
             {
@@ -157,7 +157,7 @@ namespace EE
 
         for ( auto pComponent : m_components )
         {
-            if ( pComponent->WasInitialized() )
+            if ( pComponent->IsInitialized() )
             {
                 RegisterComponentWithLocalSystems( pComponent );
                 initializationContext.m_componentsToRegister.enqueue( EntityModel::EntityComponentPair( this, pComponent ) );
@@ -196,7 +196,7 @@ namespace EE
 
         for ( auto pAttachedEntity : m_attachedEntities )
         {
-            EE_ASSERT( !pAttachedEntity->WasInitialized() );
+            EE_ASSERT( !pAttachedEntity->IsInitialized() );
             if ( pAttachedEntity->IsLoaded() )
             {
                 pAttachedEntity->Initialize( initializationContext );
@@ -213,7 +213,7 @@ namespace EE
         // If we are attached to another entity, that entity must also have been initialized, else we have a problem in our attachment chains
         if ( HasSpatialParent() )
         {
-            EE_ASSERT( m_pParentSpatialEntity->WasInitialized() );
+            EE_ASSERT( m_pParentSpatialEntity->IsInitialized() );
         }
 
         // Shutdown attached entities
@@ -221,7 +221,7 @@ namespace EE
 
         for ( auto pAttachedEntity : m_attachedEntities )
         {
-            if ( pAttachedEntity->WasInitialized() )
+            if ( pAttachedEntity->IsInitialized() )
             {
                 pAttachedEntity->Shutdown( initializationContext );
             }
@@ -295,7 +295,7 @@ namespace EE
 
     void Entity::RegisterComponentWithLocalSystems( EntityComponent* pComponent )
     {
-        EE_ASSERT( pComponent != nullptr && pComponent->WasInitialized() && pComponent->m_entityID == m_ID && !pComponent->m_isRegisteredWithEntity );
+        EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() && pComponent->m_entityID == m_ID && !pComponent->m_isRegisteredWithEntity );
 
         Threading::RecursiveScopeLock lock( m_internalStateMutex );
 
@@ -308,7 +308,7 @@ namespace EE
 
     void Entity::UnregisterComponentFromLocalSystems( EntityComponent* pComponent )
     {
-        EE_ASSERT( pComponent != nullptr && pComponent->WasInitialized() && pComponent->m_entityID == m_ID && pComponent->m_isRegisteredWithEntity );
+        EE_ASSERT( pComponent != nullptr && pComponent->IsInitialized() && pComponent->m_entityID == m_ID && pComponent->m_isRegisteredWithEntity );
 
         Threading::RecursiveScopeLock lock( m_internalStateMutex );
 
@@ -409,7 +409,7 @@ namespace EE
                     if ( !pComponentToDestroy->m_isRegisteredWithEntity && !pComponentToDestroy->m_isRegisteredWithWorld )
                     {
                         auto pComponent = (EntityComponent*) action.m_ptr;
-                        if ( pComponent->WasInitialized() )
+                        if ( pComponent->IsInitialized() )
                         {
                             pComponent->Shutdown();
                         }
@@ -449,7 +449,7 @@ namespace EE
             if ( pComponent->IsLoaded() )
             {
                 pComponent->Initialize();
-                EE_ASSERT( pComponent->WasInitialized() ); // Did you forget to call the parent class initialize?
+                EE_ASSERT( pComponent->IsInitialized() ); // Did you forget to call the parent class initialize?
 
                 if ( auto pSpatialComponent = TryCast<SpatialEntityComponent>( pComponent ) )
                 {
@@ -457,7 +457,7 @@ namespace EE
                 }
 
                 // If we are already initialized, then register with entity systems
-                if ( WasInitialized() )
+                if ( IsInitialized() )
                 {
                     RegisterComponentWithLocalSystems( pComponent );
                     initializationContext.m_componentsToRegister.enqueue( EntityModel::EntityComponentPair( this, pComponent ) );
@@ -471,7 +471,7 @@ namespace EE
 
         EE_ASSERT( m_updateRegistrationStatus != UpdateRegistrationStatus::QueuedForRegister && m_updateRegistrationStatus != UpdateRegistrationStatus::QueuedForUnregister );
 
-        bool const shouldBeRegisteredForUpdates = WasInitialized() && !m_systems.empty() && !HasSpatialParent();
+        bool const shouldBeRegisteredForUpdates = IsInitialized() && !m_systems.empty() && !HasSpatialParent();
 
         if ( shouldBeRegisteredForUpdates )
         {
@@ -527,9 +527,9 @@ namespace EE
 
         // Ensure that we have consistent attachment chains. i.e. cannot have an uninitialized entity in the middle of an initialized chain!
         // This can occur when adding entities to a map and immediately setting spatial parents! Either set spatial parents before adding or after entities are initialized!
-        if ( WasInitialized() )
+        if ( IsInitialized() )
         {
-            EE_ASSERT( pParentEntity->WasInitialized() );
+            EE_ASSERT( pParentEntity->IsInitialized() );
         }
 
         Threading::RecursiveScopeLock myLock( m_internalStateMutex );
@@ -793,7 +793,7 @@ namespace EE
         m_systems.emplace_back( pSystem );
 
         // If the entity is already initialized, then initialize the system
-        if ( WasInitialized() )
+        if ( IsInitialized() )
         {
             pSystem->Initialize();
 
@@ -806,7 +806,7 @@ namespace EE
                 }
             }
 
-            if ( WasInitialized() )
+            if ( IsInitialized() )
             {
                 pSystem->PostComponentRegister();
             }
@@ -878,7 +878,7 @@ namespace EE
         EE_ASSERT( systemIdx != InvalidIndex );
         auto pSystem = m_systems[systemIdx];
 
-        if ( WasInitialized() )
+        if ( IsInitialized() )
         {
             pSystem->PreComponentUnregister();
 

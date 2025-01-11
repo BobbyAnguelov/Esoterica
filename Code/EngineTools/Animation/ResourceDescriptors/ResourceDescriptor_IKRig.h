@@ -22,7 +22,7 @@ namespace EE::Animation
 
         virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
         {
-            outDependencies.emplace_back( m_skeleton.GetResourcePath() );
+            outDependencies.emplace_back( m_skeleton.GetDataPath() );
         }
 
         virtual void Clear() override

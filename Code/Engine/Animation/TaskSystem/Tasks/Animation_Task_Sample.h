@@ -22,7 +22,7 @@ namespace EE::Animation::Tasks
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetDebugName() const override { return "Sample"; }
-        virtual InlineString GetDebugTextInfo() const override;
+        virtual InlineString GetDebugTextInfo( bool isDetailedModeEnabled ) const override;
         virtual Color GetDebugColor() const override { return Colors::Yellow; }
         virtual float GetDebugProgressOrWeight() const override{ return m_time.ToFloat(); }
         #endif

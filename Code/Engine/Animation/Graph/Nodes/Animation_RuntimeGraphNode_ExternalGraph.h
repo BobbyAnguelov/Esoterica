@@ -11,7 +11,7 @@ namespace EE::Animation
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class EE_ENGINE_API ExternalGraphNode final : public PoseNode
     {
@@ -35,6 +35,10 @@ namespace EE::Animation::GraphNodes
         virtual SyncTrack const& GetSyncTrack() const override;
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx ) override;
+        #endif
 
     private:
 

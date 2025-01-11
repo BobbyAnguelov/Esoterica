@@ -597,7 +597,7 @@ namespace EE::Animation
         // Update mesh pose
         //-------------------------------------------------------------------------
 
-        if ( m_pPreviewMeshComponent != nullptr && m_pPreviewMeshComponent->WasInitialized() )
+        if ( m_pPreviewMeshComponent != nullptr && m_pPreviewMeshComponent->IsInitialized() )
         {
             m_pFinalPose->CalculateModelSpaceTransforms();
             m_pPreviewMeshComponent->SetPose( m_pFinalPose );
@@ -864,7 +864,7 @@ namespace EE::Animation
     {
         if ( m_pSkeletonTreeRoot != nullptr )
         {
-            ImGui::Text( "Skeleton ID: %s", m_skeleton->GetResourcePath().GetFilenameWithoutExtension().c_str() );
+            ImGui::Text( "Skeleton ID: %s", m_skeleton->GetDataPath().GetFilenameWithoutExtension().c_str() );
 
             ImGui::Separator();
 
@@ -970,7 +970,7 @@ namespace EE::Animation
         EE::Delete( m_pRig );
         m_debugState = DebugState::None;
 
-        if ( m_pPreviewMeshComponent != nullptr && m_pPreviewMeshComponent->WasInitialized() )
+        if ( m_pPreviewMeshComponent != nullptr && m_pPreviewMeshComponent->IsInitialized() )
         {
             m_pPreviewMeshComponent->ResetPose();
             m_pPreviewMeshComponent->FinalizePose();

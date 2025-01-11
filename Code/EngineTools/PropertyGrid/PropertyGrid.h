@@ -1,7 +1,9 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "EngineTools/Widgets/Pickers.h"
+#include "EngineTools/Widgets/Pickers/DataPathPicker.h"
+#include "EngineTools/Widgets/Pickers/ResourcePickers.h"
+#include "EngineTools/Widgets/Pickers/TypeInfoPicker.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/TypeSystem/TypeInfo.h"
 #include "Base/TypeSystem/ReflectedType.h"
@@ -133,6 +135,9 @@ namespace EE
 
         // Set the minimum height for the property grid, any values less than 100 will be clamped to s_absoluteMinimumHeight
         inline void SetMinimumHeight( float minimumHeight ) { EE_ASSERT( minimumHeight > 0 ); m_minimumHeight = Math::Max( s_absoluteMinimumHeight, minimumHeight ); }
+
+        // Get the minimum height for the property grid
+        inline float GetMinimumHeight() const { return m_minimumHeight; }
 
         // Events
         //-------------------------------------------------------------------------

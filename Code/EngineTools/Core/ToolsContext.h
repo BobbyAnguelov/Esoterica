@@ -38,7 +38,7 @@ namespace EE
 
         inline bool TryOpenResource( ResourceID const& resourceID ) const
         {
-            return TryOpenDataFile( resourceID.GetResourcePath() );
+            return TryOpenDataFile( resourceID.GetDataPath() );
         }
 
         virtual bool TryFindInResourceBrowser( DataPath const& path ) const = 0;
@@ -46,7 +46,7 @@ namespace EE
         inline bool TryFindInResourceBrowser( ResourceID const& resourceID ) const
         {
             ResourceID const finalResourceID = ( resourceID.IsSubResourceID() ) ? resourceID.GetParentResourceID() : resourceID;
-            return TryFindInResourceBrowser( finalResourceID.GetResourcePath() );
+            return TryFindInResourceBrowser( finalResourceID.GetDataPath() );
         }
 
         virtual void TryCreateNewResourceDescriptor( TypeSystem::TypeID descriptorTypeID, FileSystem::Path const& startingDir = FileSystem::Path() ) const = 0;

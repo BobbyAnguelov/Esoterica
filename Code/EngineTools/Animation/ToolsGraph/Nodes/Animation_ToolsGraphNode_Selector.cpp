@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     SelectorConditionToolsNode::SelectorConditionToolsNode()
         : ResultToolsNode()
@@ -329,6 +329,33 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
+            // Compile weights
+            //-------------------------------------------------------------------------
+
+            bool zeroWeightDetected = ( m_optionWeights[0] == 0.0f );
+            bool hasWeightsSet = false;
+
+            EE_ASSERT( m_optionWeights.size() == m_optionLabels.size() );
+            for ( int32_t i = 1; i < m_optionWeights.size(); i++ )
+            {
+                zeroWeightDetected |= ( m_optionWeights[i] == 0 );
+                hasWeightsSet |= ( m_optionWeights[i] != m_optionWeights[0] );
+            }
+
+            if ( hasWeightsSet && zeroWeightDetected )
+            {
+                context.LogError( this, "Detected a zero weight for an option, this is not allowed!" );
+                return InvalidIndex;
+            }
+
+            if ( hasWeightsSet )
+            {
+                for ( uint8_t v : m_optionWeights )
+                {
+                    pDefinition->m_optionWeights.emplace_back( v );
+                }
+            }
+
             //-------------------------------------------------------------------------
 
             if ( pDefinition->m_optionNodeIndices.empty() )
@@ -343,6 +370,7 @@ namespace EE::Animation::GraphNodes
     void ParameterizedSelectorToolsNode::OnDynamicPinCreation( UUID const& pinID )
     {
         m_optionLabels.emplace_back( GetInputPin( pinID )->m_name );
+        m_optionWeights.emplace_back( uint8_t( 0 ) );
         RefreshDynamicPins();
     }
 
@@ -351,6 +379,7 @@ namespace EE::Animation::GraphNodes
         int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
         EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
         m_optionLabels.erase( m_optionLabels.begin() + pinToBeRemovedIdx - 1 );
+        m_optionWeights.erase( m_optionWeights.begin() + pinToBeRemovedIdx - 1 );
     }
 
     void ParameterizedSelectorToolsNode::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
@@ -371,7 +400,6 @@ namespace EE::Animation::GraphNodes
             pInputPin->m_name.sprintf( "%s", m_optionLabels[i - 1].empty() ? "Option" : m_optionLabels[i - 1].c_str() );
         }
     }
-
 
     //-------------------------------------------------------------------------
 
@@ -444,6 +472,33 @@ namespace EE::Animation::GraphNodes
                 }
             }
 
+            // Compile weights
+            //-------------------------------------------------------------------------
+
+            bool zeroWeightDetected = ( m_optionWeights[0] == 0.0f );
+            bool hasWeightsSet = false;
+
+            EE_ASSERT( m_optionWeights.size() == m_optionLabels.size() );
+            for ( int32_t i = 1; i < m_optionWeights.size(); i++ )
+            {
+                zeroWeightDetected |= ( m_optionWeights[i] == 0 );
+                hasWeightsSet |= ( m_optionWeights[i] != m_optionWeights[0] );
+            }
+
+            if ( hasWeightsSet && zeroWeightDetected )
+            {
+                context.LogError( this, "Detected a zero weight for an option, this is not allowed!" );
+                return InvalidIndex;
+            }
+
+            if ( hasWeightsSet )
+            {
+                for ( uint8_t v : m_optionWeights )
+                {
+                    pDefinition->m_optionWeights.emplace_back( v );
+                }
+            }
+
             //-------------------------------------------------------------------------
 
             if ( pDefinition->m_optionNodeIndices.empty() )
@@ -458,6 +513,7 @@ namespace EE::Animation::GraphNodes
     void ParameterizedAnimationClipSelectorToolsNode::OnDynamicPinCreation( UUID const& pinID )
     {
         m_optionLabels.emplace_back( GetInputPin( pinID )->m_name );
+        m_optionWeights.emplace_back( uint8_t( 0 ) );
         RefreshDynamicPins();
     }
 
@@ -466,6 +522,7 @@ namespace EE::Animation::GraphNodes
         int32_t const pinToBeRemovedIdx = GetInputPinIndex( pinID );
         EE_ASSERT( pinToBeRemovedIdx != InvalidIndex );
         m_optionLabels.erase( m_optionLabels.begin() + pinToBeRemovedIdx - 1 );
+        m_optionWeights.erase( m_optionWeights.begin() + pinToBeRemovedIdx - 1 );
     }
 
     bool ParameterizedAnimationClipSelectorToolsNode::IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const

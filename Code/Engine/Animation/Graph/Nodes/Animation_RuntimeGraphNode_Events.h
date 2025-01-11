@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class StateNode;
 
@@ -20,14 +20,14 @@ namespace EE::Animation::GraphNodes
         PreferHighestProgress,
         OperatorOr,
         OperatorAnd,
-        SearchOnlyStateEvents,
+        SearchOnlyGraphEvents,
         SearchOnlyAnimEvents,
-        SearchBothStateAndAnimEvents,
+        SearchBothGraphAndAnimEvents,
     };
 
     //-------------------------------------------------------------------------
 
-    // Check for a given ID - coming either from a state event or ID event
+    // Check for a given ID - coming either from a graph event or ID event
     class EE_ENGINE_API IDEventConditionNode : public BoolValueNode
     {
 
@@ -129,8 +129,8 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    // Check for a given state event - coming either from a state event or generic event
-    class EE_ENGINE_API StateEventConditionNode : public BoolValueNode
+    // Check for a given graph event - coming either from a graph event or generic event
+    class EE_ENGINE_API GraphEventConditionNode : public BoolValueNode
     {
     public:
 
@@ -139,7 +139,7 @@ namespace EE::Animation::GraphNodes
             EE_SERIALIZE( m_eventID, m_eventTypeCondition );
 
             StringID                                    m_eventID;
-            StateEventTypeCondition                     m_eventTypeCondition;
+            GraphEventTypeCondition                     m_eventTypeCondition;
         };
 
     public:

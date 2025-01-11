@@ -146,6 +146,8 @@ namespace EE::Animation
         // Layout the nodes
         //-------------------------------------------------------------------------
 
+        bool const isDetailedModeEnabled = ( pTaskSystem->GetDebugMode() == TaskSystemDebugMode::DetailedPoseTree );
+
         int32_t const numTasks = (int32_t) pTaskSystem->m_tasks.size();
         TreeLayout layout;
         layout.m_nodes.resize( numTasks );
@@ -154,7 +156,7 @@ namespace EE::Animation
         {
             auto pTask = pTaskSystem->m_tasks[i];
             layout.m_nodes[i].m_pItem = pTask;
-            layout.m_nodes[i].m_width = itemHorizontalSpacing + Math::Max( ImGui::CalcTextSize( pTask->GetDebugName() ).x, ImGui::CalcTextSize( pTask->GetDebugTextInfo().c_str() ).x ) + ( ImGui::GetStyle().WindowPadding.x * 2 );
+            layout.m_nodes[i].m_width = itemHorizontalSpacing + Math::Max( ImGui::CalcTextSize( pTask->GetDebugName() ).x, ImGui::CalcTextSize( pTask->GetDebugTextInfo( isDetailedModeEnabled ).c_str() ).x ) + ( ImGui::GetStyle().WindowPadding.x * 2 );
             layout.m_nodes[i].m_height = itemWindowHeight;
 
             int32_t const numDependencies = pTask->GetNumDependencies();
@@ -172,10 +174,10 @@ namespace EE::Animation
         // Draw Visualization
         //-------------------------------------------------------------------------
 
-        ImVec2 const windowSize( Math::Max( ImGui::GetContentRegionAvail().x, layout.m_dimensions.m_x ), Math::Max( ImGui::GetContentRegionAvail().y, layout.m_dimensions.m_y + itemWindowHeight ) );
+        ImVec2 const windowSize( ImGui::GetContentRegionAvail().x, Math::Max( ImGui::GetContentRegionAvail().y, layout.m_dimensions.m_y + itemWindowHeight ) );
         if ( ImGui::BeginChild( "TL", windowSize, ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_HorizontalScrollbar ) )
         {
-            ImVec2 const offset = ImVec2( windowSize.x / 2, itemWindowHeight / 2 );
+            ImVec2 const offset = ImVec2( layout.m_dimensions.m_x / 2, itemWindowHeight / 2 );
             ImVec2 const windowPos = ImGui::GetWindowPos();
             ImVec2 const windowScrollOffset = ImVec2( ImGui::GetScrollX(), ImGui::GetScrollY() );
             ImVec2 const windowPosWithAllOffsets = windowPos + offset - windowScrollOffset;
@@ -235,7 +237,7 @@ namespace EE::Animation
                 // Calculate item size
                 //-------------------------------------------------------------------------
 
-                InlineString const debugInfo = pTask->GetDebugTextInfo();
+                InlineString const debugInfo = pTask->GetDebugTextInfo( isDetailedModeEnabled );
                 float const itemWindowWidth = Math::Max( ImGui::CalcTextSize( pTask->GetDebugName() ).x, ImGui::CalcTextSize( debugInfo.c_str() ).x ) + ( ImGui::GetStyle().WindowPadding.x * 2 );
                 ImVec2 const itemSize( itemWindowWidth, itemWindowHeight );
                 ImVec2 const itemHalfSize( itemSize / 2 );
@@ -267,7 +269,7 @@ namespace EE::Animation
 
                     if ( !debugInfo.empty() )
                     {
-                        ImGui::Text( pTask->GetDebugTextInfo().c_str() );
+                        ImGui::Text( pTask->GetDebugTextInfo( isDetailedModeEnabled ).c_str() );
                     }
 
                     // Draw weight/progress
@@ -491,7 +493,7 @@ namespace EE::Animation
             for ( int32_t i = 0; i < sampledEvents.GetNumSampledEvents(); i++ )
             {
                 SampledEvent const& sampledEvent = sampledEvents.GetEvent( i );
-                if ( sampledEvent.IsStateEvent() )
+                if ( sampledEvent.IsGraphEvent() )
                 {
                     continue;
                 }
@@ -593,7 +595,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationDebugView::DrawSampledStateEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath, NavigateToSourceFunc const& navigateToNodeFunc )
+    void AnimationDebugView::DrawSampledGraphEventsView( GraphInstance* pGraphInstance, DebugPath const& filterPath, NavigateToSourceFunc const& navigateToNodeFunc )
     {
         if ( pGraphInstance == nullptr || !pGraphInstance->WasInitialized() )
         {
@@ -601,15 +603,15 @@ namespace EE::Animation
             return;
         }
 
-        if ( pGraphInstance->GetSampledEvents().GetNumStateEventsSampled() == 0 )
+        if ( pGraphInstance->GetSampledEvents().GetNumGraphEventsSampled() == 0 )
         {
-            ImGui::Text( "No State Events Sampled!" );
+            ImGui::Text( "No Graph Events Sampled!" );
             return;
         }
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::BeginTable( "StateEventsTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
+        if ( ImGui::BeginTable( "GraphEventsTable", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
         {
             ImGui::TableSetupColumn( "Branch", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
             ImGui::TableSetupColumn( "Status", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 18 );
@@ -620,7 +622,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            bool hasStateEvent = false;
+            bool hasGraphEvent = false;
             SampledEventsBuffer const& sampledEvents = pGraphInstance->GetSampledEvents();
             for ( int32_t i = 0; i < sampledEvents.GetNumSampledEvents(); i++ )
             {
@@ -643,7 +645,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextRow();
-                hasStateEvent = true;
+                hasGraphEvent = true;
 
                 //-------------------------------------------------------------------------
 
@@ -679,14 +681,14 @@ namespace EE::Animation
 
                 ImGui::TableNextColumn();
                 {
-                    static Color const stateEventTypeColors[] = { Colors::Gold, Colors::Lime, Colors::OrangeRed, Colors::DodgerBlue };
+                    static Color const graphEventTypeColors[] = { Colors::Gold, Colors::Lime, Colors::OrangeRed, Colors::DodgerBlue, Colors::MediumSlateBlue };
 
-                    ImGui::PushStyleColor( ImGuiCol_Text, stateEventTypeColors[ (uint8_t) sampledEvent.GetStateEventType()] );
-                    ImGui::Text( "[%s]", GetNameForStateEventType( sampledEvent.GetStateEventType() ) );
+                    ImGui::PushStyleColor( ImGuiCol_Text, graphEventTypeColors[ (uint8_t) sampledEvent.GetGraphEventType()] );
+                    ImGui::Text( "[%s]", GetNameForGraphEventType( sampledEvent.GetGraphEventType() ) );
                     ImGui::PopStyleColor();
                     ImGui::SameLine();
-                    ImGui::Text( sampledEvent.GetStateEventID().c_str() );
-                    ImGuiX::TextTooltip( sampledEvent.GetStateEventID().c_str() );
+                    ImGui::Text( sampledEvent.GetGraphEventID().c_str() );
+                    ImGuiX::TextTooltip( sampledEvent.GetGraphEventID().c_str() );
                 }
 
                 ImGui::TableNextColumn();
@@ -721,9 +723,9 @@ namespace EE::Animation
                 ImGui::PopID();
             }
 
-            if ( !hasStateEvent )
+            if ( !hasGraphEvent )
             {
-                ImGui::Text( "No State Events" );
+                ImGui::Text( "No Graph Events" );
             }
 
             ImGui::EndTable();
@@ -741,7 +743,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         DrawSampledAnimationEventsView( pGraphInstance, filterPath, navigateToNodeFunc );
-        DrawSampledStateEventsView( pGraphInstance, filterPath, navigateToNodeFunc );
+        DrawSampledGraphEventsView( pGraphInstance, filterPath, navigateToNodeFunc );
     }
 
     //-------------------------------------------------------------------------

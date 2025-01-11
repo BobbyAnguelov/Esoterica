@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class EE_ENGINE_API TwoBoneIKNode final : public PassthroughNode
     {
@@ -14,7 +14,7 @@ namespace EE::Animation::GraphNodes
         struct EE_ENGINE_API Definition final : public PassthroughNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PassthroughNode::Definition, m_effectorBoneID, m_effectorTargetNodeIdx, m_allowedStretchPercentage, m_isTargetInWorldSpace );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PassthroughNode::Definition, m_effectorBoneID, m_effectorTargetNodeIdx, m_isTargetInWorldSpace );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -23,7 +23,6 @@ namespace EE::Animation::GraphNodes
             StringID        m_effectorBoneID;
             int16_t         m_effectorTargetNodeIdx = InvalidIndex;
             bool            m_isTargetInWorldSpace = false;
-            Percentage      m_allowedStretchPercentage = 0.0f;
         };
 
     private:

@@ -432,7 +432,7 @@ namespace EE::Render
             {
                 m_editedResource->DrawBindPose( drawingCtx, Transform::Identity );
 
-                if ( m_pMeshComponent != nullptr && m_pMeshComponent->WasInitialized() )
+                if ( m_pMeshComponent != nullptr && m_pMeshComponent->IsInitialized() )
                 {
                     m_pMeshComponent->DrawPose( drawingCtx );
                 }

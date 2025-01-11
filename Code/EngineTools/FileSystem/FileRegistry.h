@@ -190,7 +190,7 @@ namespace EE
         FileInfo const* GetFileEntry( DataPath const& dataPath ) const;
 
         // Try to get an entry for a resource ID
-        EE_FORCE_INLINE FileInfo const* GetFileEntry( ResourceID const& resourceID ) const { return GetFileEntry( resourceID.GetResourcePath() ); }
+        EE_FORCE_INLINE FileInfo const* GetFileEntry( ResourceID const& resourceID ) const { return GetFileEntry( resourceID.GetDataPath() ); }
 
         // Get a list of all known resource file entries of the specified type
         TVector<FileInfo const*> GetAllResourceFileEntries( ResourceTypeID resourceTypeID, bool includeDerivedTypes = false ) const;
@@ -205,7 +205,7 @@ namespace EE
         bool DoesFileExist( DataPath const& path ) const;
 
         // Check if this is a existing resource
-        inline bool DoesFileExist( ResourceID const& resourceID ) const { return DoesFileExist( resourceID.GetResourcePath() ); }
+        inline bool DoesFileExist( ResourceID const& resourceID ) const { return DoesFileExist( resourceID.GetDataPath() ); }
 
         // Gets the list of all known resources
         THashMap<ResourceTypeID, TVector<FileInfo*>> const& GetAllResources() const { return m_resourcesPerType; }
@@ -270,6 +270,7 @@ namespace EE
         FileSystem::Path                                            m_sourceDataDirPath;
         FileSystem::Path                                            m_compiledResourceDirPath;
         int32_t                                                     m_dataDirectoryPathDepth;
+        TVector<ResourceTypeID>                                     m_resourceTypesWithDescriptors;
 
         // File system watcher
         FileSystem::Watcher                                         m_fileSystemWatcher;

@@ -15,7 +15,7 @@ namespace EE::Render
         m_loadableTypes.push_back( SkeletalMesh::GetStaticResourceTypeID() );
     }
 
-    bool MeshLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::ResourceLoader::LoadResult MeshLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         EE_ASSERT( m_pRenderDevice != nullptr );
 
@@ -42,16 +42,15 @@ namespace EE::Render
 
         pResourceRecord->SetResourceData( pMeshResource );
 
-        return true;
+        return Resource::ResourceLoader::LoadResult::Succeeded;
     }
 
-    Resource::InstallResult MeshLoader::Install( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
+    Resource::ResourceLoader::LoadResult MeshLoader::Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
     {
         auto pMesh = pResourceRecord->GetResourceData<Mesh>();
 
         // Create GPU buffers
         //-------------------------------------------------------------------------
-        // BLOCKING FOR NOW! TODO: request the load and return Resource::InstallResult::InProgress
 
         m_pRenderDevice->LockDevice();
         {
@@ -79,8 +78,8 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        ResourceLoader::Install( resourceID, resourcePath, installDependencies, pResourceRecord );
-        return Resource::InstallResult::Succeeded;
+        ResourceLoader::Install( resourceID, installDependencies, pResourceRecord );
+        return Resource::ResourceLoader::LoadResult::Succeeded;
     }
 
     void MeshLoader::Uninstall( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
@@ -93,11 +92,5 @@ namespace EE::Render
             m_pRenderDevice->DestroyBuffer( pMesh->m_indexBuffer );
             m_pRenderDevice->UnlockDevice();
         }
-    }
-
-    Resource::InstallResult MeshLoader::UpdateInstall( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
-    {
-        EE_UNIMPLEMENTED_FUNCTION();
-        return Resource::InstallResult::Failed;
     }
 }

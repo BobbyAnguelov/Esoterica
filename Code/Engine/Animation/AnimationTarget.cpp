@@ -18,46 +18,36 @@ namespace EE::Animation
             auto pSkeleton = pPose->GetSkeleton();
 
             int32_t const boneIdx = pSkeleton->GetBoneIndex( m_boneID );
-            if ( boneIdx != InvalidIndex )
+            if ( boneIdx == InvalidIndex )
             {
-                if ( m_hasOffsets )
+                return false;
+            }
+
+            if ( m_hasOffsets )
+            {
+                // Get the local transform and the parent global transform
+                if ( m_isUsingBoneSpaceOffsets )
                 {
-                    Transform parentTransform = Transform::Identity;
-
-                    // Get the local transform and the parent global transform
-                    if ( m_isUsingBoneSpaceOffsets )
-                    {
-                        int32_t const parentBoneIdx = pSkeleton->GetParentBoneIndex( boneIdx );
-                        if ( parentBoneIdx != InvalidIndex )
-                        {
-                            parentTransform = pPose->GetModelSpaceTransform( parentBoneIdx );
-                        }
-
-                        outTransform = pPose->GetTransform( boneIdx );
-                    }
-                    else // Get the global transform for the target bone
-                    {
-                        outTransform = pPose->GetModelSpaceTransform( boneIdx );
-                    }
-
-                    //-------------------------------------------------------------------------
-
-                    outTransform.SetRotation( outTransform.GetRotation() * m_transform.GetRotation() );
+                    outTransform = pPose->GetTransform( boneIdx );
+                    outTransform.SetRotation( m_transform.GetRotation() * outTransform.GetRotation() );
                     outTransform.SetTranslation( outTransform.GetTranslation() + m_transform.GetTranslation() );
 
-                    if ( m_isUsingBoneSpaceOffsets && isBoneTarget )
+                    int32_t const parentBoneIdx = pSkeleton->GetParentBoneIndex( boneIdx );
+                    if ( parentBoneIdx != InvalidIndex )
                     {
-                        outTransform *= parentTransform;
+                        outTransform = outTransform * pPose->GetModelSpaceTransform( parentBoneIdx );
                     }
                 }
-                else
+                else // Get the model space transform for the target bone
                 {
                     outTransform = pPose->GetModelSpaceTransform( boneIdx );
+                    outTransform.SetRotation( m_transform.GetRotation() * outTransform.GetRotation() );
+                    outTransform.SetTranslation( outTransform.GetTranslation() + m_transform.GetTranslation() );
                 }
             }
             else
             {
-                return false;
+                outTransform = pPose->GetModelSpaceTransform( boneIdx );
             }
         }
         else // Just use the internal transform

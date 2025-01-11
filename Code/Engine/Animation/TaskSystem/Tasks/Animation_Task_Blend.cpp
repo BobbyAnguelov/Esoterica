@@ -91,12 +91,12 @@ namespace EE::Animation::Tasks
             // If no source pose but valid target (can occur when deserializing cached pose reads in bad network situations) - blend the target onto the reference pose
             if ( !hasSourcePose && hasTargetPose )
             {
-                Blender::LocalBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
+                Blender::ParentSpaceBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
             }
             // Has both poses
             else if ( hasSourcePose && hasTargetPose )
             {
-                Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
+                Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
             }
             else // Undefined scenarios (should never happen): No poses set or target unset
             {
@@ -130,7 +130,7 @@ namespace EE::Animation::Tasks
             // Has both poses
             else if ( hasSourcePose && hasTargetPose )
             {
-                Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
+                Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
             }
             else // Undefined scenarios (should never happen): No poses set or target unset
             {
@@ -155,15 +155,15 @@ namespace EE::Animation::Tasks
             }
             else if ( !hasSourcePose && hasTargetPose )
             {
-                Blender::LocalBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                Blender::ParentSpaceBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
             }
             else if ( hasSourcePose && !hasTargetPose )
             {
-                Blender::LocalBlendToReferencePose( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                Blender::ParentSpaceBlendToReferencePose( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
             }
             else // has both poses
             {
-                Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
             }
         }
 
@@ -174,7 +174,7 @@ namespace EE::Animation::Tasks
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    InlineString BlendTask::GetDebugTextInfo() const
+    InlineString BlendTask::GetDebugTextInfo( bool isDetailedModeEnabled ) const
     {
         InlineString str;
         if ( m_boneMaskTaskList.HasTasks() )
@@ -224,7 +224,7 @@ namespace EE::Animation::Tasks
         if ( m_boneMaskTaskList.HasTasks() )
         {
             auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
+            Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
 
             //-------------------------------------------------------------------------
 
@@ -242,7 +242,7 @@ namespace EE::Animation::Tasks
         }
         else // Perform a simple blend
         {
-            Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
+            Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
         }
 
         // Secondary Pose
@@ -263,11 +263,11 @@ namespace EE::Animation::Tasks
             bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
             if ( hasSourcePose )
             {
-                Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
             }
             else // Apply overlay to the reference pose
             {
-                Blender::LocalBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                Blender::ParentSpaceBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
             }
         }
 
@@ -278,7 +278,7 @@ namespace EE::Animation::Tasks
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    InlineString OverlayBlendTask::GetDebugTextInfo() const
+    InlineString OverlayBlendTask::GetDebugTextInfo( bool isDetailedModeEnabled ) const
     {
         InlineString str;
         if ( m_boneMaskTaskList.HasTasks() )
@@ -387,7 +387,7 @@ namespace EE::Animation::Tasks
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    InlineString AdditiveBlendTask::GetDebugTextInfo() const
+    InlineString AdditiveBlendTask::GetDebugTextInfo( bool isDetailedModeEnabled ) const
     {
         InlineString str;
         if ( m_boneMaskTaskList.HasTasks() )
@@ -429,7 +429,7 @@ namespace EE::Animation::Tasks
         if ( shouldRunBlend )
         {
             auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-            Blender::GlobalBlend( context.m_skeletonLOD, pSourceBuffer->GetPrimaryPose(), pTargetBuffer->GetPrimaryPose(), m_blendWeight, boneMaskResult.m_pBoneMask, pFinalBuffer->GetPrimaryPose() );
+            Blender::ModelSpaceBlend( context.m_skeletonLOD, pSourceBuffer->GetPrimaryPose(), pTargetBuffer->GetPrimaryPose(), m_blendWeight, boneMaskResult.m_pBoneMask, pFinalBuffer->GetPrimaryPose() );
 
             #if EE_DEVELOPMENT_TOOLS
             if ( context.m_posePool.IsRecordingEnabled() )
@@ -464,11 +464,11 @@ namespace EE::Animation::Tasks
                 bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
                 if ( hasSourcePose )
                 {
-                    Blender::LocalBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                    Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
                 }
                 else // Apply overlay to the reference pose
                 {
-                    Blender::LocalBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                    Blender::ParentSpaceBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
                 }
             }
         }

@@ -40,7 +40,7 @@ namespace EE::Physics
         m_loadableTypes.push_back( CollisionMesh::GetStaticResourceTypeID() );
     }
 
-    bool CollisionMeshLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::ResourceLoader::LoadResult CollisionMeshLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         // Create collision resource
         auto pCollision = EE::New<CollisionMesh>();
@@ -70,10 +70,10 @@ namespace EE::Physics
         }
 
         pResourceRecord->SetResourceData( pCollision );
-        return true;
+        return Resource::ResourceLoader::LoadResult::Succeeded;
     }
 
-    void CollisionMeshLoader::UnloadInternal( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
+    void CollisionMeshLoader::Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
     {
         auto pCollision = pResourceRecord->GetResourceData<CollisionMesh>();
         if ( pCollision != nullptr )
@@ -85,6 +85,6 @@ namespace EE::Physics
             }
         }
 
-        ResourceLoader::UnloadInternal( resourceID, pResourceRecord );
+        ResourceLoader::Unload( resourceID, pResourceRecord );
     }
 }

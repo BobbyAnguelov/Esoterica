@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     IsTargetSetToolsNode::IsTargetSetToolsNode()
         : FlowToolsNode()
@@ -82,7 +82,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void TargetInfoToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void TargetInfoToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         InlineString infoText;
         

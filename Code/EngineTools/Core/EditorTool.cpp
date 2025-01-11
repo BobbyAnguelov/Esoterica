@@ -1207,7 +1207,7 @@ namespace EE
         FileSystem::Path const filePath = GetFileSystemPath( m_dataFilePath );
         m_pDataFile = IDataFile::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, filePath );
 
-        if ( IsDataFileManualEditingAllowed() )
+        if ( m_pDataFile != nullptr && IsDataFileManualEditingAllowed() )
         {
             PropertyGrid::VisualState const* pVisualState = ( m_dataFilePropertyGridVisualState.m_editedTypeID == m_pDataFile->GetTypeID() ) ? &m_dataFilePropertyGridVisualState : nullptr;
             m_pDataFilePropertyGrid->SetUserContext( this );

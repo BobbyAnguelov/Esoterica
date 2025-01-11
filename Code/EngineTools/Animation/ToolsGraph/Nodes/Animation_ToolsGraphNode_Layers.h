@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class LocalLayerToolsNode final : public FlowToolsNode
     {
@@ -19,7 +19,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetTypeName() const override { return "Local Layer"; }
         virtual char const* GetCategory() const override { return "Animation/Layers"; }
         virtual Color GetTitleBarColor() const override { return Colors::Tomato; }
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual bool IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const override;
@@ -47,7 +47,7 @@ namespace EE::Animation::GraphNodes
         virtual char const* GetCategory() const override { return "Animation/Layers"; }
         virtual Color GetTitleBarColor() const override { return Colors::Tomato; }
         void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
-        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx ) override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
         virtual bool IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const override;

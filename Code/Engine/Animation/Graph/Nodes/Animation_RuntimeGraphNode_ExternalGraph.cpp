@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void ExternalGraphNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -107,4 +107,14 @@ namespace EE::Animation::GraphNodes
 
         return result;
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void ExternalGraphNode::DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx )
+    {
+        if ( m_pGraphInstance != nullptr )
+        {
+            m_pGraphInstance->DrawNodeDebug( graphContext, drawCtx );
+        }
+    }
+    #endif
 }

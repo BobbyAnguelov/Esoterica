@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     FloatRemapToolsNode::FloatRemapToolsNode()
         : FlowToolsNode()
@@ -45,7 +45,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatRemapToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void FloatRemapToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         DrawInternalSeparator( ctx );
         ImGui::Text( "[%.2f, %.2f] to [%.2f, %.2f]", m_inputRange.m_begin, m_inputRange.m_end, m_outputRange.m_begin, m_outputRange.m_end );
@@ -92,7 +92,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatClampToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void FloatClampToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         if ( m_clampRange.IsSet() && m_clampRange.IsValid() )
         {
@@ -193,7 +193,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatEaseToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void FloatEaseToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         ImGui::Text( Math::Easing::GetName( m_easing ) );
         ImGui::Text( "Ease Time: %.2fs", m_easeTime );
@@ -305,7 +305,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatMathToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void FloatMathToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         bool const useValueB = GetConnectedInputNode( 1 ) == nullptr;
 
@@ -405,7 +405,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatComparisonToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void FloatComparisonToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         DrawInternalSeparator( ctx );
 
@@ -471,7 +471,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FloatRangeComparisonToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void FloatRangeComparisonToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         if ( m_isInclusiveCheck )
         {
@@ -685,7 +685,7 @@ namespace EE::Animation::GraphNodes
         m_options.erase( m_options.begin() + pinToBeRemovedIdx );
     }
 
-    void FloatSelectorToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void FloatSelectorToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         DrawInternalSeparator( ctx );
         ImGui::Text( "Default: %.2f", m_defaultValue );

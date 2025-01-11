@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class SelectorConditionToolsNode final : public ResultToolsNode
     {
@@ -123,6 +123,9 @@ namespace EE::Animation::GraphNodes
 
         EE_REFLECT( ShowAsStaticArray );
         TVector<String>             m_optionLabels;
+
+        EE_REFLECT( ShowAsStaticArray );
+        TVector<uint8_t>            m_optionWeights;
     };
 
     //-------------------------------------------------------------------------
@@ -159,5 +162,8 @@ namespace EE::Animation::GraphNodes
 
         EE_REFLECT( ShowAsStaticArray );
         TVector<String>             m_optionLabels;
+
+        EE_REFLECT( ShowAsStaticArray );
+        TVector<uint8_t>            m_optionWeights;
     };
 }

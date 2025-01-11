@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void StateNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -106,7 +106,7 @@ namespace EE::Animation::GraphNodes
         m_transitionState = TransitionState::TransitioningOut;
 
         // Since we update states before we register transitions, we need to ignore all previously sampled state events for this frame
-        context.m_pSampledEventsBuffer->MarkOnlyStateEventsAsIgnored( m_sampledEventRange );
+        context.m_pSampledEventsBuffer->MarkOnlyGraphEventsAsIgnored( m_sampledEventRange );
 
         // Since we update states before we register transitions, we need to mark all previous events as from the inactive branch
         context.m_pSampledEventsBuffer->MarkEventsAsFromInactiveBranch( m_sampledEventRange );
@@ -131,21 +131,21 @@ namespace EE::Animation::GraphNodes
         {
             for ( auto const& entryEventID : pStateDefinition->m_entryEvents )
             {
-                context.m_pSampledEventsBuffer->EmplaceStateEvent( GetNodeIndex(), StateEventType::Entry, entryEventID, isInActiveBranch );
+                context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::Entry, entryEventID, isInActiveBranch );
             }
         }
         else if ( m_transitionState == TransitionState::None && isInActiveBranch )
         {
             for ( auto const& executeEventID : pStateDefinition->m_executeEvents )
             {
-                context.m_pSampledEventsBuffer->EmplaceStateEvent( GetNodeIndex(), StateEventType::FullyInState, executeEventID, isInActiveBranch );
+                context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::FullyInState, executeEventID, isInActiveBranch );
             }
         }
         else if ( m_transitionState == TransitionState::TransitioningOut || !isInActiveBranch )
         {
             for ( auto const& exitEventID : pStateDefinition->m_exitEvents )
             {
-                context.m_pSampledEventsBuffer->EmplaceStateEvent( GetNodeIndex(), StateEventType::Exit, exitEventID, isInActiveBranch );
+                context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::Exit, exitEventID, isInActiveBranch );
             }
         }
 
@@ -156,7 +156,7 @@ namespace EE::Animation::GraphNodes
         {
             if ( m_elapsedTimeInState >= timedEvent.m_timeValue )
             {
-                context.m_pSampledEventsBuffer->EmplaceStateEvent( GetNodeIndex(), StateEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+                context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::Timed, timedEvent.m_ID, isInActiveBranch );
             }
         }
 
@@ -165,7 +165,7 @@ namespace EE::Animation::GraphNodes
         {
             if ( currentTimeRemaining <= timedEvent.m_timeValue )
             {
-                context.m_pSampledEventsBuffer->EmplaceStateEvent( GetNodeIndex(), StateEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+                context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::Timed, timedEvent.m_ID, isInActiveBranch );
             }
         }
 

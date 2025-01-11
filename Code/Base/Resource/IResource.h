@@ -43,7 +43,7 @@ namespace EE::Resource
         inline ResourceID const& GetResourceID() const { return m_resourceID; }
 
         // Get the path for this resource (from the ID)
-        inline DataPath const& GetResourcePath() const { return m_resourceID.GetResourcePath(); }
+        inline DataPath const& GetDataPath() const { return m_resourceID.GetDataPath(); }
 
         // Does this resource require an additional set of binary data
         virtual bool RequiresAdditionalDataFile() const { return false; }

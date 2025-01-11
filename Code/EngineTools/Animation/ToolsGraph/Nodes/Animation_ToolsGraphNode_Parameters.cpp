@@ -6,7 +6,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     ParameterBaseToolsNode::ParameterBaseToolsNode( String const& name, String const& groupName )
         : m_group( groupName )
@@ -29,40 +29,40 @@ namespace EE::Animation::GraphNodes
         {
             case GraphValueType::Bool:
             {
-                GraphNodes::ControlParameterBoolNode::Definition* pDefinition = nullptr;
-                context.GetDefinition<GraphNodes::ControlParameterBoolNode>( this, pDefinition );
+                ControlParameterBoolNode::Definition* pDefinition = nullptr;
+                context.GetDefinition<ControlParameterBoolNode>( this, pDefinition );
                 return pDefinition->m_nodeIdx;
             }
             break;
 
             case GraphValueType::ID:
             {
-                GraphNodes::ControlParameterIDNode::Definition* pDefinition = nullptr;
-                context.GetDefinition<GraphNodes::ControlParameterIDNode>( this, pDefinition );
+                ControlParameterIDNode::Definition* pDefinition = nullptr;
+                context.GetDefinition<ControlParameterIDNode>( this, pDefinition );
                 return pDefinition->m_nodeIdx;
             }
             break;
 
             case GraphValueType::Float:
             {
-                GraphNodes::ControlParameterFloatNode::Definition* pDefinition = nullptr;
-                context.GetDefinition<GraphNodes::ControlParameterFloatNode>( this, pDefinition );
+                ControlParameterFloatNode::Definition* pDefinition = nullptr;
+                context.GetDefinition<ControlParameterFloatNode>( this, pDefinition );
                 return pDefinition->m_nodeIdx;
             }
             break;
 
             case GraphValueType::Vector:
             {
-                GraphNodes::ControlParameterVectorNode::Definition* pDefinition = nullptr;
-                context.GetDefinition<GraphNodes::ControlParameterVectorNode>( this, pDefinition );
+                ControlParameterVectorNode::Definition* pDefinition = nullptr;
+                context.GetDefinition<ControlParameterVectorNode>( this, pDefinition );
                 return pDefinition->m_nodeIdx;
             }
             break;
 
             case GraphValueType::Target:
             {
-                GraphNodes::ControlParameterTargetNode::Definition* pDefinition = nullptr;
-                context.GetDefinition<GraphNodes::ControlParameterTargetNode>( this, pDefinition );
+                ControlParameterTargetNode::Definition* pDefinition = nullptr;
+                context.GetDefinition<ControlParameterTargetNode>( this, pDefinition );
                 return pDefinition->m_nodeIdx;
             }
             break;
@@ -84,23 +84,23 @@ namespace EE::Animation::GraphNodes
         switch ( type )
         {
             case GraphValueType::Bool:
-            pParameter = pRootGraph->CreateNode<GraphNodes::BoolControlParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<BoolControlParameterToolsNode>( name, groupName );
             break;
 
             case GraphValueType::ID:
-            pParameter = pRootGraph->CreateNode<GraphNodes::IDControlParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<IDControlParameterToolsNode>( name, groupName );
             break;
 
             case GraphValueType::Float:
-            pParameter = pRootGraph->CreateNode<GraphNodes::FloatControlParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<FloatControlParameterToolsNode>( name, groupName );
             break;
 
             case GraphValueType::Vector:
-            pParameter = pRootGraph->CreateNode<GraphNodes::VectorControlParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<VectorControlParameterToolsNode>( name, groupName );
             break;
 
             case GraphValueType::Target:
-            pParameter = pRootGraph->CreateNode<GraphNodes::TargetControlParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<TargetControlParameterToolsNode>( name, groupName );
             break;
 
             default:
@@ -286,27 +286,27 @@ namespace EE::Animation::GraphNodes
         switch ( type )
         {
             case GraphValueType::Bool:
-            pParameter = pRootGraph->CreateNode<GraphNodes::BoolVirtualParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<BoolVirtualParameterToolsNode>( name, groupName );
             break;
 
             case GraphValueType::ID:
-            pParameter = pRootGraph->CreateNode<GraphNodes::IDVirtualParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<IDVirtualParameterToolsNode>( name, groupName );
             break;
 
             case GraphValueType::Float:
-            pParameter = pRootGraph->CreateNode<GraphNodes::FloatVirtualParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<FloatVirtualParameterToolsNode>( name, groupName );
             break;
 
             case GraphValueType::Vector:
-            pParameter = pRootGraph->CreateNode<GraphNodes::VectorVirtualParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<VectorVirtualParameterToolsNode>( name, groupName );
             break;
 
             case GraphValueType::Target:
-            pParameter = pRootGraph->CreateNode<GraphNodes::TargetVirtualParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<TargetVirtualParameterToolsNode>( name, groupName );
             break;
 
             case GraphValueType::BoneMask:
-            pParameter = pRootGraph->CreateNode<GraphNodes::BoneMaskVirtualParameterToolsNode>( name, groupName );
+            pParameter = pRootGraph->CreateNode<BoneMaskVirtualParameterToolsNode>( name, groupName );
             break;
 
             default:
@@ -453,27 +453,27 @@ namespace EE::Animation::GraphNodes
         switch ( pParameter->GetOutputValueType() )
         {
             case GraphValueType::Bool:
-            pReferenceNode = pGraph->CreateNode<GraphNodes::BoolParameterReferenceToolsNode>( pParameter );
+            pReferenceNode = pGraph->CreateNode<BoolParameterReferenceToolsNode>( pParameter );
             break;
 
             case GraphValueType::ID:
-            pReferenceNode = pGraph->CreateNode<GraphNodes::IDParameterReferenceToolsNode>( pParameter );
+            pReferenceNode = pGraph->CreateNode<IDParameterReferenceToolsNode>( pParameter );
             break;
 
             case GraphValueType::Float:
-            pReferenceNode = pGraph->CreateNode<GraphNodes::FloatParameterReferenceToolsNode>( pParameter );
+            pReferenceNode = pGraph->CreateNode<FloatParameterReferenceToolsNode>( pParameter );
             break;
 
             case GraphValueType::Vector:
-            pReferenceNode = pGraph->CreateNode<GraphNodes::VectorParameterReferenceToolsNode>( pParameter );
+            pReferenceNode = pGraph->CreateNode<VectorParameterReferenceToolsNode>( pParameter );
             break;
 
             case GraphValueType::Target:
-            pReferenceNode = pGraph->CreateNode<GraphNodes::TargetParameterReferenceToolsNode>( pParameter );
+            pReferenceNode = pGraph->CreateNode<TargetParameterReferenceToolsNode>( pParameter );
             break;
 
             case GraphValueType::BoneMask:
-            pReferenceNode = pGraph->CreateNode<GraphNodes::BoneMaskParameterReferenceToolsNode>( pParameter );
+            pReferenceNode = pGraph->CreateNode<BoneMaskParameterReferenceToolsNode>( pParameter );
             break;
 
             default:

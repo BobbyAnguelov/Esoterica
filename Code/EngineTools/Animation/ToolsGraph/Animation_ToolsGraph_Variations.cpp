@@ -12,7 +12,7 @@ namespace EE::Animation
 
     DataPath Variation::GenerateResourceDataPath( FileSystem::Path const& sourceDataDirectoryPath, FileSystem::Path const& graphPath, StringID variationID )
     {
-        String const pathStr( String::CtorSprintf(), "%s%c%s.agv", graphPath.c_str(), DataPath::s_pathDelimiter, variationID.c_str() );
+        String const pathStr( String::CtorSprintf(), "%s%c%s.%s", graphPath.c_str(), DataPath::s_pathDelimiter, variationID.c_str(), GraphDefinition::GetStaticResourceTypeID().ToString().c_str() );
         return DataPath::FromFileSystemPath( sourceDataDirectoryPath, pathStr );
     }
 
@@ -35,7 +35,7 @@ namespace EE::Animation
         ResourceID graphResourceID;
         
         // Try to extract the actual graph ID from the resource ID for variations
-        if ( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() && resourceID.IsSubResourceID() )
+        if ( resourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() && resourceID.IsSubResourceID() )
         {
             graphResourceID = resourceID.GetParentResourceID();
 
@@ -57,6 +57,24 @@ namespace EE::Animation
     VariationHierarchy::VariationHierarchy()
     {
         Reset();
+    }
+
+    bool VariationHierarchy::IsValidVariation( StringID variationID ) const
+    {
+        if ( variationID == Variation::s_defaultVariationID )
+        {
+            return true;
+        }
+
+        for ( Variation const &variation : m_variations )
+        {
+            if ( variation.m_ID == variationID )
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     void VariationHierarchy::Reset()
@@ -128,11 +146,14 @@ namespace EE::Animation
     {
         EE_ASSERT( variationID.IsValid() && parentVariationID.IsValid() );
         EE_ASSERT( !IsValidVariation( variationID ) );
-        EE_ASSERT( IsValidVariation( parentVariationID ) );
+
+        Variation const* pParentVariation = GetVariation( parentVariationID );
+        EE_ASSERT( pParentVariation != nullptr );
 
         auto& createdVariation = m_variations.emplace_back();
         createdVariation.m_ID = variationID;
         createdVariation.m_parentID = parentVariationID;
+        createdVariation.m_skeleton = pParentVariation->m_skeleton;
     }
 
     void VariationHierarchy::RenameVariation( StringID oldVariationID, StringID newVariationID )

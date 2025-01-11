@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     BoneMaskToolsNode::BoneMaskToolsNode()
         : FlowToolsNode()
@@ -31,7 +31,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void BoneMaskToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void BoneMaskToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         DrawInternalSeparator( ctx );
 
@@ -58,7 +58,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void FixedWeightBoneMaskToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void FixedWeightBoneMaskToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         DrawInternalSeparator( ctx );
 

@@ -47,7 +47,7 @@ namespace EE::Animation
                     if ( m_index == InvalidIndex )
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        EE_LOG_WARNING( "Animation", pController->GetName(), "Failed to bind to control parameter (%s): parameter not found. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetGraphVariation()->GetResourceID().c_str() );
+                        EE_LOG_WARNING( "Animation", pController->GetName(), "Failed to bind to control parameter (%s): parameter not found. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetDefinitionResourceID().c_str() );
                         #endif
 
                         return false;
@@ -57,7 +57,7 @@ namespace EE::Animation
                     if ( pController->m_pGraphInstance->GetControlParameterType( m_index ) != ValueTypeValidation<ParameterType>::Type )
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        EE_LOG_WARNING( "Animation", pController->GetName(), "Failed to bind to control parameter (%s): type mismatch. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetGraphVariation()->GetResourceID().c_str() );
+                        EE_LOG_WARNING( "Animation", pController->GetName(), "Failed to bind to control parameter (%s): type mismatch. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetDefinitionResourceID().c_str() );
                         #endif
 
                         m_index = InvalidIndex;
@@ -187,7 +187,7 @@ namespace EE::Animation
 
         // Create a new external controller that will attach and drive a specified graph
         template<typename T>
-        T* TryCreateExternalGraphController( StringID slotID, GraphVariation const* pGraph, bool autoDestroy = false )
+        T* TryCreateExternalGraphController( StringID slotID, GraphDefinition const* pGraph, bool autoDestroy = false )
         {
             static_assert( std::is_base_of<EE::Animation::ExternalGraphController, T>::value, "T is not derived from ExternalGraphController" );
             EE_ASSERT( slotID.IsValid() && pGraph != nullptr );

@@ -162,9 +162,9 @@ namespace EE::Player
                     }
                 }
             }
-            else // State events
+            else // Graph events
             {
-                StringID const stateID = sampledEvent.GetStateEventID();
+                StringID const stateID = sampledEvent.GetGraphEventID();
 
                 // Locomotion
                 if ( sampledEvent.IsEntryEvent() || sampledEvent.IsFullyInStateEvent() )
@@ -211,8 +211,8 @@ namespace EE::Player
                 // Hit Reactions
                 //-------------------------------------------------------------------------
 
-                static StringID const hitReactionCompleteStateEventID( "HR_HitReactionComplete" );
-                if ( sampledEvent.IsTimedEvent() && stateID == hitReactionCompleteStateEventID )
+                static StringID const hitReactionCompleteEventID( "HR_HitReactionComplete" );
+                if ( sampledEvent.IsTimedEvent() && stateID == hitReactionCompleteEventID )
                 {
                     m_isHitReactionComplete = true;
                 }

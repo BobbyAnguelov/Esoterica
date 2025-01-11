@@ -660,7 +660,7 @@ namespace EE::Physics
             bool const shouldStopPreview = !m_pRagdoll->GetPose( worldTransform, m_pPose );
 
             // Apply physics blend weight
-            Animation::Blender::LocalBlend( Animation::Skeleton::LOD::High, m_pFinalPose, m_pPose, m_physicsBlendWeight, nullptr, m_pFinalPose );
+            Animation::Blender::ParentSpaceBlend( Animation::Skeleton::LOD::High, m_pFinalPose, m_pPose, m_physicsBlendWeight, nullptr, m_pFinalPose );
 
             // Draw ragdoll pose
             if ( m_drawRagdoll )
@@ -922,13 +922,13 @@ namespace EE::Physics
         EE_ASSERT( m_skeleton.IsLoaded() );
 
         // Load resource descriptor for skeleton to get the preview mesh
-        auto resourceDescPath = GetFileSystemPath( m_skeleton.GetResourcePath() );
+        auto resourceDescPath = GetFileSystemPath( m_skeleton.GetDataPath() );
         Animation::SkeletonResourceDescriptor skeletonResourceDesc;
         bool const result = Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, resourceDescPath, skeletonResourceDesc );
         EE_ASSERT( result );
 
         // Create preview entity
-        ResourceID const previewMeshResourceID( skeletonResourceDesc.m_previewMesh.GetResourcePath() );
+        ResourceID const previewMeshResourceID( skeletonResourceDesc.m_previewMesh.GetDataPath() );
         if ( previewMeshResourceID.IsValid() )
         {
             m_pMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
@@ -1239,7 +1239,7 @@ namespace EE::Physics
     {
         if ( m_pSkeletonTreeRoot != nullptr )
         {
-            ImGui::Text( "Skeleton ID: %s", m_skeleton->GetResourcePath().GetFilenameWithoutExtension().c_str() );
+            ImGui::Text( "Skeleton ID: %s", m_skeleton->GetDataPath().GetFilenameWithoutExtension().c_str() );
 
             if ( m_editorMode == Mode::BodyEditor )
             {

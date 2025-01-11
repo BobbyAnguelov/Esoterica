@@ -1,4 +1,5 @@
 #include "Animation_RuntimeGraph_Node.h"
+#include "Base/Resource/ResourcePtr.h"
 
 //-------------------------------------------------------------------------
 
@@ -40,7 +41,7 @@ namespace EE::Animation
 
     void GraphNode::Initialize( GraphContext& context )
     {
-        if ( WasInitialized() )
+        if ( IsInitialized() )
         {
             ++m_initializationCount;
         }
@@ -52,7 +53,7 @@ namespace EE::Animation
 
     void GraphNode::Shutdown( GraphContext& context )
     {
-        EE_ASSERT( WasInitialized() );
+        EE_ASSERT( IsInitialized() );
         if ( --m_initializationCount == 0 )
         {
             ShutdownInternal( context );
@@ -70,13 +71,13 @@ namespace EE::Animation
 
     void GraphNode::InitializeInternal( GraphContext& context )
     {
-        EE_ASSERT( !WasInitialized() );
+        EE_ASSERT( !IsInitialized() );
         ++m_initializationCount;
     }
 
     void GraphNode::ShutdownInternal( GraphContext& context )
     {
-        EE_ASSERT( !WasInitialized() );
+        EE_ASSERT( !IsInitialized() );
         m_lastUpdateID = 0xFFFFFFFF;
     }
 
@@ -96,7 +97,7 @@ namespace EE::Animation
 
     void PoseNode::Initialize( GraphContext& context, SyncTrackTime const& initialTime )
     {
-        if ( WasInitialized() )
+        if ( IsInitialized() )
         {
             ++m_initializationCount;
         }

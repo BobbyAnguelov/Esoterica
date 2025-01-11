@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     OrientationWarpToolsNode::OrientationWarpToolsNode()
         : FlowToolsNode()

@@ -43,7 +43,7 @@ namespace EE::Animation
         m_finalPoseBuffer.CalculateModelSpaceTransforms();
 
         auto pTaskTypesTable = GetTaskTypesList();
-        m_maxBitsForTaskTypeID = Math::GetMostSignificantBit( (uint32_t) pTaskTypesTable->size() ) + 1;
+        m_maxBitsForTaskTypeID = Math::GetMaxNumberOfBitsForValue( (uint32_t) pTaskTypesTable->size() );
         EE_ASSERT( m_maxBitsForTaskTypeID <= 8 );
     }
 
@@ -500,9 +500,11 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                strBuffer.sprintf( "%s\n%s\n%.2f", m_tasks[i]->GetDebugName(), m_tasks[i]->GetDebugTextInfo().c_str(), m_tasks[i]->GetDebugProgressOrWeight() );
+                bool const isDetailedModeEnabled = ( m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
 
-                m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], m_taskContext.m_skeletonLOD, pPoseBuffer, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
+                strBuffer.sprintf( "%s\n%s\n%.2f", m_tasks[i]->GetDebugName(), m_tasks[i]->GetDebugTextInfo( isDetailedModeEnabled ).c_str(), m_tasks[i]->GetDebugProgressOrWeight() );
+
+                m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], m_taskContext.m_skeletonLOD, pPoseBuffer, isDetailedModeEnabled );
                 drawingContext.DrawText3D( taskTransforms[i].GetTranslation(), strBuffer.c_str(), m_tasks[i]->GetDebugColor(), Drawing::FontSmall, Drawing::AlignMiddleCenter );
 
                 for ( auto& dependencyIdx : m_tasks[i]->GetDependencyIndices() )

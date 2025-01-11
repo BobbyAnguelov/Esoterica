@@ -70,46 +70,46 @@ namespace EE::Animation
 
     private:
 
-        // Basic local space blend
+        // Basic parent space blend
         template<typename BlendFunction>
-        static inline void LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool isLayeredBlend );
+        static inline void ParentSpaceBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool isLayeredBlend );
 
-        // Basic local space masked blend
+        // Basic parent space masked blend
         template<typename BlendFunction>
-        static inline void LocalBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool isLayeredBlend );
+        static inline void ParentSpaceBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool isLayeredBlend );
 
         // Blend to a reference pose
         template<typename BlendFunction>
-        static EE_FORCE_INLINE void LocalBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+        static EE_FORCE_INLINE void ParentSpaceBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
         // Blend from a reference pose
         template<typename BlendFunction>
-        static EE_FORCE_INLINE void LocalBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+        static EE_FORCE_INLINE void ParentSpaceBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
     public:
 
-        // Local Interpolative Blend
-        EE_FORCE_INLINE static void LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+        // Parent space blend
+        EE_FORCE_INLINE static void ParentSpaceBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
         // Blend to a reference pose
-        EE_FORCE_INLINE static void LocalBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+        EE_FORCE_INLINE static void ParentSpaceBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
         {
-            LocalBlendToReferencePose<BlendFunction>( skeletonLOD, pSourcePose, blendWeight, pBoneMask, pResultPose );
+            ParentSpaceBlendToReferencePose<BlendFunction>( skeletonLOD, pSourcePose, blendWeight, pBoneMask, pResultPose );
         }
 
         // Blend from a reference pose
-        EE_FORCE_INLINE static void LocalBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+        EE_FORCE_INLINE static void ParentSpaceBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
         {
-            LocalBlendFromReferencePose<BlendFunction>( skeletonLOD, pTargetPose, blendWeight, pBoneMask, pResultPose );
+            ParentSpaceBlendFromReferencePose<BlendFunction>( skeletonLOD, pTargetPose, blendWeight, pBoneMask, pResultPose );
         }
 
-        // Global Space Interpolative Blend
-        static void GlobalBlend( Skeleton::LOD skeletonLOD, Pose const* pBasePose, Pose const* pLayerPose, float layerWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+        // Model space blend
+        static void ModelSpaceBlend( Skeleton::LOD skeletonLOD, Pose const* pBasePose, Pose const* pLayerPose, float layerWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
-        // Local Additive Blend
+        // Parent space Additive blend
         EE_FORCE_INLINE static void AdditiveBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
-        // Local Additive Blend
+        // Parent space Additive blend
         EE_FORCE_INLINE static void ApplyAdditiveToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pAdditivePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
         // Blend two root motion deltas together
@@ -118,15 +118,15 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    EE_FORCE_INLINE void Blender::LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    EE_FORCE_INLINE void Blender::ParentSpaceBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
     {
         if ( pBoneMask != nullptr )
         {
-            LocalBlendMasked<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, false );
+            ParentSpaceBlendMasked<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, false );
         }
         else
         {
-            LocalBlend<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, false );
+            ParentSpaceBlend<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, false );
         }
     }
 
@@ -134,11 +134,11 @@ namespace EE::Animation
     {
         if ( pBoneMask != nullptr )
         {
-            LocalBlendMasked<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
+            ParentSpaceBlendMasked<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
         }
         else
         {
-            LocalBlend<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, true );
+            ParentSpaceBlend<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, true );
         }
     }
 
@@ -186,9 +186,9 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    // Local Blend
+    // Parent Space Blend
     template<typename BlendFunction>
-    void Blender::LocalBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool isLayeredBlend )
+    void Blender::ParentSpaceBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, Pose* pResultPose, bool isLayeredBlend )
     {
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
@@ -233,9 +233,9 @@ namespace EE::Animation
         pResultPose->m_state = finalState;
     }
 
-    // Masked Local Blend
+    // Masked Parent Space Blend
     template<typename BlendFunction>
-    void Blender::LocalBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool isLayeredBlend )
+    void Blender::ParentSpaceBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool isLayeredBlend )
     {
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
@@ -288,7 +288,7 @@ namespace EE::Animation
 
     // Blend to a reference pose
     template<typename BlendFunction>
-    void Blender::LocalBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    void Blender::ParentSpaceBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
     {
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pSourcePose != nullptr && pResultPose != nullptr );
@@ -332,7 +332,7 @@ namespace EE::Animation
 
     // Blend from a reference pose
     template<typename BlendFunction>
-    void Blender::LocalBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    void Blender::ParentSpaceBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
     {
         EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
         EE_ASSERT( pTargetPose != nullptr && pResultPose != nullptr );

@@ -12,7 +12,7 @@ namespace EE::Animation { struct GraphLayerContext; }
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     //-------------------------------------------------------------------------
     // State Machine Transition Node
@@ -80,6 +80,20 @@ namespace EE::Animation::GraphNodes
             RootMotionBlendMode                 m_rootMotionBlend = RootMotionBlendMode::Blend;
         };
 
+        struct StartOptions
+        {
+            StartOptions( GraphPoseNodeResult const& sourceNodeResult )
+                : m_sourceNodeResult( sourceNodeResult )
+            {}
+
+            GraphPoseNodeResult const&          m_sourceNodeResult;
+            SyncTrackTimeRange const*           m_pUpdateRange = nullptr;
+            int8_t                              m_sourceTasksStartMarker = InvalidIndex;
+            PoseNode*                           m_pSourceNode = nullptr;
+            bool                                m_isSourceATransition = false;
+            bool                                m_startCachingSourcePose = false;
+        };
+
     public:
 
         virtual SyncTrack const& GetSyncTrack() const override { return m_syncTrack; }
@@ -88,24 +102,21 @@ namespace EE::Animation::GraphNodes
         // Secondary initialization
         //-------------------------------------------------------------------------
 
-        // Start a transition from a state source node - will initialize the target state.
-        GraphPoseNodeResult StartTransitionFromState( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, StateNode* SourceState, bool startCachingSourcePose );
-
-        // Start a transition from a transition source node - will initialize the target state.
-        GraphPoseNodeResult StartTransitionFromTransition( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult const& sourceNodeResult, TransitionNode* SourceTransition, bool startCachingSourcePose );
+        // Initialize internal state and update the target state - the update range is only set if the parent state machine was being updated via a sync'ed update
+        GraphPoseNodeResult InitializeTargetStateAndUpdateTransition( GraphContext& context, StartOptions const& startOptions );
 
         // Forceable transitions
         //-------------------------------------------------------------------------
 
         // Called before we start a new transition to allow us to start caching poses and switch to a "cached pose" source if needed
-        void NotifyNewTransitionStarting( GraphContext& context, StateNode* pTargetStateNode, TInlineVector<StateNode const *, 20> const& forceableFutureTargetStates );
+        void NotifyNewTransitionStarting( GraphContext& context, StateNode* pTargetStateNode, TInlineVector<StateNode const *, 20> const& forceableFutureTargetStatesUsingCachedPoses );
 
         // Transition Info
         //-------------------------------------------------------------------------
 
         bool IsComplete( GraphContext& context ) const;
         inline float GetProgressPercentage() const { return m_transitionProgress; }
-        inline SourceType GetSourceType() const { return m_sourceType; }
+
         inline bool IsSourceATransition() const { return m_sourceType == SourceType::Transition; }
         inline bool IsSourceAState() const { return m_sourceType == SourceType::State; }
         inline bool IsSourceACachedPose() const { return m_sourceType == SourceType::CachedPose; }
@@ -115,21 +126,16 @@ namespace EE::Animation::GraphNodes
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
 
-        // Initialize and update the target state - the update range is only set if the parent state machine was being updated via a sync'ed update
-        // Note: the source node result pass-by-value is intentional
-        GraphPoseNodeResult InitializeTargetStateAndUpdateTransition( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult sourceNodeResult );
-
         // Updates the layer context for this transition and any source states
         void UpdateLayerContext( GraphLayerContext* pSourceAndResultLayerContext, GraphLayerContext const* pTargetLayerContext );
 
         void StartCachingSourcePose( GraphContext& context );
-        void RegisterSourceCachePoseTask( GraphContext& context, GraphPoseNodeResult& sourceNodeResult );
         void RegisterPoseTasksAndUpdateRootMotion( GraphContext& context, GraphPoseNodeResult const& sourceResult, GraphPoseNodeResult const& targetResult, GraphPoseNodeResult& outResult );
 
         inline void CalculateBlendWeight()
         {
             auto pDefinition = GetDefinition<TransitionNode>();
-            if ( m_transitionLength == 0.0f )
+            if ( m_transitionDuration == 0.0f )
             {
                 m_blendWeight = 1.0f;
             }
@@ -164,7 +170,7 @@ namespace EE::Animation::GraphNodes
         IDValueNode*                            m_pTargetSyncIDNode = nullptr;
         SyncTrack                               m_syncTrack;
         float                                   m_transitionProgress = 0;
-        float                                   m_transitionLength = 0; // This is either time in seconds, or percentage of the sync track
+        float                                   m_transitionDuration = 0; // This is either time in seconds, or percentage of the sync track
         float                                   m_syncEventOffset = 0;
         float                                   m_blendWeight = 0;
         Seconds                                 m_blendedDuration = 0.0f;
@@ -174,7 +180,7 @@ namespace EE::Animation::GraphNodes
         BoneMaskTaskList                        m_boneMaskTaskList;
 
         #if EE_DEVELOPMENT_TOOLS
-        bool                                    m_recreateCachedBuffer = false; // Needed in the scenario where we are restoring from a recorded state
+        bool                                    m_recreateCachedPoseBuffer = false; // Needed in the scenario where we are restoring from a recorded state
         int16_t                                 m_rootMotionActionIdxSource = InvalidIndex;
         int16_t                                 m_rootMotionActionIdxTarget = InvalidIndex;
         #endif

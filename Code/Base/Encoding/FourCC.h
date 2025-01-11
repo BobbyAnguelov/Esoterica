@@ -30,6 +30,9 @@ namespace EE::FourCC
     // Get the fourCC from a lowercase only string
     EE_BASE_API uint32_t FromLowercaseString( char const* pStr );
 
+    // Get the fourCC from a lowercase only string
+    EE_BASE_API bool TryCreateFromLowercaseString( char const* pStr, uint32_t& outFourCC );
+
     // Get a string from a fourCC
     EE_BASE_API void ToString( uint32_t fourCC, char str[5] );
 

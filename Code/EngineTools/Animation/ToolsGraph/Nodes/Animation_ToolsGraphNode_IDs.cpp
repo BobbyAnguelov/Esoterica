@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     IDComparisonToolsNode::IDComparisonToolsNode()
         : FlowToolsNode()
@@ -48,7 +48,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void IDComparisonToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void IDComparisonToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         if ( m_comparison == IDComparisonNode::Comparison::Matches )
         {
@@ -166,7 +166,7 @@ namespace EE::Animation::GraphNodes
         return pDefinition->m_nodeIdx;
     }
 
-    void IDToFloatToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void IDToFloatToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         if ( !m_mappings.empty() && ValidateMappings() )
         {

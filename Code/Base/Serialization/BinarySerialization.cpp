@@ -10,7 +10,7 @@ namespace EE::Serialization
 {
     int32_t GetBinarySerializationVersion()
     {
-        return 7;
+        return 8;
     }
 
     //-------------------------------------------------------------------------

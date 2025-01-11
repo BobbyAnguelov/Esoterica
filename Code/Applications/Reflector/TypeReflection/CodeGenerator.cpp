@@ -2497,7 +2497,15 @@ namespace EE::TypeSystem::Reflection
             file << "            {\n";
             file << "                auto pMutableTypeInfo = const_cast<TypeSystem::TypeInfo*&>( " << type.m_namespace.c_str() << type.m_name.c_str() << "::s_pTypeInfo ); \n";
             file << "                auto pMemory = EE::Alloc( sizeof( " << type.m_namespace.c_str() << type.m_name.c_str() << " ), alignof( " << type.m_namespace.c_str() << type.m_name.c_str() << " ) );\n";
-            file << "                pMutableTypeInfo->m_pDefaultInstance = new ( pMemory ) " << type.m_namespace.c_str() << type.m_name.c_str() << "();\n\n";
+
+            if ( type.m_hasCustomDefaultInstanceCtor )
+            {
+                file << "                pMutableTypeInfo->m_pDefaultInstance = new ( pMemory ) " << type.m_namespace.c_str() << type.m_name.c_str() << "( DefaultInstanceCtor );\n\n";
+            }
+            else
+            {
+                file << "                pMutableTypeInfo->m_pDefaultInstance = new ( pMemory ) " << type.m_namespace.c_str() << type.m_name.c_str() << "();\n\n";
+            }
 
             file << "                // Set default info\n";
             file << "                //-------------------------------------------------------------------------\n\n";

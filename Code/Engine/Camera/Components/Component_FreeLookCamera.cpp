@@ -91,13 +91,14 @@ namespace EE
 
     void FreeLookCameraComponent::FocusOn( OBB const& bounds )
     {
-        TInlineVector<Vector, 8> corners;
+        TInlineVector<Vector, 8> corners( 8 );
         bounds.GetCorners( corners.begin() );
         FocusOn( bounds.m_center, corners );
     }
+
     void FreeLookCameraComponent::FocusOn( AABB const& bounds )
     {
-        TInlineVector<Vector, 8> corners;
+        TInlineVector<Vector, 8> corners( 8 );
         bounds.GetCorners( corners.begin() );
         FocusOn( bounds.GetCenter(), corners );
     }

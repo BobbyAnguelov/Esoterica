@@ -1,19 +1,20 @@
 #include "Animation_ToolsGraphNode_IK.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_IK.h"
-#include "Engine/Animation/IK/IKRig.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     IKRigToolsNode::IKRigToolsNode()
-        : DataSlotToolsNode()
+        : VariationDataToolsNode()
     {
         CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateDynamicInputPin( "Effector 0", GetPinTypeForValueType( GraphValueType::Target ) );
         CreateDynamicInputPin( "Effector 1", GetPinTypeForValueType( GraphValueType::Target ) );
+
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
     }
 
     int16_t IKRigToolsNode::Compile( GraphCompilationContext& context ) const
@@ -66,14 +67,10 @@ namespace EE::Animation::GraphNodes
             }
         }
 
-        pDefinition->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
+        auto pData = GetResolvedVariationDataAs<Data>( context.GetVariationHierarchy(), context.GetVariationID() );
+        pDefinition->m_dataSlotIdx = context.RegisterResource( pData->m_rigDefinition.GetResourceID() );
 
         return pDefinition->m_nodeIdx;
-    }
-
-    ResourceTypeID IKRigToolsNode::GetSlotResourceTypeID() const
-    {
-        return IKRigDefinition::GetStaticResourceTypeID();
     }
 
     TInlineString<100> IKRigToolsNode::GetNewDynamicInputPinName() const

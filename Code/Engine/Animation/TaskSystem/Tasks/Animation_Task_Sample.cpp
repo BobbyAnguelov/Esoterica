@@ -60,7 +60,7 @@ namespace EE::Animation::Tasks
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    InlineString SampleTask::GetDebugTextInfo() const
+    InlineString SampleTask::GetDebugTextInfo( bool isDetailedModeEnabled ) const
     {
         InlineString str;
         str.sprintf( "%s %s", m_pAnimation->GetResourceID().GetFilenameWithoutExtension().c_str(), m_pAnimation->IsAdditive() ? "(Additive)" : "" );

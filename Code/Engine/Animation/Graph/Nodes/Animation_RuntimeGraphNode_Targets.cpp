@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void IsTargetSetNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -277,7 +277,16 @@ namespace EE::Animation::GraphNodes
             if ( m_value.IsTargetSet() )
             {
                 auto pDefinition = GetDefinition<TargetOffsetNode>();
-                m_value.SetOffsets( pDefinition->m_rotationOffset, pDefinition->m_translationOffset, pDefinition->m_isBoneSpaceOffset );
+                if ( m_value.IsBoneTarget() )
+                {
+                    m_value.SetOffsets( pDefinition->m_rotationOffset, pDefinition->m_translationOffset, pDefinition->m_isBoneSpaceOffset );
+                }
+                else
+                {
+                    #if EE_DEVELOPMENT_TOOLS
+                    context.LogWarning( GetNodeIndex(), "Trying to set an offset on a transform target node - Offset are only allowed on bone targets!" );
+                    #endif
+                }
             }
             else
             {

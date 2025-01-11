@@ -5,7 +5,7 @@
 namespace EE::Animation
 {
     #if EE_DEVELOPMENT_TOOLS
-    char const* GetNameForStateEventType( StateEventType type )
+    char const* GetNameForGraphEventType( GraphEventType type )
     {
         constexpr static char const* const names[] =
         {
@@ -13,6 +13,7 @@ namespace EE::Animation
             "FullyInState",
             "Exit",
             "Timed",
+            "Generic"
         };
 
         return names[(uint8_t) type];
@@ -24,7 +25,7 @@ namespace EE::Animation
     void SampledEventsBuffer::Clear()
     {
         m_sampledEvents.clear();
-        m_numAnimEventsSampled = m_numStateEventsSampled = 0;
+        m_numAnimEventsSampled = m_numGraphEventsSampled = 0;
 
         #if EE_DEVELOPMENT_TOOLS
         m_debugPathTracker.Clear();
@@ -33,18 +34,18 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    bool SampledEventsBuffer::ContainsStateEvent( StringID ID, bool onlyFromActiveBranch ) const
+    bool SampledEventsBuffer::ContainsGraphEvent( StringID ID, bool onlyFromActiveBranch ) const
     {
         if ( onlyFromActiveBranch )
         {
             for ( auto const& se : m_sampledEvents )
             {
-                if ( !se.IsStateEvent() )
+                if ( !se.IsGraphEvent() )
                 {
                     continue;
                 }
 
-                if ( !se.IsIgnored() && se.IsFromActiveBranch() && se.GetStateEventID() == ID )
+                if ( !se.IsIgnored() && se.IsFromActiveBranch() && se.GetGraphEventID() == ID )
                 {
                     return true;
                 }
@@ -54,12 +55,12 @@ namespace EE::Animation
         {
             for ( auto const& se : m_sampledEvents )
             {
-                if ( !se.IsStateEvent() )
+                if ( !se.IsGraphEvent() )
                 {
                     continue;
                 }
 
-                if ( !se.IsIgnored() && se.GetStateEventID() == ID )
+                if ( !se.IsIgnored() && se.GetGraphEventID() == ID )
                 {
                     return true;
                 }
@@ -69,18 +70,18 @@ namespace EE::Animation
         return false;
     }
 
-    bool SampledEventsBuffer::ContainsSpecificStateEvent( StateEventType eventType, StringID ID, bool onlyFromActiveBranch ) const
+    bool SampledEventsBuffer::ContainsSpecificGraphEvent( GraphEventType eventType, StringID ID, bool onlyFromActiveBranch ) const
     {
         if ( onlyFromActiveBranch )
         {
             for ( auto const& se : m_sampledEvents )
             {
-                if ( !se.IsStateEvent() )
+                if ( !se.IsGraphEvent() )
                 {
                     continue;
                 }
 
-                if ( !se.IsIgnored() && se.IsFromActiveBranch() && se.GetStateEventType() == eventType && se.GetStateEventID() == ID )
+                if ( !se.IsIgnored() && se.IsFromActiveBranch() && se.GetGraphEventType() == eventType && se.GetGraphEventID() == ID )
                 {
                     return true;
                 }
@@ -90,12 +91,12 @@ namespace EE::Animation
         {
             for ( auto const& se : m_sampledEvents )
             {
-                if ( !se.IsStateEvent() )
+                if ( !se.IsGraphEvent() )
                 {
                     continue;
                 }
 
-                if ( !se.IsIgnored() && se.GetStateEventType() == eventType && se.GetStateEventID() == ID )
+                if ( !se.IsIgnored() && se.GetGraphEventType() == eventType && se.GetGraphEventID() == ID )
                 {
                     return true;
                 }
@@ -105,7 +106,7 @@ namespace EE::Animation
         return false;
     }
 
-    bool SampledEventsBuffer::ContainsStateEvent( SampledEventRange const& range, StringID ID, bool onlyFromActiveBranch ) const
+    bool SampledEventsBuffer::ContainsGraphEvent( SampledEventRange const& range, StringID ID, bool onlyFromActiveBranch ) const
     {
         EE_ASSERT( IsValidRange( range ) );
 
@@ -113,7 +114,7 @@ namespace EE::Animation
         {
             auto const& se = m_sampledEvents[i];
 
-            if ( !se.IsStateEvent() )
+            if ( !se.IsGraphEvent() )
             {
                 continue;
             }
@@ -128,7 +129,7 @@ namespace EE::Animation
                 continue;
             }
 
-            if ( se.GetStateEventID() == ID )
+            if ( se.GetGraphEventID() == ID )
             {
                 return true;
             }
@@ -137,7 +138,7 @@ namespace EE::Animation
         return false;
     }
 
-    bool SampledEventsBuffer::ContainsSpecificStateEvent( SampledEventRange const& range, StateEventType eventType, StringID ID, bool onlyFromActiveBranch ) const
+    bool SampledEventsBuffer::ContainsSpecificGraphEvent( SampledEventRange const& range, GraphEventType eventType, StringID ID, bool onlyFromActiveBranch ) const
     {
         EE_ASSERT( IsValidRange( range ) );
 
@@ -145,7 +146,7 @@ namespace EE::Animation
         {
             auto const& se = m_sampledEvents[i];
 
-            if ( !se.IsStateEvent() )
+            if ( !se.IsGraphEvent() )
             {
                 continue;
             }
@@ -160,7 +161,7 @@ namespace EE::Animation
                 continue;
             }
 
-            if ( se.GetStateEventType() == eventType && se.GetStateEventID() == ID )
+            if ( se.GetGraphEventType() == eventType && se.GetGraphEventID() == ID )
             {
                 return true;
             }
@@ -222,7 +223,7 @@ namespace EE::Animation
         m_sampledEvents.insert( m_sampledEvents.end(), otherBuffer.m_sampledEvents.begin(), otherBuffer.m_sampledEvents.end() );
 
         m_numAnimEventsSampled += otherBuffer.m_numAnimEventsSampled;
-        m_numStateEventsSampled += otherBuffer.m_numStateEventsSampled;
+        m_numGraphEventsSampled += otherBuffer.m_numGraphEventsSampled;
 
         //-------------------------------------------------------------------------
 

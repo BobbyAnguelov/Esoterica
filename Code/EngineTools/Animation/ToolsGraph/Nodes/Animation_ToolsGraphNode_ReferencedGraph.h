@@ -1,17 +1,29 @@
 #pragma once
-#include "Animation_ToolsGraphNode_DataSlot.h"
+#include "Animation_ToolsGraphNode_VariationData.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
-    class ChildGraphToolsNode final : public DataSlotToolsNode
+    class ReferencedGraphToolsNode final : public VariationDataToolsNode
     {
-        EE_REFLECT_TYPE( ChildGraphToolsNode );
+        EE_REFLECT_TYPE( ReferencedGraphToolsNode );
+
+        struct Data final : public VariationDataToolsNode::Data
+        {
+            EE_REFLECT_TYPE( Data );
+
+            virtual void GetReferencedResources( TInlineVector<ResourceID, 2>& outReferencedResources ) const override { outReferencedResources.emplace_back( m_graphDefinition.GetResourceID() ); }
+
+        public:
+
+            EE_REFLECT();
+            TResourcePtr<GraphDefinition>     m_graphDefinition;
+        };
 
     public:
 
-        ChildGraphToolsNode();
+        ReferencedGraphToolsNode();
 
         virtual char const* GetTypeName() const override { return "Child Graph"; }
         virtual char const* GetCategory() const override { return "Animation/Graphs"; }
@@ -20,23 +32,26 @@ namespace EE::Animation::GraphNodes
         virtual Color GetTitleBarColor() const override { return Colors::Gold; }
         virtual void DrawContextMenuOptions( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, NodeGraph::Pin* pPin ) override;
 
-        virtual char const* GetDefaultSlotName() const override { return "Graph"; }
-        virtual ResourceTypeID GetSlotResourceTypeID() const override;
+        ResourceID GetReferencedGraphResourceID( VariationHierarchy const& variationHierarchy, StringID variationID ) const;
+
+    private:
+
+        virtual TypeSystem::TypeInfo const* GetVariationDataTypeInfo() const override { return ReferencedGraphToolsNode::Data::s_pTypeInfo; }
     };
 
     //-------------------------------------------------------------------------
 
-    struct OpenChildGraphCommand : public NodeGraph::CustomCommand
+    struct OpenReferencedGraphCommand : public NodeGraph::CustomCommand
     {
-        EE_REFLECT_TYPE( OpenChildGraphCommand );
+        EE_REFLECT_TYPE( OpenReferencedGraphCommand );
 
         enum Option { OpenInPlace, OpenInNewEditor };
 
     public:
 
-        OpenChildGraphCommand() = default;
+        OpenReferencedGraphCommand() = default;
 
-        OpenChildGraphCommand( ChildGraphToolsNode* pSourceNode, Option option )
+        OpenReferencedGraphCommand( ReferencedGraphToolsNode* pSourceNode, Option option )
             : m_option( option )
         {
             EE_ASSERT( pSourceNode != nullptr );
@@ -60,7 +75,7 @@ namespace EE::Animation::GraphNodes
 
         ReflectParametersCommand() = default;
 
-        ReflectParametersCommand( ChildGraphToolsNode* pSourceNode, Option option )
+        ReflectParametersCommand( ReferencedGraphToolsNode* pSourceNode, Option option )
             : m_option( option )
         {
             EE_ASSERT( pSourceNode != nullptr );

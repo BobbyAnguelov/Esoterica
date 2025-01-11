@@ -2238,7 +2238,20 @@ namespace EE::NodeGraph
                         }
                         else
                         {
-                            m_pUserContext->DoubleClick( m_pHoveredNode );
+                            if ( FlowNode* pFlowNode = TryCast<FlowNode>( m_pHoveredNode ) )
+                            {
+                                if ( !pFlowNode->HandleDoubleClick( m_pUserContext, ( m_pHoveredPin == nullptr ) ? UUID() : m_pHoveredPin->m_ID ) )
+                                {
+                                    m_pUserContext->DoubleClick( m_pHoveredNode );
+                                }
+                            }
+                            else
+                            {
+                                if ( !m_pHoveredNode->HandleDoubleClick( m_pUserContext ) )
+                                {
+                                    m_pUserContext->DoubleClick( m_pHoveredNode );
+                                }
+                            }
                         }
                     }
                 }
@@ -2253,7 +2266,10 @@ namespace EE::NodeGraph
                         }
                         else
                         {
-                            m_pUserContext->DoubleClick( m_pGraph );
+                            if ( !m_pGraph->HandleDoubleClick( m_pUserContext ) )
+                            {
+                                m_pUserContext->DoubleClick( m_pGraph );
+                            }
                         }
                     }
                 }

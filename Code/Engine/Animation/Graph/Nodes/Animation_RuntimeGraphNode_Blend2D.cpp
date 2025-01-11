@@ -10,7 +10,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void Blend2DNode::CalculateBlendSpaceWeights( TInlineVector<Float2, 10> const &points, TInlineVector<uint8_t, 30> const &indices, TInlineVector<uint8_t, 10> const &hullIndices, Float2 const &point, BlendSpaceResult &result )
     {
@@ -222,6 +222,7 @@ namespace EE::Animation::GraphNodes
 
     void Blend2DNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
+        EE_ASSERT( !IsInitialized() );
         EE_ASSERT( context.IsValid() );
         EE_ASSERT( m_pInputParameterNode0 != nullptr && m_pInputParameterNode1 != nullptr && m_sourceNodes.size() > 1 );
 
@@ -248,9 +249,9 @@ namespace EE::Animation::GraphNodes
     {
         EE_ASSERT( context.IsValid() );
 
-        for ( auto Source : m_sourceNodes )
+        for ( auto pSource : m_sourceNodes )
         {
-            Source->Shutdown( context );
+            pSource->Shutdown( context );
         }
 
         m_pInputParameterNode1->Shutdown( context );
@@ -259,6 +260,7 @@ namespace EE::Animation::GraphNodes
         //-------------------------------------------------------------------------
 
         m_bsr.Reset();
+        m_blendSpaceUpdateID = 0;
 
         PoseNode::ShutdownInternal( context );
     }
@@ -283,11 +285,13 @@ namespace EE::Animation::GraphNodes
         // Calculate blended sync-track and duration
         //-------------------------------------------------------------------------
 
-        // 1-way blend
+        // No blend
         if ( m_bsr.m_sourceIndices[1] == InvalidIndex )
         {
             PoseNode *pSource = m_sourceNodes[m_bsr.m_sourceIndices[0]];
-            m_blendedSyncTrack = pSource->GetSyncTrack();
+
+            // We need to create a blended sync track to remove any offsets
+            m_blendedSyncTrack = SyncTrack( pSource->GetSyncTrack(), pSource->GetSyncTrack(), 0.0f );
             m_duration = pSource->GetDuration();
         }
         else // 2-way blend
@@ -364,11 +368,8 @@ namespace EE::Animation::GraphNodes
         {
             PoseNode *pSource = m_sourceNodes[m_bsr.m_sourceIndices[0]];
             result = pSource->Update( context, &updateRange );
-
-            m_duration = pSource->GetDuration();
-            m_previousTime = pSource->GetPreviousTime();
-            m_currentTime = pSource->GetCurrentTime();
-            m_blendedSyncTrack = pSource->GetSyncTrack();
+            m_previousTime = GetSyncTrack().GetPercentageThrough( updateRange.m_startTime );
+            m_currentTime = GetSyncTrack().GetPercentageThrough( updateRange.m_endTime );
         }
 
         // 2-Way Blend

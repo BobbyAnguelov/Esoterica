@@ -13,9 +13,10 @@ namespace EE
         class PropertyInfo;
     }
 
+    // Base type for reflection
     //-------------------------------------------------------------------------
-
     // Interface to enforce virtual destructors and type-info overrides
+
     class EE_BASE_API IReflectedType
     {
     public:
@@ -49,6 +50,15 @@ namespace EE
         #endif
     };
 
+    // Default instance constructor
+    //-------------------------------------------------------------------------
+    // In some cases, you might need a custom constructor for the default instance
+    // If you define a ctor with this argument in your reflected type it will use that ctor instead of the default one
+    // e.g. Foo::Foo( DefaultInstanceCtor_t ) { ... }
+
+    enum DefaultInstanceCtor_t { DefaultInstanceCtor };
+
+    // Helper methods
     //-------------------------------------------------------------------------
 
     template<typename T>

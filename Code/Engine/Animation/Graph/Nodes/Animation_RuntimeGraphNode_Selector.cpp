@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void SelectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -320,6 +320,48 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
+    static int32_t PickOption( int32_t numOptions, TInlineVector<uint8_t, 5> const &optionWeights, int32_t seed )
+    {
+        int32_t selectedIdx = InvalidIndex;
+
+        if ( optionWeights.empty() )
+        {
+            selectedIdx = seed % numOptions;
+        }
+        else
+        {
+            EE_ASSERT( optionWeights.size() == numOptions );
+
+            // Create bucket boundaries based on the option weights, basically allocate an entry for each option n times, where n is the weight
+            int32_t* pOptionBucketBoundaries = EE_STACK_ARRAY_ALLOC( int32_t, optionWeights.size() );
+
+            int32_t totalWeightedOptions = 0;
+            for ( auto i = 0; i < numOptions; i++ )
+            {
+                EE_ASSERT( optionWeights[i] > 0 );
+                pOptionBucketBoundaries[i] = totalWeightedOptions + optionWeights[i];
+                totalWeightedOptions += optionWeights[i];
+            }
+
+            EE_ASSERT( totalWeightedOptions > 0 );
+
+            // Select a value from the new set of options
+            int32_t const weightedIdx = seed % totalWeightedOptions;
+
+            // Find the bucket that we rolled into and return that
+            for ( int32_t i = 0; i < numOptions; i++ )
+            {
+                if ( weightedIdx <= pOptionBucketBoundaries[i] )
+                {
+                    selectedIdx = i;
+                    break;
+                }
+            }
+        }
+
+        return selectedIdx;
+    }
+
     void ParameterizedSelectorNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<ParameterizedSelectorNode>( context, options );
@@ -345,9 +387,11 @@ namespace EE::Animation::GraphNodes
             m_pParameterNode->Initialize( context );
             float const parameterValue = m_pParameterNode->GetValue<float>( context );
             m_pParameterNode->Shutdown( context );
+            int32_t const seed = Math::FloorToInt( Math::Abs( parameterValue ) );
 
             // Calculate selected index
-            int32_t const selectedIdx = Math::FloorToInt( Math::Abs( parameterValue ) ) % numOptions;
+            auto pDefinition = GetDefinition<ParameterizedSelectorNode>();
+            int32_t const selectedIdx = PickOption( numOptions, pDefinition->m_optionWeights, seed );
             return selectedIdx;
         }
         else
@@ -468,9 +512,11 @@ namespace EE::Animation::GraphNodes
             m_pParameterNode->Initialize( context );
             float const parameterValue = m_pParameterNode->GetValue<float>( context );
             m_pParameterNode->Shutdown( context );
+            int32_t const seed = Math::FloorToInt( Math::Abs( parameterValue ) );
 
             // Calculate selected index
-            int32_t const selectedIdx = Math::FloorToInt( Math::Abs( parameterValue ) ) % numOptions;
+            auto pDefinition = GetDefinition<ParameterizedAnimationClipSelectorNode>();
+            int32_t const selectedIdx = PickOption( numOptions, pDefinition->m_optionWeights, seed );
             return selectedIdx;
         }
         else

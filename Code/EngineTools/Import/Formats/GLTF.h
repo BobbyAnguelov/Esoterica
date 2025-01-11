@@ -87,7 +87,7 @@ namespace EE::Import::gltf
         // Helpers
         //-------------------------------------------------------------------------
 
-        inline Transform GetNodeTransform( cgltf_node* pNode ) const
+        inline Transform GetNodeTransform( cgltf_node* pNode, bool includeParentTransform = false ) const
         {
             EE_ASSERT( pNode != nullptr );
 
@@ -120,6 +120,11 @@ namespace EE::Import::gltf
                 }
 
                 t = Transform( rotation, translation, scale );
+            }
+
+            if ( includeParentTransform && pNode->parent != nullptr )
+            {
+                return t * GetNodeTransform( pNode->parent, includeParentTransform );
             }
 
             return t;

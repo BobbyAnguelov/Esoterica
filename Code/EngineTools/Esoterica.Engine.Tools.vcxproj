@@ -68,9 +68,10 @@
     <ClCompile Include="Animation\Events\AnimationEventTimeline.cpp" />
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_IKRig.cpp" />
     <ClCompile Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationClip.cpp" />
+    <ClCompile Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationGraph.cpp" />
     <ClCompile Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationSkeleton.cpp" />
     <ClCompile Include="Animation\ResourceEditors\ResourceEditor_IKRig.cpp" />
-    <ClCompile Include="Animation\ResourceOptionProviders\ResourcePickerOptionProvider_AnimationGraphVariation.cpp" />
+    <ClCompile Include="Animation\ResourceOptionProviders\ResourcePickerOptionProvider_AnimationGraphDefinition.cpp" />
     <ClCompile Include="Animation\Shared\AnimationClipBrowser.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TwoBoneIK.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.cpp" />
@@ -84,8 +85,8 @@
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Result.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Parameters.cpp" />
-    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_DataSlot.cpp" />
-    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ChildGraph.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_VariationData.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ReferencedGraph.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalGraph.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_Compilation.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_Definition.cpp" />
@@ -121,9 +122,7 @@
     <ClCompile Include="Core\DialogManager.cpp" />
     <ClCompile Include="Core\Test\Component_SerializationTest.cpp" />
     <ClCompile Include="Core\Test\UITest.cpp" />
-    <ClCompile Include="Entity\ComponentVisualizer.cpp" />
     <ClCompile Include="Entity\EntitySerializationTools.cpp" />
-    <ClCompile Include="Navmesh\ComponentVisualizers\ComponentVisualizer_NavmeshTester.cpp" />
     <ClCompile Include="NodeGraph\NodeGraph_Comment.cpp" />
     <ClCompile Include="Import\RawFileInspector.cpp" />
     <ClCompile Include="Logging\Tools\EditorTool_SystemLog.cpp" />
@@ -172,7 +171,7 @@
     <ClCompile Include="Import\ImportedSkeleton.cpp" />
     <ClCompile Include="Resource\ResourceDescriptorCreator.cpp" />
     <ClCompile Include="FileSystem\FileRegistry.cpp" />
-    <ClCompile Include="Widgets\Pickers.cpp" />
+    <ClCompile Include="Widgets\Pickers\ResourcePickers.cpp" />
     <ClCompile Include="Timeline\Timeline.cpp" />
     <ClCompile Include="Timeline\TimelineEditor.cpp" />
     <ClCompile Include="Core\UndoStack.cpp" />
@@ -181,9 +180,11 @@
     <ClCompile Include="NodeGraph\NodeGraph_StateMachineGraph.cpp" />
     <ClCompile Include="NodeGraph\NodeGraph_View.cpp" />
     <ClCompile Include="Widgets\CurveEditor.cpp" />
+    <ClCompile Include="Widgets\Pickers\DataPathPicker.cpp" />
     <ClCompile Include="Widgets\TreeListView.cpp" />
     <ClCompile Include="Core\EditorTool.cpp" />
     <ClCompile Include="ThirdParty\delabella\delabella.cpp" />
+    <ClCompile Include="Widgets\Pickers\TypeInfoPicker.cpp" />
     <ClCompile Include="_Module\EngineToolsModule.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -205,8 +206,8 @@
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Result.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Parameters.h" />
-    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_DataSlot.h" />
-    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ChildGraph.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_VariationData.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ReferencedGraph.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalGraph.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_Compilation.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_Definition.h" />
@@ -246,9 +247,7 @@
     <ClInclude Include="Core\DialogManager.h" />
     <ClInclude Include="Core\Test\Component_SerializationTest.h" />
     <ClInclude Include="Core\Test\UITest.h" />
-    <ClInclude Include="Entity\ComponentVisualizer.h" />
     <ClInclude Include="Entity\EntitySerializationTools.h" />
-    <ClInclude Include="Navmesh\ComponentVisualizers\ComponentVisualizer_NavmeshTester.h" />
     <ClInclude Include="NodeGraph\NodeGraph_Comment.h" />
     <ClInclude Include="Import\RawFileInspector.h" />
     <ClInclude Include="Logging\Tools\EditorTool_SystemLog.h" />
@@ -305,7 +304,7 @@
     <ClInclude Include="Import\ImportedSkeleton.h" />
     <ClInclude Include="Resource\ResourceDescriptorCreator.h" />
     <ClInclude Include="FileSystem\FileRegistry.h" />
-    <ClInclude Include="Widgets\Pickers.h" />
+    <ClInclude Include="Widgets\Pickers\ResourcePickers.h" />
     <ClInclude Include="ThirdParty\cgltf\cgltf.h" />
     <ClInclude Include="ThirdParty\cgltf\cgltf_write.h" />
     <ClInclude Include="ThirdParty\delabella\delabella.h" />
@@ -321,8 +320,10 @@
     <ClInclude Include="NodeGraph\NodeGraph_StateMachineGraph.h" />
     <ClInclude Include="NodeGraph\NodeGraph_View.h" />
     <ClInclude Include="Widgets\CurveEditor.h" />
+    <ClInclude Include="Widgets\Pickers\DataPathPicker.h" />
     <ClInclude Include="Widgets\TreeListView.h" />
     <ClInclude Include="Core\EditorTool.h" />
+    <ClInclude Include="Widgets\Pickers\TypeInfoPicker.h" />
     <ClInclude Include="_Module\API.h" />
     <ClInclude Include="_Module\EngineToolsModule.h" />
   </ItemGroup>

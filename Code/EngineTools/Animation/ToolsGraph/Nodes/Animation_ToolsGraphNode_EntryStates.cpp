@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void EntryStateOverrideConditionsToolsNode::UpdateInputPins()
     {
@@ -87,7 +87,7 @@ namespace EE::Animation::GraphNodes
         : NodeGraph::StateMachineNode()
     {
         auto pFlowGraph = CreateSecondaryGraph<FlowGraph>( GraphType::ValueTree );
-        pFlowGraph->CreateNode<GraphNodes::EntryStateOverrideConditionsToolsNode>();
+        pFlowGraph->CreateNode<EntryStateOverrideConditionsToolsNode>();
     }
 
     FlowToolsNode const* EntryStateOverrideConduitToolsNode::GetEntryConditionNodeForState( UUID const& stateID ) const

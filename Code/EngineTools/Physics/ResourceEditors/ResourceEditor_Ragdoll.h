@@ -2,7 +2,7 @@
 
 #include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsRagdoll.h"
 #include "EngineTools/Core/EditorTool.h"
-#include "EngineTools/Widgets/Pickers.h"
+#include "EngineTools/Widgets/Pickers/ResourcePickers.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
 #include "Base/Imgui/ImguiGizmo.h"

@@ -1,11 +1,10 @@
 #include "Animation_RuntimeGraphNode_AimIK.h"
 #include "Game/Animation/Tasks/Animation_Task_AimIK.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_DataSet.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void AimIKNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {

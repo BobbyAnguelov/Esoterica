@@ -46,10 +46,10 @@
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Parameters.cpp">
       <Filter>Animation\ToolsGraph\Nodes</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_DataSlot.cpp">
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_VariationData.cpp">
       <Filter>Animation\ToolsGraph\Nodes</Filter>
     </ClCompile>
-    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ChildGraph.cpp">
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ReferencedGraph.cpp">
       <Filter>Animation\ToolsGraph\Nodes</Filter>
     </ClCompile>
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalGraph.cpp">
@@ -196,7 +196,7 @@
     <ClCompile Include="FileSystem\FileRegistry.cpp">
       <Filter>Resource</Filter>
     </ClCompile>
-    <ClCompile Include="Widgets\Pickers.cpp">
+    <ClCompile Include="Widgets\Pickers\ResourcePickers.cpp">
       <Filter>Resource</Filter>
     </ClCompile>
     <ClCompile Include="Resource\Tools\EditorTool_ResourceBrowser.cpp">
@@ -319,7 +319,7 @@
     <ClCompile Include="Resource\Tools\EditorTool_ResourceImporter.cpp" />
     <ClCompile Include="Import\RawFileInspector.cpp" />
     <ClCompile Include="Resource\ResourceImportSettings.cpp" />
-    <ClCompile Include="Animation\ResourceOptionProviders\ResourcePickerOptionProvider_AnimationGraphVariation.cpp" />
+    <ClCompile Include="Animation\ResourceOptionProviders\ResourcePickerOptionProvider_AnimationGraphDefinition.cpp" />
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_IKRig.cpp" />
     <ClCompile Include="Animation\ResourceEditors\ResourceEditor_IKRig.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_IK.cpp" />
@@ -328,10 +328,11 @@
     <ClCompile Include="Core\Test\UITest.cpp" />
     <ClCompile Include="Core\DataFileUtils.cpp" />
     <ClCompile Include="Entity\EntitySerializationTools.cpp" />
-    <ClCompile Include="Navmesh\ComponentVisualizers\ComponentVisualizer_NavmeshTester.cpp" />
-    <ClCompile Include="Entity\ComponentVisualizer.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TwoBoneIK.cpp" />
     <ClCompile Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationSkeleton.cpp" />
+    <ClCompile Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationGraph.cpp" />
+    <ClCompile Include="Widgets\Pickers\TypeInfoPicker.cpp" />
+    <ClCompile Include="Widgets\Pickers\DataPathPicker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationClip.h">
@@ -385,10 +386,10 @@
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Parameters.h">
       <Filter>Animation\ToolsGraph\Nodes</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_DataSlot.h">
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_VariationData.h">
       <Filter>Animation\ToolsGraph\Nodes</Filter>
     </ClInclude>
-    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ChildGraph.h">
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ReferencedGraph.h">
       <Filter>Animation\ToolsGraph\Nodes</Filter>
     </ClInclude>
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalGraph.h">
@@ -553,7 +554,7 @@
     <ClInclude Include="FileSystem\FileRegistry.h">
       <Filter>Resource</Filter>
     </ClInclude>
-    <ClInclude Include="Widgets\Pickers.h">
+    <ClInclude Include="Widgets\Pickers\ResourcePickers.h">
       <Filter>Resource</Filter>
     </ClInclude>
     <ClInclude Include="Resource\Tools\EditorTool_ResourceBrowser.h">
@@ -713,9 +714,9 @@
     <ClInclude Include="Core\DataFileUtils.h" />
     <ClInclude Include="Entity\EntitySerializationTools.h" />
     <ClInclude Include="NodeGraph\NodeGraph_Style.h" />
-    <ClInclude Include="Navmesh\ComponentVisualizers\ComponentVisualizer_NavmeshTester.h" />
-    <ClInclude Include="Entity\ComponentVisualizer.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TwoBoneIK.h" />
+    <ClInclude Include="Widgets\Pickers\TypeInfoPicker.h" />
+    <ClInclude Include="Widgets\Pickers\DataPathPicker.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Animation">

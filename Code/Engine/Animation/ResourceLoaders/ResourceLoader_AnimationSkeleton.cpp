@@ -11,7 +11,7 @@ namespace EE::Animation
         m_loadableTypes.push_back( Skeleton::GetStaticResourceTypeID() );
     }
 
-    bool SkeletonLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::ResourceLoader::LoadResult SkeletonLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
     {
         Skeleton* pSkeleton = EE::New<Skeleton>();
         archive << *pSkeleton;
@@ -54,6 +54,6 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        return true;
+        return Resource::ResourceLoader::LoadResult::Succeeded;
     }
 }

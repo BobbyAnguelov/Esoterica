@@ -9,8 +9,15 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
+    StateMachineToolsNode::StateMachineToolsNode( DefaultInstanceCtor_t )
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Pose", GraphValueType::Pose );
+        m_name = "SM";
+    }
+
     StateMachineToolsNode::StateMachineToolsNode()
         : FlowToolsNode()
     {
@@ -402,7 +409,7 @@ namespace EE::Animation::GraphNodes
 
             if ( pTransitionNode->m_boneMaskBlendInTimePercentage <= 0.0f )
             {
-                context.LogError( "Bone mask blend time needs to be greater than zero!" );
+                context.LogError( pTransitionNode, "Bone mask blend time needs to be greater than zero!" );
                 return InvalidIndex;
             }
         }
@@ -420,7 +427,7 @@ namespace EE::Animation::GraphNodes
             }
             else
             {
-                context.LogWarning( "Target Sync Event ID set but we are not in a sync event ID time match mode - The supplied ID will be ignored!" );
+                context.LogWarning( pTransitionNode, "Target Sync Event ID set but we are not in a sync event ID time match mode - The supplied ID will be ignored!" );
             }
         }
 

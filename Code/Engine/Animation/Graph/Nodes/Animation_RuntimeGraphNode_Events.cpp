@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     inline static SampledEventRange CalculateSearchRange( StateNode const* pSourceStateNode, SampledEventsBuffer const& sampledEvents, TBitFlags<EventConditionRules> rules )
     {
@@ -37,7 +37,7 @@ namespace EE::Animation::GraphNodes
         BoolValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
         }
 
         m_result = false;
@@ -75,8 +75,8 @@ namespace EE::Animation::GraphNodes
 
         SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pNodeDefinition->m_rules );
         bool const ignoreInactiveEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-        bool const searchAnimEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchBothStateAndAnimEvents ) || pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchOnlyAnimEvents );
-        bool const searchStateEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchBothStateAndAnimEvents ) || pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchOnlyStateEvents );
+        bool const searchAnimEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchBothGraphAndAnimEvents ) || pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchOnlyAnimEvents );
+        bool const searchGraphEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchBothGraphAndAnimEvents ) || pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchOnlyGraphEvents );
         bool const operatorOr = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::OperatorOr );
 
         for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
@@ -107,11 +107,11 @@ namespace EE::Animation::GraphNodes
                     }
                 }
             }
-            else // State event
+            else // graph event
             {
-                if ( searchStateEvents )
+                if ( searchGraphEvents )
                 {
-                    foundID = sampledEvent.GetStateEventID();
+                    foundID = sampledEvent.GetGraphEventID();
                 }
             }
 
@@ -164,7 +164,7 @@ namespace EE::Animation::GraphNodes
         IDValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
         }
 
         m_value.Clear();
@@ -200,7 +200,7 @@ namespace EE::Animation::GraphNodes
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
-                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
                 }
@@ -282,7 +282,7 @@ namespace EE::Animation::GraphNodes
         FloatValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
         }
 
         m_result = false;
@@ -312,7 +312,7 @@ namespace EE::Animation::GraphNodes
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
-                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
                 }
@@ -386,24 +386,24 @@ namespace EE::Animation::GraphNodes
 
     //-------------------------------------------------------------------------
 
-    void StateEventConditionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void GraphEventConditionNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<StateEventConditionNode>( context, options );
+        auto pNode = CreateNode<GraphEventConditionNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
-    void StateEventConditionNode::InitializeInternal( GraphContext& context )
+    void GraphEventConditionNode::InitializeInternal( GraphContext& context )
     {
         BoolValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
         }
 
         m_result = false;
     }
 
-    void StateEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    void GraphEventConditionNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && pOutValue != nullptr );
 
@@ -418,9 +418,9 @@ namespace EE::Animation::GraphNodes
         *( (bool*) pOutValue ) = m_result;
     }
 
-    bool StateEventConditionNode::TryMatchTags( GraphContext& context ) const
+    bool GraphEventConditionNode::TryMatchTags( GraphContext& context ) const
     {
-        auto pNodeDefinition = GetDefinition<StateEventConditionNode>();
+        auto pNodeDefinition = GetDefinition<GraphEventConditionNode>();
         int32_t const numConditions = (int32_t) pNodeDefinition->m_conditions.size();
         auto foundIDs = EE_STACK_ARRAY_ALLOC( bool, numConditions );
         Memory::MemsetZero( foundIDs, sizeof( bool ) * numConditions );
@@ -447,7 +447,7 @@ namespace EE::Animation::GraphNodes
                 continue;
             }
 
-            // Only check state events
+            // Only check graph events
             if ( sampledEvent.IsAnimationEvent() )
             {
                 continue;
@@ -455,14 +455,14 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            StringID const foundID = sampledEvent.GetStateEventID();
+            StringID const foundID = sampledEvent.GetGraphEventID();
             if ( foundID.IsValid() )
             {
                 // Check against the set of events we need to match
                 for ( auto t = 0; t < numConditions; t++ )
                 {
                     auto const& condition = pNodeDefinition->m_conditions[t];
-                    if ( condition.m_eventID == foundID && DoesStateEventTypesMatchCondition( condition.m_eventTypeCondition, sampledEvent.GetStateEventType() ) )
+                    if ( condition.m_eventID == foundID && DoesGraphEventTypesMatchCondition( condition.m_eventTypeCondition, sampledEvent.GetGraphEventType() ) )
                     {
                         // If we have an 'or' operator we can early out here
                         if ( operatorOr )
@@ -504,7 +504,7 @@ namespace EE::Animation::GraphNodes
         BoolValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
         }
 
         m_result = false;
@@ -531,7 +531,7 @@ namespace EE::Animation::GraphNodes
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
-                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
                 }
@@ -618,7 +618,7 @@ namespace EE::Animation::GraphNodes
         FloatValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
         }
 
         m_result = false;
@@ -648,7 +648,7 @@ namespace EE::Animation::GraphNodes
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
-                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
                 }
@@ -786,7 +786,7 @@ namespace EE::Animation::GraphNodes
         IDValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
         }
 
         m_result = StringID();
@@ -817,7 +817,7 @@ namespace EE::Animation::GraphNodes
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
-                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
                 }
@@ -1034,7 +1034,7 @@ namespace EE::Animation::GraphNodes
         BoolValueNode::InitializeInternal( context );
         if ( m_pSourceStateNode != nullptr )
         {
-            EE_ASSERT( m_pSourceStateNode->WasInitialized() );
+            EE_ASSERT( m_pSourceStateNode->IsInitialized() );
         }
 
         m_result = false;
@@ -1062,7 +1062,7 @@ namespace EE::Animation::GraphNodes
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
                 SampledEvent const* pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
-                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsStateEvent() )
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
                 }

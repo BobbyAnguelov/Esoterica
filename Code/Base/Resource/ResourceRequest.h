@@ -22,9 +22,12 @@ namespace EE::Resource
             RequestRawResource,
             WaitForRawResourceRequest,
             LoadResource,
-            WaitForLoadDependencies,
+            LoadingResource,
+
+            // Install Stages
+            WaitForInstallDependencies,
             InstallResource,
-            WaitForInstallResource,
+            InstallingResource,
 
             // Unload Stages
             UninstallResource,
@@ -32,7 +35,7 @@ namespace EE::Resource
             UnloadFailedResource,
 
             // Special Cases
-            CancelWaitForLoadDependencies, // This stage is needed so we can resume correctly when going from load -> unload -> load
+            CancelWaitForInstallDependencies, // This stage is needed so we can resume correctly when going from load -> unload -> load
             CancelRawResourceRequest,
 
             Complete,
@@ -100,12 +103,15 @@ namespace EE::Resource
 
         void RequestRawResource( RequestContext& requestContext );
         void LoadResource( RequestContext& requestContext );
-        void WaitForLoadDependencies( RequestContext& requestContext );
-        void InstallResource( RequestContext& requestContext );
-        void WaitForInstallResource( RequestContext& requestContext );
-        void UninstallResource( RequestContext& requestContext );
+        void UpdateLoadingResource( RequestContext& requestContext );
         void UnloadResource( RequestContext& requestContext );
         void UnloadFailedResource( RequestContext& requestContext );
+
+        void WaitForInstallDependencies( RequestContext& requestContext );
+        void InstallResource( RequestContext& requestContext );
+        void UpdateInstallingResource( RequestContext& requestContext );
+        void UninstallResource( RequestContext& requestContext );
+
         void CancelRawRequestRequest( RequestContext& requestContext );
 
     private:

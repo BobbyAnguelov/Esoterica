@@ -1,15 +1,13 @@
 #include "Animation_RuntimeGraphNode_PoweredRagdoll.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_DataSet.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Ragdoll.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Physics/PhysicsRagdoll.h"
 #include "Engine/Physics/PhysicsWorld.h"
 
-
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void PoweredRagdollNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -19,7 +17,8 @@ namespace EE::Animation::GraphNodes
         context.SetOptionalNodePtrFromIndex( m_inpulseForceVectorNodeIdx, pNode->m_pImpulseForceValueNode );
         PassthroughNode::Definition::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
 
-        pNode->m_pRagdollDefinition = context.m_pDataSet->GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
+        // Get ragdoll definition
+        pNode->m_pRagdollDefinition = context.GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
     }
 
     bool PoweredRagdollNode::IsValid() const

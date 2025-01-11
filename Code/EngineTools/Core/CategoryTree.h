@@ -143,18 +143,18 @@ namespace EE
         void Clear() { m_rootCategory.Clear(); }
 
         // Add a new item
-        void AddItem( String const& path, String const& itemName, T const& item )
+        void AddItem( String const& path, String const& itemName, T const& item, bool sortedInsert = true )
         {
             if ( path.empty() )
             {
-                m_rootCategory.m_items.emplace_back( CategoryItem<T>( itemName, item ) );
+                m_rootCategory.AddItem( CategoryItem<T>( itemName, item ), sortedInsert );
             }
             else
             {
                 TVector<String> splitPath = SplitPathString( path );
                 Category<T>* pFoundCategory = FindOrCreateCategory( m_rootCategory, splitPath, 0 );
                 EE_ASSERT( pFoundCategory != nullptr );
-                pFoundCategory->AddItem( CategoryItem<T>( itemName, item ) );
+                pFoundCategory->AddItem( CategoryItem<T>( itemName, item ), sortedInsert );
             }
         }
 
@@ -207,6 +207,12 @@ namespace EE
             return pFoundCategory;
         }
 
+        // Flatten out any categories that dont have any items in them. Those categories will be merged into their parent
+        void CollapseAllIntermediateCategories()
+        {
+            CollapseIntermediateCategory( m_rootCategory );
+        }
+
         // Remove all items but keep categories
         void RemoveAllItems()
         {
@@ -220,6 +226,38 @@ namespace EE
         }
 
     private:
+
+        void CollapseIntermediateCategory( Category<T> &category )
+        {
+            for ( auto& childCategory : category.m_childCategories )
+            {
+                CollapseIntermediateCategory( childCategory );
+            }
+
+            // If we have no items and only have a single child category then fold it into us
+            if ( category.m_items.empty() )
+            {
+                if ( category.m_childCategories.size() == 1 )
+                {
+                    category.m_name.append( "/" );
+                    category.m_name.append( category.m_childCategories[0].m_name );
+
+                    for ( int32_t i = 0; i < category.m_childCategories[0].m_childCategories.size(); i++ )
+                    {
+                        auto const tmpCategory = category.m_childCategories[0].m_childCategories[i]; // Create a copy to avoid invalidating the source when emplacing since this is a child
+                        category.m_childCategories.emplace_back( tmpCategory );
+                    }
+
+                    for ( int32_t i = 0; i < category.m_childCategories[0].m_items.size(); i++ )
+                    {
+                        auto const tmpItem = category.m_childCategories[0].m_items[i]; // Create a copy to avoid invalidating the source when emplacing since this is a child
+                        category.m_items.emplace_back( tmpItem );
+                    }
+
+                    category.m_childCategories.erase( category.m_childCategories.begin() );
+                }
+            }
+        }
 
         // Split a category path into individual elements
         TVector<String> SplitPathString( String const& pathString )

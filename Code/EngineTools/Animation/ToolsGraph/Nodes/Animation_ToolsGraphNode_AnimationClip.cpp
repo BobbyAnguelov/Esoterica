@@ -4,14 +4,16 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     AnimationClipToolsNode::AnimationClipToolsNode()
-        :DataSlotToolsNode()
+        :VariationDataToolsNode()
     {
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Play In Reverse", GraphValueType::Bool );
         CreateInputPin( "Reset Time", GraphValueType::Bool );
+
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
     }
 
     int16_t AnimationClipToolsNode::Compile( GraphCompilationContext& context ) const
@@ -52,7 +54,10 @@ namespace EE::Animation::GraphNodes
 
             //-------------------------------------------------------------------------
 
-            pDefinition->m_dataSlotIdx = context.RegisterDataSlotNode( GetID() );
+            auto pData = GetResolvedVariationDataAs<Data>( context.GetVariationHierarchy(), context.GetVariationID() );
+            pDefinition->m_dataSlotIdx = context.RegisterResource( pData->m_animClip.GetResourceID() );
+            pDefinition->m_speedMultiplier = pData->m_speedMultiplier;
+            pDefinition->m_startSyncEventOffset = pData->m_startSyncEventOffset;
             pDefinition->m_sampleRootMotion = m_sampleRootMotion;
             pDefinition->m_allowLooping = m_allowLooping;
         }

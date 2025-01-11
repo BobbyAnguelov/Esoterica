@@ -47,7 +47,7 @@ namespace EE
         if ( m_path.IsValid() )
         {
             auto const pExtension = m_path.GetExtension();
-            if ( pExtension != nullptr )
+            if ( pExtension != nullptr && ResourceTypeID::IsValidResourceFourCC( pExtension ) )
             {
                 m_type = ResourceTypeID( pExtension );
                 return;

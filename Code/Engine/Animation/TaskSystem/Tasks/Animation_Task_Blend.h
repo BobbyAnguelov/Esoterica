@@ -55,7 +55,7 @@ namespace EE::Animation::Tasks
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetDebugName() const override { return "Blend"; }
-        virtual InlineString GetDebugTextInfo() const override;
+        virtual InlineString GetDebugTextInfo( bool isDetailedModeEnabled ) const override;
         #endif
 
     protected:
@@ -76,7 +76,7 @@ namespace EE::Animation::Tasks
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetDebugName() const override { return "Overlay Blend"; }
-        virtual InlineString GetDebugTextInfo() const override;
+        virtual InlineString GetDebugTextInfo( bool isDetailedModeEnabled ) const override;
         #endif
 
     protected:
@@ -97,7 +97,7 @@ namespace EE::Animation::Tasks
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetDebugName() const override { return "Additive Blend"; }
-        virtual InlineString GetDebugTextInfo() const override;
+        virtual InlineString GetDebugTextInfo( bool isDetailedModeEnabled ) const override;
         #endif
 
     protected:

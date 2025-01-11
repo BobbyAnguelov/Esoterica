@@ -7,10 +7,6 @@
 
 namespace EE::Animation
 {
-    using namespace GraphNodes;
-
-    //-------------------------------------------------------------------------
-
     GraphCompilationContext::~GraphCompilationContext()
     {
         Reset();
@@ -18,6 +14,9 @@ namespace EE::Animation
 
     void GraphCompilationContext::Reset()
     {
+        m_pVariationHierarchy = nullptr;
+        m_variationID.Clear();
+
         for ( auto pDefinition : m_nodeDefinitions )
         {
             EE::Delete( pDefinition );
@@ -35,7 +34,7 @@ namespace EE::Animation
         m_currentNodeMemoryOffset = 0;
         m_graphInstanceRequiredAlignment = alignof( bool );
 
-        m_registeredDataSlots.clear();
+        m_registeredResources.clear();
         m_registeredExternalGraphSlots.clear();
         m_conduitSourceStateCompiledNodeIdx = InvalidIndex;
         m_transitionDuration = 0;
@@ -46,37 +45,53 @@ namespace EE::Animation
 
     void GraphCompilationContext::TryAddPersistentNode( NodeGraph::BaseNode const* pNode, GraphNode::Definition* pDefinition )
     {
-        auto pFlowNode = TryCast<GraphNodes::FlowToolsNode>( pNode );
+        auto pFlowNode = TryCast<FlowToolsNode>( pNode );
         if ( pFlowNode != nullptr && pFlowNode->IsPersistentNode() )
         {
             m_persistentNodeIndices.emplace_back( pDefinition->m_nodeIdx );
         }
     }
 
+    void GraphCompilationContext::SetVariationData( VariationHierarchy const* pVariationHierarchy, StringID ID )
+    {
+        EE_ASSERT( pVariationHierarchy != nullptr );
+        EE_ASSERT( ID.IsValid() );
+        EE_ASSERT( pVariationHierarchy->IsValidVariation( ID ) );
+
+        m_pVariationHierarchy = pVariationHierarchy;
+        m_variationID = ID;
+    }
+
     //-------------------------------------------------------------------------
 
-    bool GraphDefinitionCompiler::CompileGraph( ToolsGraphDefinition const& toolsGraph )
+    bool GraphDefinitionCompiler::CompileGraph( ToolsGraphDefinition const& toolsGraph, StringID variationID )
     {
         EE_ASSERT( toolsGraph.IsValid() );
+        EE_ASSERT( variationID.IsValid() );
+
         auto pRootGraph = toolsGraph.GetRootGraph();
 
         m_context.Reset();
         m_runtimeGraph = GraphDefinition();
 
-        // Ensure that all variations have skeletons set
+        // Ensure the requested variation is valid
         //-------------------------------------------------------------------------
 
         auto const& variationHierarchy = toolsGraph.GetVariationHierarchy();
-        for ( auto const& variation : variationHierarchy.GetAllVariations() )
+        Variation const* pVariation = variationHierarchy.GetVariation( variationID );
+        if ( pVariation == nullptr )
         {
-            EE_ASSERT( variation.m_ID.IsValid() );
-            if ( !variation.m_skeleton.IsSet() )
-            {
-                String const message( String::CtorSprintf(), "Variation '%s' has no skeleton set!", variation.m_ID.c_str() );
-                m_context.LogError( message );
-                return false;
-            }
+            m_context.LogError( "Invalid variation ID '%s'", variationID.c_str() );
+            return false;
         }
+
+        if ( !pVariation->m_skeleton.IsSet() )
+        {
+            m_context.LogError( "Variation '%s' has no skeleton set!", variationID.c_str() );
+            return false;
+        }
+
+        m_context.SetVariationData( &variationHierarchy, variationID );
 
         // Always compile control parameters first
         //-------------------------------------------------------------------------
@@ -118,18 +133,26 @@ namespace EE::Animation
         // Fill runtime definition
         //-------------------------------------------------------------------------
 
+        m_runtimeGraph.m_variationID = variationID;
+        m_runtimeGraph.m_skeleton = pVariation->m_skeleton;
         m_runtimeGraph.m_nodeDefinitions = m_context.m_nodeDefinitions;
         m_runtimeGraph.m_persistentNodeIndices = m_context.m_persistentNodeIndices;
         m_runtimeGraph.m_instanceNodeStartOffsets = m_context.m_nodeMemoryOffsets;
         m_runtimeGraph.m_instanceRequiredMemory = m_context.m_currentNodeMemoryOffset;
         m_runtimeGraph.m_instanceRequiredAlignment = m_context.m_graphInstanceRequiredAlignment;
         m_runtimeGraph.m_rootNodeIdx = rootNodeIdx;
-        m_runtimeGraph.m_childGraphSlots = m_context.m_registeredChildGraphSlots;
+        m_runtimeGraph.m_referencedGraphSlots = m_context.m_registeredReferencedGraphSlots;
         m_runtimeGraph.m_externalGraphSlots = m_context.m_registeredExternalGraphSlots;
 
         #if EE_DEVELOPMENT_TOOLS
         m_runtimeGraph.m_nodePaths.swap( m_context.m_compiledNodePaths );
         #endif
+
+        m_runtimeGraph.m_resources.reserve( m_context.m_registeredResources.size() );
+        for ( auto const& resourceID : m_context.m_registeredResources )
+        {
+            m_runtimeGraph.m_resources.emplace_back( resourceID );
+        }
 
         //-------------------------------------------------------------------------
 

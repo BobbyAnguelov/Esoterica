@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class ConstBoolToolsNode final : public FlowToolsNode
     {
@@ -100,7 +100,7 @@ namespace EE::Animation::GraphNodes
 
         ConstTargetToolsNode();
 
-        virtual char const* GetTypeName() const override { return "Target"; }
+        virtual char const* GetTypeName() const override { return "Transform Target"; }
         virtual char const* GetCategory() const override { return "Values/Target"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
@@ -121,7 +121,7 @@ namespace EE::Animation::GraphNodes
 
         ConstBoneTargetToolsNode();
 
-        virtual char const* GetTypeName() const override { return "Target"; }
+        virtual char const* GetTypeName() const override { return "Bone Target"; }
         virtual char const* GetCategory() const override { return "Values/BoneTarget"; }
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;

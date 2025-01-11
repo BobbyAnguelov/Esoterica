@@ -2,10 +2,10 @@
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_Parameters.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_EntryStates.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_GlobalTransitions.h"
-#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_DataSlot.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_VariationData.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_StateMachine.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_State.h"
-#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_ChildGraph.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_ReferencedGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_BoneMasks.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_ExternalGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_StateMachineGraph.h"
@@ -40,7 +40,7 @@ namespace EE::Animation
         EE_ASSERT( m_pGraphEditor != nullptr );
     }
 
-    AnimationGraphEditor::IDComboWidget::IDComboWidget( AnimationGraphEditor* pGraphEditor, GraphNodes::IDControlParameterToolsNode* pControlParameter )
+    AnimationGraphEditor::IDComboWidget::IDComboWidget( AnimationGraphEditor* pGraphEditor, IDControlParameterToolsNode* pControlParameter )
         : ImGuiX::ComboWithFilterWidget<StringID>( Flags::HidePreview )
         , m_pGraphEditor( pGraphEditor )
         , m_pControlParameter( pControlParameter )
@@ -57,11 +57,11 @@ namespace EE::Animation
         auto const foundNodes = pRootGraph->FindAllNodesOfType<NodeGraph::BaseNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
         for ( auto pNode : foundNodes )
         {
-            if ( auto pStateNode = TryCast<GraphNodes::StateToolsNode>( pNode ) )
+            if ( auto pStateNode = TryCast<StateToolsNode>( pNode ) )
             {
                 pStateNode->GetLogicAndEventIDs( foundIDs );
             }
-            else if ( auto pFlowNode = TryCast<GraphNodes::FlowToolsNode>( pNode ) )
+            else if ( auto pFlowNode = TryCast<FlowToolsNode>( pNode ) )
             {
                 pFlowNode->GetLogicAndEventIDs( foundIDs );
             }
@@ -92,7 +92,7 @@ namespace EE::Animation
 
         // Add empty option
         auto& emptyOpt = m_options.emplace_back();
-        emptyOpt.m_label = "##Invalid";
+        emptyOpt.m_label = "* Clear ID *##IDCWClear";
         emptyOpt.m_filterComparator = "";
         emptyOpt.m_value = StringID();
 
@@ -145,7 +145,7 @@ namespace EE::Animation
 
 namespace EE::Animation
 {
-    AnimationGraphEditor::ControlParameterPreviewState::ControlParameterPreviewState( AnimationGraphEditor* pGraphEditor, GraphNodes::ControlParameterToolsNode* pParameter )
+    AnimationGraphEditor::ControlParameterPreviewState::ControlParameterPreviewState( AnimationGraphEditor* pGraphEditor, ControlParameterToolsNode* pParameter )
         : m_pGraphEditor( pGraphEditor)
         , m_pParameter( pParameter ) 
     {
@@ -217,10 +217,10 @@ namespace EE::Animation
     {
     public:
 
-        FloatParameterState( AnimationGraphEditor* pGraphEditor, GraphNodes::ControlParameterToolsNode* pParameter )
+        FloatParameterState( AnimationGraphEditor* pGraphEditor, ControlParameterToolsNode* pParameter )
             : ControlParameterPreviewState( pGraphEditor, pParameter )
         {
-            auto pFloatParameter = Cast<GraphNodes::FloatControlParameterToolsNode>( pParameter );
+            auto pFloatParameter = Cast<FloatControlParameterToolsNode>( pParameter );
             m_min = pFloatParameter->GetPreviewRangeMin();
             m_max = pFloatParameter->GetPreviewRangeMax();
         }
@@ -633,9 +633,9 @@ namespace EE::Animation
     {
     public:
 
-        IDParameterState( AnimationGraphEditor* pGraphEditor, GraphNodes::ControlParameterToolsNode* pParameter )
+        IDParameterState( AnimationGraphEditor* pGraphEditor, ControlParameterToolsNode* pParameter )
             : ControlParameterPreviewState( pGraphEditor, pParameter )
-            , m_comboWidget( pGraphEditor, Cast<GraphNodes::IDControlParameterToolsNode>( pParameter ) )
+            , m_comboWidget( pGraphEditor, Cast<IDControlParameterToolsNode>( pParameter ) )
         {}
 
     private:
@@ -874,7 +874,6 @@ namespace EE::Animation
 namespace EE::Animation
 {
     EE_RESOURCE_EDITOR_FACTORY( AnimationGraphEditorFactory, GraphDefinition, AnimationGraphEditor );
-    EE_RESOURCE_EDITOR_FACTORY( AnimationGraphVariationEditorFactory, GraphVariation, AnimationGraphEditor );
 
     //-------------------------------------------------------------------------
 
@@ -892,9 +891,9 @@ namespace EE::Animation
             }
             break;
 
-            case DebugTargetType::ChildGraph:
+            case DebugTargetType::ReferencedGraph:
             {
-                return m_pComponentToDebug != nullptr && m_childGraphID.IsValid();
+                return m_pComponentToDebug != nullptr && m_referencedGraphID.IsValid();
             }
             break;
 
@@ -922,24 +921,30 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     AnimationGraphEditor::AnimationGraphEditor( ToolsContext const* pToolsContext, ResourceID const& resourceID, EntityWorld* pWorld )
-        : DataFileEditor( pToolsContext, Variation::GetGraphResourceID( resourceID ).GetResourcePath(), pWorld )
+        : DataFileEditor( pToolsContext, Variation::GetGraphResourceID( resourceID ).GetDataPath(), pWorld )
         , m_openedResourceID( resourceID )
         , m_clipBrowser( m_pToolsContext )
-        , m_propertyGrid( m_pToolsContext )
+        , m_nodeEditorPropertyGrid( m_pToolsContext )
+        , m_nodeVariationDataPropertyGrid( m_pToolsContext )
         , m_primaryGraphView( &m_userContext )
         , m_secondaryGraphView( &m_userContext )
         , m_oldIDWidget( this )
         , m_newIDWidget( this )
         , m_variationSkeletonPicker( *m_pToolsContext, Skeleton::GetStaticResourceTypeID() )
+        , m_variationDataPropertyGrid( m_pToolsContext )
     {
         // Set up property grid
         //-------------------------------------------------------------------------
 
-        m_propertyGrid.SetUserContext( this );
-        m_propertyGridPreEditEventBindingID = m_propertyGrid.OnPreEdit().Bind( [this] ( PropertyEditInfo const& info ) { PropertyGridPreEdit( info ); } );
-        m_propertyGridPostEditEventBindingID = m_propertyGrid.OnPostEdit().Bind( [this] ( PropertyEditInfo const& info ) { PropertyGridPostEdit( info ); } );
+        m_nodeEditorPropertyGrid.SetUserContext( this );
+        m_nodeEditorPropertyGridPreEditEventBindingID = m_nodeEditorPropertyGrid.OnPreEdit().Bind( [this] ( PropertyEditInfo const& info ) { PropertyGridPreEdit( info ); } );
+        m_nodeEditorPropertyGridPostEditEventBindingID = m_nodeEditorPropertyGrid.OnPostEdit().Bind( [this] ( PropertyEditInfo const& info ) { PropertyGridPostEdit( info ); } );
 
-        // Setup graph Outliner
+        m_nodeVariationDataPropertyGrid.SetUserContext( this );
+        m_nodeVariationDataPropertyGridPreEditEventBindingID = m_nodeVariationDataPropertyGrid.OnPreEdit().Bind( [this] ( PropertyEditInfo const& info ) { PropertyGridPreEdit( info ); } );
+        m_nodeVariationDataPropertyGridPostEditEventBindingID = m_nodeVariationDataPropertyGrid.OnPostEdit().Bind( [this] ( PropertyEditInfo const& info ) { PropertyGridPostEdit( info ); } );
+
+        // Setup graph outliner
         //-------------------------------------------------------------------------
 
         m_outlinerTreeContext.m_rebuildTreeFunction = [this] ( TreeListViewItem* pRootItem ) { RebuildOutlinerTree( pRootItem ); };
@@ -947,6 +952,22 @@ namespace EE::Animation
         m_outlinerTreeView.SetFlag( TreeListView::Flags::ShowBranchesFirst, false );
         m_outlinerTreeView.SetFlag( TreeListView::Flags::ExpandItemsOnlyViaArrow );
         m_outlinerTreeView.SetFlag( TreeListView::Flags::SortTree );
+
+        // Variation editor
+        //-------------------------------------------------------------------------
+
+        m_variationTreeContext.m_rebuildTreeFunction = [this] ( TreeListViewItem* pRootItem ) { RebuildVariationDataTree( pRootItem ); };
+        m_variationTreeContext.m_setupExtraColumnHeadersFunction = [this] () { SetupVariationEditorItemExtraColumnHeaders(); };
+        m_variationTreeContext.m_drawItemExtraColumnsFunction = [this] ( TreeListViewItem* pItem, int32_t columnIdx ) { DrawVariationEditorItemExtraColumns( pItem, columnIdx ); };
+        m_variationTreeContext.m_numExtraColumns = 1;
+
+        m_variationDataPropertyGrid.SetUserContext( this );
+        m_variationDataPropertyGridPreEditEventBindingID = m_variationDataPropertyGrid.OnPreEdit().Bind( [this] ( PropertyEditInfo const& info ) { PropertyGridPreEdit( info ); } );
+        m_variationDataPropertyGridPostEditEventBindingID = m_variationDataPropertyGrid.OnPostEdit().Bind( [this] ( PropertyEditInfo const& info ) { PropertyGridPostEdit( info ); } );
+
+        m_variationTreeView.SetFlag( TreeListView::Flags::ShowBranchesFirst, false );
+        m_variationTreeView.SetFlag( TreeListView::Flags::ExpandItemsOnlyViaArrow );
+        m_variationTreeView.SetFlag( TreeListView::Flags::SortTree );
 
         // Gizmo
         //-------------------------------------------------------------------------
@@ -964,16 +985,18 @@ namespace EE::Animation
         // Get Node Type Info
         //-------------------------------------------------------------------------
 
-        m_registeredNodeTypes = m_pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( GraphNodes::FlowToolsNode::GetStaticTypeID(), false, false, true );
+        m_registeredNodeTypes = m_pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( FlowToolsNode::GetStaticTypeID(), false, false, true );
 
         for ( auto pNodeType : m_registeredNodeTypes )
         {
-            auto pDefaultNode = Cast<GraphNodes::FlowToolsNode const>( pNodeType->m_pDefaultInstance );
+            auto pDefaultNode = Cast<FlowToolsNode const>( pNodeType->m_pDefaultInstance );
             if ( pDefaultNode->IsUserCreatable() )
             {
                 m_categorizedNodeTypes.AddItem( pDefaultNode->GetCategory(), pDefaultNode->GetTypeName(), pNodeType );
             }
         }
+
+        m_variationDataNodeTypes = m_pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( VariationDataToolsNode::GetStaticTypeID(), false, false, true );
 
         // User context
         //-------------------------------------------------------------------------
@@ -1001,8 +1024,16 @@ namespace EE::Animation
 
     AnimationGraphEditor::~AnimationGraphEditor()
     {
-        m_propertyGrid.OnPreEdit().Unbind( m_propertyGridPreEditEventBindingID );
-        m_propertyGrid.OnPostEdit().Unbind( m_propertyGridPostEditEventBindingID );
+        m_nodeEditorPropertyGrid.OnPreEdit().Unbind( m_nodeEditorPropertyGridPreEditEventBindingID );
+        m_nodeEditorPropertyGrid.OnPostEdit().Unbind( m_nodeEditorPropertyGridPostEditEventBindingID );
+
+        m_nodeVariationDataPropertyGrid.OnPreEdit().Unbind( m_nodeVariationDataPropertyGridPreEditEventBindingID );
+        m_nodeVariationDataPropertyGrid.OnPostEdit().Unbind( m_nodeVariationDataPropertyGridPostEditEventBindingID );
+
+        //-------------------------------------------------------------------------
+
+        m_variationDataPropertyGrid.OnPreEdit().Unbind( m_variationDataPropertyGridPreEditEventBindingID );
+        m_variationDataPropertyGrid.OnPostEdit().Unbind( m_variationDataPropertyGridPostEditEventBindingID );
 
         //-------------------------------------------------------------------------
 
@@ -1071,7 +1102,7 @@ namespace EE::Animation
         CreateToolWindow( "Debugger", [this] ( UpdateContext const& context, bool isFocused ) { DrawDebuggerWindow( context, isFocused ); } );
         CreateToolWindow( "Control Parameters", [this] ( UpdateContext const& context, bool isFocused ) { DrawControlParameterEditor( context, isFocused ); } );
         CreateToolWindow( "Graph View", [this] ( UpdateContext const& context, bool isFocused ) { DrawGraphView( context, isFocused ); } );
-        CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawPropertyGrid( context, isFocused ); } );
+        CreateToolWindow( "Node Editor", [this] ( UpdateContext const& context, bool isFocused ) { DrawNodeEditor( context, isFocused ); } );
         CreateToolWindow( "Outliner", [this] ( UpdateContext const& context, bool isFocused ) { DrawOutliner( context, isFocused ); } );
 
         HideDataFileWindow();
@@ -1095,7 +1126,7 @@ namespace EE::Animation
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Variation Editor" ).c_str(), centerDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Log" ).c_str(), bottomLeftDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Clip Browser" ).c_str(), bottomLeftDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomLeftDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Node Editor" ).c_str(), bottomLeftDockID );
     }
 
     void AnimationGraphEditor::Shutdown( UpdateContext const& context )
@@ -1114,7 +1145,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        EE_ASSERT( !m_previewGraphVariationPtr.IsSet() );
+        EE_ASSERT( !m_previewGraphDefinitionPtr.IsSet() );
 
         ClearGraphStack();
 
@@ -1128,7 +1159,7 @@ namespace EE::Animation
         // Frame End
         //-------------------------------------------------------------------------
 
-        if ( updateContext.GetUpdateStage() == UpdateStage::FrameEnd && IsDebugging() && m_pDebugGraphComponent->WasInitialized() )
+        if ( updateContext.GetUpdateStage() == UpdateStage::FrameEnd && IsDebugging() && m_pDebugGraphComponent->IsInitialized() )
         {
             // Update character transform
             //-------------------------------------------------------------------------
@@ -1140,7 +1171,7 @@ namespace EE::Animation
 
             if ( IsLiveDebugging() )
             {
-                if ( m_pDebugMeshComponent != nullptr && m_pDebugMeshComponent->WasInitialized() )
+                if ( m_pDebugMeshComponent != nullptr && m_pDebugMeshComponent->IsInitialized() )
                 {
                     m_pDebugMeshComponent->SetPose( m_pDebugGraphComponent->GetPrimaryPose() );
                     m_pDebugMeshComponent->FinalizePose();
@@ -1163,7 +1194,7 @@ namespace EE::Animation
             }
 
             // Reflect debug options
-            if ( m_pDebugGraphComponent->WasInitialized() )
+            if ( m_pDebugGraphComponent->IsInitialized() )
             {
                 auto drawingContext = updateContext.GetDrawingContext();
                 m_pDebugGraphComponent->SetGraphDebugMode( m_graphDebugMode );
@@ -1194,11 +1225,34 @@ namespace EE::Animation
 
     void AnimationGraphEditor::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
+        // Process variation requests
+        //-------------------------------------------------------------------------
+
+        if ( !m_variationRequests.empty() )
+        {
+            StringID const activeVariation = GetActiveVariation();
+            EE_ASSERT( activeVariation != Variation::s_defaultVariationID );
+
+            for ( auto& varRequest : m_variationRequests )
+            {
+                if ( varRequest.second )
+                {
+                    varRequest.first->CreateVariationOverride( activeVariation );
+                }
+                else
+                {
+                    varRequest.first->RemoveVariationOverride( activeVariation );
+                }
+            }
+        }
+        m_variationRequests.clear();
+
         // Set read-only state
         //-------------------------------------------------------------------------
 
         bool const isViewReadOnly = IsInReadOnlyState();
-        m_propertyGrid.SetReadOnly( isViewReadOnly );
+        m_nodeEditorPropertyGrid.SetReadOnly( isViewReadOnly );
+        m_nodeVariationDataPropertyGrid.SetReadOnly( isViewReadOnly );
         m_primaryGraphView.SetReadOnly( isViewReadOnly );
         m_secondaryGraphView.SetReadOnly( isViewReadOnly );
 
@@ -1224,15 +1278,15 @@ namespace EE::Animation
         if ( !m_selectedNodes.empty() )
         {
             auto pSelectedNode = m_selectedNodes.back().m_pNode;
-            m_pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterToolsNode>( pSelectedNode );
+            m_pSelectedTargetControlParameter = TryCast<TargetControlParameterToolsNode>( pSelectedNode );
 
             // Handle reference nodes
             if ( m_pSelectedTargetControlParameter == nullptr )
             {
-                auto pReferenceNode = TryCast<GraphNodes::ParameterReferenceToolsNode>( pSelectedNode );
+                auto pReferenceNode = TryCast<ParameterReferenceToolsNode>( pSelectedNode );
                 if ( pReferenceNode != nullptr && pReferenceNode->IsReferencingControlParameter() )
                 {
-                    m_pSelectedTargetControlParameter = TryCast<GraphNodes::TargetControlParameterToolsNode>( pReferenceNode->GetReferencedControlParameter() );
+                    m_pSelectedTargetControlParameter = TryCast<TargetControlParameterToolsNode>( pReferenceNode->GetReferencedControlParameter() );
                 }
             }
         }
@@ -1267,12 +1321,13 @@ namespace EE::Animation
 
         if ( IsDebugging() )
         {
-            if ( m_previewGraphVariationPtr.HasLoadingFailed() )
+            if ( m_previewGraphDefinitionPtr.HasLoadingFailed() )
             {
                 StopDebugging();
+                return;
             }
 
-            if ( !m_pDebugGraphComponent->WasInitialized() )
+            if ( !m_pDebugGraphComponent->IsInitialized() )
             {
                 return;
             }
@@ -1782,16 +1837,13 @@ namespace EE::Animation
         else
         {
             m_loadedGraphStack[0]->m_pGraphDefinition = nullptr;
+            return;
         }
 
         // Update Variation
         //-------------------------------------------------------------------------
 
-        if ( m_openedResourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
-        {
-            TrySetSelectedVariation( Variation::GetVariationNameFromResourceID( m_openedResourceID ) );
-        }
-
+        TrySetActiveVariation( Variation::GetVariationNameFromResourceID( m_openedResourceID ) );
         UpdateUserContext();
 
         // Reset graph stack
@@ -1831,31 +1883,33 @@ namespace EE::Animation
 
     void AnimationGraphEditor::NodeDoubleClicked( NodeGraph::BaseNode* pNode )
     {
-        if ( auto pChildGraphNode = TryCast<GraphNodes::ChildGraphToolsNode>( pNode ) )
+        if ( auto pReferencedGraphNode = TryCast<ReferencedGraphToolsNode>( pNode ) )
         {
-            ResourceID const resourceID = pChildGraphNode->GetResolvedResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
+            ResourceID const resourceID = pReferencedGraphNode->GetReferencedGraphResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
             if ( resourceID.IsValid() )
             {
-                EE_ASSERT( resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
+                EE_ASSERT( resourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() );
                 if ( m_userContext.m_isCtrlDown )
                 {
                     m_userContext.RequestOpenResource( resourceID );
                 }
                 else
                 {
-                    PushOnGraphStack( pChildGraphNode, resourceID );
+                    PushOnGraphStack( pReferencedGraphNode, resourceID );
                 }
             }
         }
-        else if ( auto pDataSlotNode = TryCast<GraphNodes::DataSlotToolsNode>( pNode ) )
+        else if ( auto pVariationDataNode = TryCast<VariationDataToolsNode>( pNode ) )
         {
-            ResourceID const resourceID = pDataSlotNode->GetResolvedResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
-            if ( resourceID.IsValid() )
+            auto pData = pVariationDataNode->GetResolvedVariationData( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
+            TInlineVector<ResourceID, 2> referencedResources;
+            pData->GetReferencedResources( referencedResources );
+            if ( referencedResources.size() == 1 && referencedResources[0].IsValid() )
             {
-                m_userContext.RequestOpenResource( resourceID );
+                m_userContext.RequestOpenResource( referencedResources[0] );
             }
         }
-        else if ( auto pBoneMaskNode = TryCast<GraphNodes::BoneMaskToolsNode>( pNode ) )
+        else if ( auto pBoneMaskNode = TryCast<BoneMaskToolsNode>( pNode ) )
         {
             Variation const* pSelectedVariation = m_userContext.m_pVariationHierarchy->GetVariation( m_userContext.m_selectedVariationID );
 
@@ -1864,7 +1918,7 @@ namespace EE::Animation
                 m_userContext.RequestOpenResource( pSelectedVariation->m_skeleton.GetResourceID() );
             }
         }
-        else if ( auto pExternalGraphNode = TryCast<GraphNodes::ExternalGraphToolsNode>( pNode ) )
+        else if ( auto pExternalGraphNode = TryCast<ExternalGraphToolsNode>( pNode ) )
         {
             if ( m_userContext.HasDebugData() )
             {
@@ -1922,7 +1976,7 @@ namespace EE::Animation
         {
             ClearGraphStack();
 
-            // If this is a child/external graph then we need to remove the parent path
+            // If this is a referenced/external graph then we need to remove the parent path
             //-------------------------------------------------------------------------
 
             DebugPath finalPath = path;
@@ -1930,7 +1984,7 @@ namespace EE::Animation
             if ( !m_pDebugGraphInstance->IsStandaloneInstance() )
             {
                 EE_ASSERT( m_pHostGraphInstance != nullptr );
-                DebugPath const pathToInstance = m_pHostGraphInstance->GetDebugPathForChildOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
+                DebugPath const pathToInstance = m_pHostGraphInstance->GetDebugPathForReferencedOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
                 finalPath.PopFront( pathToInstance.size() );
             }
 
@@ -1948,12 +2002,12 @@ namespace EE::Animation
                 {
                     NavigateTo( pVisualNode );
                 }
-                else // Child Graph
+                else // Referenced Graph
                 {
-                    auto pChildGraphNode = Cast<GraphNodes::ChildGraphToolsNode>( pVisualNode );
-                    ResourceID const childGraphResourceID = pChildGraphNode->GetResolvedResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
-                    EE_ASSERT( childGraphResourceID.IsValid() && childGraphResourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
-                    PushOnGraphStack( pChildGraphNode, childGraphResourceID );
+                    auto pReferencedGraphNode = Cast<ReferencedGraphToolsNode>( pVisualNode );
+                    ResourceID const referencedGraphResourceID = pReferencedGraphNode->GetReferencedGraphResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
+                    EE_ASSERT( referencedGraphResourceID.IsValid() && referencedGraphResourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() );
+                    PushOnGraphStack( pReferencedGraphNode, referencedGraphResourceID );
                 }
             }
         };
@@ -1966,7 +2020,7 @@ namespace EE::Animation
         if ( m_pHostGraphInstance != nullptr )
         {
             pDebuggerInstance = m_pHostGraphInstance;
-            pathToInstance = m_pHostGraphInstance->GetDebugPathForChildOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
+            pathToInstance = m_pHostGraphInstance->GetDebugPathForReferencedOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
         }
 
         bool const showDebugData = IsDebugging() && pDebuggerInstance != nullptr && pDebuggerInstance->WasInitialized();
@@ -2010,11 +2064,11 @@ namespace EE::Animation
         }
 
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
-        if ( ImGui::CollapsingHeader( "State Events" ) )
+        if ( ImGui::CollapsingHeader( "Graph Events" ) )
         {
             if ( showDebugData )
             {
-                AnimationDebugView::DrawSampledStateEventsView( pDebuggerInstance, pathToInstance, NavigateToSourceNode );
+                AnimationDebugView::DrawSampledGraphEventsView( pDebuggerInstance, pathToInstance, NavigateToSourceNode );
             }
             else
             {
@@ -2033,7 +2087,7 @@ namespace EE::Animation
         ToolsGraphDefinition* pToolsGraphDefinition = GetEditedGraphData()->m_pGraphDefinition;
 
         GraphDefinitionCompiler definitionCompiler;
-        bool const graphCompiledSuccessfully = definitionCompiler.CompileGraph( *pToolsGraphDefinition );
+        bool const graphCompiledSuccessfully = definitionCompiler.CompileGraph( *pToolsGraphDefinition, GetActiveVariation() );
         m_compilationLog = definitionCompiler.GetLog();
 
         // Compilation failed, stop preview attempt
@@ -2057,7 +2111,7 @@ namespace EE::Animation
             bool const requestImmediateCompilation = target.m_type != DebugTargetType::Recording;
             if ( requestImmediateCompilation )
             {
-                ResourceID const graphVariationResourceID = Variation::GenerateResourceDataPath( m_pToolsContext->GetSourceDataDirectory(), GetDataFileSystemPath() , GetEditedGraphData()->m_selectedVariationID );
+                ResourceID const graphVariationResourceID = Variation::GenerateResourceDataPath( m_pToolsContext->GetSourceDataDirectory(), GetDataFileSystemPath() , GetEditedGraphData()->m_activeVariationID );
                 if ( !RequestImmediateResourceCompilation( graphVariationResourceID ) )
                 {
                     return;
@@ -2092,17 +2146,17 @@ namespace EE::Animation
         if ( m_requestedDebugTarget.m_type == DebugTargetType::DirectPreview || m_requestedDebugTarget.m_type == DebugTargetType::Recording )
         {
             // Create resource ID for the graph variation
-            StringID const selectionVariationID = GetEditedGraphData()->m_selectedVariationID;
-            ResourceID const graphVariationResourceID = Variation::GenerateResourceDataPath( m_pToolsContext->GetSourceDataDirectory(), GetDataFileSystemPath() , selectionVariationID );
+            StringID const selectedVariationID = GetEditedGraphData()->m_activeVariationID;
+            ResourceID const graphDefinitionResourceID = Variation::GenerateResourceDataPath( m_pToolsContext->GetSourceDataDirectory(), GetDataFileSystemPath() , selectedVariationID );
 
             // Create Preview Graph Component
-            EE_ASSERT( !m_previewGraphVariationPtr.IsSet() );
-            m_previewGraphVariationPtr = TResourcePtr<GraphVariation>( graphVariationResourceID );
-            LoadResource( &m_previewGraphVariationPtr );
+            EE_ASSERT( !m_previewGraphDefinitionPtr.IsSet() );
+            m_previewGraphDefinitionPtr = TResourcePtr<GraphDefinition>( graphDefinitionResourceID );
+            LoadResource( &m_previewGraphDefinitionPtr );
 
             m_pDebugGraphComponent = EE::New<GraphComponent>( StringID( "Animation Component" ) );
             m_pDebugGraphComponent->ShouldApplyRootMotionToEntity( true );
-            m_pDebugGraphComponent->SetGraphVariation( graphVariationResourceID );
+            m_pDebugGraphComponent->SetGraphDefinition( graphDefinitionResourceID );
             m_pDebugGraphComponent->SetSkeletonLOD( m_skeletonLOD );
 
             if ( m_requestedDebugTarget.m_type == DebugTargetType::Recording )
@@ -2133,10 +2187,10 @@ namespace EE::Animation
                 }
                 break;
 
-                case DebugTargetType::ChildGraph:
+                case DebugTargetType::ReferencedGraph:
                 {
                     m_pHostGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
-                    m_pDebugGraphInstance = const_cast<GraphInstance*>( m_pHostGraphInstance->GetChildGraphDebugInstance( m_requestedDebugTarget.m_childGraphID ) );
+                    m_pDebugGraphInstance = const_cast<GraphInstance*>( m_pHostGraphInstance->GetReferencedGraphDebugInstance( m_requestedDebugTarget.m_referencedGraphID ) );
                     EE_ASSERT( m_pDebugGraphInstance != nullptr );
                 }
                 break;
@@ -2159,21 +2213,21 @@ namespace EE::Animation
 
             // Switch to the correct variation
             StringID const debuggedInstanceVariationID = m_pDebugGraphInstance->GetVariationID();
-            if ( GetEditedGraphData()->m_selectedVariationID != debuggedInstanceVariationID )
+            if ( GetEditedGraphData()->m_activeVariationID != debuggedInstanceVariationID )
             {
-                SetSelectedVariation( debuggedInstanceVariationID );
+                SetActiveVariation( debuggedInstanceVariationID );
             }
         }
 
         // Try Create Preview Mesh Component
         //-------------------------------------------------------------------------
 
-        auto pVariation = GetEditedGraphData()->m_pGraphDefinition->GetVariation( GetEditedGraphData()->m_selectedVariationID );
+        auto pVariation = GetEditedGraphData()->m_pGraphDefinition->GetVariation( GetEditedGraphData()->m_activeVariationID );
         EE_ASSERT( pVariation != nullptr );
         if ( pVariation->m_skeleton.IsSet() )
         {
             // Load resource descriptor for skeleton to get the preview mesh
-            FileSystem::Path const resourceDescPath = GetFileSystemPath( pVariation->m_skeleton.GetResourcePath() );
+            FileSystem::Path const resourceDescPath = GetFileSystemPath( pVariation->m_skeleton.GetDataPath() );
             SkeletonResourceDescriptor resourceDesc;
             if ( Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, resourceDescPath, resourceDesc ) )
             {
@@ -2294,13 +2348,13 @@ namespace EE::Animation
 
         if ( isPreviewOrReview )
         {
-            EE_ASSERT( m_previewGraphVariationPtr.IsSet() );
+            EE_ASSERT( m_previewGraphDefinitionPtr.IsSet() );
             // Need to check this explicitly since it may have already been unloaded via a hot-reload request
-            if( m_previewGraphVariationPtr.WasRequested() )
+            if( m_previewGraphDefinitionPtr.WasRequested() )
             {
-                UnloadResource( &m_previewGraphVariationPtr );
+                UnloadResource( &m_previewGraphDefinitionPtr );
             }
-            m_previewGraphVariationPtr.Clear();
+            m_previewGraphDefinitionPtr.Clear();
         }
 
         // Reset camera
@@ -2327,10 +2381,10 @@ namespace EE::Animation
 
     void AnimationGraphEditor::ReflectInitialPreviewParameterValues( UpdateContext const& context )
     {
-        EE_ASSERT( m_isFirstPreviewFrame && m_pDebugGraphComponent != nullptr && m_pDebugGraphComponent->WasInitialized() );
+        EE_ASSERT( m_isFirstPreviewFrame && m_pDebugGraphComponent != nullptr && m_pDebugGraphComponent->IsInitialized() );
 
         auto pRootGraph = GetEditedRootGraph();
-        auto const controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        auto const controlParameters = pRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
         for ( auto pControlParameter : controlParameters )
         {
             int16_t const parameterIdx = m_pDebugGraphComponent->GetControlParameterIndex( StringID( pControlParameter->GetParameterName() ) );
@@ -2345,35 +2399,35 @@ namespace EE::Animation
             {
                 case GraphValueType::Bool:
                 {
-                    auto pNode = TryCast<GraphNodes::BoolControlParameterToolsNode>( pControlParameter );
+                    auto pNode = TryCast<BoolControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
 
                 case GraphValueType::ID:
                 {
-                    auto pNode = TryCast<GraphNodes::IDControlParameterToolsNode>( pControlParameter );
+                    auto pNode = TryCast<IDControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
 
                 case GraphValueType::Float:
                 {
-                    auto pNode = TryCast<GraphNodes::FloatControlParameterToolsNode>( pControlParameter );
+                    auto pNode = TryCast<FloatControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
 
                 case GraphValueType::Vector:
                 {
-                    auto pNode = TryCast<GraphNodes::VectorControlParameterToolsNode>( pControlParameter );
+                    auto pNode = TryCast<VectorControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
 
                 case GraphValueType::Target:
                 {
-                    auto pNode = TryCast<GraphNodes::TargetControlParameterToolsNode>( pControlParameter );
+                    auto pNode = TryCast<TargetControlParameterToolsNode>( pControlParameter );
                     m_pDebugGraphComponent->SetControlParameterValue( parameterIdx, pNode->GetPreviewStartValue() );
                 }
                 break;
@@ -2412,11 +2466,17 @@ namespace EE::Animation
 
             for ( GraphComponent* pGraphComponent : graphComponents )
             {
+                if ( !pGraphComponent->HasGraphInstance() )
+                {
+                    continue;
+                }
+
+                Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
+
                 // Check main instance
                 GraphInstance const* pGraphInstance = pGraphComponent->GetDebugGraphInstance();
                 if ( pGraphInstance->GetDefinitionResourceID() == GetDataFilePath() )
                 {
-                    Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
                     InlineString const targetName( InlineString::CtorSprintf(), "%s (%s)", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str() );
                     if ( ImGui::MenuItem( targetName.c_str() ) )
                     {
@@ -2429,21 +2489,20 @@ namespace EE::Animation
                     hasTargets = true;
                 }
 
-                // Check child graph instances
-                TVector<GraphInstance::DebuggableChildGraph> childGraphs;
-                pGraphInstance->GetChildGraphsForDebug( childGraphs );
-                for ( auto const& childGraph : childGraphs )
+                // Check referenced graph instances
+                TVector<GraphInstance::DebuggableReferencedGraph> referencedGraphs;
+                pGraphInstance->GetReferencedGraphsForDebug( referencedGraphs );
+                for ( auto const& referencedGraph : referencedGraphs )
                 {
-                    if ( childGraph.m_pInstance->GetDefinitionResourceID() == GetDataFilePath() )
+                    if ( referencedGraph.m_pInstance->GetDefinitionResourceID() == GetDataFilePath() )
                     {
-                        Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
-                        InlineString const targetName( InlineString::CtorSprintf(), "%s (%s) - %s", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), childGraph.m_path.GetFlattenedPath().c_str() );
+                        InlineString const targetName( InlineString::CtorSprintf(), "%s (%s) - %s", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), referencedGraph.m_path.GetFlattenedPath().c_str() );
                         if ( ImGui::MenuItem( targetName.c_str() ) )
                         {
                             DebugTarget target;
-                            target.m_type = DebugTargetType::ChildGraph;
+                            target.m_type = DebugTargetType::ReferencedGraph;
                             target.m_pComponentToDebug = pGraphComponent;
-                            target.m_childGraphID = childGraph.GetID();
+                            target.m_referencedGraphID = referencedGraph.GetID();
                             RequestDebugSession( context, target );
                         }
 
@@ -2457,7 +2516,6 @@ namespace EE::Animation
                 {
                     if ( externalGraph.m_pInstance->GetDefinitionResourceID() == GetDataFilePath() )
                     {
-                        Entity const* pEntity = pWorld->FindEntity( pGraphComponent->GetEntityID() );
                         InlineString const targetName( InlineString::CtorSprintf(), "%s (%s) - %s", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), externalGraph.m_slotID.c_str() );
                         if ( ImGui::MenuItem( targetName.c_str() ) )
                         {
@@ -2490,29 +2548,29 @@ namespace EE::Animation
     // Selection
     //-------------------------------------------------------------------------
 
-    void AnimationGraphEditor::SetSelectedVariation( StringID variationID )
+    void AnimationGraphEditor::SetActiveVariation( StringID variationID )
     {
         EE_ASSERT( GetEditedGraphData()->m_pGraphDefinition->IsValidVariation( variationID ) );
-        if ( GetEditedGraphData()->m_selectedVariationID != variationID )
+        if ( GetEditedGraphData()->m_activeVariationID != variationID )
         {
             if ( IsDebugging() )
             {
                 StopDebugging();
             }
 
-            GetEditedGraphData()->m_selectedVariationID = variationID;
+            GetEditedGraphData()->m_activeVariationID = variationID;
             UpdateUserContext();
             RefreshVariationEditor();
         }
     }
 
-    bool AnimationGraphEditor::TrySetSelectedVariation( String const& variationName )
+    bool AnimationGraphEditor::TrySetActiveVariation( String const& variationName )
     {
         auto const& varHierarchy = GetEditedGraphData()->m_pGraphDefinition->GetVariationHierarchy();
         StringID const variationID = varHierarchy.TryGetCaseCorrectVariationID( variationName );
         if ( variationID.IsValid() )
         {
-            SetSelectedVariation( variationID );
+            SetActiveVariation( variationID );
             return true;
         }
 
@@ -2525,7 +2583,7 @@ namespace EE::Animation
 
     void AnimationGraphEditor::UpdateUserContext()
     {
-        m_userContext.m_selectedVariationID = m_loadedGraphStack.back()->m_selectedVariationID;
+        m_userContext.m_selectedVariationID = m_loadedGraphStack.back()->m_activeVariationID;
         m_userContext.m_pVariationHierarchy = &m_loadedGraphStack.back()->m_pGraphDefinition->GetVariationHierarchy();
 
         //-------------------------------------------------------------------------
@@ -2547,7 +2605,7 @@ namespace EE::Animation
 
         if ( m_loadedGraphStack.size() > 1 )
         {
-            m_userContext.SetExtraGraphTitleInfoText( "External Child Graph" );
+            m_userContext.SetExtraGraphTitleInfoText( "External Referenced Graph" );
             m_userContext.SetExtraTitleInfoTextColor( Colors::HotPink );
         }
         else // In main graph
@@ -2661,8 +2719,8 @@ namespace EE::Animation
             bool drawChevron = true;
             bool drawItem = true;
 
-            auto const pParentState = TryCast<GraphNodes::StateToolsNode>( pathFromChildToRoot[i].m_pNode->GetParentGraph()->GetParentNode() );
-            auto const pState = TryCast<GraphNodes::StateToolsNode>( pathFromChildToRoot[i].m_pNode );
+            auto const pParentState = TryCast<StateToolsNode>( pathFromChildToRoot[i].m_pNode->GetParentGraph()->GetParentNode() );
+            auto const pState = TryCast<StateToolsNode>( pathFromChildToRoot[i].m_pNode );
 
             // Hide the item is it is a state machine node whose parent is "state machine state"
             if ( pParentState != nullptr && !pParentState->IsBlendTreeState() )
@@ -2682,14 +2740,14 @@ namespace EE::Animation
             {
                 NodeGraph::BaseGraph* pChildGraphToCheck = nullptr;
 
-                // Check external child graph for state machines
-                if ( IsOfType<GraphNodes::ChildGraphToolsNode>( pathFromChildToRoot[i].m_pNode ) )
+                // Check external referenced graph for state machines
+                if ( IsOfType<ReferencedGraphToolsNode>( pathFromChildToRoot[i].m_pNode ) )
                 {
                     EE_ASSERT( ( pathFromChildToRoot[i].m_stackIdx + 1 ) < m_loadedGraphStack.size() );
                     pChildGraphToCheck = m_loadedGraphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_pGraphDefinition->GetRootGraph();
                 }
-                // We should search child graph
-                else if ( !IsOfType<GraphNodes::StateMachineToolsNode>( pathFromChildToRoot[i].m_pNode ) )
+                // We should search state machine graph
+                else if ( !IsOfType<StateMachineToolsNode>( pathFromChildToRoot[i].m_pNode ) )
                 {
                     pChildGraphToCheck = pathFromChildToRoot[i].m_pNode->GetChildGraph();
                 }
@@ -2697,7 +2755,7 @@ namespace EE::Animation
                 // If we have a graph to check then check for child state machines
                 if ( pChildGraphToCheck != nullptr )
                 {
-                    auto const childStateMachines = pChildGraphToCheck->FindAllNodesOfType<GraphNodes::StateMachineToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
+                    auto const childStateMachines = pChildGraphToCheck->FindAllNodesOfType<StateMachineToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
                     if ( childStateMachines.empty() )
                     {
                         drawChevron = false;
@@ -2712,8 +2770,8 @@ namespace EE::Animation
             // Draw the item
             if ( drawItem )
             {
-                bool const isExternalChildGraphItem = pathFromChildToRoot[i].m_stackIdx > 0;
-                if ( isExternalChildGraphItem )
+                bool const isExternalReferencedGraphItem = pathFromChildToRoot[i].m_stackIdx > 0;
+                if ( isExternalReferencedGraphItem )
                 {
                     ImVec4 const color( Vector( 0.65f, 0.65f, 0.65f, 1.0f ) * Vector( ImGuiX::Style::s_colorText.ToFloat4() ) );
                     ImGui::PushStyleColor( ImGuiCol_Text, color );
@@ -2725,14 +2783,14 @@ namespace EE::Animation
                 {
                     if ( isStateMachineState )
                     {
-                        auto const childStateMachines = pathFromChildToRoot[i].m_pNode->GetChildGraph()->FindAllNodesOfType<GraphNodes::StateMachineToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
+                        auto const childStateMachines = pathFromChildToRoot[i].m_pNode->GetChildGraph()->FindAllNodesOfType<StateMachineToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
                         EE_ASSERT( childStateMachines.size() );
                         pGraphToNavigateTo = childStateMachines[0]->GetChildGraph();
                     }
                     else
                     {
                         // Go to the external child graph's root graph
-                        if ( auto pCG = TryCast<GraphNodes::ChildGraphToolsNode>( pathFromChildToRoot[i].m_pNode ) )
+                        if ( auto pCG = TryCast<ReferencedGraphToolsNode>( pathFromChildToRoot[i].m_pNode ) )
                         {
                             EE_ASSERT( m_loadedGraphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_pParentNode == pCG );
                             pGraphToNavigateTo = m_loadedGraphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_pGraphDefinition->GetRootGraph();
@@ -2744,7 +2802,7 @@ namespace EE::Animation
                     }
                 }
 
-                if ( isExternalChildGraphItem )
+                if ( isExternalReferencedGraphItem )
                 {
                     ImGui::PopStyleColor();
                 }
@@ -2775,9 +2833,9 @@ namespace EE::Animation
             bool hasItems = false;
 
             // If we navigating in a state machine node, we need to list all states
-            if ( auto pSM = TryCast<GraphNodes::StateMachineToolsNode>( m_pBreadcrumbPopupContext ) )
+            if ( auto pSM = TryCast<StateMachineToolsNode>( m_pBreadcrumbPopupContext ) )
             {
-                auto const childStates = pSM->GetChildGraph()->FindAllNodesOfType<GraphNodes::StateToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+                auto const childStates = pSM->GetChildGraph()->FindAllNodesOfType<StateToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
                 for ( auto pChildState : childStates )
                 {
                     // Ignore Off States
@@ -2801,7 +2859,7 @@ namespace EE::Animation
                         InlineString const label( InlineString::CtorSprintf(), EE_ICON_STATE_MACHINE" %s", pChildState->GetName() );
                         if ( ImGui::MenuItem( label.c_str() ) )
                         {
-                            auto const childStateMachines = pChildState->GetChildGraph()->FindAllNodesOfType<GraphNodes::StateMachineToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
+                            auto const childStateMachines = pChildState->GetChildGraph()->FindAllNodesOfType<StateMachineToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Exact );
                             EE_ASSERT( childStateMachines.size() );
                             pGraphToNavigateTo = childStateMachines[0]->GetChildGraph();
                             ImGui::CloseCurrentPopup();
@@ -2819,12 +2877,12 @@ namespace EE::Animation
                 {
                     pGraphToSearch = pRootGraph;
                 }
-                else if ( auto pCG = TryCast<GraphNodes::ChildGraphToolsNode>( m_pBreadcrumbPopupContext ) )
+                else if ( auto pCG = TryCast<ReferencedGraphToolsNode>( m_pBreadcrumbPopupContext ) )
                 {
                     int32_t const nodeStackIdx = GetStackIndexForNode( pCG );
-                    int32_t const childGraphStackIdx = nodeStackIdx + 1;
-                    EE_ASSERT( childGraphStackIdx < m_loadedGraphStack.size() );
-                    pGraphToSearch = m_loadedGraphStack[childGraphStackIdx]->m_pGraphDefinition->GetRootGraph();
+                    int32_t const referencedGraphStackIdx = nodeStackIdx + 1;
+                    EE_ASSERT( referencedGraphStackIdx < m_loadedGraphStack.size() );
+                    pGraphToSearch = m_loadedGraphStack[referencedGraphStackIdx]->m_pGraphDefinition->GetRootGraph();
                 }
                 else
                 {
@@ -2833,7 +2891,7 @@ namespace EE::Animation
 
                 EE_ASSERT( pGraphToSearch != nullptr );
 
-                auto childSMs = pGraphToSearch->FindAllNodesOfType<GraphNodes::StateMachineToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+                auto childSMs = pGraphToSearch->FindAllNodesOfType<StateMachineToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
                 for ( auto pChildSM : childSMs )
                 {
                     if ( ImGui::MenuItem( pChildSM->GetName() ) )
@@ -3003,7 +3061,7 @@ namespace EE::Animation
                         pSecondaryGraphToView = pSecondaryGraph;
                     }
                 }
-                else if ( auto pParameterReference = TryCast<GraphNodes::ParameterReferenceToolsNode>( pSelectedNode ) )
+                else if ( auto pParameterReference = TryCast<ParameterReferenceToolsNode>( pSelectedNode ) )
                 {
                     if ( auto pVP = pParameterReference->GetReferencedVirtualParameter() )
                     {
@@ -3056,26 +3114,26 @@ namespace EE::Animation
     void AnimationGraphEditor::PushOnGraphStack( NodeGraph::BaseNode* pSourceNode, ResourceID const& graphID )
     {
         EE_ASSERT( pSourceNode != nullptr );
-        EE_ASSERT( graphID.IsValid() && graphID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
+        EE_ASSERT( graphID.IsValid() && graphID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() );
 
         ResourceID const graphDefinitionResourceID = Variation::GetGraphResourceID( graphID );
-        FileSystem::Path const childGraphFilePath = GetFileSystemPath( graphDefinitionResourceID.GetResourcePath() );
-        if ( childGraphFilePath.IsValid() )
+        FileSystem::Path const referencedGraphFilePath = GetFileSystemPath( graphDefinitionResourceID.GetDataPath() );
+        if ( referencedGraphFilePath.IsValid() )
         {
             // Try to load the graph from the file
-            auto pChildGraphStackData = m_loadedGraphStack.emplace_back( EE::New<LoadedGraphData>() );
+            auto pReferencedGraphStackData = m_loadedGraphStack.emplace_back( EE::New<LoadedGraphData>() );
 
             // Load child graph
-            if ( GraphResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, childGraphFilePath, pChildGraphStackData->m_descriptor ) )
+            if ( GraphResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, referencedGraphFilePath, pReferencedGraphStackData->m_descriptor ) )
             {
                 // Set ptr
-                pChildGraphStackData->m_pGraphDefinition = &pChildGraphStackData->m_descriptor.m_graphDefinition;
+                pReferencedGraphStackData->m_pGraphDefinition = &pReferencedGraphStackData->m_descriptor.m_graphDefinition;
 
                 // Set up variation and other aspects
-                StringID const variationID = pChildGraphStackData->m_pGraphDefinition->GetVariationHierarchy().TryGetCaseCorrectVariationID( Variation::GetVariationNameFromResourceID( graphID ) );
-                pChildGraphStackData->m_selectedVariationID = variationID;
-                pChildGraphStackData->m_pParentNode = pSourceNode;
-                NavigateTo( pChildGraphStackData->m_pGraphDefinition->GetRootGraph() );
+                StringID const variationID = pReferencedGraphStackData->m_pGraphDefinition->GetVariationHierarchy().TryGetCaseCorrectVariationID( Variation::GetVariationNameFromResourceID( graphID ) );
+                pReferencedGraphStackData->m_activeVariationID = variationID;
+                pReferencedGraphStackData->m_pParentNode = pSourceNode;
+                NavigateTo( pReferencedGraphStackData->m_pGraphDefinition->GetRootGraph() );
 
                 if ( IsDebugging() )
                 {
@@ -3088,14 +3146,14 @@ namespace EE::Animation
             }
             else
             {
-                MessageDialog::Error( "Error!", "Failed to load child graph!" );
-                EE::Delete( pChildGraphStackData );
+                MessageDialog::Error( "Error!", "Failed to load referenced graph!" );
+                EE::Delete( pReferencedGraphStackData );
                 m_loadedGraphStack.pop_back();
             }
         }
         else // Show error dialog
         {
-            MessageDialog::Error( "Error!", "Invalid child graph resource ID" );
+            MessageDialog::Error( "Error!", "Invalid referenced graph resource ID" );
         }
     }
 
@@ -3147,11 +3205,11 @@ namespace EE::Animation
         {
             GraphDefinitionCompiler definitionCompiler;
 
-            TVector<int16_t> childGraphPathNodeIndices;
+            TVector<int16_t> referencedGraphPathNodeIndices;
             for ( auto i = 0; i < m_loadedGraphStack.size(); i++ )
             {
-                // Compile the external child graph
-                if ( !definitionCompiler.CompileGraph( *m_loadedGraphStack[i]->m_pGraphDefinition ) )
+                // Compile the external referenced graph
+                if ( !definitionCompiler.CompileGraph( *m_loadedGraphStack[i]->m_pGraphDefinition, m_loadedGraphStack[i]->m_activeVariationID ) )
                 {
                     MessageDialog::Error( "Compilation Error", "Failed to compile graph - Stopping Debug!" );
                     return false;
@@ -3171,7 +3229,7 @@ namespace EE::Animation
                     LoadedGraphData* pParentStack = m_loadedGraphStack[i - 1];
                     auto const foundIter = pParentStack->m_nodeIDtoIndexMap.find( m_loadedGraphStack[i]->m_pParentNode->GetID() );
                     EE_ASSERT( foundIter != pParentStack->m_nodeIDtoIndexMap.end() );
-                    m_loadedGraphStack[i]->m_pGraphInstance = const_cast<GraphInstance*>( pParentStack->m_pGraphInstance->GetChildGraphDebugInstance( foundIter->second ) );
+                    m_loadedGraphStack[i]->m_pGraphInstance = const_cast<GraphInstance*>( pParentStack->m_pGraphInstance->GetReferencedGraphDebugInstance( foundIter->second ) );
                 }
             }
         }
@@ -3198,7 +3256,7 @@ namespace EE::Animation
         // Skip control and virtual parameters
         //-------------------------------------------------------------------------
 
-        if ( IsOfType<GraphNodes::ControlParameterToolsNode>( pNode ) || IsOfType<GraphNodes::VirtualParameterToolsNode>( pNode ) )
+        if ( IsOfType<ControlParameterToolsNode>( pNode ) || IsOfType<VirtualParameterToolsNode>( pNode ) )
         {
             return;
         }
@@ -3209,16 +3267,16 @@ namespace EE::Animation
         TVector<StringID> foundIDs;
         NavigationTarget::Type type = NavigationTarget::Type::Unknown;
 
-        if ( IsOfType<GraphNodes::ParameterReferenceToolsNode>( pNode ) )
+        if ( IsOfType<ParameterReferenceToolsNode>( pNode ) )
         {
             type = NavigationTarget::Type::Parameter;
         }
-        else if ( auto pStateNode = TryCast<GraphNodes::StateToolsNode>( pNode ) )
+        else if ( auto pStateNode = TryCast<StateToolsNode>( pNode ) )
         {
             type = NavigationTarget::Type::Pose;
             pStateNode->GetLogicAndEventIDs( foundIDs );
         }
-        else if ( auto pFlowNode = TryCast<GraphNodes::FlowToolsNode>( pNode ) )
+        else if ( auto pFlowNode = TryCast<FlowToolsNode>( pNode ) )
         {
             GraphValueType const valueType = pFlowNode->GetOutputValueType();
             if ( valueType == GraphValueType::Pose )
@@ -3541,14 +3599,14 @@ namespace EE::Animation
             m_displayColor = ImGuiX::Style::s_colorText;
         }
 
-        GraphOutlinerItem( TreeListViewItem* pParent, AnimationGraphEditor* pGraphEditor, GraphNodes::DataSlotToolsNode* pDataSlotNode )
+        GraphOutlinerItem( TreeListViewItem* pParent, AnimationGraphEditor* pGraphEditor, VariationDataToolsNode* pVariationDataNode )
             : TreeListViewItem( pParent )
             , m_pGraphEditor( pGraphEditor )
-            , m_pNode( pDataSlotNode )
-            , m_nameID( pDataSlotNode->GetName() )
+            , m_pNode( pVariationDataNode )
+            , m_nameID( pVariationDataNode->GetName() )
         {
             EE_ASSERT( m_pGraphEditor != nullptr );
-            m_displayColor = pDataSlotNode->GetTitleBarColor();
+            m_displayColor = pVariationDataNode->GetTitleBarColor();
         }
 
         virtual uint64_t GetUniqueID() const override { return (uint64_t) m_pNode; }
@@ -3557,15 +3615,15 @@ namespace EE::Animation
         {
             InlineString displayName;
 
-            if ( IsOfType<GraphNodes::StateMachineToolsNode>( m_pNode ) )
+            if ( IsOfType<StateMachineToolsNode>( m_pNode ) )
             {
                 displayName.sprintf( EE_ICON_STATE_MACHINE" %s", m_pNode->GetName() );
             }
-            else if ( IsOfType<GraphNodes::ChildGraphToolsNode>( m_pNode ) )
+            else if ( IsOfType<ReferencedGraphToolsNode>( m_pNode ) )
             {
                 displayName.sprintf( EE_ICON_GRAPH" %s", m_pNode->GetName() );
             }
-            else if ( IsOfType<GraphNodes::DataSlotToolsNode>( m_pNode ) )
+            else if ( IsOfType<VariationDataToolsNode>( m_pNode ) )
             {
                 displayName.sprintf( EE_ICON_ARROW_BOTTOM_RIGHT" %s", m_pNode->GetName() );
             }
@@ -3632,10 +3690,10 @@ namespace EE::Animation
         auto pRootGraph = GetEditedRootGraph();
 
         // Get all states
-        auto stateNodes = pRootGraph->FindAllNodesOfType<GraphNodes::StateToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
+        auto stateNodes = pRootGraph->FindAllNodesOfType<StateToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
 
-        // Get all slots
-        auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
+        // Get all variation data nodes
+        auto variationDataNodes = pRootGraph->FindAllNodesOfType<VariationDataToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
 
         // Construction Helper
         //-------------------------------------------------------------------------
@@ -3704,11 +3762,11 @@ namespace EE::Animation
             constructionMap.insert( TPair<UUID, TreeListViewItem*>( pStateNode->GetID(), pCreatedItem ) );
         }
 
-        for ( auto pSlotNode : dataSlotNodes )
+        for ( auto pVariationDataNode : variationDataNodes )
         {
-            auto pParentItem = FindParentItem( pRootItem, pSlotNode );
-            auto pCreatedItem = pParentItem->CreateChild<GraphOutlinerItem>( this, pSlotNode );
-            constructionMap.insert( TPair<UUID, TreeListViewItem*>( pSlotNode->GetID(), pCreatedItem ) );
+            auto pParentItem = FindParentItem( pRootItem, pVariationDataNode );
+            auto pCreatedItem = pParentItem->CreateChild<GraphOutlinerItem>( this, pVariationDataNode );
+            constructionMap.insert( TPair<UUID, TreeListViewItem*>( pVariationDataNode->GetID(), pCreatedItem ) );
         }
     }
 
@@ -3716,38 +3774,112 @@ namespace EE::Animation
     // Property Grid
     //-------------------------------------------------------------------------
 
-    void AnimationGraphEditor::DrawPropertyGrid( UpdateContext const& context, bool isFocused )
+    void AnimationGraphEditor::DrawNodeEditor( UpdateContext const& context, bool isFocused )
     {
         if ( m_selectedNodes.empty() || m_selectedNodes.size() > 1 )
         {
-            m_propertyGrid.SetTypeToEdit( nullptr );
+            m_nodeEditorPropertyGrid.SetTypeToEdit( nullptr );
+            m_nodeVariationDataPropertyGrid.SetTypeToEdit( nullptr );
+            return;
         }
-        else
+
+        // Update node editor property grid
+        //-------------------------------------------------------------------------
+
+        auto pSelectedNode = m_selectedNodes.back().m_pNode;
+        if ( m_nodeEditorPropertyGrid.GetEditedType() != pSelectedNode )
         {
-            auto pSelectedNode = m_selectedNodes.back().m_pNode;
-            if ( m_propertyGrid.GetEditedType() != pSelectedNode )
+            // Handle control parameters as a special case
+            auto pReferenceNode = TryCast<ParameterReferenceToolsNode>( pSelectedNode );
+            if ( pReferenceNode != nullptr && pReferenceNode->IsReferencingControlParameter() )
             {
-                // Handle control parameters as a special case
-                auto pReferenceNode = TryCast<GraphNodes::ParameterReferenceToolsNode>( pSelectedNode );
-                if ( pReferenceNode != nullptr && pReferenceNode->IsReferencingControlParameter() )
-                {
-                    m_propertyGrid.SetTypeToEdit( pReferenceNode->GetReferencedControlParameter() );
-                }
-                else
-                {
-                    m_propertyGrid.SetTypeToEdit( pSelectedNode );
-                }
+                m_nodeEditorPropertyGrid.SetTypeToEdit( pReferenceNode->GetReferencedControlParameter() );
+            }
+            else
+            {
+                m_nodeEditorPropertyGrid.SetTypeToEdit( pSelectedNode );
             }
         }
 
+        // Update node variation data property grid
         //-------------------------------------------------------------------------
 
-        if ( !m_selectedNodes.empty() )
+        StringID const activeVariationID = GetActiveVariation();
+        bool const isDefaultVariation = activeVariationID == Variation::s_defaultVariationID;
+        VariationDataToolsNode* pVariationDataNode = TryCast<VariationDataToolsNode>( pSelectedNode );
+
+        bool const shouldDrawVariationPropertyGrid = pVariationDataNode != nullptr;
+        bool const hasVariationData = isDefaultVariation || ( pVariationDataNode ? pVariationDataNode->HasVariationOverride( activeVariationID ) : false );
+
+        if ( pVariationDataNode != nullptr )
         {
-            ImGui::Text( "Node: %s", m_selectedNodes.back().m_pNode->GetName() );
+            // Get the resolved data object, this is only editable if it is the default variation or an explicit override for the current variation
+            auto pRootGraph = GetEditedRootGraph();
+            auto& variationHierarchy = GetEditedGraphData()->m_pGraphDefinition->GetVariationHierarchy();
+            auto pData = pVariationDataNode->GetResolvedVariationData( variationHierarchy, activeVariationID );
+            if ( m_nodeVariationDataPropertyGrid.GetEditedType() != pData )
+            {
+                m_nodeVariationDataPropertyGrid.SetTypeToEdit( pData );
+            }
+
+            m_nodeVariationDataPropertyGrid.SetReadOnly( IsInReadOnlyState() || !hasVariationData );
+        }
+        else
+        {
+            m_nodeVariationDataPropertyGrid.SetTypeToEdit( nullptr );
         }
 
-        m_propertyGrid.UpdateAndDraw();
+        // Draw UI
+        //-------------------------------------------------------------------------
+
+        // Header
+        InlineString separatorLabel( InlineString::CtorSprintf(), "Node: %s", m_selectedNodes.back().m_pNode->GetName() );
+        ImGui::SeparatorText( separatorLabel.c_str() );
+
+        // Draw property grid
+        if ( shouldDrawVariationPropertyGrid )
+        {
+            if ( ImGui::BeginChild( "ResizableChild", ImVec2( -FLT_MIN, m_nodeEditorPropertyGrid.GetMinimumHeight() ), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeY ) )
+            {
+                m_nodeEditorPropertyGrid.UpdateAndDraw();
+            }
+            ImGui::EndChild();
+        }
+        else
+        {
+            m_nodeEditorPropertyGrid.UpdateAndDraw();
+        }
+
+        if ( shouldDrawVariationPropertyGrid )
+        {
+            // Header
+            separatorLabel = InlineString( InlineString::CtorSprintf(), "Variation Data: %s", activeVariationID.c_str() );
+            ImGui::SeparatorText( separatorLabel.c_str() );
+
+            // Draw override controls
+            if ( !isDefaultVariation )
+            {
+                if ( hasVariationData )
+                {
+                    if ( ImGuiX::ButtonColored( EE_ICON_CLOSE" Remove Override", ImGuiX::Style::s_colorGray3, Colors::MediumRed, ImVec2( -1, 0 ) ) )
+                    {
+                        m_variationRequests.emplace_back( pVariationDataNode, false );
+                    }
+                    ImGuiX::ItemTooltip( "Remove Override" );
+                }
+                else
+                {
+                    if ( ImGuiX::ButtonColored( EE_ICON_PLUS" Add Override", ImGuiX::Style::s_colorGray3, Colors::LimeGreen, ImVec2( -1, 0 ) ) )
+                    {
+                        m_variationRequests.emplace_back( pVariationDataNode, true );
+                    }
+                    ImGuiX::ItemTooltip( "Add Override" );
+                }
+            }
+
+            // Draw property grid
+            m_nodeVariationDataPropertyGrid.UpdateAndDraw();
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -3952,7 +4084,7 @@ namespace EE::Animation
     void AnimationGraphEditor::RefreshControlParameterCache()
     {
         auto pRootGraph = GetEditedRootGraph();
-        m_parameters = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterBaseToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        m_parameters = pRootGraph->FindAllNodesOfType<ParameterBaseToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
         RefreshParameterGroupTree();
     }
 
@@ -3972,7 +4104,7 @@ namespace EE::Animation
         m_cachedUses.clear();
 
         auto pRootGraph = GetEditedRootGraph();
-        auto referenceNodes = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
+        auto referenceNodes = pRootGraph->FindAllNodesOfType<ParameterReferenceToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
         for ( auto pReferenceNode : referenceNodes )
         {
             auto const& ID = pReferenceNode->GetReferencedParameter()->GetID();
@@ -4146,7 +4278,7 @@ namespace EE::Animation
         return isDialogOpen;
     }
 
-    void AnimationGraphEditor::ControlParameterGroupDragAndDropHandler( Category<GraphNodes::ParameterBaseToolsNode*>& group )
+    void AnimationGraphEditor::ControlParameterGroupDragAndDropHandler( Category<ParameterBaseToolsNode*>& group )
     {
         InlineString payloadString;
 
@@ -4182,12 +4314,12 @@ namespace EE::Animation
         }
     }
 
-    void AnimationGraphEditor::DrawParameterListRow( GraphNodes::FlowToolsNode* pParameterNode )
+    void AnimationGraphEditor::DrawParameterListRow( FlowToolsNode* pParameterNode )
     {
         constexpr float const iconWidth = 20;
 
-        auto pCP = TryCast< GraphNodes::ControlParameterToolsNode>( pParameterNode );
-        auto pVP = TryCast< GraphNodes::VirtualParameterToolsNode>( pParameterNode );
+        auto pCP = TryCast< ControlParameterToolsNode>( pParameterNode );
+        auto pVP = TryCast< VirtualParameterToolsNode>( pParameterNode );
         InlineString const parameterName = ( pCP != nullptr ) ? pCP->GetParameterName().c_str() : pVP->GetParameterName().c_str();
 
         //-------------------------------------------------------------------------
@@ -4429,7 +4561,7 @@ namespace EE::Animation
 
                         for ( auto const& item : m_parameterGroupTree.GetRootCategory().m_items )
                         {
-                            if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
+                            if ( auto pCP = TryCast<ControlParameterToolsNode>( item.m_data ) )
                             {
                                 DrawParameterListRow( pCP );
                             }
@@ -4472,7 +4604,7 @@ namespace EE::Animation
 
                             for ( auto const& item : category.m_items )
                             {
-                                if ( auto pCP = TryCast<GraphNodes::ControlParameterToolsNode>( item.m_data ) )
+                                if ( auto pCP = TryCast<ControlParameterToolsNode>( item.m_data ) )
                                 {
                                     DrawParameterListRow( pCP );
                                 }
@@ -4602,15 +4734,15 @@ namespace EE::Animation
         auto pRootGraph = GetEditedRootGraph();
         NodeGraph::ScopedGraphModification gm( pRootGraph );
 
-        GraphNodes::ParameterBaseToolsNode* pParameter = nullptr;
+        ParameterBaseToolsNode* pParameter = nullptr;
 
         if ( parameterType == ParameterType::Control )
         {
-            pParameter = GraphNodes::ControlParameterToolsNode::Create( pRootGraph, valueType, finalParameterName, finalGroupName );
+            pParameter = ControlParameterToolsNode::Create( pRootGraph, valueType, finalParameterName, finalGroupName );
         }
         else
         {
-            pParameter = GraphNodes::VirtualParameterToolsNode::Create( pRootGraph, valueType, finalParameterName, finalGroupName );
+            pParameter = VirtualParameterToolsNode::Create( pRootGraph, valueType, finalParameterName, finalGroupName );
         }
 
         EE_ASSERT( pParameter != nullptr );
@@ -4676,7 +4808,7 @@ namespace EE::Animation
         NodeGraph::ScopedGraphModification gm( pRootGraph );
 
         // Find and remove all reference nodes
-        auto const parameterReferences = pRootGraph->FindAllNodesOfType<GraphNodes::ParameterReferenceToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
+        auto const parameterReferences = pRootGraph->FindAllNodesOfType<ParameterReferenceToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
         for ( auto const& pFoundParameterNode : parameterReferences )
         {
             if ( pFoundParameterNode->GetReferencedParameterID() == parameterID )
@@ -4745,7 +4877,7 @@ namespace EE::Animation
         }
     }
 
-    GraphNodes::ParameterBaseToolsNode* AnimationGraphEditor::FindParameter( UUID const& parameterID ) const
+    ParameterBaseToolsNode* AnimationGraphEditor::FindParameter( UUID const& parameterID ) const
     {
         for ( auto pParameter : m_parameters )
         {
@@ -4763,7 +4895,7 @@ namespace EE::Animation
         int32_t const numParameters = (int32_t) m_parameters.size();
         for ( int32_t i = 0; i < numParameters; i++ )
         {
-            auto pControlParameter = TryCast<GraphNodes::ControlParameterToolsNode>( m_parameters[i] );
+            auto pControlParameter = TryCast<ControlParameterToolsNode>( m_parameters[i] );
             if ( pControlParameter == nullptr )
             {
                 continue;
@@ -4871,9 +5003,141 @@ namespace EE::Animation
     // Variation Editor
     //-------------------------------------------------------------------------
 
+    class VariationEditorItem final : public TreeListViewItem
+    {
+    public:
+
+        VariationEditorItem( TreeListViewItem* pParent, AnimationGraphEditor* pGraphEditor, String const& path )
+            : TreeListViewItem( pParent )
+            , m_pGraphEditor( pGraphEditor )
+            , m_path( path )
+            , m_nameID( path )
+        {
+            EE_ASSERT( m_pGraphEditor != nullptr );
+            m_displayColor = ImGuiX::Style::s_colorText;
+        }
+
+        VariationEditorItem( TreeListViewItem* pParent, AnimationGraphEditor* pGraphEditor, VariationDataToolsNode* pVariationDataNode )
+            : TreeListViewItem( pParent )
+            , m_pGraphEditor( pGraphEditor )
+            , m_pNode( pVariationDataNode )
+            , m_nameID( pVariationDataNode->GetName() )
+        {
+            EE_ASSERT( m_pGraphEditor != nullptr );
+            m_displayColor = pVariationDataNode->GetTitleBarColor();
+        }
+
+        virtual uint64_t GetUniqueID() const override { return m_ID.GetValueU64( 0 ); }
+
+        virtual StringID GetNameID() const override { return m_nameID; }
+
+        virtual InlineString GetDisplayName() const
+        {
+            InlineString displayName;
+
+            if ( m_pNode != nullptr )
+            {
+                displayName = m_pNode->GetName();
+            }
+            else
+            {
+                displayName = m_path.c_str();
+            }
+
+            return displayName;
+        }
+
+        virtual Color GetDisplayColor( ItemState state ) const override 
+        {
+            if ( m_pNode != nullptr )
+            {
+                StringID const currentVariationID = m_pGraphEditor->GetActiveVariation();
+                if ( currentVariationID != Variation::s_defaultVariationID )
+                {
+                    if ( !m_pNode->HasVariationOverride( currentVariationID ) )
+                    {
+                        return ImGuiX::Style::s_colorTextDisabled;
+                    }
+                }
+            }
+
+            return m_displayColor;
+        }
+
+        virtual bool OnDoubleClick() override
+        {
+            if ( m_pNode != nullptr )
+            {
+                m_pGraphEditor->NavigateTo( m_pNode );
+            }
+
+            return false;
+        }
+
+        VariationDataToolsNode* GetNode() const { return m_pNode; }
+
+    private:
+
+        AnimationGraphEditor*               m_pGraphEditor = nullptr;
+        String                              m_path;
+        VariationDataToolsNode*             m_pNode = nullptr;
+        StringID                            m_nameID;
+        UUID                                m_ID = UUID::GenerateID();
+        Color                               m_displayColor;
+    };
+
+    void AnimationGraphEditor::SetupVariationEditorItemExtraColumnHeaders()
+    {
+        ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed, 30 );
+    }
+
+    void AnimationGraphEditor::DrawVariationEditorItemExtraColumns( TreeListViewItem* pRootItem, int32_t columnIdx )
+    {
+        auto pVarItem = static_cast<VariationEditorItem*>( pRootItem );
+        VariationDataToolsNode* pVariationDataNode = pVarItem->GetNode();
+        if ( pVariationDataNode == nullptr )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( columnIdx == 0 )
+        {
+            constexpr static float const overrideButtonSize = 30;
+            ImVec2 const buttonSize( overrideButtonSize, overrideButtonSize );
+
+            StringID const currentVariationID = GetEditedGraphData()->m_activeVariationID;
+            if ( currentVariationID == Variation::s_defaultVariationID )
+            {
+                // Do Nothing
+            }
+            else
+            {
+                if ( pVariationDataNode->HasVariationOverride( currentVariationID ) )
+                {
+                    if ( ImGuiX::ButtonColored( EE_ICON_CLOSE, ImGuiX::Style::s_colorGray3, Colors::MediumRed, buttonSize ) )
+                    {
+                        m_variationRequests.emplace_back( pVariationDataNode, false );
+                    }
+                    ImGuiX::ItemTooltip( "Remove Override" );
+                }
+                else // Create an override
+                {
+                    if ( ImGuiX::ButtonColored( EE_ICON_PLUS, ImGuiX::Style::s_colorGray3, Colors::LimeGreen, buttonSize ) )
+                    {
+                        m_variationRequests.emplace_back( pVariationDataNode, true );
+                    }
+                    ImGuiX::ItemTooltip( "Add Override" );
+                }
+            }
+        }
+    }
+
     void AnimationGraphEditor::DrawVariationEditor( UpdateContext const& context, bool isFocused )
     {
         auto pRootGraph = GetEditedRootGraph();
+        auto& variationHierarchy = GetEditedGraphData()->m_pGraphDefinition->GetVariationHierarchy();
 
         //-------------------------------------------------------------------------
         // Variation Selector and Skeleton Picker
@@ -4896,7 +5160,7 @@ namespace EE::Animation
         ImGui::AlignTextToFramePadding();
         ImGui::Text( skeletonLabel );
         ImGui::SameLine( offset );
-        auto pVariation = GetEditedGraphData()->m_pGraphDefinition->GetVariation( GetEditedGraphData()->m_selectedVariationID );
+        auto pVariation = GetEditedGraphData()->m_pGraphDefinition->GetVariation( GetEditedGraphData()->m_activeVariationID );
         if ( m_variationSkeletonPicker.UpdateAndDraw() )
         {
             NodeGraph::ScopedGraphModification sgm( pRootGraph );
@@ -4904,238 +5168,133 @@ namespace EE::Animation
         }
 
         //-------------------------------------------------------------------------
-        // Overrides
+        // Variation Data Nodes
         //-------------------------------------------------------------------------
+
+        StringID const currentVariationID = GetEditedGraphData()->m_activeVariationID;
 
         ImGui::BeginDisabled( IsInReadOnlyState() );
         {
-            auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
+            auto variationDataNodes = pRootGraph->FindAllNodesOfType<VariationDataToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
             bool isDefaultVariationSelected = IsDefaultVariationSelected();
-
-            // Rebuild pickers
-            //-------------------------------------------------------------------------
-
-            if ( dataSlotNodes.size() != m_variationResourcePickers.size() || m_refreshVariationEditorPickers )
-            {
-                RefreshVariationSlotPickers();
-            }
 
             // Filter
             //-------------------------------------------------------------------------
 
-            ImGui::Checkbox( "Child Graphs Only", &m_variationEditorOnlyShowChildGraphs );
-            ImGui::SameLine();
-            m_variationFilter.UpdateAndDraw();
+            // Name/Path filter
+            constexpr float const buttonWidth = 30.0f;
+            float const textFilterWidth = ImGui::GetContentRegionAvail().x - buttonWidth - ImGui::GetStyle().ItemSpacing.x;
+            bool filterUpdated = m_variationEditorFilter.UpdateAndDraw( textFilterWidth );
 
-            // Overrides
+            ImGui::SameLine();
+
+            // Type filter
+            auto DrawFiltersMenu = [this, &filterUpdated] ()
+            {
+                InlineString label;
+                int32_t const numTypeFilters = (int32_t) m_variationDataNodeTypes.size();
+                for ( int32_t i = 0; i < numTypeFilters; i++ )
+                {
+                    bool isChecked = VectorContains( m_selectedVariationDataNodeTypeFilters, m_variationDataNodeTypes[i] );
+                    label.sprintf( "%s##VDNT%d", m_variationDataNodeTypes[i]->m_friendlyName.c_str(), i );
+
+                    if ( ImGui::Checkbox( label.c_str(), &isChecked ) )
+                    {
+                        if ( isChecked )
+                        {
+                            m_selectedVariationDataNodeTypeFilters.emplace_back( m_variationDataNodeTypes[i] );
+                        }
+                        else
+                        {
+                            m_selectedVariationDataNodeTypeFilters.erase_first_unsorted( m_variationDataNodeTypes[i] );
+                        }
+
+                        filterUpdated = true;
+                    }
+                }
+            };
+
+            ImGuiX::DropDownIconButton( EE_ICON_FILTER, "##Resource Filters", DrawFiltersMenu, ImGuiX::Style::s_colorText, ImVec2( buttonWidth, 0 ) );
+
+            // Apply filter
+            if ( filterUpdated )
+            {
+                auto VisibilityTest = [this] ( TreeListViewItem const* pItem )
+                {
+                    auto pVarItem = static_cast<VariationEditorItem const*>( pItem );
+                    if ( pVarItem->GetNode() != nullptr && !m_selectedVariationDataNodeTypeFilters.empty() )
+                    {
+                        if ( !VectorContains( m_selectedVariationDataNodeTypeFilters, pVarItem->GetNode()->GetTypeInfo() ) )
+                        {
+                            return false;
+                        }
+                    }
+
+                    return m_variationEditorFilter.MatchesFilter( pItem->GetDisplayName() );
+                };
+
+                m_variationTreeView.ExpandAll();
+                m_variationTreeView.UpdateItemVisibility( VisibilityTest );
+            }
+
+            // Main Layout
             //-------------------------------------------------------------------------
 
-            constexpr static float const overrideButtonSize = 30;
-            ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 8, 8 ) );
-            if ( ImGui::BeginTable( "SourceTable", 4, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY ) )
+            if ( ImGui::BeginTable( "VarEditorLayout", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY ) )
             {
-                ImGui::TableSetupColumn( "##Override", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, overrideButtonSize );
-                ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 90 );
-                ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthStretch );
-                ImGui::TableSetupColumn( "Source", ImGuiTableColumnFlags_WidthStretch );
-                ImGui::TableSetupScrollFreeze( 1, 1 );
-                ImGui::TableHeadersRow();
+                ImGui::TableSetupColumn( "##VD", ImGuiTableColumnFlags_WidthStretch );
+                ImGui::TableSetupColumn( "##PG", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize );
 
+                ImGui::TableNextRow();
+
+                // Nodes
                 //-------------------------------------------------------------------------
 
-                StringID const currentVariationID = GetEditedGraphData()->m_selectedVariationID;
+                ImGui::TableNextColumn();
 
-                for ( size_t i = 0; i < dataSlotNodes.size(); i++ )
+                if ( m_variationTreeView.UpdateAndDraw( m_variationTreeContext ) )
                 {
-                    auto pDataSlotNode = dataSlotNodes[i];
-                    String const nodePath = pDataSlotNode->GetParentGraph()->GetStringPathFromRoot();
+                    m_selectedVariationDataNode.Clear();
 
-                    // Apply filter
-                    //-------------------------------------------------------------------------
-
-                    if ( m_variationEditorOnlyShowChildGraphs )
+                    TVector<TreeListViewItem*> const& selection = m_variationTreeView.GetSelection();
+                    EE_ASSERT( selection.size() <= 1 );
+                    if ( selection.size() == 1 )
                     {
-                        if ( !IsOfType<GraphNodes::ChildGraphToolsNode>( pDataSlotNode ) )
+                        auto pVarItem = static_cast<VariationEditorItem const*>( selection[0] );
+                        if ( pVarItem->GetNode() )
                         {
-                            continue;
+                            m_selectedVariationDataNode = pVarItem->GetNode()->GetID();
                         }
                     }
-
-                    if ( m_variationFilter.HasFilterSet() )
-                    {
-                        bool nameFailedFilter = false;
-                        if ( !m_variationFilter.MatchesFilter( pDataSlotNode->GetName() ) )
-                        {
-                            nameFailedFilter = true;
-                        }
-
-                        bool pathFailedFilter = false;
-                        if ( !m_variationFilter.MatchesFilter( nodePath ) )
-                        {
-                            pathFailedFilter = true;
-                        }
-
-                        if ( pathFailedFilter && nameFailedFilter )
-                        {
-                            continue;
-                        }
-                    }
-
-                    //-------------------------------------------------------------------------
-
-                    ImGui::PushID( pDataSlotNode );
-                    ImGui::TableNextRow();
-
-                    // Override Controls
-                    //-------------------------------------------------------------------------
-
-                    ImGui::TableNextColumn();
-
-                    if ( !isDefaultVariationSelected )
-                    {
-                        ImVec2 const buttonSize( overrideButtonSize, overrideButtonSize );
-
-                        if ( pDataSlotNode->HasVariationOverride( currentVariationID ) )
-                        {
-                            if ( ImGuiX::ButtonColored( EE_ICON_CLOSE, ImGuiX::Style::s_colorGray3, Colors::MediumRed, buttonSize ) )
-                            {
-                                pDataSlotNode->RemoveVariationOverride( currentVariationID );
-                            }
-                            ImGuiX::ItemTooltip( "Remove Override" );
-                        }
-                        else // Create an override
-                        {
-                            if ( ImGuiX::ButtonColored( EE_ICON_PLUS, ImGuiX::Style::s_colorGray3, Colors::LimeGreen, buttonSize ) )
-                            {
-                                pDataSlotNode->CreateVariationOverride( currentVariationID );
-                            }
-                            ImGuiX::ItemTooltip( "Add Override" );
-                        }
-                    }
-
-                    // Get variation override value
-                    //-------------------------------------------------------------------------
-                    // This is done here since the controls above might add/remove an override
-
-                    bool const hasOverrideForVariation = isDefaultVariationSelected ? false : pDataSlotNode->HasVariationOverride( currentVariationID );
-                    ResourceID const* pResourceID = pDataSlotNode->GetVariationResourceID( currentVariationID );
-
-                    // Type
-                    //-------------------------------------------------------------------------
-
-                    ImGui::TableNextColumn();
-                    {
-                        ImGuiX::ScopedFont sf( ImGuiX::Font::Small, pDataSlotNode->GetTitleBarColor() );
-                        ImGui::AlignTextToFramePadding();
-                        ImGui::Text( pDataSlotNode->GetTypeName() );
-                    }
-
-                    // Node Name/Path
-                    //-------------------------------------------------------------------------
-
-                    ImGui::TableNextColumn();
-
-                    Color labelColor = ImGuiX::Style::s_colorText;
-                    if ( !isDefaultVariationSelected && hasOverrideForVariation )
-                    {
-                        labelColor = ( pResourceID->IsValid() ) ? Colors::Green : Colors::MediumRed;
-                    }
-
-                    {
-                        ImGuiX::ScopedFont sf( ImGuiX::Font::MediumBold, labelColor );
-                        if ( ImGuiX::FlatButton( EE_ICON_IMAGE_FILTER_CENTER_FOCUS"##FilterPath" ) )
-                        {
-                            NavigateTo( pDataSlotNode );
-                        }
-                        ImGuiX::ItemTooltip( "Navigate to node" );
-                        ImGui::SameLine();
-                        ImGui::AlignTextToFramePadding();
-                        ImGui::Text( pDataSlotNode->GetName() );
-                    }
-
-                    {
-                        ImGuiX::ScopedFont sf( ImGuiX::Font::Small, Colors::LightGray );
-                        if ( ImGuiX::FlatButton( EE_ICON_FILTER"##FilterPath" ) )
-                        {
-                            m_variationFilter.SetFilter( nodePath );
-                        }
-                        ImGuiX::ItemTooltip( "Filter by this path" );
-                        ImGui::SameLine();
-                        ImGui::AlignTextToFramePadding();
-                        ImGui::Text( nodePath.c_str() );
-                    }
-
-                    // Resource Picker
-                    //-------------------------------------------------------------------------
-
-                    ImGui::TableNextColumn();
-
-                    ResourcePicker& picker = m_variationResourcePickers[i];
-
-                    // Validate the chosen resource to prevent self-references
-                    auto ValidateResourceSelected = [this] ( ResourceID const& resourceID )
-                    {
-                        if ( resourceID.IsValid() )
-                        {
-                            if ( resourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() || resourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() )
-                            {
-                                ResourceID const graphResourceID = Variation::GetGraphResourceID( resourceID );
-                                if ( graphResourceID == GetDataFilePath() )
-                                {
-                                    return false;
-                                }
-                            }
-                        }
-
-                        return true;
-                    };
-
-                    // Default variations always have values created
-                    if ( isDefaultVariationSelected )
-                    {
-                        if ( picker.UpdateAndDraw() )
-                        {
-                            ResourceID const& newResourceID = picker.GetResourceID();
-                            if ( ValidateResourceSelected( newResourceID ) )
-                            {
-                                pDataSlotNode->SetVariationResourceID( newResourceID );
-                            }
-                        }
-                    }
-                    else // Child Variation
-                    {
-                        // If we have an override for this variation
-                        if ( hasOverrideForVariation )
-                        {
-                            EE_ASSERT( pResourceID != nullptr );
-                            if ( picker.UpdateAndDraw() )
-                            {
-                                ResourceID const& newResourceID = picker.GetResourceID();
-                                if ( ValidateResourceSelected( newResourceID ) )
-                                {
-                                    pDataSlotNode->SetVariationResourceID( newResourceID, currentVariationID );
-                                }
-                            }
-                        }
-                        else // Show inherited value
-                        {
-                            auto& variationHierarchy = GetEditedGraphData()->m_pGraphDefinition->GetVariationHierarchy();
-                            ResourceID const resolvedResourceID = pDataSlotNode->GetResolvedResourceID( variationHierarchy, currentVariationID );
-                            ImGui::Text( resolvedResourceID.c_str() );
-                            ImGuiX::TextTooltip( resolvedResourceID.c_str() );
-                        }
-                    }
-
-                    //-------------------------------------------------------------------------
-
-                    ImGui::PopID();
                 }
 
+                // Property Grid
                 //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+
+                VariationDataToolsNode* pSelectedDataNode =  ( m_selectedVariationDataNode.IsValid() ) ? Cast<VariationDataToolsNode>( pRootGraph->FindNode( m_selectedVariationDataNode, true ) ) : nullptr;
+                if ( pSelectedDataNode != nullptr )
+                {
+                    bool const isReadOnly = currentVariationID != Variation::s_defaultVariationID && !pSelectedDataNode->HasVariationOverride( currentVariationID );
+                    m_variationDataPropertyGrid.SetReadOnly( isReadOnly );
+
+                    auto pVariationData = pSelectedDataNode->GetResolvedVariationData( variationHierarchy, currentVariationID );
+                    EE_ASSERT( pVariationData != nullptr );
+                    if ( m_variationDataPropertyGrid.GetEditedType() != pVariationData )
+                    {
+                        m_variationDataPropertyGrid.SetTypeToEdit( pVariationData );
+                    }
+                }
+                else
+                {
+                    m_variationDataPropertyGrid.SetTypeToEdit( nullptr );
+                }
+
+                m_variationDataPropertyGrid.UpdateAndDraw();
 
                 ImGui::EndTable();
             }
-            ImGui::PopStyleVar();
         }
         ImGui::EndDisabled();
     }
@@ -5175,14 +5334,14 @@ namespace EE::Animation
         variationHierarchy.CreateVariation( newVariationID, parentVariationID );
 
         // Switch to the new variation
-        SetSelectedVariation( newVariationID );
+        SetActiveVariation( newVariationID );
     }
 
     void AnimationGraphEditor::RenameVariation( StringID oldVariationID, StringID newVariationID )
     {
         auto pRootGraph = GetEditedRootGraph();
         auto& variationHierarchy = GetEditedGraphData()->m_pGraphDefinition->GetVariationHierarchy();
-        bool const isRenamingCurrentlySelectedVariation = ( m_activeOperationVariationID == GetEditedGraphData()->m_selectedVariationID );
+        bool const isRenamingCurrentlySelectedVariation = ( m_activeOperationVariationID == GetEditedGraphData()->m_activeVariationID );
 
         EE_ASSERT( !variationHierarchy.IsValidVariation( newVariationID ) );
 
@@ -5190,17 +5349,17 @@ namespace EE::Animation
         NodeGraph::ScopedGraphModification gm( pRootGraph );
         variationHierarchy.RenameVariation( m_activeOperationVariationID, newVariationID );
 
-        // Update all data slot nodes
-        auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
-        for ( auto pDataSlotNode : dataSlotNodes )
+        // Update all variation data nodes
+        auto variationDataNodes = pRootGraph->FindAllNodesOfType<VariationDataToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
+        for ( auto pVariationDataNode : variationDataNodes )
         {
-            pDataSlotNode->RenameVariationOverride( m_activeOperationVariationID, newVariationID );
+            pVariationDataNode->RenameVariationOverride( m_activeOperationVariationID, newVariationID );
         }
 
-        // Set the selected variation to the renamed variation
+        // Set the active variation to the renamed variation
         if ( isRenamingCurrentlySelectedVariation )
         {
-            SetSelectedVariation( newVariationID );
+            SetActiveVariation( newVariationID );
         }
     }
 
@@ -5218,7 +5377,7 @@ namespace EE::Animation
         ImGui::PushID( variationID.c_str() );
 
         auto const childVariations = variationHierarchy.GetChildVariations( variationID );
-        bool const isSelected = GetEditedGraphData()->m_selectedVariationID == variationID;
+        bool const isSelected = GetEditedGraphData()->m_activeVariationID == variationID;
 
         // Draw Tree Node
         //-------------------------------------------------------------------------
@@ -5238,7 +5397,7 @@ namespace EE::Animation
         ImGuiX::TextTooltip( "Right click for options" );
         if ( ImGui::IsItemClicked() )
         {
-            SetSelectedVariation( variationID );
+            SetActiveVariation( variationID );
         }
 
         // Context Menu
@@ -5248,7 +5407,7 @@ namespace EE::Animation
         {
             if ( ImGui::MenuItem( "Set Active" ) )
             {
-                SetSelectedVariation( variationID );
+                SetActiveVariation( variationID );
             }
 
             //-------------------------------------------------------------------------
@@ -5296,7 +5455,7 @@ namespace EE::Animation
     {
         ImGui::BeginDisabled( IsInReadOnlyState() );
         ImGui::SetNextItemWidth( width );
-        if ( ImGui::BeginCombo( "##VariationSelector", GetEditedGraphData()->m_selectedVariationID.c_str() ) )
+        if ( ImGui::BeginCombo( "##VariationSelector", GetEditedGraphData()->m_activeVariationID.c_str() ) )
         {
             auto& variationHierarchy = GetEditedGraphData()->m_pGraphDefinition->GetVariationHierarchy();
             DrawVariationTreeNode( variationHierarchy, Variation::s_defaultVariationID );
@@ -5442,7 +5601,7 @@ namespace EE::Animation
             // Update selection
             auto& variationHierarchy = GetEditedGraphData()->m_pGraphDefinition->GetVariationHierarchy();
             auto const pVariation = variationHierarchy.GetVariation( m_activeOperationVariationID );
-            SetSelectedVariation( pVariation->m_parentID );
+            SetActiveVariation( pVariation->m_parentID );
 
             // Destroy variation
             DeleteVariation( m_activeOperationVariationID );
@@ -5463,37 +5622,42 @@ namespace EE::Animation
 
     void AnimationGraphEditor::RefreshVariationEditor()
     {
-        auto pVariation = GetEditedGraphData()->m_pGraphDefinition->GetVariation( GetEditedGraphData()->m_selectedVariationID );
+        auto pVariation = GetEditedGraphData()->m_pGraphDefinition->GetVariation( GetEditedGraphData()->m_activeVariationID );
         m_variationSkeletonPicker.SetResourceID( pVariation->m_skeleton.GetResourceID() );
-        m_refreshVariationEditorPickers = true;
+        m_variationTreeView.RebuildTree( m_variationTreeContext );
+        m_variationTreeView.ExpandAll();
     }
 
-    void AnimationGraphEditor::RefreshVariationSlotPickers()
+    static void AddCategoryToTree( AnimationGraphEditor* pGraphEditor, TreeListViewItem* pParentItem, Category<VariationDataToolsNode*> const& category, bool isRootCategory = false )
     {
-        StringID const currentVariationID = GetEditedGraphData()->m_selectedVariationID;
-        auto& variationHierarchy = GetEditedGraphData()->m_pGraphDefinition->GetVariationHierarchy();
+        TreeListViewItem* pCategoryItem = isRootCategory ? pParentItem : pParentItem->CreateChild<VariationEditorItem>( pGraphEditor, category.m_name );
 
-        auto pRootGraph = GetEditedRootGraph();
-        auto dataSlotNodes = pRootGraph->FindAllNodesOfType<GraphNodes::DataSlotToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
-
-        for ( size_t i = 0; i < dataSlotNodes.size(); i++ )
+        for ( auto const& childCategory : category.m_childCategories )
         {
-            auto pDataSlotNode = dataSlotNodes[i];
-            ResourceID const resolvedResourceID = pDataSlotNode->GetResolvedResourceID( variationHierarchy, currentVariationID );
-
-            // Refresh existing picker
-            if ( i < m_variationResourcePickers.size() )
-            {
-                m_variationResourcePickers[i].SetRequiredResourceType( pDataSlotNode->GetSlotResourceTypeID() );
-                m_variationResourcePickers[i].SetResourceID( resolvedResourceID );
-            }
-            else // Create new picker
-            {
-                m_variationResourcePickers.emplace_back( *m_pToolsContext, pDataSlotNode->GetSlotResourceTypeID(), resolvedResourceID );
-            }
+            AddCategoryToTree( pGraphEditor, pCategoryItem, childCategory );
         }
 
-        m_refreshVariationEditorPickers = false;
+        for ( auto const &item : category.m_items )
+        {
+            pCategoryItem->CreateChild<VariationEditorItem>( pGraphEditor, item.m_data );
+        }
+    }
+
+    void AnimationGraphEditor::RebuildVariationDataTree( TreeListViewItem* pRootItem )
+    {
+        auto pRootGraph = GetEditedRootGraph();
+        auto variationDataNodes = pRootGraph->FindAllNodesOfType<VariationDataToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
+
+        CategoryTree<VariationDataToolsNode*> variationDataTree;
+        for ( auto pVariationDataNode : variationDataNodes )
+        {
+            String path = pVariationDataNode->GetParentGraph()->GetStringPathFromRoot();
+            variationDataTree.AddItem( path, pVariationDataNode->GetName(), pVariationDataNode );
+        }
+
+        variationDataTree.CollapseAllIntermediateCategories();
+
+        AddCategoryToTree( this, pRootItem, variationDataTree.GetRootCategory(), true );
     }
 
     //-------------------------------------------------------------------------
@@ -5651,7 +5815,7 @@ namespace EE::Animation
     {
         EE_ASSERT( IsReviewingRecording() && m_reviewStarted );
         EE_ASSERT( m_graphRecorder.IsValidRecordedFrameIndex( newFrameIdx ) );
-        EE_ASSERT( m_pDebugGraphComponent != nullptr && m_pDebugGraphComponent->WasInitialized() );
+        EE_ASSERT( m_pDebugGraphComponent != nullptr && m_pDebugGraphComponent->IsInitialized() );
         EE_ASSERT( m_pDebugMeshComponent != nullptr );
 
         if ( m_currentReviewFrameIdx == newFrameIdx )
@@ -5735,74 +5899,74 @@ namespace EE::Animation
 
     void AnimationGraphEditor::ProcessCustomCommandRequest( NodeGraph::CustomCommand const* pCommand )
     {
-        if ( auto pOpenChildGraphCommand = TryCast<GraphNodes::OpenChildGraphCommand>( pCommand ) )
+        if ( auto pOpenReferencedGraphCommand = TryCast<OpenReferencedGraphCommand>( pCommand ) )
         {
-            EE_ASSERT( pOpenChildGraphCommand->m_pCommandSourceNode != nullptr );
-            auto pChildGraphNode = Cast<GraphNodes::ChildGraphToolsNode>( pOpenChildGraphCommand->m_pCommandSourceNode );
+            EE_ASSERT( pOpenReferencedGraphCommand->m_pCommandSourceNode != nullptr );
+            auto pReferencedGraphNode = Cast<ReferencedGraphToolsNode>( pOpenReferencedGraphCommand->m_pCommandSourceNode );
 
-            ResourceID const childGraphResourceID = pChildGraphNode->GetResolvedResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
-            EE_ASSERT( childGraphResourceID.IsValid() && childGraphResourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
+            ResourceID const referencedGraphResourceID = pReferencedGraphNode->GetReferencedGraphResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
+            EE_ASSERT( referencedGraphResourceID.IsValid() && referencedGraphResourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() );
 
-            if ( pOpenChildGraphCommand->m_option == GraphNodes::OpenChildGraphCommand::OpenInPlace )
+            if ( pOpenReferencedGraphCommand->m_option == OpenReferencedGraphCommand::OpenInPlace )
             {
-                PushOnGraphStack( pChildGraphNode, childGraphResourceID );
+                PushOnGraphStack( pReferencedGraphNode, referencedGraphResourceID );
             }
             else
             {
-                m_userContext.RequestOpenResource( childGraphResourceID );
+                m_userContext.RequestOpenResource( referencedGraphResourceID );
             }
         }
 
         //-------------------------------------------------------------------------
 
-        if ( auto pReflectParametersCommand = TryCast<GraphNodes::ReflectParametersCommand>( pCommand ) )
+        if ( auto pReflectParametersCommand = TryCast<ReflectParametersCommand>( pCommand ) )
         {
             EE_ASSERT( pReflectParametersCommand->m_pCommandSourceNode != nullptr );
-            auto pChildGraphNode = Cast<GraphNodes::ChildGraphToolsNode>( pReflectParametersCommand->m_pCommandSourceNode );
+            auto pReferencedGraphNode = Cast<ReferencedGraphToolsNode>( pReflectParametersCommand->m_pCommandSourceNode );
 
-            ResourceID const childGraphResourceID = pChildGraphNode->GetResolvedResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
-            EE_ASSERT( childGraphResourceID.IsValid() && childGraphResourceID.GetResourceTypeID() == GraphVariation::GetStaticResourceTypeID() );
+            ResourceID const referencedGraphResourceID = pReferencedGraphNode->GetReferencedGraphResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
+            EE_ASSERT( referencedGraphResourceID.IsValid() && referencedGraphResourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() );
 
             //-------------------------------------------------------------------------
 
-            ResourceID const childGraphDefinitionResourceID = Variation::GetGraphResourceID( childGraphResourceID );
-            FileSystem::Path const childGraphFilePath = childGraphDefinitionResourceID.GetFileSystemPath( m_pToolsContext->m_pFileRegistry->GetSourceDataDirectoryPath() );
-            if ( !childGraphFilePath.IsValid() )
+            ResourceID const referencedGraphDefinitionResourceID = Variation::GetGraphResourceID( referencedGraphResourceID );
+            FileSystem::Path const referencedGraphFilePath = referencedGraphDefinitionResourceID.GetFileSystemPath( m_pToolsContext->m_pFileRegistry->GetSourceDataDirectoryPath() );
+            if ( !referencedGraphFilePath.IsValid() )
             {
                 ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid !" );
                 return;
             }
 
-            // Load child graph
-            GraphResourceDescriptor childGraphDescriptor;
-            if ( !GraphResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, childGraphFilePath, childGraphDescriptor ) )
+            // Load referenced graph
+            GraphResourceDescriptor referencedGraphDescriptor;
+            if ( !GraphResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, referencedGraphFilePath, referencedGraphDescriptor ) )
             {
-                ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid Child Graph ID!" );
+                ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid Referenced Graph ID!" );
             }
 
             //-------------------------------------------------------------------------
 
             TVector<String> resultLog;
 
-            // Push all parameters to child graph
-            if ( pReflectParametersCommand->m_option == GraphNodes::ReflectParametersCommand::FromParent )
+            // Push all parameters to referenced graph
+            if ( pReflectParametersCommand->m_option == ReflectParametersCommand::FromParent )
             {
-                childGraphDescriptor.m_graphDefinition.ReflectParameters( *GetEditedGraphData()->m_pGraphDefinition, true, &resultLog );
+                referencedGraphDescriptor.m_graphDefinition.ReflectParameters( *GetEditedGraphData()->m_pGraphDefinition, true, &resultLog );
 
-                // Save child graph
-                if ( !GraphResourceDescriptor::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, childGraphFilePath, &childGraphDescriptor ) )
+                // Save referenced graph
+                if ( !GraphResourceDescriptor::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, referencedGraphFilePath, &referencedGraphDescriptor ) )
                 {
-                    ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid Child Graph ID!" );
+                    ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid Referenced Graph ID!" );
                     return;
                 }
 
-                // Open child graph
-                m_userContext.RequestOpenResource( childGraphDefinitionResourceID );
+                // Open referenced graph
+                m_userContext.RequestOpenResource( referencedGraphDefinitionResourceID );
             }
-            else // Transfer from the child graph any required parameters
+            else // Transfer from the referenced graph any required parameters
             {
                 NodeGraph::ScopedGraphModification gm( GetEditedRootGraph() );
-                GetEditedGraphData()->m_pGraphDefinition->ReflectParameters( childGraphDescriptor.m_graphDefinition, false, &resultLog );
+                GetEditedGraphData()->m_pGraphDefinition->ReflectParameters( referencedGraphDescriptor.m_graphDefinition, false, &resultLog );
 
                 OnGraphStateModified();
             }
@@ -5915,11 +6079,11 @@ namespace EE::Animation
             auto const foundNodes = pRootGraph->FindAllNodesOfType<NodeGraph::BaseNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
             for ( auto pNode : foundNodes )
             {
-                if ( auto pStateNode = TryCast<GraphNodes::StateToolsNode>( pNode ) )
+                if ( auto pStateNode = TryCast<StateToolsNode>( pNode ) )
                 {
                     pStateNode->RenameLogicAndEventIDs( oldID, newID );
                 }
-                else if ( auto pFlowNode = TryCast<GraphNodes::FlowToolsNode>( pNode ) )
+                else if ( auto pFlowNode = TryCast<FlowToolsNode>( pNode ) )
                 {
                     pFlowNode->RenameLogicAndEventIDs( oldID, newID );
                 }
@@ -5942,7 +6106,7 @@ namespace EE::Animation
         TVector<String> foundParameterNames;
 
         auto pRootGraph = GetEditedRootGraph();
-        auto const controlParameters = pRootGraph->FindAllNodesOfType<GraphNodes::ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        auto const controlParameters = pRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
         for ( auto pControlParameter : controlParameters )
         {
             foundParameterNames.emplace_back( pControlParameter->GetParameterName() );
@@ -5970,11 +6134,11 @@ namespace EE::Animation
         auto const foundNodes = pRootGraph->FindAllNodesOfType<NodeGraph::BaseNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
         for ( auto pNode : foundNodes )
         {
-            if ( auto pStateNode = TryCast<GraphNodes::StateToolsNode>( pNode ) )
+            if ( auto pStateNode = TryCast<StateToolsNode>( pNode ) )
             {
                 pStateNode->GetLogicAndEventIDs( foundIDs );
             }
-            else if ( auto pFlowNode = TryCast<GraphNodes::FlowToolsNode>( pNode ) )
+            else if ( auto pFlowNode = TryCast<FlowToolsNode>( pNode ) )
             {
                 pFlowNode->GetLogicAndEventIDs( foundIDs );
             }
@@ -6095,10 +6259,10 @@ namespace EE::Animation
                 pFoundParentNode = pRootGraph->FindNode( *iter, true );
                 if ( pFoundParentNode != nullptr )
                 {
-                    auto pChildGraph = pFoundParentNode->GetChildGraph();
-                    if ( pChildGraph != nullptr )
+                    auto pReferencedGraph = pFoundParentNode->GetChildGraph();
+                    if ( pReferencedGraph != nullptr )
                     {
-                        m_primaryGraphView.SetGraphToView( pChildGraph );
+                        m_primaryGraphView.SetGraphToView( pReferencedGraph );
                         viewRestoreResult = ( iter == m_recordedViewAndSelectionState.m_viewedGraphPath.rbegin() ) ? ViewRestoreResult::Success : ViewRestoreResult::PartialMatch;
                         break;
                     }
@@ -6183,7 +6347,8 @@ namespace EE::Animation
         }
 
         RecordViewAndSelectionState();
-        m_propertyGrid.SetTypeToEdit( nullptr );
+        m_nodeEditorPropertyGrid.SetTypeToEdit( nullptr );
+        m_nodeVariationDataPropertyGrid.SetTypeToEdit( nullptr );
     }
 
     void AnimationGraphEditor::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
@@ -6238,7 +6403,7 @@ namespace EE::Animation
     void AnimationGraphEditor::DrawClipBrowser( UpdateContext const& context, bool isFocused )
     {
         // Update skeleton
-        ResourceID skeletonID = GetEditedGraphData()->GetSelectedVariationSkeleton();
+        ResourceID skeletonID = GetEditedGraphData()->GetActiveVariationSkeleton();
         m_clipBrowser.SetSkeleton( skeletonID );
 
         // Draw browser window
@@ -6420,7 +6585,7 @@ namespace EE::Animation
 
         virtual void PopulateOptionsList() override
         {
-            ResourceID const& skeletonResourceID = m_pGraphEditor->GetEditedGraphData()->GetSelectedVariationSkeleton();
+            ResourceID const& skeletonResourceID = m_pGraphEditor->GetEditedGraphData()->GetActiveVariationSkeleton();
             auto pSkeletonFileEntry = m_pGraphEditor->m_pToolsContext->m_pFileRegistry->GetFileEntry( skeletonResourceID );
             if ( pSkeletonFileEntry != nullptr )
             {
@@ -6449,9 +6614,9 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class TargetControlParameterEditingRules : public PG::TTypeEditingRules<GraphNodes::TargetControlParameterToolsNode>
+    class TargetControlParameterEditingRules : public PG::TTypeEditingRules<TargetControlParameterToolsNode>
     {
-        using PG::TTypeEditingRules<GraphNodes::TargetControlParameterToolsNode>::TTypeEditingRules;
+        using PG::TTypeEditingRules<TargetControlParameterToolsNode>::TTypeEditingRules;
 
         virtual HiddenState IsHidden( StringID const& propertyID ) override
         {
@@ -6489,5 +6654,5 @@ namespace EE::Animation
 
     EE_PROPERTY_GRID_CUSTOM_EDITOR( BoneMaskIDEditorFactory, "AnimGraph_BoneMaskID", BoneMaskIDEditor );
     EE_PROPERTY_GRID_CUSTOM_EDITOR( IDEditorFactory, "AnimGraph_ID", IDEditor );
-    EE_PROPERTY_GRID_EDITING_RULES( TargetControlParameterEditingRulesFactory, GraphNodes::TargetControlParameterToolsNode, TargetControlParameterEditingRules );
+    EE_PROPERTY_GRID_EDITING_RULES( TargetControlParameterEditingRulesFactory, TargetControlParameterToolsNode, TargetControlParameterEditingRules );
 }

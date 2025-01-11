@@ -766,7 +766,7 @@ namespace EE::Animation
     void BoneMaskTaskList::Serialize( Serialization::BitArchive<1280>& archive, uint32_t maxBitsForMaskIndex ) const
     {
         uint8_t const numTasks = (uint8_t) m_tasks.size();
-        uint32_t const numBitsToUseForTaskIndices = Math::GetMostSignificantBit( numTasks ) + 1;
+        uint32_t const numBitsToUseForTaskIndices = Math::GetMaxNumberOfBitsForValue( numTasks );
 
         archive.WriteUInt( numTasks, 5 );
 
@@ -818,7 +818,7 @@ namespace EE::Animation
     void BoneMaskTaskList::Deserialize( Serialization::BitArchive<1280>& archive, uint32_t maxBitsForMaskIndex )
     {
         uint8_t const numTasks = (uint8_t) archive.ReadUInt( 5 );
-        uint32_t const numBitsToUseForTaskIndices = Math::GetMostSignificantBit( numTasks ) + 1;
+        uint32_t const numBitsToUseForTaskIndices = Math::GetMaxNumberOfBitsForValue( numTasks );
 
         for ( uint8_t i = 0; i < numTasks; i++ )
         {

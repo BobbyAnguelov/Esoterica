@@ -163,6 +163,11 @@ namespace EE
         return fourCC;
     }
 
+    bool FourCC::TryCreateFromLowercaseString( char const* pStr, uint32_t& outFourCC )
+    {
+        return TryConvertFourCC<ValidateLowercaseAlphaNumeric>( pStr, outFourCC );
+    }
+
     void FourCC::ToString( uint32_t fourCC, char str[5] )
     {
         bool const result = TryConvertFourCC<ValidateAlphaNumeric>( fourCC, str );

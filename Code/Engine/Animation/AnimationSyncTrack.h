@@ -137,6 +137,8 @@ namespace EE::Animation
 
         SyncTrack( TInlineVector<EventMarker, 10> const& inEvents, int32_t startEventOffset = 0 );
 
+        SyncTrack( TInlineVector<Event, 10> const& inEvents, int32_t startEventOffset = 0 );
+
         // Create by blending two existing sync tracks. Only blends durations as it is meaningless to try and blend start times. Start times match up with blended durations.
         SyncTrack( SyncTrack const& track0, SyncTrack const& track1, float const blendWeight );
 

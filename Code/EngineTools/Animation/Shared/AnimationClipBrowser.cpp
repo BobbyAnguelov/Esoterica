@@ -126,8 +126,8 @@ namespace EE::Animation
                         // Drag and drop support
                         if ( ImGui::BeginDragDropSource( ImGuiDragDropFlags_None ) )
                         {
-                            ImGui::SetDragDropPayload( DragAndDrop::s_filePayloadID, (void*) m_filteredClips[i].GetResourcePath().c_str(), m_filteredClips[i].GetResourcePath().GetString().length() + 1 );
-                            ImGui::Text( m_filteredClips[i].GetResourcePath().GetFilename().c_str() );
+                            ImGui::SetDragDropPayload( DragAndDrop::s_filePayloadID, (void*) m_filteredClips[i].GetDataPath().c_str(), m_filteredClips[i].GetDataPath().GetString().length() + 1 );
+                            ImGui::Text( m_filteredClips[i].GetDataPath().GetFilename().c_str() );
                             ImGui::EndDragDropSource();
                         }
                     }

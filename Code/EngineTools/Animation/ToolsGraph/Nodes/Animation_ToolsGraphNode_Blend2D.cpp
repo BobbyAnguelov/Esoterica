@@ -7,7 +7,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void DrawBlendSpaceVisualization( Blend2DToolsNode::BlendSpace const& blendSpace, ImVec2 const& size, Float2* pDebugPoint = nullptr )
     {
@@ -126,7 +126,7 @@ namespace EE::Animation::GraphNodes
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void Blend2DToolsNode::BlendSpace::AddPoint()
     {
@@ -224,7 +224,7 @@ namespace EE::Animation::GraphNodes
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     Blend2DToolsNode::Blend2DToolsNode()
         : FlowToolsNode()
@@ -398,8 +398,8 @@ namespace EE::Animation::GraphNodes
         int16_t const runtimeNodeIdx = pGraphNodeContext->HasDebugData() ? pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() ) : InvalidIndex;
         if ( runtimeNodeIdx != InvalidIndex )
         {
-            auto pBlendNode = static_cast<GraphNodes::Blend2DNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
-            if ( pBlendNode->WasInitialized() )
+            auto pBlendNode = static_cast<Blend2DNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
+            if ( pBlendNode->IsInitialized() )
             {
                 debugPointStorage = pBlendNode->GetParameter();
                 pActualDebugPoint = &debugPointStorage;
@@ -436,7 +436,7 @@ namespace EE::Animation::GraphNodes
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     class BlendSpaceEditor final : public PG::PropertyEditor
     {

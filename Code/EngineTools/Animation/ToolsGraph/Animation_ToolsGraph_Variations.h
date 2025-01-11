@@ -60,7 +60,7 @@ namespace EE::Animation
         void Reset();
 
         // Does the specified variation exist?
-        inline bool IsValidVariation( StringID variationID ) const { return eastl::find( m_variations.begin(), m_variations.end(), variationID ) != m_variations.end(); }
+        bool IsValidVariation( StringID variationID ) const;
 
         // Get the actual case-correct variation ID - this is useful to give the users some degree of flexibility
         StringID TryGetCaseCorrectVariationID( String const& variationName ) const;

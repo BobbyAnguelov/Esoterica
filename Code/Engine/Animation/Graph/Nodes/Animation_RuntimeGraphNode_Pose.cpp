@@ -1,12 +1,11 @@
 #include "Animation_RuntimeGraphNode_Pose.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_DataSet.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Sample.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void ZeroPoseNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -64,16 +63,14 @@ namespace EE::Animation::GraphNodes
     {
         auto pNode = CreateNode<AnimationPoseNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_poseTimeValueNodeIdx, pNode->m_pPoseTimeValue );
-        pNode->m_pAnimation = context.m_pDataSet->GetResource<AnimationClip>( m_dataSlotIndex );
+
+        pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIdx );
 
         //-------------------------------------------------------------------------
 
-        if ( pNode->m_pAnimation != nullptr )
+        if ( pNode->m_pAnimation != nullptr && pNode->m_pAnimation->GetSkeleton() != context.m_pSkeleton )
         {
-            if ( pNode->m_pAnimation->GetSkeleton() != context.m_pDataSet->GetPrimarySkeleton() )
-            {
-                pNode->m_pAnimation = nullptr;
-            }
+            pNode->m_pAnimation = nullptr;
         }
     }
 

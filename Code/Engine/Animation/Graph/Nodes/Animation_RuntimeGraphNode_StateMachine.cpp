@@ -1,9 +1,10 @@
 #include "Animation_RuntimeGraphNode_StateMachine.h"
 #include "Animation_RuntimeGraphNode_Transition.h"
+#include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     void StateMachineNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
@@ -127,7 +128,7 @@ namespace EE::Animation::GraphNodes
 
         if ( m_pActiveTransition != nullptr )
         {
-            EE_ASSERT( m_pActiveTransition->WasInitialized() );
+            EE_ASSERT( m_pActiveTransition->IsInitialized() );
             m_pActiveTransition->Shutdown( context );
         }
 
@@ -151,7 +152,7 @@ namespace EE::Animation::GraphNodes
         }
     }
 
-    void StateMachineNode::EvaluateTransitions( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult& sourceNodeResult )
+    void StateMachineNode::EvaluateTransitions( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult& sourceNodeResult, int8_t sourceTasksStartMarker )
     {
         auto const& currentlyActiveStateInfo = m_states[m_activeStateIndex];
 
@@ -193,7 +194,7 @@ namespace EE::Animation::GraphNodes
             // Handle forced transitions
             //-------------------------------------------------------------------------
 
-            TInlineVector<StateNode const*, 20> forceableTargetStates;
+            TInlineVector<StateNode const*, 20> forceableTargetStatesUsingCachedPoses;
             StateInfo const& targetStateInfo = m_states[transition.m_targetStateIdx];
             if ( targetStateInfo.m_hasForceableTransitions )
             {
@@ -201,18 +202,18 @@ namespace EE::Animation::GraphNodes
                 {
                     if ( transitionInfo.m_canBeForced )
                     {
-                        forceableTargetStates.emplace_back( m_states[transitionInfo.m_targetStateIdx].m_pStateNode );
+                        forceableTargetStatesUsingCachedPoses.emplace_back( m_states[transitionInfo.m_targetStateIdx].m_pStateNode );
                     }
                 }
             }
 
             // Check if we have forceable transition back to our current state, if so we need to immediately start caching the source pose
-            bool const startCachingSourcePose = VectorContains( forceableTargetStates, currentlyActiveStateInfo.m_pStateNode );
+            bool const startCachingSourcePose = VectorContains( forceableTargetStatesUsingCachedPoses, currentlyActiveStateInfo.m_pStateNode );
 
             // Notify current transition of the new transition about to start
             if ( m_pActiveTransition != nullptr )
             {
-                m_pActiveTransition->NotifyNewTransitionStarting( context, targetStateInfo.m_pStateNode, forceableTargetStates );
+                m_pActiveTransition->NotifyNewTransitionStarting( context, targetStateInfo.m_pStateNode, forceableTargetStatesUsingCachedPoses );
             }
 
             // Start the new transition
@@ -222,14 +223,14 @@ namespace EE::Animation::GraphNodes
             transition.m_pTransitionNode->Initialize( context, SyncTrackTime() );
 
             // Initialize target state based on transition settings and what the source is (state or transition)
-            if ( m_pActiveTransition != nullptr )
-            {
-                sourceNodeResult = transition.m_pTransitionNode->StartTransitionFromTransition( context, pUpdateRange, sourceNodeResult, m_pActiveTransition, startCachingSourcePose );
-            }
-            else
-            {
-                sourceNodeResult = transition.m_pTransitionNode->StartTransitionFromState( context, pUpdateRange, sourceNodeResult, m_states[m_activeStateIndex].m_pStateNode, startCachingSourcePose );
-            }
+            TransitionNode::StartOptions startOptions( sourceNodeResult );
+            startOptions.m_pUpdateRange = pUpdateRange;
+            startOptions.m_isSourceATransition = ( m_pActiveTransition != nullptr );
+            startOptions.m_pSourceNode = startOptions.m_isSourceATransition ? (PoseNode*) m_pActiveTransition : m_states[m_activeStateIndex].m_pStateNode;
+            startOptions.m_sourceTasksStartMarker = sourceTasksStartMarker;
+            startOptions.m_startCachingSourcePose = startCachingSourcePose;
+
+            sourceNodeResult = transition.m_pTransitionNode->InitializeTargetStateAndUpdateTransition( context, startOptions );
 
             m_pActiveTransition = transition.m_pTransitionNode;
 
@@ -252,6 +253,9 @@ namespace EE::Animation::GraphNodes
         #if EE_DEVELOPMENT_TOOLS
         int16_t const startSampledEventIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
         #endif
+
+        // Record the task system marker before we evaluate the source state, this is used to rollback the task system if needed
+        int8_t const taskIndexMarker = context.m_pTaskSystem->GetCurrentTaskIndexMarker();
 
         // Check active transition
         if ( m_pActiveTransition != nullptr )
@@ -290,7 +294,7 @@ namespace EE::Animation::GraphNodes
         // Check for a valid transition, if one exists start it
         if ( context.m_branchState == BranchState::Active )
         {
-            EvaluateTransitions( context, pUpdateRange, result );
+            EvaluateTransitions( context, pUpdateRange, result, taskIndexMarker );
         }
 
         #if EE_DEVELOPMENT_TOOLS

@@ -59,7 +59,7 @@ namespace EE
         inline bool IsUnloaded() const { return m_status == Status::Unloaded; }
         inline bool IsLoading() const { return m_status == Status::Loading; }
         inline bool IsLoaded() const { return m_status == Status::Loaded; }
-        inline bool WasInitialized() const { return m_status == Status::Initialized; }
+        inline bool IsInitialized() const { return m_status == Status::Initialized; }
         inline Status GetStatus() const { return m_status; }
 
         // Do we allow multiple components of the same type per entity?

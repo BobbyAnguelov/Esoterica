@@ -2,7 +2,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     constexpr static float const g_playbackBarMinimumWidth = 120;
     constexpr static float const g_playbackBarHeight = 12;
@@ -262,7 +262,7 @@ namespace EE::Animation::GraphNodes
 
             ImGui::SetCursorPosY( ImGui::GetCursorPosY() + ImGui::GetStyle().ItemSpacing.y );
 
-            DrawInfoText( ctx );
+            DrawInfoText( ctx, pUserContext );
         }
 
         //-------------------------------------------------------------------------
@@ -271,7 +271,7 @@ namespace EE::Animation::GraphNodes
 
         else
         {
-            DrawInfoText( ctx );
+            DrawInfoText( ctx, pUserContext );
 
             if ( nodeValueType != GraphValueType::Unknown && nodeValueType != GraphValueType::BoneMask && nodeValueType != GraphValueType::Pose && nodeValueType != GraphValueType::Special )
             {

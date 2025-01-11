@@ -23,9 +23,9 @@ namespace EE::Animation
     // Records the state of a given graph instance
     struct EE_ENGINE_API RecordedGraphState
     {
-        struct ChildGraphState
+        struct ReferencedGraphState
         {
-            int16_t                                         m_childGraphNodeIdx = InvalidIndex;
+            int16_t                                         m_referencedGraphNodeIdx = InvalidIndex;
             RecordedGraphState*                             m_pRecordedState = nullptr;
         };
 
@@ -42,12 +42,12 @@ namespace EE::Animation
         // Get a unique list of the various graphs recorded
         void GetAllRecordedGraphResourceIDs( TVector<ResourceID>& outGraphIDs ) const;
 
-        // Child graphs
+        // Referenced graphs
         //-------------------------------------------------------------------------
 
-        RecordedGraphState* CreateChildGraphStateRecording( int16_t childGraphNodeIdx );
+        RecordedGraphState* CreateReferencedGraphStateRecording( int16_t referencedGraphNodeIdx );
 
-        RecordedGraphState* GetChildGraphRecording( int16_t childGraphNodeIdx ) const;
+        RecordedGraphState* GetReferencedGraphRecording( int16_t referencedGraphNodeIdx ) const;
 
         // Serialization helpers
         //-------------------------------------------------------------------------
@@ -85,7 +85,7 @@ namespace EE::Animation
         StringID                                            m_variationID;
         uint64_t                                            m_recordedResourceHash;
         TVector<int16_t>                                    m_initializedNodeIndices;
-        TVector<ChildGraphState>                            m_childGraphStates;
+        TVector<ReferencedGraphState>                       m_referencedGraphStates;
         TVector<GraphNode*>*                                m_pNodes = nullptr;
 
     private:

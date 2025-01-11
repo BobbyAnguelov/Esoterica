@@ -1,4 +1,4 @@
-#include "EngineTools/Widgets/Pickers.h"
+#include "EngineTools/Widgets/Pickers/ResourcePickers.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Variations.h"
 #include "EngineTools/FileSystem/FileRegistry.h"
@@ -8,19 +8,19 @@
 
 namespace EE::Animation
 {
-    class GraphVariationResourceOptionProvider : public ResourcePicker::OptionProvider
+    class GraphDefinitionResourceOptionProvider : public ResourcePicker::OptionProvider
     {
 
     public:
 
         virtual ResourceTypeID GetApplicableResourceTypeID() const override
         {
-            return GraphVariation::GetStaticResourceTypeID();
+            return GraphDefinition::GetStaticResourceTypeID();
         }
 
-        virtual void GenerateOptions( ToolsContext const& m_toolsContext, TVector<ResourceID>& outOptions ) const override
+        virtual void GenerateOptions( ToolsContext const& m_toolsContext, TVector<DataPath>& outOptions ) const override
         {
-            FileSystem::Extension const resourceTypeIDString = GraphVariation::GetStaticResourceTypeID().ToString();
+            FileSystem::Extension const resourceTypeIDString = GraphDefinition::GetStaticResourceTypeID().ToString();
 
             TVector<FileRegistry::FileInfo const*> graphResources = m_toolsContext.m_pFileRegistry->GetAllResourceFileEntries( GraphDefinition::GetStaticResourceTypeID() );
             for ( auto const& fileEntry : graphResources )
@@ -75,5 +75,5 @@ namespace EE::Animation
         }
     };
 
-    static GraphVariationResourceOptionProvider const g_optionProvider;
+    static GraphDefinitionResourceOptionProvider const g_optionProvider;
 }

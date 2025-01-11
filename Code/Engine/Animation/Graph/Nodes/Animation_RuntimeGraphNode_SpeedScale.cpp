@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     GraphPoseNodeResult SpeedScaleBaseNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {

@@ -140,7 +140,7 @@ namespace EE::Navmesh
                 }
                 else
                 {
-                    m_collisionPrimitives[geometryResourceID.GetResourcePath()].emplace_back( cm );
+                    m_collisionPrimitives[geometryResourceID.GetDataPath()].emplace_back( cm );
                     m_numCollisionPrimitivesToProcess++;
                 }
             }
@@ -172,6 +172,15 @@ namespace EE::Navmesh
             va_list args;
             va_start( args, pFormat );
             SystemLog::AddEntryVarArgs( Severity::Error, "Navmesh", "Generation", __FILE__, __LINE__, pFormat, args );
+            va_end( args );
+            return false;
+        };
+
+        auto LogWarning = [] ( char const* pFormat, ... )
+        {
+            va_list args;
+            va_start( args, pFormat );
+            SystemLog::AddEntryVarArgs( Severity::Warning, "Navmesh", "Generation", __FILE__, __LINE__, pFormat, args );
             va_end( args );
             return false;
         };
@@ -209,13 +218,14 @@ namespace EE::Navmesh
             //-------------------------------------------------------------------------
 
             FileSystem::Path collisionMeshFilePath;
-            if ( descriptorDataPath.IsValid() )
+            if ( physicsCollisionDescriptor.m_sourcePath.IsValid() )
             {
                 collisionMeshFilePath = physicsCollisionDescriptor.m_sourcePath.GetFileSystemPath( m_rawResourceDirectoryPath );
             }
             else
             {
-                return LogError( "Invalid source data path (%) in physics collision descriptor: %s", physicsCollisionDescriptor.m_sourcePath.c_str(), meshDescriptorFilePath.c_str() );
+                LogWarning( "Invalid source data path (%) in physics collision descriptor: %s", physicsCollisionDescriptor.m_sourcePath.c_str(), meshDescriptorFilePath.c_str() );
+                continue;
             }
 
             Import::ReaderContext readerCtx = 
@@ -227,7 +237,8 @@ namespace EE::Navmesh
             TUniquePtr<Import::ImportedMesh> pImportedMesh = Import::ReadStaticMesh( readerCtx, collisionMeshFilePath, physicsCollisionDescriptor.m_meshesToInclude );
             if ( pImportedMesh == nullptr )
             {
-                return LogError( "Failed to read mesh from source file: %s" );
+                LogWarning( "Failed to read mesh from source file: %s" );
+                continue;
             }
 
             EE_ASSERT( pImportedMesh->IsValid() );

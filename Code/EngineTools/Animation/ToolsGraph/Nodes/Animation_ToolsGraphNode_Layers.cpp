@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::GraphNodes
+namespace EE::Animation
 {
     LocalLayerToolsNode::LocalLayerToolsNode()
         : FlowToolsNode()
@@ -26,7 +26,7 @@ namespace EE::Animation::GraphNodes
         return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );
     }
 
-    void LocalLayerToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void LocalLayerToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         DrawInternalSeparator( ctx );
 
@@ -80,7 +80,7 @@ namespace EE::Animation::GraphNodes
         return IsOfType<StateMachineToolsNode>( pOutputPinNode );
     }
 
-    void StateMachineLayerToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx )
+    void StateMachineLayerToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         DrawInternalSeparator( ctx );
 
@@ -122,7 +122,7 @@ namespace EE::Animation::GraphNodes
 
     void StateMachineLayerToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
-        DrawInfoText( ctx );
+        DrawInfoText( ctx, pUserContext );
         DrawInternalSeparator( ctx );
         BeginDrawInternalRegion( ctx );
 
@@ -383,8 +383,8 @@ namespace EE::Animation::GraphNodes
             {
                 if ( auto pStateMachineLayerNode = GetConnectedInputNode<StateMachineLayerToolsNode>( i ) )
                 {
-                    auto pLayerNode = static_cast<GraphNodes::LayerBlendNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
-                    if ( pLayerNode->WasInitialized() )
+                    auto pLayerNode = static_cast<LayerBlendNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
+                    if ( pLayerNode->IsInitialized() )
                     {
                         pStateMachineLayerNode->m_runtimeDebugLayerWeight = pLayerNode->GetLayerWeight( i - 1 );
                     }
