@@ -1,6 +1,7 @@
 MIT License
 
 Copyright (c) 2022-2024 Bobby Anguelov
+
 Copyright (c) 2024-2026 Bobby Anguelov and Kirill Bazhenov
 
 Additional contributions by: Nikita Krupitskas
