@@ -24,5 +24,5 @@ namespace EE::Physics
         }
     };
 
-    EE_PROPERTY_GRID_EDITING_RULES( BodySettingsHelperFactory, CollisionMeshComponent, CollisionComponentEditingRules );
+    EE_PROPERTY_GRID_EDITING_RULES( CollisionMeshComponent, CollisionComponentEditingRules );
 }

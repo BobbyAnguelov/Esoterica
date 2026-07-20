@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Animation_RuntimeGraphNode_Passthrough.h"
-#include "Engine/Physics/PhysicsRagdoll.h"
+#include "Engine/Physics/Ragdoll/PhysicsRagdoll_Instance.h"
 
 //-------------------------------------------------------------------------
 
@@ -21,7 +21,7 @@ namespace EE::Animation
         struct EE_ENGINE_API Definition final : public PassthroughNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PassthroughNode::Definition, m_physicsBlendWeightNodeIdx, m_inpulseOriginVectorNodeIdx, m_inpulseForceVectorNodeIdx, m_physicsBlendWeight, m_profileID, m_dataSlotIdx, m_isGravityEnabled );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PassthroughNode::Definition, m_physicsBlendWeightNodeIdx, m_inpulseOriginVectorNodeIdx, m_inpulseForceVectorNodeIdx, m_physicsBlendWeight, m_dataSlotIdx, m_isGravityEnabled );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -29,7 +29,6 @@ namespace EE::Animation
             int16_t                                         m_inpulseOriginVectorNodeIdx = InvalidIndex;
             int16_t                                         m_inpulseForceVectorNodeIdx = InvalidIndex;
             int16_t                                         m_dataSlotIdx = InvalidIndex;
-            StringID                                        m_profileID;
             float                                           m_physicsBlendWeight = 1.0f;
             bool                                            m_isGravityEnabled;
         };

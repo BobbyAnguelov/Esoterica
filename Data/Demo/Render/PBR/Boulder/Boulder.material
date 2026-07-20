@@ -1,0 +1,8 @@
+<Type TypeID="EE::Render::MaterialResourceDescriptor" Version="0">
+  <Property ID="m_shader" Value="ComplexSurfacePBR" />
+  <Type ID="m_shaderParameters" TypeID="EE::Render::Shaders::ComplexSurfacePBRParameters">
+    <Property ID="m_albedoTexture" Value="data://demo/render/pbr/boulder/boulderalbedo.texture" />
+    <Property ID="m_pbrTexture" Value="data://demo/render/pbr/boulder/boulderpbr.texture" />
+    <Property ID="m_normalTexture" Value="data://demo/render/pbr/boulder/bouldernormal.texture" />
+  </Type>
+</Type>

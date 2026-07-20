@@ -5,6 +5,7 @@
 #include "AnimationEvent.h"
 #include "AnimationRootMotion.h"
 #include "AnimationSkeleton.h"
+#include "AnimationPose.h"
 #include "Base/Resource/ResourcePtr.h"
 #include "Base/Math/NumericRange.h"
 #include "Base/Time/Time.h"
@@ -14,41 +15,19 @@
 
 namespace EE::Animation
 {
-    class Pose;
     class Event;
 
     //-------------------------------------------------------------------------
 
-    struct QuantizationRange
+    struct TrackDefinition
     {
-        EE_SERIALIZE( m_rangeStart, m_rangeLength );
-
-        QuantizationRange() = default;
-
-        QuantizationRange( float start, float length )
-            : m_rangeStart( start )
-            , m_rangeLength( length )
-        {}
-
-        inline bool IsValid() const { return m_rangeLength > 0; }
-
-    public:
-
-        float                                     m_rangeStart = 0;
-        float                                     m_rangeLength = -1;
-    };
-
-    //-------------------------------------------------------------------------
-
-    struct TrackCompressionSettings
-    {
-        EE_SERIALIZE( m_translationRangeX, m_translationRangeY, m_translationRangeZ, m_scaleRange, m_constantRotation, m_isRotationStatic, m_isTranslationStatic, m_isScaleStatic );
+        EE_SERIALIZE( m_translationRangeX, m_translationRangeY, m_translationRangeZ, m_scaleRange, m_trackReadOffset, m_constantRotation, m_isRotationStatic, m_isTranslationStatic, m_isScaleStatic );
 
         friend class AnimationClipCompiler;
 
     public:
 
-        TrackCompressionSettings() = default;
+        TrackDefinition() = default;
 
         // Is the rotation for this track static i.e. a fixed value for the duration of the animation
         inline bool IsRotationTrackStatic() const { return m_isRotationStatic; }
@@ -67,10 +46,11 @@ namespace EE::Animation
 
     public:
 
-        QuantizationRange                       m_translationRangeX;
-        QuantizationRange                       m_translationRangeY;
-        QuantizationRange                       m_translationRangeZ;
-        QuantizationRange                       m_scaleRange;
+        Quantization::FloatRange                m_translationRangeX;
+        Quantization::FloatRange                m_translationRangeY;
+        Quantization::FloatRange                m_translationRangeZ;
+        Quantization::FloatRange                m_scaleRange;
+        int32_t                                 m_trackReadOffset = 0; // Offset into compressed pose data for this track (in terms of uint16s)
 
     private:
 
@@ -82,10 +62,36 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    struct FloatCurveDefinition
+    {
+        EE_SERIALIZE( m_ID, m_range, m_isStatic );
+
+        EE_FORCE_INLINE float GetStaticValue() const { return m_range.m_rangeStart; }
+
+    public:
+
+        StringID                                m_ID;
+        Quantization::FloatRange                m_range;
+        bool                                    m_isStatic = false;
+    };
+
+    //-------------------------------------------------------------------------
+
+    struct ModelSpaceSamplingChainLink
+    {
+        EE_SERIALIZE( m_boneIdx, m_parentBoneIdx, m_parentChainLinkIdx );
+
+        int32_t m_boneIdx = InvalidIndex;
+        int32_t m_parentBoneIdx = InvalidIndex;
+        int32_t m_parentChainLinkIdx = InvalidIndex;
+    };
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINE_API AnimationClip : public Resource::IResource
     {
-        EE_RESOURCE( 'anim', "Animation Clip", 57, false );
-        EE_SERIALIZE( m_skeleton, m_numFrames, m_duration, m_compressedPoseData, m_compressedPoseOffsets, m_trackCompressionSettings, m_rootMotion, m_isAdditive );
+        EE_RESOURCE( "anim", "Animation Clip", Colors::Orchid, 66, false );
+        EE_SERIALIZE( m_skeleton, m_numFrames, m_duration, m_compressedPoseData, m_compressedPoseOffsets, m_trackDefs, m_rootMotion, m_isAdditive, m_modelSpaceSamplingChain, m_modelSpaceBoneSamplingIndices, m_compressedFloatCurveData, m_compressedFloatCurveOffsets, m_floatCurveDefs );
 
         friend class AnimationClipCompiler;
         friend class AnimationClipLoader;
@@ -98,7 +104,7 @@ namespace EE::Animation
             return encodedQuat.ToQuaternion();
         }
 
-        EE_FORCE_INLINE static Vector DecodeTranslation( uint16_t const* pData, TrackCompressionSettings const& settings )
+        EE_FORCE_INLINE static Vector DecodeTranslation( uint16_t const* pData, TrackDefinition const& settings )
         {
             float const m_x = Quantization::DecodeFloat( pData[0], settings.m_translationRangeX.m_rangeStart, settings.m_translationRangeX.m_rangeLength );
             float const m_y = Quantization::DecodeFloat( pData[1], settings.m_translationRangeY.m_rangeStart, settings.m_translationRangeY.m_rangeLength );
@@ -106,7 +112,7 @@ namespace EE::Animation
             return Vector( m_x, m_y, m_z );
         }
 
-        EE_FORCE_INLINE static float DecodeScale( uint16_t const* pData, TrackCompressionSettings const& settings )
+        EE_FORCE_INLINE static float DecodeScale( uint16_t const* pData, TrackDefinition const& settings )
         {
             return Quantization::DecodeFloat( pData[0], settings.m_scaleRange.m_rangeStart, settings.m_scaleRange.m_rangeLength );
         }
@@ -130,6 +136,7 @@ namespace EE::Animation
         inline Seconds GetTime( int32_t frame ) const { return Seconds( GetPercentageThrough( frame ).ToFloat() * m_duration ); }
         inline Seconds GetTime( Percentage percentageThrough ) const { return Seconds( percentageThrough.ToFloat() * m_duration ); }
         inline Percentage GetPercentageThrough( int32_t frame ) const { return IsSingleFrameAnimation() ? Percentage( 1.0f ) : Percentage( ( (float) frame ) / ( m_numFrames - 1 ) ); }
+        Percentage GetPercentageThrough( FrameTime const &frameTime ) const;
         inline FrameTime GetFrameTime( Percentage const percentageThrough ) const { return FrameTime( percentageThrough, GetNumFrames() ); }
         inline FrameTime GetFrameTime( Seconds const timeThroughAnimation ) const { return GetFrameTime( IsSingleFrameAnimation() ? Percentage( 0.0f ) : Percentage( timeThroughAnimation / m_duration ) ); }
         inline SyncTrack const& GetSyncTrack() const{ return m_syncTrack; }
@@ -137,8 +144,14 @@ namespace EE::Animation
         // Pose
         //-------------------------------------------------------------------------
 
-        void GetPose( FrameTime const& frameTime, Pose* pOutPose, Skeleton::LOD lod = Skeleton::LOD::High ) const;
-        inline void GetPose( Percentage percentageThrough, Pose* pOutPose, Skeleton::LOD lod = Skeleton::LOD::High ) const { GetPose( GetFrameTime( percentageThrough ), pOutPose, lod ); }
+        void GetPose( FrameTime const& frameTime, Pose* pOutPose, Skeleton::LOD lod = Skeleton::LOD::High, bool sampleFloatChannels = true ) const;
+        inline void GetPose( Percentage percentageThrough, Pose* pOutPose, Skeleton::LOD lod = Skeleton::LOD::High, bool sampleFloatChannels = true ) const { GetPose( GetFrameTime( percentageThrough ), pOutPose, lod, sampleFloatChannels ); }
+
+        // Get a single parent space transform
+        Transform GetParentSpaceTransform( FrameTime const& frameTime, int32_t boneIdx ) const;
+
+        // Get a single model space transform, this will return the entire chain from root to the specified bone
+        TInlineVector<BoneChainElement, 20> GetModelSpaceTransform( FrameTime const& frameTime, int32_t boneIdx ) const;
 
         // Secondary Animations
         //-------------------------------------------------------------------------
@@ -174,19 +187,10 @@ namespace EE::Animation
         // Get all the events for this animation
         inline TVector<Event*> const& GetEvents() const { return m_events; }
 
-        // Get all the events for the specified range. This function will append the results to the output array. Handle's looping but assumes only a single loop occurred!
-        inline void GetEventsForRange( Seconds fromTime, Seconds toTime, TInlineVector<Event const*, 10>& outEvents ) const;
-
-        // Get all the events for the specified range. This function will append the results to the output array. DOES NOT SUPPORT LOOPING!
-        inline void GetEventsForRangeNoLooping( Seconds fromTime, Seconds toTime, TInlineVector<Event const*, 10>& outEvents ) const;
-
-        // Helper function that converts percentage times to actual anim times
-        EE_FORCE_INLINE void GetEventsForRange( Percentage fromTime, Percentage toTime, TInlineVector<Event const*, 10>& outEvents ) const
-        {
-            EE_ASSERT( fromTime >= 0.0f && fromTime <= 1.0f );
-            EE_ASSERT( toTime >= 0.0f && toTime <= 1.0f );
-            GetEventsForRange( m_duration * fromTime, m_duration * toTime, outEvents );
-        }
+        // Get all the events for the specified range [fromTime, toTime). This function will append the results to the output array.
+        // Note that the trailing edge is not exclusive except for the case where the 'toTime' == 1
+        // WARNING: DOES NOT SUPPORT LOOPING!
+        void GetEventsForRange( Percentage fromTime, Percentage toTime, TInlineVector<Event const*, 10>& outEvents ) const;
 
         // Root motion
         //-------------------------------------------------------------------------
@@ -223,56 +227,31 @@ namespace EE::Animation
 
     private:
 
-        TResourcePtr<Skeleton>                  m_skeleton;
-        int32_t                                 m_numFrames = 0;
-        Seconds                                 m_duration = 0.0f;
-        TVector<uint16_t>                       m_compressedPoseData;
-        TVector<TrackCompressionSettings>       m_trackCompressionSettings;
-        TVector<uint32_t>                       m_compressedPoseOffsets;
-        TVector<Event*>                         m_events;
-        TInlineVector<AnimationClip const*,1>   m_secondaryAnimations;
-        SyncTrack                               m_syncTrack;
-        bool                                    m_isAdditive = false;
-        RootMotionData                          m_rootMotion;
+        void GetParentSpaceTransform( FrameTime const& frameTime, int32_t boneIdx, Transform& outTransform ) const;
+
+    private:
+
+        TResourcePtr<Skeleton>                      m_skeleton;
+        int32_t                                     m_numFrames = 0;
+        Seconds                                     m_duration = 0.0f;
+
+        TVector<TrackDefinition>                    m_trackDefs;
+        TVector<uint16_t>                           m_compressedPoseData;
+        TVector<uint32_t>                           m_compressedPoseOffsets;
+
+        TVector<FloatCurveDefinition>               m_floatCurveDefs;
+        TVector<uint16_t>                           m_compressedFloatCurveData;
+        TVector<uint32_t>                           m_compressedFloatCurveOffsets;
+
+        TVector<Event*>                             m_events;
+        TInlineVector<AnimationClip const*,1>       m_secondaryAnimations;
+        TInlineVector<FloatChannelData, 2>          m_floatChannelSetData;
+        SyncTrack                                   m_syncTrack;
+        bool                                        m_isAdditive = false;
+        RootMotionData                              m_rootMotion;
+
+        // The sub-skeleton that we need to calculate model space bone transforms
+        TVector<ModelSpaceSamplingChainLink>        m_modelSpaceSamplingChain;
+        TVector<int32_t>                            m_modelSpaceBoneSamplingIndices; // The bones that need to be blended in model space (these are indices into the 'm_modelSpaceSamplingBoneChain' array)
     };
-}
-
-//-------------------------------------------------------------------------
-// The below functions are in the header so they will be inlined
-//-------------------------------------------------------------------------
-// Do not move to the CPP file!!!
-
-namespace EE::Animation
-{
-    inline void AnimationClip::GetEventsForRangeNoLooping( Seconds fromTime, Seconds toTime, TInlineVector<Event const*, 10>& outEvents ) const
-    {
-        EE_ASSERT( toTime >= fromTime );
-
-        for ( auto const& pEvent : m_events )
-        {
-            // Events are stored sorted by time so as soon as we reach an event after the end of the time range, we're done
-            if ( pEvent->GetStartTime() > toTime )
-            {
-                break;
-            }
-
-            if ( FloatRange( fromTime, toTime ).Overlaps( pEvent->GetTimeRange() ) )
-            {
-                outEvents.emplace_back( pEvent );
-            }
-        }
-    }
-
-    EE_FORCE_INLINE void AnimationClip::GetEventsForRange( Seconds fromTime, Seconds toTime, TInlineVector<Event const*, 10>& outEvents ) const
-    {
-        if ( fromTime <= toTime )
-        {
-            GetEventsForRangeNoLooping( fromTime, toTime, outEvents );
-        }
-        else
-        {
-            GetEventsForRangeNoLooping( fromTime, m_duration, outEvents );
-            GetEventsForRangeNoLooping( 0, toTime, outEvents );
-        }
-    }
 }

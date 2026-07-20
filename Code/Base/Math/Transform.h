@@ -19,12 +19,14 @@ namespace EE
     public:
 
         static Transform const Identity;
+        static Transform const Zero;
 
         EE_FORCE_INLINE static Transform FromRotation( Quaternion const& rotation ) { return Transform( rotation ); }
         EE_FORCE_INLINE static Transform FromTranslation( Vector const& translation ) { return Transform( Quaternion::Identity, translation ); }
         EE_FORCE_INLINE static Transform FromScale( float uniformScale ) { return Transform( Quaternion::Identity, Vector::Zero, uniformScale ); }
         EE_FORCE_INLINE static Transform FromTranslationAndScale( Vector const& translation, float uniformScale ) { return Transform( Quaternion::Identity, translation, uniformScale ); }
-        EE_FORCE_INLINE static Transform FromRotationBetweenVectors( Vector const sourceVector, Vector const targetVector ) { return Transform( Quaternion::FromRotationBetweenNormalizedVectors( sourceVector, targetVector ) ); }
+        EE_FORCE_INLINE static Transform FromRotationBetweenVectors( Vector const sourceVector, Vector const targetVector ) { return Transform( Quaternion::FromRotationBetweenUnitVectors( sourceVector, targetVector ) ); }
+        EE_FORCE_INLINE static Transform LookAt( Vector const& forwardVector, Vector const& upVector = Vector::WorldUp, Vector const& eyePos = Vector::Zero ) { return Transform( Quaternion::LookAt( forwardVector, upVector ), eyePos ); }
 
         // Linearly interpolate between two transforms - uses NLerp for rotations
         inline static Transform Lerp( Transform const& from, Transform const& to, float t );
@@ -88,15 +90,15 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        EE_FORCE_INLINE Vector GetAxisX() const { return m_rotation.RotateVector( Vector::UnitX ); }
-        EE_FORCE_INLINE Vector GetAxisY() const { return m_rotation.RotateVector( Vector::UnitY ); }
-        EE_FORCE_INLINE Vector GetAxisZ() const { return m_rotation.RotateVector( Vector::UnitZ ); }
+        EE_FORCE_INLINE Vector GetAxisX() const { return m_rotation.GetAxisX(); }
+        EE_FORCE_INLINE Vector GetAxisY() const { return m_rotation.GetAxisY(); }
+        EE_FORCE_INLINE Vector GetAxisZ() const { return m_rotation.GetAxisZ(); }
 
-        Vector GetAxis( Axis axis ) const;
+        EE_FORCE_INLINE Vector GetAxis( Axis axis ) const { return m_rotation.GetAxis( axis ); }
 
-        EE_FORCE_INLINE Vector GetRightVector() const { return m_rotation.RotateVector( Vector::WorldRight ); }
-        EE_FORCE_INLINE Vector GetForwardVector() const { return m_rotation.RotateVector( Vector::WorldForward ); }
-        EE_FORCE_INLINE Vector GetUpVector() const { return m_rotation.RotateVector( Vector::WorldUp ); }
+        EE_FORCE_INLINE Vector GetRightVector() const { return m_rotation.GetRightVector(); }
+        EE_FORCE_INLINE Vector GetForwardVector() const { return m_rotation.GetForwardVector(); }
+        EE_FORCE_INLINE Vector GetUpVector() const { return m_rotation.GetUpVector(); }
 
         EE_FORCE_INLINE bool IsIdentity() const { return m_rotation.IsIdentity() && m_translationScale.IsEqual4( Vector::UnitW ); }
         EE_FORCE_INLINE bool IsRigidTransform() const { return GetScale() == 1.0f; }
@@ -107,7 +109,7 @@ namespace EE
 
         // Invert this transform.
         // If you want a delta transform that you can concatenate, then you should use the 'Delta' functions
-        inline Transform& Inverse();
+        inline void Invert();
 
         // Get the inverse of this transform.
         // If you want a delta transform that you can concatenate, then you should use the 'Delta' functions
@@ -160,9 +162,7 @@ namespace EE
         EE_FORCE_INLINE bool HasScale() const { return m_translationScale.GetW() != 1.0f; }
         EE_FORCE_INLINE bool HasNegativeScale() const { return m_translationScale.GetW() < 0.0f; }
 
-        // This function will sanitize the scale values to remove any trailing values from scale factors i.e. 1.000000012 will be converted to 1
-        // This is primarily needed in import steps where scale values might be sampled from curves or have multiple conversions applied resulting in variance.
-        void SanitizeScaleValue();
+        EE_FORCE_INLINE Transform GetWithoutScale() const { return Transform( m_rotation, m_translationScale.GetWithW1() ); }
 
         // Transformations
         //-------------------------------------------------------------------------
@@ -241,6 +241,16 @@ namespace EE
 
         inline bool operator!=( Transform const& rhs ) const { return !operator==( rhs); }
 
+        // Sanitization
+        //-------------------------------------------------------------------------
+
+        // This function will sanitize the scale values to remove any trailing values i.e. 1.000000012 will be converted to 1 and any near zeros
+        void Sanitize();
+
+        // This function will sanitize the scale values to remove any trailing values from scale factors i.e. 1.000000012 will be converted to 1
+        // This is primarily needed in import steps where scale values might be sampled from curves or have multiple conversions applied resulting in variance.
+        void SanitizeScaleValue();
+
     private:
 
         Quaternion  m_rotation = Quaternion( 0, 0, 0, 1 );
@@ -249,7 +259,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    inline Transform& Transform::Inverse()
+    inline void Transform::Invert()
     {
         EE_ASSERT( !m_translationScale.IsW0() );
 
@@ -266,16 +276,13 @@ namespace EE
         Vector const inverseTranslation = inverselyRotatedTranslation.GetNegated().SetW0();
 
         m_translationScale = Vector::Select( inverseTranslation, inverseScale, Vector::Select0001 );
-
-        //-------------------------------------------------------------------------
-
-        return *this;
     }
 
     inline Transform Transform::GetInverse() const
     {
         Transform inverse = *this;
-        return inverse.Inverse();
+        inverse.Invert();
+        return inverse;
     }
 
     inline Transform Transform::Lerp( Transform const& from, Transform const& to, float t )

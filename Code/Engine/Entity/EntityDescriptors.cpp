@@ -10,9 +10,74 @@
 
 namespace EE::EntityModel
 {
-    bool IsResourceAnEntityDescriptor( ResourceTypeID const& resourceTypeID )
+    //-------------------------------------------------------------------------
+    // Component Descriptor
+    //-------------------------------------------------------------------------
+
+    void ComponentDescriptor::Clear()
     {
-        return ( resourceTypeID == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() || resourceTypeID == EntityModel::EntityCollection::GetStaticResourceTypeID() );
+        m_name.Clear();
+        m_spatialParentName.Clear();
+        m_attachmentSocketID.Clear();
+        m_isSpatialComponent = false;
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_transientComponentID.Clear();
+        #endif
+    }
+
+    EntityComponent* ComponentDescriptor::CreateComponent( TypeSystem::TypeRegistry const& typeRegistry ) const
+    {
+        TypeSystem::TypeInfo const* pTypeInfo = typeRegistry.GetTypeInfo( m_typeID );
+        if ( pTypeInfo == nullptr )
+        {
+            return nullptr;
+        }
+
+        auto pEntityComponent = CreateType<EntityComponent>( typeRegistry );
+        EE_ASSERT( pEntityComponent != nullptr );
+        pEntityComponent->m_name = m_name;
+
+        #if EE_DEVELOPMENT_TOOLS
+        // Restore component ID if valid
+        if ( m_transientComponentID.IsValid() )
+        {
+            pEntityComponent->m_ID = m_transientComponentID;
+        }
+        #endif
+
+        //-------------------------------------------------------------------------
+
+        if ( IsSpatialComponent() )
+        {
+            // Set parent socket ID
+            auto pSpatialEntityComponent = reinterpret_cast<SpatialEntityComponent*>( pEntityComponent );
+            pSpatialEntityComponent->m_parentAttachmentSocketID = m_attachmentSocketID;
+        }
+
+        return pEntityComponent;
+    }
+
+    //-------------------------------------------------------------------------
+    // System Descriptor
+    //-------------------------------------------------------------------------
+
+    void SystemDescriptor::Clear()
+    {
+        m_typeID.Clear();
+    }
+
+    EntitySystem* SystemDescriptor::CreateSystem( TypeSystem::TypeRegistry const& typeRegistry ) const
+    {
+        TypeSystem::TypeInfo const* pTypeInfo = typeRegistry.GetTypeInfo( m_typeID );
+        if ( pTypeInfo == nullptr )
+        {
+            return nullptr;
+        }
+
+        auto pEntitySystem = reinterpret_cast<EntitySystem*>( pTypeInfo->CreateType() );
+        EE_ASSERT( pEntitySystem != nullptr );
+        return pEntitySystem;
     }
 
     //-------------------------------------------------------------------------
@@ -60,44 +125,44 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
         // Component descriptors are sorted during compilation, spatial components are first, followed by regular components
 
+        bool componentCreationFailed = false;
         for ( EntityModel::ComponentDescriptor const& componentDesc : m_components )
         {
-            TypeSystem::TypeInfo const* pTypeInfo = typeRegistry.GetTypeInfo( componentDesc.m_typeID );
-            if ( pTypeInfo == nullptr )
+            auto pEntityComponent = componentDesc.CreateComponent( typeRegistry );
+            if ( pEntityComponent != nullptr )
             {
-                continue;
-            }
+                // Set IDs and add to component lists
+                pEntityComponent->m_entityID = pEntity->m_ID;
+                pEntity->m_components.push_back( pEntityComponent );
 
-            auto pEntityComponent = componentDesc.CreateType<EntityComponent>( typeRegistry );
-            EE_ASSERT( pEntityComponent != nullptr );
+                //-------------------------------------------------------------------------
 
-            // Set IDs and add to component lists
-            pEntityComponent->m_name = componentDesc.m_name;
-            pEntityComponent->m_entityID = pEntity->m_ID;
-            pEntity->m_components.push_back( pEntityComponent );
-
-            #if EE_DEVELOPMENT_TOOLS
-            // Restore component ID if valid
-            if ( componentDesc.m_transientComponentID.IsValid() )
-            {
-                pEntityComponent->m_ID = componentDesc.m_transientComponentID;
-            }
-            #endif
-
-            //-------------------------------------------------------------------------
-
-            if ( componentDesc.IsSpatialComponent() )
-            {
-                // Set parent socket ID
-                auto pSpatialEntityComponent = reinterpret_cast<SpatialEntityComponent*>( pEntityComponent );
-                pSpatialEntityComponent->m_parentAttachmentSocketID = componentDesc.m_attachmentSocketID;
-
-                // Set as root component
-                if ( componentDesc.IsRootComponent() )
+                if ( componentDesc.IsSpatialComponent() && componentDesc.IsRootComponent() )
                 {
                     EE_ASSERT( pEntity->m_pRootSpatialComponent == nullptr );
-                    pEntity->m_pRootSpatialComponent = pSpatialEntityComponent;
+                    pEntity->m_pRootSpatialComponent = reinterpret_cast<SpatialEntityComponent*>( pEntityComponent );
                 }
+            }
+            else
+            {
+                EE_LOG_ERROR( LogCategory::Entity, "Entity Serialization", "Failed to create component: %s", componentDesc.m_typeID.c_str() );
+            }
+        }
+
+        // Create entity systems
+        //-------------------------------------------------------------------------
+
+        bool entitySystemCreationFailed = false;
+        for ( auto const& systemDesc : m_systems )
+        {
+            auto pEntitySystem = systemDesc.CreateSystem( typeRegistry );
+            if ( pEntitySystem != nullptr )
+            {
+                pEntity->m_systems.push_back( pEntitySystem );
+            }
+            else
+            {
+                EE_LOG_ERROR( LogCategory::Entity, "Entity Serialization", "Failed to create system: %s", systemDesc.m_typeID.c_str() );
             }
         }
 
@@ -138,22 +203,6 @@ namespace EE::EntityModel
             pEntity->GetRootSpatialComponent()->CalculateWorldTransform( false );
         }
 
-        // Create entity systems
-        //-------------------------------------------------------------------------
-
-        for ( auto const& systemDesc : m_systems )
-        {
-            TypeSystem::TypeInfo const* pTypeInfo = typeRegistry.GetTypeInfo( systemDesc.m_typeID );
-            if ( pTypeInfo == nullptr )
-            {
-                continue;
-            }
-
-            auto pEntitySystem = reinterpret_cast<EntitySystem*>( pTypeInfo->CreateType() );
-            EE_ASSERT( pEntitySystem != nullptr );
-            pEntity->m_systems.push_back( pEntitySystem );
-        }
-
         // Add to collection
         //-------------------------------------------------------------------------
 
@@ -180,15 +229,22 @@ namespace EE::EntityModel
     {
         TVector<SearchResult> foundComponents;
 
-        for ( auto& entityDesc : m_entityDescriptors )
+        int32_t const numEntities = (int32_t) m_entityDescriptors.size();
+        for ( int32_t entityIdx = 0; entityIdx < numEntities; entityIdx++ )
         {
-            for ( auto& componentDesc : entityDesc.m_components )
+            auto& entityDesc = m_entityDescriptors[entityIdx];
+            
+            int32_t const numComponents = (int32_t) entityDesc.m_components.size();
+            for ( int32_t componentIdx = 0; componentIdx < numComponents; componentIdx++ )
             {
+                auto& componentDesc = entityDesc.m_components[componentIdx];
                 if ( componentDesc.m_typeID == typeID )
                 {
                     auto& result = foundComponents.emplace_back( SearchResult() );
                     result.m_pEntity = &entityDesc;
+                    result.m_entityDescIdx = entityIdx;
                     result.m_pComponent = &componentDesc;
+                    result.m_componentDescIdx = componentIdx;
                 }
                 else if ( allowDerivedTypes )
                 {
@@ -199,7 +255,9 @@ namespace EE::EntityModel
                     {
                         auto& result = foundComponents.emplace_back( SearchResult() );
                         result.m_pEntity = &entityDesc;
+                        result.m_entityDescIdx = entityIdx;
                         result.m_pComponent = &componentDesc;
+                        result.m_componentDescIdx = componentIdx;
                     }
                 }
             }
@@ -253,7 +311,7 @@ namespace EE::EntityModel
             private:
 
                 TypeSystem::TypeRegistry const&                     m_typeRegistry;
-                TVector<EntityDescriptor> const&          m_descriptors;
+                TVector<EntityDescriptor> const&                    m_descriptors;
                 TVector<Entity*>&                                   m_createdEntities;
             };
 
@@ -263,6 +321,17 @@ namespace EE::EntityModel
             EntityCreationTask updateTask( typeRegistry, m_entityDescriptors, createdEntities );
             pTaskSystem->ScheduleTask( &updateTask );
             pTaskSystem->WaitForTask( &updateTask );
+        }
+
+        // Remove any failed entities from the list
+        //-------------------------------------------------------------------------
+
+        for ( int32_t i = (int32_t) createdEntities.size() - 1; i >= 0; i-- )
+        {
+            if ( createdEntities[i] == nullptr )
+            {
+                createdEntities.erase_unsorted( createdEntities.begin() + i );
+            }
         }
 
         // Resolve spatial connections
@@ -289,7 +358,7 @@ namespace EE::EntityModel
                 Entity* pParentEntity = createdEntities[entityAttachmentInfo.m_parentEntityIdx];
                 EE_ASSERT( pParentEntity->IsSpatialEntity() );
 
-                pEntity->SetSpatialParent( pParentEntity, entityDesc.m_attachmentSocketID, Entity::SpatialAttachmentRule::KeepLocalTranform );
+                pEntity->SetSpatialParent( pParentEntity, entityDesc.m_attachmentSocketID, Entity::SpatialAttachmentRule::KeepLocalTransform );
             }
         }
 
@@ -356,7 +425,7 @@ namespace EE::EntityModel
 
         auto SortComparator = [] ( EntityDescriptor const& entityA, EntityDescriptor const& entityB )
         {
-            EE_ASSERT( entityA.m_spatialHierarchyDepth >= 0 && entityA.m_spatialHierarchyDepth >= 0 );
+            EE_ASSERT( entityA.m_spatialHierarchyDepth >= 0 && entityB.m_spatialHierarchyDepth >= 0 );
             return entityA.m_spatialHierarchyDepth < entityB.m_spatialHierarchyDepth;
         };
 

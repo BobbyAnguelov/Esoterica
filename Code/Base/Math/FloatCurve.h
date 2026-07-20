@@ -23,9 +23,6 @@ namespace EE
 
     public:
 
-        // Set curve state from a string
-        static bool FromString( String const& inStr, FloatCurve& outCurve );
-
         // The tangent options per point
         enum TangentMode : uint8_t
         {
@@ -52,26 +49,40 @@ namespace EE
             TangentMode     m_tangentMode = TangentMode::Free;
 
             #if EE_DEVELOPMENT_TOOLS
-            uint16_t          m_ID; // Not serialized, runtime generated through edit operations
+            uint16_t        m_ID; // Not serialized, runtime generated through edit operations
             #endif
         };
+
+        static String SerializePointsToString( TInlineVector<Point, 8> const& points );
+        static bool DeserializePointsFromString( String const& inStr, TInlineVector<Point, 8>& outPoints );
 
     public:
 
         // Curve query
         //-------------------------------------------------------------------------
 
+        inline bool HasPoints() const { return !m_points.empty(); }
+
         inline int32_t GetNumPoints() const { return (int32_t) m_points.size(); }
+
         Point const& GetPoint( int32_t pointIdx ) const { EE_ASSERT( pointIdx >= 0 && pointIdx < GetNumPoints() ); return m_points[pointIdx]; }
 
         // Get the range for the parameters that this curve covers
         inline FloatRange GetParameterRange() const 
         {
             FloatRange range;
-            for( auto i = 0u; i < m_points.size(); i++ )
+
+            if ( m_points.empty() )
             {
-                range.m_begin = Math::Min( range.m_begin, m_points[i].m_parameter );
-                range.m_end = Math::Max( range.m_end, m_points[i].m_parameter );
+                range = FloatRange( 0, 0 );
+            }
+            else
+            {
+                for( auto i = 0u; i < m_points.size(); i++ )
+                {
+                    range.m_begin = Math::Min( range.m_begin, m_points[i].m_parameter );
+                    range.m_end = Math::Max( range.m_end, m_points[i].m_parameter );
+                }
             }
             return range;
         }
@@ -80,15 +91,24 @@ namespace EE
         // Note: this will evaluate the curve to find the actual value range and so is pretty expensive!
         inline FloatRange GetValueRange() const
         {
-            constexpr static int32_t const numPointsToEvaluate = 150;
-            FloatRange const parameterRange = GetParameterRange();
-            float const stepT = parameterRange.GetLength() / numPointsToEvaluate;
+            FloatRange valueRange;
 
-            FloatRange valueRange( Evaluate( 0.0f ) );
-            for ( int32_t i = 1; i < numPointsToEvaluate; i++ )
+            if ( m_points.empty() )
             {
-                float const t = parameterRange.m_begin + ( stepT * i );
-                valueRange.GrowRange( Evaluate( t ) );
+                valueRange = FloatRange( 0, 0 );
+            }
+            else
+            {
+                constexpr static int32_t const numPointsToEvaluate = 150;
+                FloatRange const parameterRange = GetParameterRange();
+                float const stepT = parameterRange.GetLength() / numPointsToEvaluate;
+
+                valueRange = FloatRange( Evaluate( 0.0f ) );
+                for ( int32_t i = 1; i < numPointsToEvaluate; i++ )
+                {
+                    float const t = parameterRange.m_begin + ( stepT * i );
+                    valueRange.GrowRange( Evaluate( t ) );
+                }
             }
 
             return valueRange;
@@ -98,6 +118,12 @@ namespace EE
         // If the parameter supplied is outside the parameter range the value returned will be that of the nearest extremity point
         float Evaluate( float parameter ) const;
 
+        float EvaluateAtPercentageThroughParameterRange( Percentage percentageThrough ) const
+        {
+            FloatRange parameterRange = GetParameterRange();
+            return Evaluate( parameterRange.GetValueForPercentageThrough( percentageThrough ) );
+        }
+
         // Curve manipulation
         //-------------------------------------------------------------------------
 
@@ -106,6 +132,7 @@ namespace EE
         void SetPointTangentMode( int32_t pointIdx, TangentMode mode );
         void SetPointOutTangent( int32_t pointIdx, float tangent );
         void SetPointInTangent( int32_t pointIdx, float tangent );
+        void SetPoints( TInlineVector<Point, 8> const& points );
         void RemovePoint( int32_t pointIdx );
         void Clear() { m_points.clear(); }
 
@@ -117,11 +144,11 @@ namespace EE
         //-------------------------------------------------------------------------
 
         // Set the string state from a string
-        // Warning! This will crash on invalid strings, if you are not sure if the string is valid, use the static function supplied
-        inline void FromString( String const& inStr ) { bool result = FloatCurve::FromString( inStr, *this ); EE_ASSERT( result ); }
+        // If this fails the curve is left unchanged
+        bool FromString( String const& inStr );
 
         // Returns the curve state as a string
-        String ToString() const;
+        String ToString() const { return SerializePointsToString( m_points ); }
 
         // Operators
         //-------------------------------------------------------------------------

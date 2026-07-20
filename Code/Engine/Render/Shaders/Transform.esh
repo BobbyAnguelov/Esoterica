@@ -1,0 +1,124 @@
+
+#ifndef TRANSFORM_ESH
+#define TRANSFORM_ESH
+
+#include "Base/Render/RHI.esh"
+
+#ifndef __cplusplus
+
+float4 QuaternionConjugate( float4 q )
+{
+    return float4( -q.xyz, q.w );
+}
+
+float4 MulQuaternion( float4 q1, float4 q2 )
+{
+    return float4( q2.xyz * q1.w + q1.xyz * q2.w + cross( q1.xyz, q2.xyz ),
+                   q1.w * q2.w - dot( q1.xyz, q2.xyz ) );
+}
+
+float3 RotateVector( float4 q, float3 v )
+{
+    return v + 2.0 * cross( q.xyz, cross( q.xyz, v ) + q.w * v );
+}
+
+void TransformAABB( float3x4 transform, float3 aabbCenter, float3 aabbHalfExtent, out float3 outCenter, out float3 outHalfExtent )
+{
+    float3x3 absTransform = abs( ( float3x3 )transform );
+    
+    outCenter = mul( transform, float4( aabbCenter, 1.0 ) );
+    outHalfExtent = mul( absTransform, aabbHalfExtent );
+}
+
+// Use to transform normals with transformation of arbitrary non-uniform scales (including negative) and skewing. 
+// https://www.shadertoy.com/view/3s33zj
+float3x3 Adjugate( float3x4 m )
+{
+    return float3x3( cross( m[1].xyz, m[2].xyz ), cross( m[2].xyz, m[0].xyz ), cross( m[0].xyz, m[1].xyz ) );
+}
+
+float3x3 Adjugate( float4x4 m )
+{
+    return float3x3( cross( m[1].xyz, m[2].xyz ), cross( m[2].xyz, m[0].xyz ), cross( m[0].xyz, m[1].xyz ) );
+}
+#endif
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    struct HLSL_ALIGN_STRUCT Transform
+    {
+        float3                          m_translation;
+        float4                          m_rotation;
+        float3                          m_scale;
+
+        #ifndef __cplusplus
+        float3 TransformPoint( float3 position )
+        {
+            position *= m_scale;
+            position = RotateVector( m_rotation, position );
+            position += m_translation;
+            return position;
+        }
+    
+        float3 TransformNormal( float3 normal )
+        {
+            return normalize( RotateVector( m_rotation, normalize( normal * m_scale ) ) );
+        }
+
+        void TransformAABB( float3 aabbCenter, float3 aabbHalfExtents,
+                            out float3 newCenter, out float3 newHalfExtents )
+        {
+            // TODO: Brute-force approach, there might be a better way to do it
+
+            float3 aabbMin = aabbCenter - aabbHalfExtents;
+            float3 aabbMax = aabbCenter + aabbHalfExtents;
+
+            float3 corners[8];
+            corners[0] = TransformPoint( aabbMax );
+            corners[1] = TransformPoint( aabbMin );
+            corners[2] = TransformPoint( float3( aabbMin.x, aabbMax.y, aabbMin.z ) );
+            corners[3] = TransformPoint( float3( aabbMin.x, aabbMax.y, aabbMax.z ) );
+            corners[4] = TransformPoint( float3( aabbMin.x, aabbMin.y, aabbMax.z ) );
+            corners[5] = TransformPoint( float3( aabbMax.x, aabbMin.y, aabbMin.z ) );
+            corners[6] = TransformPoint( float3( aabbMax.x, aabbMax.y, aabbMin.z ) );
+            corners[7] = TransformPoint( float3( aabbMax.x, aabbMin.y, aabbMax.z ) );
+
+            float3 newMin = corners[0];
+            float3 newMax = corners[0];
+
+            for (int cornerIndex = 1; cornerIndex < 8; ++cornerIndex )
+            {
+                newMin = min( newMin, corners[cornerIndex] );
+                newMax = max( newMax, corners[cornerIndex] );
+            }
+
+            newHalfExtents = ( newMax - newMin ) * 0.5;
+            newCenter = newMin + newHalfExtents;
+        }
+        #endif
+    };
+
+    struct HLSL_ALIGN_STRUCT SkinningTransform
+    {
+        float4                          m_rotation;
+        float4                          m_translationScale;
+
+        #ifndef __cplusplus
+        float3 TransformPoint( float3 position )
+        {
+            position = RotateVector( m_rotation, position );
+            position *= m_translationScale.w;
+            position += m_translationScale.xyz;
+            return position;
+        }
+    
+        float3 TransformNormal( float3 normal )
+        {
+            return RotateVector( m_rotation, normal ) * m_translationScale.w;
+        }
+        #endif
+    };
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

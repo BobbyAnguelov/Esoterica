@@ -45,6 +45,10 @@ namespace EE
         static Vector const WorldLeft;
         static Vector const WorldRight;
 
+        static Vector const AxisYaw;
+        static Vector const AxisPitch;
+        static Vector const AxisRoll;
+
         static Vector const NegativeOne;
         static Vector const Zero;
         static Vector const Half;
@@ -78,8 +82,6 @@ namespace EE
 
         static Vector const Infinity;
         static Vector const QNaN;
-
-        static Vector const BoxCorners[8];
 
         // Utils
         //-------------------------------------------------------------------------
@@ -172,10 +174,14 @@ namespace EE
         //-------------------------------------------------------------------------
 
         EE_FORCE_INLINE bool IsValid() const { return !IsNaN4() && !IsInfinite4(); }
+        EE_FORCE_INLINE bool IsFinite() const { return IsValid(); }
 
         //-------------------------------------------------------------------------
 
         EE_FORCE_INLINE void Store( float* pValues ) const;
+        EE_FORCE_INLINE void StoreFloat2( float* pValues ) const;
+        EE_FORCE_INLINE void StoreFloat3( float* pValues ) const;
+
         EE_FORCE_INLINE void StoreFloat( float& value ) const;
         EE_FORCE_INLINE void StoreFloat2( Float2& value ) const;
         EE_FORCE_INLINE void StoreFloat3( Float3& value ) const;
@@ -263,41 +269,41 @@ namespace EE
         // Transformations
         //-------------------------------------------------------------------------
 
-        EE_FORCE_INLINE Vector& Invert() { m_data = _mm_div_ps( Vector::One, m_data ); return *this; }
+        EE_FORCE_INLINE void Invert() { m_data = _mm_div_ps( Vector::One, m_data ); }
         EE_FORCE_INLINE Vector GetInverse() const { return _mm_div_ps( Vector::One, m_data ); }
         EE_FORCE_INLINE Vector GetReciprocal() const { return GetInverse(); }
 
-        EE_FORCE_INLINE Vector& InvertEst() { m_data = _mm_rcp_ps( m_data ); return *this; }
+        EE_FORCE_INLINE void InvertEst() { m_data = _mm_rcp_ps( m_data ); }
         EE_FORCE_INLINE Vector GetInverseEst() const { return _mm_rcp_ps( m_data ); }
 
-        EE_FORCE_INLINE Vector& Negate() { m_data = _mm_sub_ps( Vector::Zero, m_data ); return *this; }
+        EE_FORCE_INLINE void Negate() { m_data = _mm_sub_ps( Vector::Zero, m_data ); }
         EE_FORCE_INLINE Vector GetNegated() const { return _mm_sub_ps( Vector::Zero, m_data ); }
 
-        EE_FORCE_INLINE Vector& Abs() { m_data = _mm_max_ps( _mm_sub_ps( Vector::Zero, m_data ), m_data ); return *this; }
+        EE_FORCE_INLINE void Abs() { m_data = _mm_max_ps( _mm_sub_ps( Vector::Zero, m_data ), m_data ); }
         EE_FORCE_INLINE Vector GetAbs() const { return _mm_max_ps( _mm_sub_ps( Vector::Zero, m_data ), m_data ); }
 
-        EE_FORCE_INLINE Vector& Sqrt() { m_data = _mm_sqrt_ps( m_data ); return *this; }
-        EE_FORCE_INLINE Vector GetSqrt() { return _mm_sqrt_ps( m_data ); }
+        EE_FORCE_INLINE void Sqrt() { m_data = _mm_sqrt_ps( m_data ); }
+        EE_FORCE_INLINE Vector GetSqrt() const { return _mm_sqrt_ps( m_data ); }
 
-        EE_FORCE_INLINE Vector& ReciprocalSqrt() { m_data = _mm_div_ps( Vector::One, _mm_sqrt_ps( m_data ) ); return *this; }
-        EE_FORCE_INLINE Vector GetReciprocalSqrt() { return _mm_div_ps( Vector::One, _mm_sqrt_ps( m_data ) ); }
+        EE_FORCE_INLINE void ReciprocalSqrt() { m_data = _mm_div_ps( Vector::One, _mm_sqrt_ps( m_data ) ); }
+        EE_FORCE_INLINE Vector GetReciprocalSqrt() const { return _mm_div_ps( Vector::One, _mm_sqrt_ps( m_data ) ); }
 
-        EE_FORCE_INLINE Vector& EstimatedReciprocalSqrt() { m_data = _mm_rsqrt_ps( m_data ); return *this; }
-        EE_FORCE_INLINE Vector GetEstimatedReciprocalSqrt() { return _mm_rsqrt_ps( m_data ); }
+        EE_FORCE_INLINE void EstimatedReciprocalSqrt() { m_data = _mm_rsqrt_ps( m_data ); }
+        EE_FORCE_INLINE Vector GetEstimatedReciprocalSqrt() const { return _mm_rsqrt_ps( m_data ); }
 
-        EE_FORCE_INLINE Vector& Normalize2();
-        EE_FORCE_INLINE Vector& Normalize3();
-        EE_FORCE_INLINE Vector& Normalize4();
+        EE_FORCE_INLINE void Normalize2();
+        EE_FORCE_INLINE void Normalize3();
+        EE_FORCE_INLINE void Normalize4();
 
         EE_FORCE_INLINE Vector GetNormalized2() const;
         EE_FORCE_INLINE Vector GetNormalized3() const;
         EE_FORCE_INLINE Vector GetNormalized4() const;
 
-        EE_FORCE_INLINE Vector& Floor();
+        EE_FORCE_INLINE void Floor();
         EE_FORCE_INLINE Vector GetFloor() const;
-        EE_FORCE_INLINE Vector& Ceil();
+        EE_FORCE_INLINE void Ceil();
         EE_FORCE_INLINE Vector GetCeil() const;
-        EE_FORCE_INLINE Vector& Round();
+        EE_FORCE_INLINE void Round();
         EE_FORCE_INLINE Vector GetRound() const;
 
         EE_FORCE_INLINE Vector GetSign() const;
@@ -380,9 +386,13 @@ namespace EE
         EE_FORCE_INLINE float GetDistanceSquared3( Vector const& to ) const { return ( to - *this ).GetLengthSquared3(); }
         EE_FORCE_INLINE float GetDistanceSquared4( Vector const& to ) const { return ( to - *this ).GetLengthSquared4(); }
 
-        EE_FORCE_INLINE bool IsNormalized2() const { return ( LengthSquared2() - Vector::One ).Abs().IsLessThanEqual4( Vector::NormalizeCheckThreshold ); }
-        EE_FORCE_INLINE bool IsNormalized3() const { return ( LengthSquared3() - Vector::One ).Abs().IsLessThanEqual4( Vector::NormalizeCheckThreshold ); }
-        EE_FORCE_INLINE bool IsNormalized4() const { return ( LengthSquared4() - Vector::One ).Abs().IsLessThanEqual4( Vector::NormalizeCheckThreshold ); }
+        EE_FORCE_INLINE bool IsNormalized2() const { return ( LengthSquared2() - Vector::One ).GetAbs().IsLessThanEqual4( Vector::NormalizeCheckThreshold ); }
+        EE_FORCE_INLINE bool IsNormalized3() const { return ( LengthSquared3() - Vector::One ).GetAbs().IsLessThanEqual4( Vector::NormalizeCheckThreshold ); }
+        EE_FORCE_INLINE bool IsNormalized4() const { return ( LengthSquared4() - Vector::One ).GetAbs().IsLessThanEqual4( Vector::NormalizeCheckThreshold ); }
+
+        EE_FORCE_INLINE bool IsUnit2() const { return IsNormalized2(); }
+        EE_FORCE_INLINE bool IsUnit3() const { return IsNormalized3(); }
+        EE_FORCE_INLINE bool IsUnit4() const { return IsNormalized4(); }
 
         EE_FORCE_INLINE Vector InBounds( Vector const& bounds ) const; // Is this vector within the range [-bounds, bounds]
 
@@ -461,6 +471,20 @@ namespace EE
         EE_FORCE_INLINE bool IsNaN3() const { return ( _mm_movemask_ps( EqualsNaN() ) & 7 ) != 0; }
         EE_FORCE_INLINE bool IsNaN4() const { return ( _mm_movemask_ps( EqualsNaN() ) != 0 ); }
 
+        // Get the maximum component
+        EE_FORCE_INLINE Vector MaxElement2() const { return _mm_max_ps( GetSplatX(), GetSplatY() ); }
+        EE_FORCE_INLINE float GetMaxElement2() const { return _mm_cvtss_f32( MaxElement2() ); }
+
+        EE_FORCE_INLINE Vector MaxElement3() const { return _mm_max_ps( _mm_max_ps( GetSplatX(), GetSplatY() ), GetSplatZ() ); }
+        EE_FORCE_INLINE float GetMaxElement3() const { return _mm_cvtss_f32( MaxElement3() ); }
+
+        // Get the minimum component
+        EE_FORCE_INLINE Vector MinElement2() const { return _mm_min_ps( GetSplatX(), GetSplatY() ); }
+        EE_FORCE_INLINE float GetMinElement2() const { return _mm_cvtss_f32( MinElement2() ); }
+
+        EE_FORCE_INLINE Vector MinElement3() const { return _mm_min_ps( _mm_min_ps( GetSplatX(), GetSplatY() ), GetSplatZ() ); }
+        EE_FORCE_INLINE float GetMinElement3() const { return _mm_cvtss_f32( MinElement3() ); }
+
         EE_FORCE_INLINE bool IsParallelTo( Vector const& v ) const;
 
         EE_FORCE_INLINE void ToDirectionAndLength2( Vector& direction, float& length ) const;
@@ -483,6 +507,22 @@ namespace EE
     EE_FORCE_INLINE void Vector::Store( float* pValues ) const
     {
         _mm_storeu_ps( pValues, m_data );
+    }
+
+    EE_FORCE_INLINE void Vector::StoreFloat2( float* pValues ) const
+    {
+        auto yVec = _mm_shuffle_ps( m_data, m_data, _MM_SHUFFLE( 1, 1, 1, 1 ) );
+        _mm_store_ss( &pValues[0], m_data );
+        _mm_store_ss( &pValues[1], yVec );
+    }
+
+    EE_FORCE_INLINE void Vector::StoreFloat3( float* pValues ) const
+    {
+        auto yVec = _mm_shuffle_ps( m_data, m_data, _MM_SHUFFLE( 1, 1, 1, 1 ) );
+        auto zVec = _mm_shuffle_ps( m_data, m_data, _MM_SHUFFLE( 2, 2, 2, 2 ) );
+        _mm_store_ss( &pValues[0], m_data );
+        _mm_store_ss( &pValues[1], yVec );
+        _mm_store_ss( &pValues[2], zVec );
     }
 
     EE_FORCE_INLINE void Vector::StoreFloat( float& value ) const
@@ -561,7 +601,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    EE_FORCE_INLINE Vector& Vector::Normalize2()
+    EE_FORCE_INLINE void Vector::Normalize2()
     {
         // Perform the dot product on m_x and m_y only
         auto vLengthSq = _mm_mul_ps( m_data, m_data );
@@ -587,8 +627,6 @@ namespace EE
         m_data = _mm_or_ps( vTemp1, vTemp2 );
 
         *this = Select( *this, Vector::Zero, Select0011 );
-
-        return *this;
     }
 
     EE_FORCE_INLINE Vector Vector::GetNormalized2() const
@@ -598,7 +636,7 @@ namespace EE
         return v;
     }
 
-    EE_FORCE_INLINE Vector& Vector::Normalize3()
+    EE_FORCE_INLINE void Vector::Normalize3()
     {
         // Perform the dot product on m_x,m_y and m_z only
         auto vLengthSq = _mm_mul_ps( m_data, m_data );
@@ -626,8 +664,6 @@ namespace EE
         m_data = _mm_or_ps( vTemp1, vTemp2 );
 
         *this = Select( *this, Vector::Zero, Select0001 );
-
-        return *this;
     }
 
     EE_FORCE_INLINE Vector Vector::GetNormalized3() const
@@ -637,7 +673,7 @@ namespace EE
         return v;
     }
 
-    EE_FORCE_INLINE Vector& Vector::Normalize4()
+    EE_FORCE_INLINE void Vector::Normalize4()
     {
         // Perform the dot product on m_x,m_y,m_z and m_w
         auto vLengthSq = _mm_mul_ps( m_data, m_data );
@@ -670,8 +706,6 @@ namespace EE
         auto vTemp1 = _mm_andnot_ps( vLengthSq, Vector::QNaN );
         auto vTemp2 = _mm_and_ps( vResult, vLengthSq );
         m_data = _mm_or_ps( vTemp1, vTemp2 );
-
-        return *this;
     }
 
     EE_FORCE_INLINE Vector Vector::GetNormalized4() const
@@ -681,7 +715,7 @@ namespace EE
         return v;
     }
 
-    EE_FORCE_INLINE Vector& Vector::Floor()
+    EE_FORCE_INLINE void Vector::Floor()
     {
         Vector result;
 
@@ -702,7 +736,6 @@ namespace EE
         result = _mm_or_ps( result, _mm_castsi128_ps( vTest ) );
 
         m_data = result;
-        return *this;
     }
 
     EE_FORCE_INLINE Vector Vector::GetFloor() const
@@ -712,7 +745,7 @@ namespace EE
         return v;
     }
 
-    EE_FORCE_INLINE Vector& Vector::Ceil()
+    EE_FORCE_INLINE void Vector::Ceil()
     {
         Vector result;
 
@@ -733,7 +766,6 @@ namespace EE
         result = _mm_or_ps( result, _mm_castsi128_ps( vTest ) );
 
         m_data = result;
-        return *this;
     }
 
     EE_FORCE_INLINE Vector Vector::GetCeil() const
@@ -743,7 +775,7 @@ namespace EE
         return v;
     }
 
-    EE_FORCE_INLINE Vector& Vector::Round()
+    EE_FORCE_INLINE void Vector::Round()
     {
         __m128 sign = _mm_and_ps( m_data, SIMD::g_signMask );
         __m128 sMagic = _mm_or_ps( SIMD::g_noFraction, sign );
@@ -754,7 +786,6 @@ namespace EE
         R2 = _mm_andnot_ps( mask, m_data );
         R1 = _mm_and_ps( R1, mask );
         m_data = _mm_xor_ps( R1, R2 );
-        return  *this;
     }
 
     EE_FORCE_INLINE Vector Vector::GetRound() const
@@ -1302,7 +1333,7 @@ namespace EE
         Vector C1 = tanConstants.GetSplatY();
         Vector vEpsilon = tanConstants.GetSplatZ();
 
-        Vector VA = ( vec * TwoDivPi ).Round();
+        Vector VA = ( vec * TwoDivPi ).GetRound();
         Vector VC = Vector::NegativeMultiplySubtract( VA, C0, vec );
         Vector VB = VA.GetAbs();
         VC = Vector::NegativeMultiplySubtract( VA, C1, VC );
@@ -1627,7 +1658,7 @@ namespace EE
     EE_FORCE_INLINE Vector Vector::TanEst( Vector const& vec )
     {
         Vector W = Vector( SIMD::g_tanEstCoefficients ).GetSplatW();
-        Vector V1 = ( vec * W ).Round();
+        Vector V1 = ( vec * W ).GetRound();
         V1 = Vector::NegativeMultiplySubtract( Vector::Pi, V1, vec );
 
         Vector const T0 = Vector( SIMD::g_tanEstCoefficients ).GetSplatX();

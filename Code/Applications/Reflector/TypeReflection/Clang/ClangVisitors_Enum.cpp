@@ -1,8 +1,9 @@
 #include "ClangVisitors_Enum.h"
+#include "Base/Utils/StringKeyValueParser.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::TypeSystem::Reflection
+namespace EE::Reflection
 {
     static CXChildVisitResult VisitEnumContents( CXCursor cr, CXCursor parent, CXClientData pClientData )
     {
@@ -32,13 +33,24 @@ namespace EE::TypeSystem::Reflection
             }
             clang_disposeString( commentString );
 
+            ParsedMacro macro;
+            uint32_t const lineNumber = ClangUtils::GetLineNumberForCursor( cr );
+            if ( pContext->FindReflectionMacroForProperty( pContext->m_currentHeaderID, lineNumber, macro ) )
+            {
+                TypeSystem::PropertyMetadata const metaData( macro.m_macroContents );
+                if ( metaData.HasFlag( TypeSystem::PropertyMetadata::Hidden ) )
+                {
+                    constant.m_isHiddenInTools = true;
+                }
+            }
+
             pEnum->AddEnumConstant( constant );
         }
 
         return CXChildVisit_Continue;
     }
 
-    CXChildVisitResult VisitEnum( ClangParserContext* pContext, CXCursor cr, StringID const headerID )
+    CXChildVisitResult VisitEnum( ClangParserContext* pContext, CXCursor cr )
     {
         auto cursorName = ClangUtils::GetCursorDisplayName( cr );
 
@@ -60,33 +72,33 @@ namespace EE::TypeSystem::Reflection
             return CXChildVisit_Break;
         }
 
-        CoreTypeID underlyingCoreType;
+        TypeSystem::CoreTypeID underlyingCoreType;
 
         auto const* pBT = integerType.getTypePtr()->getAs<clang::BuiltinType>();
         switch ( pBT->getKind() )
         {
             case clang::BuiltinType::UChar:
-            underlyingCoreType = CoreTypeID::Uint8;
+            underlyingCoreType = TypeSystem::CoreTypeID::Uint8;
             break;
 
             case clang::BuiltinType::SChar:
-            underlyingCoreType = CoreTypeID::Int8;
+            underlyingCoreType = TypeSystem::CoreTypeID::Int8;
             break;
 
             case clang::BuiltinType::UShort:
-            underlyingCoreType = CoreTypeID::Uint16;
+            underlyingCoreType = TypeSystem::CoreTypeID::Uint16;
             break;
 
             case clang::BuiltinType::Short:
-            underlyingCoreType = CoreTypeID::Int16;
+            underlyingCoreType = TypeSystem::CoreTypeID::Int16;
             break;
 
             case clang::BuiltinType::UInt:
-            underlyingCoreType = CoreTypeID::Uint32;
+            underlyingCoreType = TypeSystem::CoreTypeID::Uint32;
             break;
 
             case clang::BuiltinType::Int:
-            underlyingCoreType = CoreTypeID::Int32;
+            underlyingCoreType = TypeSystem::CoreTypeID::Int32;
             break;
 
             case clang::BuiltinType::ULongLong:
@@ -113,11 +125,11 @@ namespace EE::TypeSystem::Reflection
             return CXChildVisit_Continue;
         }
 
-        ReflectionMacro macro;
-        if ( pContext->GetReflectionMacroForType( headerID, cr, macro ) )
+        ParsedMacro macro;
+        if ( pContext->GetReflectionMacroForType( pContext->m_currentHeaderID, cr, macro ) )
         {
             ReflectedType enumDescriptor( enumTypeID, cursorName );
-            enumDescriptor.m_headerID = headerID;
+            enumDescriptor.m_headerID = pContext->m_currentHeaderID;
             enumDescriptor.m_namespace = pContext->GetCurrentNamespace();
             enumDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEnum );
             enumDescriptor.m_underlyingType = underlyingCoreType;
@@ -141,7 +153,7 @@ namespace EE::TypeSystem::Reflection
                 }
                 else
                 {
-                    pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", enumDescriptor.m_ID.c_str(), headerID.c_str() );
+                    pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", enumDescriptor.m_ID.c_str(), pContext->m_currentHeaderID.c_str() );
                     return CXChildVisit_Break;
                 }
             }
@@ -153,7 +165,7 @@ namespace EE::TypeSystem::Reflection
                 }
                 else // We do not allow multiple resources registered with the same ID
                 {
-                    pContext->LogError( "Duplicate enum type ID encountered: %s in file: %s", enumDescriptor.m_ID.c_str(), headerID.c_str() );
+                    pContext->LogError( "Duplicate enum type ID encountered: %s in file: %s", enumDescriptor.m_ID.c_str(), pContext->m_currentHeaderID.c_str() );
                     return CXChildVisit_Break;
                 }
             }

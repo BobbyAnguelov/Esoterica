@@ -43,15 +43,6 @@ namespace EE::Animation
         m_nodeMemoryOffsets.clear();
     }
 
-    void GraphCompilationContext::TryAddPersistentNode( NodeGraph::BaseNode const* pNode, GraphNode::Definition* pDefinition )
-    {
-        auto pFlowNode = TryCast<FlowToolsNode>( pNode );
-        if ( pFlowNode != nullptr && pFlowNode->IsPersistentNode() )
-        {
-            m_persistentNodeIndices.emplace_back( pDefinition->m_nodeIdx );
-        }
-    }
-
     void GraphCompilationContext::SetVariationData( VariationHierarchy const* pVariationHierarchy, StringID ID )
     {
         EE_ASSERT( pVariationHierarchy != nullptr );
@@ -62,7 +53,20 @@ namespace EE::Animation
         m_variationID = ID;
     }
 
+    ResourceID GraphCompilationContext::GetVariationSkeletonID() const
+    {
+        EE_ASSERT( m_pVariationHierarchy != nullptr );
+        return m_pVariationHierarchy->GetVariation(m_variationID)->m_skeleton.GetResourceID();
+    }
+
     //-------------------------------------------------------------------------
+
+    GraphDefinitionCompiler::GraphDefinitionCompiler( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceDataPath )
+        : m_typeRegistry( typeRegistry )
+        , m_sourceDataPath( sourceDataPath )
+    {
+        EE_ASSERT( m_sourceDataPath.IsValid() && sourceDataPath.IsDirectoryPath() );
+    }
 
     bool GraphDefinitionCompiler::CompileGraph( ToolsGraphDefinition const& toolsGraph, StringID variationID )
     {
@@ -92,6 +96,19 @@ namespace EE::Animation
         }
 
         m_context.SetVariationData( &variationHierarchy, variationID );
+
+        // Get variation skeleton desc
+        //-------------------------------------------------------------------------
+
+        ResourceID const& skeletonResourceID = pVariation->m_skeleton.GetResourceID();
+        FileSystem::Path const skeletonPath = skeletonResourceID.GetDataPath().GetFileSystemPath( m_sourceDataPath );
+
+        Log log;
+        if ( !SkeletonResourceDescriptor::TryReadFromFile( m_typeRegistry, log, skeletonPath, m_context.m_variationSkeletonDescriptor ) )
+        {
+            m_context.LogError( "Failed to load skeleton data for variation: %s!", variationID.c_str() );
+            return false;
+        }
 
         // Always compile control parameters first
         //-------------------------------------------------------------------------
@@ -141,7 +158,7 @@ namespace EE::Animation
         m_runtimeGraph.m_instanceRequiredMemory = m_context.m_currentNodeMemoryOffset;
         m_runtimeGraph.m_instanceRequiredAlignment = m_context.m_graphInstanceRequiredAlignment;
         m_runtimeGraph.m_rootNodeIdx = rootNodeIdx;
-        m_runtimeGraph.m_referencedGraphSlots = m_context.m_registeredReferencedGraphSlots;
+        m_runtimeGraph.m_internalGraphSlots = m_context.m_registeredInternalGraphSlots;
         m_runtimeGraph.m_externalGraphSlots = m_context.m_registeredExternalGraphSlots;
 
         #if EE_DEVELOPMENT_TOOLS

@@ -7,7 +7,11 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Import { class ImportedAnimation; }
+namespace EE::Import
+{
+    class Animation;
+    struct AnimationClip;
+}
 
 //-------------------------------------------------------------------------
 
@@ -29,18 +33,16 @@ namespace EE::Animation
 
     private:
 
+        virtual void GenerateCustomDependencyHashes( Resource::CompileContext const& ctx, Resource::CompileDependencyResourceInfo* pResourceToCompile ) const final;
+
         virtual Resource::CompilationResult Compile( Resource::CompileContext const& ctx ) const final;
 
-        virtual bool GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
+        Resource::CompilationResult ReadImportedAnimation( Resource::CompileContext const& ctx, DataPath const& skeletonPath, TVector<DataPath> const& secondarySkeletonPaths, DataPath const& animationPath, TUniquePtr<Import::Animation>& outAnimation, String const& animationName = String() ) const;
 
-        Resource::CompilationResult ReadImportedAnimation( DataPath const& skeletonPath, DataPath const& animationPath, TUniquePtr<Import::ImportedAnimation>& outAnimation, String const& animationName = String() ) const;
+        Resource::CompilationResult RegenerateRootMotion( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, Import::Animation* pImportedAnimation ) const;
 
-        Resource::CompilationResult MakeAdditive( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, Import::ImportedAnimation& rawAnimData, bool isSecondaryAnimation ) const;
+        Resource::CompilationResult ProcessEventsData( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, Import::Animation const& rawAnimData, AnimationClipEventData& outEventData ) const;
 
-        Resource::CompilationResult RegenerateRootMotion( AnimationClipResourceDescriptor const& resourceDescriptor, Import::ImportedAnimation* pImportedAnimation ) const;
-
-        Resource::CompilationResult ProcessEventsData( Resource::CompileContext const& ctx, AnimationClipResourceDescriptor const& resourceDescriptor, Import::ImportedAnimation const& rawAnimData, AnimationClipEventData& outEventData ) const;
-
-        Resource::CompilationResult TransferAndCompressAnimationData( Import::ImportedAnimation const& rawAnimData, AnimationClip& animClip, IntRange const& limitRange, bool isSecondaryAnimation ) const;
+        Resource::CompilationResult TransferAndCompressAnimationData( Resource::CompileContext const& ctx, Import::Animation const& importedAnimation, Import::AnimationClip const& importedClip, AnimationClip& outAnimClip, IntRange const& limitRange, TVector<StringID> const& bonesToSampleInModelSpace, bool isPrimaryClip ) const;
     };
 }

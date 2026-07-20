@@ -1,9 +1,6 @@
 #include "EntityWorldManager.h"
 #include "EntityWorld.h"
 #include "EntityLog.h"
-#include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
-#include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
-#include "Engine/Camera/Components/Component_Camera.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Engine/UpdateContext.h"
 #include "Base/Systems.h"
@@ -25,7 +22,7 @@ namespace EE
 
         auto pTypeRegistry = systemsRegistry.GetSystem<TypeSystem::TypeRegistry>();
         EE_ASSERT( pTypeRegistry != nullptr );
-        m_worldSystemTypeInfos = pTypeRegistry->GetAllDerivedTypes( EntityWorldSystem::GetStaticTypeID(), false, false, true );
+        m_worldSystemTypeInfos = pTypeRegistry->GetAllDerivedLeafTypes( EntityWorldSystem::GetStaticTypeID(), false, false, true );
 
         // Create a game world
         //-------------------------------------------------------------------------
@@ -62,7 +59,8 @@ namespace EE
 
     void EntityWorldManager::EndFrame()
     {
-        // Do Nothing
+        // Run loading phase here to ensure that any un-registration and re-registration requests do not take multiple updates
+        UpdateLoading();
     }
 
     //-------------------------------------------------------------------------
@@ -149,7 +147,7 @@ namespace EE
 
     void EntityWorldManager::UpdateLoading()
     {
-        for ( auto const& pWorld : m_worlds )
+        for ( EntityWorld* const& pWorld : m_worlds )
         {
             pWorld->UpdateLoading();
         }
@@ -172,33 +170,6 @@ namespace EE
             //-------------------------------------------------------------------------
 
             pWorld->Update( context );
-
-            // Update world view
-            //-------------------------------------------------------------------------
-
-            if ( pWorld->GetViewport() != nullptr )
-            {
-                auto pViewport = pWorld->GetViewport();
-                auto pCameraManager = pWorld->GetWorldSystem<CameraManager>();
-                if ( pCameraManager->HasActiveCamera() )
-                {
-                    auto pActiveCamera = pCameraManager->GetActiveCamera();
-
-                    // Update camera view dimensions if they differ (needed when we resize the viewport even if the camera hasn't updated)
-                    if ( pViewport->GetDimensions() != pActiveCamera->GetViewVolume().GetViewDimensions() )
-                    {
-                        pActiveCamera->UpdateViewDimensions( pViewport->GetDimensions() );
-                        pViewport->SetViewVolume( pActiveCamera->GetViewVolume() );
-                    }
-
-                    // Update world view volume only if camera has been updated
-                    if ( pActiveCamera->ShouldReflectViewVolume() )
-                    {
-                        Math::ViewVolume const& cameraViewVolume = pActiveCamera->ReflectViewVolume();
-                        pViewport->SetViewVolume( cameraViewVolume );
-                    }
-                }
-            }
         }
 
         //-------------------------------------------------------------------------
@@ -256,6 +227,21 @@ namespace EE
             #endif
         }
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void EntityWorldManager::DebugDrawWorlds( UpdateContext const& context )
+    {
+        for ( auto const& pWorld : m_worlds )
+        {
+            if ( pWorld->IsSuspended() )
+            {
+                continue;
+            }
+
+            pWorld->DebugDraw( context );
+        }
+    }
+    #endif
 
     //-------------------------------------------------------------------------
 

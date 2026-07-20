@@ -42,7 +42,8 @@ namespace EE::Animation
 
     private:
 
-        virtual void PostDeserialize() override;
+        virtual void PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry ) override;
+        virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;
 
         int16_t CompileState( GraphCompilationContext& context, StateToolsNode const* pStateNode ) const;
         int16_t CompileTransition( GraphCompilationContext& context, TransitionToolsNode const* pTransitionNode, int16_t targetStateNodeIdx ) const;

@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <Type Name="ufbxi_node">
+
+    <DisplayString>{{ name={name,s} }}</DisplayString>
+
+    <Expand>
+
+      <Item Name="name">name,s</Item>
+
+      <Synthetic Name="values" Condition="value_type_mask!=3">
+        <DisplayString Condition="(value_type_mask&amp;0xffff) == 0">{{ num_values = 0 }}</DisplayString>
+        <DisplayString Condition="(value_type_mask&amp;0xfffc) == 0">{{ num_values = 1 }}</DisplayString>
+        <DisplayString Condition="(value_type_mask&amp;0xfff0) == 0">{{ num_values = 2 }}</DisplayString>
+        <DisplayString Condition="(value_type_mask&amp;0xffc0) == 0">{{ num_values = 3 }}</DisplayString>
+        <DisplayString Condition="(value_type_mask&amp;0xff00) == 0">{{ num_values = 4 }}</DisplayString>
+        <DisplayString Condition="(value_type_mask&amp;0xfc00) == 0">{{ num_values = 5 }}</DisplayString>
+        <DisplayString Condition="(value_type_mask&amp;0xf000) == 0">{{ num_values = 6 }}</DisplayString>
+        <DisplayString Condition="(value_type_mask&amp;0xc000) == 0">{{ num_values = 7 }}</DisplayString>
+        <Expand>
+          <CustomListItems MaxItemsPerView="7">
+            <Variable Name="mask" InitialValue="value_type_mask"/>
+            <Variable Name="ix" InitialValue="0"/>
+            <Loop>
+              <Break Condition="mask == 0" />
+              <Item Condition="(mask &amp; 0x3) == 1 &amp;&amp; (double)(int64_t)vals[ix].f == vals[ix].f">(int64_t)vals[ix].f</Item>
+              <Item Condition="(mask &amp; 0x3) == 1 &amp;&amp; (double)(int64_t)vals[ix].f != vals[ix].f">vals[ix].f</Item>
+              <Item Condition="(mask &amp; 0x3) == 2">vals[ix].s</Item>
+              <Exec>mask = mask >> 2</Exec>
+              <Exec>ix = ix + 1</Exec>
+            </Loop>
+          </CustomListItems>
+        </Expand>
+      </Synthetic>
+
+      <Item Name="array" Condition="value_type_mask==3">array</Item>
+
+      <Synthetic Name="children">
+        <DisplayString>{{ num_children={num_children} }}</DisplayString>
+        <Expand>
+          <ArrayItems>
+            <Size>num_children</Size>
+            <ValuePointer>children</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+
+    </Expand>
+  </Type>
+
+  <Type Name="ufbxi_value_array">
+    <DisplayString>{{ size={size} }}</DisplayString>
+    <Expand>
+
+      <ArrayItems Condition="type=='b'">
+        <Size>size</Size>
+        <ValuePointer>(bool*)data</ValuePointer>
+      </ArrayItems>
+
+      <ArrayItems Condition="type=='i'">
+        <Size>size</Size>
+        <ValuePointer>(int32_t*)data</ValuePointer>
+      </ArrayItems>
+
+      <ArrayItems Condition="type=='l'">
+        <Size>size</Size>
+        <ValuePointer>(int64_t*)data</ValuePointer>
+      </ArrayItems>
+
+      <ArrayItems Condition="type=='f'">
+        <Size>size</Size>
+        <ValuePointer>(float*)data</ValuePointer>
+      </ArrayItems>
+
+      <ArrayItems Condition="type=='d'">
+        <Size>size</Size>
+        <ValuePointer>(double*)data</ValuePointer>
+      </ArrayItems>
+
+    </Expand>
+  </Type>
+
+  <Type Name="ufbxi_xml_tag">
+
+    <DisplayString Condition="name.length > 0">&lt;{name.data,sb}&gt;</DisplayString>
+    <DisplayString Condition="text.length > 0">{text.data,s}</DisplayString>
+    <DisplayString Condition="name.length == 0 &amp;&amp; text.length == 0">(XML root)</DisplayString>
+
+    <Expand>
+
+      <Item Name="name" Condition="name.length > 0">name,s</Item>
+      <Item Name="text" Condition="text.length > 0">text,s</Item>
+
+      <Synthetic Name="attribs" Condition="num_attribs">
+        <DisplayString>{{ count={num_attribs} }}</DisplayString>
+        <Expand>
+          <ArrayItems>
+            <Size>num_attribs</Size>
+            <ValuePointer>attribs</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+
+      <Synthetic Name="children" Condition="num_children">
+        <DisplayString>{{ count={num_children} }}</DisplayString>
+        <Expand>
+          <ArrayItems>
+            <Size>num_children</Size>
+            <ValuePointer>children</ValuePointer>
+          </ArrayItems>
+        </Expand>
+      </Synthetic>
+
+    </Expand>
+  </Type>
+
+  <Type Name="ufbxi_bake_time_list"><DisplayString>{{ count={count} }}</DisplayString><Expand><ArrayItems><Size>count</Size><ValuePointer>data</ValuePointer></ArrayItems></Expand></Type>
+
+  <Type Name="ufbxos_wait_sema">
+	  <Expand>
+		  <Item Name="waiters">state &amp; 0x7fff</Item>
+		  <Item Name="sleepers">(state >> 15) &amp; 0x7fff</Item>
+		  <Item Name="signaled">(state >> 30) &amp; 0x1</Item>
+		  <Item Name="revision">state >> 32</Item>
+	  </Expand>
+  </Type>
+
+  <Type Name="ufbxos_wait_entry">
+	  <Expand>
+		  <Item Name="sema_index">state &amp; 0xff</Item>
+		  <Item Name="hash">(state >> 8) &amp; 0x7fffff</Item>
+		  <Item Name="hash_multi">(state >> 31) &amp; 0x1</Item>
+		  <Item Name="sema_revision">state >> 32</Item>
+	  </Expand>
+  </Type>
+
+
+</AutoVisualizer>

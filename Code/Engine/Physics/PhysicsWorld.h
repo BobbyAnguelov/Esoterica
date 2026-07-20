@@ -1,214 +1,225 @@
 #pragma once
 
+#include "PhysicsMaterial.h"
 #include "Engine/Physics/PhysicsQuery.h"
 #include "Base/Time/Time.h"
 #include "Base/Math/Transform.h"
+#include "Base/Threading/TaskSystem.h"
+#include "Base/Threading/Threading.h"
+#include "Base/Profiling.h"
 #include <atomic>
+#include "Base/Math/SimpleMovingAverage.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE { struct AABB; }
-
-namespace physx 
+namespace EE 
 {
-    class PxScene;
-    class PxGeometry;
-    class PxRigidActor;
-    class PxShape;
-    class PxRenderBuffer;
-    class PxControllerManager;
+    struct AABB;
+    class Viewport;
+    class SystemRegistry;
+    namespace Render { class DebugMeshRegistry; }
 }
 
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
-    struct ActorUserData;
-    class CharacterComponent;
-    class PhysicsShapeComponent;
-    class MaterialRegistry;
-    class Ragdoll;
-    struct RagdollDefinition;
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINE_API PhysicsWorld final
     {
         friend class PhysicsWorldSystem;
 
-    public:
+        //-------------------------------------------------------------------------
+
+        constexpr static int s_maxAsyncTasks = 64;
+
+        class AsyncTask : public ITaskSet
+        {
+        public:
+
+            AsyncTask() = default;
+
+            virtual void ExecuteRange( enki::TaskSetPartition range, uint32_t threadIndex ) override
+            {
+                EE_PROFILE_FUNCTION_PHYSICS();
+                m_pTask( m_pTaskContext );
+            }
+
+        public:
+
+            b3TaskCallback*     m_pTask = nullptr;
+            void*               m_pTaskContext = nullptr;
+        };
 
         // The distance that the shape is pushed away from a detected collision after a sweep - currently set to 5mm as that is a relatively standard value
         static constexpr float const s_sweepSeperationDistance = 0.005f;
 
     public:
 
-        PhysicsWorld( MaterialRegistry const* pRegistry, bool isGameWorld );
+        PhysicsWorld( SystemRegistry const& systemRegistry, bool isGameWorld );
         ~PhysicsWorld();
+
+        EE_FORCE_INLINE bool IsGameWorld() const { return m_isGameWorld; }
+        EE_FORCE_INLINE b3WorldId GetWorldID() const { return m_worldID; }
+        EE_FORCE_INLINE b3SurfaceMaterial const& GetMaterial( StringID materialID ) const { return m_materialRegistry.GetMaterial( materialID ); }
+        EE_FORCE_INLINE b3SurfaceMaterial const& GetMaterial( MaterialID materialID ) const { return m_materialRegistry.GetMaterial( materialID.m_ID ); }
+
+        inline Seconds GetTimeStepInterval() const { return m_fixedTimeStep; }
 
         // Locks
         //-------------------------------------------------------------------------
 
-        void AcquireReadLock();
-        void ReleaseReadLock();
-        void AcquireWriteLock();
-        void ReleaseWriteLock();
-
-        // Ragdolls
-        //-------------------------------------------------------------------------
-
-        Ragdoll* CreateRagdoll( RagdollDefinition const* pDefinition, StringID const& profileID, uint64_t userID );
-        void DestroyRagdoll( Ragdoll*& pRagdoll );
+        void LockRead() const;
+        void UnlockRead() const;
+        void LockWrite();
+        void UnlockWrite();
 
         // Queries
         //-------------------------------------------------------------------------
 
-        inline bool RayCast( Vector const& start, Vector const& end, QueryRules const& rules, RayCastResults& outResults ) 
+        inline bool RayCast( Vector const& start, Vector const& end, CastQuery& outQuery )
         {
             Vector const dirAndDistance = end - start;
             Vector direction;
             float distance;
             dirAndDistance.ToDirectionAndLength3( direction, distance);
-            return RayCastInternal( start, direction, distance, rules, outResults );
+            return RayCastInternal( start, end, direction, distance, outQuery );
         }
 
-        inline bool RayCast( Vector const& start, Vector const& unitDirection, float distance, QueryRules const& rules, RayCastResults& outResults )
+        inline bool RayCast( Vector const& start, Vector const& unitDirection, float distance, CastQuery& outQuery )
         {
             EE_ASSERT( unitDirection.IsNormalized3() );
             EE_ASSERT( distance > 0 );
-            return RayCastInternal( start, unitDirection, distance, rules, outResults );
+            Vector const end = Vector::MultiplyAdd( unitDirection, Vector( distance ), start );
+            return RayCastInternal( start, end, unitDirection, distance, outQuery );
         }
 
-        bool SphereSweep( float radius, Vector const& start, Vector const& end, QueryRules const& rules, SweepResults& outResults )
+        bool SphereCast( float radius, Vector const& start, Vector const& end, CastQuery& outQuery )
         {
             Vector const dirAndDistance = end - start;
             Vector direction;
             float distance;
             dirAndDistance.ToDirectionAndLength3( direction, distance );
-            return SphereSweepInternal( radius, start, direction, distance, rules, outResults );
+            return SphereCastInternal( radius, start, end, direction, distance, outQuery );
         }
 
-        bool SphereSweep( float radius, Vector const& start, Vector const& unitDirection, float distance, QueryRules const& rules, SweepResults& outResults )
+        bool SphereCast( float radius, Vector const& start, Vector const& unitDirection, float distance, CastQuery& outQuery )
         {
             EE_ASSERT( unitDirection.IsNormalized3() );
             EE_ASSERT( distance > 0 );
-            return SphereSweepInternal( radius, start, unitDirection, distance, rules, outResults );
+            Vector const end = Vector::MultiplyAdd( unitDirection, Vector( distance ), start );
+            return SphereCastInternal( radius, start, end, unitDirection, distance, outQuery );
         }
 
-        bool SphereSweep( float radius, Transform const& startTransform, Vector const& unitDirection, float distance, QueryRules const& rules, SweepResults& outResults )
+        bool SphereCast( float radius, Transform const& startTransform, Vector const& unitDirection, float distance, CastQuery& outQuery )
         {
             EE_ASSERT( unitDirection.IsNormalized3() );
             EE_ASSERT( distance > 0 );
-            return SphereSweepInternal( radius, startTransform.GetTranslation(), unitDirection, distance, rules, outResults );
+            Vector const end = Vector::MultiplyAdd( unitDirection, Vector( distance ), startTransform.GetTranslation() );
+            return SphereCastInternal( radius, startTransform.GetTranslation(), end, unitDirection, distance, outQuery );
         }
 
-        bool CapsuleSweep( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& end, QueryRules const& rules, SweepResults& outResults )
+        bool CapsuleCast( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& end, CastQuery& outQuery )
         {
             Vector const dirAndDistance = end - start;
             Vector direction;
             float distance;
             dirAndDistance.ToDirectionAndLength3( direction, distance );
-            return CapsuleSweepInternal( radius, cylinderPortionHalfHeight, orientation, start, direction, distance, rules, outResults );
+            return CapsuleCastInternal( radius, cylinderPortionHalfHeight, orientation, start, end, direction, distance, outQuery );
         }
 
-        bool CapsuleSweep( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& unitDirection, float distance, QueryRules const& rules, SweepResults& outResults )
+        bool CapsuleCast( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& unitDirection, float distance, CastQuery& outQuery )
         {
             EE_ASSERT( unitDirection.IsNormalized3() );
             EE_ASSERT( distance > 0 );
-            return CapsuleSweepInternal( radius, cylinderPortionHalfHeight, orientation, start, unitDirection, distance, rules, outResults );
+            Vector const end = Vector::MultiplyAdd( unitDirection, Vector( distance ), start );
+            return CapsuleCastInternal( radius, cylinderPortionHalfHeight, orientation, start, end, unitDirection, distance, outQuery );
         }
 
-        bool CapsuleSweep( float radius, float cylinderPortionHalfHeight, Transform const& startTransform, Vector const& unitDirection, float distance, QueryRules const& rules, SweepResults& outResults )
+        bool CapsuleCast( float radius, float cylinderPortionHalfHeight, Transform const& startTransform, Vector const& unitDirection, float distance, CastQuery& outQuery )
         {
             EE_ASSERT( unitDirection.IsNormalized3() );
             EE_ASSERT( distance > 0 );
-            return CapsuleSweepInternal( radius, cylinderPortionHalfHeight, startTransform.GetRotation(), startTransform.GetTranslation(), unitDirection, distance, rules, outResults );
+            Vector const end = Vector::MultiplyAdd( unitDirection, Vector( distance ), startTransform.GetTranslation() );
+            return CapsuleCastInternal( radius, cylinderPortionHalfHeight, startTransform.GetRotation(), startTransform.GetTranslation(), end, unitDirection, distance, outQuery );
         }
 
-        bool CylinderSweep( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& end, QueryRules const& rules, SweepResults& outResults )
+        // Note: this is an approximation using a hull with 32 points describing a rough cylinder shape
+        bool CylinderCast( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& end, CastQuery& outQuery )
         {
             Vector const dirAndDistance = end - start;
             Vector direction;
             float distance;
             dirAndDistance.ToDirectionAndLength3( direction, distance );
-            return CylinderSweepInternal( radius, cylinderPortionHalfHeight, orientation, start, direction, distance, rules, outResults );
+            return CylinderCastInternal( radius, cylinderPortionHalfHeight, orientation, start, end, direction, distance, outQuery );
         }
 
-        bool CylinderSweep( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& unitDirection, float distance, QueryRules const& rules, SweepResults& outResults )
+        // Note: this is an approximation using a hull with 32 points describing a rough cylinder shape
+        bool CylinderCast( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& unitDirection, float distance, CastQuery& outQuery )
         {
             EE_ASSERT( unitDirection.IsNormalized3() );
             EE_ASSERT( distance > 0 );
-            return CylinderSweepInternal( radius, cylinderPortionHalfHeight, orientation, start, unitDirection, distance, rules, outResults );
+            Vector const end = Vector::MultiplyAdd( unitDirection, Vector( distance ), start );
+            return CylinderCastInternal( radius, cylinderPortionHalfHeight, orientation, start, end, unitDirection, distance, outQuery );
         }
 
-        bool CylinderSweep( float radius, float cylinderPortionHalfHeight, Transform const& startTransform, Vector const& unitDirection, float distance, QueryRules const& rules, SweepResults& outResults )
+        // Note: this is an approximation using a hull with 32 points describing a rough cylinder shape
+        bool CylinderCast( float radius, float cylinderPortionHalfHeight, Transform const& startTransform, Vector const& unitDirection, float distance, CastQuery& outQuery )
         {
             EE_ASSERT( unitDirection.IsNormalized3() );
             EE_ASSERT( distance > 0 );
-            return CylinderSweepInternal( radius, cylinderPortionHalfHeight, startTransform.GetRotation(), startTransform.GetTranslation(), unitDirection, distance, rules, outResults );
+            Vector const end = Vector::MultiplyAdd( unitDirection, Vector( distance ), startTransform.GetTranslation() );
+            return CylinderCastInternal( radius, cylinderPortionHalfHeight, startTransform.GetRotation(), startTransform.GetTranslation(), end, unitDirection, distance, outQuery );
         }
 
-        bool BoxSweep( Vector halfExtents, Quaternion const& orientation, Vector const& start, Vector const& end, QueryRules const& rules, SweepResults& outResults )
+        bool BoxCast( Vector halfExtents, Quaternion const& orientation, Vector const& start, Vector const& end, CastQuery& outQuery )
         {
             Vector const dirAndDistance = end - start;
             Vector direction;
             float distance;
             dirAndDistance.ToDirectionAndLength3( direction, distance );
-            return BoxSweepInternal( halfExtents, orientation, start, direction, distance, rules, outResults );
+            return BoxCastInternal( halfExtents, orientation, start, end, direction, distance, outQuery );
         }
 
-        bool BoxSweep( Vector halfExtents, Quaternion const& orientation, Vector const& start, Vector const& unitDirection, float distance, QueryRules const& rules, SweepResults& outResults )
+        bool BoxCast( Vector halfExtents, Quaternion const& orientation, Vector const& start, Vector const& unitDirection, float distance, CastQuery& outQuery )
         {
             EE_ASSERT( unitDirection.IsNormalized3() );
             EE_ASSERT( distance > 0 );
-            return BoxSweepInternal( halfExtents, orientation, start, unitDirection, distance, rules, outResults );
+            Vector const end = Vector::MultiplyAdd( unitDirection, Vector( distance ), start );
+            return BoxCastInternal( halfExtents, orientation, start, end, unitDirection, distance, outQuery );
         }
 
-        bool BoxSweep( Vector halfExtents, Transform const& startTransform, Vector const& unitDirection, float distance, QueryRules const& rules, SweepResults& outResults )
+        bool BoxCast( Vector halfExtents, Transform const& startTransform, Vector const& unitDirection, float distance, CastQuery& outQuery )
         {
             EE_ASSERT( unitDirection.IsNormalized3() );
             EE_ASSERT( distance > 0 );
-            return BoxSweepInternal( halfExtents, startTransform.GetRotation(), startTransform.GetTranslation(), unitDirection, distance, rules, outResults );
+            Vector const end = Vector::MultiplyAdd( unitDirection, Vector( distance ), startTransform.GetTranslation() );
+            return BoxCastInternal( halfExtents, startTransform.GetRotation(), startTransform.GetTranslation(), end, unitDirection, distance, outQuery );
         }
 
-        bool SphereOverlap( float radius, Vector const& position, QueryRules const& rules, OverlapResults& outResults );
+        bool SphereOverlap( float radius, Vector const& position, OverlapQuery& outQuery );
 
-        bool CapsuleOverlap( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& position, QueryRules const& rules, OverlapResults& outResults );
+        bool CapsuleOverlap( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& position, OverlapQuery& outQuery );
 
-        inline bool CapsuleOverlap( float radius, float cylinderPortionHalfHeight, Transform const& shapeTransform, QueryRules const& rules, OverlapResults& outResults )
+        inline bool CapsuleOverlap( float radius, float cylinderPortionHalfHeight, Transform const& shapeTransform, OverlapQuery& outQuery )
         {
-            return CapsuleOverlap( cylinderPortionHalfHeight, radius, shapeTransform.GetRotation(), shapeTransform.GetTranslation(), rules, outResults );
+            return CapsuleOverlap( cylinderPortionHalfHeight, radius, shapeTransform.GetRotation(), shapeTransform.GetTranslation(), outQuery );
         }
 
-        bool CylinderOverlap( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& position, QueryRules const& rules, OverlapResults& outResults );
+        // Note: this is an approximation using a hull with 32 points describing a rough cylinder shape
+        bool CylinderOverlap( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& position, OverlapQuery& outQuery );
 
-        inline bool CylinderOverlap( float radius, float cylinderPortionHalfHeight, Transform const& shapeTransform, QueryRules const& rules, OverlapResults& outResults )
+        // Note: this is an approximation using a hull with 32 points describing a rough cylinder shape
+        inline bool CylinderOverlap( float radius, float cylinderPortionHalfHeight, Transform const& shapeTransform, OverlapQuery& outQuery )
         {
-            return CylinderOverlap( cylinderPortionHalfHeight, radius, shapeTransform.GetRotation(), shapeTransform.GetTranslation(), rules, outResults );
+            return CylinderOverlap( cylinderPortionHalfHeight, radius, shapeTransform.GetRotation(), shapeTransform.GetTranslation(), outQuery );
         }
 
-        bool BoxOverlap( Vector halfExtents, Quaternion const& orientation, Vector const& position, QueryRules const& rules, OverlapResults& outResults );
+        bool BoxOverlap( Vector halfExtents, Quaternion const& orientation, Vector const& position, OverlapQuery& outQuery );
 
-        inline bool BoxOverlap( Vector halfExtents, Transform const& shapeTransform, QueryRules const& rules, OverlapResults& outResults )
+        inline bool BoxOverlap( Vector halfExtents, Transform const& shapeTransform, OverlapQuery& outQuery )
         {
-            return BoxOverlap( halfExtents, shapeTransform.GetRotation(), shapeTransform.GetTranslation(), rules, outResults );
+            return BoxOverlap( halfExtents, shapeTransform.GetRotation(), shapeTransform.GetTranslation(), outQuery );
         }
-
-        // Debug
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        inline uint32_t GetDebugFlags() const { return m_sceneDebugFlags; }
-        void SetDebugFlags( uint32_t debugFlags );
-
-        inline bool IsDebugDrawingEnabled() const;
-        void SetDebugDrawingEnabled( bool enableDrawing );
-        inline float GetDebugDrawDistance() const { return m_debugDrawDistance; }
-        inline void SetDebugDrawDistance( float drawDistance ) { m_debugDrawDistance = Math::Max( drawDistance, 0.0f ); }
-
-        void SetDebugCullingBox( AABB const& cullingBox );
-        physx::PxRenderBuffer const& GetRenderBuffer() const;
-        #endif
 
     private:
 
@@ -222,39 +233,95 @@ namespace EE::Physics
 
         void Simulate( Seconds deltaTime );
 
+        AsyncTask* EnqueueAsyncTask( b3TaskCallback* pTask, void* pTaskContext );
+        void WaitForAsyncTask( AsyncTask *pAsyncTask );
+
         // Queries
         //-------------------------------------------------------------------------
 
-        bool RayCastInternal( Vector const& start, Vector const& directionAndDistance, float distance, QueryRules const& rules, RayCastResults& outResults );
-        bool SphereSweepInternal( float radius, Vector const& start, Vector const& directionAndDistance, float distance, QueryRules const& rules, SweepResults& outResults );
-        bool CapsuleSweepInternal( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& directionAndDistance, float distance, QueryRules const& rules, SweepResults& outResults );
-        bool CylinderSweepInternal( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& directionAndDistance, float distance, QueryRules const& rules, SweepResults& outResults );
-        bool BoxSweepInternal( Vector halfExtents, Quaternion const& orientation, Vector const& start, Vector const& direction, float distance, QueryRules const& rules, SweepResults& outResults );
-        bool SweepInternal( physx::PxGeometry const& geo, Transform const& startTransform, Vector const& direction, float distance, QueryRules const& rules, SweepResults& outResults );
-        bool OverlapInternal( physx::PxGeometry const& geo, Transform const& transform, QueryRules const& rules, OverlapResults& outResults );
+        bool RayCastInternal( Vector const& start, Vector const& end, Vector const& directionAndDistance, float distance, CastQuery& outQuery );
+        bool SphereCastInternal( float radius, Vector const& start, Vector const& end, Vector const& directionAndDistance, float distance, CastQuery& outQuery );
+        bool CapsuleCastInternal( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& end, Vector const& directionAndDistance, float distance, CastQuery& outQuery );
+        bool CylinderCastInternal( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& end, Vector const& directionAndDistance, float distance, CastQuery& outQuery );
+        bool BoxCastInternal( Vector halfExtents, Quaternion const& orientation, Vector const& start, Vector const& end, Vector const& direction, float distance, CastQuery& outQuery );
+        bool CastInternal( b3ShapeProxy& shapeProxy, Transform const& startTransform, Vector const& end, Vector const& direction, float distance, CastQuery& outQuery );
+        bool OverlapInternal( b3ShapeProxy& shapeProxy, Transform const& transform, OverlapQuery& outQuery );
 
-        // Actors and Shapes
-        //-------------------------------------------------------------------------
-
-        bool CreateActor( PhysicsShapeComponent* pComponent ) const;
-        void DestroyActor( PhysicsShapeComponent* pComponent ) const;
-
-        bool CreateCharacterController( CharacterComponent* pComponent ) const;
-        void DestroyCharacterController( CharacterComponent* pComponent ) const;
+        #if EE_DEVELOPMENT_TOOLS
+        void DrawDebug( Viewport* pViewport ) const;
+        bool IsRecording() const { return m_pRecording != nullptr; }
+        void StartRecording();
+        void StopRecording();
+        #endif
 
     private:
 
-        MaterialRegistry const*                                 m_pMaterialRegistry = nullptr;
-        physx::PxScene*                                         m_pScene = nullptr;
-        physx::PxControllerManager*                             m_pControllerManager = nullptr;
+        TaskSystem&                                             m_taskSystem;
+        MaterialRegistry const&                                 m_materialRegistry;
+        b3WorldId                                               m_worldID = {};
         bool                                                    m_isGameWorld = false;
 
+        Seconds                                                 m_accumulatedTime = 0.0f;
+        Seconds                                                 m_fixedTimeStep = 1.0f / 120.0f;
+        SimpleMovingAverage<120>                                m_averageFrameTime = 1.0f / 120.0f;
+        Seconds                                                 m_timeSinceLastTimeStepUpdate = 0.0f;
+
+        AsyncTask                                               m_tasks[s_maxAsyncTasks];
+        int32_t                                                 m_usedTasks = 0;
+
+        mutable Threading::ReadWriteMutex                       m_mutex; // Box3D doesnt have a locking mechanism
+
         #if EE_DEVELOPMENT_TOOLS
-        uint32_t                                                m_sceneDebugFlags = 0;
-        float                                                   m_debugDrawDistance = 10.0f;
-        
-        std::atomic<int32_t>                                    m_readLockCount = false;        // Assertion helper
+        Render::DebugMeshRegistry const&                        m_debugMeshRegistry;
+        mutable std::atomic<int32_t>                            m_readLockCount = false;        // Assertion helper
         std::atomic<bool>                                       m_writeLockAcquired = false;    // Assertion helper
+        b3Recording*                                            m_pRecording = nullptr;
         #endif
+    };
+
+    //-------------------------------------------------------------------------
+
+    class [[nodiscard]] ScopedWriteLock
+    {
+    public:
+
+        ScopedWriteLock( PhysicsWorld* pWorld )
+            : m_pWorld( pWorld )
+        {
+            EE_ASSERT( m_pWorld != nullptr );
+            m_pWorld->LockWrite();
+        }
+
+        ~ScopedWriteLock()
+        {
+            m_pWorld->UnlockWrite();
+        }
+
+    private:
+
+        PhysicsWorld*  m_pWorld = nullptr;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class [[nodiscard]] ScopedReadLock
+    {
+    public:
+
+        ScopedReadLock( PhysicsWorld const* pWorld )
+            : m_pWorld( pWorld )
+        {
+            EE_ASSERT( m_pWorld != nullptr );
+            m_pWorld->LockRead();
+        }
+
+        ~ScopedReadLock()
+        {
+            m_pWorld->UnlockRead();
+        }
+
+    private:
+
+        PhysicsWorld const*  m_pWorld = nullptr;
     };
 }

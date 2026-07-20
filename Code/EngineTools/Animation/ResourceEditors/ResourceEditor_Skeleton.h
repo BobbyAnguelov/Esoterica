@@ -1,9 +1,9 @@
 #pragma once
 
 #include "EngineTools/Core/EditorTool.h"
+#include "EngineTools/Animation/AnimationClipBrowser.h"
 #include "Engine/Animation/AnimationSkeleton.h"
 #include "Base/Imgui/ImguiX.h"
-#include "EngineTools/Animation/Shared/AnimationClipBrowser.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,7 +18,7 @@ namespace EE::Animation
     {
         EE_EDITOR_TOOL( SkeletonEditor );
 
-        struct BoneInfo
+        struct BoneItem
         {
             inline void DestroyChildren()
             {
@@ -33,9 +33,12 @@ namespace EE::Animation
 
         public:
 
-            int32_t                         m_boneIdx;
-            TInlineVector<BoneInfo*, 5>     m_children;
+            ResourceID                      m_skeletonID;
+            StringID                        m_boneID;
+            int32_t                         m_boneIdx = InvalidIndex;
+            TInlineVector<BoneItem*, 5>     m_children;
             bool                            m_isExpanded = true;
+            float                           m_weight = 1.0f;
         };
 
     public:
@@ -49,9 +52,9 @@ namespace EE::Animation
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_SKULL; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
-        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual void DrawMenu( UpdateContext const& context ) override;
+        virtual void SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
+        virtual void ExtendViewportToolBar( UpdateContext const& context, Viewport* pViewport ) override;
+        virtual bool ExtendViewportToolBar_VisualizationControls( UpdateContext const& context, Viewport* pViewport ) override;
 
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
@@ -71,11 +74,9 @@ namespace EE::Animation
         void CreateSkeletonTree();
         void DestroySkeletonTree();
 
-        void DrawSkeletonWindow( UpdateContext const& context, bool isFocused );
+        void DrawSkeletonOutlinerWindow( UpdateContext const& context, bool isFocused );
         void DrawBoneInfoWindow( UpdateContext const& context, bool isFocused );
-        void DrawBoneRow( BoneInfo* pBone );
-
-        void DrawSkeletonPreview();
+        void DrawSkeletonTreeRow( BoneItem* pBone );
 
         // LOD
         //-------------------------------------------------------------------------
@@ -86,6 +87,8 @@ namespace EE::Animation
 
         // Bone Masks
         //-------------------------------------------------------------------------
+
+        void DrawBoneMasksWindow( UpdateContext const& context, bool isFocused );
 
         void ValidateDescriptorBoneMaskDefinitions();
 
@@ -99,17 +102,13 @@ namespace EE::Animation
 
         void SetWeight( int32_t boneIdx, float weight );
         void SetAllChildWeights( int32_t parentBoneIdx, float weight, bool bIncludeParent = false );
-        void UpdatePreviewBoneMask();
-
-        void ReflectWeightsToEditedBoneMask();
-
-        void DrawBoneMaskWindow( UpdateContext const& context, bool isFocused );
-        void DrawBoneMaskPreview();
 
         void GenerateUniqueBoneMaskName( int32_t boneMaskIdx );
 
-        bool DrawDeleteBoneMaskDialog( UpdateContext const& context );
-        bool DrawRenameBoneMaskDialog( UpdateContext const& context );
+        bool DrawDeleteBoneMaskDialog();
+        bool DrawRenameBoneMaskDialog();
+
+        void ReflectEditedWeights();
 
         // Clip Browser
         //-------------------------------------------------------------------------
@@ -123,12 +122,12 @@ namespace EE::Animation
         bool                            m_showPreviewMesh = true;
 
         // Skeleton View
-        BoneInfo*                       m_pSkeletonTreeRoot = nullptr;
-        StringID                        m_selectedBoneID;
+        TVector<BoneItem*>              m_bones;
+        BoneItem*                       m_pSkeletonTreeRoot = nullptr;
+        TVector<StringID>               m_selectedBoneIDs;
 
         // Bone Mask View
         int32_t                         m_editedMaskIdx = InvalidIndex;
-        TVector<float>                  m_editedBoneWeights;
         BoneMask                        m_previewBoneMask;
         StringID                        m_dialogMaskID;
         char                            m_renameBuffer[255] = { 0 };

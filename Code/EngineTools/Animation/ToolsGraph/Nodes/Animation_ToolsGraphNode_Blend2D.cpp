@@ -9,10 +9,12 @@
 
 namespace EE::Animation
 {
-    void DrawBlendSpaceVisualization( Blend2DToolsNode::BlendSpace const& blendSpace, ImVec2 const& size, Float2* pDebugPoint = nullptr )
+    void DrawBlendSpaceVisualization( float scale, Blend2DToolsNode::BlendSpace const& blendSpace, ImVec2 const& size, Float2* pDebugPoint = nullptr )
     {
+        EE_ASSERT( scale > 0.0f );
+
         ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray8 );
-        if ( ImGui::BeginChild( "Triangulation", size ) )
+        if ( ImGui::BeginChild( "Triangulation", size * scale ) )
         {
             auto pDrawList = ImGui::GetWindowDrawList();
             auto windowPos = ImGui::GetWindowPos();
@@ -95,17 +97,18 @@ namespace EE::Animation
             // Draw Points
             //-------------------------------------------------------------------------
 
-            InlineString pointLabel;
-            for ( auto i = 0u; i < blendSpace.m_points.size(); i++ )
             {
-                auto& point = blendSpace.m_points[i];
+                ImGuiX::ScopedFont const eventFont( ImGuiX::Font::Small );
+                InlineString pointLabel;
+                for ( auto i = 0u; i < blendSpace.m_points.size(); i++ )
+                {
+                    auto& point = blendSpace.m_points[i];
+                    pointLabel = blendSpace.m_pointIDs[i].empty() ? "Input" : blendSpace.m_pointIDs[i].c_str();
+                    ImVec2 const labelSize = ImGui::CalcTextSize( pointLabel.c_str() );
 
-                auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
-                pointLabel = blendSpace.m_pointIDs[i].empty() ? "Input" : blendSpace.m_pointIDs[i].c_str();
-                ImVec2 const labelSize = pFont->CalcTextSizeA( pFont->FontSize, FLT_MAX, -1.0f, pointLabel.c_str() );
-
-                pDrawList->AddCircleFilled( screenPoints[i], 5.0f, color );
-                pDrawList->AddText( pFont, pFont->FontSize, screenPoints[i] + ImVec2( labelSize.x / -2.0f, 6.f ), Colors::White, pointLabel.c_str() );
+                    pDrawList->AddCircleFilled( screenPoints[i], 5.0f * scale, color );
+                    pDrawList->AddText( screenPoints[i] + ImVec2( labelSize.x / -2.0f, 6.f ), Colors::White, pointLabel.c_str() );
+                }
             }
 
             // Draw debug point
@@ -244,9 +247,9 @@ namespace EE::Animation
         m_blendSpace.GenerateTriangulation();
     }
 
-    void Blend2DToolsNode::PostDeserialize()
+    void Blend2DToolsNode::PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry )
     {
-        FlowToolsNode::PostDeserialize();
+        FlowToolsNode::PostDeserialize( typeRegistry );
         m_blendSpace.GenerateTriangulation();
     }
 
@@ -406,7 +409,7 @@ namespace EE::Animation
             }
         }
 
-        DrawBlendSpaceVisualization( m_blendSpace, ImVec2( 200, 200 ), pActualDebugPoint );
+        DrawBlendSpaceVisualization( ctx.m_viewScaleFactor, m_blendSpace, ImVec2( 200, 200 ), pActualDebugPoint );
     }
 
     void Blend2DToolsNode::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
@@ -538,7 +541,7 @@ namespace EE::Animation
                 //-------------------------------------------------------------------------
 
                 ImGui::SameLine();
-                if ( ImGuiX::InputFloat2( &m_value_imgui.m_points[i] ) )
+                if ( ImGuiX::InputFloat2( m_value_imgui.m_points[i] ) )
                 {
                     m_value_imgui.GenerateTriangulation();
                     valueUpdated = true;
@@ -549,7 +552,7 @@ namespace EE::Animation
             // Draw visual representation of blendspace
             //-------------------------------------------------------------------------
 
-            DrawBlendSpaceVisualization( m_value_imgui, ImVec2( ImGui::GetContentRegionAvail().x, 300 ) );
+            DrawBlendSpaceVisualization( 1.0f, m_value_imgui, ImVec2( ImGui::GetContentRegionAvail().x, 300 ) );
 
             //-------------------------------------------------------------------------
 
@@ -565,5 +568,5 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    EE_PROPERTY_GRID_TYPE_EDITOR( BlendSpaceEditorFactory, Blend2DToolsNode::BlendSpace, BlendSpaceEditor );
+    EE_PROPERTY_GRID_TYPE_EDITOR( BlendSpaceEditor, Blend2DToolsNode::BlendSpace );
 }

@@ -17,10 +17,15 @@ namespace EE::Physics
 
 namespace EE::Animation
 {
-    class GraphContext;
     class TaskSystem;
     class GraphNode;
     class PoseNode;
+    class ExternalPoseNode;
+    class ReferencedGraphNode;
+    class GraphRecording;
+    class RecordedGraphState;
+    struct ExternalPoseData;
+    struct RecordedGraphUpdateData;
     enum class TaskSystemDebugMode;
 
     //-------------------------------------------------------------------------
@@ -38,28 +43,20 @@ namespace EE::Animation
     class EE_ENGINE_API GraphInstance
     {
         friend class AnimationDebugView;
+        friend class GraphRecordingPlayer;
 
     public:
 
-        struct ReferencedGraph
-        {
-            int16_t             m_nodeIdx = InvalidIndex;
-            GraphInstance*      m_pInstance = nullptr;
-        };
-
-        struct ExternalGraph
-        {
-            StringID            m_slotID;
-            int16_t             m_nodeIdx = InvalidIndex;
-            GraphInstance*      m_pInstance = nullptr;
-        };
-
         #if EE_DEVELOPMENT_TOOLS
-        struct DebuggableReferencedGraph
+        struct DebuggableGraphInstance
         {
             PointerID GetID() const { return PointerID( m_pInstance ); }
+            inline bool IsExternalGraph() const { return m_externalSlotID.IsValid(); }
 
-            DebugPath           m_path;
+        public:
+
+            SourcePath          m_path;
+            StringID            m_externalSlotID;
             GraphInstance*      m_pInstance = nullptr;
         };
         #endif
@@ -67,10 +64,10 @@ namespace EE::Animation
     public:
 
         // Main instance
-        inline GraphInstance( GraphDefinition const* pGraphDefinition, uint64_t ownerID ) : GraphInstance( pGraphDefinition, ownerID, nullptr, nullptr ) {}
+        inline GraphInstance( GraphDefinition const* pGraphDefinition ) : GraphInstance( pGraphDefinition, nullptr ) {}
 
         // Referenced graph instance
-        explicit GraphInstance( GraphDefinition const* pGraphDefinition, uint64_t ownerID, TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer, class RootMotionDebugger* pRootMotionDebugger = nullptr );
+        explicit GraphInstance( GraphDefinition const* pGraphDefinition, GraphContext *pParentContext );
 
         ~GraphInstance();
 
@@ -82,31 +79,58 @@ namespace EE::Animation
         inline StringID const& GetVariationID() const { return m_pGraphDefinition->m_variationID; }
 
         // Is this a full self-contained instance i.e. not a referenced or a external graph instance
-        inline bool IsStandaloneInstance() const { return m_pTaskSystem != nullptr; }
+        inline bool IsStandaloneInstance() const { return m_isStandaloneGraphInstance; }
 
         // Pose
         //-------------------------------------------------------------------------
 
         // Get the final primary pose from the task system
-        inline Pose const* GetPrimaryPose() { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->GetPrimaryPose(); }
+        inline Skeleton const *GetPrimarySkeleton() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pTaskSystem->GetSkeleton(); }
 
-        // Do we have any secondary poses
-        inline bool HasSecondaryPoses() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->GetNumSecondarySkeletons() > 0; }
+        // Get the final primary pose from the task system
+        inline Pose const* GetPrimaryPose() { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pTaskSystem->GetPrimaryPose(); }
 
-        // Get the number of secondary poses
-        inline int32_t GetNumSecondaryPoses() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->GetNumSecondarySkeletons(); }
-
-        // Get all sampled secondary poses
-        inline TInlineVector<Pose const*, 1> GetSecondaryPoses() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->GetSecondaryPoses(); }
-
-        // Set the skeleton LOD for the result pose
-        inline void SetSkeletonLOD( Skeleton::LOD lod ) { EE_ASSERT( m_isStandaloneGraph ); m_pTaskSystem->SetSkeletonLOD( lod ); }
-
-        // Get the current skeleton LOD we are using
-        inline Skeleton::LOD GetSkeletonLOD() const { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->GetSkeletonLOD(); }
+        // Get the final primary pose from the task system
+        inline Pose const* GetPrimaryPoseForPreviousUpdate() { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pTaskSystem->GetPrimaryPoseForPreviousUpdate(); }
 
         // Set the list of secondary skeletons we should try to animate
-        inline void SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons ) { EE_ASSERT( m_isStandaloneGraph ); return m_pTaskSystem->SetSecondarySkeletons( secondarySkeletons ); }
+        void SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons );
+
+        // Do we have any secondary poses
+        inline bool HasSecondaryPoses() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pTaskSystem->GetNumSecondarySkeletons() > 0; }
+
+        // Get the number of secondary poses
+        inline int32_t GetNumSecondaryPoses() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pTaskSystem->GetNumSecondarySkeletons(); }
+
+        // Do we have secondary pose for a given skeleton
+        inline bool HasSecondaryPose( Skeleton const* pSkeleton ) const { return GetSecondaryPose( pSkeleton ) != nullptr; }
+
+        // Do we have secondary pose for a given skeleton
+        inline bool HasSecondaryPoseForPreviousUpdate( Skeleton const* pSkeleton ) const { return GetSecondaryPoseForPreviousUpdate( pSkeleton ) != nullptr; }
+
+        // Get a secondary pose for a given skeleton
+        Pose const *GetSecondaryPose( Skeleton const* pSkeleton ) const;
+
+        // Get a secondary pose for a given skeleton
+        Pose const *GetSecondaryPoseForPreviousUpdate( Skeleton const* pSkeleton ) const;
+
+        // Get all sampled secondary poses
+        inline TInlineVector<Pose const*, 1> GetSecondaryPoses() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pTaskSystem->GetSecondaryPoses(); }
+
+        // Get all sampled secondary poses for the previous update
+        inline TInlineVector<Pose const*, 1> GetSecondaryPosesForPreviousUpdate() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pTaskSystem->GetSecondaryPosesForPreviousUpdate(); }
+
+        // Set the skeleton LOD for the result pose
+        inline void SetSkeletonLOD( Skeleton::LOD lod ) { EE_ASSERT( m_isStandaloneGraphInstance ); m_graphContext.m_pTaskSystem->SetSkeletonLOD( lod ); }
+
+        // Get the current skeleton LOD we are using
+        inline Skeleton::LOD GetSkeletonLOD() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pTaskSystem->GetSkeletonLOD(); }
+
+        // Set whether we are allowed to sample float channel data
+        EE_FORCE_INLINE void SetAllowFloatChannelSampling( bool allowFloatChannelSampling ) { EE_ASSERT( m_isStandaloneGraphInstance ); m_graphContext.m_pTaskSystem->SetAllowFloatChannelSampling( allowFloatChannelSampling ); }
+
+        // Are we allowed to sample float channel data?
+        EE_FORCE_INLINE bool IsFloatChannelSamplingAllowed() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pTaskSystem->IsFloatChannelSamplingAllowed(); }
 
         // Task System
         //-------------------------------------------------------------------------
@@ -115,10 +139,10 @@ namespace EE::Animation
         bool DoesTaskSystemNeedUpdate() const;
 
         // Serialize the currently registered pose tasks. Note: This can only be done after the task system has executed!
-        void SerializeTaskList( Blob& outBlob ) const;
+        void SerializeTaskList( Blob& outTopologyData, Blob& outTaskData );
 
         // Get generated resource mappings
-        ResourceMappings const &GetResourceMappings() const { return m_resourceMappings; }
+        TaskSerializationContext const &GetTaskSerializationContext() { return UpdateTaskSerializationContext(); }
 
         // Graph State
         //-------------------------------------------------------------------------
@@ -127,23 +151,35 @@ namespace EE::Animation
         bool IsValid() const { return m_pRootNode != nullptr && m_pRootNode->IsValid(); }
 
         // Is this a valid instance that has been correctly initialized
-        bool WasInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid() && m_pRootNode->IsInitialized(); }
+        bool IsInitialized() const { return m_pRootNode != nullptr && m_pRootNode->IsValid() && m_pRootNode->IsInitialized(); }
 
         // Reset/Initialize the graph state with an initial time
-        void ResetGraphState( SyncTrackTime initTime = SyncTrackTime(), TVector<GraphLayerUpdateState> const* pLayerInitInfo = nullptr );
+        void ResetGraphState( SyncTrackTime initTime = SyncTrackTime() );
+
+        // Reset/Initialize the graph state with an initial time
+        void ResetGraphState( GraphTimeInfo const &graphTimeInfo );
+
+        // Reset/Initialize the graph state with an initial time
+        void ResetReferencedGraphState( GraphContext const &parentContext, SyncTrackTime initTime = SyncTrackTime() );
+
+        // Reset/Initialize the graph state with an initial time
+        void ResetReferencedGraphState( GraphContext const &parentContext, GraphTimeInfo const &graphTimeInfo );
 
         // Get the current graph updateID
         inline uint32_t GetUpdateID() const { return m_graphContext.m_updateID; }
 
+        // Get the root motion delta for the last update
+        inline Transform GetRootMotionDeltaForLastUpdate() const { return m_rootMotionDelta; }
+
         // Run the graph logic
         // If the sync track update range is set, this will perform a synchronized update
         // If the sync track update range is not set, it will run unsynchronized and use the frame delta time instead
-        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, bool resetGraphState = false );
+        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange );
 
         // Run the graph logic - as a referenced graph
         // If the sync track update range is set, this will perform a synchronized update
         // If the sync track update range is not set, it will run unsynchronized and use the frame delta time instead
-        GraphPoseNodeResult EvaluateReferencedGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, GraphLayerContext* pLayerContext );
+        GraphPoseNodeResult EvaluateReferencedGraph( GraphContext const& parentContext, SyncTrackTimeRange const* pUpdateRange );
 
         // Execute any pre-physics pose tasks (assumes the character is at its final position for this frame)
         void ExecutePrePhysicsPoseTasks( Transform const& endWorldTransform );
@@ -151,8 +187,22 @@ namespace EE::Animation
         // Execute any post-physics pose tasks
         void ExecutePostPhysicsPoseTasks();
 
+        #if EE_DEVELOPMENT_TOOLS
+        // Get the time it took for the last graph update to execute
+        Microseconds GetGraphExecutionTime() const { return m_executionTime; }
+
+        // Get the time it took for the last task system update to execute
+        Microseconds GetTasksExecutionTime() const { return m_graphContext.m_pTaskSystem->GetExecutionTime(); }
+        #endif
+
         // Get the sampled events for the last update
-        SampledEventsBuffer const& GetSampledEvents() const { EE_ASSERT( m_isStandaloneGraph ); return *m_pSampledEventsBuffer; }
+        SampledEventsBuffer const& GetSampledEvents() const { EE_ASSERT( m_isStandaloneGraphInstance ); return *m_graphContext.m_pSampledEventsBuffer; }
+
+        // Get the list of active node indices for this instance
+        inline TVector<int16_t> const& GetActiveNodes() const { return m_graphContext.m_activeNodes; }
+
+        // Get the current sync time for the base and any active layers
+        void GetCurrentGraphTimingInfo( GraphTimeInfo &outGraphTimeInfo ) const;
 
         // General Node Info
         //-------------------------------------------------------------------------
@@ -166,10 +216,7 @@ namespace EE::Animation
             return IsControlParameter( nodeIdx ) || m_nodes[nodeIdx]->IsNodeActive( m_graphContext.m_updateID );
         }
 
-        inline bool IsValidNodeIndex( int16_t nodeIdx ) const 
-        {
-            return nodeIdx < m_pGraphDefinition->m_nodeDefinitions.size();
-        }
+        inline bool IsValidNodeIndex( int16_t nodeIdx ) const { return nodeIdx >= 0 && nodeIdx < m_pGraphDefinition->m_nodeDefinitions.size(); }
 
         // Control Parameters
         //-------------------------------------------------------------------------
@@ -197,60 +244,64 @@ namespace EE::Animation
         inline GraphValueType GetControlParameterType( int16_t parameterNodeIdx ) const
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            return reinterpret_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->GetValueType();
+            return static_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->GetValueType();
         }
 
         template<typename T>
         inline T GetControlParameterValue( int16_t parameterNodeIdx ) const
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            return reinterpret_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->GetValue<T>( const_cast<GraphContext&>( m_graphContext ) );
+            return static_cast<ValueNode*>( m_nodes[parameterNodeIdx] )->GetValue<T>( const_cast<GraphContext&>( m_graphContext ) );
         }
 
-        template<typename T>
-        void SetControlParameterValue( int16_t parameterNodeIdx, T const& value ) 
+        void SetControlParameterValue( int16_t parameterNodeIdx, bool const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            EE_UNIMPLEMENTED_FUNCTION();
+            static_cast<ControlParameterBoolNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
-        template<>
-        void SetControlParameterValue<bool>( int16_t parameterNodeIdx, bool const& value )
+        void SetControlParameterValue( int16_t parameterNodeIdx, StringID const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<ControlParameterBoolNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+            static_cast<ControlParameterIDNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
-        template<>
-        void SetControlParameterValue<StringID>( int16_t parameterNodeIdx, StringID const& value )
+        void SetControlParameterValue( int16_t parameterNodeIdx, float const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<ControlParameterIDNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+            EE_ASSERT( Math::IsFinite( value ) );
+            EE_ASSERT( Math::IsInRangeInclusive( value, float( -INT32_MAX ), float( INT32_MAX ) ) );
+            static_cast<ControlParameterFloatNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
-        template<>
-        void SetControlParameterValue<float>( int16_t parameterNodeIdx, float const& value )
+        void SetControlParameterValue( int16_t parameterNodeIdx, Float3 const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<ControlParameterFloatNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+            EE_ASSERT( value.IsFinite() );
+            static_cast<ControlParameterVectorNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
-        template<>
-        void SetControlParameterValue<Float3>( int16_t parameterNodeIdx, Float3 const& value )
+        void SetControlParameterValue( int16_t parameterNodeIdx, Vector const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<ControlParameterVectorNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+            EE_ASSERT( value.IsFinite() );
+            static_cast<ControlParameterVectorNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value.ToFloat3() );
         }
 
-        template<>
-        void SetControlParameterValue<Target>( int16_t parameterNodeIdx, Target const& value )
+        void SetControlParameterValue( int16_t parameterNodeIdx, Target const& value )
         {
             EE_ASSERT( IsControlParameter( parameterNodeIdx ) );
-            reinterpret_cast<ControlParameterTargetNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
+            static_cast<ControlParameterTargetNode*>( m_nodes[parameterNodeIdx] )->DirectlySetValue( value );
         }
 
         // External Graphs
         //-------------------------------------------------------------------------
+
+        // Get the number of external graph slots available
+        int32_t GetNumExternalGraphSlots() const;
+
+        // Get the slot ID for a given external graph slot index - Note: this is only valid to call for a valid slot index
+        StringID GetExternalGraphSlotID( int32_t slotIdx ) const;
 
         // Check if a given slot ID is valid
         inline bool IsValidExternalGraphSlotID( StringID slotID ) const { return GetExternalGraphNodeIndex( slotID ) != InvalidIndex; }
@@ -259,21 +310,71 @@ namespace EE::Animation
         inline bool IsExternalGraphSlotNodeActive( StringID slotID ) const { return IsNodeActive( GetExternalGraphNodeIndex( slotID ) ); }
 
         // Is the specified external graph slot node filled
-        inline bool IsExternalGraphSlotFilled( StringID slotID ) const { return GetConnectedExternalGraphIndex( slotID ) != InvalidIndex; }
+        bool IsExternalGraphSlotFilled( StringID slotID ) const;
 
         // Connects a supplied external graph to the specified slot. Note, it is the callers responsibility to ensure that the slot ID is valid!
-        GraphInstance* ConnectExternalGraph( StringID slotID, GraphDefinition const* pGraphDefinition );
+        bool ConnectExternalGraph( StringID slotID, GraphInstance* pGraphInstance );
 
-        // Disconnects an external graph, will destroy the created instance
+        // Disconnects an external graph
         void DisconnectExternalGraph( StringID slotID );
+
+        // Disconnects all external graphs currently connected
+        void DisconnectAllExternalGraphs();
+
+        // External Poses
+        //-------------------------------------------------------------------------
+
+        int32_t GetNumExternalPoseSlots() const;
+
+        // Get the slot ID for a given external pose slot index - Note: this is only valid to call for a valid slot index
+        StringID GetExternalPoseSlotID( int32_t nSlotIdx ) const;
+
+        // Check if a given slot ID is valid
+        inline bool IsValidExternalPoseSlotID( StringID slotID ) const { return GetExternalPoseNodeIndex( slotID ) != InvalidIndex; }
+
+        // Is the specified external pose slot node active
+        inline bool IsExternalPoseSlotNodeActive( StringID slotID ) const { return IsNodeActive( GetExternalPoseNodeIndex( slotID ) ); }
+
+        // Is the specified external pose slot node filled
+        bool IsExternalPoseSet( StringID slotID ) const;
+
+        // Gets the current state of an external pose node, returns false if the slot is not filled. Note, it is the callers responsibility to ensure that the slot ID is valid!
+        bool GetExternalPoseState( StringID slotID, ExternalPoseData& outState );
+
+        // Connects a supplied external pose to the specified slot. Note, it is the callers responsibility to ensure that the slot ID is valid!
+        bool SetExternalPose( StringID slotID, ExternalPoseData const& poseData );
+
+        // Disconnects an external pose, will destroy the created instance
+        void ClearExternalPose( StringID slotID );
+
+        // Disconnects all external poses
+        void ClearAllExternalPoses();
+
+        // Recording
+        //-------------------------------------------------------------------------
+
+        // Are we currently recording this graph
+        inline bool IsRecording() const { return m_pRecording != nullptr; }
+
+        // Start a graph recording
+        void StartRecording( GraphRecording* pRecording );
+
+        // Stop a graph recording
+        void StopRecording();
+
+        // Set to a previously recorded state
+        bool SetToRecordedState( RecordedGraphUpdateData const& recordedUpdateData, TVector<RecordedGraphState*> const &recordedGraphStates );
+
+        // Record the current state of this referenced graph
+        void RecordReferencedGraphState( RecordedGraphState& recordedState );
+
+        // Set to a previously recorded referenced graph state
+        bool SetToRecordedReferencedGraphState( RecordedGraphState const& recordedState );
 
         // Debug Information
         //-------------------------------------------------------------------------
-        
-        #if EE_DEVELOPMENT_TOOLS
-        // Get the list of active node indices for this instance
-        inline TVector<int16_t> const& GetActiveNodes() const { return m_activeNodes; }
 
+        #if EE_DEVELOPMENT_TOOLS
         // Get the graph debug mode
         inline GraphDebugMode GetGraphDebugMode() const { return m_debugMode; }
 
@@ -281,16 +382,16 @@ namespace EE::Animation
         inline void SetGraphDebugMode( GraphDebugMode mode ) { m_debugMode = mode; }
 
         // Get the root motion debug mode
-        inline RootMotionDebugMode GetRootMotionDebugMode() const { return m_pRootMotionDebugger->GetDebugMode(); }
+        inline RootMotionDebugMode GetRootMotionDebugMode() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pRootMotionDebugger->GetDebugMode(); }
 
         // Set the root motion debug mode
-        inline void SetRootMotionDebugMode( RootMotionDebugMode mode ) { m_pRootMotionDebugger->SetDebugMode( mode ); }
+        inline void SetRootMotionDebugMode( RootMotionDebugMode mode ) { EE_ASSERT( m_isStandaloneGraphInstance ); m_graphContext.m_pRootMotionDebugger->SetDebugMode( mode ); }
 
         // Get the root motion debugger for this instance
-        inline RootMotionDebugger const* GetRootMotionDebugger() const { return m_pRootMotionDebugger; }
+        inline RootMotionDebugger const* GetRootMotionDebugger() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pRootMotionDebugger; }
 
         // Manually end the root motion debugger update (call this if you explicitly skip executing the pose tasks)
-        inline void EndRootMotionDebuggerUpdate( Transform const& endWorldTransform ) { m_pRootMotionDebugger->EndCharacterUpdate( endWorldTransform ); }
+        inline void EndRootMotionDebuggerUpdate( Transform const& endWorldTransform ) { EE_ASSERT( m_isStandaloneGraphInstance ); m_graphContext.m_pRootMotionDebugger->EndCharacterUpdate( endWorldTransform ); }
 
         // Get the task system debug mode
         inline TaskSystemDebugMode GetTaskSystemDebugMode() const;
@@ -301,48 +402,39 @@ namespace EE::Animation
         // Get the debug world transform that the task system used to execute
         Transform GetTaskSystemDebugWorldTransform();
 
-        // Set the list of the debugs that we wish to explicitly debug. Set an empty list to debug everything!
-        inline void SetNodeDebugFilterList( TVector<int16_t> const& filterList ) { m_debugFilterNodes = filterList; }
-
         // Get the runtime time info for a specified pose node
         inline PoseNodeDebugInfo GetPoseNodeDebugInfo( int16_t nodeIdx ) const
         {
             EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
             EE_ASSERT( m_nodes[nodeIdx]->GetValueType() == GraphValueType::Pose );
-            auto pNode = reinterpret_cast<PoseNode const*>( m_nodes[nodeIdx] );
+            auto pNode = static_cast<PoseNode const*>( m_nodes[nodeIdx] );
             return pNode->GetDebugInfo();
         }
 
-        // Get the connected external graph instance
-        GraphInstance const* GetReferencedGraphDebugInstance( int16_t nodeIdx ) const;
+        // Get all debuggable graphs - this will return all referenced and external graph instances (recursively)
+        void GetDebuggableGraphInstances( TVector<DebuggableGraphInstance>& outReferencedGraphInstances ) const;
+
+        // Get the connected debuggable graph instance
+        GraphInstance const* GetDebuggableGraphInstance( int16_t nodeIdx ) const;
+
+        // Get the connected debuggable graph instance
+        GraphInstance const* GetDebuggableGraphInstance( PointerID referencedGraphInstanceID ) const;
+
+        // Get the connected debuggable graph instance for an external graph node
+        GraphInstance const* GetDebuggableGraphInstance( StringID externalSlotID ) const;
 
         // Get the connected external graph instance
-        GraphInstance const* GetReferencedGraphDebugInstance( PointerID referencedGraphInstanceID ) const;
+        SourcePath GetSourcePathForDebuggableGraphInstance( PointerID instanceID ) const;
 
-        // Get the connected external graph instance
-        DebugPath GetDebugPathForReferencedGraphInstance( PointerID instanceID ) const;
-
-        // Get all referenced graphs - this will return all referenced graph instances (recursively)
-        void GetReferencedGraphsForDebug( TVector<DebuggableReferencedGraph>& outReferencedGraphInstances ) const { GetReferencedGraphsForDebug( outReferencedGraphInstances, DebugPath() ); }
-
-        // Get the connected external graph instance
-        GraphInstance const* GetExternalGraphDebugInstance( StringID slotID ) const;
-
-        // Get all connected external graphs
-        inline TVector<ExternalGraph> const& GetExternalGraphsForDebug() const { return m_externalGraphs; }
-
-        // Get the connected external graph instance
-        GraphInstance const* GetReferencedOrExternalGraphDebugInstance( int16_t nodeIdx ) const;
-
-        // Get the connected external graph instance
-        DebugPath GetDebugPathForReferencedOrExternalGraphDebugInstance( PointerID instanceID ) const;
+        // Resolve a source path into human readable string
+        InlineString ResolveSourcePath( SourcePath const& sourcePath ) const;
 
         // Get the value of a specified value node
         template<typename T>
         inline T GetRuntimeNodeDebugValue( int16_t nodeIdx ) const
         {
             EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
-            auto pValueNode = reinterpret_cast<ValueNode*>( const_cast<GraphNode*>( m_nodes[nodeIdx] ) );
+            auto pValueNode = static_cast<ValueNode*>( const_cast<GraphNode*>( m_nodes[nodeIdx] ) );
             return pValueNode->GetValue<T>( const_cast<GraphContext&>( m_graphContext ) );
         }
 
@@ -353,66 +445,55 @@ namespace EE::Animation
             return m_nodes[nodeIdx];
         }
 
-        // Get the current active layer states - to be promoted to a full-runtime feature at some point, requires moving active node tracking out of debug
-        void GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges );
-
-        // Get sampled event debug path
-        inline DebugPath ResolveSampledEventDebugPath( int32_t sampledEventIdx ) const { return ResolveSourcePath( m_pSampledEventsBuffer->GetEventDebugPath( sampledEventIdx ) ); }
-
-        // Get task debug path
-        inline DebugPath ResolveTaskDebugPath( int8_t taskIdx ) const { return ResolveSourcePath( m_pTaskSystem->GetTaskDebugPath( taskIdx ) ); }
-
-        // Get root motion debug path
-        inline DebugPath ResolveRootMotionDebugPath( int16_t actionIdx ) const { return ResolveSourcePath( m_pRootMotionDebugger->GetActionDebugPath( actionIdx ) ); }
-
         // Get the runtime log for this graph instance
-        TVector<GraphLogEntry> const& GetLog() const { return m_log; }
+        TVector<GraphLogEntry> const* GetLog() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pLog; }
 
         // Log any errors/warnings occurring from the graph update!
         void OutputLog();
 
+        // Log any errors/warnings occurring from the task system update
+        void OutputTaskSystemLog();
+
         // Draw full graph debug visualizations
-        void DrawDebug( Drawing::DrawContext& drawContext );
-
-        // Draw only the node debug (primarily needed for referenced/external graphs)
-        void DrawNodeDebug( GraphContext& graphContext, Drawing::DrawContext& drawContext );
-        #endif
-
-        // Recording
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        // Are we currently recording this graph
-        inline bool IsRecording() const { return m_pRecorder != nullptr; }
-
-        // Start a graph recording
-        void StartRecording( GraphRecorder* pRecorder );
-
-        // Stop a graph recording
-        void StopRecording();
-
-        // Set the "per-frame update" data needed to evaluate a recorded graph execution
-        void SetRecordedFrameUpdateData( RecordedGraphFrameData const& recordedUpdateData );
-
-        // Record the current state of this graph
-        void RecordGraphState( RecordedGraphState& recordedState );
-
-        // Set to a previously recorded state
-        void SetToRecordedState( RecordedGraphState const& recordedState );
+        void DrawDebug( DebugDrawContext& drawContext, TVector<SourcePath> const *pNodesToDebug = nullptr );
         #endif
 
     private:
-
-
-        EE_FORCE_INLINE bool IsControlParameter( int16_t nodeIdx ) const { return nodeIdx < GetNumControlParameters(); }
-        int32_t GetExternalGraphSlotIndex( StringID slotID ) const;
-        int16_t GetExternalGraphNodeIndex( StringID slotID ) const;
-        int32_t GetConnectedExternalGraphIndex( StringID slotID ) const;
 
         GraphInstance( GraphInstance const& ) = delete;
         GraphInstance( GraphInstance&& ) = delete;
         GraphInstance& operator=( GraphInstance const& ) = delete;
         GraphInstance& operator=( GraphInstance&& ) = delete;
+
+        // Full initialization of persistent nodes
+        void Initialize();
+
+        // Full shutdown of persistent and root nodes
+        void Shutdown();
+
+        // Reset (shutdown and init) of the root node
+        void ResetGraphState( GraphTimeInfo const *pGraphTimeInfo, SyncTrackTime initTime );
+
+        GraphPoseNodeResult EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, BranchState const* pBranchState, SyncTrackTimeRange const* pUpdateRange );
+
+        EE_FORCE_INLINE bool IsControlParameter( int16_t nodeIdx ) const { return nodeIdx < GetNumControlParameters(); }
+
+        // External Graphs
+        //-------------------------------------------------------------------------
+
+        int32_t GetExternalGraphSlotIndex( StringID slotID ) const;
+        int16_t GetExternalGraphNodeIndex( StringID slotID ) const;
+        ReferencedGraphNode* GetExternalGraphNode( StringID slotID ) const;
+
+        void InitializeReferencedGraphContexts( GraphContext *pParentContext, bool initializeGraphInstances );
+        void ShutdownReferencedGraphContexts( bool shutdownGraphInstances );
+
+        // External Poses
+        //-------------------------------------------------------------------------
+
+        int32_t GetExternalPoseSlotIndex( StringID slotID ) const;
+        int16_t GetExternalPoseNodeIndex( StringID slotID ) const;
+        ExternalPoseNode *GetExternalPoseNode( StringID slotID ) const;
 
         // Task Serialization
         //-------------------------------------------------------------------------
@@ -421,27 +502,35 @@ namespace EE::Animation
         void GetResourceLookupTables( TInlineVector<ResourceLUT const*, 10>& outLUTs ) const;
 
         // Generate a resource mapping for all resources used by this graph instance
-        void GenerateResourceMappings();
+        TaskSerializationContext& UpdateTaskSerializationContext();
 
         // Debug
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void GetReferencedGraphsForDebug( TVector<DebuggableReferencedGraph>& outReferencedGraphInstances, DebugPath const& parentPath ) const;
-        DebugPath ResolveSourcePath( TInlineVector<int64_t, 5>const& sourcePath ) const;
+        void GetReferencedGraphsForDebug( TVector<DebuggableGraphInstance>& outReferencedGraphInstances, SourcePath const& parentPath ) const;
         #endif
 
         // Recording
         //-------------------------------------------------------------------------
 
-        #if EE_DEVELOPMENT_TOOLS
+        // Get the current active layer states
+        void GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges ) const;
+
         void RecordPreGraphEvaluateState( Seconds const deltaTime, Transform const& startWorldTransform );
 
         void RecordPostGraphEvaluateState( SyncTrackTimeRange const* pRange );
 
+        void RecordGraphState( RecordedUpdateType updateType, GraphTimeInfo const& timingInfo, Transform const& worldTransform );
+
+        void RecordGraphNodeState( RecordedGraphState &recordedState );
+
+        bool RestoreRecordedGraphState( RecordedGraphState const &recordedState );
+
+        void RestoreRecordedGraphParameters( RecordedGraphUpdateData const &updateData );
+
         // Record all the registered tasks for this update
         void RecordTasks();
-        #endif
 
     private:
 
@@ -449,24 +538,21 @@ namespace EE::Animation
         TVector<GraphNode*>                     m_nodes;
         uint8_t*                                m_pAllocatedInstanceMemory = nullptr;
         PoseNode*                               m_pRootNode = nullptr;
-        uint64_t                                m_ownerID = 0; // An idea identifying the owner of this instance (usually the entity ID)
-        bool                                    m_isStandaloneGraph = true;
+        bool                                    m_isExternalGraph = false;
+        bool                                    m_isStandaloneGraphInstance = true;
 
-        TaskSystem*                             m_pTaskSystem = nullptr;
-        ResourceMappings                        m_resourceMappings;
-        SampledEventsBuffer*                    m_pSampledEventsBuffer = nullptr;
+        TaskSerializationContext                m_taskSerializationContext;
         GraphContext                            m_graphContext;
-        TVector<ReferencedGraph>                m_referencedGraphs;
-        TVector<ExternalGraph>                  m_externalGraphs;
+        SecondarySkeletonList                   m_secondarySkeletons;
+        bool                                    m_taskSerializationRequiresUpdate = false;
+        bool                                    m_externalGraphStateChanged = false;
+
+        Transform                               m_rootMotionDelta = Transform::Identity;
+        GraphRecording*                         m_pRecording = nullptr;
 
         #if EE_DEVELOPMENT_TOOLS
-        TVector<int16_t>                        m_activeNodes;
         GraphDebugMode                          m_debugMode = GraphDebugMode::Off;
-        RootMotionDebugger*                     m_pRootMotionDebugger = nullptr; // Allows nodes to record root motion operations
-        TVector<int16_t>                        m_debugFilterNodes; // The list of nodes that are allowed to debug draw (if this is empty all nodes will draw)
-        TVector<GraphLogEntry>                  m_log;
-        int32_t                                 m_lastOutputtedLogItemIdx = 0;
-        GraphRecorder*                          m_pRecorder = nullptr;
+        Microseconds                            m_executionTime;
         #endif
     };
 }

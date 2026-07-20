@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <PIX_DIR>$(SolutionDir)External\WinPixEventRuntime\</PIX_DIR>
+    <PIX_LIB_DIR>$(PIX_DIR)bin\x64\</PIX_LIB_DIR>
+    <PIX_BIN_DIR>$(PIX_DIR)bin\x64\</PIX_BIN_DIR>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(PIX_DIR)Include\;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(PIX_LIB_DIR);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>WinPixEventRuntime.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Target Name="PIX_CopyDLL" BeforeTargets="Build">
+    <Copy SkipUnchangedFiles="True" SourceFiles="$(PIX_BIN_DIR)WinPixEventRuntime.dll" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="PIX_CleanDLL" BeforeTargets="Clean">
+    <Delete TreatErrorsAsWarnings="True" Files="$(OutDir)WinPixEventRuntime.dll" />
+  </Target>
+</Project>

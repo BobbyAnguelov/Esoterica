@@ -58,7 +58,6 @@ namespace EE::Animation
         *reinterpret_cast<bool*>( pOutValue ) = m_value;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void CachedBoolNode::RecordGraphState( RecordedGraphState& outState )
     {
         BoolValueNode::RecordGraphState( outState );
@@ -69,16 +68,21 @@ namespace EE::Animation
         }
     }
 
-    void CachedBoolNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool CachedBoolNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        BoolValueNode::RestoreGraphState( inState );
+        if ( !BoolValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
             inState.ReadValue( m_value );
         }
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -136,7 +140,6 @@ namespace EE::Animation
         *reinterpret_cast<StringID*>( pOutValue ) = m_value;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void CachedIDNode::RecordGraphState( RecordedGraphState& outState )
     {
         IDValueNode::RecordGraphState( outState );
@@ -147,16 +150,21 @@ namespace EE::Animation
         }
     }
 
-    void CachedIDNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool CachedIDNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        IDValueNode::RestoreGraphState( inState );
+        if ( !IDValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
             inState.ReadValue( m_value );
         }
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -216,7 +224,6 @@ namespace EE::Animation
         *reinterpret_cast<float*>( pOutValue ) = m_value;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void CachedFloatNode::RecordGraphState( RecordedGraphState& outState )
     {
         FloatValueNode::RecordGraphState( outState );
@@ -227,16 +234,21 @@ namespace EE::Animation
         }
     }
 
-    void CachedFloatNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool CachedFloatNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        FloatValueNode::RestoreGraphState( inState );
+        if ( !FloatValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
             inState.ReadValue( m_value );
         }
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -294,7 +306,6 @@ namespace EE::Animation
         *reinterpret_cast<Float3*>( pOutValue ) = m_value;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void CachedVectorNode::RecordGraphState( RecordedGraphState& outState )
     {
         VectorValueNode::RecordGraphState( outState );
@@ -305,16 +316,21 @@ namespace EE::Animation
         }
     }
 
-    void CachedVectorNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool CachedVectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        VectorValueNode::RestoreGraphState( inState );
+        if ( !VectorValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
             inState.ReadValue( m_value );
         }
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -372,7 +388,6 @@ namespace EE::Animation
         *reinterpret_cast<Target*>( pOutValue ) = m_value;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void CachedTargetNode::RecordGraphState( RecordedGraphState& outState )
     {
         TargetValueNode::RecordGraphState( outState );
@@ -383,14 +398,19 @@ namespace EE::Animation
         }
     }
 
-    void CachedTargetNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool CachedTargetNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        TargetValueNode::RestoreGraphState( inState );
+        if( !TargetValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_hasCachedValue );
         if ( m_hasCachedValue )
         {
             inState.ReadValue( m_value );
         }
+
+        return true;
     }
-    #endif
 }

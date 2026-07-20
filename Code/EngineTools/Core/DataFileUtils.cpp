@@ -46,7 +46,7 @@ namespace EE
 
         if ( !FileSystem::GetDirectoryContents( m_sourceDataDirectoryPath, m_filesToResave, FileSystem::DirectoryReaderOutput::OnlyFiles, FileSystem::DirectoryReaderMode::Recursive, extensions ) )
         {
-            EE_LOG_ERROR( "DataFile", "Resave Data Files", "Failed to enumerator source data directory (%s).", m_sourceDataDirectoryPath.c_str() );
+            EE_LOG_ERROR( LogCategory::Serialization, "DataFile - Resave Data Files", "Failed to enumerator source data directory (%s).", m_sourceDataDirectoryPath.c_str() );
             EndResave();
             return false;
         }
@@ -87,11 +87,11 @@ namespace EE
         EE_ASSERT( endIdx < numFiles );
         for ( int32_t i = startIdx; i <= endIdx; i++ )
         {
-            IDataFile* pDatafile = IDataFile::TryReadFromFile( m_typeRegistry, m_filesToResave[i] );
-            if ( pDatafile != nullptr )
+            IDataFile::ReadResult result = IDataFile::TryReadFromFile( m_typeRegistry, m_log, m_filesToResave[i] );
+            if ( result.m_pDataFile != nullptr )
             {
-                IDataFile::TryWriteToFile( m_typeRegistry, m_filesToResave[i], pDatafile, false );
-                EE::Delete( pDatafile );
+                IDataFile::TryWriteToFile( m_typeRegistry, m_log, m_filesToResave[i], result.m_pDataFile, false );
+                EE::Delete( result.m_pDataFile );
             }
         }
 

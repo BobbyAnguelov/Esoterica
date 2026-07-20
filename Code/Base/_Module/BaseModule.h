@@ -7,7 +7,6 @@
 #include "Base/Input/InputSystem.h"
 #include "Base/Settings/SettingsRegistry.h"
 #include "Base/Resource/ResourceSystem.h"
-#include "Base/Render/RenderDevice.h"
 #include "Base/Application/Module.h"
 
 #if EE_DEVELOPMENT_TOOLS
@@ -38,8 +37,8 @@ namespace EE
         inline TypeSystem::TypeRegistry* GetTypeRegistry() { return &m_typeRegistry; }
         inline Input::InputSystem* GetInputSystem() { return &m_inputSystem; }
         inline Resource::ResourceSystem* GetResourceSystem() { return &m_resourceSystem; }
-        inline Render::RenderDevice* GetRenderDevice() { return &m_renderDevice; }
-        inline Settings::SettingsRegistry* GetSettingsRegistry() { return &m_settingsRegistry; }
+        inline Resource::ResourceProvider* GetResourceProvider() { return m_pResourceProvider; }
+        inline SettingsRegistry* GetSettingsRegistry() { return &m_settingsRegistry; }
 
         #if EE_DEVELOPMENT_TOOLS
         inline ImGuiX::ImguiSystem* GetImguiSystem() { return &m_imguiSystem; }
@@ -47,17 +46,16 @@ namespace EE
 
     private:
 
-        TaskSystem                                      m_taskSystem;
-        TypeSystem::TypeRegistry                        m_typeRegistry;
-        SystemRegistry                                  m_systemRegistry;
-        Settings::SettingsRegistry                      m_settingsRegistry;
-        Input::InputSystem                              m_inputSystem;
-        Resource::ResourceSystem                        m_resourceSystem;
-        Resource::ResourceProvider*                     m_pResourceProvider = nullptr;
-        Render::RenderDevice                            m_renderDevice;
+        TaskSystem                       m_taskSystem;
+        TypeSystem::TypeRegistry         m_typeRegistry;
+        SystemRegistry                   m_systemRegistry;
+        SettingsRegistry                 m_settingsRegistry;
+        Input::InputSystem               m_inputSystem;
+        Resource::ResourceSystem         m_resourceSystem;
+        Resource::ResourceProvider*      m_pResourceProvider = nullptr;
 
         #if EE_DEVELOPMENT_TOOLS
-        ImGuiX::ImguiSystem                             m_imguiSystem;
+        ImGuiX::ImguiSystem              m_imguiSystem;
         #endif
     };
 }

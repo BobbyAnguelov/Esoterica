@@ -1,6 +1,8 @@
 #include "EntityWorld.h"
 #include "EntityWorldUpdateContext.h"
-#include "EntityWorldSettings.h"
+#include "Engine/Render/RenderSystem.h"
+#include "Engine/Camera/Systems/WorldSystem_Camera.h"
+#include "Engine/Camera/Components/Component_Camera.h"
 #include "Base/Resource/ResourceSystem.h"
 #include "Base/Profiling.h"
 #include "Base/TypeSystem/TypeRegistry.h"
@@ -17,7 +19,7 @@ namespace EE
 
     EntityWorld::~EntityWorld()
     {
-        EE_ASSERT( m_maps.empty());
+        EE_ASSERT( m_maps.empty() );
         EE_ASSERT( m_worldSystems.empty() );
         EE_ASSERT( m_entityUpdateList.empty() );
 
@@ -25,6 +27,9 @@ namespace EE
         {
             EE_ASSERT( m_systemUpdateLists[i].empty() );
         }
+
+        // Leak check for viewports
+        EE_ASSERT( m_viewports.empty() );
 
         //-------------------------------------------------------------------------
 
@@ -38,20 +43,26 @@ namespace EE
 
     void EntityWorld::Initialize( SystemRegistry const& systemsRegistry, TVector<TypeSystem::TypeInfo const*> worldSystemTypeInfos )
     {
+        m_pTypeRegistry = systemsRegistry.GetSystem<TypeSystem::TypeRegistry>();
+        EE_ASSERT( m_pTypeRegistry != nullptr );
+
         m_pTaskSystem = systemsRegistry.GetSystem<TaskSystem>();
         EE_ASSERT( m_pTaskSystem != nullptr );
+
+        m_pRenderSystem = systemsRegistry.GetSystem<Render::RenderSystem>();
+        EE_ASSERT( m_pRenderSystem != nullptr );
 
         // Set up Contexts
         //-------------------------------------------------------------------------
 
-        m_loadingContext = EntityModel::LoadingContext( m_pTaskSystem, systemsRegistry.GetSystem<TypeSystem::TypeRegistry>(), systemsRegistry.GetSystem<Resource::ResourceSystem>() );
+        m_loadingContext = EntityModel::LoadingContext( m_pTaskSystem, m_pTypeRegistry, systemsRegistry.GetSystem<Resource::ResourceSystem>() );
         EE_ASSERT( m_loadingContext.IsValid() );
 
         //-------------------------------------------------------------------------
 
         const_cast<TaskSystem*&>( m_initializationContext.m_pTaskSystem ) = m_pTaskSystem;
-        const_cast<TypeSystem::TypeRegistry const*&>( m_initializationContext.m_pTypeRegistry ) = m_loadingContext.m_pTypeRegistry;
-        
+        const_cast<TypeSystem::TypeRegistry const*&>( m_initializationContext.m_pTypeRegistry ) = m_pTypeRegistry;
+
         #if EE_DEVELOPMENT_TOOLS
         m_initializationContext.SetComponentTypeMapPtr( &m_componentTypeLookup );
         #endif
@@ -65,7 +76,7 @@ namespace EE
         {
             // Create and initialize world system
             auto pWorldSystem = Cast<EntityWorldSystem>( pTypeInfo->CreateType() );
-            pWorldSystem->m_pWorld = this;
+            pWorldSystem->m_parentWorldType = m_worldType;
             pWorldSystem->InitializeSystem( systemsRegistry );
             m_worldSystems.push_back( pWorldSystem );
 
@@ -89,19 +100,6 @@ namespace EE
             }
         }
 
-        // Create World Settings
-        //-------------------------------------------------------------------------
-
-        EE_ASSERT( m_pSettingsRegistry == nullptr );
-        m_pSettingsRegistry = systemsRegistry.GetSystem<Settings::SettingsRegistry>();
-        m_pSettingsRegistry->CreateGroup( m_worldID.m_value );
-
-        TVector<TypeSystem::TypeInfo const*> settingsTypes = m_loadingContext.m_pTypeRegistry->GetAllDerivedTypes( IEntityWorldSettings::GetStaticTypeID(), false, false, false );
-        for ( auto pTypeInfo : settingsTypes )
-        {
-            m_pSettingsRegistry->CreateSettings( m_worldID.m_value, pTypeInfo );
-        }
-
         // Create and initialize the persistent map
         //-------------------------------------------------------------------------
 
@@ -117,7 +115,7 @@ namespace EE
     {
         // Unload maps
         //-------------------------------------------------------------------------
-        
+
         for ( auto& pMap : m_maps )
         {
             pMap->Unload( m_loadingContext, m_initializationContext );
@@ -131,16 +129,10 @@ namespace EE
             UpdateLoading();
         }
 
-        // Destroy all settings
-        //-------------------------------------------------------------------------
-
-        m_pSettingsRegistry->DestroyGroup( m_worldID.m_value );
-        m_pSettingsRegistry = nullptr;
-
         // Shutdown all world systems
         //-------------------------------------------------------------------------
 
-        for( auto pWorldSystem : m_worldSystems )
+        for ( auto pWorldSystem : m_worldSystems )
         {
             // Remove from update lists
             for ( int8_t i = 0; i < (int8_t) UpdateStage::NumStages; i++ )
@@ -162,19 +154,23 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        m_loadingContext = EntityModel::LoadingContext();
+
+        m_pRenderSystem = nullptr;
         m_pTaskSystem = nullptr;
+        m_pTypeRegistry = nullptr;
         m_initialized = false;
     }
 
     //-------------------------------------------------------------------------
-    // Misc
+    // Systems
     //-------------------------------------------------------------------------
 
-    EntityWorldSystem* EntityWorld::GetWorldSystem( uint32_t worldSystemID ) const
+    EntityWorldSystem* EntityWorld::GetWorldSystem( TypeSystem::TypeID worldSystemTypeID ) const
     {
         for ( EntityWorldSystem* pWorldSystem : m_worldSystems )
         {
-            if ( pWorldSystem->GetSystemID() == worldSystemID )
+            if ( pWorldSystem->GetStaticTypeID() == worldSystemTypeID || pWorldSystem->GetTypeInfo()->IsDerivedFrom( worldSystemTypeID ) )
             {
                 return pWorldSystem;
             }
@@ -182,6 +178,73 @@ namespace EE
 
         EE_UNREACHABLE_CODE();
         return nullptr;
+    }
+
+    //-------------------------------------------------------------------------
+    // Viewports
+    //-------------------------------------------------------------------------
+
+    Viewport* EntityWorld::CreateViewport( Render::Window* pRenderWindow )
+    {
+        EE_ASSERT( m_pRenderSystem != nullptr );
+        EE_ASSERT( pRenderWindow != nullptr );
+
+        Viewport* pViewport = m_pRenderSystem->CreateViewport( pRenderWindow );
+        m_viewports.emplace_back( pViewport );
+
+        #if EE_DEVELOPMENT_TOOLS
+        pViewport->CreateViewportSettings( *m_pTypeRegistry );
+        #endif
+
+        return pViewport;
+    }
+
+    void EntityWorld::DestroyViewport( Viewport* pViewport )
+    {
+        EE_ASSERT( m_pRenderSystem != nullptr );
+
+        for ( int32_t i = int32_t( m_viewports.size() ) - 1; i >= 0; i-- )
+        {
+            if ( m_viewports[i] == pViewport )
+            {
+                #if EE_DEVELOPMENT_TOOLS
+                pViewport->DestroyViewportSettings();
+                #endif
+
+                m_pRenderSystem->WaitAllQueuesIdle();
+                m_pRenderSystem->DestroyViewport( pViewport );
+                m_viewports.erase_unsorted( m_viewports.begin() + i );
+                return;
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+    }
+
+    void EntityWorld::UpdateViewportViewVolumes()
+    {
+        // TODO: think about how to link cameras and viewports together and when to update which
+
+        auto pCameraSystem = GetWorldSystem<CameraSystem>();
+        if ( pCameraSystem->HasActiveCamera() )
+        {
+            CameraComponent* pActiveCamera = pCameraSystem->GetActiveCamera();
+            if ( pActiveCamera->GetViewVolume().IsValid() )
+            {
+                for ( auto pViewport : m_viewports )
+                {
+                    // Update camera view dimensions if they differ (needed when we resize the viewport even if the camera hasn't updated)
+                    if ( pViewport->GetAspectRatio() != pActiveCamera->GetViewVolume().GetAspectRatio() )
+                    {
+                        pActiveCamera->SetAspectRatio( pViewport->GetAspectRatio() );
+                        pViewport->SetViewVolume( pActiveCamera->GetViewVolume() );
+                    }
+
+                    // Update world view volume
+                    pViewport->SetViewVolume( pActiveCamera->GetViewVolume() );
+                }
+            }
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -201,7 +264,7 @@ namespace EE
         {
             if ( m_maps[i]->UpdateLoadingAndStateChanges( m_loadingContext, m_initializationContext ) )
             {
-                if ( m_maps[i]->IsUnloaded() )
+                if ( m_maps[i]->IsMapUnloaded() )
                 {
                     EE::Delete( m_maps[i] );
                     m_maps.erase_unsorted( m_maps.begin() + i );
@@ -302,12 +365,19 @@ namespace EE
         // Update systems
         //-------------------------------------------------------------------------
 
-        for ( auto pSystem : m_systemUpdateLists[(int8_t) updateStage] )
         {
             EE_PROFILE_SCOPE_ENTITY( "Update World Systems" );
-            EE_ASSERT( pSystem->GetRequiredUpdatePriorities().IsStageEnabled( updateStage ) );
-            pSystem->UpdateSystem( entityWorldUpdateContext );
+            for ( auto pSystem : m_systemUpdateLists[(int8_t) updateStage] )
+            {
+                EE_ASSERT( pSystem->GetRequiredUpdatePriorities().IsStageEnabled( updateStage ) );
+                pSystem->UpdateSystem( entityWorldUpdateContext );
+            }
         }
+
+        // Update Viewport Views
+        //-------------------------------------------------------------------------
+
+        UpdateViewportViewVolumes();
 
         //-------------------------------------------------------------------------
 
@@ -317,6 +387,21 @@ namespace EE
         }
     }
 
+    #if EE_DEVELOPMENT_TOOLS
+    void EntityWorld::DebugDraw( UpdateContext const& context )
+    {
+        EE_PROFILE_SCOPE_ENTITY( "Debug Draw World Systems" );
+        EE_ASSERT( Threading::IsMainThread() );
+        EE_ASSERT( !m_isSuspended );
+
+        EntityWorldUpdateContext entityWorldUpdateContext( context, this );
+        for ( auto pSystem : m_worldSystems )
+        {
+            pSystem->DebugDraw( entityWorldUpdateContext );
+        }
+    }
+    #endif
+
     //-------------------------------------------------------------------------
     // Maps
     //-------------------------------------------------------------------------
@@ -325,7 +410,7 @@ namespace EE
     {
         for ( auto const& pMap : m_maps )
         {
-            if( pMap->IsLoading() ) 
+            if ( pMap->IsMapLoading() )
             {
                 return true;
             }
@@ -367,7 +452,7 @@ namespace EE
         {
             if ( pMap->GetMapResourceID() == mapResourceID )
             {
-                return pMap->IsLoaded();
+                return pMap->IsMapLoaded();
             }
         }
 
@@ -383,7 +468,7 @@ namespace EE
         {
             if ( pMap->GetID() == mapID )
             {
-                return pMap->IsLoaded();
+                return pMap->IsMapLoaded();
             }
         }
 
@@ -415,7 +500,7 @@ namespace EE
         return *foundMapIter;
     }
 
-    EntityModel::EntityMap const* EntityWorld::GetMapForEntity( Entity const* pEntity ) const
+    EntityModel::EntityMap const* EntityWorld::FindMapForEntity( Entity const* pEntity ) const
     {
         EE_ASSERT( pEntity != nullptr && pEntity->IsAddedToMap() );
         auto const& mapID = pEntity->GetMapID();
@@ -448,7 +533,6 @@ namespace EE
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-
     void EntityWorld::BeginComponentEdit( Entity* pEntity )
     {
         EE_ASSERT( pEntity != nullptr );

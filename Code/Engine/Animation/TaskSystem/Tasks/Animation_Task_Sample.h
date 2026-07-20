@@ -1,13 +1,13 @@
 #pragma once
 
-#include "Engine/Animation/TaskSystem/Animation_Task.h"
+#include "Engine/Animation/TaskSystem/Animation_PoseTask.h"
 #include "Engine/Animation/AnimationClip.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
-    class SampleTask : public Task
+    class SampleTask : public PoseTask
     {
         EE_REFLECT_TYPE( SampleTask );
 
@@ -16,7 +16,6 @@ namespace EE::Animation::Tasks
         SampleTask( AnimationClip const* pAnimation, Percentage time );
         virtual void Execute( TaskContext const& context ) override;
 
-        virtual bool AllowsSerialization() const override { return true; }
         virtual void Serialize( TaskSerializer& serializer ) const override;
         virtual void Deserialize( TaskSerializer& serializer ) override;
 
@@ -29,7 +28,7 @@ namespace EE::Animation::Tasks
 
     private:
 
-        SampleTask() : Task() {}
+        SampleTask() : PoseTask() {}
 
     private:
 

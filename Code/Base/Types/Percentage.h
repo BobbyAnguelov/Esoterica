@@ -26,7 +26,6 @@ namespace EE
 
         EE_FORCE_INLINE operator float() const { return m_value; }
         EE_FORCE_INLINE float ToFloat() const { return m_value; }
-        EE_FORCE_INLINE int32_t GetLoopCount() const { return (int32_t) Math::Floor( m_value ); }
 
         EE_FORCE_INLINE void Invert() { m_value = 1.0f - m_value; }
         EE_FORCE_INLINE Percentage GetInverse() const { return Percentage( 1.0f - m_value ); }

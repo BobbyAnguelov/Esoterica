@@ -7,10 +7,12 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Drawing { class DrawContext; }
+namespace EE
+{
+    class DebugDrawContext;
+}
 
 //-------------------------------------------------------------------------
-
 
 namespace EE::Math
 {
@@ -21,9 +23,9 @@ namespace EE::Math
     // * View Direction = -Z
     // * Up Direction = Y
     // * Right Direction = X
-    // 
+    //
     // Assumes clip space Z limit: [0 : 1]
-    // 
+    //
     // Note: FOV is horizontal
 
     class EE_BASE_API ViewVolume
@@ -31,21 +33,42 @@ namespace EE::Math
 
     public:
 
-        enum class PlaneID { Left = 0, Right, Top, Bottom, Near, Far };
-        enum class ProjectionType { Orthographic, Perspective };
-        enum class IntersectionResult { FullyOutside = 0, FullyInside, Intersects };
+        constexpr static float const AspectRatio_4_3 = 4.0f / 3.0f;
 
-        inline static Radians ConvertVerticalToHorizontalFOV( float width, float height, Radians VerticalAngle )
+        enum class PlaneID
         {
-            EE_ASSERT( !Math::IsNearZero( height ) );
-            Radians const horizontalFOV( 2.0f * Math::ATan( width / height * Math::Tan( (float) VerticalAngle / 2.0f ) ) );
+            Left = 0,
+            Right,
+            Top,
+            Bottom,
+            Near,
+            Far
+        };
+
+        enum class ProjectionType
+        {
+            Orthographic,
+            Perspective
+        };
+
+        enum class IntersectionResult
+        {
+            FullyOutside = 0,
+            FullyInside,
+            Intersects
+        };
+
+        inline static Radians ConvertVerticalToHorizontalFOV( float aspectRatio, Radians verticalAngle )
+        {
+            EE_ASSERT( aspectRatio > 0.0f && !Math::IsNearZero( aspectRatio ) );
+            Radians const horizontalFOV( 2.0f * Math::ATan( aspectRatio * Math::Tan( (float) verticalAngle / 2.0f ) ) );
             return horizontalFOV;
         }
 
-        inline static Radians ConvertHorizontalToVerticalFOV( float width, float height, Radians HorizontalAngle )
+        inline static Radians ConvertHorizontalToVerticalFOV( float aspectRatio, Radians horizontalAngle )
         {
-            EE_ASSERT( !Math::IsNearZero( width ) );
-            Radians const verticalFOV( 2.0f * Math::ATan( height / width * Math::Tan( (float) HorizontalAngle / 2.0f ) ) );
+            EE_ASSERT( aspectRatio > 0.0f && !Math::IsNearZero( aspectRatio ) );
+            Radians const verticalFOV( 2.0f * Math::ATan( Math::Tan( (float) horizontalAngle / 2.0f ) / aspectRatio ) );
             return verticalFOV;
         }
 
@@ -54,7 +77,7 @@ namespace EE::Math
         union VolumeCorners
         {
             #if EE_DEVELOPMENT_TOOLS
-            void DrawDebug( Drawing::DrawContext& drawingContext ) const;
+            void DrawDebug( DebugDrawContext& drawingContext ) const;
             #endif
 
             struct
@@ -72,22 +95,48 @@ namespace EE::Math
             Vector m_points[8] = {};
         };
 
+        static inline ViewVolume CreatePerspective( float aspectRatio, FloatRange depthRange, Radians horizontalFOV, Matrix const& worldMatrix = Matrix::Identity )
+        {
+            return ViewVolume( aspectRatio, depthRange, horizontalFOV, worldMatrix );
+        }
+
+        static inline ViewVolume CreatePerspective( float aspectRatio, FloatRange depthRange, Radians horizontalFOV, Transform const& worldMatrix = Transform::Identity )
+        {
+            return ViewVolume( aspectRatio, depthRange, horizontalFOV, worldMatrix );
+        }
+
+        static inline ViewVolume CreateOrthographic( float viewWidth, float aspectRatio, FloatRange depthRange, Matrix const& worldMatrix = Matrix::Identity )
+        {
+            return ViewVolume( viewWidth, aspectRatio, depthRange, worldMatrix );
+        }
+
+        static inline ViewVolume CreateOrthographic( float viewWidth, float aspectRatio, FloatRange depthRange, Transform const& worldMatrix = Transform::Identity )
+        {
+            return ViewVolume( viewWidth, aspectRatio, depthRange, worldMatrix );
+        }
+
     public:
 
         ViewVolume() {} // Warning: Leaves most members uninitialized!
-
-        // Warning: This ctor will use the position, forward and up of the world matrix to set the view (this is assuming world coordinates (Z-up))
-        ViewVolume( Float2 const& viewDimensions, FloatRange depthRange, Matrix const& worldMatrix = Matrix::Identity );
-
-        // Warning: This ctor will use the position, forward and up of the world matrix to set the view (this is assuming world coordinates (Z-up))
-        ViewVolume( Float2 const& viewDimensions, FloatRange depthRange, Radians FOV, Matrix const& worldMatrix = Matrix::Identity );
 
         bool IsValid() const;
 
         // Set the current view, using EE world conventions (-Y forward, Z-up)
         void SetView( Vector const& position, Vector const& viewDir, Vector const& upDir );
+
+        // Set the view width for a orthographic projection
+        void SetViewWidth( float width );
+
+        // Get the view width for a orthographic projection
+        float GetViewWidth() const { EE_ASSERT( IsOrthographic() ); return m_viewWidth; }
+
+        // Set the depth range in world units
         void SetDepthRange( FloatRange depthRange );
-        void SetViewDimensions( Float2 dimensions );
+
+        // Get the aspect ratio (Horizontal/Vertical)
+        void SetAspectRatio( float aspectRatio );
+
+        // Set the horizontal FOV
         void SetHorizontalFOV( Radians FOV );
 
         // Projection Info
@@ -97,17 +146,13 @@ namespace EE::Math
         inline bool IsOrthographic() const { return m_type == ProjectionType::Orthographic; }
 
         inline FloatRange GetDepthRange() const { return m_depthRange; }
-        inline Float2 GetViewDimensions() const { return m_viewDimensions; }
-        inline float GetAspectRatio() const { return m_viewDimensions.m_x / m_viewDimensions.m_y; }
+        inline float GetAspectRatio() const { return m_aspectRatio; }
 
         // Get the horizontal FOV for this view volume
-        inline Radians GetFOV() const { EE_ASSERT( IsPerspective() ); return m_FOV; }
+        inline Radians GetHorizontalFOV() const { EE_ASSERT( IsPerspective() ); return m_horizontalFOV; }
 
         // Get the vertical FOV for this view volume
         Radians GetVerticalFOV() const;
-
-        // Get the size of a vector at a specific position if we want to it be a specific pixel height
-        float GetScalingFactorAtPosition( Vector const& position, float pixels ) const;
 
         // Get the width and height of the near plane in world space units
         Float2 GetNearPlaneWorldSpaceDimensions() const;
@@ -132,7 +177,11 @@ namespace EE::Math
         //-------------------------------------------------------------------------
 
         inline Plane const& GetViewPlane( PlaneID p ) const { return GetViewPlane( (uint32_t) p ); }
-        inline Plane const& GetViewPlane( uint32_t p ) const { EE_ASSERT( p < 6 ); return m_viewPlanes[p]; }
+        inline Plane const& GetViewPlane( uint32_t p ) const
+        {
+            EE_ASSERT( p < 6 );
+            return m_viewPlanes[p];
+        }
         VolumeCorners GetCorners() const; // The first 4 points are the near plane corners, the last 4 are the far plane corners
 
         // Bounds and Intersection tests
@@ -154,8 +203,20 @@ namespace EE::Math
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void DrawDebug( Drawing::DrawContext& drawingContext ) const;
+        void DrawDebug( DebugDrawContext& drawingContext ) const;
         #endif
+
+    protected:
+
+        // Orthographic view volume
+        // Warning: This ctor will use the position, forward and up of the world matrix to set the view (this is assuming world coordinates (Z-up) )
+        ViewVolume( float viewWidth, float aspectRatio, FloatRange depthRange, Matrix const& worldMatrix = Matrix::Identity );
+        ViewVolume( float viewWidth, float aspectRatio, FloatRange depthRange, Transform const& worldMatrix = Transform::Identity );
+
+        // Perspective view volume
+        // Warning: This ctor will use the position, forward and up of the world matrix to set the view (this is assuming world coordinates (Z-up) )
+        ViewVolume( float aspectRatio, FloatRange depthRange, Radians horizontalFOV, Matrix const& worldMatrix = Matrix::Identity );
+        ViewVolume( float aspectRatio, FloatRange depthRange, Radians horizontalFOV, Transform const& worldMatrix = Transform::Identity );
 
     private:
 
@@ -164,20 +225,21 @@ namespace EE::Math
 
     private:
 
-        Vector                  m_viewPosition = Vector::Zero;
-        Vector                  m_viewForwardDirection = Vector::WorldForward;
-        Vector                  m_viewRightDirection = Vector::WorldRight;
-        Vector                  m_viewUpDirection = Vector::WorldUp;
-        Matrix                  m_viewMatrix;                           // The composed view matrix ( -Z forward, Y-up, RH )
-        Matrix                  m_projectionMatrix;                     // The projection conversion for this volume // TODO: infinite perspective, inverse Z
-        Matrix                  m_viewProjectionMatrix;                 // Cached view projection matrix
-        Matrix                  m_inverseViewProjectionMatrix;          // Inverse of the cached view projection matrix
-        Plane                   m_viewPlanes[6];                        // Cached view planes for this volume
+        Vector          m_viewPosition = Vector::Zero;
+        Vector          m_viewForwardDirection = Vector::WorldForward;
+        Vector          m_viewRightDirection = Vector::WorldRight;
+        Vector          m_viewUpDirection = Vector::WorldUp;
+        Matrix          m_viewMatrix;                           // The composed view matrix ( -Z forward, Y-up, RH )
+        Matrix          m_projectionMatrix;                     // The projection conversion for this volume // TODO: infinite perspective, inverse Z
+        Matrix          m_viewProjectionMatrix;                 // Cached view projection matrix
+        Matrix          m_inverseViewProjectionMatrix;          // Inverse of the cached view projection matrix
+        Plane           m_viewPlanes[6];                        // Cached view planes for this volume
 
-        Float2                  m_viewDimensions = Float2::Zero;        // The dimensions of the view volume
-        Radians                 m_FOV = Radians( 0.0f );                // The horizontal field of view angle (only for perspective projection)
-        FloatRange              m_depthRange = FloatRange( 0 );         // The distance from the volume origin of the near/far planes ( X = near plane, Y = far plane )
-        ProjectionType          m_type = ProjectionType::Perspective;   // The projection type
+        float           m_viewWidth = 1.0f;                     // Only relevant for orthographic projections
+        float           m_aspectRatio = AspectRatio_4_3;
+        Radians         m_horizontalFOV = Radians( 0.0f );      // The horizontal field of view angle (only for perspective projection)
+        FloatRange      m_depthRange = FloatRange( 0 );         // The distance from the volume origin of the near/far planes ( X = near plane, Y = far plane )
+        ProjectionType  m_type = ProjectionType::Perspective;   // The projection type
     };
 
     //-------------------------------------------------------------------------
@@ -186,5 +248,12 @@ namespace EE::Math
     EE_BASE_API Matrix CreatePerspectiveProjectionMatrix( float verticalFOV, float aspectRatio, float nearPlaneZ, float farPlaneZ );
 
     // Creates a right handed orthographic projection matrix
-    EE_BASE_API Matrix CreateOrthographicProjectionMatrix( float width, float height, float nearPlaneZ, float farPlaneZ );
+    EE_BASE_API Matrix CreateOrthographicProjectionMatrix( float viewWidth, float viewHeight, float nearPlaneZ, float farPlaneZ );
+    EE_BASE_API Matrix CreateOrthographicProjectionMatrixOffCenter( float left, float right, float bottom, float top, float nearPlane, float farPlane );
+
+    // Creates a lookat matrix
+    EE_BASE_API Matrix CreateLookAtMatrix( Vector const& viewPosition, Vector const& focusPosition, Vector const& upDirection );
+
+    // Calculate the 6 planes enclosing the volume
+    EE_BASE_API void CalculateViewPlanes( Matrix const& viewProjectionMatrix, Plane viewPlanes[6] );
 }

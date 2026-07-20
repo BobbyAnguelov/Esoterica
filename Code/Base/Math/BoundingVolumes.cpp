@@ -5,10 +5,34 @@
 
 namespace EE
 {
-    AABB::AABB( OBB const& box )
+    Vector const AABB::s_referenceBoxCorners[8] =
     {
-        //TODO
-        EE_UNIMPLEMENTED_FUNCTION();
+        { -1.0f, -1.0f,  1.0f, 0.0f },
+        {  1.0f, -1.0f,  1.0f, 0.0f },
+        {  1.0f,  1.0f,  1.0f, 0.0f },
+        { -1.0f,  1.0f,  1.0f, 0.0f },
+        { -1.0f, -1.0f, -1.0f, 0.0f },
+        {  1.0f, -1.0f, -1.0f, 0.0f },
+        {  1.0f,  1.0f, -1.0f, 0.0f },
+        { -1.0f,  1.0f, -1.0f, 0.0f },
+    };
+
+    //-------------------------------------------------------------------------
+
+    AABB::AABB( OBB const& obb )
+    {
+        Matrix m( obb.m_orientation );
+
+        float const ex = obb.m_extents.GetX();
+        float const ey = obb.m_extents.GetY();
+        float const ez = obb.m_extents.GetZ();
+
+        float const x = Math::Abs( m[0][0] ) * ex + Math::Abs( m[1][0] ) * ey + Math::Abs( m[2][0] ) * ez;
+        float const y = Math::Abs( m[0][1] ) * ex + Math::Abs( m[1][1] ) * ey + Math::Abs( m[2][1] ) * ez;
+        float const z = Math::Abs( m[0][2] ) * ex + Math::Abs( m[1][2] ) * ey + Math::Abs( m[2][2] ) * ez;
+
+        m_center = obb.m_center;
+        m_halfExtents = Vector( x, y, z );
     }
 
     AABB::AABB( Vector const* pPoints, uint32_t numPoints )
@@ -41,7 +65,7 @@ namespace EE
         Vector insideAll( SIMD::g_trueMask );
         for ( uint32_t i = 0; i < 8; i++ )
         {
-            Vector const c = box.m_center + box.m_orientation.RotateVector( box.m_extents * Vector::BoxCorners[i] );
+            Vector const c = box.m_center + box.m_orientation.RotateVector( box.m_extents * AABB::s_referenceBoxCorners[i] );
             Vector const d = c.GetAbs();
             insideAll = SIMD::Int::And( insideAll, d.LessThanEqual( m_halfExtents ) );
         }
@@ -55,15 +79,37 @@ namespace EE
         Vector max( -FLT_MAX );
 
         // First corner
-        Vector corner = Vector::MultiplyAdd( m_halfExtents, Vector::BoxCorners[0], m_center );
+        Vector corner = Vector::MultiplyAdd( m_halfExtents, AABB::s_referenceBoxCorners[0], m_center );
         corner = transform.TransformPoint( corner );
         min = max = corner;
 
         // Remaining 7 corners
         for ( auto i = 1; i < 8; i++ )
         {
-            corner = Vector::MultiplyAdd( m_halfExtents, Vector::BoxCorners[i], m_center );
+            corner = Vector::MultiplyAdd( m_halfExtents, AABB::s_referenceBoxCorners[i], m_center );
             corner = transform.TransformPoint( corner );
+            min = Vector::Min( min, corner );
+            max = Vector::Max( max, corner );
+        }
+
+        SetFromMinMax( min, max );
+    }
+
+    void AABB::ApplyTransform( Matrix const& transform )
+    {
+        Vector min( FLT_MAX );
+        Vector max( -FLT_MAX );
+
+        // First corner
+        Vector corner = Vector::MultiplyAdd( m_halfExtents, AABB::s_referenceBoxCorners[0], m_center ).GetWithW1();
+        corner = transform.TransformVector4( corner );
+        min = max = corner;
+
+        // Remaining 7 corners
+        for ( auto i = 1; i < 8; i++ )
+        {
+            corner = Vector::MultiplyAdd( m_halfExtents, AABB::s_referenceBoxCorners[i], m_center ).GetWithW1();
+            corner = transform.TransformVector4( corner );
             min = Vector::Min( min, corner );
             max = Vector::Max( max, corner );
         }
@@ -202,7 +248,7 @@ namespace EE
 
         m_center = currentTransform.GetTranslation();
         m_orientation = currentTransform.GetRotation();
-        m_extents = ( m_extents * currentTransform.GetScale() ).Abs();
+        m_extents = ( m_extents * currentTransform.GetScale() ).GetAbs();
     }
 
     void OBB::ApplyScale( Vector const& scale )
@@ -238,7 +284,7 @@ namespace EE
         Vector const R1X = R[1];
         Vector const R2X = R[2];
 
-        R = R.Transpose();
+        R.Transpose();
 
         // Columns. Note RX[0,1,2].m_w = 0.
         Vector const RX0 = R[0];
@@ -269,9 +315,9 @@ namespace EE
         d = t.GetSplatX();
         d_A = m_extents.GetSplatX();
         d_B = box.m_extents.Dot3( AR0X );
-        Vector NoIntersection = d.Abs().GreaterThan( ( d_A + d_B ).Abs() );
+        Vector NoIntersection = d.GetAbs().GreaterThan( ( d_A + d_B ).GetAbs() );
 
-        #define NO_INTERSECTION_TEST NoIntersection = SIMD::Int::Or( NoIntersection, d.Abs().GreaterThan( ( d_A + d_B ).Abs() ) );
+        #define NO_INTERSECTION_TEST NoIntersection = SIMD::Int::Or( NoIntersection, d.GetAbs().GreaterThan( ( d_A + d_B ).GetAbs() ) );
 
         // l = a(v) = (0, 1, 0)
         // t dot l = t.m_y

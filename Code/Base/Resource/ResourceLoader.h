@@ -27,17 +27,24 @@ namespace EE::Resource
 
     //-------------------------------------------------------------------------
 
+    enum class LoadResult
+    {
+        Complete,
+        InProgress,
+        Failed,
+    };
+
+    enum class UnloadResult
+    {
+        Complete,
+        InProgress,
+    };
+
+    //-------------------------------------------------------------------------
+
     class EE_BASE_API ResourceLoader
     {
-
-    public:
-
-        enum class LoadResult
-        {
-            Succeeded,
-            InProgress,
-            Failed,
-        };
+        friend class ResourceRequest;
 
     protected:
 
@@ -51,8 +58,25 @@ namespace EE::Resource
                 }
             }
 
-            EE_HALT();
+            // Cant find a requested install dependency, are you sure you correctly registered it with the resource header when compiling?
+            EE_UNREACHABLE_CODE();
             return nullptr;
+        }
+
+        inline static void LogError( ResourceRecord* pResourceRecord, char const* pFormat, ... )
+        {
+            #if EE_DEVELOPMENT_TOOLS
+            va_list args;
+            va_start( args, pFormat );
+
+            InlineString msg;
+            msg.sprintf_va_list( pFormat, args );
+
+            pResourceRecord->m_errorLog.append( msg.c_str() );
+            EE_LOG_ERROR( LogCategory::Resource, "Resource Loader", msg.c_str() );
+
+            va_end( args );
+            #endif
         }
 
     public:
@@ -65,32 +89,42 @@ namespace EE::Resource
         virtual bool CanProceedWithFailedInstallDependency() const { return false; }
 
         // This function loads is responsible to deserialize the compiled resource data, read the resource header for install dependencies and to create the new runtime resource object
+        // This function will continue being called until either "LoadResult::Succeeded" or "LoadResult::Failed" is returned
         LoadResult Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, ResourceRecord* pResourceRecord ) const;
-
-        // This function is only called if the initial load return "LoadResult::InProgress". This is necessary for any multi-stage loads i.e. anything that requires RHI alloc/transfer/etc...
-        // This function will continue being called until either "LoadResult::Succeeded" or "LoadResult::Failed" is returned
-        virtual LoadResult UpdateLoad( ResourceID const& resourceID, FileSystem::Path const& resourcePath, ResourceRecord* pResourceRecord ) const;
-
-        // This function will destroy the created resource object
-        // (Optional) Override this function to implement any custom object destruction logic if needed, by default this will just delete the created resource
-        virtual void Unload( ResourceID const& resourceID, ResourceRecord* pResourceRecord ) const;
-
-        // This function is called once all the install dependencies have been loaded, it allows us to update any internal resource ptrs the resource might hold
-        // Return "LoadResult::InProgress" if you require a multi-stage load
-        virtual LoadResult Install( ResourceID const& resourceID, InstallDependencyList const& installDependencies, ResourceRecord* pResourceRecord ) const;
-
-        // This function is only called if the initial install return "LoadResult::InProgress". This is necessary for any multi-stage installs i.e. anything that requires RHI alloc/transfer/etc...
-        // This function will continue being called until either "LoadResult::Succeeded" or "LoadResult::Failed" is returned
-        virtual LoadResult UpdateInstall( ResourceID const& resourceID, ResourceRecord* pResourceRecord ) const;
-
-        // This function is called as a first step when we are about to unload a resource, it allows us to clean up anything that might require an install dependency to be available
-        virtual void Uninstall( ResourceID const& resourceID, ResourceRecord* pResourceRecord ) const {}
 
     protected:
 
         // (Required) Override this function to implement you custom deserialization and creation logic, resource header has already been read at this point
         // Return "LoadResult::InProgress" if you require a multi-stage load
-        virtual LoadResult Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const = 0;
+        virtual LoadResult Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive* pArchive ) const = 0;
+
+        // This function is called once all the install dependencies have been loaded, it allows us to update any internal resource ptrs the resource might hold
+        // This function will continue being called until either "LoadResult::Succeeded" or "LoadResult::Failed" is returned
+        virtual LoadResult Install( ResourceID const& resourceID, InstallDependencyList const& installDependencies, ResourceRecord* pResourceRecord ) const
+        {
+            return LoadResult::Complete;
+        }
+
+        // Called once we complete the install stage
+        void OnInstallComplete( ResourceID const& resourceID, ResourceRecord* pResourceRecord );
+
+        // This function is called as a first step when we are about to uninstall a resource, it allows us to clean up anything that might require an install dependency to be available
+        // This function will continue being called until "UnloadResult::Complete" is returned
+        virtual UnloadResult Uninstall( ResourceID const& resourceID, ResourceRecord* pResourceRecord ) const
+        {
+            return UnloadResult::Complete;
+        }
+
+        // This function will destroy the created resource object
+        // This function will continue being called until "UnloadResult::Complete" is returned
+        // (Optional) Override this function to implement any custom object destruction logic if needed, by default this will just delete the created resource
+        virtual UnloadResult Unload( ResourceID const& resourceID, ResourceRecord* pResourceRecord ) const
+        {
+            return UnloadResult::Complete;
+        }
+
+        // Called once we complete the unload stage
+        void OnUnloadComplete( ResourceID const& resourceID, ResourceRecord* pResourceRecord );
 
     protected:
 

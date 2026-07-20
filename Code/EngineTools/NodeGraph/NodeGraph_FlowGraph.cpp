@@ -276,7 +276,7 @@ namespace EE::NodeGraph
         }
     }
 
-    void FlowNode::EndModification()
+    void FlowNode::PostModify()
     {
         // Only trigger refresh for nodes in a graph
         if ( HasParentGraph() )
@@ -284,7 +284,7 @@ namespace EE::NodeGraph
             RefreshDynamicPins();
         }
 
-        BaseNode::EndModification();
+        BaseNode::PostModify();
     }
 
     //-------------------------------------------------------------------------
@@ -557,9 +557,9 @@ namespace EE::NodeGraph
 
     //-------------------------------------------------------------------------
 
-    void FlowGraph::PostDeserialize()
+    void FlowGraph::PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry )
     {
-        BaseGraph::PostDeserialize();
+        BaseGraph::PostDeserialize( typeRegistry );
 
         // Refresh all dynamic pins
         for ( TTypeInstance<BaseNode>& nodeInstance : m_nodes )
@@ -580,7 +580,7 @@ namespace EE::NodeGraph
 
             if ( pFromNode == nullptr || pToNode == nullptr )
             {
-                EE_LOG_WARNING( "Tools", "Node Graph", "Invalid connection detected and removed during deserialization" );
+                EE_LOG_WARNING( LogCategory::Tools, "Node Graph", "Invalid connection detected and removed during deserialization" );
                 m_connections.erase( m_connections.begin() + i );
                 continue;
             }
@@ -590,7 +590,7 @@ namespace EE::NodeGraph
 
             if ( pOutputPin == nullptr || pInputPin == nullptr )
             {
-                EE_LOG_WARNING( "Tools", "Node Graph", "Invalid connection detected and removed during deserialization" );
+                EE_LOG_WARNING( LogCategory::Tools, "Node Graph", "Invalid connection detected and removed during deserialization" );
                 m_connections.erase( m_connections.begin() + i );
                 continue;
             }

@@ -18,7 +18,7 @@ namespace EE::EntityModel
         m_pTypeRegistry = pTypeRegistry;
     }
 
-    Resource::ResourceLoader::LoadResult EntityCollectionLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::LoadResult EntityCollectionLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive* pArchive ) const
     {
         EE_ASSERT( m_pTypeRegistry != nullptr );
 
@@ -27,18 +27,18 @@ namespace EE::EntityModel
         if ( resourceID.GetResourceTypeID() == EntityMapDescriptor::GetStaticResourceTypeID() )
         {
             auto pMap = EE::New<EntityMapDescriptor>();
-            archive << *pMap;
+            ( *pArchive ) << *pMap;
             pCollectionDesc = pMap;
         }
         else  if ( resourceID.GetResourceTypeID() == EntityCollection::GetStaticResourceTypeID() )
         {
             auto pEC = EE::New<EntityCollection>();
-            archive << *pEC;
+            ( *pArchive ) << *pEC;
             pCollectionDesc = pEC;
         }
 
         // Set loaded resource
         pResourceRecord->SetResourceData( pCollectionDesc );
-        return Resource::ResourceLoader::LoadResult::Succeeded;
+        return Resource::LoadResult::Complete;
     }
 }

@@ -30,7 +30,6 @@ namespace EE::Animation
 
     void RootMotionDebugger::StartCharacterUpdate( Transform const& characterWorldTransform )
     {
-        m_debugPathTracker.Clear();
         m_startWorldTransform = characterWorldTransform;
         m_recordedActions.clear();
     }
@@ -84,7 +83,7 @@ namespace EE::Animation
         }
     }
 
-    void RootMotionDebugger::DrawDebug( Drawing::DrawContext& drawingContext )
+    void RootMotionDebugger::DrawDebug( DebugDrawContext& drawingContext )
     {
         if ( m_debugMode == RootMotionDebugMode::DrawRoot )
         {

@@ -1,0 +1,8 @@
+<Type TypeID="EE::Render::MaterialResourceDescriptor" Version="0">
+  <Property ID="m_shader" Value="ComplexSurfacePBR" />
+  <Type ID="m_shaderParameters" TypeID="EE::Render::Shaders::ComplexSurfacePBRParameters">
+    <Property ID="m_shaderFlags" Value="TwoSided" />
+    <Property ID="m_emissiveStrength" Value="1" />
+    <Property ID="m_emissiveTexture" Value="data://editor/skydome/skydome_overcast.texture" />
+  </Type>
+</Type>

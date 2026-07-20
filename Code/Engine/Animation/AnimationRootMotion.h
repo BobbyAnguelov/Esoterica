@@ -8,7 +8,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Drawing { class DrawContext; }
+namespace EE { class DebugDrawContext; }
 
 //-------------------------------------------------------------------------
 
@@ -30,8 +30,13 @@ namespace EE::Animation
 
     public:
 
+        // Is this data valid, note that there is a distinction between valid data and having actual motion
         inline bool IsValid() const { return m_numFrames > 0; }
 
+        // Does this root motion actual move the character
+        inline bool IsStationary() const { return m_transforms.size() <= 1; }
+
+        // Clear all root motion data
         void Clear();
 
         // Get the number of root motion transforms
@@ -47,11 +52,14 @@ namespace EE::Animation
             return GetTransform( GetFrameTime( percentageThrough ) );
         }
 
+        // Get the end root transform
+        inline Transform const& GetEndTransform() const { return m_transforms.back(); }
+
         // Get the delta for the root motion for the given time range. Handle's looping but assumes only a single loop occurred!
-        inline Transform GetDelta( Percentage fromTime, Percentage toTime ) const;
+        Transform GetDelta( Percentage fromTime, Percentage toTime ) const;
 
         // Get the delta for the root motion for the given time range. DOES NOT SUPPORT LOOPING!
-        inline Transform GetDeltaNoLooping( Percentage fromTime, Percentage toTime ) const;
+        Transform GetDeltaNoLooping( Percentage fromTime, Percentage toTime ) const;
 
         // Get the average linear velocity of the root for this animation
         inline float GetAverageLinearVelocity() const { return m_averageLinearVelocity; }
@@ -83,12 +91,43 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Sample the root motion based on the supplied sampling mode: either just the plain delta or the world space delta
-        inline Transform SampleRootMotion( SamplingMode mode, Transform const& currentWorldTransform, Percentage startTime, Percentage endTime ) const;
+        Transform SampleRootMotion( SamplingMode mode, Transform const& currentWorldTransform, Percentage startTime, Percentage endTime ) const;
 
+        // Operators and ranged for support
+        //-------------------------------------------------------------------------
+
+        // Get the transform at the specified frame index
+        inline Transform& operator[] ( int32_t frameIdx )
+        {
+            EE_ASSERT( !m_transforms.empty() );
+            if ( m_transforms.size() == 1 )
+            {
+                return m_transforms[0];
+            }
+            else
+            {
+                EE_ASSERT( frameIdx >= 0 && frameIdx < m_transforms.size() );
+                return m_transforms[frameIdx];
+            }
+        }
+
+        inline Transform const& operator[] ( int32_t frameIdx ) const { return const_cast<RootMotionData*>( this )->operator[]( frameIdx ); }
+
+        EE_FORCE_INLINE TVector<Transform>::iterator begin() { return m_transforms.begin(); }
+        EE_FORCE_INLINE TVector<Transform>::iterator end() { return m_transforms.end(); }
+        EE_FORCE_INLINE TVector<Transform>::const_iterator begin() const { return m_transforms.begin(); }
+        EE_FORCE_INLINE TVector<Transform>::const_iterator end() const { return m_transforms.end(); }
+
+        Transform& front() { return m_transforms.front(); }
+        Transform const& front() const { return m_transforms.front(); }
+        Transform& back() { return m_transforms.back(); }
+        Transform const& back() const { return m_transforms.back(); }
+
+        // Debug
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Color color0 = Colors::Yellow, Color color1 = Colors::Cyan ) const;
+        void DrawDebug( DebugDrawContext& ctx, Transform const& worldTransform, Color color0 = Colors::Yellow, Color color1 = Colors::Cyan ) const;
         #endif
 
     private:
@@ -103,101 +142,4 @@ namespace EE::Animation
         Radians                                 m_averageAngularVelocity = 0.0f; // In rad/s, only on the X/Y plane
         Transform                               m_totalDelta;
     };
-
-    //-------------------------------------------------------------------------
-
-    inline Transform RootMotionData::GetTransform( FrameTime const& frameTime ) const
-    {
-        EE_ASSERT( IsValid() );
-        EE_ASSERT( frameTime.GetFrameIndex() < m_numFrames );
-
-        Transform displacementTransform( NoInit );
-
-        if ( m_transforms.empty() )
-        {
-            displacementTransform = Transform::Identity;
-        }
-        else
-        {
-            if ( frameTime.IsExactlyAtKeyFrame() )
-            {
-                displacementTransform = m_transforms[frameTime.GetFrameIndex()];
-            }
-            else // Read interpolated transform
-            {
-                Transform const& frameStartTransform = m_transforms[frameTime.GetFrameIndex()];
-                Transform const& frameEndTransform = m_transforms[frameTime.GetFrameIndex() + 1];
-                displacementTransform = Transform::SLerp( frameStartTransform, frameEndTransform, frameTime.GetPercentageThrough() );
-            }
-        }
-
-        return displacementTransform;
-    }
-
-    EE_FORCE_INLINE Transform RootMotionData::GetDeltaNoLooping( Percentage fromTime, Percentage toTime ) const
-    {
-        Transform delta( NoInit );
-
-        if ( m_transforms.empty() )
-        {
-            delta = Transform::Identity;
-        }
-        else
-        {
-            Transform const startTransform = GetTransform( fromTime );
-            Transform const endTransform = GetTransform( toTime );
-            delta = Transform::DeltaNoScale( startTransform, endTransform );
-        }
-
-        return delta;
-    }
-
-    EE_FORCE_INLINE Transform RootMotionData::GetDelta( Percentage fromTime, Percentage toTime ) const
-    {
-        Transform delta( NoInit );
-
-        if ( m_transforms.empty() )
-        {
-            delta = Transform::Identity;
-        }
-        else
-        {
-            if ( fromTime <= toTime )
-            {
-                delta = GetDeltaNoLooping( fromTime, toTime );
-            }
-            else
-            {
-                Transform const preLoopDelta = GetDeltaNoLooping( fromTime, 1.0f );
-                Transform const postLoopDelta = GetDeltaNoLooping( 0.0f, toTime );
-                delta = postLoopDelta * preLoopDelta;
-            }
-        }
-
-        return delta;
-    }
-
-    inline Transform RootMotionData::SampleRootMotion( SamplingMode mode, Transform const& currentWorldTransform, Percentage startTime, Percentage endTime ) const
-    {
-        Transform delta( NoInit );
-
-        if ( m_transforms.empty() )
-        {
-            delta = Transform::Identity;
-        }
-        else
-        {
-            if ( mode == SamplingMode::WorldSpace )
-            {
-                Transform const desiredFinalTransform = GetTransform( endTime );
-                delta = Transform::DeltaNoScale( currentWorldTransform, desiredFinalTransform );
-            }
-            else
-            {
-                delta = GetDelta( startTime, endTime );
-            }
-        }
-
-        return delta;
-    }
 }

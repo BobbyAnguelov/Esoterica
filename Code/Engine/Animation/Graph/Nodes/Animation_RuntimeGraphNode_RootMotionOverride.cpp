@@ -85,7 +85,7 @@ namespace EE::Animation
 
         SampledEvent const* pSampledEvent = nullptr;
 
-        for ( auto const& sampledEvent : *context.m_pSampledEventsBuffer )
+        for ( auto const& sampledEvent : *context.GetSampledEventsBuffer() )
         {
             if ( sampledEvent.IsIgnored() || !sampledEvent.IsFromActiveBranch() || sampledEvent.IsGraphEvent() )
             {
@@ -278,7 +278,7 @@ namespace EE::Animation
                 desiredFacingCS.Normalize3();
 
                 // Get the total delta rotation between our current facing and the desired facing
-                Quaternion deltaRotation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, desiredFacingCS, Vector::WorldUp );
+                Quaternion deltaRotation = Quaternion::FromRotationBetweenUnitVectors( Vector::WorldForward, desiredFacingCS, Vector::WorldUp );
 
                 // Apply max angular velocity limit
                 Radians maxAngularVelocity = pDefinition->m_maxAngularVelocity;
@@ -318,7 +318,7 @@ namespace EE::Animation
             nodeResult.m_rootMotionDelta = adjustedDisplacementDelta;
 
             #if EE_DEVELOPMENT_TOOLS
-            context.GetRootMotionDebugger()->RecordModification( GetNodeIndex(), nodeResult.m_rootMotionDelta );
+            context.GetRootMotionDebugger()->RecordModification( GetNodePath( context ), nodeResult.m_rootMotionDelta );
             #endif
         }
         // Blend
@@ -327,7 +327,7 @@ namespace EE::Animation
             nodeResult.m_rootMotionDelta = Blender::BlendRootMotionDeltas( nodeResult.m_rootMotionDelta, adjustedDisplacementDelta, overrideWeight );
 
             #if EE_DEVELOPMENT_TOOLS
-            context.GetRootMotionDebugger()->RecordModification( GetNodeIndex(), nodeResult.m_rootMotionDelta );
+            context.GetRootMotionDebugger()->RecordModification( GetNodePath( context ), nodeResult.m_rootMotionDelta );
             #endif
         }
         else

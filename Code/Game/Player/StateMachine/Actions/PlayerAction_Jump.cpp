@@ -1,63 +1,42 @@
 #include "PlayerAction_Jump.h"
-#include "Game/Player/Components/Component_MainPlayer.h"
-#include "Game/Player/Camera/PlayerCameraController.h"
+#include "Game/Player/Components/Component_PlayerCamera.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Base/Input/InputSystem.h"
+#include "Base/Math/Easing.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
-    static Radians  g_maxAngularSpeed = Radians( Degrees( 90 ) ); // radians/second
-    static float    g_smallJumpDistance = 3.0f;                   // meters/second
-    static float    g_bigJumpDistance = 8.0f;                     // meters/second
-    static float    g_bigJumpEnergyCost = 1.0f;                   // energy levels
-    static float    g_gravityAcceleration = 30.0f;                // meters/second squared
-    static float    g_maxAirControlAcceleration = 10.0f;          // meters/second squared
-    static float    g_maxAirControlSpeed = 6.5f;                  // meters/second
-    static Seconds  g_bigJumpHoldTime = 0.3f;                     // seconds
-
-    //  1.) V = Vi + a(t)
-    //
-    //      0 = Vi + a(t)                   V = 0 since we want to reach the apex, hence velocity 0.
-    //      Vi = -a(t)
-    //
-    //  2.)	d = Vi(t) + 0.5(a)(t^2)
-    //
-    //      d = -a(t)(t) + 0.5(a)(t^2)      substitute vi = -a(t) from 1.
-    //      d = -a(t^2)  + 0.5(a)(t^2)
-    //      d =  a(t^2)(-1 + 0.5)
-    //      d = -0.5(a)(t^2)
-    //      t^2 = -2(d)/a
-    //      t = sqrt( -2(d)/a )
-    //  
-    //      Vi = -a(t)                      back to using 1. now that we have t we can calculate Vi.
-    //      Vi = -a( sqrt( -2(d)/a ) )      the negative sign will disappear since our acceleration is negative
-
-    static float    g_bigJumpTimeToApex = Math::Sqrt( 2 * g_bigJumpDistance / ( g_gravityAcceleration ) );
-    static float    g_bigJumpinitialSpeed = g_gravityAcceleration * g_bigJumpTimeToApex;
-
-    static float    g_smallJumpTimeToApex = Math::Sqrt( 2 * g_smallJumpDistance / ( g_gravityAcceleration ) );
-    static float    g_smallJumpinitialSpeed = g_gravityAcceleration * g_smallJumpTimeToApex;
+    constinit static float const g_smallJumpDistance = 3.0f;                   // meters/second
+    constinit static float const g_bigJumpDistance = 10.0f;                    // meters/second
+    constinit static float const g_bigJumpEnergyCost = 1.0f;                   // energy levels
+    constinit static float const g_maxAirControlAcceleration = 10.0f;          // meters/second squared
+    constinit static float const g_maxAirControlSpeed = 6.5f;                  // meters/second
+    constinit static float const g_bigJumpHoldTime = 0.3f;                     // seconds
 
     //-------------------------------------------------------------------------
 
-    bool JumpAction::TryStartInternal( ActionContext const& ctx )
+    bool PlayerAction_Jump::TryStartInternal( PlayerActionContext const& ctx )
     {
         if( ctx.m_pInput->m_jump.WasReleased() )
         {
-            ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::Ability );
+            ctx.m_pAnimationController->SetCharacterState( PlayerAnimationController::CharacterState::Ability );
             ctx.m_pAnimationController->StartJump();
-
-            ctx.m_pCharacterComponent->SetGravityMode( Physics::ControllerGravityMode::NoGravity, 0.0f );
-            m_jumpTimer.Start();
+            ctx.m_pPlayer->SetGravityScale( 0.0f );
 
             if( m_isChargedJumpReady )
             {
-                ctx.m_pPlayerComponent->ConsumeEnergy( g_bigJumpEnergyCost );
+                ctx.m_pPlayerState->ConsumeEnergy( g_bigJumpEnergyCost );
+                m_isPerformingChargedJump = true;
             }
-            m_previousHeight = 0.0f;
+            else
+            {
+                m_isPerformingChargedJump = false;
+            }
+
+            m_previousProgressThroughJump = 0.0f;
+            m_jumpTimer.Start();
 
             return true;
         }
@@ -67,7 +46,7 @@ namespace EE::Player
             if( ctx.m_pInput->m_jump.IsHeld() )
             {
                 Seconds jumpHoldTime = ctx.m_pInput->m_jump.GetHoldTime();
-                if( jumpHoldTime > g_bigJumpHoldTime && ctx.m_pPlayerComponent->HasEnoughEnergy( g_bigJumpEnergyCost ) )
+                if( jumpHoldTime > g_bigJumpHoldTime && ctx.m_pPlayerState->HasRequiredEnergy( g_bigJumpEnergyCost ) )
                 {
                     m_isChargedJumpReady = true;
                 }
@@ -77,15 +56,17 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status JumpAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
+    PlayerAction::Status PlayerAction_Jump::UpdateInternal( PlayerActionContext const& ctx, bool isFirstUpdate )
     {
-        static StringID const jumpTransitionMarkerID( "Jump" );
+        float g_bigJumpTimeToApex = Math::Sqrt( 2 * g_bigJumpDistance / 30 );
+        float g_smallJumpTimeToApex = Math::Sqrt( 2 * g_smallJumpDistance / 30 );
 
         // check if we had a collision
         //-------------------------------------------------------------------------
 
-        float const jumpTime = ( m_isChargedJumpReady ? g_bigJumpTimeToApex : g_smallJumpTimeToApex );
-        if( m_jumpTimer.GetElapsedTimeSeconds() >= jumpTime || ctx.m_pAnimationController->IsTransitionFullyAllowed( jumpTransitionMarkerID ) )
+        float const jumpTime = ( m_isPerformingChargedJump ? g_bigJumpTimeToApex : g_smallJumpTimeToApex );
+
+        if( m_jumpTimer.GetElapsedTimeSeconds() >= jumpTime )
         {
             return Status::Completed;
         }
@@ -93,19 +74,22 @@ namespace EE::Player
         {
             m_jumpTimer.Update( ctx.GetDeltaTime() );
 
-            float deltaHeight = ctx.m_pPlayerComponent->m_jumpCurve.Evaluate( m_jumpTimer.GetElapsedTimeSeconds() / jumpTime ) * ( m_isChargedJumpReady ? g_bigJumpDistance : g_smallJumpDistance ) - m_previousHeight;
+            float progress = ( m_jumpTimer.GetElapsedTimeSeconds() / jumpTime );
+            float delta = Math::Easing::Evaluate( Math::Easing::Operation::InSine, progress ) - Math::Easing::Evaluate( Math::Easing::Operation::InSine, m_previousProgressThroughJump );
+
+            float deltaHeight = Math::Max( 0.01f, delta * ( m_isPerformingChargedJump ? g_bigJumpDistance : g_smallJumpDistance ) );
             float verticalVelocity = deltaHeight / ctx.GetDeltaTime();
-            m_previousHeight += deltaHeight;
+            m_previousProgressThroughJump = progress;
 
             // Calculate desired player displacement
             //-------------------------------------------------------------------------
 
             Vector const movementInputs = ctx.m_pInput->m_move.GetValue();
-            auto const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
-            auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
+            auto const& camFwd = ctx.m_pCamera->GetCameraRelativeForwardVector2D();
+            auto const& camRight = ctx.m_pCamera->GetCameraRelativeRightVector2D();
 
             // Use last frame camera orientation
-            Vector const currentVelocity = ctx.m_pCharacterComponent->GetCharacterVelocity();
+            Vector const currentVelocity = ctx.m_pPlayer->GetVelocity();
             Vector const currentVelocity2D = currentVelocity * Vector( 1.0f, 1.0f, 0.0f );
 
             Vector const forward = camFwd * movementInputs.GetSplatY();
@@ -120,7 +104,7 @@ namespace EE::Player
             }
             resultingVelocity.SetZ( verticalVelocity );
 
-            Vector const facing = desiredMovementVelocity2D.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : desiredMovementVelocity2D.GetNormalized2();
+            Vector const facing = desiredMovementVelocity2D.IsZero2() ? ctx.m_pPlayer->GetForwardVector() : desiredMovementVelocity2D.GetNormalized2();
 
             // Update animation controller
             //-------------------------------------------------------------------------
@@ -130,17 +114,11 @@ namespace EE::Player
 
         //-------------------------------------------------------------------------
 
-        // Wait for the jump anim to complete
-        if ( ctx.m_pAnimationController->IsAnyTransitionAllowed( jumpTransitionMarkerID ) )
-        {
-            return Status::Interruptible;
-        }
-
         return Status::Uninterruptible;
     }
 
-    void JumpAction::StopInternal( ActionContext const& ctx, StopReason reason )
+    void PlayerAction_Jump::StopInternal( PlayerActionContext const& ctx, StopReason reason )
     {
-
+        ctx.m_pPlayer->SetGravityScale( 1.0f );
     }
 }

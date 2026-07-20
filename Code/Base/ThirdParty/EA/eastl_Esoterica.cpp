@@ -5,6 +5,11 @@
 
 //-------------------------------------------------------------------------
 
+namespace EE::Memory::Allocators
+{
+    EE_BASE_API MemoryAllocator g_EASTL( "EASTL" );
+}
+
 namespace eastl
 {
     allocator g_defaultAllocator;
@@ -24,16 +29,13 @@ namespace eastl
     //-------------------------------------------------------------------------
 
     allocator::allocator( const char* EASTL_NAME( pName ) )
-    {
-    }
+    {}
 
     allocator::allocator( const allocator& EASTL_NAME( alloc ) )
-    {
-    }
+    {}
 
     allocator::allocator( const allocator&, const char* EASTL_NAME( pName ) )
-    {
-    }
+    {}
 
     allocator& allocator::operator=( const allocator& EASTL_NAME( alloc ) )
     {
@@ -46,21 +48,20 @@ namespace eastl
     }
 
     void allocator::set_name( const char* EASTL_NAME( pName ) )
-    {
-    }
+    {}
 
     void* allocator::allocate( size_t n, int flags )
     {
-        return EE::Alloc( n, EASTL_ALLOCATOR_MIN_ALIGNMENT );
+        return EE::Memory::Allocators::g_EASTL.Alloc( n, EASTL_ALLOCATOR_MIN_ALIGNMENT );
     }
 
     void* allocator::allocate( size_t n, size_t alignment, size_t offset, int flags )
     {
-        return EE::Alloc( n, alignment );
+        return EE::Memory::Allocators::g_EASTL.Alloc( n, alignment );
     }
 
     void allocator::deallocate( void* p, size_t )
     {
-        EE::Free( p );
+        EE::Memory::Allocators::g_EASTL.Free( p );
     }
 }

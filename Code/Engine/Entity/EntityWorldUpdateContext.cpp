@@ -34,14 +34,19 @@ namespace EE
         EE_ASSERT( m_deltaTime >= 0.0f );
     }
 
-    Settings::ISettings* EntityWorldUpdateContext::GetSettings( TypeSystem::TypeInfo const* pTypeInfo )
+    TInlineVector<EE::Viewport*, 3> const& EntityWorldUpdateContext::GetViewports() const
     {
-        return m_pWorld->GetSettings( pTypeInfo );
+        return m_pWorld->GetViewports();
     }
 
-    EntityWorldSystem* EntityWorldUpdateContext::GetWorldSystem( uint32_t worldSystemID ) const
+    Viewport const* EntityWorldUpdateContext::GetMainViewport() const
     {
-        return m_pWorld->GetWorldSystem( worldSystemID );
+        return m_pWorld->GetMainViewport();
+    }
+
+    EntityWorldSystem* EntityWorldUpdateContext::GetWorldSystem( TypeSystem::TypeID worldSystemTypeID ) const
+    {
+        return m_pWorld->GetWorldSystem( worldSystemTypeID );
     }
 
     EntityModel::EntityMap* EntityWorldUpdateContext::GetPersistentMap() const
@@ -49,14 +54,15 @@ namespace EE
         return m_pWorld->GetPersistentMap();
     }
 
-    Render::Viewport const* EntityWorldUpdateContext::GetViewport() const
-    {
-        return m_pWorld->GetViewport();
-    }
-
     float EntityWorldUpdateContext::GetTimeScale() const
     {
         return m_pWorld->GetTimeScale();
+    }
+
+    void EntityWorldUpdateContext::SetTimeScale( float timeScale ) const
+    {
+        EE_ASSERT( timeScale > 0.0f && timeScale < 100.0f );
+        m_pWorld->SetTimeScale( timeScale );
     }
 
     EntityWorldID const& EntityWorldUpdateContext::GetWorldID() const
@@ -65,14 +71,14 @@ namespace EE
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    Drawing::DrawContext EntityWorldUpdateContext::GetDrawingContext() const
+    DebugDrawContext EntityWorldUpdateContext::GetDebugDrawContext() const
     {
-        return m_pWorld->m_debugDrawingSystem.GetDrawingContext();
+        return m_pWorld->m_debugDrawSystem.GetDebugDrawContext();
     }
 
-    Drawing::DrawingSystem* EntityWorldUpdateContext::GetDebugDrawingSystem() const
+    DebugDrawSystem* EntityWorldUpdateContext::GetDebugDrawSystem() const
     {
-        return m_pWorld->GetDebugDrawingSystem();
+        return m_pWorld->GetDebugDrawSystem();
     }
     #endif
 }

@@ -8,6 +8,87 @@
 
 namespace EE::Animation
 {
+    void ParameterBaseToolsNode::RefreshParameterReferences( FlowGraph* pRootGraph )
+    {
+        EE_ASSERT( pRootGraph != nullptr );
+        auto parameterNodes = pRootGraph->FindAllNodesOfType<ParameterBaseToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+
+        //-------------------------------------------------------------------------
+
+        auto SetReferencedParameter = [] ( ParameterReferenceToolsNode* pReferenceNode, ParameterBaseToolsNode* pParameter )
+        {
+            EE_ASSERT( pParameter != nullptr );
+            EE_ASSERT( IsOfType<ControlParameterToolsNode>( pParameter ) || IsOfType<VirtualParameterToolsNode>( pParameter ) );
+            EE_ASSERT( pParameter->GetOutputValueType() == pReferenceNode->GetOutputValueType() );
+            pReferenceNode->m_pParameter = pParameter;
+            pReferenceNode->UpdateCachedParameterData();
+        };
+
+        TInlineVector<ParameterReferenceToolsNode*, 10> invalidReferenceNodes; // These nodes are invalid and need to be removed
+
+        auto parameterReferenceNodes = pRootGraph->FindAllNodesOfType<ParameterReferenceToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
+        for ( auto pReferenceNode : parameterReferenceNodes )
+        {
+            ParameterBaseToolsNode* pFoundParameterNode = nullptr;
+            ParameterBaseToolsNode* pFoundMatchingNameParameterNode = nullptr;
+
+            // Check all parameters for matching ID or matching name
+            for ( auto pParameterNode : parameterNodes )
+            {
+                if ( pParameterNode->GetID() == pReferenceNode->GetReferencedParameterID() )
+                {
+                    EE_ASSERT( pFoundParameterNode == nullptr );
+                    pFoundParameterNode = pParameterNode;
+                    break;
+                }
+
+                if ( pParameterNode->GetParameterName().comparei( pReferenceNode->GetReferencedParameterName() ) == 0 )
+                {
+                    EE_ASSERT( pFoundMatchingNameParameterNode == nullptr );
+                    pFoundMatchingNameParameterNode = pParameterNode;
+                }
+            }
+
+            GraphValueType const referencedParameterValueType = pReferenceNode->GetReferencedParameterValueType();
+
+            // If we have a matching parameter node, set the reference to point to it
+            if ( pFoundParameterNode != nullptr && ( referencedParameterValueType == pFoundParameterNode->GetOutputValueType() ) )
+            {
+                SetReferencedParameter( pReferenceNode, pFoundParameterNode );
+            }
+            // If we have a parameter that matches both name and type then link to it (this handles cross graph pasting of parameters)
+            else if ( pFoundMatchingNameParameterNode != nullptr )
+            {
+                if ( referencedParameterValueType == pFoundMatchingNameParameterNode->GetOutputValueType() )
+                {
+                    SetReferencedParameter( pReferenceNode, pFoundMatchingNameParameterNode );
+                }
+                else // Flag this reference as invalid since we cannot create a parameter with this name as one already exists
+                {
+                    invalidReferenceNodes.emplace_back( pReferenceNode );
+                }
+            }
+            else // Create missing parameter
+            {
+                auto pParameter = ControlParameterToolsNode::Create( pRootGraph, referencedParameterValueType, pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterGroup() );
+
+                // Set the reference to the newly created parameter
+                SetReferencedParameter( pReferenceNode, pParameter );
+
+                // Add newly created parameter to the list of parameters to be used for references
+                parameterNodes.emplace_back( pParameter );
+            }
+        }
+
+        // Destroy any invalid reference nodes
+        //-------------------------------------------------------------------------
+
+        for ( auto pInvalidNode : invalidReferenceNodes )
+        {
+            pInvalidNode->Destroy();
+        }
+    }
+
     ParameterBaseToolsNode::ParameterBaseToolsNode( String const& name, String const& groupName )
         : m_group( groupName )
     {
@@ -25,13 +106,15 @@ namespace EE::Animation
 
     int16_t ControlParameterToolsNode::Compile( GraphCompilationContext& context ) const
     {
+        int16_t compiledNodeIdx = InvalidIndex;
+
         switch ( GetOutputValueType() )
         {
             case GraphValueType::Bool:
             {
                 ControlParameterBoolNode::Definition* pDefinition = nullptr;
                 context.GetDefinition<ControlParameterBoolNode>( this, pDefinition );
-                return pDefinition->m_nodeIdx;
+                compiledNodeIdx = pDefinition->m_nodeIdx;
             }
             break;
 
@@ -39,7 +122,7 @@ namespace EE::Animation
             {
                 ControlParameterIDNode::Definition* pDefinition = nullptr;
                 context.GetDefinition<ControlParameterIDNode>( this, pDefinition );
-                return pDefinition->m_nodeIdx;
+                compiledNodeIdx = pDefinition->m_nodeIdx;
             }
             break;
 
@@ -47,7 +130,7 @@ namespace EE::Animation
             {
                 ControlParameterFloatNode::Definition* pDefinition = nullptr;
                 context.GetDefinition<ControlParameterFloatNode>( this, pDefinition );
-                return pDefinition->m_nodeIdx;
+                compiledNodeIdx = pDefinition->m_nodeIdx;
             }
             break;
 
@@ -55,7 +138,7 @@ namespace EE::Animation
             {
                 ControlParameterVectorNode::Definition* pDefinition = nullptr;
                 context.GetDefinition<ControlParameterVectorNode>( this, pDefinition );
-                return pDefinition->m_nodeIdx;
+                compiledNodeIdx = pDefinition->m_nodeIdx;
             }
             break;
 
@@ -63,7 +146,7 @@ namespace EE::Animation
             {
                 ControlParameterTargetNode::Definition* pDefinition = nullptr;
                 context.GetDefinition<ControlParameterTargetNode>( this, pDefinition );
-                return pDefinition->m_nodeIdx;
+                compiledNodeIdx = pDefinition->m_nodeIdx;
             }
             break;
 
@@ -72,6 +155,9 @@ namespace EE::Animation
             return InvalidIndex;
             break;
         }
+
+        context.RegisterPersistentNode( compiledNodeIdx );
+        return compiledNodeIdx;
     }
 
     ControlParameterToolsNode* ControlParameterToolsNode::Create( FlowGraph* pRootGraph, GraphValueType type, String const& name, String const& groupName )
@@ -331,19 +417,21 @@ namespace EE::Animation
             return InvalidIndex;
         }
 
-        return resultNodes[0]->GetConnectedInputNode<FlowToolsNode>( 0 )->Compile( context );
+        int16_t const compiledNodeIdx = pConnectedNode->Compile( context );
+        context.RegisterPersistentNode( compiledNodeIdx );
+        return compiledNodeIdx;
     }
 
     VirtualParameterToolsNode::VirtualParameterToolsNode()
         : ParameterBaseToolsNode()
     {
-        CreateChildGraph<FlowGraph>( GraphType::ValueTree );
+        CreateChildGraph<FlowGraph>( GraphType::VirtualParameterValueTree );
     }
 
     VirtualParameterToolsNode::VirtualParameterToolsNode( String const& name, String const& groupName )
         : ParameterBaseToolsNode( name, groupName )
     {
-        CreateChildGraph<FlowGraph>( GraphType::ValueTree );
+        CreateChildGraph<FlowGraph>( GraphType::VirtualParameterValueTree );
     }
 
     //-------------------------------------------------------------------------
@@ -498,7 +586,7 @@ namespace EE::Animation
         return m_pParameter->Compile( context );
     }
 
-    NodeGraph::BaseGraph* ParameterReferenceToolsNode::GetNavigationTarget()
+    NodeGraph::BaseGraph* ParameterReferenceToolsNode::GetNavigationTarget( NodeGraph::UserContext* pUserContext )
     {
         if ( auto pVP = GetReferencedVirtualParameter() )
         {

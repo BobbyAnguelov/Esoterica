@@ -6,8 +6,6 @@
 
 namespace EE::Animation
 {
-    using SecondarySkeletonList = TInlineVector<Skeleton const*, 3>;
-
     //-------------------------------------------------------------------------
     // Pose Buffer
     //-------------------------------------------------------------------------
@@ -22,6 +20,8 @@ namespace EE::Animation
 
         PoseBuffer( Skeleton const* pSkeleton, SecondarySkeletonList const& secondarySkeletons );
 
+        inline bool IsUsed() const { return m_isUsed; }
+
         // Data
         //-------------------------------------------------------------------------
 
@@ -30,17 +30,21 @@ namespace EE::Animation
 
         // Pose State
         //-------------------------------------------------------------------------
+        // Overall pose state is based on the primary pose (secondary poses are expected to be the same type as the primary)
 
-        inline bool IsPoseSet() const { return m_poses[0].IsPoseSet(); }
-        inline bool IsAdditive() const { return m_poses[0].IsAdditivePose(); }
-        inline Pose* GetPrimaryPose() { return &m_poses[0]; }
-        void ResetPose( Pose::Type poseType = Pose::Type::None, bool calculateGlobalPose = false );
+        bool IsPoseSet() const { return m_poses[0].IsPoseSet(); }
+        bool IsParentSpacePose() const { return m_poses[0].IsParentSpacePose(); }
+        bool IsAdditivePose() const { return m_poses[0].IsAdditivePose(); }
+        void ResetPose( Pose::Init poseInit = Pose::Init::None, bool calculateGlobalPose = false );
         void CalculateModelSpaceTransforms();
+
+        inline Pose* GetPrimaryPose() { return &m_poses[0]; }
+        inline Skeleton const* GetPrimarySkeleton() const { return m_poses[0].GetSkeleton(); }
 
     protected:
 
         // Releases this buffer and resets the poses
-        void Release( Pose::Type poseType = Pose::Type::None, bool calculateGlobalPose = false );
+        void Release( Pose::Init poseInit = Pose::Init::None, bool calculateGlobalPose = false );
 
         // Changes the set of poses we store
         void UpdateSecondarySkeletonList( SecondarySkeletonList const& secondarySkeletons );
@@ -79,7 +83,7 @@ namespace EE::Animation
 
     public:
 
-        uint8_t m_ID = s_maxAllowableValue;
+        uint8_t                             m_ID = s_maxAllowableValue;
     };
 
     //-------------------------------------------------------------------------
@@ -94,7 +98,7 @@ namespace EE::Animation
 
     private:
 
-        void Release( Pose::Type poseType = Pose::Type::None );
+        void Release( Pose::Init poseInit = Pose::Init::None );
 
     public:
 
@@ -113,10 +117,6 @@ namespace EE::Animation
     {
         constexpr static int8_t const s_numInitialBuffers = 6;
         constexpr static int8_t const s_bufferGrowAmount = 3;
-
-        #if EE_DEVELOPMENT_TOOLS
-        static void ValidateSetOfSecondarySkeletons( Skeleton const* pPrimarySkeleton, SecondarySkeletonList const& secondarySkeletons );
-        #endif
 
     public:
 
@@ -140,6 +140,9 @@ namespace EE::Animation
         // Get the number of secondary skeletons set
         inline int32_t GetNumSecondarySkeletons() const { return (int32_t) m_secondarySkeletons.size(); }
 
+        // Get the secondary skeletons
+        SecondarySkeletonList const &GetSecondarySkeletons() const { return m_secondarySkeletons; }
+
         // Get the index of the pose for a specific skeleton
         int32_t GetPoseIndexForSkeleton( Skeleton const* pSkeleton ) const;
 
@@ -161,9 +164,11 @@ namespace EE::Animation
 
         bool IsValidCachedPose( CachedPoseID cachedPoseID ) const;
 
+        // Create a new buffer for a cached pose
         CachedPoseID CreateCachedPoseBuffer();
+
+        // Marks a buffer as needing reset, the buffer will be reset next update
         void DestroyCachedPoseBuffer( CachedPoseID cachedPoseID );
-        void ResetCachedPoseBuffer( CachedPoseID cachedPoseID );
 
         // Try to get a pose-buffer with the specified ID, returns null if it cant find a buffer with the specified ID
         PoseBuffer* GetCachedPoseBuffer( CachedPoseID cachedPoseID ) { return GetCachedPoseBufferInternal( cachedPoseID ); }
@@ -180,6 +185,7 @@ namespace EE::Animation
         inline void EnableRecording( bool enabled ) const { m_isDebugRecordingEnabled = enabled; }
         inline bool HasRecordedData() const { return m_firstFreeDebugBuffer != 0; }
         void RecordPose( int8_t taskIdx, int8_t poseBufferIdx );
+        bool HasRecordedPoseBufferForTask( int8_t taskIdx ) const;
         PoseBuffer* GetRecordedPoseBufferForTask( int8_t taskIdx ) const;
         #endif
 
@@ -192,7 +198,6 @@ namespace EE::Animation
 
         TInlineVector<PoseBuffer, 10>               m_poseBuffers;
         TInlineVector<CachedPoseBuffer, 10>         m_cachedBuffers;
-        TInlineVector<UUID, 5>                      m_cachedPoseBuffersToDestroy;
         int8_t                                      m_firstFreeCachedBuffer = 0;
         int8_t                                      m_firstFreeBuffer = 0;
         uint8_t                                     m_nextCachedPoseID = 0;

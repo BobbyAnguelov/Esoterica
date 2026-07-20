@@ -4,12 +4,13 @@
 #include "ImguiXNotifications.h"
 #include "ImguiFont.h"
 #include "MaterialDesignIcons.h"
-#include "Base/Render/RenderDevice.h"
-#include "Base/Fonts/FontDecompressor.h"
-#include "Base/Fonts/FontData_Lexend.h"
-#include "Base/Fonts/FontData_MaterialDesign.h"
 #include "Base/FileSystem/FileSystemUtils.h"
 #include "Base/ThirdParty/implot/implot.h"
+#include "Base/Fonts/Font_Roboto_Regular.h"
+#include "Base/Fonts/Font_Roboto_Italic.h"
+#include "Base/Fonts/Font_Roboto_Bold.h"
+#include "Base/Fonts/Font_Roboto_BoldItalic.h"
+#include "Base/Fonts/Font_MaterialDesignIcons.h"
 
 //-------------------------------------------------------------------------
 
@@ -21,7 +22,7 @@
 
 namespace EE::ImGuiX
 {
-    bool ImguiSystem::Initialize( Render::RenderDevice* pRenderDevice, Input::InputSystem* pInputSystem, bool enableViewports )
+    bool ImguiSystem::Initialize( Input::InputSystem* pInputSystem, bool enableViewports )
     {
         m_pInputSystem = pInputSystem;
 
@@ -43,10 +44,6 @@ namespace EE::ImGuiX
             io.ConfigViewportsNoDefaultParent = true;
         }
 
-        // Set render device in the user data
-        EE_ASSERT( pRenderDevice != nullptr );
-        io.BackendRendererUserData = pRenderDevice;
-
         //-------------------------------------------------------------------------
 
         FileSystem::Path const outputDir = FileSystem::GetCurrentProcessPath();
@@ -65,7 +62,6 @@ namespace EE::ImGuiX
         InitializePlatform();
         InitializeFonts();
 
-        m_imageCache.Initialize( pRenderDevice );
         NotificationSystem::Initialize();
 
         //-------------------------------------------------------------------------
@@ -78,7 +74,6 @@ namespace EE::ImGuiX
     void ImguiSystem::Shutdown()
     {
         NotificationSystem::Shutdown();
-        m_imageCache.Shutdown();
 
         //-------------------------------------------------------------------------
 
@@ -96,82 +91,59 @@ namespace EE::ImGuiX
         // Decompress fonts
         //-------------------------------------------------------------------------
 
-        Blob fontData, boldFontData;
-        Fonts::GetDecompressedFontData( Fonts::Lexend::Regular::GetData(), fontData );
-        Fonts::GetDecompressedFontData( Fonts::Lexend::Bold::GetData(), boldFontData );
+        Blob const fontData_regular = Embed::Font_Roboto_Regular::GetFileData();
+        Blob const fontData_italic = Embed::Font_Roboto_Italic::GetFileData();
+        Blob const fontData_bold = Embed::Font_Roboto_Bold::GetFileData();
+        Blob const fontData_bolditalic = Embed::Font_Roboto_BoldItalic::GetFileData();
 
         ImWchar const icons_ranges[] = { EE_ICONRANGE_MIN, EE_ICONRANGE_MAX, 0 };
-        Blob iconFontData;
-        Fonts::GetDecompressedFontData( (uint8_t const*) Fonts::MaterialDesignIcons::GetData(), iconFontData );
+        Blob const iconFontData = Embed::Font_MDI::GetFileData();
 
         // Base font configs
         //-------------------------------------------------------------------------
 
+        float const dpiScale = Style::GetMaxDpiScale();
+        float const defaultFontSize = SystemFonts::s_fontSizes[2] * dpiScale;
+
         ImFontConfig fontConfig;
         fontConfig.FontDataOwnedByAtlas = false;
+        fontConfig.SizePixels = defaultFontSize;
 
         ImFontConfig iconFontConfig;
         iconFontConfig.FontDataOwnedByAtlas = false;
-        iconFontConfig.FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LoadColor | ImGuiFreeTypeBuilderFlags_Bitmap;
         iconFontConfig.MergeMode = true;
-        iconFontConfig.PixelSnapH = true;
-        iconFontConfig.RasterizerMultiply = 1.5f;
+        iconFontConfig.SizePixels = defaultFontSize;
+        iconFontConfig.GlyphOffset = ImVec2( 0, 2 );
 
-        auto CreateFont = [&] ( Blob& fontData, float fontSize, float iconFontSize, Font fontID, char const* pName, ImVec2 const& glyphOffset )
-        {
-            Printf( fontConfig.Name, 40, pName );
-            ImFont* pFont = io.Fonts->AddFontFromMemoryTTF( fontData.data(), (int32_t) fontData.size(), fontSize, &fontConfig );
-            SystemFonts::s_fonts[(uint8_t) fontID] = pFont;
+        ImFont* pRegularFont = io.Fonts->AddFontFromMemoryTTF( (void*) fontData_regular.data(), (int32_t) fontData_regular.size(), defaultFontSize, &fontConfig);
+        io.Fonts->AddFontFromMemoryTTF( (void*) iconFontData.data(), (int32_t) iconFontData.size(), 0.0f, &iconFontConfig, icons_ranges );
+        EE_ASSERT( pRegularFont->IsLoaded() );
+        SystemFonts::s_fonts[(int32_t) FontType::Regular] = pRegularFont;
 
-            iconFontConfig.GlyphOffset = glyphOffset;
-            iconFontConfig.GlyphMinAdvanceX = iconFontSize;
-            io.Fonts->AddFontFromMemoryTTF( iconFontData.data(), (int32_t) iconFontData.size(), iconFontSize, &iconFontConfig, icons_ranges );
-        };
+        ImFont* pItalicFont = io.Fonts->AddFontFromMemoryTTF( (void*) fontData_italic.data(), (int32_t) fontData_italic.size(), defaultFontSize, &fontConfig );
+        io.Fonts->AddFontFromMemoryTTF( (void*) iconFontData.data(), (int32_t) iconFontData.size(), 0.0f, &iconFontConfig, icons_ranges );
+        EE_ASSERT( pItalicFont->IsLoaded() );
+        SystemFonts::s_fonts[(int32_t) FontType::Italic] = pItalicFont;
 
-        constexpr float const DPIScale = 1.0f;
-        float const size12 = Math::Floor( 12 * DPIScale );
-        float const size14 = Math::Floor( 14 * DPIScale );
-        float const size16 = Math::Floor( 16 * DPIScale );
-        float const size18 = Math::Floor( 18 * DPIScale );
-        float const size24 = Math::Floor( 24 * DPIScale );
+        ImFont* pBoldFont = io.Fonts->AddFontFromMemoryTTF( (void*) fontData_bold.data(), (int32_t) fontData_bold.size(), defaultFontSize, &fontConfig );
+        io.Fonts->AddFontFromMemoryTTF( (void*) iconFontData.data(), (int32_t) iconFontData.size(), 0.0f, &iconFontConfig );
+        EE_ASSERT( pBoldFont->IsLoaded() );
+        SystemFonts::s_fonts[(int32_t) FontType::Bold] = pBoldFont;
 
-        CreateFont( fontData, size12, size14, Font::Tiny, "Tiny", ImVec2( 0, 2 ) );
-        CreateFont( boldFontData, size12, size14, Font::TinyBold, "Tiny Bold", ImVec2( 0, 2 ) );
+        ImFont* pBoldItalicFont = io.Fonts->AddFontFromMemoryTTF( (void*) fontData_bolditalic.data(), (int32_t) fontData_bolditalic.size(), defaultFontSize, &fontConfig );
+        io.Fonts->AddFontFromMemoryTTF( (void*) iconFontData.data(), (int32_t) iconFontData.size(), 0.0f, &iconFontConfig );
+        EE_ASSERT( pBoldItalicFont->IsLoaded() );
+        SystemFonts::s_fonts[(int32_t) FontType::BoldItalic] = pBoldItalicFont;
 
-        CreateFont( fontData, size14, size16, Font::Small, "Small", ImVec2( 0, 2 ) );
-        CreateFont( boldFontData, size14, size16, Font::SmallBold, "Small Bold", ImVec2( 0, 2 ) );
-
-        CreateFont( fontData, size16, size18, Font::Medium, "Medium", ImVec2( 0, 2 ) );
-        CreateFont( boldFontData, size16, size18, Font::MediumBold, "Medium Bold", ImVec2( 0, 2 ) );
-
-        CreateFont( fontData, size24, size24, Font::Large, "Large", ImVec2( 0, 2 ) );
-        CreateFont( boldFontData, size24, size24, Font::LargeBold, "Large Bold", ImVec2( 0, 2 ) );
-
-        // Build font atlas
-        //-------------------------------------------------------------------------
-
-        io.Fonts->TexDesiredWidth = 4096;
-        io.Fonts->Build();
-        EE_ASSERT( io.Fonts->IsBuilt() );
-
-        #if EE_DEVELOPMENT_TOOLS
-        EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::Small]->IsLoaded() );
-        EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::SmallBold]->IsLoaded() );
-        EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::Medium]->IsLoaded() );
-        EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::MediumBold]->IsLoaded() );
-        EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::Large]->IsLoaded() );
-        EE_ASSERT( SystemFonts::s_fonts[(uint8_t) Font::LargeBold]->IsLoaded() );
-        #endif
-
-        io.FontDefault = SystemFonts::s_fonts[(uint8_t) Font::Medium];
+        io.FontDefault = pRegularFont;
     }
 
     void ImguiSystem::ShutdownFonts()
     {
-        for ( int i = 0; i < (int8_t) Font::NumFonts; i++ )
-        {
-            SystemFonts::s_fonts[i] = nullptr;
-        }
+        SystemFonts::s_fonts[(int32_t) FontType::Regular] = nullptr;
+        SystemFonts::s_fonts[(int32_t) FontType::Italic] = nullptr;
+        SystemFonts::s_fonts[(int32_t) FontType::Bold] = nullptr;
+        SystemFonts::s_fonts[(int32_t) FontType::BoldItalic] = nullptr;
     }
 
     //-------------------------------------------------------------------------
@@ -184,7 +156,7 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         ImGuiIO& io = ImGui::GetIO();
-        io.DeltaTime = deltaTime;
+        io.DeltaTime = Math::Max( deltaTime, Math::Epsilon ); // Imgui assert with 0.0f delta time
         PlatformNewFrame();
         ImGui::NewFrame();
     }

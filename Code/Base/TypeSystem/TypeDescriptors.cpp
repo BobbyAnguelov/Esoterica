@@ -22,7 +22,7 @@ namespace EE::TypeSystem
 
         public:
 
-            StringID                m_propertyID;
+            StringID                m_ID;
             int32_t                 m_arrayElementIdx;
             PropertyInfo const*     m_pPropertyInfo;
             IReflectedType*         m_pParentInstance = nullptr;
@@ -44,15 +44,16 @@ namespace EE::TypeSystem
             IReflectedType* pParentInstance = pTypeInstance;
 
             // Resolve property path
-            size_t const numPathElements = path.GetNumElements();
-            for ( size_t i = 0; i < numPathElements; i++ )
+            int32_t const numPathElements = (int32_t) path.GetNumElements();
+            int32_t const lastPathElementIdx = numPathElements - 1;
+            for ( int32_t i = 0; i < numPathElements; i++ )
             {
                 // Get the typeinfo for the current parent
                 TypeInfo const* const pParentTypeInfo = pParentInstance->GetTypeInfo();
                 EE_ASSERT( pParentTypeInfo != nullptr );
 
                 // Get the property info for the path element
-                PropertyInfo const* pFoundPropertyInfo = pParentTypeInfo->GetPropertyInfo( path[i].m_propertyID );
+                PropertyInfo const* pFoundPropertyInfo = pParentTypeInfo->GetPropertyInfo( path[i].m_ID );
                 if ( pFoundPropertyInfo == nullptr )
                 {
                     resolvedPath.Reset();
@@ -63,7 +64,7 @@ namespace EE::TypeSystem
                 //-------------------------------------------------------------------------
 
                 ResolvedPropertyPathElement& resolvedPathElement = resolvedPath.m_pathElements.emplace_back();
-                resolvedPathElement.m_propertyID = path[i].m_propertyID;
+                resolvedPathElement.m_ID = path[i].m_ID;
                 resolvedPathElement.m_arrayElementIdx = path[i].m_arrayElementIdx;
                 resolvedPathElement.m_pPropertyInfo = pFoundPropertyInfo;
                 resolvedPathElement.m_pParentInstance = pParentInstance;
@@ -74,7 +75,7 @@ namespace EE::TypeSystem
                 // Calculate the address of the resolved property
                 if ( isArrayProperty && isArrayElementPath )
                 {
-                    resolvedPathElement.m_pPropertyAddress = pParentTypeInfo->GetArrayElementDataPtr( pParentInstance, path[i].m_propertyID.ToUint(), path[i].m_arrayElementIdx );
+                    resolvedPathElement.m_pPropertyAddress = pParentTypeInfo->GetArrayElementDataPtr( pParentInstance, path[i].m_ID.ToUint(), path[i].m_arrayElementIdx );
                 }
                 else // Set address to type using the recorded offset
                 {
@@ -92,9 +93,23 @@ namespace EE::TypeSystem
                         if ( pInstanceContainer->IsSet() )
                         {
                             pParentInstance = pInstanceContainer->Get();
+
+                            // Check type
+                            if ( i != ( lastPathElementIdx ) )
+                            {
+                                i++;
+                                StringID const expectedTypeID = path[i].m_ID;
+                                if ( pParentInstance->GetTypeID() != expectedTypeID )
+                                {
+                                    EE_LOG_WARNING( LogCategory::TypeSystem, "Type Descriptor", "Cant resolve malformed property path for type-instance property: expected instance types dont match" );
+                                    resolvedPath.Reset();
+                                    break;
+                                }
+                            }
                         }
-                        else if ( i != ( numPathElements - 1 ) )
+                        else if ( i != ( lastPathElementIdx ) )
                         {
+                            EE_LOG_WARNING( LogCategory::TypeSystem, "Type Descriptor", "Cant resolve malformed property path for type-instance property: type instance not created" );
                             resolvedPath.Reset();
                             break;
                         }
@@ -187,7 +202,10 @@ namespace EE::TypeSystem
 
                         if ( pInstanceContainer->IsSet() )
                         {
-                            DescribeType( typeRegistry, typeDesc, instanceTypeID, pInstanceContainer->Get(), path );
+                            // We need to serialize the exact type in the path so that the property resolution can succeed on load
+                            PropertyPath instancePath = path;
+                            instancePath.Append( pInstanceContainer->GetInstanceTypeID().ToStringID() );
+                            DescribeType( typeRegistry, typeDesc, instanceTypeID, pInstanceContainer->Get(), instancePath );
                         }
                     }
                 }
@@ -339,7 +357,7 @@ namespace EE::TypeSystem
             auto resolvedPath = ResolvePropertyPath( typeRegistry, pTypeInstance, propertyDesc.m_path );
             if ( !resolvedPath.IsValid() )
             {
-                EE_LOG_ERROR( "TypeSystem", "Type Descriptor", "Tried to set the value for an invalid property (%s) for type (%s)", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
+                EE_LOG_ERROR( LogCategory::TypeSystem, "Type Descriptor", "Tried to set the value for an invalid property (%s) for type (%s)", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
                 continue;
             }
 
@@ -359,7 +377,7 @@ namespace EE::TypeSystem
                 }
                 else
                 {
-                    EE_LOG_ERROR( "TypeSystem", "Type Descriptor", "Failed to convert array size value for property (%s) on type: %s", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
+                    EE_LOG_ERROR( LogCategory::TypeSystem, "Type Descriptor", "Failed to convert array size value for property (%s) on type: %s", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
                 }
             }
             else if ( resolvedProperty.IsTypeInstance() )
@@ -374,7 +392,7 @@ namespace EE::TypeSystem
                         TypeInfo const* pInstanceTypeInfo = typeRegistry.GetTypeInfo( instanceTypeID );
                         if ( pInstanceTypeInfo == nullptr )
                         {
-                            EE_LOG_ERROR( "TypeSystem", "Type Descriptor", "Invalid instance type (%s) for an property (%s) for type (%s)", instanceTypeID.c_str(), propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
+                            EE_LOG_ERROR( LogCategory::TypeSystem, "Type Descriptor", "Invalid instance type (%s) for an property (%s) for type (%s)", instanceTypeID.c_str(), propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
                             continue;
                         }
 
@@ -387,14 +405,14 @@ namespace EE::TypeSystem
                 }
                 else
                 {
-                    EE_LOG_ERROR( "TypeSystem", "Type Descriptor", "Failed to read type instance ID value for property (%s) on type: %s", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
+                    EE_LOG_ERROR( LogCategory::TypeSystem, "Type Descriptor", "Failed to read type instance ID value for property (%s) on type: %s", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
                 }
             }
             else // Set actual property value
             {
                 if ( !Conversion::ConvertBinaryToNativeType( typeRegistry, *resolvedProperty.m_pPropertyInfo, propertyDesc.m_byteValue, resolvedProperty.m_pPropertyAddress ) )
                 {
-                    EE_LOG_ERROR( "TypeSystem", "Type Descriptor", "Failed to convert property value for property (%s) on type: %s", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
+                    EE_LOG_ERROR( LogCategory::TypeSystem, "Type Descriptor", "Failed to convert property value for property (%s) on type: %s", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.ToStringID().c_str() );
                 }
             }
         }

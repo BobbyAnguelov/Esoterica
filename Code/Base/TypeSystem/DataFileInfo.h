@@ -1,7 +1,6 @@
 #pragma once
 #include "TypeID.h"
-#include "Base/Encoding/FourCC.h"
-#include "Base/FileSystem/FileSystemExtension.h"
+#include "Base/FileSystem/DataFileExtension.h"
 
 //-------------------------------------------------------------------------
 
@@ -10,13 +9,27 @@ namespace EE::TypeSystem
     #if EE_DEVELOPMENT_TOOLS
     struct EE_BASE_API DataFileInfo
     {
-        inline bool IsValid() const { return m_typeID.IsValid() && m_extensionFourCC != 0; }
-        FileSystem::Extension GetExtension() const { return FourCC::ToLowercaseString( m_extensionFourCC ); }
+        inline bool IsValid() const
+        {
+            if ( !m_typeID.IsValid() || !m_extension.IsValid() )
+            {
+                return false;
+            }
+
+            if ( !StringUtils::IsLowercaseAlphaNumeric( m_extension.ToString() ) )
+            {
+                return false;
+            }
+
+            return true;
+        }
+
+        inline FileSystem::Extension GetFileSystemExtension() const { return m_extension.ToFileSystemExtension(); }
 
     public:
 
         TypeID                      m_typeID;
-        uint32_t                    m_extensionFourCC = 0;
+        DataFileExtension           m_extension;
         String                      m_friendlyName;
     };
     #endif

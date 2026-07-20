@@ -26,7 +26,10 @@ namespace EE::FileSystem
         static bool GetFullPathString( char const* pPath, String& outPath );
 
         // Find the start idx for the extension for a given path - returns String::npos if no extension is found
-        static size_t FindExtensionStartIdx( String const& path, char const pathDelimiter = s_pathDelimiter, bool supportMultiExtensionPaths = false );
+        static size_t FindExtensionStartIdx( String const& path, char const pathDelimiter = s_pathDelimiter );
+
+        // Find the start idx for the extension for a given path - returns String::npos if no extension is found
+        static size_t FindExtensionStartIdx( InlineString const& path, char const pathDelimiter = s_pathDelimiter );
 
         // Returns the parent directory for a given path
         static bool GetParentDirectory( String const& path, String& outParentPath );
@@ -125,6 +128,15 @@ namespace EE::FileSystem
         // Get the filename for this path without the extension ( only valid to call on file paths )
         String GetFilenameWithoutExtension() const;
 
+        // Replace the filename for this path ( only valid to call on file paths )
+        void ReplaceFilename( char const* pFilename );
+
+        // Replace the filename for this path ( only valid to call on file paths )
+        void ReplaceFilename( String const& filename ) { ReplaceFilename( filename.c_str() ); }
+
+        // Replace the filename for this path ( only valid to call on file paths )
+        void ReplaceFilename( InlineString const& filename ) { ReplaceFilename( filename.c_str() ); }
+
         // Extensions
         //-------------------------------------------------------------------------
         // Extensions dont include the "."
@@ -149,7 +161,7 @@ namespace EE::FileSystem
         }
 
         // Returns a lowercase version of the extension (excluding the '.') if one exists else returns an empty string
-        inline Extension GetLowercaseExtensionAsString() const
+        inline Extension GetLowercaseExtension() const
         {
             char const* const pExtensionSubstr = GetExtension();
             Extension ext( pExtensionSubstr == nullptr ? "" : pExtensionSubstr );
@@ -189,8 +201,14 @@ namespace EE::FileSystem
         // NOTE! Does not actually verify if the path is a directory
         inline bool IsDirectoryPath() const { EE_ASSERT( IsValid() ); return m_isDirectoryPath; }
 
+        // Get the directory path - if this is a directory return itself, if this is a file then return the parent directory
+        inline Path GetDirectoryPath() const { return ( IsDirectoryPath() ) ? *this : GetParentDirectory(); }
+
         // This will ensure that this path ends in a path delimiter
         void MakeIntoDirectoryPath();
+
+        // Do we have a parent directory
+        bool HasParentDirectory() const;
 
         // Gets the parent directory for this path
         Path GetParentDirectory() const;
@@ -200,6 +218,29 @@ namespace EE::FileSystem
 
         // Replace the parent directory of this path to another one ( i.e. rebase the path )
         void ReplaceParentDirectory( Path const& newParentDirectory );
+
+        // Add a filename to this directory path (only valid to call on directory paths)
+        Path& AppendFilename( char const* pFilename );
+
+        // Add a filename to this directory path (only valid to call on directory paths)
+        Path& AppendFilename( String const& filename ) { return AppendFilename( filename.c_str() ); }
+
+        // Add a filename to this directory path (only valid to call on directory paths)
+        Path& AppendFilename( InlineString const& filename ) { return AppendFilename( filename.c_str() );  }
+
+        // Get a filepath under this directory path (only valid to call on directory paths)
+        Path GetAppendedFilename( char const* pFilename ) const
+        {
+            Path p = *this;
+            p.AppendFilename( pFilename );
+            return p;
+        }
+
+        // Get a filepath under this directory path (only valid to call on directory paths)
+        EE_FORCE_INLINE Path GetAppendedFilename( String const& filename ) const { return GetAppendedFilename( filename.c_str() ); }
+
+        // Get a filepath under this directory path (only valid to call on directory paths)
+        EE_FORCE_INLINE Path GetAppendedFilename( InlineString const& filename ) const { return GetAppendedFilename( filename.c_str() ); }
 
         // Conversion
         //-------------------------------------------------------------------------
@@ -212,7 +253,7 @@ namespace EE::FileSystem
         // Comparison
         //-------------------------------------------------------------------------
 
-        inline uint32_t GetHashCode() const { return m_hashCode; }
+        inline uint64_t GetHashCode() const { return m_hashCode; }
         inline bool operator==( Path const& RHS ) const { return m_hashCode == RHS.m_hashCode; }
         inline bool operator!=( Path const& RHS ) const { return m_hashCode != RHS.m_hashCode; }
 
@@ -225,7 +266,7 @@ namespace EE::FileSystem
     private:
 
         String      m_fullpath;
-        uint32_t    m_hashCode = 0;
+        uint64_t    m_hashCode = 0;
         bool        m_isDirectoryPath = false;
     };
 }

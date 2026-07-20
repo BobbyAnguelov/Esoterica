@@ -14,6 +14,69 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
+    String FloatCurve::SerializePointsToString( TInlineVector<Point, 8> const& points )
+    {
+        TInlineString<100> pointStr;
+
+        uint32_t const numPoints = (uint32_t) points.size();
+
+        String curveStr;
+        curveStr.reserve( numPoints * 30 ); // rough over-estimate of 30 characters per point
+        curveStr.sprintf( "%u", numPoints );
+
+        for ( auto& point : points )
+        {
+            pointStr.sprintf( ",%f,%f,%f,%f,%u", point.m_parameter, point.m_value, point.m_inTangent, point.m_outTangent, (uint8_t) point.m_tangentMode );
+            curveStr.append( pointStr.c_str() );
+        }
+
+        return curveStr;
+    }
+
+    bool FloatCurve::DeserializePointsFromString( String const& inStr, TInlineVector<Point, 8>& outPoints )
+    {
+        outPoints.clear();
+
+        // Read number of points
+        //-------------------------------------------------------------------------
+
+        size_t startIdx = 0;
+        size_t endIdx = inStr.find_first_of( ',', startIdx );
+        if ( endIdx == String::npos )
+        {
+            return false;
+        }
+
+        char* pCaret = nullptr;
+        uint64_t numPoints = std::strtoul( &inStr.c_str()[startIdx], &pCaret, 0 );
+
+        //-------------------------------------------------------------------------
+
+        for ( auto i = 0u; i < numPoints; i++ )
+        {
+            Point& p = outPoints.emplace_back();
+
+            if ( pCaret[0] != ',' ) { return false; }
+            p.m_parameter = std::strtof( ++pCaret, &pCaret );
+
+            if ( pCaret[0] != ',' ) { return false; }
+            p.m_value = std::strtof( ++pCaret, &pCaret );
+
+            if ( pCaret[0] != ',' ) { return false; }
+            p.m_inTangent = std::strtof( ++pCaret, &pCaret );
+
+            if ( pCaret[0] != ',' ) { return false; }
+            p.m_outTangent = std::strtof( ++pCaret, &pCaret );
+
+            if ( pCaret[0] != ',' ) { return false; }
+            p.m_tangentMode = (TangentMode) std::strtoul( ++pCaret, &pCaret, 0 );
+        }
+
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
+
     float FloatCurve::Evaluate( float parameter ) const
     {
         float result = 0;
@@ -100,6 +163,17 @@ namespace EE
         m_points[pointIdx].m_inTangent = tangent;
     }
 
+    void FloatCurve::SetPoints( TInlineVector<Point, 8> const& points )
+    {
+        m_points = points;
+
+        SortPoints();
+
+        #if EE_DEVELOPMENT_TOOLS
+        RegeneratePointIDs();
+        #endif
+    }
+
     void FloatCurve::RemovePoint( int32_t pointIdx )
     {
         EE_ASSERT( pointIdx >= 0 && pointIdx < GetNumPoints() );
@@ -144,68 +218,17 @@ namespace EE
     }
     #endif
 
-    bool FloatCurve::FromString( String const& inStr, FloatCurve& outCurve )
+    bool FloatCurve::FromString( String const& inStr )
     {
-        outCurve.Clear();
-
-        // Read number of points
-        //-------------------------------------------------------------------------
-
-        size_t startIdx = 0;
-        size_t endIdx = inStr.find_first_of( ',', startIdx );
-        if ( endIdx == String::npos )
+        TInlineVector<Point, 8> tempPoints;
+        if ( !DeserializePointsFromString( inStr, tempPoints ) )
         {
             return false;
         }
 
-        char* pCaret = nullptr;
-        uint64_t numPoints = std::strtoul( &inStr.c_str()[startIdx], &pCaret, 0 );
-
         //-------------------------------------------------------------------------
 
-        for ( auto i = 0u; i < numPoints; i++ )
-        {
-            Point& p = outCurve.m_points.emplace_back();
-
-            if ( pCaret[0] != ',' ) { return false; }
-            p.m_parameter = std::strtof( ++pCaret, &pCaret );
-
-            if ( pCaret[0] != ',' ) { return false; }
-            p.m_value = std::strtof( ++pCaret, &pCaret );
-
-            if ( pCaret[0] != ',' ) { return false; }
-            p.m_inTangent = std::strtof( ++pCaret, &pCaret );
-
-            if ( pCaret[0] != ',' ) { return false; }
-            p.m_outTangent = std::strtof( ++pCaret, &pCaret );
-
-            if ( pCaret[0] != ',' ) { return false; }
-            p.m_tangentMode = (TangentMode) std::strtoul( ++pCaret, &pCaret, 0 );
-        }
-
-        outCurve.SortPoints();
-
-        #if EE_DEVELOPMENT_TOOLS
-        outCurve.RegeneratePointIDs();
-        #endif
-
+        SetPoints( tempPoints );
         return true;
-    }
-
-    String FloatCurve::ToString() const
-    {
-        TInlineString<100> pointStr;
-
-        String curveStr;
-        curveStr.reserve( GetNumPoints() * 30 ); // rough over-estimate of 30 characters per point
-        curveStr.sprintf( "%u", (uint32_t) GetNumPoints() );
-
-        for ( auto& point : m_points )
-        {
-            pointStr.sprintf( ",%f,%f,%f,%f,%u", point.m_parameter, point.m_value, point.m_inTangent, point.m_outTangent, (uint8_t) point.m_tangentMode );
-            curveStr.append( pointStr.c_str() );
-        }
-
-        return curveStr;
     }
 }

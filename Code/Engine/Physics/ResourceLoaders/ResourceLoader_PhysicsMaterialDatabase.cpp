@@ -3,10 +3,6 @@
 #include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
-
-using namespace physx;
-
-//-------------------------------------------------------------------------
 namespace EE::Physics
 {
     PhysicsMaterialDatabaseLoader::PhysicsMaterialDatabaseLoader()
@@ -14,17 +10,17 @@ namespace EE::Physics
         m_loadableTypes.push_back( MaterialDatabase::GetStaticResourceTypeID() );
     }
 
-    Resource::ResourceLoader::LoadResult PhysicsMaterialDatabaseLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::LoadResult PhysicsMaterialDatabaseLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive* pArchive ) const
     {
         MaterialDatabase* pPhysicsMaterialDB = EE::New<MaterialDatabase>();
-        archive << *pPhysicsMaterialDB;
+        ( *pArchive ) << *pPhysicsMaterialDB;
 
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        for ( auto const& materialSettings : pPhysicsMaterialDB->m_materials )
+        for ( auto const& material : pPhysicsMaterialDB->m_materials )
         {
-            EE_ASSERT( materialSettings.IsValid() );
+            EE_ASSERT( material.IsValid() );
         }
         #endif
 
@@ -32,14 +28,14 @@ namespace EE::Physics
 
         EE_ASSERT( m_pRegistry != nullptr );
         m_pRegistry->RegisterMaterials( pPhysicsMaterialDB->m_materials );
-        
+
         //-------------------------------------------------------------------------
 
         pResourceRecord->SetResourceData( pPhysicsMaterialDB );
-        return Resource::ResourceLoader::LoadResult::Succeeded;
+        return Resource::LoadResult::Complete;
     }
 
-    void PhysicsMaterialDatabaseLoader::Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
+    Resource::UnloadResult PhysicsMaterialDatabaseLoader::Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
     {
         MaterialDatabase* pPhysicsMaterialDB = pResourceRecord->GetResourceData<MaterialDatabase>();
         if ( pPhysicsMaterialDB != nullptr )
@@ -48,6 +44,6 @@ namespace EE::Physics
             m_pRegistry->UnregisterMaterials( pPhysicsMaterialDB->m_materials );
         }
 
-        ResourceLoader::Unload( resourceID, pResourceRecord );
+        return Resource::UnloadResult::Complete;
     }
 }

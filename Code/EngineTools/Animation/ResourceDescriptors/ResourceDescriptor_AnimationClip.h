@@ -33,17 +33,6 @@ namespace EE::Animation
             FixedValue,
         };
 
-        struct SecondaryAnimationDescriptor : public IReflectedType
-        {
-            EE_REFLECT_TYPE( SecondaryAnimationDescriptor );
-
-            EE_REFLECT();
-            DataPath                            m_animationPath;
-
-            EE_REFLECT();
-            TResourcePtr<Skeleton>              m_skeleton = nullptr;
-        };
-
     public:
 
         virtual bool IsValid() const override { return m_skeleton.IsSet() && m_animationPath.IsValid(); }
@@ -53,18 +42,8 @@ namespace EE::Animation
         virtual FileSystem::Extension GetExtension() const override final { return AnimationClip::GetStaticResourceTypeID().ToString(); }
         virtual char const* GetFriendlyName() const override final { return AnimationClip::s_friendlyName; }
 
-        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
-        {
-            if ( m_skeleton.IsSet() )
-            {
-                outDependencies.emplace_back( m_skeleton.GetDataPath() );
-            }
-
-            if ( m_animationPath.IsValid() )
-            {
-                outDependencies.emplace_back( m_animationPath );
-            }
-        }
+        virtual void GetCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<Resource::CompileDependency>& outDependencies ) const override;
+        virtual void GetInstallDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<ResourceID>& outDependencies ) const override;
 
         virtual void Clear() override;
 
@@ -75,6 +54,9 @@ namespace EE::Animation
 
         EE_REFLECT();
         TResourcePtr<Skeleton>                  m_skeleton = nullptr;
+
+        EE_REFLECT();
+        TVector<TResourcePtr<Skeleton>>         m_secondarySkeletons;
 
         // Optional: if not set, will use the first animation in the file
         EE_REFLECT();
@@ -103,6 +85,9 @@ namespace EE::Animation
         EE_REFLECT( Category = "Root Motion" );
         EulerAngles                             m_rootMotionGenerationPreRotation;
 
+        EE_REFLECT( Category = "Advanced" );
+        TVector<StringID>                       m_bonesToSampleInModelSpace;
+
         // Additive
         //-------------------------------------------------------------------------
 
@@ -112,17 +97,11 @@ namespace EE::Animation
 
         // The animation to use as the the base for the additive animation
         EE_REFLECT( Category = "Additive" );
-        TResourcePtr<AnimationClip>             m_additiveBaseAnimation = nullptr;
+        DataPath                                m_additiveBaseAnimationPath;
 
         // The frame to use as the base for the additive animation
         EE_REFLECT( Category = "Additive" );
-        uint32_t                                m_additiveBaseFrameIndex = 0;
-
-        // Child Animation
-        //-------------------------------------------------------------------------
-        
-        EE_REFLECT( Category = "Secondary Animations" );
-        TVector<SecondaryAnimationDescriptor>   m_secondaryAnimations;
+        int32_t                                 m_additiveBaseFrameIndex = InvalidIndex;
 
         // Events
         //-------------------------------------------------------------------------

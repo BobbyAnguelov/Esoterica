@@ -5,19 +5,19 @@
 
 //-------------------------------------------------------------------------
  
-namespace EE::Player
+namespace EE
 {
     class ExternalController;
 
-    class InteractAction final : public Action
+    class PlayerAction_Interact final : public PlayerAction
     {
     public:
 
-        EE_PLAYER_ACTION_ID( InteractAction );
+        EE_PLAYER_ACTION_ID( PlayerAction_Interact );
 
-        virtual bool TryStartInternal( ActionContext const& ctx ) override;
-        virtual Status UpdateInternal( ActionContext const& ctx, bool isFirstUpdate ) override;
-        virtual void StopInternal( ActionContext const& ctx, StopReason reason ) override;
+        virtual bool TryStartInternal( PlayerActionContext const& ctx ) override;
+        virtual Status UpdateInternal( PlayerActionContext const& ctx, bool isFirstUpdate ) override;
+        virtual void StopInternal( PlayerActionContext const& ctx, StopReason reason ) override;
 
         inline bool CanInteract() const { return m_canInteract; }
 

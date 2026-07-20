@@ -19,7 +19,7 @@ namespace EE::Physics
 
         using PhysicsShapeComponent::PhysicsShapeComponent;
 
-        inline void SetCollision( ResourceID collisionResourceID )
+        inline void SetCollisionMesh( ResourceID collisionResourceID )
         {
             EE_ASSERT( IsUnloaded() );
             EE_ASSERT( collisionResourceID.IsValid() );
@@ -32,18 +32,21 @@ namespace EE::Physics
         virtual void SetCollisionSettings( CollisionSettings const& newSettings ) override final;
 
         #if EE_DEVELOPMENT_TOOLS
-        inline ResourceID const& GetCollisionResourceID() { return m_collisionMesh.GetResourceID(); }
+        inline ResourceID const& GetCollisionResourceID() const { return m_collisionMesh.GetResourceID(); }
         #endif
 
         //-------------------------------------------------------------------------
 
-        virtual Float3 const& GetLocalScale() const override { return m_localScale; }
-        virtual bool SupportsLocalScale() const override { return true; }
+        virtual bool SupportsNonUniformScale() const override { return true; }
 
     private:
 
         virtual OBB CalculateLocalBounds() const override;
         virtual bool HasValidPhysicsSetup() const override;
+        virtual void CreatePhysicsShape() override final;
+
+        virtual Float3* GetNonUniformScaleForEdit() override { return &m_nonUniformScale; }
+        virtual void OnNonUniformScaleChanged() override;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
@@ -52,15 +55,18 @@ namespace EE::Physics
     protected:
 
         // The collision mesh to load (can be either convex or concave)
-        EE_REFLECT( Category = "Body" )
+        EE_REFLECT( Category = "Shape" )
         TResourcePtr<CollisionMesh>                     m_collisionMesh;
+
+        EE_REFLECT( Category = "Shape" );
+        MaterialID                                      m_materialID;
 
         // A local scale that doesnt propagate but that can allow for non-uniform scaling of shapes
         EE_REFLECT()
-        Float3                                          m_localScale = Float3::One;
+        Float3                                          m_nonUniformScale = Float3::One;
 
         // Should we override the collision settings coming from the resource?
-        EE_REFLECT( Category = "Colliision" )
+        EE_REFLECT( Category = "Collision" )
         bool                                            m_overrideCollisionSettings = false;
     };
 }

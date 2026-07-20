@@ -12,7 +12,6 @@ namespace EE::Resource
         for ( auto pCompilerType : compilerTypes )
         {
             auto pCreatedCompiler = Cast<Compiler>( pCompilerType->CreateType() );
-            pCreatedCompiler->Initialize( typeRegistry, rawResourceDirectoryPath );
             m_compilers.emplace_back( pCreatedCompiler );
             RegisterCompiler( pCreatedCompiler );
         }
@@ -36,7 +35,7 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        TVector<Compiler::OutputType> const& compilerOutputTypes = pCompiler->GetOutputTypes();
+        TVector<Compiler::Output> const& compilerOutputTypes = pCompiler->GetCompilableResourceTypes();
         for ( auto& type : compilerOutputTypes )
         {
             // Two compilers registering for the same resource type is not allowed
@@ -52,7 +51,7 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        TVector<Compiler::OutputType> const& compilerOutputTypes = pCompiler->GetOutputTypes();
+        TVector<Compiler::Output> const& compilerOutputTypes = pCompiler->GetCompilableResourceTypes();
         for ( auto& type : compilerOutputTypes )
         {
             m_compilerTypeMap.erase( type.m_typeID );

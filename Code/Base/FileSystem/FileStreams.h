@@ -49,10 +49,10 @@ namespace EE
             inline std::ofstream& GetStream() { return m_filestream; }
             inline bool IsValid() const { return m_filestream.is_open(); }
 
-            inline void Write( void* pData, size_t size )
+            inline void Write( void const* pData, size_t size )
             {
                 EE_ASSERT( IsValid() );
-                m_filestream.write( (char*) pData, size );
+                m_filestream.write( (char const*) pData, size );
             }
             
             inline void Close()

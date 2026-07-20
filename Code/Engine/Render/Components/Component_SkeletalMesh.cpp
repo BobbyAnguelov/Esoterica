@@ -1,5 +1,6 @@
 #include "Component_SkeletalMesh.h"
 #include "Engine/Animation/AnimationPose.h"
+#include "Engine/Render/Device/DeviceRenderWorld.h"
 #include "Base/Drawing/DebugDrawing.h"
 #include "Base/Profiling.h"
 
@@ -13,14 +14,14 @@ namespace EE::Render
 
         if ( HasMeshResourceSet() )
         {
-            if ( m_boneTransforms.empty() )
+            if ( m_modelSpaceBoneTransforms.empty() )
             {
                 bounds = m_mesh->GetBounds();
             }
             else // Use bones to calculate bounds
             {
                 AABB newBounds;
-                for ( auto const& boneTransform : m_boneTransforms )
+                for ( auto const& boneTransform : m_modelSpaceBoneTransforms )
                 {
                     newBounds.AddPoint( boneTransform.GetTranslation() );
                 }
@@ -34,6 +35,21 @@ namespace EE::Render
         }
 
         return bounds;
+    }
+
+    void SkeletalMeshComponent::OnWorldTransformUpdated()
+    {
+        if ( !m_meshInstanceProxy.IsValid() )
+        {
+            return;
+        }
+
+        m_meshInstanceRootProxy.WriteRootTransform( GetWorldTransform(), GetWorldNonUniformScale() );
+    }
+
+    void SkeletalMeshComponent::OnRenderInstanceDataUpdated()
+    {
+        GetInstanceDataUpdateSignal()->Send( this );
     }
 
     void SkeletalMeshComponent::Initialize()
@@ -52,32 +68,23 @@ namespace EE::Render
             // Set mesh to reference pose
             //-------------------------------------------------------------------------
 
-            m_boneTransforms.resize( m_mesh->GetNumBones() );
+            m_modelSpaceBoneTransforms.resize( m_mesh->GetNumBones() );
             ResetPose();
 
             //-------------------------------------------------------------------------
 
-            // Allocate skinning transforms and calculate initial values
-            m_skinningTransforms.resize( m_boneTransforms.size() );
             FinalizePose();
         }
     }
 
     void SkeletalMeshComponent::Shutdown()
     {
-        m_boneTransforms.clear();
-        m_skinningTransforms.clear();
+        m_modelSpaceBoneTransforms.clear();
         m_animToMeshBoneMap.clear();
         MeshComponent::Shutdown();
     }
 
-    TVector<TResourcePtr<Render::Material>> const& SkeletalMeshComponent::GetDefaultMaterials() const
-    {
-        EE_ASSERT( IsInitialized() && HasMeshResourceSet() );
-        return m_mesh->GetMaterials();
-    }
-
-    bool SkeletalMeshComponent::TryFindAttachmentSocketTransform( StringID socketID, Transform& outSocketWorldTransform ) const
+    bool SkeletalMeshComponent::GetAttachmentSocketTransformInternal( StringID socketID, Transform& outSocketWorldTransform ) const
     {
         EE_ASSERT( socketID.IsValid() );
 
@@ -85,12 +92,38 @@ namespace EE::Render
 
         if ( m_mesh.IsSet() && m_mesh.IsLoaded() )
         {
+            // Check mesh sockets first
+            auto const pSocket = m_mesh->GetSocket( socketID );
+            if ( pSocket != nullptr )
+            {
+                if ( pSocket->m_boneIdx != InvalidIndex )
+                {
+                    EE_ASSERT( pSocket->m_boneIdx < m_mesh->GetNumBones() );
+
+                    if ( IsInitialized() )
+                    {
+                        outSocketWorldTransform = m_modelSpaceBoneTransforms[pSocket->m_boneIdx] * outSocketWorldTransform;
+                    }
+                    else
+                    {
+                        outSocketWorldTransform = m_mesh->GetBindPose()[pSocket->m_boneIdx] * outSocketWorldTransform;
+                    }
+                }
+                else
+                {
+                    outSocketWorldTransform = pSocket->m_offset * outSocketWorldTransform;
+                }
+
+                return true;
+            }
+
+            // Check bones next
             auto const boneIdx = m_mesh->GetBoneIndex( socketID );
             if ( boneIdx != InvalidIndex )
             {
                 if ( IsInitialized() )
                 {
-                    outSocketWorldTransform = m_boneTransforms[boneIdx] * outSocketWorldTransform;
+                    outSocketWorldTransform = m_modelSpaceBoneTransforms[boneIdx] * outSocketWorldTransform;
                 }
                 else
                 {
@@ -141,7 +174,7 @@ namespace EE::Render
             if ( meshBoneIdx != InvalidIndex )
             {
                 Transform const boneTransform = pPose->GetModelSpaceTransform( animBoneIdx );
-                m_boneTransforms[meshBoneIdx] = boneTransform;
+                m_modelSpaceBoneTransforms[meshBoneIdx] = boneTransform;
             }
         }
     }
@@ -158,7 +191,7 @@ namespace EE::Render
         }
         else
         {
-            m_boneTransforms = m_mesh->GetBindPose();
+            m_modelSpaceBoneTransforms = m_mesh->GetBindPose();
         }
     }
 
@@ -169,25 +202,10 @@ namespace EE::Render
 
         NotifySocketsUpdated();
         UpdateBounds();
-        UpdateSkinningTransforms();
+        UpdateSkinningProxy();
     }
 
     //-------------------------------------------------------------------------
-
-    void SkeletalMeshComponent::UpdateSkinningTransforms()
-    {
-        EE_ASSERT( m_mesh.IsSet() && m_mesh.IsLoaded() );
-
-        auto const numBones = m_boneTransforms.size();
-        EE_ASSERT( m_skinningTransforms.size() == numBones );
-
-        auto const& inverseBindPose = m_mesh->GetInverseBindPose();
-        for ( auto i = 0; i < numBones; i++ )
-        {
-            Transform const skinningTransform = inverseBindPose[i] * m_boneTransforms[i];
-            m_skinningTransforms[i] = ( skinningTransform ).ToMatrix();
-        }
-    }
 
     void SkeletalMeshComponent::GenerateAnimationBoneMap()
     {
@@ -207,8 +225,40 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
+    void SkeletalMeshComponent::QueueInitializeMeshInstance( DeviceRenderWorld* pDeviceRenderWorld )
+    {
+        EE_ASSERT( m_meshInstanceRootProxy.IsValid() );
+        EE_ASSERT( m_meshInstanceProxy.IsValid() );
+        EE_ASSERT( m_skinningProxy.IsValid() );
+
+        pDeviceRenderWorld->QueueMeshInstanceInitialize
+        (
+            uint32_t( m_meshInstanceProxy.m_instanceHandle.m_offset ),
+            uint32_t( m_meshInstanceRootProxy.m_instanceHandle.m_offset ),
+            GetMesh(),
+            m_materialOverrides
+        );
+
+        m_meshInstanceRootProxy.WriteRootTransform( GetWorldTransform(), GetWorldNonUniformScale() );
+        m_meshInstanceProxy.WriteLocalTransforms( GetMesh()->GetSubmeshLocalTransforms() );
+    }
+
+    void SkeletalMeshComponent::UpdateSkinningProxy()
+    {
+        if ( !m_skinningProxy.IsValid() )
+        {
+            return;
+        }
+
+        EE_ASSERT( m_mesh.IsSet() && m_mesh.IsLoaded() );
+
+        m_skinningProxy.WriteTransforms( m_modelSpaceBoneTransforms, m_mesh->GetInverseBindPose() );
+    }
+
+    //-------------------------------------------------------------------------
+
     #if EE_DEVELOPMENT_TOOLS
-    void SkeletalMeshComponent::DrawPose( Drawing::DrawContext& drawingContext ) const
+    void SkeletalMeshComponent::DrawPose( DebugDrawContext& drawingContext ) const
     {
         EE_ASSERT( IsInitialized() );
 
@@ -220,18 +270,18 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         Transform const& worldTransform = GetWorldTransform();
-        auto const numBones = m_boneTransforms.size();
+        auto const       numBones = m_modelSpaceBoneTransforms.size();
 
-        Transform boneWorldTransform = m_boneTransforms[0] * worldTransform;
+        Transform boneWorldTransform = m_modelSpaceBoneTransforms[0] * worldTransform;
         drawingContext.DrawBox( boneWorldTransform, Float3( 0.005f ), Colors::Orange );
         drawingContext.DrawAxis( boneWorldTransform, 0.05f );
 
         for ( auto i = 1; i < numBones; i++ )
         {
-            boneWorldTransform = m_boneTransforms[i] * worldTransform;
+            boneWorldTransform = m_modelSpaceBoneTransforms[i] * worldTransform;
 
-            auto const parentBoneIdx = m_mesh->GetParentBoneIndex( i );
-            Transform const parentBoneWorldTransform = m_boneTransforms[parentBoneIdx] * worldTransform;
+            auto const      parentBoneIdx = m_mesh->GetParentBoneIndex( i );
+            Transform const parentBoneWorldTransform = m_modelSpaceBoneTransforms[parentBoneIdx] * worldTransform;
 
             drawingContext.DrawLine( parentBoneWorldTransform.GetTranslation(), boneWorldTransform.GetTranslation(), Colors::Orange );
             drawingContext.DrawAxis( boneWorldTransform, 0.03f, 2.0f );

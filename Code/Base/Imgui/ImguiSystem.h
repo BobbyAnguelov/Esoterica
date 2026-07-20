@@ -4,7 +4,6 @@
 #include "Base/Esoterica.h"
 
 #if EE_DEVELOPMENT_TOOLS
-#include "ImguiImageCache.h"
 #include "Base/Types/String.h"
 
 //-------------------------------------------------------------------------
@@ -13,7 +12,6 @@
 
 namespace EE
 {
-    namespace Render{ class RenderDevice; }
     namespace Input{ class InputSystem; }
 }
 
@@ -30,14 +28,11 @@ namespace EE::ImGuiX
 
     public:
 
-        bool Initialize( Render::RenderDevice* pRenderDevice, Input::InputSystem* pInputSystem = nullptr, bool enableViewports = false );
+        bool Initialize( Input::InputSystem* pInputSystem = nullptr, bool enableViewports = false );
         void Shutdown();
 
         //-------------------------------------------------------------------------
 
-        ImageCache* GetImageCache() { return &m_imageCache; }
-
-        //-------------------------------------------------------------------------
 
         void StartFrame( float deltaTime );
         void EndFrame();
@@ -54,7 +49,6 @@ namespace EE::ImGuiX
     private:
 
         Input::InputSystem*             m_pInputSystem = nullptr;
-        ImageCache                      m_imageCache;
         String                          m_iniFilename;
         String                          m_logFilename;
     };

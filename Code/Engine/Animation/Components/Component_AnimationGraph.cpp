@@ -21,7 +21,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         EE_ASSERT( m_graphDefinition.IsLoaded() );
-        m_pGraphInstance = EE::New<GraphInstance>( m_graphDefinition.GetPtr(), GetEntityID().m_value );
+        m_pGraphInstance = EE::New<GraphInstance>( m_graphDefinition.GetPtr() );
 
         if ( !m_secondarySkeletons.empty() )
         {
@@ -92,8 +92,14 @@ namespace EE::Animation
         EE_ASSERT( HasGraph() );
 
         m_pGraphInstance->SetSkeletonLOD( m_skeletonLOD );
-        GraphPoseNodeResult const result = m_pGraphInstance->EvaluateGraph( deltaTime, characterWorldTransform, pPhysicsWorld, nullptr, m_graphStateResetRequested );
-        m_graphStateResetRequested = false;
+
+        if ( m_graphStateResetRequested )
+        {
+            m_pGraphInstance->ResetGraphState();
+            m_graphStateResetRequested = false;
+        }
+
+        GraphPoseNodeResult const result = m_pGraphInstance->EvaluateGraph( deltaTime, characterWorldTransform, pPhysicsWorld, nullptr );
         m_rootMotionDelta = result.m_rootMotionDelta;
 
         #if EE_DEVELOPMENT_TOOLS
@@ -139,16 +145,9 @@ namespace EE::Animation
         return m_pGraphInstance->GetGraphDebugMode();
     }
 
-    void GraphComponent::SetGraphNodeDebugFilterList( TVector<int16_t> const& filterList )
+    void GraphComponent::SetGraphNodeDebugFilterList( TVector<SourcePath> const& filterList )
     {
-        if ( m_pGraphInstance != nullptr )
-        {
-            m_pGraphInstance->SetNodeDebugFilterList( filterList );
-        }
-        else
-        {
-            EE_LOG_ENTITY_ERROR( this, "Animation", "Trying to set debug state on a animgraph component that has no state!" );
-        }
+        m_debugNodeFilterList = filterList;
     }
 
     void GraphComponent::SetTaskSystemDebugMode( TaskSystemDebugMode mode )
@@ -187,14 +186,14 @@ namespace EE::Animation
         return m_pGraphInstance->GetRootMotionDebugMode();
     }
 
-    void GraphComponent::DrawDebug( Drawing::DrawContext& drawingContext )
+    void GraphComponent::DrawDebug( DebugDrawContext& drawingContext )
     {
         if ( !HasGraph() || !IsInitialized() || m_pGraphInstance == nullptr )
         {
             return;
         }
 
-        m_pGraphInstance->DrawDebug( drawingContext );
+        m_pGraphInstance->DrawDebug( drawingContext, m_debugNodeFilterList.empty() ? nullptr : &m_debugNodeFilterList );
     }
     #endif
 }

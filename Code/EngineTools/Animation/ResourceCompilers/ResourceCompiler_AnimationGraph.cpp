@@ -1,4 +1,5 @@
 #include "ResourceCompiler_AnimationGraph.h"
+#include "EngineTools/Resource/ResourceCompilerContext.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Definition.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_VariationData.h"
@@ -12,7 +13,7 @@ namespace EE::Animation
     AnimationGraphCompiler::AnimationGraphCompiler()
         : Resource::Compiler( "GraphCompiler" )
     {
-        AddOutputType<GraphDefinition>();
+        RegisterOutput<GraphDefinition>();
     }
 
     Resource::CompilationResult AnimationGraphCompiler::Compile( Resource::CompileContext const& ctx ) const
@@ -21,50 +22,39 @@ namespace EE::Animation
         ResourceID const graphResourceID = Variation::GetGraphResourceID( ctx.m_resourceID, &variationID );
         EE_ASSERT( graphResourceID.IsValid() );
 
-        FileSystem::Path graphFilePath;
-        if ( !GetFilePathForResourceID( graphResourceID, graphFilePath ) )
-        {
-            return Error( "Invalid graph data path: '%s'", graphResourceID.c_str() );
-        }
-
-        GraphResourceDescriptor graphDescriptor;
-        if ( !TryLoadResourceDescriptor( graphFilePath, graphDescriptor ) )
-        {
-            return Error( "Failed to load graph definition: '%s'", graphResourceID.c_str() );
-        }
-
         //-------------------------------------------------------------------------
 
-        variationID = graphDescriptor.m_graphDefinition.GetVariationHierarchy().TryGetCaseCorrectVariationID( variationID );
-        if ( !graphDescriptor.m_graphDefinition.IsValidVariation( variationID ) )
+        auto pGraphDescriptor = ctx.GetDescriptor<GraphResourceDescriptor>();
+        variationID = pGraphDescriptor->m_graphDefinition.GetVariationHierarchy().TryGetCaseCorrectVariationID( variationID );
+        if ( !pGraphDescriptor->m_graphDefinition.IsValidVariation( variationID ) )
         {
-            return Error( "Invalid graph variation '%s for graph '%s'", variationID.IsValid() ? variationID.c_str() : "", graphResourceID.c_str());
+            return ctx.LogError( "Invalid graph variation '%s for graph '%s'", variationID.IsValid() ? variationID.c_str() : "", graphResourceID.c_str());
         }
 
         // Compile
         //-------------------------------------------------------------------------
 
-        GraphDefinitionCompiler definitionCompiler;
-        if ( !definitionCompiler.CompileGraph( graphDescriptor.m_graphDefinition, variationID ) )
+        GraphDefinitionCompiler definitionCompiler( ctx.m_typeRegistry, ctx.m_sourceResourceDirectoryPath );
+        if ( !definitionCompiler.CompileGraph( pGraphDescriptor->m_graphDefinition, variationID ) )
         {
             // Dump log
             for ( auto const& logEntry : definitionCompiler.GetLog() )
             {
                 if ( logEntry.m_severity == Severity::Error )
                 {
-                    Error( "Failed to compile graph: %s", logEntry.m_message.c_str() );
+                    ctx.LogError( "Failed to compile graph: %s", logEntry.m_message.c_str() );
                 }
                 else if ( logEntry.m_severity == Severity::Warning )
                 {
-                    Warning( "Failed to compile graph: %s", logEntry.m_message.c_str() );
+                    ctx.LogWarning( "Failed to compile graph: %s", logEntry.m_message.c_str() );
                 }
                 else if ( logEntry.m_severity == Severity::Info )
                 {
-                    Message( "Failed to compile graph: %s", logEntry.m_message.c_str() );
+                    ctx.LogMessage( "Failed to compile graph: %s", logEntry.m_message.c_str() );
                 }
             }
 
-            return Error( "Graph compilation failed!" );
+            return ctx.LogError( "Graph compilation failed!" );
         }
 
         auto pRuntimeGraph = definitionCompiler.GetCompiledGraph();
@@ -72,7 +62,7 @@ namespace EE::Animation
         // Create header
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( GraphDefinition::s_version, GraphDefinition::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
+        Resource::ResourceHeader hdr( GraphDefinition::s_version, GraphDefinition::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
         hdr.AddInstallDependency( pRuntimeGraph->m_skeleton.GetResourceID() );
 
         // Add node data install dependencies
@@ -84,7 +74,7 @@ namespace EE::Animation
             // Ensure that we dont reference ourselves as a child-graph
             if ( resourceID == ctx.m_resourceID )
             {
-                return Error( "Cyclic resource dependency detected!" );
+                return ctx.LogError( "Cyclic resource dependency detected!" );
             }
 
             hdr.AddInstallDependency( resourceID );
@@ -107,7 +97,7 @@ namespace EE::Animation
         TypeSystem::TypeDescriptorCollection definitionTypeDescriptors;
         for ( auto pSettings : pRuntimeGraph->m_nodeDefinitions )
         {
-            definitionTypeDescriptors.m_descriptors.emplace_back( TypeSystem::TypeDescriptor( *m_pTypeRegistry, pSettings ) );
+            definitionTypeDescriptors.m_descriptors.emplace_back( TypeSystem::TypeDescriptor( ctx.m_typeRegistry, pSettings ) );
         }
         archive << definitionTypeDescriptors;
 
@@ -117,62 +107,13 @@ namespace EE::Animation
             pSettings->Save( archive );
         }
 
-        if ( archive.WriteToFile( ctx.m_outputFilePath ) )
+        if ( archive.WriteToFile( ctx.GetOutputPath() ) )
         {
-            return CompilationSucceeded( ctx );
+            return Resource::CompilationResult::Success;
         }
         else
         {
-            return CompilationFailed( ctx );
+            return Resource::CompilationResult::Failure;
         }
-    }
-
-    //-------------------------------------------------------------------------
-
-    bool AnimationGraphCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
-    {
-        StringID variationID;
-        ResourceID const graphResourceID = Variation::GetGraphResourceID( resourceID, &variationID );
-        EE_ASSERT( graphResourceID.IsValid() );
-
-        FileSystem::Path graphFilePath;
-        if ( !GetFilePathForResourceID( graphResourceID, graphFilePath ) )
-        {
-            return false;
-        }
-
-        GraphResourceDescriptor graphDescriptor;
-        if ( !TryLoadResourceDescriptor( graphFilePath, graphDescriptor ) )
-        {
-            return false;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( !graphDescriptor.m_graphDefinition.IsValidVariation( variationID ) )
-        {
-            return false;
-        }
-
-        GraphDefinitionCompiler definitionCompiler;
-        if ( !definitionCompiler.CompileGraph( graphDescriptor.m_graphDefinition, variationID ) )
-        {
-            return false;
-        }
-
-        //-------------------------------------------------------------------------
-
-        auto pRuntimeGraph = definitionCompiler.GetCompiledGraph();
-
-        outReferencedResources.emplace_back( pRuntimeGraph->m_skeleton.GetResourceID() );
-
-        for ( size_t i = 0; i < pRuntimeGraph->m_resources.size(); i++ )
-        {
-            ResourceID const& referencedResourceID = pRuntimeGraph->m_resources[i].GetResourceID();
-            EE_ASSERT( referencedResourceID.IsValid() );
-            outReferencedResources.emplace_back( referencedResourceID );
-        }
-
-        return true;
     }
 }

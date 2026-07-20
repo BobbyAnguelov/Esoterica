@@ -5,6 +5,8 @@
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/UpdateContext.h"
 #include "Base/Math/MathUtils.h"
+#include "Base/Imgui/ImguiStyle.h"
+#include "EngineTools/Core/DialogManager.h"
 
 //-------------------------------------------------------------------------
 
@@ -31,22 +33,35 @@ namespace EE::Animation
         EE_ASSERT( m_pSkeletonTreeRoot == nullptr );
     }
 
-    void SkeletonEditor::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
+    void SkeletonEditor::SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
-        ImGuiID viewportDockID = 0;
-        ImGuiID leftDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Left, 0.3f, nullptr, &viewportDockID );
-        ImGuiID rightDockID = ImGui::DockBuilderSplitNode( viewportDockID, ImGuiDir_Right, 0.2f, nullptr, &viewportDockID );
-        ImGuiID bottomRightDockID = ImGui::DockBuilderSplitNode( rightDockID, ImGuiDir_Down, 0.33f, nullptr, &rightDockID );
+        // Split
+        //-------------------------------------------------------------------------
+
+        ImGuiID leftDockID0 = 0;
+        ImGuiID leftDockID1 = 0;
+        ImGuiID leftDockID2 = 0;
+        ImGuiID centerDockID = 0;
+        ImGuiID rightDockID0 = 0;
+        ImGuiID rightDockID1 = 0;
+
+        ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Left, 0.25f, &leftDockID0, &centerDockID );
+        ImGui::DockBuilderSplitNode( centerDockID, ImGuiDir_Right, 0.33f, &rightDockID0, &centerDockID );
+
+        ImGui::DockBuilderSplitNode( leftDockID0, ImGuiDir_Up, 0.20f, &leftDockID0, &leftDockID1 );
+        ImGui::DockBuilderSplitNode( leftDockID1, ImGuiDir_Up, 0.75f, &leftDockID1, &leftDockID2 );
+
+        ImGui::DockBuilderSplitNode( rightDockID0, ImGuiDir_Up, 0.5f, &rightDockID0, &rightDockID1 );
 
         // Dock windows
         //-------------------------------------------------------------------------
 
-        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), viewportDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Skeleton" ).c_str(), leftDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Clip Browser" ).c_str(), rightDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Masks" ).c_str(), rightDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomRightDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Info" ).c_str(), bottomRightDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Masks" ).c_str(), leftDockID0 );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Skeleton Outline" ).c_str(), leftDockID1 );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Info" ).c_str(), leftDockID2 );
+
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Clip Browser" ).c_str(), rightDockID0 );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), rightDockID1 );
     }
 
     //-------------------------------------------------------------------------
@@ -59,9 +74,9 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        CreateToolWindow( "Skeleton", [this] ( UpdateContext const& context, bool isFocused ) { DrawSkeletonWindow( context, isFocused ); } );
+        CreateToolWindow( "Skeleton Outline", [this] ( UpdateContext const& context, bool isFocused ) { DrawSkeletonOutlinerWindow( context, isFocused ); } );
+        CreateToolWindow( "Bone Masks", [this] ( UpdateContext const& context, bool isFocused ) { DrawBoneMasksWindow( context, isFocused ); } );
         CreateToolWindow( "Bone Info", [this] ( UpdateContext const& context, bool isFocused ) { DrawBoneInfoWindow( context, isFocused ); } );
-        CreateToolWindow( "Bone Masks", [this] ( UpdateContext const& context, bool isFocused ) { DrawBoneMaskWindow( context, isFocused ); } );
         CreateToolWindow( "Clip Browser", [this] ( UpdateContext const& context, bool isFocused ) { DrawClipBrowser( context, isFocused ); } );
     }
 
@@ -111,6 +126,14 @@ namespace EE::Animation
                 StopEditingMask();
             }
         }
+        else
+        {
+            // Update weights
+            if ( IsEditingBoneMask() )
+            {
+                ReflectEditedWeights();
+            }
+        }
     }
 
     void SkeletonEditor::OnDataFileLoadCompleted()
@@ -135,6 +158,11 @@ namespace EE::Animation
             ValidateDescriptorBoneMaskDefinitions();
             ValidateLODSetup();
             CreateSkeletonTree();
+
+            Skeleton const* pSkeleton = m_editedResource.GetPtr();
+            m_previewBoneMask = BoneMask( pSkeleton, 1.0f );
+
+            m_selectedBoneIDs.clear();
         }
     }
 
@@ -142,6 +170,8 @@ namespace EE::Animation
     {
         if ( pResourcePtr == &m_editedResource )
         {
+            m_selectedBoneIDs.clear();
+            m_previewBoneMask = BoneMask();
             DestroyPreviewEntity();
             DestroySkeletonTree();
         }
@@ -149,20 +179,17 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void SkeletonEditor::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
+    void SkeletonEditor::ExtendViewportToolBar( UpdateContext const& context, Viewport* pViewport )
     {
-        TResourceEditor<Skeleton>::DrawViewportToolbar( context, pViewport );
+        // Skeleton Info
+        //-------------------------------------------------------------------------
 
         if ( !IsResourceLoaded() )
         {
             return;
         }
 
-        // Skeleton Info
-        //-------------------------------------------------------------------------
-
         ImGui::NewLine();
-        ImGui::Indent();
 
         auto PrintAnimDetails = [this] ( Color color )
         {
@@ -171,29 +198,20 @@ namespace EE::Animation
             ImGui::Text( "Num Bones For Low LOD: %d", m_editedResource->GetNumBones( Skeleton::LOD::Low ) );
         };
 
-        ImVec2 const cursorPos = ImGui::GetCursorPos();
-        ImGui::SetCursorPos( cursorPos + ImVec2( 0, 1 ) );
-        ImGui::Indent( 1 );
-        PrintAnimDetails( Colors::Black );
-        ImGui::Unindent( 1 );
-        ImGui::SetCursorPos( cursorPos );
-        PrintAnimDetails( Colors::Yellow );
-
-        ImGui::Unindent();
+        ImGuiX::DrawShadowedText( Colors::Yellow, PrintAnimDetails );
     }
 
-    void SkeletonEditor::DrawMenu( UpdateContext const& context )
+    bool SkeletonEditor::ExtendViewportToolBar_VisualizationControls( UpdateContext const& context, Viewport* pViewport )
     {
-        TResourceEditor<Skeleton>::DrawMenu( context );
-
-        if ( ImGui::BeginMenu( EE_ICON_TUNE" Options" ) )
+        if ( ImGui::Checkbox( "Show Preview Mesh", &m_showPreviewMesh ) )
         {
-            if ( ImGui::Checkbox( "Show Preview Mesh", &m_showPreviewMesh ) )
+            if ( m_pPreviewMeshComponent != nullptr )
             {
                 m_pPreviewMeshComponent->SetVisible( m_showPreviewMesh );
             }
-            ImGui::EndMenu();
         }
+
+        return true;
     }
 
     void SkeletonEditor::Update( UpdateContext const& context, bool isVisible, bool isFocused )
@@ -205,13 +223,96 @@ namespace EE::Animation
 
         if ( IsResourceLoaded() )
         {
+            Skeleton const* pSkeleton = m_editedResource.GetPtr();
+
+            // Update preview bone mask
+            //-------------------------------------------------------------------------
+
             if ( IsEditingBoneMask() )
             {
-                DrawBoneMaskPreview();
+                auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
+                BoneMaskSetDefinition const& editedBoneMaskSet = pDescriptor->m_boneMaskSetDefinitions[m_editedMaskIdx];
+                if ( editedBoneMaskSet.m_primaryWeightList.IsValid() )
+                {
+                    m_previewBoneMask = BoneMask( pSkeleton, editedBoneMaskSet.m_primaryWeightList );
+                }
             }
             else
             {
-                DrawSkeletonPreview();
+                if ( !m_previewBoneMask.IsFullWeightMask() )
+                {
+                    m_previewBoneMask = BoneMask( pSkeleton, 1.0f );
+                }
+            }
+
+            // Draw skeletons
+            //-------------------------------------------------------------------------
+
+            auto drawingCtx = GetDebugDrawContext();
+
+            auto DrawSkeleton = [this, pSkeleton, &drawingCtx] ( Transform const& worldTransform, Skeleton::LOD lod, Color color, Color secondaryColor )
+            {
+                DrawOptions options;
+                options.m_boneColor = color;
+                options.m_pBoneWeights = IsEditingBoneMask() ? &m_previewBoneMask.GetWeights() : nullptr;
+                pSkeleton->DrawDebug( drawingCtx, worldTransform, lod, options );
+
+                // Draw secondary skeletons
+                for ( auto const& secondarySkeleton : pSkeleton->GetPotentialSecondarySkeletons() )
+                {
+                    Transform secondarySkeletonAttachmentTransform = Transform::Identity;
+
+                    int32_t const boneIdx = pSkeleton->GetBoneIndex( secondarySkeleton.m_attachmentBoneID );
+                    if ( boneIdx != InvalidIndex )
+                    {
+                        secondarySkeletonAttachmentTransform = pSkeleton->GetBoneModelSpaceTransform( boneIdx ) * worldTransform;
+                    }
+
+                    options.m_boneColor = secondaryColor;
+                    Skeleton const* pSecondarySkeleton = secondarySkeleton.m_skeleton.GetPtr<Skeleton>();
+                    pSecondarySkeleton->DrawDebug( drawingCtx, secondarySkeletonAttachmentTransform, lod, options );
+                }
+
+                // Draw selected bones
+                if ( !m_selectedBoneIDs.empty() )
+                {
+                    for ( StringID const& boneID : m_selectedBoneIDs )
+                    {
+                        int32_t const selectedBoneIdx = pSkeleton->GetBoneIndex( boneID );
+                        EE_ASSERT( selectedBoneIdx != InvalidIndex );
+
+                        Transform const globalBoneTransform = pSkeleton->GetBoneModelSpaceTransform( selectedBoneIdx ) * worldTransform;
+                        drawingCtx.DrawAxis( globalBoneTransform, 0.1f, 3.0f );
+
+                        Vector textLocation = globalBoneTransform.GetTranslation();
+                        Vector const textLineLocation = textLocation - Vector( 0, 0, 0.01f );
+                        drawingCtx.DrawTextBox3D( textLocation, boneID.c_str(), Colors::Lime, DebugFont::Small );
+                    }
+                }
+            };
+
+            bool const bHasLOD = pSkeleton->GetNumBones( Skeleton::LOD::Low ) != pSkeleton->GetNumBones();
+
+            Transform worldTransform = Transform::Identity;
+
+            if ( bHasLOD )
+            {
+                worldTransform.AddTranslation( Vector( -1, 0, 0 ) );
+                drawingCtx.DrawTextBox3D( worldTransform.GetTranslation() + Vector( 0, 0, 2 ), "LOD: High", Colors::HotPink );
+            }
+
+            DrawSkeleton( worldTransform, Skeleton::LOD::High, Colors::HotPink, Colors::Cyan );
+
+            if ( m_pPreviewMeshComponent != nullptr )
+            {
+                m_pPreviewMeshComponent->SetWorldTransform( worldTransform );
+            }
+
+            if ( bHasLOD )
+            {
+                worldTransform.AddTranslation( Vector( 2, 0, 0 ) );
+                DrawSkeleton( worldTransform, Skeleton::LOD::Low, Colors::Yellow, Colors::Teal );
+                drawingCtx.DrawTextBox3D( worldTransform.GetTranslation() + Vector( 0, 0, 2 ), "LOD: Low", Colors::Yellow );
             }
         }
     }
@@ -228,56 +329,102 @@ namespace EE::Animation
     // Skeleton
     //-------------------------------------------------------------------------
 
-    void SkeletonEditor::DrawSkeletonWindow( UpdateContext const& context, bool isFocused )
+    void SkeletonEditor::DrawSkeletonOutlinerWindow( UpdateContext const& context, bool isFocused )
     {
-        if ( IsResourceLoaded() )
+        if ( !IsResourceLoaded() )
         {
-            EE_ASSERT( m_pSkeletonTreeRoot != nullptr );
+            return;
+        }
+
+        EE_ASSERT( m_pSkeletonTreeRoot != nullptr );
+
+        Skeleton const* pSkeleton = m_editedResource.GetPtr();
+        int32_t const numBones = pSkeleton->GetNumBones();
+
+        //-------------------------------------------------------------------------
+
+        auto ApplySelectionRequests = [this, pSkeleton, numBones] ( ImGuiMultiSelectIO* pMSIO )
+        {
+            for ( ImGuiSelectionRequest const& req : pMSIO->Requests )
+            {
+                if ( req.Type == ImGuiSelectionRequestType_SetAll )
+                {
+                    m_selectedBoneIDs.clear();
+
+                    if ( req.Selected )
+                    {
+                        for ( int32_t i = 0; i < numBones; i++ )
+                        {
+                            m_selectedBoneIDs.emplace_back( pSkeleton->GetBoneID( i ) );
+                        }
+                    }
+                }
+                else if ( req.Type == ImGuiSelectionRequestType_SetRange )
+                {
+                    if ( req.Selected )
+                    {
+                        for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
+                        {
+                            StringID const boneID = pSkeleton->GetBoneID( (int32_t) i );
+                            VectorEmplaceBackUnique( m_selectedBoneIDs, boneID );
+                        }
+                    }
+                    else
+                    {
+                        for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
+                        {
+                            StringID const boneID = pSkeleton->GetBoneID( (int32_t) i );
+                            m_selectedBoneIDs.erase_first_unsorted( boneID );
+                        }
+                    }
+                }
+            }
+        };
+
+        //-------------------------------------------------------------------------
+
+        ImGuiMultiSelectFlags const selectionFlags = ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_BoxSelect1d | ImGuiMultiSelectFlags_ClearOnClickVoid;
+        ImGuiMultiSelectIO* pMSIO = ImGui::BeginMultiSelect( selectionFlags, -1, numBones );
+        ApplySelectionRequests( pMSIO );
+
+        static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
+        if ( ImGui::BeginTable( "SkeletonTreeTable", 2, flags ) )
+        {
+            // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
+            ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize );
 
             if ( IsEditingBoneMask() )
             {
-                if ( ImGuiX::ButtonColored( "Stop Editing Bone Mask", Colors::OrangeRed, Colors::White, ImVec2( -1, 0 ) ) )
-                {
-                    StopEditingMask();
-                }
+                ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 120.0f );
             }
-
-            static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
-            if ( ImGui::BeginTable( "SkeletonTreeTable", 2, flags ) )
+            else
             {
-                // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
-                ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize );
-
-                if ( IsEditingBoneMask() )
-                {
-                    ImGui::TableSetupColumn( "Weight", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 120.0f );
-                }
-                else
-                {
-                    ImGui::TableSetupColumn( "LOD", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40.0f );
-                }
-
-                ImGui::TableHeadersRow();
-
-                //-------------------------------------------------------------------------
-
-                DrawBoneRow( m_pSkeletonTreeRoot );
-
-                ImGui::EndTable();
+                ImGui::TableSetupColumn( "LOD", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40.0f );
             }
+
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            DrawSkeletonTreeRow( m_pSkeletonTreeRoot );
+
+            ImGui::EndTable();
         }
+
+        pMSIO = ImGui::EndMultiSelect();
+        ApplySelectionRequests( pMSIO );
     }
 
     void SkeletonEditor::CreateSkeletonTree()
     {
-        TVector<BoneInfo*> boneInfos;
-
-        // Create all infos
+        // Create all bones
         Skeleton const* pSkeleton = m_editedResource.GetPtr();
         int32_t const numBones = pSkeleton->GetNumBones();
         for ( auto i = 0; i < numBones; i++ )
         {
-            auto& pBoneInfo = boneInfos.emplace_back( EE::New<BoneInfo>() );
+            auto& pBoneInfo = m_bones.emplace_back( EE::New<BoneItem>() );
+            pBoneInfo->m_skeletonID = pSkeleton->GetResourceID();
+            pBoneInfo->m_boneID = pSkeleton->GetBoneID( i );
             pBoneInfo->m_boneIdx = i;
         }
 
@@ -286,11 +433,11 @@ namespace EE::Animation
         {
             int32_t const parentBoneIdx = pSkeleton->GetParentBoneIndex( i );
             EE_ASSERT( parentBoneIdx != InvalidIndex );
-            boneInfos[parentBoneIdx]->m_children.emplace_back( boneInfos[i] );
+            m_bones[parentBoneIdx]->m_children.emplace_back( m_bones[i] );
         }
 
         // Set root
-        m_pSkeletonTreeRoot = boneInfos[0];
+        m_pSkeletonTreeRoot = m_bones[0];
     }
 
     void SkeletonEditor::DestroySkeletonTree()
@@ -300,27 +447,18 @@ namespace EE::Animation
             m_pSkeletonTreeRoot->DestroyChildren();
             EE::Delete( m_pSkeletonTreeRoot );
         }
+
+        m_bones.clear();
     }
 
-    void SkeletonEditor::DrawBoneRow( BoneInfo* pBone )
+    void SkeletonEditor::DrawSkeletonTreeRow( BoneItem* pBone )
     {
         EE_ASSERT( pBone != nullptr );
 
         Skeleton const* pSkeleton = m_editedResource.GetPtr();
         int32_t const boneIdx = pBone->m_boneIdx;
         StringID const currentBoneID = pSkeleton->GetBoneID( boneIdx );
-        bool const isSelected = m_selectedBoneID == currentBoneID;
-
-        Color rowColor = ImGuiX::Style::s_colorText;
-
-        if ( isSelected )
-        {
-            rowColor = ImGuiX::Style::s_colorAccent0;
-        }
-        else if ( IsEditingBoneMask() )
-        {
-            rowColor = Color::EvaluateRedGreenGradient( m_editedBoneWeights[boneIdx] );
-        }
+        bool const isSelected = VectorContains( m_selectedBoneIDs, currentBoneID );
 
         //-------------------------------------------------------------------------
 
@@ -341,23 +479,20 @@ namespace EE::Animation
             treeNodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
         }
 
-        if ( !IsEditingBoneMask() && isSelected )
+        if ( isSelected )
         {
             treeNodeFlags |= ImGuiTreeNodeFlags_Selected;
         }
 
         ImGui::SetNextItemOpen( pBone->m_isExpanded );
         ImGui::AlignTextToFramePadding();
-        ImGui::PushStyleColor( ImGuiCol_Text, rowColor );
-        pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
 
-        // Handle bone selection
-        if ( ImGui::IsItemClicked() )
+        ImGui::SetNextItemSelectionUserData( boneIdx );
+        Color const rowColor = IsEditingBoneMask() ? Skeleton::GetColorForBoneWeight( m_previewBoneMask.GetWeight( boneIdx ) ) : ImGuiX::Style::s_colorText;
         {
-            m_selectedBoneID = currentBoneID;
+            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBold : ImGuiX::Font::Default, rowColor );
+            pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
         }
-
-        ImGui::PopStyleColor();
 
         //-------------------------------------------------------------------------
         // Draw Context Menu
@@ -379,7 +514,7 @@ namespace EE::Animation
 
                 if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY" Propagate Current Weight" ) )
                 {
-                    SetAllChildWeights( boneIdx, m_editedBoneWeights[boneIdx] );
+                    SetAllChildWeights( boneIdx, pBone->m_weight );
                 }
 
                 //-------------------------------------------------------------------------
@@ -456,7 +591,7 @@ namespace EE::Animation
             InlineString checkboxID;
             checkboxID.sprintf( "##%s_cb", currentBoneID.c_str() );
 
-            bool isSet = m_editedBoneWeights[boneIdx] != -1.0f;
+            bool isSet = pBone->m_weight != -1.0f;
             if ( ImGui::Checkbox( checkboxID.c_str(), &isSet ) )
             {
                 SetWeight( boneIdx, isSet ? 1.0f : -1.0f );
@@ -470,18 +605,18 @@ namespace EE::Animation
 
                 ImGui::SameLine();
                 ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( weightEditorID.c_str(), &m_editedBoneWeights[boneIdx], 0.0f, 1.0f, "%.2f" );
+                ImGui::SliderFloat( weightEditorID.c_str(), &pBone->m_weight, 0.0f, 1.0f, "%.2f" );
                 if ( ImGui::IsItemDeactivatedAfterEdit() )
                 {
-                    SetWeight( boneIdx, m_editedBoneWeights[boneIdx] );
+                    SetWeight( boneIdx, pBone->m_weight );
                 }
             }
             else
             {
                 ImGui::SameLine();
-                float const demoWeight = m_previewBoneMask.GetWeight( boneIdx );
+                float const weight = m_previewBoneMask.GetWeight( boneIdx );
                 ImGui::PushStyleColor( ImGuiCol_Text, rowColor );
-                ImGui::Text( "%.2f", demoWeight );
+                ImGui::Text( "%.2f", weight );
                 ImGui::PopStyleColor();
             }
         }
@@ -510,9 +645,9 @@ namespace EE::Animation
 
         if ( pBone->m_isExpanded )
         {
-            for ( BoneInfo* pChildBone : pBone->m_children )
+            for ( BoneItem* pChildBone : pBone->m_children )
             {
-                DrawBoneRow( pChildBone );
+                DrawSkeletonTreeRow( pChildBone );
             }
             ImGui::TreePop();
         }
@@ -520,67 +655,46 @@ namespace EE::Animation
 
     void SkeletonEditor::DrawBoneInfoWindow( UpdateContext const& context, bool isFocused )
     {
-        auto DrawTransform = [] ( Transform transform )
+        if ( !IsResourceLoaded() )
         {
-            Vector const& translation = transform.GetTranslation();
-            Quaternion const& rotation = transform.GetRotation();
-            EulerAngles const angles = rotation.ToEulerAngles();
-            Float4 const quatValues = rotation.ToFloat4();
-
-            ImGui::Text( "Rot (Quat): X: %.3f, Y: %.3f, Z: %.3f, W: %.3f", quatValues.m_x, quatValues.m_y, quatValues.m_z, quatValues.m_w );
-            ImGui::Text( "Rot (Euler): X: %.3f, Y: %.3f, Z: %.3f", angles.m_x.ToDegrees().ToFloat(), angles.m_y.ToDegrees().ToFloat(), angles.m_z.ToDegrees().ToFloat() );
-            ImGui::Text( "Trans: X: %.3f, Y: %.3f, Z: %.3f", translation.GetX(), translation.GetY(), translation.GetZ() );
-            ImGui::Text( "Scl: %.3f", transform.GetScale() );
-        };
-
-        //-------------------------------------------------------------------------
-
-        if ( IsResourceLoaded() && m_selectedBoneID.IsValid() )
-        {
-            Skeleton const* pSkeleton = m_editedResource.GetPtr();
-            int32_t const selectedBoneIdx = pSkeleton->GetBoneIndex( m_selectedBoneID );
-            EE_ASSERT( selectedBoneIdx != InvalidIndex );
-
-            {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
-                ImGui::Text( "%d. %s", selectedBoneIdx, pSkeleton->GetBoneID( selectedBoneIdx ).c_str() );
-            }
-
-            ImGui::NewLine();
-            ImGui::SeparatorText( "Local Transform" );
-            Transform const& localBoneTransform = pSkeleton->GetParentSpaceReferencePose()[selectedBoneIdx];
-            DrawTransform( localBoneTransform );
-
-            ImGui::NewLine();
-            ImGui::SeparatorText( "Global Transform" );
-            Transform const& globalBoneTransform = pSkeleton->GetModelSpaceReferencePose()[selectedBoneIdx];
-            DrawTransform( globalBoneTransform );
+            return;
         }
-    }
 
-    void SkeletonEditor::DrawSkeletonPreview()
-    {
-        EE_ASSERT( IsResourceLoaded() );
-
-        auto drawingCtx = GetDrawingContext();
-
-        // Draw skeleton
         Skeleton const* pSkeleton = m_editedResource.GetPtr();
-        drawingCtx.Draw( *pSkeleton, Transform::Identity );
 
-        // Draw selected bone
-        if ( m_selectedBoneID.IsValid() )
+        if ( ImGui::BeginTable( "BoneTreeTable", 3, ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY, ImGui::GetContentRegionAvail() ) )
         {
-            int32_t const boneIdx = pSkeleton->GetBoneIndex( m_selectedBoneID );
-            if ( boneIdx != InvalidIndex )
-            {
-                Transform const globalBoneTransform = pSkeleton->GetBoneModelSpaceTransform( boneIdx );
-                drawingCtx.DrawAxis( globalBoneTransform, 0.25f, 3.0f );
+            ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "Parent Space", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "Model Space", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupScrollFreeze( 0, 1 );
 
-                Vector textLocation = globalBoneTransform.GetTranslation();
-                Vector const textLineLocation = textLocation - Vector( 0, 0, 0.01f );
-                drawingCtx.DrawTextBox3D( textLocation, m_selectedBoneID.c_str(), Colors::Lime );
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            for ( StringID const& boneID : m_selectedBoneIDs )
+            {
+                int32_t const selectedBoneIdx = pSkeleton->GetBoneIndex( boneID );
+                EE_ASSERT( selectedBoneIdx != InvalidIndex );
+                Transform const& parentSpaceBoneTransform = pSkeleton->GetParentSpaceReferencePose()[selectedBoneIdx];
+                Transform const& modelSpaceBoneTransform = pSkeleton->GetModelSpaceReferencePose()[selectedBoneIdx];
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::Text( "%d. %s", selectedBoneIdx, pSkeleton->GetBoneID( selectedBoneIdx ).c_str() );
+
+                ImGui::TableNextColumn();
+                ImGuiX::DrawTransform( parentSpaceBoneTransform );
+
+                ImGui::TableNextColumn();
+                ImGuiX::DrawTransform( modelSpaceBoneTransform );
             }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::EndTable();
         }
     }
 
@@ -671,237 +785,19 @@ namespace EE::Animation
     // Bone Masks
     //-------------------------------------------------------------------------
 
-    void SkeletonEditor::StartEditingMask( StringID maskID )
+    void SkeletonEditor::DrawBoneMasksWindow( UpdateContext const& context, bool isFocused )
     {
-        EE_ASSERT( maskID.IsValid() );
-        EE_ASSERT( m_editedMaskIdx == InvalidIndex );
-
-        BoneMaskDefinition* pEditedBoneMaskDefinition = nullptr;
-        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
-        for ( auto i = 0; i < pDescriptor->m_boneMaskDefinitions.size(); i++ )
+        if ( !IsResourceLoaded() )
         {
-            if ( pDescriptor->m_boneMaskDefinitions[i].m_ID == maskID )
-            {
-                pEditedBoneMaskDefinition = &pDescriptor->m_boneMaskDefinitions[i];
-                m_editedMaskIdx = i;
-                break;
-            }
+            return;
         }
-
-        EE_ASSERT( pEditedBoneMaskDefinition != nullptr );
-
-        // Reset edited weights
-        //-------------------------------------------------------------------------
-
-        Skeleton const* pSkeleton = m_editedResource.GetPtr();
-        auto const numBones = pSkeleton->GetNumBones();
-        m_editedBoneWeights.resize( numBones );
-        for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
-        {
-            m_editedBoneWeights[boneIdx] = -1.0f;
-        }
-
-        // Transfer definition weights
-        //-------------------------------------------------------------------------
-
-        for ( auto const& boneWeight : pEditedBoneMaskDefinition->m_weights )
-        {
-            int32_t const boneIdx = pSkeleton->GetBoneIndex( boneWeight.m_boneID );
-            EE_ASSERT( boneIdx != InvalidIndex );
-            m_editedBoneWeights[boneIdx] = boneWeight.m_weight;
-        }
-
-        //-------------------------------------------------------------------------
-
-        UpdatePreviewBoneMask();
-    }
-
-    void SkeletonEditor::StopEditingMask()
-    {
-        m_editedMaskIdx = InvalidIndex;
-    }
-
-    void SkeletonEditor::CreateBoneMask()
-    {
-        EE_ASSERT( IsDataFileLoaded() );
-
-        ScopedDataFileModification const sdm( this );
-        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
-        pDescriptor->m_boneMaskDefinitions.emplace_back( StringID( "Bone Mask" ) );
-        GenerateUniqueBoneMaskName( (int32_t) pDescriptor->m_boneMaskDefinitions.size() - 1 );
-    }
-
-    void SkeletonEditor::DestroyBoneMask( StringID maskID )
-    {
-        EE_ASSERT( IsDataFileLoaded() );
-
-        if ( IsEditingBoneMask() )
-        {
-            StopEditingMask();
-        }
-
-        //-------------------------------------------------------------------------
-
-        ScopedDataFileModification const sdm( this );
-        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
-        for ( auto iter = pDescriptor->m_boneMaskDefinitions.begin(); iter != pDescriptor->m_boneMaskDefinitions.end(); ++iter )
-        {
-            if ( iter->m_ID == maskID )
-            {
-                pDescriptor->m_boneMaskDefinitions.erase( iter );
-                return;
-            }
-        }
-
-        EE_UNREACHABLE_CODE();
-    }
-
-    void SkeletonEditor::RenameBoneMask( StringID oldID, StringID newID )
-    {
-        EE_ASSERT( IsDataFileLoaded() );
-
-        ScopedDataFileModification const sdm( this );
-        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
-        for ( auto i = 0; i < pDescriptor->m_boneMaskDefinitions.size(); i++ )
-        {
-            if ( pDescriptor->m_boneMaskDefinitions[i].m_ID == oldID )
-            {
-                pDescriptor->m_boneMaskDefinitions[i].m_ID = newID;
-                GenerateUniqueBoneMaskName( i );
-                return;
-            }
-        }
-
-        EE_UNREACHABLE_CODE();
-    }
-
-    void SkeletonEditor::SetWeight( int32_t boneIdx, float weight )
-    {
-        EE_ASSERT( IsValidWeight( weight ) );
-        EE_ASSERT( IsDataFileLoaded() );
-        EE_ASSERT( IsEditingBoneMask() );
-
-        ScopedDataFileModification const sm( this );
-        m_editedBoneWeights[boneIdx] = weight;
-
-        ReflectWeightsToEditedBoneMask();
-        UpdatePreviewBoneMask();
-    }
-
-    void SkeletonEditor::SetAllChildWeights( int32_t parentBoneIdx, float weight, bool bIncludeParent )
-    {
-        EE_ASSERT( IsValidWeight( weight ) );
-        EE_ASSERT( IsDataFileLoaded() );
-        EE_ASSERT( IsEditingBoneMask() );
-
-        ScopedDataFileModification const sm( this );
-
-        if ( bIncludeParent )
-        {
-            m_editedBoneWeights[parentBoneIdx] = weight;
-        }
-
-        Skeleton const* pSkeleton = m_editedResource.GetPtr();
-        auto const numBones = pSkeleton->GetNumBones();
-        for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
-        {
-            if ( pSkeleton->IsChildBoneOf( parentBoneIdx, boneIdx ) )
-            {
-                m_editedBoneWeights[boneIdx] = weight;
-            }
-        }
-
-        ReflectWeightsToEditedBoneMask();
-        UpdatePreviewBoneMask();
-    }
-
-    void SkeletonEditor::ReflectWeightsToEditedBoneMask()
-    {
-        EE_ASSERT( IsDataFileLoaded() );
-        EE_ASSERT( IsEditingBoneMask() );
-
-        ScopedDataFileModification const sm( this );
-        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
-        auto pEditedBoneMaskDefinition = &pDescriptor->m_boneMaskDefinitions[m_editedMaskIdx];
-
-        // Clear existing weights
-        pEditedBoneMaskDefinition->m_weights.clear();
-
-        // Reflect the current edited weights
-        Skeleton const* pSkeleton = m_editedResource.GetPtr();
-        auto const numBones = pSkeleton->GetNumBones();
-        for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
-        {
-            if ( m_editedBoneWeights[boneIdx] >= 0.0f )
-            {
-                pEditedBoneMaskDefinition->m_weights.emplace_back( pSkeleton->GetBoneID( boneIdx ), m_editedBoneWeights[boneIdx] );
-            }
-        }
-    }
-
-    void SkeletonEditor::UpdatePreviewBoneMask()
-    {
-        EE_ASSERT( IsEditingBoneMask() );
-        Skeleton const* pSkeleton = m_editedResource.GetPtr();
-
-        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
-        BoneMask::SerializedData serializedData;
-        pDescriptor->m_boneMaskDefinitions[m_editedMaskIdx].GenerateSerializedBoneMask( pSkeleton, serializedData );
-        m_previewBoneMask = BoneMask( pSkeleton, serializedData );
-    }
-
-    void SkeletonEditor::DrawBoneMaskPreview()
-    {
-        EE_ASSERT( IsResourceLoaded() );
-        EE_ASSERT( IsEditingBoneMask() );
-        EE_ASSERT( m_previewBoneMask.IsValid() );
-
-        //-------------------------------------------------------------------------
-
-        auto drawingCtx = GetDrawingContext();
-
-        Skeleton const* pSkeleton = m_editedResource.GetPtr();
-        auto const& parentSpaceRefPose = pSkeleton->GetParentSpaceReferencePose();
-        auto const& parentIndices = pSkeleton->GetParentBoneIndices();
-
-        auto const numBones = parentSpaceRefPose.size();
-        if ( numBones > 0 )
-        {
-            TInlineVector<Transform, 256> modelSpaceTransforms;
-            modelSpaceTransforms.resize( numBones );
-
-            modelSpaceTransforms[0] = parentSpaceRefPose[0];
-            for ( auto i = 1; i < numBones; i++ )
-            {
-                auto const& parentIdx = parentIndices[i];
-                auto const& parentTransform = modelSpaceTransforms[parentIdx];
-                modelSpaceTransforms[i] = parentSpaceRefPose[i] * parentTransform;
-            }
-
-            //-------------------------------------------------------------------------
-
-            for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
-            {
-                auto const& parentIdx = parentIndices[boneIdx];
-                auto const& parentTransform = modelSpaceTransforms[parentIdx];
-                auto const& boneTransform = modelSpaceTransforms[boneIdx];
-
-                Color const boneColor = Color::EvaluateRedGreenGradient( m_previewBoneMask.GetWeight( boneIdx ) );
-                drawingCtx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), boneColor, 5.0f );
-            }
-        }
-    }
-
-    void SkeletonEditor::DrawBoneMaskWindow( UpdateContext const& context, bool isFocused )
-    {
-        StringID maskToDelete;
 
         //-------------------------------------------------------------------------
 
         auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
 
         ImGui::BeginDisabled( !IsDataFileLoaded() );
-        if ( ImGuiX::IconButtonColored(  EE_ICON_PLUS, "Add New Mask", Colors::Green, Colors::White, Colors::White, ImVec2( -1, 0 ) ) )
+        if ( ImGuiX::IconButtonColored( EE_ICON_PLUS, "Add New Mask", Colors::Green, Colors::White, Colors::White, ImVec2( -1, 0 ) ) )
         {
             CreateBoneMask();
         }
@@ -910,19 +806,21 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         static ImGuiTableFlags flags = ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY;
+        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 8, 4 ) );
         if ( ImGui::BeginTable( "BoneMasks", 2, flags, ImGui::GetContentRegionAvail() ) )
         {
-            static ImVec2 const buttonSize( 30, 0 );
+            static ImVec2 const buttonSize( 45, 0 );
 
             ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_NoHide );
-            ImGui::TableSetupColumn( "Controls", ImGuiTableColumnFlags_WidthFixed, ( buttonSize.x * 3 + ( ImGui::GetStyle().ItemSpacing.x * 2 ) ) );
+            ImGui::TableSetupColumn( "Controls", ImGuiTableColumnFlags_WidthFixed, ( buttonSize.x * 2 + ( ImGui::GetStyle().ItemSpacing.x ) ) );
 
             //-------------------------------------------------------------------------
+
             if ( pDescriptor != nullptr )
             {
-                for ( auto i = 0; i < pDescriptor->m_boneMaskDefinitions.size(); i++ )
+                for ( auto i = 0; i < pDescriptor->m_boneMaskSetDefinitions.size(); i++ )
                 {
-                    auto const& boneMaskDefinition = pDescriptor->m_boneMaskDefinitions[i];
+                    auto const& boneMaskDefinition = pDescriptor->m_boneMaskSetDefinitions[i];
                     ImGui::PushID( &boneMaskDefinition );
                     ImGui::TableNextRow();
 
@@ -935,7 +833,7 @@ namespace EE::Animation
                     bool const isSelected = ( m_editedMaskIdx != InvalidIndex ) ? ( m_editedMaskIdx == i ) : false;
                     ImGui::PushStyleColor( ImGuiCol_Text, isSelected ? Colors::Lime : ImGuiX::Style::s_colorText );
                     InlineString const label( InlineString::CtorSprintf(), EE_ICON_DRAMA_MASKS" %s", boneMaskDefinition.m_ID.c_str() );
-                    if ( ImGui::Selectable( label.c_str(), isSelected ) )
+                    if ( ImGui::Selectable( label.c_str(), isSelected, 0 ) )
                     {
                         if ( m_editedMaskIdx != i )
                         {
@@ -962,13 +860,13 @@ namespace EE::Animation
                         {
                             EE::Printf( m_renameBuffer, 255, boneMaskDefinition.m_ID.c_str() );
                             m_dialogMaskID = boneMaskDefinition.m_ID;
-                            m_dialogManager.CreateModalDialog( "Rename Mask", [this] ( UpdateContext const& context ) { return DrawRenameBoneMaskDialog( context ); } );
+                            m_pToolsContext->m_pDialogManager->StartModalDialog( "Rename Mask", [this] () { return DrawRenameBoneMaskDialog(); } );
                         }
 
                         if ( ImGui::MenuItem( EE_ICON_DELETE" Delete" ) )
                         {
                             m_dialogMaskID = boneMaskDefinition.m_ID;
-                            m_dialogManager.CreateModalDialog( "Delete Mask?", [this] ( UpdateContext const& context ) { return DrawDeleteBoneMaskDialog( context ); } );
+                            m_pToolsContext->m_pDialogManager->StartModalDialog( "Delete Mask?", [this] () { return DrawDeleteBoneMaskDialog(); } );
                         }
 
                         ImGui::EndPopup();
@@ -980,7 +878,7 @@ namespace EE::Animation
 
                     if ( isSelected )
                     {
-                        if ( ImGuiX::IconButton( EE_ICON_CHECK, "##StopEdit", Colors::Lime, buttonSize ) )
+                        if ( ImGuiX::IconButton( EE_ICON_CANCEL, "Stop Edit", Colors::Red, ImVec2( -1, 0 ) ) )
                         {
                             StopEditingMask();
                         }
@@ -988,27 +886,23 @@ namespace EE::Animation
                     }
                     else
                     {
-                        ImGui::Dummy( buttonSize );
+                        if ( ImGui::Button( EE_ICON_SQUARE_EDIT_OUTLINE"##Rename", buttonSize ) )
+                        {
+                            EE::Printf( m_renameBuffer, 255, boneMaskDefinition.m_ID.c_str() );
+                            m_dialogMaskID = boneMaskDefinition.m_ID;
+                            m_pToolsContext->m_pDialogManager->StartModalDialog( "Rename Mask", [this] () { return DrawRenameBoneMaskDialog(); } );
+                        }
+                        ImGuiX::ItemTooltip( "Rename" );
+
+                        ImGui::SameLine();
+
+                        if ( ImGui::Button( EE_ICON_DELETE"##Delete", buttonSize ) )
+                        {
+                            m_dialogMaskID = boneMaskDefinition.m_ID;
+                            m_pToolsContext->m_pDialogManager->StartModalDialog( "Delete Mask?", [this] () { return DrawDeleteBoneMaskDialog(); } );
+                        }
+                        ImGuiX::ItemTooltip( "Delete" );
                     }
-
-                    ImGui::SameLine();
-
-                    if ( ImGui::Button( EE_ICON_SQUARE_EDIT_OUTLINE"##Rename", buttonSize ) )
-                    {
-                        EE::Printf( m_renameBuffer, 255, boneMaskDefinition.m_ID.c_str() );
-                        m_dialogMaskID = boneMaskDefinition.m_ID;
-                        m_dialogManager.CreateModalDialog( "Rename Mask", [this] ( UpdateContext const& context ) { return DrawRenameBoneMaskDialog( context ); } );
-                    }
-                    ImGuiX::ItemTooltip( "Rename" );
-
-                    ImGui::SameLine();
-
-                    if ( ImGui::Button( EE_ICON_DELETE"##Delete", buttonSize ) )
-                    {
-                        m_dialogMaskID = boneMaskDefinition.m_ID;
-                        m_dialogManager.CreateModalDialog( "Delete Mask?", [this] ( UpdateContext const& context ) { return DrawDeleteBoneMaskDialog( context ); } );
-                    }
-                    ImGuiX::ItemTooltip( "Delete" );
 
                     //-------------------------------------------------------------------------
 
@@ -1017,6 +911,187 @@ namespace EE::Animation
             }
 
             ImGui::EndTable();
+        }
+        ImGui::PopStyleVar( 1 );
+    }
+
+    void SkeletonEditor::ReflectEditedWeights()
+    {
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
+        BoneMaskSetDefinition& editedBoneMaskDefinition = pDescriptor->m_boneMaskSetDefinitions[m_editedMaskIdx];
+
+        // Reset all weights
+        Skeleton const* pSkeleton = m_editedResource.GetPtr();
+        auto const numBones = pSkeleton->GetNumBones();
+        for ( int32_t i = 0; i < numBones; i++ )
+        {
+            m_bones[i]->m_weight = -1.0f;
+        }
+
+        // Transfer any set weights
+        int32_t const numWeights = editedBoneMaskDefinition.m_primaryWeightList.GetNumWeights();
+        for ( int32_t i = 0; i < numWeights; i++ )
+        {
+            int32_t const boneIdx = pSkeleton->GetBoneIndex( editedBoneMaskDefinition.m_primaryWeightList.m_boneIDs[i] );
+            if( boneIdx != InvalidIndex && editedBoneMaskDefinition.m_primaryWeightList.m_weights[i] >= 0.0f )
+            {
+                m_bones[boneIdx]->m_weight = editedBoneMaskDefinition.m_primaryWeightList.m_weights[i];
+            }
+        }
+    }
+
+    void SkeletonEditor::StartEditingMask( StringID maskID )
+    {
+        EE_ASSERT( maskID.IsValid() );
+        EE_ASSERT( m_editedMaskIdx == InvalidIndex );
+
+        BoneMaskSetDefinition* pEditedBoneMaskDefinition = nullptr;
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
+        for ( auto i = 0; i < pDescriptor->m_boneMaskSetDefinitions.size(); i++ )
+        {
+            if ( pDescriptor->m_boneMaskSetDefinitions[i].m_ID == maskID )
+            {
+                pEditedBoneMaskDefinition = &pDescriptor->m_boneMaskSetDefinitions[i];
+                m_editedMaskIdx = i;
+                break;
+            }
+        }
+
+        EE_ASSERT( pEditedBoneMaskDefinition != nullptr );
+
+        ReflectEditedWeights();
+    }
+
+    void SkeletonEditor::StopEditingMask()
+    {
+        m_editedMaskIdx = InvalidIndex;
+    }
+
+    void SkeletonEditor::CreateBoneMask()
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+
+        ScopedDataFileModification const sdm( this );
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
+        pDescriptor->m_boneMaskSetDefinitions.emplace_back( StringID( "Bone Mask" ) );
+        GenerateUniqueBoneMaskName( (int32_t) pDescriptor->m_boneMaskSetDefinitions.size() - 1 );
+    }
+
+    void SkeletonEditor::DestroyBoneMask( StringID maskID )
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+
+        if ( IsEditingBoneMask() )
+        {
+            StopEditingMask();
+        }
+
+        //-------------------------------------------------------------------------
+
+        ScopedDataFileModification const sdm( this );
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
+        for ( auto iter = pDescriptor->m_boneMaskSetDefinitions.begin(); iter != pDescriptor->m_boneMaskSetDefinitions.end(); ++iter )
+        {
+            if ( iter->m_ID == maskID )
+            {
+                pDescriptor->m_boneMaskSetDefinitions.erase( iter );
+                return;
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+    }
+
+    void SkeletonEditor::RenameBoneMask( StringID oldID, StringID newID )
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+
+        ScopedDataFileModification const sdm( this );
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
+        for ( auto i = 0; i < pDescriptor->m_boneMaskSetDefinitions.size(); i++ )
+        {
+            if ( pDescriptor->m_boneMaskSetDefinitions[i].m_ID == oldID )
+            {
+                pDescriptor->m_boneMaskSetDefinitions[i].m_ID = newID;
+                GenerateUniqueBoneMaskName( i );
+                return;
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+    }
+
+    void SkeletonEditor::SetWeight( int32_t boneIdx, float weight )
+    {
+        EE_ASSERT( IsValidWeight( weight ) );
+        EE_ASSERT( IsDataFileLoaded() );
+        EE_ASSERT( IsEditingBoneMask() );
+
+        //-------------------------------------------------------------------------
+
+        Skeleton const* pSkeleton = m_editedResource.GetPtr();
+        EE_ASSERT( pSkeleton != nullptr );
+        StringID const editedBoneID = pSkeleton->GetBoneID( boneIdx );
+
+        if ( m_selectedBoneIDs.empty() )
+        {
+            m_selectedBoneIDs.emplace_back( editedBoneID );
+        }
+        else // Have a pre-existing selection
+        {
+            if ( !VectorContains( m_selectedBoneIDs, editedBoneID ) )
+            {
+                m_selectedBoneIDs.clear();
+                m_selectedBoneIDs.emplace_back( editedBoneID );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        ScopedDataFileModification const sm( this );
+
+        auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
+        BoneMaskSetDefinition& editedBoneMaskDefinition = pDescriptor->m_boneMaskSetDefinitions[m_editedMaskIdx];
+
+        for ( StringID const& boneID : m_selectedBoneIDs )
+        {
+            int32_t const selectedBoneIdx = pSkeleton->GetBoneIndex( boneID );
+            EE_ASSERT( selectedBoneIdx != InvalidIndex );
+
+            if ( weight < 0.0f )
+            {
+                m_bones[selectedBoneIdx]->m_weight = -1.0f;
+                editedBoneMaskDefinition.m_primaryWeightList.UnsetWeightForBone( boneID );
+            }
+            else
+            {
+                m_bones[selectedBoneIdx]->m_weight = weight;
+                editedBoneMaskDefinition.m_primaryWeightList.SetWeightForBone( boneID, weight );
+            }
+        }
+    }
+
+    void SkeletonEditor::SetAllChildWeights( int32_t parentBoneIdx, float weight, bool bIncludeParent )
+    {
+        EE_ASSERT( IsValidWeight( weight ) );
+        EE_ASSERT( IsDataFileLoaded() );
+        EE_ASSERT( IsEditingBoneMask() );
+
+        ScopedDataFileModification const sm( this );
+
+        if ( bIncludeParent )
+        {
+            //m_editedBoneWeights[parentBoneIdx] = weight;
+        }
+
+        Skeleton const* pSkeleton = m_editedResource.GetPtr();
+        auto const numBones = pSkeleton->GetNumBones();
+        for ( auto boneIdx = 1; boneIdx < numBones; boneIdx++ )
+        {
+            if ( pSkeleton->IsChildBoneOf( parentBoneIdx, boneIdx ) )
+            {
+                //m_editedBoneWeights[boneIdx] = weight;
+            }
         }
     }
 
@@ -1031,41 +1106,68 @@ namespace EE::Animation
 
         Skeleton const* pSkeleton = m_editedResource.GetPtr();
         auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
-        for ( auto& descriptorDefinition : pDescriptor->m_boneMaskDefinitions )
+
+        for ( int32_t i = 0; i < (int32_t) pDescriptor->m_boneMaskSetDefinitions.size(); i++ )
         {
-            // Remove invalid weights;
-            for ( auto i = 0; i < descriptorDefinition.m_weights.size(); i++ )
+            auto& boneMaskSetDefinition = pDescriptor->m_boneMaskSetDefinitions[i];
+
+            // Fix invalid names
+            if ( !boneMaskSetDefinition.m_ID.IsValid() )
             {
-                int32_t const boneIdx = pSkeleton->GetBoneIndex( descriptorDefinition.m_weights[i].m_boneID );
-                if ( boneIdx == InvalidIndex )
-                {
-                    descriptorDefinition.m_weights.erase( descriptorDefinition.m_weights.begin() + i );
-                    i--;
-                    fixupPerformed = true;
-                    continue;
-                }
-
-                //-------------------------------------------------------------------------
-
-                if ( descriptorDefinition.m_weights[i].m_weight < 0.0f || descriptorDefinition.m_weights[i].m_weight > 1.0f )
-                {
-                    descriptorDefinition.m_weights[i].m_weight = Math::Clamp( descriptorDefinition.m_weights[i].m_weight, 0.0f, 1.0f );
-                    fixupPerformed = true;
-                }
+                boneMaskSetDefinition.m_ID = StringID( "BoneMask" );
+                fixupPerformed = true;
             }
 
             // Check for unique name
-            for ( auto i = 0; i < pDescriptor->m_boneMaskDefinitions.size(); i++ )
+            for ( auto j = 0; j < pDescriptor->m_boneMaskSetDefinitions.size(); j++ )
             {
-                if ( &pDescriptor->m_boneMaskDefinitions[i] == &descriptorDefinition )
+                if ( &pDescriptor->m_boneMaskSetDefinitions[j] == &boneMaskSetDefinition )
                 {
                     continue;
                 }
 
                 // Duplicate name detected!
-                if ( descriptorDefinition.m_ID == pDescriptor->m_boneMaskDefinitions[i].m_ID )
+                if ( boneMaskSetDefinition.m_ID == pDescriptor->m_boneMaskSetDefinitions[j].m_ID )
                 {
+                    GenerateUniqueBoneMaskName( i );
+                    fixupPerformed = true;
+                }
+            }
 
+            // Check Weight lists
+            //-------------------------------------------------------------------------
+
+            if ( !boneMaskSetDefinition.m_primaryWeightList.m_skeletonID.IsValid() )
+            {
+                boneMaskSetDefinition.m_primaryWeightList.m_skeletonID = m_editedResource.GetResourceID();
+                fixupPerformed = true;
+            }
+
+            if ( boneMaskSetDefinition.m_primaryWeightList.RemoveDuplicateWeights() )
+            {
+                fixupPerformed = true;
+            }
+
+            if ( boneMaskSetDefinition.m_primaryWeightList.RemoveWeightsForMissingBones( pSkeleton ) )
+            {
+                fixupPerformed = true;
+            }
+
+            for ( auto& secondaryWeightList : boneMaskSetDefinition.m_secondaryWeightLists )
+            {
+                /*if ( !boneMaskSetDefinition.m_primaryWeightList.m_skeletonID.IsValid() )
+                {
+                    boneMaskSetDefinition.m_primaryWeightList.m_skeletonID = m_editedResource.GetResourceID();
+                    fixupPerformed = true;
+                }*/
+
+                if ( boneMaskSetDefinition.m_primaryWeightList.RemoveDuplicateWeights() )
+                {
+                    fixupPerformed = true;
+                }
+
+                if ( boneMaskSetDefinition.m_primaryWeightList.RemoveWeightsForMissingBones( pSkeleton ) )
+                {
                     fixupPerformed = true;
                 }
             }
@@ -1085,9 +1187,9 @@ namespace EE::Animation
 
         EE_ASSERT( IsDataFileLoaded() );
         auto pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
-        EE_ASSERT( boneMaskIdx >= 0 && boneMaskIdx < pDescriptor->m_boneMaskDefinitions.size() );
+        EE_ASSERT( boneMaskIdx >= 0 && boneMaskIdx < pDescriptor->m_boneMaskSetDefinitions.size() );
 
-        InlineString desiredName = pDescriptor->m_boneMaskDefinitions[boneMaskIdx].m_ID.c_str();
+        InlineString desiredName = pDescriptor->m_boneMaskSetDefinitions[boneMaskIdx].m_ID.c_str();
         InlineString finalName = desiredName;
 
         uint32_t counter = 0;
@@ -1096,14 +1198,14 @@ namespace EE::Animation
         {
             isUniqueName = true;
 
-            for ( auto i = 0; i < pDescriptor->m_boneMaskDefinitions.size(); i++ )
+            for ( auto i = 0; i < pDescriptor->m_boneMaskSetDefinitions.size(); i++ )
             {
                 if ( boneMaskIdx == i )
                 {
                     continue;
                 }
 
-                if ( finalName.comparei( pDescriptor->m_boneMaskDefinitions[i].m_ID.c_str()) == 0 )
+                if ( finalName.comparei( pDescriptor->m_boneMaskSetDefinitions[i].m_ID.c_str()) == 0 )
                 {
                     isUniqueName = false;
                     break;
@@ -1126,26 +1228,33 @@ namespace EE::Animation
             }
         }
 
-        pDescriptor->m_boneMaskDefinitions[boneMaskIdx].m_ID = StringID( finalName.c_str() );
+        pDescriptor->m_boneMaskSetDefinitions[boneMaskIdx].m_ID = StringID( finalName.c_str() );
     }
 
-    bool SkeletonEditor::DrawDeleteBoneMaskDialog( UpdateContext const& context )
+    bool SkeletonEditor::DrawDeleteBoneMaskDialog()
     {
+        constexpr static char const * const yesStr = "Yes";
+        constexpr static char const * const noStr = "No";
+        float const buttonWidth = Math::Max( ImGuiX::CalculateButtonWidth( yesStr ), ImGuiX::CalculateButtonWidth( noStr ) );
+
+        ImGui::Dummy( ImVec2( 400, 0 ) );
+
         ImGui::Text( "Are you sure you want to delete this bone mask?" );
+
         ImGui::NewLine();
 
         float const dialogWidth = ImGui::GetContentRegionAvail().x;
-        ImGui::SameLine( 0, dialogWidth - 64 );
+        ImGui::SameLine( 0, dialogWidth - ( buttonWidth * 2 ) - ImGui::GetStyle().ItemSpacing.x );
 
-        if ( ImGui::Button( "Yes", ImVec2( 30, 0 ) ) )
+        if ( ImGui::Button( yesStr, ImVec2( buttonWidth, 0 ) ) )
         {
             DestroyBoneMask( m_dialogMaskID );
             m_dialogMaskID.Clear();
         }
 
-        ImGui::SameLine( 0, 4 );
+        ImGui::SameLine();
 
-        if ( ImGui::Button( "No", ImVec2( 30, 0 ) ) )
+        if ( ImGui::Button( noStr, ImVec2( buttonWidth, 0 ) ) )
         {
             m_dialogMaskID.Clear();
         }
@@ -1153,7 +1262,7 @@ namespace EE::Animation
         return m_dialogMaskID.IsValid();
     }
 
-    bool SkeletonEditor::DrawRenameBoneMaskDialog( UpdateContext const& context )
+    bool SkeletonEditor::DrawRenameBoneMaskDialog()
     {
         SkeletonResourceDescriptor* pDescriptor = GetDataFile<SkeletonResourceDescriptor>();
 
@@ -1172,7 +1281,7 @@ namespace EE::Animation
             }
 
             // Check for uniqueness
-            for ( auto const& def : pDescriptor->m_boneMaskDefinitions )
+            for ( auto const& def : pDescriptor->m_boneMaskSetDefinitions )
             {
                 if ( def.m_ID == ID )
                 {
@@ -1188,6 +1297,7 @@ namespace EE::Animation
 
         ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? ImGuiX::Style::s_colorText : Colors::Red );
 
+        ImGui::SetNextItemWidth( 400 );
         if ( ImGui::InputText( "##MaskName", m_renameBuffer, 255, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CallbackCharFilter, FilterMaskNameChars ) )
         {
             isValidName = ValidateName( StringID( m_renameBuffer ) );
@@ -1201,29 +1311,35 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + 4 );
+        constexpr static char const * const okStr = "Ok";
+        constexpr static char const * const cancelStr = "Cancel";
+        float const buttonWidth = Math::Max( ImGuiX::CalculateButtonWidth( okStr ), ImGuiX::CalculateButtonWidth( cancelStr ) );
+
         ImGui::NewLine();
 
         float const dialogWidth = ImGui::GetContentRegionAvail().x;
-        ImGui::SameLine( 0, dialogWidth - 104 );
+        ImGui::SameLine( 0, dialogWidth - ( buttonWidth * 2 ) - ImGui::GetStyle().ItemSpacing.x );
 
         ImGui::BeginDisabled( !isValidName );
-        if ( ImGui::Button( "Ok", ImVec2( 50, 0 ) ) || renameRequested )
+        if ( ImGui::Button( okStr, ImVec2( buttonWidth, 0 ) ) || renameRequested )
         {
             RenameBoneMask( m_dialogMaskID, StringID( m_renameBuffer ) );
             m_dialogMaskID.Clear();
         }
         ImGui::EndDisabled();
 
-        ImGui::SameLine( 0, 4 );
+        ImGui::SameLine();
 
-        if ( ImGui::Button( "Cancel", ImVec2( 50, 0 ) ) )
+        if ( ImGui::Button( cancelStr, ImVec2( buttonWidth, 0 ) ) )
         {
             m_dialogMaskID.Clear();
         }
 
         return m_dialogMaskID.IsValid();
     }
+
+    // Clip Browser
+    //-------------------------------------------------------------------------
 
     void SkeletonEditor::DrawClipBrowser( UpdateContext const& context, bool isFocused )
     {

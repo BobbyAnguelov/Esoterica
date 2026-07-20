@@ -1,14 +1,15 @@
 #pragma once
 
-#include "Engine/Animation/AnimationDebug.h"
+#include "Engine/Animation/AnimationSourcePath.h"
 #include "Base/Math/Transform.h"
 #include "Base/Time/Time.h"
 #include "Base/Types/Arrays.h"
 #include "Base/Types/Pool.h"
+#include "Base/Types/Color.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Drawing { class DrawContext; }
+namespace EE { class DebugDrawContext; }
 
 //-------------------------------------------------------------------------
 
@@ -44,16 +45,17 @@ namespace EE::Animation
 
         struct RecordedAction
         {
-            RecordedAction( int16_t nodeIdx, ActionType actionType, Transform const& rootMotionDelta )
-                : m_rootMotionDelta( rootMotionDelta )
-                , m_nodeIdx( nodeIdx )
+            RecordedAction( SourcePath const& sourcePath, ActionType actionType, Transform const& rootMotionDelta )
+                : m_sourcePath( sourcePath )
+                , m_rootMotionDelta( rootMotionDelta )
                 , m_actionType( actionType )
             {}
 
+            SourcePath                  m_sourcePath;
             Transform                   m_rootMotionDelta;
             TInlineVector<int16_t, 2>   m_dependencies;
-            int16_t                     m_nodeIdx;
             ActionType                  m_actionType;
+
         };
 
         struct RecordedPosition
@@ -72,7 +74,7 @@ namespace EE::Animation
 
         void SetDebugMode( RootMotionDebugMode mode );
         RootMotionDebugMode GetDebugMode() const { return m_debugMode; }
-        void DrawDebug( Drawing::DrawContext& drawingContext );
+        void DrawDebug( DebugDrawContext& drawingContext );
 
         //-------------------------------------------------------------------------
 
@@ -88,22 +90,18 @@ namespace EE::Animation
 
         EE_FORCE_INLINE int16_t GetLastActionIndex() const { return (int16_t) m_recordedActions.size() - 1; }
 
-        EE_FORCE_INLINE int16_t RecordSampling( int16_t nodeIdx, Transform const& rootMotionDelta )
+        EE_FORCE_INLINE int16_t RecordSampling( SourcePath const& sourcePath, Transform const& rootMotionDelta )
         {
-            EE_ASSERT( nodeIdx != InvalidIndex );
-            m_debugPathTracker.AddTrackedPath( nodeIdx );
             int16_t const idx = (int16_t) m_recordedActions.size();
-            m_recordedActions.emplace_back( nodeIdx, ActionType::Sample, rootMotionDelta );
+            m_recordedActions.emplace_back( sourcePath, ActionType::Sample, rootMotionDelta );
             return idx;
         }
 
-        EE_FORCE_INLINE int16_t RecordModification( int16_t nodeIdx, Transform const& rootMotionDelta )
+        EE_FORCE_INLINE int16_t RecordModification( SourcePath const& sourcePath, Transform const& rootMotionDelta )
         {
-            EE_ASSERT( nodeIdx != InvalidIndex );
-            m_debugPathTracker.AddTrackedPath( nodeIdx );
             int16_t const previousIdx = GetLastActionIndex();
             int16_t const idx = (int16_t) m_recordedActions.size();
-            auto& action = m_recordedActions.emplace_back( nodeIdx, ActionType::Modification, rootMotionDelta );
+            auto& action = m_recordedActions.emplace_back( sourcePath, ActionType::Modification, rootMotionDelta );
             if ( previousIdx >= 0 )
             {
                 action.m_dependencies.emplace_back( previousIdx );
@@ -112,12 +110,10 @@ namespace EE::Animation
         }
 
         // Blend operations automatically pop a blend context
-        EE_FORCE_INLINE int16_t RecordBlend( int16_t nodeIdx, int16_t originalRootMotionActionIdx0, int16_t originalRootMotionActionIdx1, Transform const& rootMotionDelta )
+        EE_FORCE_INLINE int16_t RecordBlend( SourcePath const& sourcePath, int16_t originalRootMotionActionIdx0, int16_t originalRootMotionActionIdx1, Transform const& rootMotionDelta )
         {
-            EE_ASSERT( nodeIdx != InvalidIndex );
-            m_debugPathTracker.AddTrackedPath( nodeIdx );
             int16_t const idx = (int16_t) m_recordedActions.size();
-            auto& action = m_recordedActions.emplace_back( nodeIdx, ActionType::Blend, rootMotionDelta );
+            auto& action = m_recordedActions.emplace_back( sourcePath, ActionType::Blend, rootMotionDelta );
             action.m_dependencies.emplace_back( originalRootMotionActionIdx0 );
 
             // It's possible for the use to only have a single source for a blend since not all nodes register root motion actions
@@ -134,24 +130,6 @@ namespace EE::Animation
             return idx;
         }
 
-        // Path Tracking
-        //-------------------------------------------------------------------------
-
-        // Add a new path element to add extra information about the source of events (this should only be called from child/external graph nodes)
-        void PushBaseDebugPath( int16_t nodeIdx ) { m_debugPathTracker.PushBasePath( nodeIdx ); }
-
-        // Pop a path element from the current path
-        void PopBaseDebugPath() { m_debugPathTracker.PopBasePath(); }
-
-        // Do we currently have a debug path set?
-        inline bool HasDebugBasePathSet() const { return m_debugPathTracker.HasBasePath(); }
-
-        TInlineVector<int64_t, 5> const& GetActionDebugPath( int16_t actionIdx ) const
-        {
-            EE_ASSERT( actionIdx >= 0 && actionIdx < m_recordedActions.size() );
-            return m_debugPathTracker.m_itemPaths[actionIdx];
-        }
-
     private:
 
         TVector<RecordedAction>         m_recordedActions;
@@ -160,7 +138,6 @@ namespace EE::Animation
         TVector<RecordedPosition>       m_recordedRootTransforms; // Circular buffer
         int32_t                         m_freeBufferIdx = 0;
         RootMotionDebugMode             m_debugMode = RootMotionDebugMode::Off;
-        DebugPathTracker                m_debugPathTracker;
     };
 }
 #endif

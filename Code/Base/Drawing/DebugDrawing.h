@@ -9,7 +9,7 @@
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
-namespace EE::Drawing
+namespace EE
 {
     //-------------------------------------------------------------------------
     // Debug Drawing Context
@@ -21,22 +21,22 @@ namespace EE::Drawing
     // We have helper functions to allow you to draw custom types in the same manner as the basic primitive:
     // i.e. drawingContext.Draw( MyType const& type )
     // To support this, you need to implement one of the following functions in your type:
-    // 1) 'void DrawDebug( Drawing::DrawContext& ctx ) const'
-    // 2) 'void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform ) const'
+    // 1) 'void DrawDebug( DebugDrawContext& ctx ) const'
+    // 2) 'void DrawDebug( DebugDrawContext& ctx, Transform const& worldTransform ) const'
 
     // Note: We use float4 for colors here since EE::Color will implicitly convert to a float4. 
     // We use float4s for color in the rendering code, so this allows you to save on constantly paying the conversion cost when drawing lots of primitives
 
-    class EE_BASE_API DrawContext
+    class EE_BASE_API DebugDrawContext
     {
-        friend class DrawingSystem;
+        friend class DebugDrawSystem;
 
         constexpr static float const s_defaultLineThickness = 1.0f;
         constexpr static float const s_defaultPointThickness = 5.0f;
 
     public:
 
-        inline DrawContext( DrawContext const& RHS ) : m_commandBuffer( RHS.m_commandBuffer ) {}
+        inline DebugDrawContext( DebugDrawContext const& RHS ) : m_commandBuffer( RHS.m_commandBuffer ) {}
 
         //-------------------------------------------------------------------------
 
@@ -53,256 +53,452 @@ namespace EE::Drawing
         }
 
         //-------------------------------------------------------------------------
+        // Hit Testing
+        //-------------------------------------------------------------------------
+
+        // Set a hit test ID so that we can use picking to detect when we hover or click on debug draw shapes
+        void SetHitTestID( uint64_t ID ) { m_commandBuffer.SetHitTestID( ID ); }
+
+        // Get the currently set hit test ID, return 0 if not ID set
+        uint64_t GetActiveHitTestID() const { return m_commandBuffer.GetActiveHitTestID(); }
+
+        // Clear the currently set hit-test ID
+        void ClearHitTestID() { m_commandBuffer.ClearHitTestID(); }
+
+        //-------------------------------------------------------------------------
         // Basic Primitives
         //-------------------------------------------------------------------------
 
-        inline void DrawPoint( Float3 const& position, Float4 const& color, float thickness = s_defaultPointThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawPoint( Float3 const& position, Float4 const& color, float thickness = s_defaultPointThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawPoint( m_commandBuffer, position, color, thickness, depthTestState, TTL );
+            InternalDrawPoint( m_commandBuffer, position, color, thickness, layer, TTL );
         }
 
-        inline void DrawLine( Float3 const& startPosition, Float3 const& endPosition, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawLine( Float3 const& startPosition, Float3 const& endPosition, Float4 const& color, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawLine( m_commandBuffer, startPosition, endPosition, color, lineThickness, depthTestState, TTL );
+            InternalDrawLine( m_commandBuffer, startPosition, endPosition, color, lineThickness, layer, TTL );
         }
 
-        inline void DrawLine( Float3 const& startPosition, Float3 const& endPosition, Float4 const& startColor, Float4 const& endColor, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawLine( Float3 const& startPosition, Float3 const& endPosition, Float4 const& startColor, Float4 const& endColor, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawLine( m_commandBuffer, startPosition, endPosition, startColor, endColor, lineThickness, depthTestState, TTL );
+            InternalDrawLine( m_commandBuffer, startPosition, endPosition, startColor, endColor, lineThickness, layer, TTL );
         }
 
-        inline void DrawTriangle( Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawTriangle( Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawTriangle( m_commandBuffer, v0, v1, v2, color, color, color, depthTestState, TTL );
+            InternalDrawTriangle( m_commandBuffer, v0, v1, v2, color, color, color, layer, TTL );
         }
 
-        inline void DrawTriangle( Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color0, Float4 const& color1, Float4 const& color2, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawTriangle( Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color0, Float4 const& color1, Float4 const& color2, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawTriangle( m_commandBuffer, v0, v1, v2, color0, color1, color2, depthTestState, TTL );
+            InternalDrawTriangle( m_commandBuffer, v0, v1, v2, color0, color1, color2, layer, TTL );
         }
 
-        void DrawWireTriangle( Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 );
+        void DrawWireTriangle( Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 );
 
-        inline void DrawText2D( Float2 const& screenPosition, char const* pText, Float4 const& color, FontSize size = FontSize::FontNormal, TextAlignment alignment = TextAlignment::AlignMiddleLeft, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        //-------------------------------------------------------------------------
+        // Text
+        //-------------------------------------------------------------------------
+
+        inline void DrawText2D( Float2 const& screenPosition, char const* pText, Float4 const& color, DebugFont font = DebugFont::Normal, DebugTextAlign alignment = DebugTextAlign::MiddleLeft, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawText2D( m_commandBuffer, screenPosition, pText, color, size, alignment, depthTestState, TTL );
+            InternalDrawText2D( m_commandBuffer, screenPosition, pText, color, font, alignment, layer, TTL );
         }
 
-        inline void DrawText3D( Float3 const& worldPosition, char const* pText, Float4 const& color, FontSize size = FontSize::FontNormal, TextAlignment alignment = TextAlignment::AlignMiddleLeft, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawText3D( Float3 const& worldPosition, char const* pText, Float4 const& color, DebugFont font = DebugFont::Normal, DebugTextAlign alignment = DebugTextAlign::MiddleLeft, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawText3D( m_commandBuffer, worldPosition, pText, color, size, alignment, depthTestState, TTL );
+            InternalDrawText3D( m_commandBuffer, worldPosition, pText, color, font, alignment, layer, TTL );
         }
 
-        inline void DrawTextBox2D( Float2 const& screenPos, char const* pText, Float4 const& color, FontSize size = FontSize::FontNormal, TextAlignment alignment = TextAlignment::AlignMiddleLeft, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawTextBox2D( Float2 const& screenPos, char const* pText, Float4 const& color, DebugFont font = DebugFont::Normal, DebugTextAlign alignment = DebugTextAlign::MiddleLeft, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawTextBox2D( m_commandBuffer, screenPos, pText, color, size, alignment, depthTestState, TTL );
+            InternalDrawTextBox2D( m_commandBuffer, screenPos, pText, color, font, alignment, layer, TTL );
         }
 
-        inline void DrawTextBox3D( Float3 const& worldPos, char const* pText, Float4 const& color, FontSize size = FontSize::FontNormal, TextAlignment alignment = TextAlignment::AlignMiddleLeft, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawTextBox3D( Float3 const& worldPos, char const* pText, Float4 const& color, DebugFont font = DebugFont::Normal, DebugTextAlign alignment = DebugTextAlign::MiddleLeft, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawTextBox3D( m_commandBuffer, worldPos, pText, color, size, alignment, depthTestState, TTL );
+            InternalDrawTextBox3D( m_commandBuffer, worldPos, pText, color, font, alignment, layer, TTL );
         }
 
         //-------------------------------------------------------------------------
-        // Boxes / Volumes / Planes
+        // Debug Meshes
         //-------------------------------------------------------------------------
 
-        void DrawPlane( Float4 const& planeEquation, Float4 const& color, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 );
+        inline void DrawMesh( uint64_t debugMeshID, Matrix const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { InternalDrawMesh( m_commandBuffer, debugMeshID, transform, tintColor, DebugMeshStyle::Default, layer, TTL ); }
+        inline void DrawMesh( uint64_t debugMeshID, Transform const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawMesh( debugMeshID, transform.ToMatrix(), tintColor,  layer, TTL ); }
+        inline void DrawMesh( uint64_t debugMeshID, Vector const& position, Quaternion const& orientation, float scale = 1.0f, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
+        inline void DrawMesh( uint64_t debugMeshID, Vector const& position, Quaternion const& orientation, Vector const& scale = Vector::One, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
 
-        void DrawBox( Transform const& worldTransform, Float3 const& halfsize, Float4 const& color, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 );
+        inline void DrawMesh( DebugMeshID debugMeshID, Matrix const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { InternalDrawMesh( m_commandBuffer, (uint64_t) debugMeshID, transform, tintColor, DebugMeshStyle::Default, layer, TTL ); }
+        inline void DrawMesh( DebugMeshID debugMeshID, Transform const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawMesh( debugMeshID, transform.ToMatrix(), tintColor, layer, TTL ); }
+        inline void DrawMesh( DebugMeshID debugMeshID, Vector const& position, Quaternion const& orientation, float scale = 1.0f, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
+        inline void DrawMesh( DebugMeshID debugMeshID, Vector const& position, Quaternion const& orientation, Vector const& scale = Vector::One, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
 
-        void DrawWireBox( Transform const& worldTransform, Float3 const& halfsize, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 );
+        inline void DrawLitMesh( uint64_t debugMeshID, Matrix const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { InternalDrawMesh( m_commandBuffer, debugMeshID, transform, tintColor, DebugMeshStyle::Lit, layer, TTL ); }
+        inline void DrawLitMesh( uint64_t debugMeshID, Transform const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawLitMesh( debugMeshID, transform.ToMatrix(), tintColor, layer, TTL ); }
+        inline void DrawLitMesh( uint64_t debugMeshID, Vector const& position, Quaternion const& orientation, float scale = 1.0f, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawLitMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
+        inline void DrawLitMesh( uint64_t debugMeshID, Vector const& position, Quaternion const& orientation, Vector const& scale = Vector::One, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawLitMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
 
-        inline void DrawBox( Float3 const& position, Quaternion const& rotation, Float3 const& halfsize, Float4 const& color, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawLitMesh( DebugMeshID debugMeshID, Matrix const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { InternalDrawMesh( m_commandBuffer, (uint64_t) debugMeshID, transform, tintColor, DebugMeshStyle::Lit, layer, TTL ); }
+        inline void DrawLitMesh( DebugMeshID debugMeshID, Transform const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawLitMesh( debugMeshID, transform.ToMatrix(), tintColor, layer, TTL ); }
+        inline void DrawLitMesh( DebugMeshID debugMeshID, Vector const& position, Quaternion const& orientation, float scale = 1.0f, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawLitMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
+        inline void DrawLitMesh( DebugMeshID debugMeshID, Vector const& position, Quaternion const& orientation, Vector const& scale = Vector::One, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawLitMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
+
+        inline void DrawWireMesh( uint64_t debugMeshID, Matrix const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { InternalDrawMesh( m_commandBuffer, debugMeshID, transform, tintColor, DebugMeshStyle::Wireframe, layer, TTL ); }
+        inline void DrawWireMesh( uint64_t debugMeshID, Transform const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawWireMesh( debugMeshID, transform.ToMatrix(), tintColor,  layer, TTL ); }
+        inline void DrawWireMesh( uint64_t debugMeshID, Vector const& position, Quaternion const& orientation, float scale = 1.0f, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawWireMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
+        inline void DrawWireMesh( uint64_t debugMeshID, Vector const& position, Quaternion const& orientation, Vector const& scale = Vector::One, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawWireMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
+
+        inline void DrawWireMesh( DebugMeshID debugMeshID, Matrix const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { InternalDrawMesh( m_commandBuffer, (uint64_t) debugMeshID, transform, tintColor, DebugMeshStyle::Wireframe, layer, TTL ); }
+        inline void DrawWireMesh( DebugMeshID debugMeshID, Transform const& transform, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawWireMesh( debugMeshID, transform.ToMatrix(), tintColor, layer, TTL ); }
+        inline void DrawWireMesh( DebugMeshID debugMeshID, Vector const& position, Quaternion const& orientation, float scale = 1.0f, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawWireMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
+        inline void DrawWireMesh( DebugMeshID debugMeshID, Vector const& position, Quaternion const& orientation, Vector const& scale = Vector::One, Color tintColor = Colors::White, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 ) { DrawWireMesh( debugMeshID, Matrix( orientation, position, scale ), tintColor, layer, TTL ); }
+
+        //-------------------------------------------------------------------------
+        // Plane
+        //-------------------------------------------------------------------------
+
+        void DrawPlane( Float4 const& planeEquation, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 );
+
+        //-------------------------------------------------------------------------
+        // Box
+        //-------------------------------------------------------------------------
+
+        inline void DrawBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            DrawBox( Transform( rotation, position ), halfsize, color, depthTestState, TTL );
+            Matrix m = transform.ToMatrix();
+            m.SetScale( halfsize );
+            InternalDrawMesh( m_commandBuffer, (uint64_t) DebugMeshID::Box, m, color, DebugMeshStyle::Default, layer, TTL );
         }
 
-        inline void DrawBox( OBB const& box, Float4 const& color, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawBox( Float3 const& position, Quaternion const& rotation, Float3 const& halfsize, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            DrawBox( Transform( box.m_orientation, box.m_center ), box.m_extents, color, depthTestState, TTL );
+            DrawBox( Transform( rotation, position ), halfsize, color, layer, TTL );
         }
 
-        inline void DrawBox( AABB const& box, Float4 const& color, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawBox( OBB const& box, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            DrawBox( Transform( Quaternion::Identity, box.m_center ), box.m_halfExtents, color, depthTestState, TTL );
+            DrawBox( Transform( box.m_orientation, box.m_center ), box.m_extents, color, layer, TTL );
         }
 
-        inline void DrawWireBox( Float3 const& position, Quaternion const& rotation, Float3 const& halfsize, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawBox( AABB const& box, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            DrawWireBox( Transform( rotation, position ), halfsize, color, lineThickness, depthTestState, TTL );
-        }
-
-        inline void DrawWireBox( OBB const& box, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
-        {
-            DrawWireBox( Transform( box.m_orientation, box.m_center ), box.m_extents, color, lineThickness, depthTestState, TTL );
-        }
-
-        inline void DrawWireBox( AABB const& box, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
-        {
-            DrawWireBox( Transform( Quaternion::Identity, box.m_center ), box.m_halfExtents, color, lineThickness, depthTestState, TTL );
+            DrawBox( Transform( Quaternion::Identity, box.m_center ), box.m_halfExtents, color, layer, TTL );
         }
 
         //-------------------------------------------------------------------------
-        // Sphere / Circle / Cylinder / Capsule
-        //-------------------------------------------------------------------------
 
-        void DrawCircle( Transform const& transform, Axis upAxis, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 );
-
-        inline void DrawCircle( Vector const& worldPosition, Axis upAxis, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawLitBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            DrawCircle( Transform( Quaternion::Identity, worldPosition ), upAxis, radius, color, lineThickness, depthTestState, TTL );
+            Matrix m = transform.ToMatrix();
+            m.SetScale( halfsize );
+            InternalDrawMesh( m_commandBuffer, (uint64_t) DebugMeshID::Box, m, color, DebugMeshStyle::Lit, layer, TTL );
+        }
+
+        inline void DrawLitBox( Float3 const& position, Quaternion const& rotation, Float3 const& halfsize, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawLitBox( Transform( rotation, position ), halfsize, color, layer, TTL );
+        }
+
+        inline void DrawLitBox( OBB const& box, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawLitBox( Transform( box.m_orientation, box.m_center ), box.m_extents, color, layer, TTL );
+        }
+
+        inline void DrawLitBox( AABB const& box, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawLitBox( Transform( Quaternion::Identity, box.m_center ), box.m_halfExtents, color, layer, TTL );
         }
 
         //-------------------------------------------------------------------------
 
-        void DrawSphere( Transform const& transform, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 );
+        void DrawWireBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 );
 
-        inline void DrawSphere( Float3 const& position, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawWireBox( Float3 const& position, Quaternion const& rotation, Float3 const& halfsize, Float4 const& color, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            DrawSphere( Transform( Quaternion::Identity, position ), radius, color, lineThickness, depthTestState, TTL );
+            DrawWireBox( Transform( rotation, position ), halfsize, color, lineThickness, layer, TTL );
+        }
+
+        inline void DrawWireBox( OBB const& box, Float4 const& color, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawWireBox( Transform( box.m_orientation, box.m_center ), box.m_extents, color, lineThickness, layer, TTL );
+        }
+
+        inline void DrawWireBox( AABB const& box, Float4 const& color, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawWireBox( Transform( Quaternion::Identity, box.m_center ), box.m_halfExtents, color, lineThickness, layer, TTL );
         }
 
         //-------------------------------------------------------------------------
+        //  Circle
+        //-------------------------------------------------------------------------
+
+        void DrawCircle( Transform const& transform, Axis upAxis, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 );
+
+        inline void DrawCircle( Vector const& worldPosition, Axis upAxis, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawCircle( Transform( Quaternion::Identity, worldPosition ), upAxis, radius, color, lineThickness, layer, TTL );
+        }
 
         // Disc align to the XY plane
-        void DrawDisc( Float3 const& worldPoint, float radius, Float4 const& color, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 );
+        void DrawDisc( Float3 const& worldPoint, float radius, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 );
+
+        //-------------------------------------------------------------------------
+        // Sphere
+        //-------------------------------------------------------------------------
+
+        inline void DrawSphere( Transform const& transform, float radius, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            Matrix m = transform.ToMatrix();
+            m.SetScale( radius );
+            InternalDrawMesh( m_commandBuffer, (uint64_t) DebugMeshID::Sphere, m, color, DebugMeshStyle::Default, layer, TTL );
+        }
+
+        inline void DrawSphere( Float3 const& position, float radius, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawSphere( Transform( Quaternion::Identity, position ), radius, color, layer, TTL );
+        }
+
+        inline void DrawLitSphere( Transform const& transform, float radius, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            Matrix m = transform.ToMatrix();
+            m.SetScale( radius );
+            InternalDrawMesh( m_commandBuffer, (uint64_t) DebugMeshID::Sphere, m, color, DebugMeshStyle::Lit, layer, TTL );
+        }
+
+        inline void DrawLitSphere( Float3 const& position, float radius, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawLitSphere( Transform( Quaternion::Identity, position ), radius, color, layer, TTL );
+        }
+
+        void DrawWireSphere( Transform const& transform, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawCircle( transform, Axis::X, radius, color, lineThickness, layer, TTL );
+            DrawCircle( transform, Axis::Y, radius, color, lineThickness, layer, TTL );
+            DrawCircle( transform, Axis::Z, radius, color, lineThickness, layer, TTL );
+        };
+
+        inline void DrawWireSphere( Float3 const& position, float radius, Float4 const& color, float lineThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawWireSphere( Transform( Quaternion::Identity, position ), radius, color, lineThickness, layer, TTL );
+        }
+
+        //-------------------------------------------------------------------------
+        // Cylinder
+        //-------------------------------------------------------------------------
 
         // Cylinder with radius on the XY plane and half-height along Z
-        void DrawCylinder( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawCylinder( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawCylinderOrCapsule( false, worldTransform, radius, halfHeight, color, thickness, depthTestState, TTL );
+            Matrix m = worldTransform.ToMatrix();
+            m.SetScale( Vector( radius, radius, halfHeight ) );
+            InternalDrawMesh( m_commandBuffer, (uint64_t) DebugMeshID::Cylinder, m, color, DebugMeshStyle::Default, layer, TTL );
+        }
+
+        // Cylinder with radius on the XY plane and half-height along Z
+        inline void DrawCylinder( Vector const& position, Quaternion const& orientation, float radius, float halfHeight, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawCylinder( Transform( orientation, position ), radius, halfHeight, color, layer, TTL );
+        }
+
+        // Cylinder with radius on the XY plane and half-height along Z
+        inline void DrawLitCylinder( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            Matrix m = worldTransform.ToMatrix();
+            m.SetScale( Vector( radius, radius, halfHeight ) );
+            InternalDrawMesh( m_commandBuffer, (uint64_t) DebugMeshID::Cylinder, m, color, DebugMeshStyle::Lit, layer, TTL );
+        }
+
+        // Cylinder with radius on the XY plane and half-height along Z
+        inline void DrawLitCylinder( Vector const& position, Quaternion const& orientation, float radius, float halfHeight, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            DrawLitCylinder( Transform( orientation, position ), radius, halfHeight, color, layer, TTL );
+        }
+
+        // Cylinder with radius on the XY plane and half-height along Z
+        inline void DrawWireCylinder( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            InternalDrawWireCylinderOrCapsule( false, worldTransform, radius, halfHeight, color, thickness, layer, TTL );
+        }
+
+        // Cylinder with radius on the XY plane and half-height along Z
+        inline void DrawWireCylinder( Vector const& position, Quaternion const& orientation, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            InternalDrawWireCylinderOrCapsule( false, Transform( orientation, position ), radius, halfHeight, color, thickness, layer, TTL );
+        }
+
+        //-------------------------------------------------------------------------
+        // Capsule
+        //-------------------------------------------------------------------------
+
+        // Capsule with radius on the XY plane and half-height along Z, total capsule height = 2 * ( halfHeight + radius )
+        void DrawCapsule( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            InternalDrawCapsule( worldTransform, radius, halfHeight, color, DebugMeshStyle::Default, layer, TTL );
         }
 
         // Capsule with radius on the XY plane and half-height along Z, total capsule height = 2 * ( halfHeight + radius )
-        void DrawCapsule( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        void DrawCapsule( Vector const& position, Quaternion const& orientation, float radius, float halfHeight, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            InternalDrawCylinderOrCapsule( true, worldTransform, radius, halfHeight, color, thickness, depthTestState, TTL );
+            InternalDrawCapsule( Transform( orientation, position ), radius, halfHeight, color, DebugMeshStyle::Default, layer, TTL );
+        }
+
+        // Capsule from two points and a radius
+        void DrawCapsule( Vector const& c0, Vector const& c1, float radius, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            InternalDrawCapsule( c0, c1, radius, color, DebugMeshStyle::Default, layer, TTL );
+        }
+
+        // Capsule with radius on the XY plane and half-height along Z, total capsule height = 2 * ( halfHeight + radius )
+        void DrawLitCapsule( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            InternalDrawCapsule( worldTransform, radius, halfHeight, color, DebugMeshStyle::Lit, layer, TTL );
+        }
+
+        // Capsule with radius on the XY plane and half-height along Z, total capsule height = 2 * ( halfHeight + radius )
+        void DrawLitCapsule( Vector const& position, Quaternion const& orientation, float radius, float halfHeight, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            InternalDrawCapsule( Transform( orientation, position ), radius, halfHeight, color, DebugMeshStyle::Lit, layer, TTL );
+        }
+
+        // Capsule from two points and a radius
+        void DrawLitCapsule( Vector const& c0, Vector const& c1, float radius, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            InternalDrawCapsule( c0, c1, radius, color, DebugMeshStyle::Lit, layer, TTL );
+        }
+
+        // Capsule with radius on the XY plane and half-height along Z, total capsule height = 2 * ( halfHeight + radius )
+        void DrawWireCapsule( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            InternalDrawWireCylinderOrCapsule( true, worldTransform, radius, halfHeight, color, thickness, layer, TTL );
+        }
+
+        // Capsule with radius on the XY plane and half-height along Z, total capsule height = 2 * ( halfHeight + radius )
+        void DrawWireCapsule( Vector const& position, Quaternion const& orientation, float radius, float halfHeight, Float4 const& color, float thickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            InternalDrawWireCylinderOrCapsule( true, Transform( orientation, position ), radius, halfHeight, color, thickness, layer, TTL );
+        }
+
+        // Capsule from two points and a radius
+        void DrawWireCapsule( Vector const& c0, Vector const& c1, float radius, Float4 const& color, float thickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            InternalDrawWireCylinderOrCapsule( true, c0, c1, radius, color, thickness, layer, TTL );
         }
 
         //-------------------------------------------------------------------------
         // Complex Shapes
         //-------------------------------------------------------------------------
 
-        inline void DrawAxis( Transform const& worldTransform, Color axisColor1, Color axisColor2, Color axisColor3, float axisLength = 0.05f, float axisThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawAxis( Transform const& worldTransform, Color axisColor1, Color axisColor2, Color axisColor3, float axisLength = 0.05f, float axisThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
             Vector const xAxis = worldTransform.GetAxisX().GetNormalized3() * axisLength;
             Vector const yAxis = worldTransform.GetAxisY().GetNormalized3() * axisLength;
             Vector const zAxis = worldTransform.GetAxisZ().GetNormalized3() * axisLength;
 
-            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + xAxis, axisColor1, axisThickness, depthTestState, TTL );
-            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + yAxis, axisColor2, axisThickness, depthTestState, TTL );
-            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + zAxis, axisColor3, axisThickness, depthTestState, TTL );
+            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + xAxis, axisColor1.ToFloat4(), axisThickness, layer, TTL );
+            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + yAxis, axisColor2.ToFloat4(), axisThickness, layer, TTL );
+            DrawLine( worldTransform.GetTranslation(), worldTransform.GetTranslation() + zAxis, axisColor3.ToFloat4(), axisThickness, layer, TTL );
         }
 
-        EE_FORCE_INLINE void DrawAxis( Transform const& worldTransform, float axisLength = 0.05f, float axisThickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        EE_FORCE_INLINE void DrawAxis( Transform const& worldTransform, float axisLength = 0.05f, float axisThickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            DrawAxis( worldTransform, Colors::Red, Colors::Lime, Colors::Blue, axisLength, axisThickness,  depthTestState, TTL );
+            DrawAxis( worldTransform, Colors::Red, Colors::Lime, Colors::Blue, axisLength, axisThickness, layer, TTL );
         }
 
-        void DrawArrow( Float3 const& startPoint, Float3 const& endPoint, Float4 const& color, float thickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 );
+        void DrawArrow( Float3 const& startPoint, Float3 const& endPoint, Float4 const& color, float thickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 );
 
-        inline void DrawArrow( Float3 const& startPoint, Float3 const& direction, float arrowLength, Float4 const& color, float thickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawArrow( Float3 const& startPoint, Float3 const& direction, float arrowLength, Float4 const& color, float thickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
             Vector const endPoint = Vector::MultiplyAdd( Vector( direction ).GetNormalized3(), Vector( arrowLength ), Vector( startPoint ) );
-            DrawArrow( startPoint, endPoint.ToFloat3(), color, thickness, depthTestState, TTL );
+            DrawArrow( startPoint, endPoint.ToFloat3(), color, thickness, layer, TTL );
         }
 
         // Draw a cone, originating at the transform, aligned to the -Y axis of the transform
-        void DrawCone( Transform const& transform, Radians coneAngle, float length, Float4 const& color, float thickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 );
+        void DrawCone( Transform const& transform, Radians coneAngle, float length, Float4 const& color, float thickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 );
 
         // Draw a cone originating at the start point, aligned to the specified
-        inline void DrawCone( Float3 const& startPoint, Float3 const& direction, Radians coneAngle, float length, Float4 const& color, float thickness = s_defaultLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        inline void DrawCone( Float3 const& startPoint, Float3 const& direction, Radians coneAngle, float length, Float4 const& color, float thickness = s_defaultLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            Quaternion const orientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, Vector( direction ).GetNormalized3() );
+            Quaternion const orientation = Quaternion::FromRotationBetweenUnitVectors( Vector::WorldForward, Vector( direction ).GetNormalized3() );
             Transform const coneTransform( orientation, startPoint );
-            DrawCone( coneTransform, coneAngle, length, color, thickness, depthTestState, TTL );
-        }
-
-        // Draw twist limit around a specified axis. The up axis defines the zero rotation value!
-        void DrawTwistLimits( Transform const& jointTransform, Axis twistAxis, Axis upAxis, Radians limitMin, Radians limitMax, Color color, float lineThickness, float limitSize = 0.1f );
-
-        // Draw twist limit around the default axes (twist = x and up = y). The up axis defines the zero rotation value!
-        EE_FORCE_INLINE void DrawTwistLimits( Transform const& jointTransform, Radians limitMin, Radians limitMax, Color color, float lineThickness, float limitSize = 0.1f )
-        {
-            DrawTwistLimits( jointTransform, Axis::X, Axis::Y, limitMin, limitMax, color, lineThickness, limitSize );
-        }
-
-        // Draw swing limits for two specified axes relative to a specified zero axis
-        void DrawSwingLimits( Transform const& jointTransform, Axis swingAxis1, Axis swingAxis2, Axis zeroAxis, Radians limit1, Radians limit2, Color color, float lineThickness, float limitSize = 0.2f );
-
-        // Draw swing limits for the default axes (Y, Z) relative to the default zero axis (X)
-        EE_FORCE_INLINE void DrawSwingLimits( Transform const& jointTransform, Radians limitY, Radians limitZ, Color color, float lineThickness, float limitSize = 0.2f )
-        {
-            DrawSwingLimits( jointTransform, Axis::Y, Axis::Z, Axis::X, limitY, limitZ, color, lineThickness, limitSize );
+            DrawCone( coneTransform, coneAngle, length, color, thickness, layer, TTL );
         }
 
     private:
 
-        EE_FORCE_INLINE void InternalDrawPoint( ThreadCommandBuffer& cmdList, Float3 const& position, Float4 const& color, float thickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawPoint( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float3 const& position, Float4 const& color, float thickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( PointCommand( position, color, thickness, TTL ), depthTestState );
+            cmdList.AddCommand( DebugDrawInternal::PointCommand( position, color, thickness, TTL ), layer );
         }
 
-        EE_FORCE_INLINE void InternalDrawLine( ThreadCommandBuffer& cmdList, Float3 const& startPosition, Float3 const& endPosition, Float4 const& color, float lineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawLine( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float3 const& startPosition, Float3 const& endPosition, Float4 const& color, float lineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( LineCommand( startPosition, endPosition, color, lineThickness, TTL ), depthTestState );
+            cmdList.AddCommand( DebugDrawInternal::LineCommand( startPosition, endPosition, color, lineThickness, TTL ), layer );
         }
 
-        EE_FORCE_INLINE void InternalDrawLine( ThreadCommandBuffer& cmdList, Float3 const& startPosition, Float3 const& endPosition, Float4 const& startColor, Float4 const& endColor, float lineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawLine( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float3 const& startPosition, Float3 const& endPosition, Float4 const& startColor, Float4 const& endColor, float lineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( LineCommand( startPosition, endPosition, startColor, endColor, lineThickness, TTL ), depthTestState );
+            cmdList.AddCommand( DebugDrawInternal::LineCommand( startPosition, endPosition, startColor, endColor, lineThickness, TTL ), layer );
         }
 
-        EE_FORCE_INLINE void InternalDrawLine( ThreadCommandBuffer& cmdList, Float3 const& startPosition, Float3 const& endPosition, Float4 const& color, float startLineThickness, float endLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawLine( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float3 const& startPosition, Float3 const& endPosition, Float4 const& color, float startLineThickness, float endLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( LineCommand( startPosition, endPosition, color, startLineThickness, endLineThickness, TTL ), depthTestState );
+            cmdList.AddCommand( DebugDrawInternal::LineCommand( startPosition, endPosition, color, startLineThickness, endLineThickness, TTL ), layer );
         }
 
-        EE_FORCE_INLINE void InternalDrawLine( ThreadCommandBuffer& cmdList, Float3 const& startPosition, Float3 const& endPosition, Float4 const& startColor, Float4 const& endColor, float startLineThickness, float endLineThickness, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawLine( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float3 const& startPosition, Float3 const& endPosition, Float4 const& startColor, Float4 const& endColor, float startLineThickness, float endLineThickness, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( LineCommand( startPosition, endPosition, startColor, endColor, startLineThickness, endLineThickness, TTL ), depthTestState );
+            cmdList.AddCommand( DebugDrawInternal::LineCommand( startPosition, endPosition, startColor, endColor, startLineThickness, endLineThickness, TTL ), layer );
         }
 
-        EE_FORCE_INLINE void InternalDrawTriangle( ThreadCommandBuffer& cmdList, Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawTriangle( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( TriangleCommand( v0, v1, v2, color, TTL ), depthTestState );
+            cmdList.AddCommand( DebugDrawInternal::TriangleCommand( v0, v1, v2, color, TTL ), layer );
         }
 
-        EE_FORCE_INLINE void InternalDrawTriangle( ThreadCommandBuffer& cmdList, Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color0, Float4 const& color1, Float4 const& color2, DepthTest depthTestState = DepthTest::Disable, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawTriangle( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color0, Float4 const& color1, Float4 const& color2, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( TriangleCommand( v0, v1, v2, color0, color1, color2, TTL ), depthTestState );
+            cmdList.AddCommand( DebugDrawInternal::TriangleCommand( v0, v1, v2, color0, color1, color2, TTL ), layer );
         }
 
-        EE_FORCE_INLINE void InternalDrawText2D( ThreadCommandBuffer& cmdList, Float2 const& position, char const* pText, Float4 const& color, FontSize size, TextAlignment alignment, DepthTest depthTestState, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawText2D( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float2 const& position, char const* pText, Float4 const& color, DebugFont font, DebugTextAlign alignment, DebugDrawLayer layer, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( TextCommand( position, pText, color, size, alignment, false, TTL ), depthTestState );
+            cmdList.AddCommand( DebugDrawInternal::TextCommand( position, pText, color, font, alignment, false, TTL ), layer );
         }
 
-        EE_FORCE_INLINE void InternalDrawText3D( ThreadCommandBuffer& cmdList, Float3 const& position, char const* pText, Float4 const& color, FontSize size, TextAlignment alignment, DepthTest depthTestState, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawText3D( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float3 const& position, char const* pText, Float4 const& color, DebugFont font, DebugTextAlign alignment, DebugDrawLayer layer, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( TextCommand( position, pText, color, size, alignment, false, TTL ), depthTestState );
+            cmdList.AddCommand( DebugDrawInternal::TextCommand( position, pText, color, font, alignment, false, TTL ), layer );
         }
 
-        EE_FORCE_INLINE void InternalDrawTextBox2D( ThreadCommandBuffer& cmdList, Float2 const& position, char const* pText, Float4 const& color, FontSize size, TextAlignment alignment, DepthTest depthTestState, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawTextBox2D( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float2 const& position, char const* pText, Float4 const& color, DebugFont font, DebugTextAlign alignment, DebugDrawLayer layer, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( TextCommand( position, pText, color, size, alignment, true, TTL ), depthTestState );
+            cmdList.AddCommand( DebugDrawInternal::TextCommand( position, pText, color, font, alignment, true, TTL ), layer );
         }
 
-        EE_FORCE_INLINE void InternalDrawTextBox3D( ThreadCommandBuffer& cmdList, Float3 const& position, char const* pText, Float4 const& color, FontSize size, TextAlignment alignment, DepthTest depthTestState, Seconds TTL = -1 )
+        EE_FORCE_INLINE void InternalDrawTextBox3D( DebugDrawInternal::ThreadCommandBuffer& cmdList, Float3 const& position, char const* pText, Float4 const& color, DebugFont font, DebugTextAlign alignment, DebugDrawLayer layer, Seconds TTL = -1 )
         {
-            cmdList.AddCommand( TextCommand( position, pText, color, size, alignment, true, TTL ), depthTestState);
+            cmdList.AddCommand( DebugDrawInternal::TextCommand( position, pText, color, font, alignment, true, TTL ), layer );
         }
 
-        void InternalDrawCylinderOrCapsule( bool isCapsule, Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness, DepthTest depthTestState, Seconds TTL );
+        EE_FORCE_INLINE void InternalDrawMesh( DebugDrawInternal::ThreadCommandBuffer& cmdList, uint64_t debugMeshID, Matrix transform, Float4 const& tintColor, DebugMeshStyle style = DebugMeshStyle::Default, DebugDrawLayer layer = DebugDrawLayer::Screen, Seconds TTL = -1 )
+        {
+            cmdList.AddCommand( DebugDrawInternal::MeshCommand( debugMeshID, transform, tintColor, style, TTL ), layer );
+        }
+
+        void InternalDrawCapsule( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, DebugMeshStyle style, DebugDrawLayer layer, Seconds TTL );
+        void InternalDrawWireCylinderOrCapsule( bool isCapsule, Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness, DebugDrawLayer layer, Seconds TTL );
+
+        void InternalDrawCapsule( Vector const& c0, Vector const& c1, float radius, Float4 const& color, DebugMeshStyle style, DebugDrawLayer layer, Seconds TTL );
+        void InternalDrawWireCylinderOrCapsule( bool isCapsule, Vector const& c0, Vector const& c1, float radius, Float4 const& color, float thickness, DebugDrawLayer layer, Seconds TTL );
 
         // Try to prevent users from copying these contexts around - TODO: we should record the thread ID and assert everywhere that we are on the correct thread
-        inline DrawContext( ThreadCommandBuffer& buffer ) : m_commandBuffer( buffer ) {}
-        inline DrawContext operator=( DrawContext const& RHS ) { return DrawContext( RHS.m_commandBuffer ); }
+        inline DebugDrawContext( DebugDrawInternal::ThreadCommandBuffer& buffer ) : m_commandBuffer( buffer ) {}
+        inline DebugDrawContext operator=( DebugDrawContext const& RHS ) { return DebugDrawContext( RHS.m_commandBuffer ); }
 
     private:
 
-        ThreadCommandBuffer& m_commandBuffer;
+        DebugDrawInternal::ThreadCommandBuffer& m_commandBuffer;
     };
 }
 #endif

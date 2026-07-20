@@ -1,11 +1,11 @@
 #pragma once
 
+#include "../EditorUI.h"
 #include "Game/_Module/GameModule.h"
 #include "GameTools/_Module/GameToolsModule.h"
 #include "EngineTools/_Module/EngineToolsModule.h"
 #include "Engine/Engine.h"
 #include "Base/Application/Platform/Application_Win32.h"
-#include "../EditorUI.h"
 
 //-------------------------------------------------------------------------
 
@@ -21,12 +21,8 @@ namespace EE
 
         virtual void RegisterTypes() override;
         virtual void UnregisterTypes() override;
-        virtual void CreateDevelopmentToolsUI() override { m_pDevelopmentToolsUI = EE::New<EditorUI>(); }
-        virtual void PostInitialize() override;
-
-    private:
-
-        ResourceID                                      m_editorStartupMap;
+        virtual void CreateToolsUI() override { m_pToolsUI = EE::New<EditorUI>(); }
+        virtual void SetStartupMap( ResourceID const& mapID ) override;
     };
 
     //-------------------------------------------------------------------------
@@ -40,15 +36,21 @@ namespace EE
 
     private:
 
-        virtual bool ProcessCommandline( int32_t argc, char** argv ) override;
-        virtual bool Initialize() override;
+        virtual bool Initialize( int32_t argc, char** argv ) override;
         virtual bool Shutdown() override;
 
+        virtual bool FatalError( String const& error ) const override;
+
         virtual void GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const override;
-        virtual void ProcessWindowResizeMessage( Int2 const& newWindowSize ) override;
+        virtual void ResizeMainWindow( Int2 const& newWindowSize ) override;
         virtual void ProcessInputMessage( UINT message, WPARAM wParam, LPARAM lParam ) override;
 
         virtual bool ApplicationLoop() override;
+
+        #if EE_ENABLE_LPP
+        virtual void LivePP_PreReload() override { m_engine.LivePP_PreReload(); }
+        virtual void LivePP_PostReload() override { m_engine.LivePP_PostReload(); }
+        #endif
 
     private:
 

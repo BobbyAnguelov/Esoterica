@@ -2,6 +2,7 @@
 #include "Engine/_Module/API.h"
 #include "EntityIDs.h"
 #include "Engine/UpdateContext.h"
+#include "Engine/Viewport/Viewport.h"
 
 //-------------------------------------------------------------------------
 
@@ -9,10 +10,9 @@ namespace EE
 {
     class EntityWorldSystem;
     class EntityWorld;
-    namespace Render { class Viewport; }
-    namespace EntityModel{ class EntityMap; }
-    namespace Settings { class ISettings; }
-    namespace Drawing { class DrawingSystem; class DrawContext; }
+    class DebugDrawSystem;
+    class DebugDrawContext;
+    namespace EntityModel { class EntityMap; }
     namespace TypeSystem { class TypeInfo; }
 
     //-------------------------------------------------------------------------
@@ -23,14 +23,26 @@ namespace EE
 
         EntityWorldUpdateContext( UpdateContext const& context, EntityWorld* pWorld );
 
+        // Update Info
+        //-------------------------------------------------------------------------
+
         // Get the original delta time for this frame (without the world timescale applied)
         EE_FORCE_INLINE Seconds GetRawDeltaTime() const { return m_rawDeltaTime; }
 
         // Get the scaled delta time for this frame
         EE_FORCE_INLINE Seconds GetScaledDeltaTime() const { return m_deltaTime; }
 
+        // Get the original delta time for this frame (without the world timescale applied)
+        EE_FORCE_INLINE Seconds GetUnscaledDeltaTime() const { return GetRawDeltaTime(); }
+
         // Get the time scaling for the current world
         float GetTimeScale() const;
+
+        // Set the time scaling for the current world
+        void SetTimeScale( float timeScale ) const;
+
+        // World Info
+        //-------------------------------------------------------------------------
 
         // Get the world ID - threadsafe
         EntityWorldID const& GetWorldID() const;
@@ -39,7 +51,7 @@ namespace EE
         template<typename T> inline T* GetWorldSystem() const
         {
             static_assert( std::is_base_of<EE::EntityWorldSystem, T>::value, "T is not derived from IEntityWorldSystem" );
-            return Cast<T>( GetWorldSystem( T::s_entitySystemID ) );
+            return Cast<T>( GetWorldSystem( T::GetStaticTypeID() ) );
         }
 
         // Get the world type - threadsafe since this never changes
@@ -51,33 +63,46 @@ namespace EE
         // Get the persistent map - threadsafe - all dynamic entity creation is done in this map
         EntityModel::EntityMap* GetPersistentMap() const;
 
-        // Get the viewport for this world
-        Render::Viewport const* GetViewport() const;
+        // Viewports
+        //-------------------------------------------------------------------------
 
-        // Get the debug drawing context for this world - threadsafe
+        TInlineVector<Viewport*, 3> const& GetViewports() const;
+        Viewport const* GetMainViewport() const;
+
         #if EE_DEVELOPMENT_TOOLS
-        [[nodiscard]] Drawing::DrawContext GetDrawingContext() const;
-        [[nodiscard]] Drawing::DrawingSystem* GetDebugDrawingSystem() const;
+        template<typename T>
+        T const* GetViewportSettings() const
+        {
+            auto pViewport = GetMainViewport();
+            if ( pViewport == nullptr )
+            {
+                return nullptr;
+            }
+
+            return pViewport->GetViewportSettings<T>();
+        }
         #endif
 
-        // Get world settings
-        template<typename T> T* GetSettings() { return TryCast<T>( GetSettings( T::s_pTypeInfo ) ); }
+        //  Debug Draw
+        //-------------------------------------------------------------------------
 
-        // Get world settings
-        template<typename T> T const* GetSettings() const { return TryCast<T>( const_cast<EntityWorldUpdateContext*>( this )->GetSettings( T::s_pTypeInfo ) ); }
+        #if EE_DEVELOPMENT_TOOLS
+        // Get the debug drawing context for this world - threadsafe
+        [[nodiscard]] DebugDrawContext GetDebugDrawContext() const;
+        
+        [[nodiscard]] DebugDrawSystem* GetDebugDrawSystem() const;
+        #endif
 
     private:
 
         // Threadsafe since these never changed during the lifetime of a world
-        EntityWorldSystem* GetWorldSystem( uint32_t worldSystemID ) const;
+        EntityWorldSystem* GetWorldSystem( TypeSystem::TypeID worldSystemTypeID ) const;
 
         // Delete any ability to copy this struct
         explicit EntityWorldUpdateContext( EntityWorldUpdateContext const& ) = delete;
         explicit EntityWorldUpdateContext( EntityWorldUpdateContext&& ) = delete;
         EntityWorldUpdateContext& operator=( EntityWorldUpdateContext const& ) = delete;
         EntityWorldUpdateContext& operator=( EntityWorldUpdateContext&& ) = delete;
-
-        Settings::ISettings* GetSettings( TypeSystem::TypeInfo const* pTypeInfo );
 
     private:
 

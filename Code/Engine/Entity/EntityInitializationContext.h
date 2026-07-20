@@ -62,12 +62,12 @@ namespace EE::EntityModel
         TypeSystem::TypeRegistry const*                             m_pTypeRegistry = nullptr;
 
         // World system registration
-        Threading::LockFreeQueue<EntityComponentPair>               m_componentsToRegister;
-        Threading::LockFreeQueue<EntityComponentPair>               m_componentsToUnregister;
+        Threading::TLockFreeQueue<EntityComponentPair>              m_componentsToRegister;
+        Threading::TLockFreeQueue<EntityComponentPair>              m_componentsToUnregister;
 
         // Entity update registration
-        Threading::LockFreeQueue<Entity*>                           m_registerForEntityUpdate;
-        Threading::LockFreeQueue<Entity*>                           m_unregisterForEntityUpdate;
+        Threading::TLockFreeQueue<Entity*>                          m_registerForEntityUpdate;
+        Threading::TLockFreeQueue<Entity*>                          m_unregisterForEntityUpdate;
 
     private:
 

@@ -3,6 +3,7 @@
 #include "Base/TypeSystem/TypeInfo.h"
 #include "Base/TypeSystem/TypeInstance.h"
 #include "Base/TypeSystem/CoreTypeConversions.h"
+#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,32 +16,15 @@ using namespace EE::TypeSystem;
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::Serialization
 {
-    bool ReadTypeDescriptorFromXML( TypeRegistry const& typeRegistry, xml_node const& descriptorNode, TypeDescriptor& outDesc )
+    bool ReadTypeDescriptorFromXML( TypeRegistry const& typeRegistry, Log& log, xml_node const& descriptorNode, TypeDescriptor& outDesc )
     {
-        auto Error = [] ( char const* pFormat, ... )
-        {
-            va_list args;
-            va_start( args, pFormat );
-            SystemLog::AddEntryVarArgs( Severity::Error, "TypeSystem", "TypeDescriptor", __FILE__, __LINE__, pFormat, args );
-            va_end( args );
-        };
-
-        auto Warning = [] ( char const* pFormat, ... )
-        {
-            va_list args;
-            va_start( args, pFormat );
-            SystemLog::AddEntryVarArgs( Severity::Warning, "TypeSystem", "TypeDescriptor", __FILE__, __LINE__, pFormat, args );
-            va_end( args );
-        };
-
         auto ReadAndConvertPropertyValue = [&] ( TypeSystem::TypeRegistry const& typeRegistry, TypeSystem::TypeInfo const* pTypeInfo, pugi::xml_node propertyNode, TInlineVector<PropertyDescriptor, 6>& propertyDescs )
         {
             xml_attribute pathAttr = propertyNode.attribute( g_propertyPathAttrName );
             xml_attribute valueAttr = propertyNode.attribute( g_propertyValueAttrName );
             if ( pathAttr.empty() || valueAttr.empty() )
             {
-                Error( "Malformed type descriptor property encountered!" );
-                return false;
+                return log.LogError( "Malformed type descriptor property encountered!" );
             }
 
             //-------------------------------------------------------------------------
@@ -54,7 +38,7 @@ namespace EE::Serialization
             auto const pPropertyInfo = typeRegistry.ResolvePropertyPath( pTypeInfo, propertyDesc.m_path );
             if ( pPropertyInfo == nullptr )
             {
-                Warning( "Failed to resolve property path: %s, for type (%s)", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.c_str() );
+                log.LogWarning( "Failed to resolve property path: %s, for type (%s)", propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.c_str() );
             }
             else
             {
@@ -92,7 +76,7 @@ namespace EE::Serialization
                         }
                         else
                         {
-                            Warning( "Failed to convert string value (%s) to binary for property: %s for type (%s)", propertyDesc.m_stringValue.c_str(), propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.c_str() );
+                            log.LogWarning( "Failed to convert string value (%s) to binary for property: %s for type (%s)", propertyDesc.m_stringValue.c_str(), propertyDesc.m_path.ToString().c_str(), pTypeInfo->m_ID.c_str() );
                         }
                     }
                 }
@@ -107,16 +91,14 @@ namespace EE::Serialization
         xml_attribute typeAttr = descriptorNode.attribute( g_typeIDAttrName );
         if ( typeAttr.empty() )
         {
-            Error( "Failed to find 'TypeID' member when deserializing TypeData" );
-            return false;
+            return log.LogError( "Failed to find 'TypeID' member when deserializing TypeData" );
         }
 
         TypeID const typeID( typeAttr.as_string() );
         auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
         if ( pTypeInfo == nullptr )
         {
-            Error( "Invalid type: %s encountered when trying to deserializing", typeID.c_str() );
-            return false;
+            return log.LogError( "Invalid type: %s encountered when trying to deserialize", typeID.c_str() );
         }
         outDesc.m_typeID = typeID;
 
@@ -141,6 +123,7 @@ namespace EE::Serialization
             }
         }
 
+        eastl::sort( outDesc.m_properties.begin(), outDesc.m_properties.end() );
         return true;
     }
 
@@ -172,7 +155,7 @@ namespace EE::Serialization
 {
     struct NativeTypeReaderXml
     {
-        static bool ReadType( TypeRegistry const& typeRegistry, xml_node const& typeNode, TypeID typeID, IReflectedType* pTypeInstance )
+        static bool ReadType( TypeRegistry const& typeRegistry, Log& log, xml_node const& typeNode, TypeID typeID, IReflectedType* pTypeInstance )
         {
             EE_ASSERT( pTypeInstance != nullptr );
             EE_ASSERT( !IsCoreType( typeID ) );
@@ -180,36 +163,31 @@ namespace EE::Serialization
             auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
             if ( pTypeInfo == nullptr )
             {
-                EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered: '%s'", typeID.c_str() );
-                return false;
+                return log.LogError( "Unknown type encountered: '%s'", typeID.c_str() );
             }
 
             if ( strcmp( typeNode.name(), g_typeNodeName ) != 0 )
             {
-                EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown node encountered: '%s'", typeNode.name() );
-                return false;
+                return log.LogError( "Unknown node encountered: '%s'", typeNode.name() );
             }
 
             xml_attribute typeAttr = typeNode.attribute( g_typeIDAttrName );
             if ( typeAttr.empty() )
             {
-                EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing typeID from xml representation: '%s'", typeID.c_str() );
-                return false;
+                return log.LogError( "Missing typeID from xml representation: '%s'", typeID.c_str() );
             }
 
             TypeID const actualTypeID( typeAttr.as_string() );
 
             if ( !typeRegistry.IsRegisteredType( actualTypeID ) )
             {
-                EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered '%s'", actualTypeID.c_str() );
-                return false;
+                return log.LogError( "Unknown type encountered '%s'", actualTypeID.c_str() );
             }
 
             // If you hit this the type in the xml file and the type you are trying to deserialize do not match
             if ( typeID != actualTypeID && !typeRegistry.IsTypeDerivedFrom( actualTypeID, typeID ) )
             {
-                EE_LOG_ERROR( "TypeSystem", "Serialization", "Type mismatch, expected '%s', encountered '%s'", typeID.c_str(), actualTypeID.c_str() );
-                return false;
+                return log.LogError( "Type mismatch, expected '%s', encountered '%s'", typeID.c_str(), actualTypeID.c_str() );
             }
 
             //-------------------------------------------------------------------------
@@ -248,14 +226,13 @@ namespace EE::Serialization
                     {
                         if ( propInfo.m_arraySize < numElements )
                         {
-                            EE_LOG_ERROR( "TypeSystem", "Serialization", "Static array size mismatch for %s, expected maximum %d elements, encountered %d elements", propInfo.m_size, propInfo.m_size, numElements );
-                            return false;
+                            return log.LogError( "Static array size mismatch for %s, expected maximum %d elements, encountered %d elements", propInfo.m_size, propInfo.m_size, numElements );
                         }
 
                         uint8_t* pArrayElementAddress = reinterpret_cast<uint8_t*>( pPropertyDataAddress );
                         for ( int32_t i = 0; i < numElements; i++ )
                         {
-                            if ( !ReadProperty( typeRegistry, arrayElementNodes[i], propInfo, pArrayElementAddress, i ) )
+                            if ( !ReadProperty( typeRegistry, log, arrayElementNodes[i], propInfo, pArrayElementAddress, i ) )
                             {
                                 return false;
                             }
@@ -275,7 +252,7 @@ namespace EE::Serialization
                         for ( int32_t i = ( numElements - 1 ); i >= 0; i-- )
                         {
                             auto pArrayElementAddress = pTypeInfo->GetArrayElementDataPtr( pTypeInstance, propInfo.m_ID.ToUint(), i );
-                            if ( !ReadProperty( typeRegistry, arrayElementNodes[i], propInfo, pArrayElementAddress, i ) )
+                            if ( !ReadProperty( typeRegistry, log, arrayElementNodes[i], propInfo, pArrayElementAddress, i ) )
                             {
                                 return false;
                             }
@@ -284,7 +261,7 @@ namespace EE::Serialization
                 }
                 else
                 {
-                    if ( !ReadProperty( typeRegistry, propertyNode, propInfo, pPropertyDataAddress ) )
+                    if ( !ReadProperty( typeRegistry, log, propertyNode, propInfo, pPropertyDataAddress ) )
                     {
                          return false;
                     }
@@ -293,12 +270,12 @@ namespace EE::Serialization
 
             //-------------------------------------------------------------------------
 
-            pTypeInstance->PostDeserialize();
+            pTypeInstance->PostDeserialize( typeRegistry );
 
             return true;
         }
 
-        static bool ReadProperty( TypeRegistry const& typeRegistry, xml_node const& propertyNode, PropertyInfo const& propertyInfo, void* pPropertyInstance, int32_t arrayElementIdx = InvalidIndex )
+        static bool ReadProperty( TypeRegistry const& typeRegistry, Log& log, xml_node const& propertyNode, PropertyInfo const& propertyInfo, void* pPropertyInstance, int32_t arrayElementIdx = InvalidIndex )
         {
             EE_ASSERT( pPropertyInstance != nullptr );
 
@@ -326,19 +303,17 @@ namespace EE::Serialization
                     TypeInfo const* pInstanceTypeInfo = typeRegistry.GetTypeInfo( instanceTypeID );
                     if ( pInstanceTypeInfo == nullptr )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered: %s", instanceTypeID.c_str() );
-                        return false;
+                        return log.LogError( "Unknown type encountered: %s", instanceTypeID.c_str() );
                     }
 
                     auto pInstanceContainer = (TypeInstance*) pPropertyInstance;
                     if ( !pInstanceTypeInfo->IsDerivedFrom( pInstanceContainer->GetAllowedBaseTypeInfo()->m_ID ) )
                     {
-                        EE_LOG_ERROR( "TypeSystem", "Serialization", "Invalid type detected for instance property: %s", instanceTypeID.c_str() );
-                        return false;
+                        return log.LogError( "Invalid type detected for instance property: %s", instanceTypeID.c_str() );
                     }
 
                     pInstanceContainer->CreateInstance( pInstanceTypeInfo );
-                    return ReadType( typeRegistry, propertyNode, instanceTypeID, pInstanceContainer->Get() );
+                    return ReadType( typeRegistry, log, propertyNode, instanceTypeID, pInstanceContainer->Get() );
                 }
                 else
                 {
@@ -359,7 +334,7 @@ namespace EE::Serialization
             else // Complex Type
             {
                 EE_ASSERT( strcmp( propertyNode.name(), g_typeNodeName ) == 0 );
-                return ReadType( typeRegistry, propertyNode, propertyInfo.m_typeID, (IReflectedType*) pPropertyInstance );
+                return ReadType( typeRegistry, log, propertyNode, propertyInfo.m_typeID, (IReflectedType*) pPropertyInstance );
             }
 
             //-------------------------------------------------------------------------
@@ -504,26 +479,25 @@ namespace EE::Serialization
 
 namespace EE::Serialization
 {
-    bool ReadType( TypeRegistry const& typeRegistry, xml_node const& node, IReflectedType* pTypeInstance )
+    bool ReadType( TypeRegistry const& typeRegistry, Log& log, xml_node const& node, IReflectedType* pTypeInstance )
     {
         xml_attribute typeAttr = node.attribute( g_typeIDAttrName );
         if ( typeAttr.empty() )
         {
-            EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing type ID for type element" );
-            return false;
+            return log.LogError( "Missing type ID for type element" );
         }
 
-        return NativeTypeReaderXml::ReadType( typeRegistry, node, pTypeInstance->GetTypeID(), pTypeInstance );
+        return NativeTypeReaderXml::ReadType( typeRegistry, log, node, pTypeInstance->GetTypeID(), pTypeInstance );
     }
 
-    bool ReadTypeFromString( TypeRegistry const& typeRegistry, String const& xmlString, IReflectedType* pTypeInstance )
+    bool ReadTypeFromString( TypeRegistry const& typeRegistry, Log& log, String const& xmlString, IReflectedType* pTypeInstance )
     {
         EE_ASSERT( !xmlString.empty() && pTypeInstance != nullptr );
 
         xml_document doc;
         if ( !ReadXmlFromString( xmlString, doc ) )
         {
-            return false;
+            return log.LogError( "Failed to parse xml string" );
         }
 
         // Reset the type
@@ -531,15 +505,15 @@ namespace EE::Serialization
         pTypeInfo->ResetType( pTypeInstance );
 
         // Deserialize
-        return ReadType( typeRegistry, doc.first_child(), pTypeInstance );
+        return ReadType( typeRegistry, log, doc.first_child(), pTypeInstance );
     }
 
-    IReflectedType* TryCreateAndReadType( TypeRegistry const& typeRegistry, xml_node const& node )
+    IReflectedType* TryCreateAndReadType( TypeRegistry const& typeRegistry, Log& log, xml_node const& node )
     {
         xml_attribute typeAttr = node.attribute( g_typeIDAttrName );
         if ( typeAttr.empty() )
         {
-            EE_LOG_ERROR( "TypeSystem", "Serialization", "Missing type ID for type element" );
+            log.LogError( "Missing type ID for type element" );
             return nullptr;
         }
 
@@ -547,13 +521,13 @@ namespace EE::Serialization
         auto const pTypeInfo = typeRegistry.GetTypeInfo( typeID );
         if ( pTypeInfo == nullptr )
         {
-            EE_LOG_ERROR( "TypeSystem", "Serialization", "Unknown type encountered: %s", typeID.c_str() );
+            log.LogError( "Unknown type encountered: %s", typeID.c_str() );
             return nullptr;
         }
 
         IReflectedType* pTypeInstance = pTypeInfo->CreateType();
 
-        if ( !ReadType( typeRegistry, node, pTypeInstance ) )
+        if ( !ReadType( typeRegistry, log, node, pTypeInstance ) )
         {
             EE::Delete( pTypeInstance );
             return nullptr;

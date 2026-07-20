@@ -64,12 +64,13 @@ namespace EE::PG
     public:
 
         TTypeEditingRules( ToolsContext const* pToolsContext, T* pTypeInstance )
-            : m_pTypeInstance( pTypeInstance )
+            : m_pToolsContext( pToolsContext ), m_pTypeInstance( pTypeInstance )
         {}
 
     protected:
 
-        T* m_pTypeInstance = nullptr;
+        ToolsContext const* m_pToolsContext = nullptr;
+        T*                  m_pTypeInstance = nullptr;
     };
 
     //-------------------------------------------------------------------------
@@ -100,8 +101,8 @@ namespace EE::PG
     //-------------------------------------------------------------------------
     // Use in a CPP to define a factory e.g., EE_PROPERTY_GRID_EDITING_RULES( ObjectSettingsHelperFactory, ObjectSettings );
 
-    #define EE_PROPERTY_GRID_EDITING_RULES( factoryName, editedType, rulesClass )\
-    class factoryName final : public PG::TypeEditingRulesFactory\
+    #define EE_PROPERTY_GRID_EDITING_RULES( editedType, rulesClass )\
+    class rulesClass##_##editedType##_##PGERFactory final : public PG::TypeEditingRulesFactory\
     {\
         virtual TypeSystem::TypeID GetSupportedTypeID() const override { return editedType::GetStaticTypeID(); }\
         virtual PG::TypeEditingRules* TryCreateRulesInternal( ToolsContext const* pToolsContext, IReflectedType* pTypeInstance ) const override\
@@ -111,6 +112,6 @@ namespace EE::PG
             return EE::New<rulesClass>( pToolsContext, static_cast<editedType*>( pTypeInstance ) );\
         }\
     };\
-    static factoryName g_##factoryName;
+    static rulesClass##_##editedType##_##PGERFactory g_##rulesClass##_##editedType##_##PGERFactory;
 
 }

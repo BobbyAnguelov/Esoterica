@@ -1,16 +1,11 @@
 #include "PlayerOverlayAction_MeleeAttack.h"
-#include "Game/Player/Components/Component_MainPlayer.h"
-#include "Game/Player/Camera/PlayerCameraController.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "Engine/Physics/Components/Component_PhysicsCharacter.h"
-#include "Base/Input/InputSystem.h"
-#include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
-    bool MeleeAttackAction::TryStartInternal( ActionContext const& ctx )
+    bool PlayerOverlayAction_MeleeAttack::TryStartInternal( PlayerActionContext const& ctx )
     {
         // Update cooldown timer
         if ( m_cooldownTimer.IsRunning() )
@@ -31,17 +26,17 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status MeleeAttackAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
+    PlayerAction::Status PlayerOverlayAction_MeleeAttack::UpdateInternal( PlayerActionContext const& ctx, bool isFirstUpdate )
     {
         if ( ctx.m_pAnimationController->IsHitReactionComplete() )
         {
-            return Action::Status::Completed;
+            return PlayerAction::Status::Completed;
         }
 
-        return Action::Status::Uninterruptible;
+        return PlayerAction::Status::Uninterruptible;
     }
 
-    void MeleeAttackAction::StopInternal( ActionContext const& ctx, StopReason reason )
+    void PlayerOverlayAction_MeleeAttack::StopInternal( PlayerActionContext const& ctx, StopReason reason )
     {
         ctx.m_pAnimationController->ClearHitReaction();
         m_cooldownTimer.Start( 1.5f );

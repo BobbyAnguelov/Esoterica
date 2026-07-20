@@ -1,0 +1,317 @@
+
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/ShadowMapSampling.esh"
+#include "Engine/Render/Shaders/PBR/PBR.esh"
+#include "Engine/Render/Shaders/CommonSamplers.esh"
+
+struct MaterialShaderInput
+{
+    VertexOutput    m_vertex;
+    PrimitiveOutput m_primitive;
+    
+    float3          m_view;
+    
+    static MaterialShaderInput New( VertexOutput vertex, PrimitiveOutput primitive, float3 cameraPosition )
+    {
+        MaterialShaderInput materialInput;
+        materialInput.m_vertex               = vertex;
+        materialInput.m_vertex.m_worldNormal = normalize( materialInput.m_vertex.m_worldNormal );
+        materialInput.m_primitive            = primitive;
+        materialInput.m_view                 = normalize( cameraPosition - vertex.m_worldPosition );
+        return materialInput;
+    }
+ 
+    float3x3 ComputeTBN( float2 uv )
+    {
+        float3  dp1     = ddx( m_vertex.m_worldPosition );
+        float3  dp2     = -ddy( m_vertex.m_worldPosition );
+        float2  duv1    = ddx( uv );
+        float2  duv2    = -ddy( uv );
+    
+        float3  dp2perp = cross( dp2, m_vertex.m_worldNormal );
+        float3  dp1perp = cross( m_vertex.m_worldNormal, dp1 );
+    
+        float3  T       = dp2perp * duv1.x + dp1perp * duv2.x;
+        float3  B       = dp2perp * duv1.y + dp1perp * duv2.y;
+    
+        float invmax = rsqrt( max( dot( T, T ), dot( B, B ) ) );
+        return float3x3( T * invmax, B * invmax, m_vertex.m_worldNormal );
+    }
+    
+    float3 UnpackNormalMap( float3x3 TBN, float2 normalSample )
+    {    
+        float3 tangentNormal;
+        tangentNormal.xy = normalSample * 2.0 - 1.0.xx;
+        tangentNormal.z  = sqrt( 1.0 - saturate( dot( tangentNormal.xy, tangentNormal.xy ) ) );
+        
+        return normalize( mul( tangentNormal, TBN ) );
+    }
+};
+
+struct MaterialShaderOutput
+{
+    float3 m_albedo;
+    float  m_opacity;
+    float  m_metalness;
+    float  m_roughness;
+    float  m_occlusion;
+    float3 m_normal;
+    float3 m_emissiveColor;
+    
+    PrimitiveOutputFlags m_primitiveFlags;
+    
+    static MaterialShaderOutput New( MaterialShaderInput materialInput )
+    {
+        MaterialShaderOutput materialOutput;
+        materialOutput.m_albedo                 = 0.5.xxx;
+        materialOutput.m_opacity                = 1.0;
+        materialOutput.m_metalness              = 0.0;
+        materialOutput.m_roughness              = 1.0;
+        materialOutput.m_occlusion              = 1.0;
+        materialOutput.m_normal                 = materialInput.m_vertex.m_worldNormal;
+        materialOutput.m_emissiveColor          = 0.0.xxx;
+        materialOutput.m_primitiveFlags         = ( PrimitiveOutputFlags ) 0;
+        return materialOutput;
+    }
+};
+
+MaterialShaderOutput MaterialShaderMain( in MaterialShaderInput materialInput );
+
+#if EE_DEVELOPMENT_TOOLS
+#define PS_DEVTOOLS_ARGS , linear float3 barycentrics : SV_Barycentrics
+#else
+#define PS_DEVTOOLS_ARGS
+#endif
+
+[RootSignature( DrawRootSignature )]
+#ifdef PERMUTATION_DEPTH_ONLY
+void PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, PrimitiveOutput primitive PS_DEVTOOLS_ARGS )
+#else
+float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, PrimitiveOutput primitive PS_DEVTOOLS_ARGS ) : SV_Target
+#endif
+{
+    Texture2DArray<uint4>                               lightCulling_BucketTexture  = GetTexture( RootCBV.m_LightCulling_BucketTexture );
+
+    StructuredBuffer<LightInstance_DirectionalLight>    directionalLightBuffer      = GetBuffer( RootCBV.m_directionalLightBuffer );
+    StructuredBuffer<LightInstance_PointLight>          pointLightBuffer            = GetBuffer( RootCBV.m_pointLightBuffer );
+    StructuredBuffer<LightInstance_SpotLight>           spotLightBuffer             = GetBuffer( RootCBV.m_spotLightBuffer );
+
+    Buffer<uint>                                        directionalLightPageBuffer  = GetBuffer( RootCBV.m_directionalLightPageBuffer );
+
+    StructuredBuffer<CascadedShadow>    cascadedShadowBuffer        = GetBuffer( RootCBV.m_cascadedShadowBuffer );
+
+    Texture2D<float>                    ssaoTexture                 = GetTexture( RootCBV.m_ssaoTexture );
+
+    SamplerState                        pointClampSampler           = GetPointClampSampler();
+    SamplerState                        linearClampSampler          = GetLinearClampSampler();
+    
+    //-------------------------------------------------------------------------------------------------------
+
+    MaterialShaderInput  materialInput    = MaterialShaderInput::New( vertex, primitive, RootCBV.m_cameraPosition.xyz );
+    MaterialShaderOutput materialOutput   = MaterialShaderMain( materialInput );
+    
+    if ( !isFrontFace )
+    {
+        materialOutput.m_normal = -materialOutput.m_normal;
+    }
+    
+    PBR pbr = PBR::New( materialOutput.m_albedo,
+                        materialOutput.m_metalness,
+                        materialOutput.m_roughness,
+                        materialOutput.m_occlusion,
+                        materialOutput.m_normal,
+                        materialInput.m_view );
+      
+    float  shadow = 1.0;
+    float3 debugShadowColor = 0.0.xxx;
+
+    #if EE_DEVELOPMENT_TOOLS
+        float3 debugDirectLight         = 0.0.xxx;
+        float3 debugEnvironmentMapLight = 0.0.xxx;
+        float  debugShadow              = 1.0;
+        float  debugLightComplexity     = 0.0F;
+        float  debugSSAO                = 1.0F;
+    #endif
+
+    float4 result = float4( 0.0.xxx, materialOutput.m_opacity );
+
+    [branch] if ( ( primitive.m_primitiveFlags.m_rendererGlobalFlags & RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING ) == 0 )
+    {
+        Texture2D   dfgTexture          = GetTexture( RootCBV.m_dfgTexture );
+        TextureCube radianceTexture     = GetTexture( RootCBV.m_radianceTexture );
+        TextureCube irradianceTexture   = GetTexture( RootCBV.m_irradianceTexture );
+        
+        float3      IBL                 = pbr.ComputeIBL( dfgTexture, radianceTexture, RootCBV.m_radianceTextureMipLevels, irradianceTexture );
+        float2      screenUV            = vertex.m_clipPosition.xy * RootCBV.m_viewportSize.zw;
+        
+        static const RendererGlobalFlags SSAO_EXCLUDE_FLAGS = RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING | RENDERER_GLOBAL_FLAG_DISABLE_SSAO;
+        [branch] if ( ( primitive.m_primitiveFlags.m_rendererGlobalFlags & SSAO_EXCLUDE_FLAGS ) == 0 )
+        {
+            float ssao = ssaoTexture.SampleLevel( linearClampSampler, screenUV, 0 ).r;
+            IBL *= ssao;
+
+            #if EE_DEVELOPMENT_TOOLS
+            debugSSAO = ssao;
+            #endif
+        }
+
+        #if EE_DEVELOPMENT_TOOLS
+            debugEnvironmentMapLight = IBL;
+        #endif
+        
+        result.rgb = IBL;
+
+        // Directional lights - page buffer is uniform across all lanes, no wave ops needed
+        //-------------------------------------------------------------------------------------------------------
+        uint numHalfPages = RootCBV.m_numDirectionalLightPages * 2;
+        for ( uint halfPageIdx = 0; halfPageIdx < numHalfPages; ++halfPageIdx )
+        {
+            uint mask = directionalLightPageBuffer[halfPageIdx];
+            [loop] while ( mask )
+            {
+                uint bit = firstbitlow( mask );
+                uint dirIdx = ( halfPageIdx / 2 ) * 64 + ( halfPageIdx & 1 ) * 32 + bit;
+                mask ^= ( 1U << bit );
+
+                LightInstance_DirectionalLight directionalLight = directionalLightBuffer[dirIdx];
+
+                float3 lightDirection  = directionalLight.m_lightDirection;
+                float  shadowDir       = 1.0;
+
+                float3 lightColor = UnpackColor( directionalLight.m_packedTintedColor ).rgb * directionalLight.m_maxIntensity;
+
+                if ( directionalLight.m_cascadedShadowIndex != 0xFFFF )
+                {
+                    CascadedShadow cascadedShadow = cascadedShadowBuffer[directionalLight.m_cascadedShadowIndex];
+                    shadowDir = SampleShadow( cascadedShadow, directionalLight.m_lightDirection, vertex.m_worldPosition, vertex.m_clipPosition.z, materialInput.m_vertex.m_worldNormal, debugShadowColor );
+
+                    #if EE_DEVELOPMENT_TOOLS
+                        debugShadow = min( debugShadow, shadowDir );
+                    #endif
+                }
+
+                float3 directLight = pbr.ComputeDirectLight( lightColor, lightDirection ) * shadowDir;
+
+                #if EE_DEVELOPMENT_TOOLS
+                    debugDirectLight += directLight;
+                #endif
+
+                result.rgb += directLight;
+            }
+        }
+
+        // Point + Spot lights
+        //-------------------------------------------------------------------------------------------------------
+        for ( uint bucketIndex = 0; bucketIndex < RootCBV.m_lightCulling_NumBuckets; ++bucketIndex )
+        {
+            uint4 lightCullingCoord = uint4( floor( screenUV * RootCBV.m_lightCullingTextureSize.xy ), bucketIndex, 0 );
+            uint4 mask = lightCulling_BucketTexture.Load( lightCullingCoord );
+
+            #if EE_DEVELOPMENT_TOOLS
+                debugLightComplexity += float( countbits( mask.x ) + countbits( mask.y ) );
+            #endif
+
+            // Point lights
+            //-------------------------------------------------------------------------------------------
+            uint pointMask = WaveReadLaneFirst( WaveActiveBitOr( mask.x ) );
+            [loop] while ( pointMask )
+            {
+                uint bit = firstbitlow( pointMask );
+                uint pointIndex = bucketIndex * 32 + bit;
+                pointMask ^= ( 1U << bit );
+
+                LightInstance_PointLight pointLight = pointLightBuffer[pointIndex];
+
+                float3 lightVector      = pointLight.m_lightPosition - materialInput.m_vertex.m_worldPosition;
+                float3 lightDirection   = normalize( lightVector );
+                float  atten            = AttenuationNoCusp( length( lightVector ), pointLight.m_maxRadius, pointLight.m_maxIntensity, pointLight.m_falloff );
+                float3 lightRadiance    = UnpackColor( pointLight.m_packedTintedColor ).rgb * atten;
+
+                float3 directLight      = pbr.ComputeDirectLight( lightRadiance, lightDirection );
+
+                #if EE_DEVELOPMENT_TOOLS
+                    debugDirectLight += directLight;
+                #endif
+
+                result.rgb += directLight;
+            }
+
+            // Spot lights
+            //-------------------------------------------------------------------------------------------
+            uint spotMask = WaveReadLaneFirst( WaveActiveBitOr( mask.y ) );
+            [loop] while ( spotMask )
+            {
+                uint bit = firstbitlow( spotMask );
+                uint spotIndex = bucketIndex * 32 + bit;
+                spotMask ^= ( 1U << bit );
+
+                LightInstance_SpotLight spotLight = spotLightBuffer[spotIndex];
+
+                float3  lightVector     = spotLight.m_lightPosition - materialInput.m_vertex.m_worldPosition;
+                float3  lightDirection  = normalize( lightVector );
+                float   cosTheta        = dot( lightDirection, -spotLight.m_lightDirection );
+                float   coneAtten       = smoothstep( spotLight.m_outerConeAngle, spotLight.m_innerConeAngle, cosTheta );
+                float   atten           = AttenuationNoCusp( length( lightVector ), spotLight.m_maxRadius, spotLight.m_maxIntensity, spotLight.m_falloff );
+                float3  lightRadiance   = UnpackColor( spotLight.m_packedTintedColor ).rgb * atten * coneAtten;
+
+                float3  directLight     = pbr.ComputeDirectLight( lightRadiance, lightDirection );
+
+                #if EE_DEVELOPMENT_TOOLS
+                    debugDirectLight += directLight;
+                #endif
+
+                result.rgb += directLight;
+            }
+        }
+    }
+
+    result.rgb += materialOutput.m_emissiveColor;
+
+    #if EE_DEVELOPMENT_TOOLS
+        RendererGlobalFlags rendererGlobalFlags = materialOutput.m_primitiveFlags.m_rendererGlobalFlags;
+        rendererGlobalFlags |= primitive.m_primitiveFlags.m_rendererGlobalFlags;
+        
+        RendererDebugVisualizationMode debugVisMode = primitive.m_primitiveFlags.m_rendererDebugVisualizationMode;
+        
+        RendererDebugFlags debugFlags = materialOutput.m_primitiveFlags.m_rendererDebugFlags;
+        debugFlags |= primitive.m_primitiveFlags.m_rendererDebugFlags;
+    
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_DIRECT_LIGHT ) { result.rgb = debugDirectLight; }
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ENVIRONMENT_MAP_LIGHT ) { result.rgb = debugEnvironmentMapLight; }
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_SHADOWS) { result.rgb = debugShadow.xxx; }
+        
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ALBEDO ) { result.rgb = materialOutput.m_albedo.rgb; }
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_NORMALS ) { result.rgb = materialOutput.m_normal * 0.5 + 0.5.xxx; }
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_METALNESS ) { result.rgb = materialOutput.m_metalness.xxx; }
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ROUGHNESS ) { result.rgb = materialOutput.m_roughness.xxx; }
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_AMBIENT_OCCLUSION ) { result.rgb = materialOutput.m_occlusion.xxx; }
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_COMPLEXITY ) { result.rgb = lerp( float3(0.0, 1.0, 0.0 ), float3( 1.0, 0.0, 0.0 ), saturate( debugLightComplexity / 32.0 ) ); }
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_SSAO ) { result.rgb = debugSSAO.xxx; }
+    
+        if ( debugFlags & RENDERER_DEBUG_FLAG_SHOW_WIREFRAME )
+        {
+            float3 edgeDistance = barycentrics;
+            edgeDistance.z = 1.0 - edgeDistance.x - edgeDistance.y;
+        
+            float3 edgeWidth = fwidth( edgeDistance ) * 0.5;
+            edgeWidth = smoothstep( edgeWidth, 2.0 * edgeWidth, edgeDistance );
+        
+            float minWidth = min( edgeWidth.x, min( edgeWidth.y, edgeWidth.z ) );
+        
+            result.rgb = lerp( float3( 1.0, 0.4, 0.0 ), result.rgb, minWidth );
+        }
+
+        if ( debugFlags & RENDERER_DEBUG_FLAG_SHOW_SHADOW_CASCADES )
+        {
+            result.rgb = debugShadowColor * shadow;
+        }
+    #endif
+
+    #ifdef PERMUTATION_ALPHA_TEST
+    clip( result.a - 0.1 ); // TODO: Make it a parameter
+    #endif
+
+    #ifndef PERMUTATION_DEPTH_ONLY
+    return result;
+    #endif
+}

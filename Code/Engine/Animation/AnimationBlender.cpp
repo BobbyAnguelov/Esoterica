@@ -9,23 +9,22 @@ namespace EE::Animation
         EE_ASSERT( pBoneMask != nullptr ); // Global space blends require a bone mask!
         EE_ASSERT( pBasePose != nullptr && pLayerPose != nullptr && pResultPose != nullptr );
         EE_ASSERT( pBasePose->GetSkeleton() == pLayerPose->GetSkeleton() );
-
-        #if EE_DEVELOPMENT_TOOLS
-        if ( pBasePose->IsAdditivePose() || pLayerPose->IsAdditivePose() )
-        {
-            EE_LOG_WARNING( "Animation", "Global Blend", "Attempting a global blend with an additive pose! This is undefined behavior!" );
-        }
-        #endif
+        EE_ASSERT( !pBasePose->IsAdditivePose() );
+        EE_ASSERT( !pLayerPose->IsAdditivePose() );
+        EE_ASSERT( pBasePose != pResultPose ); // Base pose is used right at the end for the final result so it must not be modified!!!
 
         // Check for early-out condition
         //-------------------------------------------------------------------------
 
         if ( layerWeight == 0.0f )
         {
-            if ( pBasePose != pResultPose )
-            {
-                pResultPose->CopyFrom( pBasePose );
-            }
+            pResultPose->CopyFrom( pBasePose );
+            return;
+        }
+
+        if ( pBoneMask != nullptr && pBoneMask->IsZeroWeightMask() )
+        {
+            pResultPose->CopyFrom( pBasePose );
             return;
         }
 
@@ -56,7 +55,7 @@ namespace EE::Animation
         // Blend the root separately - local space blend
         //-------------------------------------------------------------------------
 
-        auto boneBlendWeight = pBoneMask->GetWeight( 0 );
+        float boneBlendWeight = pBoneMask->GetWeight( 0 );
         if ( boneBlendWeight != 0.0f )
         {
             Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[0], BlendFunction::BlendTranslationAndScale( pBasePose->m_parentSpaceTransforms[0].GetTranslationAndScale(), pLayerPose->m_parentSpaceTransforms[0].GetTranslationAndScale(), boneBlendWeight ) );
@@ -104,6 +103,37 @@ namespace EE::Animation
 
         ParentSpaceBlend<BlendFunction>( skeletonLOD, pBasePose, pResultPose, layerWeight, pResultPose, false );
         pResultPose->ClearModelSpaceTransforms();
-        pResultPose->m_state = Pose::State::Pose;
+        pResultPose->m_state = Pose::State::ParentSpacePose;
+    }
+
+    void Blender::ApplyAdditiveFloatChannelsToReferencePose( FloatChannelSetValues const &additive, float const blendWeight, FloatChannelSetValues &result )
+    {
+        EE_ASSERT( additive.m_pSet == result.m_pSet );
+        EE_ASSERT( result.m_values.size() == additive.m_values.size() && blendWeight >= 0.0f && blendWeight <= 1.0f );
+
+        // Full in source
+        if ( blendWeight == 0.0f )
+        {
+            result.Reset();
+        }
+        else if ( blendWeight == 1.0f )
+        {
+            result.CopyFrom( additive );
+        }
+        else // Additive Blend
+        {
+            bool hasNonZeroValue = false;
+            Vector const vBlendWeight( blendWeight );
+            int32_t const numWeights = (int32_t) result.m_values.size();
+            for ( int32_t i = 0; i < numWeights; i += 4 )
+            {
+                Vector const vAdditive( &additive.m_values[i] );
+                Vector const vResult = vBlendWeight * vAdditive;
+                hasNonZeroValue |= !vResult.IsNearZero4();
+                vResult.Store( &result.m_values[i] );
+            }
+
+            result.m_state = hasNonZeroValue ? FloatChannelSetValues::State::Set : FloatChannelSetValues::State::Unset;
+        }
     }
 }

@@ -365,6 +365,8 @@ namespace EE::Timeline
 
         //-------------------------------------------------------------------------
 
+        Track* pTrackToDelete = nullptr;
+
         ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4, 8 ) );
         if ( ImGui::BeginPopupContextItem( "TimelineContextMenu" ) )
         {
@@ -445,7 +447,7 @@ namespace EE::Timeline
                     if ( ImGui::MenuItem( EE_ICON_DELETE" Delete Track" ) )
                     {
                         shouldClearSelection = true;
-                        DeleteTrack( m_contextMenuState.m_pTrack );
+                        pTrackToDelete = m_contextMenuState.m_pTrack;
                     }
 
                     //-------------------------------------------------------------------------
@@ -467,6 +469,13 @@ namespace EE::Timeline
             ImGui::EndPopup();
         }
         ImGui::PopStyleVar();
+
+        //-------------------------------------------------------------------------
+
+        if ( pTrackToDelete != nullptr )
+        {
+            DeleteTrack( pTrackToDelete );
+        }
     }
 
     //-------------------------------------------------------------------------

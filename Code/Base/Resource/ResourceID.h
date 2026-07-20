@@ -16,7 +16,7 @@
 // This allows us to specify resources that dont have source descriptor files, for example: navmeshes, graph variations, etc...
 // When converting to file system paths, the sub-resources will be converted as follows:
 //  <path to parent> + <parent resource name with extension> + <data path delimiter> + <sub-resource name with extension> -> <path to parent> + <parent resource name without extension> + <sub-resource delimiter> + <sub-resource name with extension>
-//  e.g., data://parentResource.pr/childResource.ch -> c:\data\parentResource_childResource.ch
+//  e.g., data://parent.pr:child.ch -> c:\data\parent_child.ch
 //-------------------------------------------------------------------------
 
 namespace EE
@@ -63,28 +63,51 @@ namespace EE
         //-------------------------------------------------------------------------
 
         inline bool IsPathSet() const { return m_path.IsValid(); }
-        inline uint32_t GetPathID() const { return m_path.GetID(); }
+        inline uint64_t GetPathID() const { return m_path.GetID(); }
         inline DataPath const& GetDataPath() const { return m_path; }
+        inline String GetFilename() const { EE_ASSERT( m_path.IsValid() ); return m_path.GetFilename(); }
         inline String GetFilenameWithoutExtension() const { EE_ASSERT( m_path.IsValid() ); return m_path.GetFilenameWithoutExtension(); }
+
+        // Returns the source/raw file system path for this resource
+        inline FileSystem::Path GetFileSystemPath( FileSystem::Path const& dataDirectoryPath ) const
+        {
+            return m_path.GetFileSystemPath( dataDirectoryPath );
+        }
+
+        // Returns the compiled file system path for this resource. If this is a sub-resource then it will flatten out the filepath and the sub-resource name
+        FileSystem::Path GetCompiledFileSystemPath( FileSystem::Path const& compiledDataDirectoryPath ) const;
 
         // Sub-resources
         //-------------------------------------------------------------------------
 
-        inline bool IsSubResourceID() const { return m_path.IsIntraFilePath(); }
+        inline bool IsSubResourceID() const { return m_path.HasSubFilename(); }
 
-        // Get the parent resource ID for a sub-resource ID - if this is not a sub resource ID this function will return the same resource ID
-        inline ResourceID GetParentResourceID() const;
+        // Get the parent resource ID for a sub-resource ID
+        ResourceID GetParentResourceID() const;
 
-        // Get the resource type ID for the parent of a sub-resource ID - if this is not a sub resource ID this function will return the same resource type ID
+        // Get the resource type ID for the parent of a sub-resource ID
         ResourceTypeID GetParentResourceTypeID() const;
+
+        // Get the name of the sub-resource
+        String GetSubResourceName() const;
+
+        // Get the name of the sub-resource
+        String GetSubResourceNameWithoutExtension() const;
+
+        // Set the optional sub-resource filename - only single extension filenames are allowed!
+        void SetSubResourceName( char const* pResourceName );
+
+        // Set the optional sub-resource filename - only single extension filenames are allowed!
+        void SetSubResourceName( String const& objectName ) { SetSubResourceName( objectName.c_str() ); }
+
+        // Clear the sub-filename
+        void SetSubResourceName() { m_path.ClearSubFilename(); OnPathChanged(); }
 
         // Conversion
         //-------------------------------------------------------------------------
 
-        inline String const& ToString() const { return m_path.GetString(); }
-        inline char const* c_str() const { return m_path.c_str(); }
-        inline FileSystem::Path GetFileSystemPath( FileSystem::Path const& dataDirectoryPath ) const { return m_path.GetFileSystemPath( dataDirectoryPath ); }
-        inline FileSystem::Path GetParentResourceFileSystemPath( FileSystem::Path const& dataDirectoryPath ) const { return m_path.GetParentFileSystemPath( dataDirectoryPath ); }
+        inline String const& GetString() const { return m_path.GetString(); }
+        inline char const* c_str() const { return GetString().c_str(); }
 
         // Operators
         //-------------------------------------------------------------------------
@@ -92,8 +115,8 @@ namespace EE
         inline bool operator==( ResourceID const& rhs ) const { return m_path == rhs.m_path; }
         inline bool operator!=( ResourceID const& rhs ) const { return m_path != rhs.m_path; }
 
-        inline bool operator==( uint32_t const& ID ) const { return m_path.GetID() == ID; }
-        inline bool operator!=( uint32_t const& ID ) const { return m_path.GetID() != ID; }
+        inline bool operator==( uint64_t const& ID ) const { return m_path.GetID() == ID; }
+        inline bool operator!=( uint64_t const& ID ) const { return m_path.GetID() != ID; }
 
     private:
 
@@ -116,7 +139,7 @@ namespace eastl
     {
         eastl_size_t operator()( EE::ResourceID const& ID ) const
         {
-            return ( uint32_t ) ID.GetPathID();
+            return ID.GetPathID();
         }
     };
 }

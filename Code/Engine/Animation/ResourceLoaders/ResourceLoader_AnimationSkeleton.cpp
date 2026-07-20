@@ -11,32 +11,75 @@ namespace EE::Animation
         m_loadableTypes.push_back( Skeleton::GetStaticResourceTypeID() );
     }
 
-    Resource::ResourceLoader::LoadResult SkeletonLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::LoadResult SkeletonLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive* pArchive ) const
     {
         Skeleton* pSkeleton = EE::New<Skeleton>();
-        archive << *pSkeleton;
+        ( *pArchive ) << *pSkeleton;
         EE_ASSERT( pSkeleton->IsValid() );
         pResourceRecord->SetResourceData( pSkeleton );
 
-        TVector<BoneMask::SerializedData> serializedBoneMasks;
-        archive << serializedBoneMasks;
+        TVector<BoneMaskSetDefinition> boneMaskSets;
+        ( *pArchive ) << boneMaskSets;
 
         // Preview
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        archive << pSkeleton->m_previewMeshID;
-        archive << pSkeleton->m_previewAttachmentSocketID;
+        ( *pArchive ) << pSkeleton->m_previewMeshID;
         #endif
 
         // Create bone masks
         //-------------------------------------------------------------------------
 
-        pSkeleton->m_boneMasks.reserve( serializedBoneMasks.size() );
-        for ( auto const& serializedBoneMask : serializedBoneMasks )
+        auto PrintMissingBonesWarning = [] ( StringID setID, BoneWeightList const& weightList, TInlineVector<StringID, 10> const& missingBones )
         {
-            EE_ASSERT( pSkeleton->GetBoneMaskIndex( serializedBoneMask.m_ID ) == InvalidIndex ); // Ensure unique IDs
-            pSkeleton->m_boneMasks.emplace_back( pSkeleton, serializedBoneMask );
+            if ( !missingBones.empty() )
+            {
+                for ( StringID boneID : missingBones )
+                {
+                    EE_LOG_WARNING( LogCategory::Animation, "Skeleton Loader", "Couldn't find bone (%s) in skeleton(%s) while serializing bone mask (%s)", boneID.c_str(), weightList.m_skeletonID.c_str(), setID.c_str() );
+                }
+            }
+        };
+
+        TInlineVector<StringID, 10> missingBones;
+
+        pSkeleton->m_boneMaskSets.reserve( boneMaskSets.size() );
+        for ( BoneMaskSetDefinition const& serializedBoneMaskSet : boneMaskSets )
+        {
+            EE_ASSERT( pSkeleton->GetBoneMaskSetIndex( serializedBoneMaskSet.m_ID ) == InvalidIndex ); // Ensure unique IDs
+            EE_ASSERT( serializedBoneMaskSet.m_primaryWeightList.IsValid() );
+
+            BoneMaskSet& boneMaskSet = pSkeleton->m_boneMaskSets.emplace_back();
+            boneMaskSet.m_ID = serializedBoneMaskSet.m_ID;
+            boneMaskSet.m_primaryMask = BoneMask( pSkeleton, serializedBoneMaskSet.m_primaryWeightList, &missingBones );
+
+            PrintMissingBonesWarning( serializedBoneMaskSet.m_ID, serializedBoneMaskSet.m_primaryWeightList, missingBones );
+
+            for ( auto const& secondaryWeightList : serializedBoneMaskSet.m_secondaryWeightLists )
+            {
+                EE_ASSERT( secondaryWeightList.IsValid() );
+
+                Skeleton const* pFoundSecondarySkeleton = nullptr;
+                for ( auto const& secondarySkeletonRecord : pSkeleton->m_secondarySkeletons )
+                {
+                    if ( secondarySkeletonRecord.m_skeleton == secondaryWeightList.m_skeletonID )
+                    {
+                        pFoundSecondarySkeleton = secondarySkeletonRecord.m_skeleton.GetPtr<Skeleton>();
+                        break;
+                    }
+                }
+
+                if ( pFoundSecondarySkeleton != nullptr )
+                {
+                    boneMaskSet.m_secondaryMasks.emplace_back( pFoundSecondarySkeleton, secondaryWeightList, &missingBones );
+                    PrintMissingBonesWarning( serializedBoneMaskSet.m_ID, serializedBoneMaskSet.m_primaryWeightList, missingBones );
+                }
+                else
+                {
+                    EE_LOG_WARNING( LogCategory::Animation, "Skeleton Loader", "Could find secondary skeleton for bone mask: %s", secondaryWeightList.m_skeletonID.c_str() );
+                }
+            }
         }
 
         // Calculate global reference pose
@@ -54,6 +97,20 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        return Resource::ResourceLoader::LoadResult::Succeeded;
+        return Resource::LoadResult::Complete;
+    }
+
+    Resource::LoadResult SkeletonLoader::Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
+    {
+        auto pSkeleton = pResourceRecord->GetResourceData<Skeleton>();
+
+        // Set secondary skeletons
+        for ( auto& secondarySkeleton : pSkeleton->m_secondarySkeletons )
+        {
+            EE_ASSERT( secondarySkeleton.m_skeleton.GetResourceID().IsValid() );
+            secondarySkeleton.m_skeleton = GetInstallDependency( installDependencies, secondarySkeleton.m_skeleton.GetResourceID() );
+        }
+
+        return Resource::LoadResult::Complete;
     }
 }

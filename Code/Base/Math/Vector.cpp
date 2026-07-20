@@ -18,6 +18,10 @@ namespace EE
     Vector const Vector::WorldLeft = { 1, 0, 0, 0 };
     Vector const Vector::WorldRight = { -1, 0, 0, 0 };
 
+    Vector const Vector::AxisYaw = { 0, 0, 1, 0 };
+    Vector const Vector::AxisPitch = { -1, 0, 0, 0 };
+    Vector const Vector::AxisRoll = { 0, -1, 0, 0 };
+
     Vector const Vector::Infinity = { 0x7F800000, 0x7F800000, 0x7F800000, 0x7F800000 };
     Vector const Vector::QNaN = { 0x7FC00000, 0x7FC00000, 0x7FC00000, 0x7FC00000 };
 
@@ -30,7 +34,7 @@ namespace EE
     Vector const Vector::LargeEpsilon( Math::LargeEpsilon );
     Vector const Vector::OneMinusEpsilon( 1.0f - Math::Epsilon );
     Vector const Vector::EpsilonMinusOne( Math::Epsilon - 1.0f );
-    Vector const Vector::NormalizeCheckThreshold( 0.01f ); // Squared Error
+    Vector const Vector::NormalizeCheckThreshold( 0.0001f ); // Squared Error
 
     Vector const Vector::Pi( Math::Pi );
     Vector const Vector::PiDivTwo( Math::PiDivTwo );
@@ -54,24 +58,12 @@ namespace EE
     Vector const Vector::Select1110( 1, 1, 1, 0 );
     Vector const Vector::Select1111( 1, 1, 1, 1 );
 
-    Vector const Vector::BoxCorners[8] =
-    {
-        { -1.0f, -1.0f,  1.0f, 0.0f },
-        {  1.0f, -1.0f,  1.0f, 0.0f },
-        {  1.0f,  1.0f,  1.0f, 0.0f },
-        { -1.0f,  1.0f,  1.0f, 0.0f },
-        { -1.0f, -1.0f, -1.0f, 0.0f },
-        {  1.0f, -1.0f, -1.0f, 0.0f },
-        {  1.0f,  1.0f, -1.0f, 0.0f },
-        { -1.0f,  1.0f, -1.0f, 0.0f },
-    };
-
     //-------------------------------------------------------------------------
 
     Vector Vector::SLerp( Vector const& from, Vector const& to, float t )
     {
         EE_ASSERT( t >= 0.0f && t <= 1.0f );
-        if ( from.LengthSquared3().IsLessThan4( Epsilon ) || from.LengthSquared3().IsLessThan4( Epsilon ) )
+        if ( from.LengthSquared3().IsLessThan4( Epsilon ) || to.LengthSquared3().IsLessThan4( Epsilon ) )
         {
             return Lerp( from, to, t );
         }
@@ -95,7 +87,7 @@ namespace EE
         {
             Vector const dot = Dot3( normalizedFrom, normalizedTo );
             Vector const angle = ACos( dot );
-            Vector const axis = Cross3( normalizedFrom, normalizedTo ).Normalize3();
+            Vector const axis = Cross3( normalizedFrom, normalizedTo ).GetNormalized3();
             Vector const interpolatedAngle = Lerp( Zero, angle, t );
 
             Quaternion const rotation( axis, Radians( interpolatedAngle.ToFloat() ) );

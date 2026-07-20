@@ -2,7 +2,7 @@
 
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
-#include "Engine/Physics/PhysicsRagdoll.h"
+#include "Engine/Physics/Ragdoll/PhysicsRagdoll_Definition.h"
 #include "Engine/Animation/AnimationSkeleton.h"
 
 //-------------------------------------------------------------------------
@@ -20,43 +20,40 @@ namespace EE::Physics
         virtual ResourceTypeID GetCompiledResourceTypeID() const override{ return RagdollDefinition::GetStaticResourceTypeID(); }
         virtual FileSystem::Extension GetExtension() const override final { return RagdollDefinition::GetStaticResourceTypeID().ToString(); }
         virtual char const* GetFriendlyName() const override final { return RagdollDefinition::s_friendlyName; }
+        virtual void GetCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<Resource::CompileDependency>& outDependencies ) const override;
+        virtual bool IsValid() const override;
+        virtual void Clear() override;
 
-        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
-        {
-            outDependencies.emplace_back( m_skeleton.GetDataPath() );
-        }
+        //-------------------------------------------------------------------------
 
-        virtual bool IsValid() const override
-        {
-            if ( !m_skeleton.IsSet() )
-            {
-                return false;
-            }
+        bool ValidateSettings() const;
+        void CleanupInvalidSettings( Animation::Skeleton const* pSkeleton );
 
-            if ( m_profiles.empty() )
-            {
-                return false;
-            }
 
-            // Validate the profiles
-            int32_t const numBodies = (int32_t) m_bodies.size();
-            for ( auto& profile : m_profiles )
-            {
-                if ( !profile.IsValid( numBodies ) )
-                {
-                    return false;
-                }
-            }
+        int32_t GetNumBodies() const { return (int32_t) m_bodies.size(); }
+        int32_t GetNumJoints() const { return (int32_t) m_bodies.size() - 1; }
 
-            return true;
-        }
+        int32_t GetBodyIndex( StringID boneID ) const;
+        int32_t GetBodyIndexForBoneID( StringID boneID ) const;
+        int32_t GetBodyIndexForBoneIdx( int32_t boneIdx ) const;
+        int32_t GetParentBodyIndex( Animation::Skeleton const* pSkeleton, int32_t bodyIdx ) const;
+        
+        Transform GetBodyTransform( Animation::Skeleton const* pSkeleton, int32_t bodyIdx ) const;
+        Transform GetBodyTransform( Animation::Skeleton const* pSkeleton, StringID boneID ) const { return GetBodyTransform( pSkeleton, GetBodyIndex( boneID ) ); }
 
-        virtual void Clear() override
-        {
-            m_skeleton.Clear();
-            m_bodies.clear();
-            m_profiles.clear();
-        }
+        Transform GetShapeTransform( Animation::Skeleton const* pSkeleton, int32_t bodyIdx, int32_t shapeIdx ) const;
+        Transform GetShapeTransform( Animation::Skeleton const* pSkeleton, StringID boneID, int32_t shapeIdx ) const { return GetShapeTransform( pSkeleton, GetBodyIndex( boneID ), shapeIdx ); }
+        void SetShapeTransform( Animation::Skeleton const* pSkeleton, int32_t bodyIdx, int32_t shapeIdx, Transform const& transform );
+        void SetShapeTransform( Animation::Skeleton const* pSkeleton, StringID boneID, int32_t shapeIdx, Transform const& transform ) { SetShapeTransform( pSkeleton, GetBodyIndex( boneID ), shapeIdx, transform ); }
+
+        RagdollShapeDefinition::Type GetShapeType( int32_t bodyIdx, int32_t shapeIdx ) const;
+        RagdollShapeDefinition::Type GetShapeType( StringID boneID, int32_t shapeIdx ) const { return GetShapeType( GetBodyIndex( boneID ), shapeIdx ); }
+
+        void ScaleShape( int32_t bodyIdx, int32_t shapeIdx, Vector const& deltaScale );
+        void ScaleShape( StringID boneID, int32_t shapeIdx, Vector const& deltaScale ) { ScaleShape( GetBodyIndex( boneID ), shapeIdx, deltaScale ); }
+
+        void EnsureUniqueDisableCollisionRules();
+        bool IsCollisionDisabledBetweenBodies( int32_t bodyIdxA, int32_t bodyIdxB ) const;
 
     public:
 
@@ -64,9 +61,9 @@ namespace EE::Physics
         TResourcePtr<Animation::Skeleton>               m_skeleton;
 
         EE_REFLECT( ReadOnly );
-        TVector<RagdollDefinition::BodyDefinition>      m_bodies;
+        TVector<RagdollBodyDefinition>                  m_bodies;
 
         EE_REFLECT( ReadOnly );
-        TVector<RagdollDefinition::Profile>             m_profiles;
+        TVector<RagdollDisableCollisionRule>            m_disableCollisionRules;
     };
 }

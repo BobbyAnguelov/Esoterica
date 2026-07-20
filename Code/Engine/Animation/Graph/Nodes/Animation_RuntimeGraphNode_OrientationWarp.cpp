@@ -92,14 +92,9 @@ namespace EE::Animation
             return;
         }
 
-        #if EE_DEVELOPMENT_TOOLS
-        Seconds const currentTime = m_useRecordedStartData ? m_warpStartTime : pAnimation->GetTime( m_pClipReferenceNode->GetCurrentTime() );
-        #else
         Seconds const currentTime = pAnimation->GetTime( m_pClipReferenceNode->GetCurrentTime() );
-        #endif
-
-        Seconds const warpRangeStartTime = Math::Max( pWarpEvent->GetStartTime().ToFloat(), currentTime.ToFloat() );
-        Seconds const warpRangeLength = pWarpEvent->GetEndTime() - warpRangeStartTime;
+        Seconds const warpRangeStartTime = Math::Max( pAnimation->GetTime( pWarpEvent->GetStartTime() ).ToFloat(), currentTime.ToFloat() );
+        Seconds const warpRangeLength = pAnimation->GetTime( pWarpEvent->GetEndTime() ) - warpRangeStartTime;
 
         constexpr float const minimumWarpPeriodAllowed = 1 / 30.0f;
         if ( warpRangeLength < minimumWarpPeriodAllowed )
@@ -122,13 +117,19 @@ namespace EE::Animation
         // Calculate Targets
         //-------------------------------------------------------------------------
 
-        auto const& originalRootMotion = pAnimation->GetRootMotion();
+        RootMotionData const& originalRootMotion = pAnimation->GetRootMotion();
+        EE_ASSERT( originalRootMotion.IsValid() );
 
-        // Calculate the delta of the remaining root motion post warp, this is the section that we are going to be aligning to the new direction
-        Vector postWarpOriginalDirCS = ( originalRootMotion.m_transforms.back().GetTranslation() - originalRootMotion.m_transforms[warpEndFrame].GetTranslation() ).GetNormalized2();
-        if ( postWarpOriginalDirCS.IsZero3() )
+        Vector postWarpOriginalDirCS = originalRootMotion.m_transforms.back().GetTranslation() - originalRootMotion.GetTransform( FrameTime( warpEndFrame ) ).GetTranslation();
+
+        // If we dont have a valid direction just use the end orientation
+        if ( postWarpOriginalDirCS.IsNearZero3() )
         {
-            postWarpOriginalDirCS = originalRootMotion.m_transforms.back().GetRotation().RotateVector( Vector::WorldForward );
+            postWarpOriginalDirCS = originalRootMotion.back().GetRotation().RotateVector( Vector::WorldForward );
+        }
+        else
+        {
+            postWarpOriginalDirCS.Normalize2();
         }
 
         // Calculate the target direction we need to align to
@@ -165,51 +166,87 @@ namespace EE::Animation
         }
 
         // Calculate the desired modification we need to make
-        Quaternion const desiredOrientationDelta = Quaternion::FromRotationBetweenNormalizedVectors( postWarpOriginalDirCS, targetDirCS );
+        Quaternion const desiredOrientationDelta = Quaternion::FromRotationBetweenUnitVectors( postWarpOriginalDirCS, targetDirCS );
 
         // Perform warp
         //-------------------------------------------------------------------------
 
-        m_warpedRootMotion = originalRootMotion;
-
-        // Set start transform
-        #if EE_DEVELOPMENT_TOOLS
-        m_warpedRootMotion.m_transforms.front() = m_useRecordedStartData ? m_warpStartWorldTransform : context.m_worldTransform;
-        #else
-        m_warpedRootMotion.m_transforms.front() = context.m_worldTransform;
-        #endif
-
         // Record debug info
         #if EE_DEVELOPMENT_TOOLS
-        m_warpStartWorldTransform = m_warpedRootMotion.m_transforms.front();
-        m_debugCharacterOffsetPosWS = m_warpStartWorldTransform.GetTranslation() + m_warpStartWorldTransform.RotateVector( originalRootMotion.m_transforms[warpEndFrame].GetTranslation() );
+        m_warpStartWorldTransform = context.m_worldTransform;
+        m_debugCharacterOffsetPosWS = m_warpStartWorldTransform.GetTranslation() + m_warpStartWorldTransform.RotateVector( originalRootMotion.GetTransform( FrameTime( warpEndFrame ) ).GetTranslation() );
         m_debugTargetDirWS = m_warpStartWorldTransform.RotateVector( targetDirCS );
         m_warpStartTime = currentTime;
-        m_useRecordedStartData = false;
         #endif
 
-        // Set initial world space positions up to the end of the rotation warp event
-        for ( auto i = 1; i <= warpEndFrame; i++ )
+        if ( originalRootMotion.IsStationary() )
         {
-            Transform const originalDelta = Transform::Delta( originalRootMotion.m_transforms[i - 1], originalRootMotion.m_transforms[i] );
-            m_warpedRootMotion.m_transforms[i] = originalDelta * m_warpedRootMotion.m_transforms[i - 1];
-        }
+            m_warpedRootMotion.m_numFrames = pAnimation->GetNumFrames();
+            m_warpedRootMotion.m_transforms.resize( m_warpedRootMotion.m_numFrames );
 
-        // Spread out the delta rotation across the entire warp section
-        for ( auto i = warpStartFrame + 1; i <= warpEndFrame; i++ )
-        {
-            float const percentage = float( i - warpStartFrame ) / numWarpFrames;
-            Quaternion const frameDelta = Quaternion::SLerp( Quaternion::Identity, desiredOrientationDelta, percentage );
-            Quaternion const adjustedRotation = frameDelta * m_warpedRootMotion.m_transforms[i].GetRotation();
-            m_warpedRootMotion.m_transforms[i].SetRotation( adjustedRotation );
-        }
+            // Set initial world space positions up to the end of the rotation warp event
+            for ( auto i = 0; i <= warpEndFrame; i++ )
+            {
+                m_warpedRootMotion.m_transforms[i] = context.m_worldTransform;
+            }
 
-        // Adjust the remaining root motion relative to the warped frames
-        int32_t const numFrames = originalRootMotion.GetNumFrames();
-        for ( auto i = warpEndFrame + 1; i < numFrames; i++ )
+            // Distribute the desired orientation delta among the warped frames
+            for ( auto i = warpStartFrame + 1; i <= warpEndFrame; i++ )
+            {
+                float const percentage = float( i - warpStartFrame ) / numWarpFrames;
+                Quaternion const frameDelta = Quaternion::SLerp( Quaternion::Identity, desiredOrientationDelta, percentage );
+                Quaternion const adjustedRotation = m_warpedRootMotion.m_transforms[i].GetRotation() * frameDelta;
+                m_warpedRootMotion.m_transforms[i].SetRotation( adjustedRotation );
+            }
+
+            // Set the remaining root motion to the result of the last frame
+            for ( auto i = warpEndFrame + 1; i < m_warpedRootMotion.m_numFrames; i++ )
+            {
+                m_warpedRootMotion.m_transforms[i] = m_warpedRootMotion.m_transforms[warpEndFrame];
+            }
+        }
+        else
         {
-            Transform const originalDelta = Transform::Delta( originalRootMotion.m_transforms[i - 1], originalRootMotion.m_transforms[i] );
-            m_warpedRootMotion.m_transforms[i] = originalDelta * m_warpedRootMotion.m_transforms[i - 1];
+            m_warpedRootMotion = originalRootMotion;
+            if ( originalRootMotion.IsStationary() )
+            {
+                m_warpedRootMotion.m_transforms.resize( originalRootMotion.m_numFrames, originalRootMotion.front() );
+            }
+
+            // Set start transform
+            m_warpedRootMotion.front() = context.m_worldTransform;
+
+            // Record debug info
+            #if EE_DEVELOPMENT_TOOLS
+            m_warpStartWorldTransform = m_warpedRootMotion.front();
+            m_debugCharacterOffsetPosWS = m_warpStartWorldTransform.GetTranslation() + m_warpStartWorldTransform.RotateVector( originalRootMotion[warpEndFrame].GetTranslation() );
+            m_debugTargetDirWS = m_warpStartWorldTransform.RotateVector( targetDirCS );
+            m_warpStartTime = currentTime;
+            #endif
+
+            // Set initial world space positions up to the end of the rotation warp event
+            for ( auto i = 1; i <= warpEndFrame; i++ )
+            {
+                Transform const originalDelta = Transform::Delta( originalRootMotion[i - 1], originalRootMotion[i] );
+                m_warpedRootMotion[i] = originalDelta * m_warpedRootMotion[i - 1];
+            }
+
+            // Spread out the delta rotation across the entire warp section
+            for ( auto i = warpStartFrame + 1; i <= warpEndFrame; i++ )
+            {
+                float const percentage = float( i - warpStartFrame ) / numWarpFrames;
+                Quaternion const frameDelta = Quaternion::SLerp( Quaternion::Identity, desiredOrientationDelta, percentage );
+                Quaternion const adjustedRotation = frameDelta * m_warpedRootMotion[i].GetRotation();
+                m_warpedRootMotion[i].SetRotation( adjustedRotation );
+            }
+
+            // Adjust the remaining root motion relative to the warped frames
+            int32_t const numFrames = originalRootMotion.GetNumFrames();
+            for ( auto i = warpEndFrame + 1; i < numFrames; i++ )
+            {
+                Transform const originalDelta = Transform::Delta( originalRootMotion[i - 1], originalRootMotion[i] );
+                m_warpedRootMotion[i] = originalDelta * m_warpedRootMotion[i - 1];
+            }
         }
     }
 
@@ -266,8 +303,72 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    void OrientationWarpNode::RecordGraphState( RecordedGraphState& outState )
+    {
+        PoseNode::RecordGraphState( outState );
+        outState.WriteValue( m_shouldUpdateWarp );
+        outState.WriteValue( m_warpStartWorldTransform );
+        outState.WriteValue( m_warpStartTime );
+
+        #if EE_DEVELOPMENT_TOOLS
+        outState.WriteValue( m_debugCharacterOffsetPosWS );
+        outState.WriteValue( m_debugTargetDirWS );
+        #endif
+
+        //-------------------------------------------------------------------------
+
+        outState.WriteValue( m_warpedRootMotion.m_numFrames );
+        outState.WriteValue( m_warpedRootMotion.m_averageLinearVelocity );
+        outState.WriteValue( m_warpedRootMotion.m_averageAngularVelocity );
+        outState.WriteValue( m_warpedRootMotion.m_totalDelta );
+
+        int32_t const numTransforms = (int32_t) m_warpedRootMotion.m_transforms.size();
+        outState.WriteValue( numTransforms );
+        for ( auto const &dt : m_warpedRootMotion.m_transforms )
+        {
+            outState.WriteValue( dt );
+        }
+    }
+
+    bool OrientationWarpNode::RestoreGraphState( RecordedGraphState const& inState )
+    {
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
+        inState.ReadValue( m_shouldUpdateWarp );
+        inState.ReadValue( m_warpStartWorldTransform );
+        inState.ReadValue( m_warpStartTime );
+
+        #if EE_DEVELOPMENT_TOOLS
+        inState.ReadValue( m_debugCharacterOffsetPosWS );
+        inState.ReadValue( m_debugTargetDirWS );
+        #endif
+
+        //-------------------------------------------------------------------------
+
+        inState.ReadValue( m_warpedRootMotion.m_numFrames );
+        inState.ReadValue( m_warpedRootMotion.m_averageLinearVelocity );
+        inState.ReadValue( m_warpedRootMotion.m_averageAngularVelocity );
+        inState.ReadValue( m_warpedRootMotion.m_totalDelta );
+
+        int32_t numTransforms = 0;
+        inState.ReadValue( numTransforms );
+
+        m_warpedRootMotion.m_transforms.resize( numTransforms );
+        for ( int32_t i = 0; i < numTransforms; i++ )
+        {
+            inState.ReadValue( m_warpedRootMotion.m_transforms[i] );
+        }
+
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
+
     #if EE_DEVELOPMENT_TOOLS
-    void OrientationWarpNode::DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx )
+    void OrientationWarpNode::DrawDebug( GraphContext& graphContext, DebugDrawContext& drawCtx )
     {
         if ( !IsValid() )
         {
@@ -288,22 +389,6 @@ namespace EE::Animation
         {
             m_warpedRootMotion.DrawDebug( drawCtx, m_warpStartWorldTransform, Colors::Red, Colors::Green );
         }
-    }
-
-    void OrientationWarpNode::RecordGraphState( RecordedGraphState& outState )
-    {
-        PoseNode::RecordGraphState( outState );
-        outState.WriteValue( m_warpStartWorldTransform );
-        outState.WriteValue( m_warpStartTime );
-    }
-
-    void OrientationWarpNode::RestoreGraphState( RecordedGraphState const& inState )
-    {
-        PoseNode::RestoreGraphState( inState );
-        inState.ReadValue( m_warpStartWorldTransform );
-        inState.ReadValue( m_warpStartTime );
-        m_shouldUpdateWarp = true;
-        m_useRecordedStartData = true;
     }
     #endif
 }

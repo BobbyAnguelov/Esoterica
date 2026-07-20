@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Base/Memory/Memory.h"
+
 #include <EASTL/unique_ptr.h>
 
 //-------------------------------------------------------------------------

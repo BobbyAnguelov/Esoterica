@@ -41,6 +41,7 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         class EntityEditor;
+        class EditorContext;
         #endif
     }
 
@@ -55,6 +56,7 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         friend EntityModel::EntityEditor;
+        friend EntityModel::EditorContext;
         #endif
 
         using SystemUpdateList = TVector<EntitySystem*>;
@@ -69,12 +71,22 @@ namespace EE
                 DestroySystem,
                 AddComponent,
                 DestroyComponent,
-                WaitForComponentUnregistration,
+                WaitForComponentUnregistrationToDestroy,
+                ResourceChange,
+                WaitForComponentUnregistrationToChangeResource,
             };
 
-            void const*                         m_ptr = nullptr;            // Can either be ptr to a system or a component
-            ComponentID                         m_parentComponentID;        // Contains the ID of the component
-            Type                                m_type = Type::Unknown;     // Type of action
+            inline bool operator==( EntityComponent* pComponent ) const { return m_ptr == pComponent; }
+            inline bool operator==( EntitySystem* pSystem ) const { return m_ptr == pSystem; }
+            inline bool operator==( TypeSystem::TypeInfo const* pSystemTypeInfo ) const { return m_ptr == pSystemTypeInfo; }
+
+        public:
+
+            void const*                         m_ptr = nullptr;                    // Can either be ptr to a system or a component
+            ComponentID                         m_parentComponentID;                // Contains the ID of the component
+            bool                                m_waitingForUnregistration = false; // Is waiting to be unregistered from all systems
+            TVector<TFunction<void()>>          m_resourceChangeActions;            // The action to perform once we unregister a component
+            Type                                m_type = Type::Unknown;             // Type of action
         };
 
         // Event that's fired whenever a component/system is added or removed
@@ -101,7 +113,7 @@ namespace EE
         enum class SpatialAttachmentRule
         {
             KeepWorldTransform,
-            KeepLocalTranform
+            KeepLocalTransform
         };
 
         // Event that's fired whenever an entities internal state changes and it requires an state update
@@ -160,8 +172,17 @@ namespace EE
         // Get the ID for our spatial parent entity - Warning: Do not call without checking if we actually have a parent
         inline EntityID const& GetSpatialParentID() const { EE_ASSERT( HasSpatialParent() ); return m_pParentSpatialEntity->GetID(); }
 
+        // Are we directly parents to the supplied entity?
+        bool IsDirectSpatialChildOf( Entity const* pPotentialParent ) const;
+
         // Are we under the spatial hierarchy of the supplied entity?
         bool IsSpatialChildOf( Entity const* pPotentialParent ) const;
+
+        // Are we directly parents to the supplied entity?
+        bool IsDirectSpatialParentOf( Entity const* pPotentialChild ) const;
+
+        // Are we under the spatial hierarchy of the supplied entity?
+        bool IsSpatialParentOf( Entity const* pPotentialChild ) const;
 
         // Set the spatial parent
         // This will set the ptr to the parent entity and add this entity to the parent entity's attached entity list
@@ -205,6 +226,24 @@ namespace EE
 
         inline TVector<EntityComponent*> const& GetComponents() const { return m_components; }
 
+        template<typename T>
+        inline T* TryGetComponent()
+        {
+            static_assert( std::is_base_of<EE::EntityComponent, T>::value, "T is not derived from EntityComponent" );
+            for ( auto pC : m_components )
+            {
+                if ( auto pTC = TryCast<T>( pC ) ) { return pTC; }
+            }
+
+            return nullptr;
+        }
+
+        template<typename T>
+        inline T const* TryGetComponent() const
+        {
+            return const_cast<Entity*>( this )->TryGetComponent<T>();
+        }
+
         inline EntityComponent const* FindComponent( ComponentID const& componentID ) const
         {
             auto foundIter = eastl::find( m_components.begin(), m_components.end(), componentID, [] ( EntityComponent* pComponent, ComponentID const& ID ) { return pComponent->GetID() == ID; } );
@@ -213,8 +252,19 @@ namespace EE
         
         inline EntityComponent* FindComponent( ComponentID const& componentID ) { return const_cast<EntityComponent*>( const_cast<Entity const*>( this )->FindComponent( componentID ) ); }
 
+        // Can we create a system of this type on this entity. Basically check for any singleton component conflicts.
+        bool CanCreateComponent( TypeSystem::TypeInfo const* pComponentTypeInfo ) const;
+
+        // Can we create a system of this type on this entity. Basically check for any singleton component conflicts.
+        template<typename T>
+        bool CanCreateComponent() const
+        {
+            static_assert( std::is_base_of<EntityComponent, T>::value, "T has to derive from EntityComponent" );
+            return CanCreateComponent( T::GetStaticTypeInfo() );
+        }
+
         // Create a new component of the specified type
-        void CreateComponent( TypeSystem::TypeInfo const* pComponentTypeInfo, ComponentID const& parentSpatialComponentID = ComponentID() );
+        EntityComponent* CreateComponent( TypeSystem::TypeInfo const* pComponentTypeInfo, ComponentID const& parentSpatialComponentID = ComponentID() );
 
         // Add a new component. For spatial component, you can optionally specify a component to attach to. 
         // If this is unset, the component will be attached to the root component (or will become the root component if one doesnt exist)
@@ -236,20 +286,59 @@ namespace EE
         // Run Entity Systems
         void UpdateSystems( EntityWorldUpdateContext const& context );
 
+        // Do we have a system of this type added
+        bool HasSystem( TypeSystem::TypeID typeID ) const
+        {
+            for ( auto pSystem : m_systems )
+            {
+                if ( pSystem->GetTypeID() == typeID )
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        // Do we have a system of this type added
+        template<typename T>
+        bool HasSystem() const
+        {
+            static_assert( std::is_base_of<EntitySystem, T>::value, "T has to derive from IEntitySystem" );
+            return HasSystem( T::GetStaticTypeID() );
+        }
+
+        // Can we create a system of this type on this entity. We only allow a single system for any system derivation hierarchy to be added.
+        bool CanCreateSystem( TypeSystem::TypeInfo const* pSystemTypeInfo ) const;
+
+        // Can we create a system of this type on this entity. We only allow a single system for any system derivation hierarchy to be added.
+        template<typename T>
+        bool CanCreateSystem() const
+        {
+            static_assert( std::is_base_of<EntitySystem, T>::value, "T has to derive from IEntitySystem" );
+            return CanCreateSystem( T::GetStaticTypeInfo() );
+        }
+
+        // Get a specific system
+        EntitySystem* GetSystem( TypeSystem::TypeID const& systemTypeID )
+        {
+            for ( auto pSystem : m_systems )
+            {
+                if ( pSystem->GetTypeInfo()->m_ID == systemTypeID )
+                {
+                    return pSystem;
+                }
+            }
+
+            return nullptr;
+        }
+
         // Get a specific system
         template<typename T>
         T* GetSystem()
         {
             static_assert( std::is_base_of<EntitySystem, T>::value, "T has to derive from IEntitySystem" );
-            for ( auto pSystem : m_systems )
-            {
-                if ( pSystem->GetTypeInfo()->m_ID == T::GetStaticTypeID() )
-                {
-                    return reinterpret_cast<T*>( pSystem );
-                }
-            }
-
-            return nullptr;
+            return TryCast<T>( GetSystem( T::GetStaticTypeID() ) );
         }
 
         // Request creation of a new system
@@ -333,8 +422,16 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        // Registers a resource change request for a given component
+        void RegisterComponentResourceChangeRequest( EntityComponent* pComponent, TFunction<void()>&& stateChangeFunction );
+
+        //-------------------------------------------------------------------------
+
         // Update internal entity state and execute all deferred actions
         bool UpdateEntityState( EntityModel::LoadingContext const& loadingContext, EntityModel::InitializationContext& initializationContext );
+
+        // Allow entity systems to spawn any required transient components
+        void CreateAdditionalRequiredComponents();
 
         // Request initial load of all components
         void LoadComponents( EntityModel::LoadingContext const& loadingContext );
@@ -358,9 +455,16 @@ namespace EE
 
         EntityID                                            m_ID = EntityID::Generate();                                            // The unique ID of this entity ( globally unique and generated at runtime )
         EntityMapID                                         m_mapID;                                                                // The ID of the map that owns this entity
-        EE_REFLECT( ReadOnly ) StringID     m_name;                                                                 // The name of the entity, only unique within the context of a map
+
+        EE_REFLECT( ReadOnly );
+        StringID                                            m_name;                                                                 // The name of the entity, only unique within the context of a map
+
+        EE_REFLECT();
+        StringID                                            m_parentAttachmentSocketID;                                             // The socket that we are attached to on the parent
+
         Status                                              m_status = Status::Unloaded;
         UpdateRegistrationStatus                            m_updateRegistrationStatus = UpdateRegistrationStatus::Unregistered;    // Is this entity registered for frame updates
+        bool                                                m_isSpatialAttachmentCreated = false;                                   // Has the actual component-to-component attachment been created
 
         TVector<EntitySystem*>                              m_systems;
         TVector<EntityComponent*>                           m_components;
@@ -369,8 +473,6 @@ namespace EE
         SpatialEntityComponent*                             m_pRootSpatialComponent = nullptr;                                      // This spatial component defines our world position
         TVector<Entity*>                                    m_attachedEntities;                                                     // The list of entities that are attached to this entity
         Entity*                                             m_pParentSpatialEntity = nullptr;                                       // The parent entity we are attached to
-        EE_REFLECT() StringID                               m_parentAttachmentSocketID;                                             // The socket that we are attached to on the parent
-        bool                                                m_isSpatialAttachmentCreated = false;                                   // Has the actual component-to-component attachment been created
 
         TVector<EntityInternalStateAction>                  m_deferredActions;                                                      // The set of internal entity state changes that need to be executed
         Threading::RecursiveMutex                           m_internalStateMutex;                                                   // A mutex that needs to be lock due to internal state changes

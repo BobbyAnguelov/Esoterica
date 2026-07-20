@@ -1,39 +1,45 @@
 #pragma once
 
 #include "Base/_Module/API.h"
+#include "Base/Types/Arrays.h"
 #include "Base/Drawing/DebugDrawing.h"
 #include "Base/Threading/Threading.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
-namespace EE::Drawing
+namespace EE
 {
-    class EE_BASE_API DrawingSystem
+    class EE_BASE_API DebugDrawSystem
     {
+        struct CommandBufferRecord
+        {
+            Threading::ThreadID                         m_threadID;
+            DebugDrawInternal::ThreadCommandBuffer*     m_pBuffer = nullptr;
+        };
 
     public:
 
-        DrawingSystem() = default;
-        ~DrawingSystem();
+        DebugDrawSystem() = default;
+        ~DebugDrawSystem();
 
         // Empty all per thread buffers
         void Reset();
 
         // Returns a per-thread drawing context, this removes the need for constantly calling get thread command buffer
-        inline DrawContext GetDrawingContext() { return DrawContext( GetThreadCommandBuffer() ); }
+        inline DebugDrawContext GetDebugDrawContext() { return DebugDrawContext( GetThreadCommandBuffer() ); }
 
         // Reflects all the individual per-thread buffers into a single supplied frame command buffer. Clears all thread buffers.
-        void ReflectFrameCommandBuffer( Seconds const deltaTime, FrameCommandBuffer& reflectedFrameCommands );
+        void ReflectFrameCommandBuffer( DebugDrawInternal::FrameCommandBuffer& reflectedFrameCommands );
 
     private:
 
-        ThreadCommandBuffer& GetThreadCommandBuffer();
+        DebugDrawInternal::ThreadCommandBuffer& GetThreadCommandBuffer();
 
     private:
 
-        TVector<ThreadCommandBuffer*>       m_threadCommandBuffers;
-        Threading::Mutex                    m_commandBufferMutex;
+        TInlineVector<CommandBufferRecord, 32>          m_threadCommandBuffers;
+        Threading::ReadWriteMutex                       m_threadCommandBuffersMutex;
     };
 }
 #endif

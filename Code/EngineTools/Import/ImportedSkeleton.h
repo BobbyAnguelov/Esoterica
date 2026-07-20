@@ -8,7 +8,7 @@
 
 namespace EE::Import
 {
-    class EE_ENGINETOOLS_API ImportedSkeleton : public ImportedData
+    class EE_ENGINETOOLS_API Skeleton : public ImportedData
     {
 
     public:
@@ -53,7 +53,7 @@ namespace EE::Import
 
     protected:
 
-        void CalculateLocalTransforms();
+        void CalculateParentSpaceTransforms();
         void CalculateModelSpaceTransforms();
 
     protected:

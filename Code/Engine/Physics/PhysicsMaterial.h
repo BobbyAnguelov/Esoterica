@@ -1,75 +1,67 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
+#include "Engine/Physics/Physics.h"
 #include "Base/TypeSystem/ReflectedType.h"
 #include "Base/Resource/IResource.h"
 #include "Base/Systems.h"
 
 //-------------------------------------------------------------------------
 
-namespace physx { class PxMaterial; }
-
-//-------------------------------------------------------------------------
-
 namespace EE::Physics
 {
-    enum class CombineMode
-    {
-        EE_REFLECT_ENUM
-
-        Average = 0,
-        Min,
-        Multiply,
-        Max,
-    };
-
     //-------------------------------------------------------------------------
     // Material Settings
     //-------------------------------------------------------------------------
     // Serialized physical material settings
 
-    struct EE_ENGINE_API MaterialSettings : public IReflectedType
+    struct EE_ENGINE_API Material : public IReflectedType
     {
-        EE_REFLECT_TYPE( MaterialSettings );
-        EE_SERIALIZE( m_ID, m_dynamicFriction, m_staticFriction, m_restitution, m_frictionCombineMode, m_restitutionCombineMode );
+        EE_REFLECT_TYPE( Material );
+        EE_SERIALIZE( m_ID, m_friction, m_restitution, m_rollingResistance );
+
+        friend class PhysicsMaterialDatabaseLoader;
 
         static inline StaticStringID const s_defaultID = StaticStringID( "Default" );
-        constexpr static float const s_defaultStaticFriction = 0.5f;
-        constexpr static float const s_defaultDynamicFriction = 0.5f;
-        constexpr static float const s_defaultRestitution = 0.5f;
 
     public:
 
         bool IsValid() const;
 
+        b3SurfaceMaterial GetB3D() const
+        { 
+            b3SurfaceMaterial material;
+            material.friction = m_friction;
+            material.restitution = m_restitution;
+            material.rollingResistance = m_rollingResistance;
+            material.userMaterialId = m_ID.ToUint();
+            return material;
+        }
+
+    public:
+
         EE_REFLECT()
         StringID                                m_ID;
 
-        // The static friction coefficients - [0, FloatMax]
-        EE_REFLECT();
-        float                                   m_staticFriction = s_defaultStaticFriction;
-
-        // The dynamic friction coefficients - [0, FloatMax]
-        EE_REFLECT();
-        float                                   m_dynamicFriction = s_defaultDynamicFriction;
+        // The static friction coefficients - [0, 1]
+        EE_REFLECT( Min = "0.0f", Max = "1.0f" );
+        float                                   m_friction = 0.5f;
 
         // The amount of restitution (bounciness) - [0,1]
-        EE_REFLECT();
-        float                                   m_restitution = s_defaultRestitution;
+        EE_REFLECT( Min = "0.0f", Max = "1.0f" );
+        float                                   m_restitution = 0.5f;
 
-        // How material friction properties will be combined on collision
-        EE_REFLECT();
-        CombineMode                             m_frictionCombineMode = CombineMode::Average;
-        
-        // How material restitution properties will be combined on collision
-        EE_REFLECT();
-        CombineMode                             m_restitutionCombineMode = CombineMode::Average;
+        // The rolling resistance for spheres and capsules - [0, 1]
+        EE_REFLECT( Min = "0.0f", Max = "1.0f" );
+        float                                   m_rollingResistance = 0.5f;
     };
+
+    //-------------------------------------------------------------------------
 
     // Empty resource - acts as a placeholder for the actual data being loaded - see PhysicsMaterialDatabaseLoader for details
     class EE_ENGINE_API MaterialDatabase final : public Resource::IResource
     {
-        EE_RESOURCE( 'pmdb', "Physics Material DB", 1, false );
+        EE_RESOURCE( "pmdb", "Physics Material DB", Colors::RoyalBlue, 2, false );
         EE_SERIALIZE( m_materials );
 
         friend class PhysicsMaterialDatabaseCompiler;
@@ -81,29 +73,7 @@ namespace EE::Physics
 
     private:
 
-        TVector<MaterialSettings>               m_materials;
-    };
-
-    //-------------------------------------------------------------------------
-    // Physics Material Instance
-    //-------------------------------------------------------------------------
-    // Physics material instance, created from the serialized settings
-
-    struct EE_ENGINE_API MaterialInstance
-    {
-    public:
-
-        MaterialInstance( StringID ID, physx::PxMaterial* pMaterial )
-            : m_ID( ID )
-            , m_pMaterial( pMaterial )
-        {
-            EE_ASSERT( ID.IsValid() && pMaterial != nullptr );
-        }
-
-    public:
-
-        StringID                                m_ID;
-        physx::PxMaterial*                      m_pMaterial = nullptr;
+        TVector<Material>                       m_materials;
     };
 
     //-------------------------------------------------------------------------
@@ -122,7 +92,7 @@ namespace EE::Physics
     public:
 
         EE_REFLECT();
-        StringID                                        m_ID = StringID( MaterialSettings::s_defaultID );
+        StringID                                m_ID = StringID( Material::s_defaultID );
     };
 
     //-------------------------------------------------------------------------
@@ -142,18 +112,17 @@ namespace EE::Physics
         void Initialize();
         void Shutdown();
 
-        void RegisterMaterials( TVector<MaterialSettings> const& materials );
-        void UnregisterMaterials( TVector<MaterialSettings> const& materials );
+        void RegisterMaterials( TVector<Material> const& materials );
+        void UnregisterMaterials( TVector<Material> const& materials );
 
-        physx::PxMaterial* GetDefaultMaterial() const { return m_pDefaultMaterial; }
-        physx::PxMaterial* GetMaterial( StringID materialID ) const;
-
-        EE_FORCE_INLINE physx::PxMaterial* GetMaterial( MaterialID materialID ) const { return GetMaterial( materialID.m_ID ); }
+        b3SurfaceMaterial const& GetDefaultMaterial() const { return m_defaultMaterial; }
+        b3SurfaceMaterial const& GetMaterial( StringID materialID ) const;
+        EE_FORCE_INLINE b3SurfaceMaterial const& GetMaterial( MaterialID materialID ) const { return GetMaterial( materialID.m_ID ); }
 
     private:
 
-        THashMap<StringID, MaterialInstance>            m_materials;
-        StringID                                        m_defaultMaterialID;
-        physx::PxMaterial*                              m_pDefaultMaterial = nullptr;
+        THashMap<StringID, b3SurfaceMaterial>   m_materials;
+        StringID                                m_defaultMaterialID;
+        b3SurfaceMaterial                       m_defaultMaterial = {};
     };
 }

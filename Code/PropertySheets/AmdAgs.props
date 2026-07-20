@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+	<ImportGroup Label="PropertySheets" />
+	<PropertyGroup Label="UserMacros">
+		<AMD_AGS_DIR>$(SolutionDir)External\amd_ags\</AMD_AGS_DIR>
+		<AMD_AGS_INC_DIR>$(AMD_AGS_DIR)ags_lib\inc\</AMD_AGS_INC_DIR>
+		<AMD_AGS_LIB_DIR>$(AMD_AGS_DIR)ags_lib\lib\</AMD_AGS_LIB_DIR>
+	</PropertyGroup>
+	<ItemDefinitionGroup>
+		<ClCompile>
+			<AdditionalIncludeDirectories>$(AMD_AGS_INC_DIR);%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
+			<PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
+		</ClCompile>
+		<Link>
+			<AdditionalLibraryDirectories>$(AMD_AGS_LIB_DIR);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+			<AdditionalDependencies>amd_ags_x64.lib;%(AdditionalDependencies)</AdditionalDependencies>
+		</Link>
+	</ItemDefinitionGroup>
+	<Target Name="AMD_AGS_CopyDLL" BeforeTargets="Build">
+		<Copy SkipUnchangedFiles="True" SourceFiles="$(AMD_AGS_LIB_DIR)amd_ags_x64.dll;" DestinationFolder="$(OutDir)" />
+	</Target>
+	<Target Name="DXC_CleanDLL" BeforeTargets="Clean">
+		<Delete TreatErrorsAsWarnings="True" Files="$(OutDir)amd_ags_x64.dll;" />
+	</Target>
+</Project>

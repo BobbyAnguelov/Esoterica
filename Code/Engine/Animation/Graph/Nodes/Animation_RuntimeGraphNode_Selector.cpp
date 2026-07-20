@@ -1,6 +1,5 @@
 #include "Animation_RuntimeGraphNode_Selector.h"
 
-
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
@@ -85,12 +84,13 @@ namespace EE::Animation
             {
                 m_pSelectedNode->Shutdown( context );
                 m_pSelectedNode = nullptr;
+                m_selectedOptionIdx = InvalidIndex;
             }
         }
         else
         {
             #if EE_DEVELOPMENT_TOOLS
-            context.LogWarning( GetNodeIndex(), "Failed to select a valid option!" );
+            context.LogWarning( GetNodeIndex(), "Selector: Failed to select a valid option!" );
             #endif
         }
     }
@@ -122,7 +122,7 @@ namespace EE::Animation
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_pSampledEventsBuffer->IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.GetSampledEventsBuffer()->IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
@@ -132,20 +132,32 @@ namespace EE::Animation
         return result;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void SelectorNode::RecordGraphState( RecordedGraphState& outState )
     {
         PoseNode::RecordGraphState( outState );
         outState.WriteValue( m_selectedOptionIdx );
     }
 
-    void SelectorNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool SelectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( inState );
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_selectedOptionIdx );
-        m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+
+        if ( m_selectedOptionIdx != InvalidIndex )
+        {
+            m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+        }
+        else
+        {
+            m_pSelectedNode = nullptr;
+        }
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -209,7 +221,7 @@ namespace EE::Animation
     {
         EE_ASSERT( context.IsValid() );
 
-        PoseNode::InitializeInternal( context, initialTime );
+        AnimationClipReferenceNode::InitializeInternal( context, initialTime );
 
         // Select option and try to create transient data for it
         m_selectedOptionIdx = SelectOption( context );
@@ -228,12 +240,13 @@ namespace EE::Animation
             {
                 m_pSelectedNode->Shutdown( context );
                 m_pSelectedNode = nullptr;
+                m_selectedOptionIdx = InvalidIndex;
             }
         }
         else
         {
             #if EE_DEVELOPMENT_TOOLS
-            context.LogWarning( GetNodeIndex(), "Failed to select a valid option!" );
+            context.LogWarning( GetNodeIndex(), "Clip Selector: Failed to select a valid option!" );
             #endif
         }
     }
@@ -248,7 +261,7 @@ namespace EE::Animation
             m_pSelectedNode = nullptr;
         }
 
-        PoseNode::ShutdownInternal( context );
+        AnimationClipReferenceNode::ShutdownInternal( context );
     }
 
     GraphPoseNodeResult AnimationClipSelectorNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
@@ -265,7 +278,7 @@ namespace EE::Animation
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_pSampledEventsBuffer->IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.GetSampledEventsBuffer()->IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
@@ -273,6 +286,16 @@ namespace EE::Animation
         }
 
         return result;
+    }
+
+    bool AnimationClipSelectorNode::HasAnimation() const
+    {
+        if ( m_pSelectedNode != nullptr )
+        {
+            return m_pSelectedNode->HasAnimation();
+        }
+
+        return false;
     }
 
     AnimationClip const* AnimationClipSelectorNode::GetAnimation() const
@@ -303,62 +326,68 @@ namespace EE::Animation
         return false;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void AnimationClipSelectorNode::RecordGraphState( RecordedGraphState& outState )
     {
         AnimationClipReferenceNode::RecordGraphState( outState );
         outState.WriteValue( m_selectedOptionIdx );
     }
 
-    void AnimationClipSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool AnimationClipSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        AnimationClipReferenceNode::RestoreGraphState( inState );
-        inState.ReadValue( m_selectedOptionIdx );
-        m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
-    }
-    #endif
-
-    //-------------------------------------------------------------------------
-
-    static int32_t PickOption( int32_t numOptions, TInlineVector<uint8_t, 5> const &optionWeights, int32_t seed )
-    {
-        int32_t selectedIdx = InvalidIndex;
-
-        if ( optionWeights.empty() )
+        if ( !AnimationClipReferenceNode::RestoreGraphState( inState ) )
         {
-            selectedIdx = seed % numOptions;
+            return false;
+        }
+
+        inState.ReadValue( m_selectedOptionIdx );
+
+        if ( m_selectedOptionIdx != InvalidIndex )
+        {
+            m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
         }
         else
         {
-            EE_ASSERT( optionWeights.size() == numOptions );
+            m_pSelectedNode = nullptr;
+        }
 
-            // Create bucket boundaries based on the option weights, basically allocate an entry for each option n times, where n is the weight
-            int32_t* pOptionBucketBoundaries = EE_STACK_ARRAY_ALLOC( int32_t, optionWeights.size() );
+        return true;
+    }
 
-            int32_t totalWeightedOptions = 0;
-            for ( auto i = 0; i < numOptions; i++ )
+    //-------------------------------------------------------------------------
+
+    static int32_t PickOption( TInlineVector<int16_t, 10> const& options, TInlineVector<uint8_t, 10> const& weights, float parameterValue )
+    {
+        EE_ASSERT( options.size() == weights.size() );
+
+        if ( options.empty() )
+        {
+            return InvalidIndex;
+        }
+
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( Math::IsInRangeInclusive( parameterValue, float( -INT32_MAX ), float( INT32_MAX ) ) );
+        int64_t const seed = Math::FloorToInt64( Math::Abs( parameterValue ) );
+
+        //-------------------------------------------------------------------------
+
+        TInlineVector<int16_t, 40> virtualOptions;
+        int32_t const numOptions = (int32_t) options.size();
+        for ( int32_t i = 0; i < numOptions; i++ )
+        {
+            for ( int32_t j = 0; j < weights[i]; j++ )
             {
-                EE_ASSERT( optionWeights[i] > 0 );
-                pOptionBucketBoundaries[i] = totalWeightedOptions + optionWeights[i];
-                totalWeightedOptions += optionWeights[i];
-            }
-
-            EE_ASSERT( totalWeightedOptions > 0 );
-
-            // Select a value from the new set of options
-            int32_t const weightedIdx = seed % totalWeightedOptions;
-
-            // Find the bucket that we rolled into and return that
-            for ( int32_t i = 0; i < numOptions; i++ )
-            {
-                if ( weightedIdx <= pOptionBucketBoundaries[i] )
-                {
-                    selectedIdx = i;
-                    break;
-                }
+                virtualOptions.emplace_back( options[i] );
             }
         }
 
+        int64_t const numVirtualOptions = (int64_t) virtualOptions.size();
+        if ( numVirtualOptions == 0 )
+        {
+            return InvalidIndex;
+        }
+
+        int16_t const selectedIdx = virtualOptions[seed % numVirtualOptions];
         return selectedIdx;
     }
 
@@ -383,15 +412,39 @@ namespace EE::Animation
         {
             int32_t const numOptions = (int32_t) m_optionNodes.size();
 
+            // Generate options and weight lists
+            TInlineVector<int16_t, 10> options;
+            TInlineVector<uint8_t, 10> weights;
+            auto pDefinition = GetDefinition<ParameterizedSelectorNode>();
+            if ( pDefinition->m_ignoreInvalidOptions )
+            {
+                for ( int16_t i = 0; i < numOptions; i++ )
+                {
+                    m_optionNodes[i]->Initialize( context, SyncTrackTime() );
+                    if ( m_optionNodes[i]->IsValid() )
+                    {
+                        options.emplace_back( i );
+                        weights.emplace_back( pDefinition->m_hasWeightsSet ? pDefinition->m_optionWeights[i] : uint8_t( 1 ) );
+                    }
+                    m_optionNodes[i]->Shutdown( context );
+                }
+            }
+            else
+            {
+                for ( int16_t i = 0; i < numOptions; i++ )
+                {
+                    options.emplace_back( i );
+                    weights.emplace_back( pDefinition->m_hasWeightsSet ? pDefinition->m_optionWeights[i] : uint8_t( 1 ) );
+                }
+            }
+
             // Get parameter value
             m_pParameterNode->Initialize( context );
             float const parameterValue = m_pParameterNode->GetValue<float>( context );
             m_pParameterNode->Shutdown( context );
-            int32_t const seed = Math::FloorToInt( Math::Abs( parameterValue ) );
 
             // Calculate selected index
-            auto pDefinition = GetDefinition<ParameterizedSelectorNode>();
-            int32_t const selectedIdx = PickOption( numOptions, pDefinition->m_optionWeights, seed );
+            int32_t const selectedIdx = PickOption( options, weights, parameterValue );
             return selectedIdx;
         }
         else
@@ -423,12 +476,13 @@ namespace EE::Animation
             {
                 m_pSelectedNode->Shutdown( context );
                 m_pSelectedNode = nullptr;
+                m_selectedOptionIdx = InvalidIndex;
             }
         }
         else
         {
             #if EE_DEVELOPMENT_TOOLS
-            context.LogWarning( GetNodeIndex(), "Failed to select a valid option!" );
+            context.LogWarning( GetNodeIndex(), "Parameterized Selector: Failed to select a valid option!" );
             #endif
         }
     }
@@ -460,7 +514,7 @@ namespace EE::Animation
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_pSampledEventsBuffer->IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.GetSampledEventsBuffer()->IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
@@ -470,20 +524,32 @@ namespace EE::Animation
         return result;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void ParameterizedSelectorNode::RecordGraphState( RecordedGraphState& outState )
     {
         PoseNode::RecordGraphState( outState );
         outState.WriteValue( m_selectedOptionIdx );
     }
 
-    void ParameterizedSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool ParameterizedSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( inState );
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_selectedOptionIdx );
-        m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+
+        if ( m_selectedOptionIdx != InvalidIndex )
+        {
+            m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+        }
+        else
+        {
+            m_pSelectedNode = nullptr;
+        }
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -508,15 +574,42 @@ namespace EE::Animation
         {
             int32_t const numOptions = (int32_t) m_optionNodes.size();
 
+            // Generate options and weight lists
+            TInlineVector<int16_t, 10> options;
+            TInlineVector<uint8_t, 10> weights;
+            auto pDefinition = GetDefinition<ParameterizedAnimationClipSelectorNode>();
+            if ( pDefinition->m_ignoreInvalidOptions )
+            {
+                for ( int16_t i = 0; i < numOptions; i++ )
+                {
+                    if ( m_optionNodes[i]->HasAnimation() )
+                    {
+                        m_optionNodes[i]->Initialize( context, SyncTrackTime() );
+                        if ( m_optionNodes[i]->IsValid() )
+                        {
+                            options.emplace_back( i );
+                            weights.emplace_back( pDefinition->m_hasWeightsSet ? pDefinition->m_optionWeights[i] : uint8_t( 1 ) );
+                        }
+                        m_optionNodes[i]->Shutdown( context );
+                    }
+                }
+            }
+            else
+            {
+                for ( int16_t i = 0; i < numOptions; i++ )
+                {
+                    options.emplace_back( i );
+                    weights.emplace_back( pDefinition->m_hasWeightsSet ? pDefinition->m_optionWeights[i] : uint8_t( 1 ) );
+                }
+            }
+
             // Get parameter value
             m_pParameterNode->Initialize( context );
             float const parameterValue = m_pParameterNode->GetValue<float>( context );
             m_pParameterNode->Shutdown( context );
-            int32_t const seed = Math::FloorToInt( Math::Abs( parameterValue ) );
 
             // Calculate selected index
-            auto pDefinition = GetDefinition<ParameterizedAnimationClipSelectorNode>();
-            int32_t const selectedIdx = PickOption( numOptions, pDefinition->m_optionWeights, seed );
+            int32_t const selectedIdx = PickOption( options, weights, parameterValue );
             return selectedIdx;
         }
         else
@@ -529,7 +622,7 @@ namespace EE::Animation
     {
         EE_ASSERT( context.IsValid() );
 
-        PoseNode::InitializeInternal( context, initialTime );
+        AnimationClipReferenceNode::InitializeInternal( context, initialTime );
 
         // Select option and try to create transient data for it
         m_selectedOptionIdx = SelectOption( context );
@@ -548,12 +641,13 @@ namespace EE::Animation
             {
                 m_pSelectedNode->Shutdown( context );
                 m_pSelectedNode = nullptr;
+                m_selectedOptionIdx = InvalidIndex;
             }
         }
         else
         {
             #if EE_DEVELOPMENT_TOOLS
-            context.LogWarning( GetNodeIndex(), "Failed to select a valid option!" );
+            context.LogWarning( GetNodeIndex(), "Paramaterized Clip Selector: Failed to select a valid option!" );
             #endif
         }
     }
@@ -568,7 +662,7 @@ namespace EE::Animation
             m_pSelectedNode = nullptr;
         }
 
-        PoseNode::ShutdownInternal( context );
+        AnimationClipReferenceNode::ShutdownInternal( context );
     }
 
     GraphPoseNodeResult ParameterizedAnimationClipSelectorNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
@@ -585,7 +679,7 @@ namespace EE::Animation
             m_duration = m_pSelectedNode->GetDuration();
             m_previousTime = m_pSelectedNode->GetPreviousTime();
             m_currentTime = m_pSelectedNode->GetCurrentTime();
-            EE_ASSERT( context.m_pSampledEventsBuffer->IsValidRange( result.m_sampledEventRange ) );
+            EE_ASSERT( context.GetSampledEventsBuffer()->IsValidRange( result.m_sampledEventRange ) );
         }
         else
         {
@@ -593,6 +687,16 @@ namespace EE::Animation
         }
 
         return result;
+    }
+
+    bool ParameterizedAnimationClipSelectorNode::HasAnimation() const
+    {
+        if ( m_pSelectedNode != nullptr )
+        {
+            return m_pSelectedNode->HasAnimation();
+        }
+
+        return false;
     }
 
     AnimationClip const* ParameterizedAnimationClipSelectorNode::GetAnimation() const
@@ -623,18 +727,397 @@ namespace EE::Animation
         return false;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void ParameterizedAnimationClipSelectorNode::RecordGraphState( RecordedGraphState& outState )
+    {
+        AnimationClipReferenceNode::RecordGraphState( outState );
+        outState.WriteValue( m_selectedOptionIdx );
+    }
+
+    bool ParameterizedAnimationClipSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
+    {
+        if( !AnimationClipReferenceNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
+        inState.ReadValue( m_selectedOptionIdx );
+
+        if ( m_selectedOptionIdx != InvalidIndex )
+        {
+            m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+        }
+        else
+        {
+            m_pSelectedNode = nullptr;
+        }
+
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void IDBasedSelectorNode::Definition::InstantiateNode( InstantiationContext const &context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<IDBasedSelectorNode>( context, options );
+
+        for ( int16_t nodeIdx : m_optionNodeIndices )
+        {
+            context.SetNodePtrFromIndex( nodeIdx, pNode->m_optionNodes.emplace_back() );
+        }
+
+        context.SetNodePtrFromIndex( m_parameterNodeIdx, pNode->m_pParameterNode );
+        context.SetOptionalNodePtrFromIndex( m_fallbackNodeIdx, pNode->m_pFallbackNode );
+    }
+
+    int32_t IDBasedSelectorNode::SelectOption( GraphContext &context ) const
+    {
+        EE_ASSERT( context.IsValid() );
+
+        auto pDefinition = GetDefinition<IDBasedSelectorNode>();
+        EE_ASSERT( pDefinition->m_optionIDs.size() == m_optionNodes.size() );
+
+        StringID const inputID = m_pParameterNode->GetValue<StringID>( context );
+
+        for ( int32_t i = 0; i < m_optionNodes.size(); i++ )
+        {
+            if ( pDefinition->m_optionIDs[i] == inputID )
+            {
+                return i;
+            }
+        }
+
+        return InvalidIndex;
+    }
+
+    void IDBasedSelectorNode::InitializeInternal( GraphContext &context, SyncTrackTime const &initialTime )
+    {
+        EE_ASSERT( context.IsValid() );
+        EE_ASSERT( m_pSelectedNode == nullptr );
+
+        PoseNode::InitializeInternal( context, initialTime );
+
+        //-------------------------------------------------------------------------
+
+        m_selectedOptionIdx = SelectOption( context );
+        if ( m_selectedOptionIdx != InvalidIndex )
+        {
+            m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+
+        }
+        else if ( m_pFallbackNode != nullptr )
+        {
+            m_pSelectedNode = m_pFallbackNode;
+        }
+
+        //-------------------------------------------------------------------------
+
+        auto TryInitializeSelectedNode = [this] ( GraphContext &context, SyncTrackTime const &initialTime )
+        {
+            m_pSelectedNode->Initialize( context, initialTime );
+
+            if ( m_pSelectedNode->IsValid() )
+            {
+                m_duration = m_pSelectedNode->GetDuration();
+                m_previousTime = m_pSelectedNode->GetPreviousTime();
+                m_currentTime = m_pSelectedNode->GetCurrentTime();
+
+                return true;
+            }
+            else
+            {
+                m_pSelectedNode->Shutdown( context );
+                m_pSelectedNode = nullptr;
+                m_selectedOptionIdx = InvalidIndex;
+            }
+
+            return false;
+        };
+
+        if ( m_pSelectedNode != nullptr )
+        {
+            if ( !TryInitializeSelectedNode( context, initialTime ) )
+            {
+                m_selectedOptionIdx = InvalidIndex;
+
+                if ( m_pFallbackNode != nullptr )
+                {
+                    m_pSelectedNode = m_pFallbackNode;
+                    TryInitializeSelectedNode( context, initialTime );
+                }
+            }
+        }
+
+        if ( m_pSelectedNode == nullptr || !m_pSelectedNode->IsValid() )
+        {
+            #if EE_DEVELOPMENT_TOOLS
+            StringID const inputID = m_pParameterNode->GetValue<StringID>( context );
+            context.LogWarning( GetNodeIndex(), "ID Selector: Failed to select a valid option for ID: %s!", inputID.IsValid() ? inputID.c_str() : "" );
+            #endif
+        }
+    }
+
+    void IDBasedSelectorNode::ShutdownInternal( GraphContext &context )
+    {
+        EE_ASSERT( context.IsValid() );
+
+        if ( m_pSelectedNode != nullptr )
+        {
+            m_pSelectedNode->Shutdown( context );
+            m_pSelectedNode = nullptr;
+        }
+
+        PoseNode::ShutdownInternal( context );
+    }
+
+    GraphPoseNodeResult IDBasedSelectorNode::Update( GraphContext &context, SyncTrackTimeRange const *pUpdateRange )
+    {
+        EE_ASSERT( context.IsValid() );
+
+        GraphPoseNodeResult result;
+        if ( IsValid() )
+        {
+            MarkNodeActive( context );
+
+            // Copy node instance data, this node acts like a passthrough
+            result = m_pSelectedNode->Update( context, pUpdateRange );
+            m_duration = m_pSelectedNode->GetDuration();
+            m_previousTime = m_pSelectedNode->GetPreviousTime();
+            m_currentTime = m_pSelectedNode->GetCurrentTime();
+            EE_ASSERT( context.GetSampledEventsBuffer()->IsValidRange( result.m_sampledEventRange ) );
+        }
+        else
+        {
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
+        }
+
+        return result;
+    }
+
+    void IDBasedSelectorNode::RecordGraphState( RecordedGraphState &outState )
     {
         PoseNode::RecordGraphState( outState );
         outState.WriteValue( m_selectedOptionIdx );
     }
 
-    void ParameterizedAnimationClipSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool IDBasedSelectorNode::RestoreGraphState( RecordedGraphState const &inState )
     {
-        PoseNode::RestoreGraphState( inState );
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_selectedOptionIdx );
-        m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+
+        if ( m_selectedOptionIdx != InvalidIndex )
+        {
+            m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+        }
+        else
+        {
+            m_pSelectedNode = m_pFallbackNode;
+        }
+
+        return true;
     }
-    #endif
+
+    //-------------------------------------------------------------------------
+
+    void IDBasedAnimationClipSelectorNode::Definition::InstantiateNode( InstantiationContext const &context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<IDBasedAnimationClipSelectorNode>( context, options );
+
+        for ( int16_t nodeIdx : m_optionNodeIndices )
+        {
+            context.SetNodePtrFromIndex( nodeIdx, pNode->m_optionNodes.emplace_back() );
+        }
+
+        context.SetNodePtrFromIndex( m_parameterNodeIdx, pNode->m_pParameterNode );
+        context.SetOptionalNodePtrFromIndex( m_fallbackNodeIdx, pNode->m_pFallbackNode );
+    }
+
+    int32_t IDBasedAnimationClipSelectorNode::SelectOption( GraphContext &context ) const
+    {
+        EE_ASSERT( context.IsValid() );
+
+        auto pDefinition = GetDefinition<IDBasedAnimationClipSelectorNode>();
+        EE_ASSERT( pDefinition->m_optionIDs.size() == m_optionNodes.size() );
+
+        StringID const inputID = m_pParameterNode->GetValue<StringID>( context );
+
+        for ( int32_t i = 0; i < m_optionNodes.size(); i++ )
+        {
+            if ( pDefinition->m_optionIDs[i] == inputID )
+            {
+                return i;
+            }
+        }
+
+        return InvalidIndex;
+    }
+
+    void IDBasedAnimationClipSelectorNode::InitializeInternal( GraphContext &context, SyncTrackTime const &initialTime )
+    {
+        EE_ASSERT( context.IsValid() );
+
+        AnimationClipReferenceNode::InitializeInternal( context, initialTime );
+
+        //-------------------------------------------------------------------------
+
+        m_selectedOptionIdx = SelectOption( context );
+        if ( m_selectedOptionIdx != InvalidIndex )
+        {
+            m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+
+        }
+        else if ( m_pFallbackNode != nullptr )
+        {
+            m_pSelectedNode = m_pFallbackNode;
+        }
+
+        //-------------------------------------------------------------------------
+
+        auto TryInitializeSelectedNode = [this] ( GraphContext &context, SyncTrackTime const &initialTime )
+        {
+            m_pSelectedNode->Initialize( context, initialTime );
+
+            if ( m_pSelectedNode->IsValid() )
+            {
+                m_duration = m_pSelectedNode->GetDuration();
+                m_previousTime = m_pSelectedNode->GetPreviousTime();
+                m_currentTime = m_pSelectedNode->GetCurrentTime();
+
+                return true;
+            }
+            else
+            {
+                m_pSelectedNode->Shutdown( context );
+                m_pSelectedNode = nullptr;
+                m_selectedOptionIdx = InvalidIndex;
+            }
+
+            return false;
+        };
+
+        if ( m_pSelectedNode != nullptr )
+        {
+            if ( !TryInitializeSelectedNode( context, initialTime ) )
+            {
+                m_selectedOptionIdx = InvalidIndex;
+
+                if ( m_pFallbackNode != nullptr )
+                {
+                    m_pSelectedNode = m_pFallbackNode;
+                    TryInitializeSelectedNode( context, initialTime );
+                }
+            }
+        }
+
+        if ( m_pSelectedNode == nullptr || !m_pSelectedNode->IsValid() )
+        {
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( GetNodeIndex(), "ID Clip Selector: Failed to select a valid option!" );
+            #endif
+        }
+    }
+
+    void IDBasedAnimationClipSelectorNode::ShutdownInternal( GraphContext &context )
+    {
+        EE_ASSERT( context.IsValid() );
+
+        if ( m_pSelectedNode != nullptr )
+        {
+            m_pSelectedNode->Shutdown( context );
+            m_pSelectedNode = nullptr;
+        }
+
+        AnimationClipReferenceNode::ShutdownInternal( context );
+    }
+
+    GraphPoseNodeResult IDBasedAnimationClipSelectorNode::Update( GraphContext &context, SyncTrackTimeRange const *pUpdateRange )
+    {
+        EE_ASSERT( context.IsValid() );
+
+        GraphPoseNodeResult result;
+        if ( IsValid() )
+        {
+            MarkNodeActive( context );
+
+            // Copy node instance data, this node acts like a passthrough
+            result = m_pSelectedNode->Update( context, pUpdateRange );
+            m_duration = m_pSelectedNode->GetDuration();
+            m_previousTime = m_pSelectedNode->GetPreviousTime();
+            m_currentTime = m_pSelectedNode->GetCurrentTime();
+            EE_ASSERT( context.GetSampledEventsBuffer()->IsValidRange( result.m_sampledEventRange ) );
+        }
+        else
+        {
+            result.m_sampledEventRange = context.GetEmptySampledEventRange();
+        }
+
+        return result;
+    }
+
+    bool IDBasedAnimationClipSelectorNode::HasAnimation() const
+    {
+        if ( m_pSelectedNode != nullptr )
+        {
+            return m_pSelectedNode->HasAnimation();
+        }
+
+        return false;
+    }
+
+    AnimationClip const *IDBasedAnimationClipSelectorNode::GetAnimation() const
+    {
+        if ( m_pSelectedNode != nullptr )
+        {
+            return m_pSelectedNode->GetAnimation();
+        }
+
+        return nullptr;
+    }
+
+    void IDBasedAnimationClipSelectorNode::DisableRootMotionSampling()
+    {
+        if ( m_pSelectedNode != nullptr )
+        {
+            m_pSelectedNode->DisableRootMotionSampling();
+        }
+    }
+
+    bool IDBasedAnimationClipSelectorNode::IsLooping() const
+    {
+        if ( m_pSelectedNode != nullptr )
+        {
+            return m_pSelectedNode->IsLooping();
+        }
+
+        return false;
+    }
+
+    void IDBasedAnimationClipSelectorNode::RecordGraphState( RecordedGraphState &outState )
+    {
+        AnimationClipReferenceNode::RecordGraphState( outState );
+        outState.WriteValue( m_selectedOptionIdx );
+    }
+
+    bool IDBasedAnimationClipSelectorNode::RestoreGraphState( RecordedGraphState const &inState )
+    {
+        if ( !AnimationClipReferenceNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
+        inState.ReadValue( m_selectedOptionIdx );
+        if ( m_selectedOptionIdx != InvalidIndex )
+        {
+            m_pSelectedNode = m_optionNodes[m_selectedOptionIdx];
+        }
+        else
+        {
+            m_pSelectedNode = m_pFallbackNode;
+        }
+
+        return true;
+    }
 }

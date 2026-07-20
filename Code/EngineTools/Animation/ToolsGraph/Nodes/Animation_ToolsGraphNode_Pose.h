@@ -46,12 +46,24 @@ namespace EE::Animation
         {
             EE_REFLECT_TYPE( Data );
 
-            virtual void GetReferencedResources( TInlineVector<ResourceID, 2>& outReferencedResources ) const override { outReferencedResources.emplace_back( m_animClip.GetResourceID() ); }
+            virtual void GetReferencedResources( TInlineVector<ResourceID, 2>& outReferencedResources ) const override
+            {
+                if ( m_animClip.IsSet() )
+                {
+                    outReferencedResources.emplace_back( m_animClip.GetResourceID() );
+                }
+            }
+
+            virtual VisualState GetVisualState() const override { return m_animClip.IsSet() ? VisualState::None : VisualState::HasUnsetData; }
 
         public:
 
             EE_REFLECT();
             TResourcePtr<AnimationClip>     m_animClip;
+
+            // Time override value - will override the fixed time value if set
+            EE_REFLECT();
+            float                           m_variationTimeValue = -1.0f;
         };
 
     public:

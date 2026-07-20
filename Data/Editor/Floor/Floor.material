@@ -1,0 +1,6 @@
+<Type TypeID="EE::Render::MaterialResourceDescriptor" Version="0">
+  <Property ID="m_shader" Value="DefaultPBR" />
+  <Type ID="m_shaderParameters" TypeID="EE::Render::Shaders::DefaultPBRParameters">
+    <Property ID="m_albedoTexture" Value="data://editor/floor/floor.texture" />
+  </Type>
+</Type>

@@ -33,7 +33,7 @@ namespace EE::Serialization
     // Type Descriptors
     //-------------------------------------------------------------------------
 
-    EE_BASE_API bool ReadTypeDescriptorFromXML( TypeSystem::TypeRegistry const& typeRegistry, xml_node const& descriptorNode, TypeSystem::TypeDescriptor& outDesc );
+    EE_BASE_API bool ReadTypeDescriptorFromXML( TypeSystem::TypeRegistry const& typeRegistry, Log& log, xml_node const& descriptorNode, TypeSystem::TypeDescriptor& outDesc );
 
     EE_BASE_API xml_node WriteTypeDescriptorToXML( TypeSystem::TypeRegistry const& typeRegistry, xml_node parentNode, TypeSystem::TypeDescriptor const& type );
 
@@ -41,13 +41,13 @@ namespace EE::Serialization
     //-------------------------------------------------------------------------
 
     // Read the data for a native type from XML - expect a fully created type to be supplied and will override the values
-    EE_BASE_API bool ReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_node const& node, IReflectedType* pTypeInstance );
+    EE_BASE_API bool ReadType( TypeSystem::TypeRegistry const& typeRegistry, Log& log, xml_node const& node, IReflectedType* pTypeInstance );
 
     // Read the data for a native type from XML - expect a fully created type to be supplied and will override the values
-    inline bool ReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_document const& doc, IReflectedType* pTypeInstance ) { return ReadType( typeRegistry, doc.first_child(), pTypeInstance ); }
+    inline bool ReadType( TypeSystem::TypeRegistry const& typeRegistry, Log& log, xml_document const& doc, IReflectedType* pTypeInstance ) { return ReadType( typeRegistry, log, doc.first_child(), pTypeInstance ); }
 
     // Read the data for a native type from XML - expect a fully created type to be supplied and will override the values
-    EE_BASE_API bool ReadTypeFromString( TypeSystem::TypeRegistry const& typeRegistry, String const& xmlString, IReflectedType* pTypeInstance );
+    EE_BASE_API bool ReadTypeFromString( TypeSystem::TypeRegistry const& typeRegistry, Log& log, String const& xmlString, IReflectedType* pTypeInstance );
 
     // Serialize a supplied native type to XML - creates a new XML object for this type
     EE_BASE_API void WriteType( TypeSystem::TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, xml_node& parentNode );
@@ -56,16 +56,16 @@ namespace EE::Serialization
     EE_BASE_API void WriteTypeToString( TypeSystem::TypeRegistry const& typeRegistry, IReflectedType const* pTypeInstance, String& outString );
 
     // Create a new instance of a type from a supplied XML version
-    EE_BASE_API IReflectedType* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_node const& node );
+    EE_BASE_API IReflectedType* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, Log& log, xml_node const& node );
 
     // Create a new instance of a type from a supplied XML version
-    inline IReflectedType* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_document const& doc ) { return TryCreateAndReadType( typeRegistry, doc.first_child() ); }
+    inline IReflectedType* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, Log& log, xml_document const& doc ) { return TryCreateAndReadType( typeRegistry, log, doc.first_child() ); }
 
     // Create a new instance of a type from a supplied XML version
     template<typename T>
-    T* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_node const& node )
+    T* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, Log& log, xml_node const& node )
     {
-        IReflectedType* pCreatedType = TryCreateAndReadType( typeRegistry, node );
+        IReflectedType* pCreatedType = TryCreateAndReadType( typeRegistry, log, node );
         if ( pCreatedType != nullptr )
         {
             if ( IsOfType<T>( pCreatedType ) )
@@ -82,9 +82,9 @@ namespace EE::Serialization
 
     // Create a new instance of a type from a supplied XML version
     template<typename T>
-    T* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, xml_document const& doc )
+    T* TryCreateAndReadType( TypeSystem::TypeRegistry const& typeRegistry, Log& log, xml_document const& doc )
     {
-        return TryCreateAndReadType<T>( typeRegistry, doc.first_child() );
+        return TryCreateAndReadType<T>( typeRegistry, log, doc.first_child() );
     }
 
     // Utility Functions

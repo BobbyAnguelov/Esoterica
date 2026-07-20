@@ -2,6 +2,7 @@
 
 #include "Engine/_Module/API.h"
 #include "Component_PhysicsShape.h"
+#include "Engine/Physics/PhysicsMaterial.h"
 
 //-------------------------------------------------------------------------
 
@@ -21,13 +22,14 @@ namespace EE::Physics
 
         virtual OBB CalculateLocalBounds() const override final;
         virtual bool HasValidPhysicsSetup() const override final;
+        virtual void CreatePhysicsShape() override final;
 
     protected:
 
         EE_REFLECT( Category = "Shape" );
         Float3                              m_boxHalfExtents = Float3( 1.0f );
 
-        EE_REFLECT( Category = "Physics" );
+        EE_REFLECT( Category = "Shape" );
         MaterialID                          m_materialID;
     };
 }

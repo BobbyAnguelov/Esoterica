@@ -19,19 +19,23 @@ namespace EE::Animation
         *( (bool*) pOutValue ) = m_value;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void ControlParameterBoolNode::RecordGraphState( RecordedGraphState& outState )
     {
         BoolValueNode::RecordGraphState( outState );
         outState.WriteValue( m_value );
     }
 
-    void ControlParameterBoolNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool ControlParameterBoolNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        BoolValueNode::RestoreGraphState( inState );
+        if ( !BoolValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_value );
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -50,19 +54,23 @@ namespace EE::Animation
         *( (StringID*) pOutValue ) = m_value;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void ControlParameterIDNode::RecordGraphState( RecordedGraphState& outState )
     {
         IDValueNode::RecordGraphState( outState );
         outState.WriteValue( m_value );
     }
 
-    void ControlParameterIDNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool ControlParameterIDNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        IDValueNode::RestoreGraphState( inState );
+        if ( !IDValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_value );
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -81,19 +89,23 @@ namespace EE::Animation
         *( (float*) pOutValue ) = m_value;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void ControlParameterFloatNode::RecordGraphState( RecordedGraphState& outState )
     {
         FloatValueNode::RecordGraphState( outState );
         outState.WriteValue( m_value );
     }
 
-    void ControlParameterFloatNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool ControlParameterFloatNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        FloatValueNode::RestoreGraphState( inState );
+        if ( !FloatValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_value );
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -112,19 +124,23 @@ namespace EE::Animation
         *( (Float3*) pOutValue ) = m_value;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void ControlParameterVectorNode::RecordGraphState( RecordedGraphState& outState )
     {
         VectorValueNode::RecordGraphState( outState );
         outState.WriteValue( m_value );
     }
 
-    void ControlParameterVectorNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool ControlParameterVectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        VectorValueNode::RestoreGraphState( inState );
+        if ( !VectorValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_value );
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -143,19 +159,23 @@ namespace EE::Animation
         *( (Target*) pOutValue ) = m_value;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void ControlParameterTargetNode::RecordGraphState( RecordedGraphState& outState )
     {
         TargetValueNode::RecordGraphState( outState );
         outState.WriteValue( m_value );
     }
 
-    void ControlParameterTargetNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool ControlParameterTargetNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        TargetValueNode::RestoreGraphState( inState );
+        if ( !TargetValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_value );
+
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 

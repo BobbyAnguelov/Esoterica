@@ -225,7 +225,7 @@ namespace EE::Math
         // Allocate additional node memory
         if ( m_freeNodeIdx == numNodes )
         {
-            m_nodes.resize( Math::FloorToInt( m_nodes.size() * 1.25f ) );
+            m_nodes.resize( Math::FloorToInt32( m_nodes.size() * 1.25f ) );
         }
 
         return freeNodeIdx;
@@ -274,7 +274,7 @@ namespace EE::Math
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void AABBTree::DrawDebug( Drawing::DrawContext& drawingContext ) const
+    void AABBTree::DrawDebug( DebugDrawContext& drawingContext ) const
     {
         if ( m_rootNodeIdx == InvalidIndex )
         {
@@ -293,11 +293,11 @@ namespace EE::Math
         }
     }
 
-    void AABBTree::DrawBranch( Drawing::DrawContext& drawingContext, int32_t nodeIdx ) const
+    void AABBTree::DrawBranch( DebugDrawContext& drawingContext, int32_t nodeIdx ) const
     {
         auto const& currentNode = m_nodes[nodeIdx];
         EE_ASSERT( !currentNode.IsLeafNode() );
-        drawingContext.DrawWireBox( currentNode.m_bounds, Colors::Cyan, 1.0f, Drawing::DepthTest::Enable );
+        drawingContext.DrawWireBox( currentNode.m_bounds, Colors::Cyan, 1.0f, DebugDrawLayer::WorldOverlay );
 
         // Left
         if ( m_nodes[currentNode.m_leftNodeIdx].IsLeafNode() )
@@ -320,10 +320,10 @@ namespace EE::Math
         }
     }
 
-    void AABBTree::DrawLeaf( Drawing::DrawContext& drawingContext, int32_t nodeIdx ) const
+    void AABBTree::DrawLeaf( DebugDrawContext& drawingContext, int32_t nodeIdx ) const
     {
         EE_ASSERT( m_nodes[nodeIdx].IsLeafNode() );
-        drawingContext.DrawWireBox( m_nodes[nodeIdx].m_bounds, Colors::Green, 2.0f, Drawing::DepthTest::Enable );
+        drawingContext.DrawWireBox( m_nodes[nodeIdx].m_bounds, Colors::Green, 2.0f, DebugDrawLayer::WorldOverlay );
     }
     #endif
 }

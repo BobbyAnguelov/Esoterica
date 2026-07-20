@@ -1,11 +1,13 @@
 #pragma once
 
-#include "EngineTools/_Module/API.h"
 #include "EngineTools/Resource/ResourceCompiler.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Import { class ImportedMesh; }
+namespace EE::Import
+{
+    class Mesh;
+}
 
 //-------------------------------------------------------------------------
 
@@ -13,7 +15,11 @@ namespace EE::Render
 {
     class Mesh;
     class SkeletalMesh;
+
+    struct MeshGroup;
     struct MeshResourceDescriptor;
+
+    struct ConvertedMesh;
 
     //-------------------------------------------------------------------------
 
@@ -23,42 +29,38 @@ namespace EE::Render
 
     protected:
 
-        using Resource::Compiler::Compiler;
+        using Compiler::Compiler;
 
     protected:
 
-        void TransferMeshGeometry( Import::ImportedMesh const& ImportedMesh, Mesh& mesh, int32_t maxBoneInfluences ) const;
-        void OptimizeMeshGeometry( Mesh& mesh ) const;
-        void SetMeshDefaultMaterials( MeshResourceDescriptor const& descriptor, Mesh& mesh ) const;
-        void SetMeshInstallDependencies( Mesh const& mesh, Resource::ResourceHeader& hdr ) const;
-        virtual bool GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
+        Resource::CompilationResult CompileMesh( Resource::CompileContext const& ctx, Mesh& mesh, MeshResourceDescriptor const& resourceDescriptor, MeshGroup const& meshGroup ) const;
+
+        static void SetResourceHeaderInstallDependencies( Mesh const& Mesh, Resource::ResourceHeader& hdr );
     };
 
     //-------------------------------------------------------------------------
 
-    class StaticMeshCompiler : public MeshCompiler
+    class StaticMeshCompiler final : public MeshCompiler
     {
         EE_REFLECT_TYPE( StaticMeshCompiler );
 
     public:
 
         StaticMeshCompiler();
+
         virtual Resource::CompilationResult Compile( Resource::CompileContext const& ctx ) const override;
     };
 
     //-------------------------------------------------------------------------
 
-    class SkeletalMeshCompiler : public MeshCompiler
+    class SkeletalMeshCompiler final : public MeshCompiler
     {
         EE_REFLECT_TYPE( SkeletalMeshCompiler );
 
     public:
 
         SkeletalMeshCompiler();
+
         virtual Resource::CompilationResult Compile( Resource::CompileContext const& ctx ) const override;
-
-    private:
-
-        void TransferSkeletalMeshData( Import::ImportedMesh const& ImportedMesh, SkeletalMesh& mesh ) const;
     };
 }

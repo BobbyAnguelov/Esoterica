@@ -107,8 +107,7 @@ namespace EE::NodeGraph
         GraphView( UserContext* pUserContext );
         virtual ~GraphView();
 
-        bool HasFocus() const { return m_hasFocus; }
-
+        // Viewed Graph
         //-------------------------------------------------------------------------
 
         void SetGraphToView( BaseGraph* pGraph, bool tryMaintainSelection = false );
@@ -122,10 +121,20 @@ namespace EE::NodeGraph
         inline FlowGraph* GetFlowGraph() const { return Cast<FlowGraph>( m_pGraph ); }
         inline StateMachineGraph* GetStateMachineGraph() const { return Cast<StateMachineGraph>( m_pGraph ); }
 
+        // State
+        //-------------------------------------------------------------------------
+
+        bool HasFocus() const { return m_hasFocus; }
+
         inline bool IsReadOnly() const { return m_isReadOnly; }
 
         // Set the view to be read only - no graph modification allowed
         void SetReadOnly( bool isReadOnly ) { m_isReadOnly = isReadOnly; }
+
+        // Settings
+        //-------------------------------------------------------------------------
+
+        void SetAutoConnectionDistance( float distance );
 
         // Drawing and view
         //-------------------------------------------------------------------------
@@ -281,6 +290,8 @@ namespace EE::NodeGraph
         DragState                       m_dragState;
         ContextMenuState                m_contextMenuState;
         DragAndDropState                m_dragAndDropState;
+
+        float                           m_autoConnectMaxDistanceThreshold = 200;
 
         // Flow graph state
         Pin*                            m_pHoveredPin = nullptr;

@@ -28,6 +28,10 @@ namespace EE::Animation
             case TargetWarpRule::RotationOnly:
             color = Colors::OrangeRed;
             break;
+
+            case TargetWarpRule::FixedSection:
+            color = Colors::Red;
+            break;
         }
 
         return color;
@@ -35,7 +39,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    InlineString TargetWarpEvent::GetDebugText() const
+    InlineString TargetWarpEvent::GetDebugText( Percentage percentageThroughEvent ) const
     {
         constexpr static char const* labels[] = 
         {

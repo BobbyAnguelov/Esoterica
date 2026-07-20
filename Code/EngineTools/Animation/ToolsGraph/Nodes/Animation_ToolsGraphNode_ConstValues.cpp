@@ -82,6 +82,38 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    VariationFloatToolsNode::VariationFloatToolsNode()
+        : VariationDataToolsNode()
+    {
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
+
+        CreateOutputPin( "Value", GraphValueType::Float, true );
+    }
+
+    int16_t VariationFloatToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        auto pData = GetResolvedVariationDataAs<Data>( context.GetVariationHierarchy(), context.GetVariationID() );
+
+        ConstFloatNode::Definition* pDefinition = nullptr;
+        if ( context.GetDefinition<ConstFloatNode>( this, pDefinition ) == NodeCompilationState::NeedCompilation )
+        {
+            pDefinition->m_value = pData->m_value;
+        }
+        return pDefinition->m_nodeIdx;
+    }
+
+    void VariationFloatToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
+    {
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        auto pData = GetResolvedVariationDataAs<Data>( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
+
+        BeginDrawInternalRegion( ctx );
+        ImGui::Text( "%.3f", pData->m_value );
+        EndDrawInternalRegion( ctx );
+    }
+
+    //-------------------------------------------------------------------------
+
     ConstVectorToolsNode::ConstVectorToolsNode()
         : FlowToolsNode()
     {

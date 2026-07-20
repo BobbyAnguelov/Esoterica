@@ -1,7 +1,7 @@
 #pragma once
 
 #include "EngineTools/_Module/API.h"
-#include "Base/FileSystem/FileSystemPath.h"
+#include "ImporterSource.h"
 #include "Base/Types/Function.h"
 #include "Base/Types/StringID.h"
 #include "Base/Memory/UniquePtr.h"
@@ -10,10 +10,10 @@
 
 namespace EE::Import
 {
-    class ImportedMesh;
-    class ImportedSkeleton;
-    class ImportedAnimation;
-    class ImportedImage;
+    class Mesh;
+    class Skeleton;
+    class Animation;
+    class Image;
 
     //-------------------------------------------------------------------------
 
@@ -27,9 +27,12 @@ namespace EE::Import
 
     //-------------------------------------------------------------------------
 
-    EE_ENGINETOOLS_API TUniquePtr<ImportedSkeleton> ReadSkeleton( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName = String(), TVector<StringID> const& listOfHighLODBones = TVector<StringID>() );
-    EE_ENGINETOOLS_API TUniquePtr<ImportedAnimation> ReadAnimation( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, Import::ImportedSkeleton const& importedSkeleton, String const& animationName = String() );
-    EE_ENGINETOOLS_API TUniquePtr<ImportedMesh> ReadStaticMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude = TVector<String>() );
-    EE_ENGINETOOLS_API TUniquePtr<ImportedMesh> ReadSkeletalMesh( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude = TVector<String>(), int32_t maxBoneInfluences = 4 );
-    EE_ENGINETOOLS_API TUniquePtr<ImportedImage> ReadImage( ReaderContext const& ctx, FileSystem::Path const& sourceFilePath );
+    struct EE_ENGINETOOLS_API Importer
+    {
+        static TUniquePtr<Skeleton> ReadSkeleton( ReaderContext const& ctx, Source const& source, String const& skeletonRootBoneName = String(), TVector<StringID> const& listOfHighLODBones = TVector<StringID>() );
+        static TUniquePtr<Animation> ReadAnimation( ReaderContext const& ctx, Source const& source, Import::Skeleton const* pPrimarySkeleton, TVector<Import::Skeleton const*> const& secondarySkeletons, String const& animationName = String(), float samplingFrameRate = 30 );
+        static TUniquePtr<Mesh> ReadStaticMesh( ReaderContext const& ctx, Source const& source, TVector<String> const& meshesToInclude = TVector<String>() );
+        static TUniquePtr<Mesh> ReadSkeletalMesh( ReaderContext const& ctx, Source const& source, TVector<String> const& meshesToInclude = TVector<String>() );
+        static TUniquePtr<Image> ReadImage( ReaderContext const& ctx, Source const& source );
+    };
 }

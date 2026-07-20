@@ -1,6 +1,7 @@
 #include "Encoding.h"
 #include <locale>
 #include "Base/Types/Arrays.h"
+#include "Base/Types/String.h"
 
 //-------------------------------------------------------------------------
 
@@ -154,11 +155,174 @@ namespace EE::Encoding::Base85
         return encodedData;
     }
 
-    Blob Decode( uint8_t const* pDataToDecode, size_t dataSize )
+    Blob Decode( uint8_t const* pDataToDecode, size_t outDataSize )
     {
-        EE_ASSERT( pDataToDecode != nullptr && dataSize > 0 );
+        EE_ASSERT( pDataToDecode != nullptr && outDataSize > 0 );
+
         Blob decodedData;
-        EE_UNIMPLEMENTED_FUNCTION();
+        decodedData.resize( outDataSize );
+        Decode( pDataToDecode, decodedData.data() );
         return decodedData;
+    }
+
+    void Decode( uint8_t const* pDataToDecode, uint8_t* pOutData )
+    {
+        uint8_t const* pSrc = pDataToDecode;
+        uint8_t* pDst = pOutData;
+
+        while ( *pSrc )
+        {
+            int32_t tmp = DecodeByte( pSrc[0] ) + 85 * ( DecodeByte( pSrc[1] ) + 85 * ( DecodeByte( pSrc[2] ) + 85 * ( DecodeByte( pSrc[3] ) + 85 * DecodeByte( pSrc[4] ) ) ) );
+            pDst[0] = ( ( tmp >> 0 ) & 0xFF );
+            pDst[1] = ( ( tmp >> 8 ) & 0xFF );
+            pDst[2] = ( ( tmp >> 16 ) & 0xFF );
+            pDst[3] = ( ( tmp >> 24 ) & 0xFF );
+            pSrc += 5;
+            pDst += 4;
+        }
+    }
+}
+
+//-------------------------------------------------------------------------
+
+namespace EE::Encoding::FourCC
+{
+    uint32_t Encode( char const* pStr )
+    {
+        if ( pStr == nullptr )
+        {
+            return 0;
+        }
+
+        size_t const length = strlen( pStr );
+        if ( length > 4 )
+        {
+            return 0;
+        }
+
+        uint32_t code = 0;
+        for ( size_t i = 0; i < length; i++ )
+        {
+            code |= ( uint32_t( pStr[i] ) << ( length - 1 - i ) * 8 );
+        }
+
+        return code;
+    }
+
+    TInlineString<5> Decode( uint32_t code )
+    {
+        TInlineString<5> str;
+
+        //-------------------------------------------------------------------------
+
+        if ( code == 0 )
+        {
+            return str;
+        }
+
+        //-------------------------------------------------------------------------
+
+        char values[4];
+        values[0] = (char) ( code >> 24 );
+        values[1] = (char) ( ( code & 0x00FF0000 ) >> 16 );
+        values[2] = (char) ( ( code & 0x0000FF00 ) >> 8 );
+        values[3] = (char) ( code & 0x000000FF );
+
+        //-------------------------------------------------------------------------
+
+        bool validValidDetected = false;
+        for ( int32_t i = 0; i < 4; i++ )
+        {
+            if ( values[i] != 0 )
+            {
+                str.push_back( values[i] );
+                validValidDetected = true;
+            }
+            else // Zero value detected
+            {
+                // We do not allow zero values between non-zero values
+                if ( validValidDetected )
+                {
+                    str.clear();
+                    break;
+                }
+            }
+        }
+
+        return str;
+    }
+}
+
+//-------------------------------------------------------------------------
+
+namespace EE::Encoding::EightCC
+{
+    uint64_t Encode( char const* pStr )
+    {
+        if ( pStr == nullptr )
+        {
+            return 0;
+        }
+
+        size_t const length = strlen( pStr );
+        if ( length > 8 )
+        {
+            return 0;
+        }
+
+        uint64_t code = 0;
+        for ( size_t i = 0; i < length; i++ )
+        {
+            code |= ( uint64_t( pStr[i] ) << ( length - 1 - i ) * 8 );
+        }
+
+        return code;
+    }
+
+    TInlineString<9> Decode( uint64_t code )
+    {
+        TInlineString<9> str;
+
+        //-------------------------------------------------------------------------
+
+        if ( code == 0 )
+        {
+            return str;
+        }
+
+        //-------------------------------------------------------------------------
+
+        char values[8];
+        values[0] = (char) ( code >> 56 );
+        values[1] = (char) ( ( code & 0x00FF000000000000 ) >> 48 );
+        values[2] = (char) ( ( code & 0x0000FF0000000000 ) >> 40 );
+        values[3] = (char) ( ( code & 0x000000FF00000000 ) >> 32 );
+        values[4] = (char) ( ( code & 0x00000000FF000000 ) >> 24 );
+        values[5] = (char) ( ( code & 0x0000000000FF0000 ) >> 16 );
+        values[6] = (char) ( ( code & 0x000000000000FF00 ) >> 8 );
+        values[7] = (char) ( ( code & 0x00000000000000FF ) );
+
+        //-------------------------------------------------------------------------
+
+        bool validValidDetected = false;
+        for ( int32_t i = 0; i < 8; i++ )
+        {
+            if ( values[i] != 0 )
+            {
+                str.push_back( values[i] );
+                validValidDetected = true;
+            }
+            else // Zero value detected
+            {
+                // We do not allow zero values between non-zero values
+                if ( validValidDetected )
+                {
+                    str.clear();
+                    break;
+                }
+            }
+        }
+
+        return str;
     }
 }

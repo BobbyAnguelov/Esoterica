@@ -25,7 +25,8 @@ namespace EE::Animation
         {
             State,
             Transition,
-            CachedPose
+            CachedPose,
+            OffState,
         };
 
     public:
@@ -44,12 +45,15 @@ namespace EE::Animation
             MatchSyncEventPercentage, // Only checked if MatchSourceTime is set
 
             PreferClosestSyncEventID, // Only checked if MatchSyncEventID is set, will prefer the closest matching sync event rather than the first found
+
+            MatchTimeInSeconds, // Only checked if MatchSourceTime is set
+            OffsetTimeInSeconds, // Only checked if MatchSourceTime is not set
         };
 
         struct EE_ENGINE_API Definition : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_syncEventOffsetOverrideNodeIdx, m_blendWeightEasingOp, m_rootMotionBlend, m_duration, m_syncEventOffset, m_transitionOptions, m_targetSyncIDNodeIdx, m_startBoneMaskNodeIdx, m_boneMaskBlendInTimePercentage );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_targetStateNodeIdx, m_durationOverrideNodeIdx, m_timeOffsetOverrideNodeIdx, m_blendWeightEasingOp, m_rootMotionBlend, m_duration, m_timeOffset, m_transitionOptions, m_targetSyncIDNodeIdx, m_startBoneMaskNodeIdx, m_boneMaskBlendInTimePercentage );
 
         public:
 
@@ -65,15 +69,18 @@ namespace EE::Animation
 
             inline bool ShouldPreferClosestSyncEventID() const { return m_transitionOptions.IsFlagSet( TransitionOptions::PreferClosestSyncEventID ); }
 
+            inline bool ShouldMatchTimeInSeconds() const { return m_transitionOptions.IsFlagSet( TransitionOptions::MatchTimeInSeconds ); }
+            inline bool ShouldOffsetTimeInSeconds() const { return m_transitionOptions.IsFlagSet( TransitionOptions::OffsetTimeInSeconds ); }
+
         public:
 
             int16_t                             m_targetStateNodeIdx = InvalidIndex;
             int16_t                             m_durationOverrideNodeIdx = InvalidIndex;
-            int16_t                             m_syncEventOffsetOverrideNodeIdx = InvalidIndex;
+            int16_t                             m_timeOffsetOverrideNodeIdx = InvalidIndex;
             int16_t                             m_startBoneMaskNodeIdx = InvalidIndex;
             Seconds                             m_duration = 0;
             Percentage                          m_boneMaskBlendInTimePercentage = 0.33f;
-            float                               m_syncEventOffset = 0;
+            float                               m_timeOffset = 0;
             TBitFlags<TransitionOptions>        m_transitionOptions;
             int16_t                             m_targetSyncIDNodeIdx = InvalidIndex;
             Math::Easing::Operation             m_blendWeightEasingOp = Math::Easing::Operation::Linear;
@@ -120,6 +127,8 @@ namespace EE::Animation
         inline bool IsSourceATransition() const { return m_sourceType == SourceType::Transition; }
         inline bool IsSourceAState() const { return m_sourceType == SourceType::State; }
         inline bool IsSourceACachedPose() const { return m_sourceType == SourceType::CachedPose; }
+        inline bool IsSourceAnOffState() const { return m_sourceType == SourceType::OffState; }
+        inline bool IsSourceACachedPoseOrOffState() const { return m_sourceType == SourceType::CachedPose || m_sourceType == SourceType::OffState; }
 
     private:
 
@@ -146,10 +155,8 @@ namespace EE::Animation
             }
         }
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
         // Source Node
         //-------------------------------------------------------------------------
@@ -165,12 +172,12 @@ namespace EE::Animation
         PoseNode*                               m_pSourceNode = nullptr;
         StateNode*                              m_pTargetNode = nullptr;
         FloatValueNode*                         m_pDurationOverrideNode = nullptr;
-        FloatValueNode*                         m_pEventOffsetOverrideNode = nullptr;
+        FloatValueNode*                         m_pTimeOffsetOverrideNode = nullptr;
         BoneMaskValueNode*                      m_pStartBoneMaskNode = nullptr;
         IDValueNode*                            m_pTargetSyncIDNode = nullptr;
         SyncTrack                               m_syncTrack;
         float                                   m_transitionProgress = 0;
-        float                                   m_transitionDuration = 0; // This is either time in seconds, or percentage of the sync track
+        Seconds                                 m_transitionDuration = 0;
         float                                   m_syncEventOffset = 0;
         float                                   m_blendWeight = 0;
         Seconds                                 m_blendedDuration = 0.0f;
@@ -179,8 +186,9 @@ namespace EE::Animation
         SourceType                              m_sourceType = SourceType::State;
         BoneMaskTaskList                        m_boneMaskTaskList;
 
-        #if EE_DEVELOPMENT_TOOLS
         bool                                    m_recreateCachedPoseBuffer = false; // Needed in the scenario where we are restoring from a recorded state
+
+        #if EE_DEVELOPMENT_TOOLS
         int16_t                                 m_rootMotionActionIdxSource = InvalidIndex;
         int16_t                                 m_rootMotionActionIdxTarget = InvalidIndex;
         #endif

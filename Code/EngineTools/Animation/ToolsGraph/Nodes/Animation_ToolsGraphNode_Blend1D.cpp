@@ -214,7 +214,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        ImVec2 const visualizationSize( 200, 40 );
+        ImVec2 const visualizationSize( 200 * ctx.m_viewScaleFactor, 40 * ctx.m_viewScaleFactor );
         ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray8 );
         if ( ImGui::BeginChild( "Viz", visualizationSize ) )
         {
@@ -259,6 +259,19 @@ namespace EE::Animation
         }
         ImGui::EndChild();
         ImGui::PopStyleColor();
+    }
+
+    UUID Blend1DToolsNode::RegenerateIDs( THashMap<UUID, UUID>& IDMapping )
+    {
+        UUID const originalID = FlowToolsNode::RegenerateIDs( IDMapping );
+
+        // Fix up pinID mappings
+        for ( BlendSpacePoint &point : m_blendSpace )
+        {
+            point.m_pinID = IDMapping.at( point.m_pinID );
+        }
+
+        return originalID;
     }
 
     //-------------------------------------------------------------------------

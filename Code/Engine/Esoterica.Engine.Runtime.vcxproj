@@ -23,18 +23,18 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -43,42 +43,53 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
+    <Import Project="..\PropertySheets\Box3D.props" />
+    <Import Project="..\PropertySheets\MeshOptimizer.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
+    <Import Project="..\PropertySheets\Box3D.props" />
+    <Import Project="..\PropertySheets\MeshOptimizer.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
+    <Import Project="..\PropertySheets\Box3D.props" />
+    <Import Project="..\PropertySheets\MeshOptimizer.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <ItemGroup>
-    <ClCompile Include="AI\Systems\WorldSystem_AIManager.cpp" />
     <ClCompile Include="Animation\AnimationBlender.cpp" />
     <ClCompile Include="Animation\AnimationBoneMask.cpp" />
     <ClCompile Include="Animation\AnimationClip.cpp" />
     <ClCompile Include="Animation\AnimationEvent.cpp" />
+    <ClCompile Include="Animation\AnimationFloatChannels.cpp" />
     <ClCompile Include="Animation\AnimationFrameTime.cpp" />
     <ClCompile Include="Animation\AnimationPose.cpp" />
     <ClCompile Include="Animation\AnimationRootMotion.cpp" />
     <ClCompile Include="Animation\AnimationSkeleton.cpp" />
     <ClCompile Include="Animation\AnimationSyncTrack.cpp" />
     <ClCompile Include="Animation\AnimationTarget.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_FootIK.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalPose.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetSelector.cpp" />
+    <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_TimingInfo.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TimeControlledAnimationClip.cpp" />
+    <ClCompile Include="Animation\IK\TwoBoneIK.cpp" />
+    <ClCompile Include="Animation\TaskSystem\Animation_BoneMaskPool.cpp" />
     <ClCompile Include="Animation\Components\Component_AnimationClipPlayer.cpp" />
     <ClCompile Include="Animation\Components\Component_AnimationGraph.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Transition.cpp" />
-    <ClCompile Include="Animation\DebugViews\DebugView_Animation.cpp" />
+    <ClCompile Include="Animation\Debug\DebugView_Animation.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Foot.cpp" />
     <ClCompile Include="Animation\Events\AnimationEvent_Warp.cpp" />
-    <ClCompile Include="Animation\AnimationDebug.cpp" />
+    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Scale.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Recording.cpp" />
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_IK.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ReferencedGraph.cpp" />
-    <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Context.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_Controller.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_SampledEvents.cpp" />
@@ -111,53 +122,144 @@
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.cpp" />
     <ClCompile Include="Animation\Graph\Animation_RuntimeGraph_ValueTypes.cpp" />
     <ClCompile Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TwoBoneIK.cpp" />
-    <ClCompile Include="Animation\IK\IKChainSolver.cpp" />
-    <ClCompile Include="Animation\IK\IKRig.cpp" />
     <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationClip.cpp" />
     <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationGraph.cpp" />
     <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_AnimationSkeleton.cpp" />
-    <ClCompile Include="Animation\ResourceLoaders\ResourceLoader_IKRig.cpp" />
     <ClCompile Include="Animation\Systems\EntitySystem_Animation.cpp" />
     <ClCompile Include="Animation\Systems\WorldSystem_Animation.cpp" />
-    <ClCompile Include="Animation\TaskSystem\Animation_Task.cpp" />
+    <ClCompile Include="Animation\TaskSystem\Animation_BoneMaskTask.cpp" />
+    <ClCompile Include="Animation\TaskSystem\Animation_PoseTask.cpp" />
     <ClCompile Include="Animation\TaskSystem\Animation_TaskPosePool.cpp" />
     <ClCompile Include="Animation\TaskSystem\Animation_TaskSystem.cpp" />
     <ClCompile Include="Animation\TaskSystem\Animation_TaskSerializer.cpp" />
-    <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_ChainSolver.cpp" />
-    <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_IK.cpp" />
+    <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_FootIK.cpp" />
+    <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_Scale.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_Blend.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_CachedPose.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_DefaultPose.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_Ragdoll.cpp" />
     <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_Sample.cpp" />
+    <ClCompile Include="Animation\TaskSystem\Tasks\Animation_Task_TwoBoneIK.cpp" />
+    <ClCompile Include="Camera\CameraMath.cpp" />
+    <ClCompile Include="Camera\Components\Component_ToolsCamera.cpp" />
     <ClCompile Include="Camera\Components\Component_Camera.cpp" />
-    <ClCompile Include="Camera\Components\Component_DebugCamera.cpp" />
-    <ClCompile Include="Camera\Components\Component_FreeLookCamera.cpp" />
-    <ClCompile Include="Camera\Components\Component_OrbitCamera.cpp" />
-    <ClCompile Include="Camera\Systems\WorldSystem_CameraManager.cpp" />
-    <ClCompile Include="Camera\Systems\EntitySystem_DebugCameraController.cpp" />
-    <ClCompile Include="DebugViews\DebugView.cpp" />
+    <ClCompile Include="Camera\Systems\WorldSystem_Camera.cpp" />
+    <ClCompile Include="Debug\DebugView.cpp" />
+    <ClCompile Include="Debug\Widgets\MemoryTrackerWidget.cpp" />
+    <ClCompile Include="Debug\Widgets\FrameLimiterWidget.cpp" />
+    <ClCompile Include="Debug\Widgets\SystemLogWidget.cpp" />
+    <ClCompile Include="Debug\Widgets\PerformanceStatsWidget.cpp" />
+    <ClCompile Include="Hitbox\Components\Component_Hitbox.cpp" />
+    <ClCompile Include="Hitbox\Hitbox_Definition.cpp" />
+    <ClCompile Include="Hitbox\Hitbox_Instance.cpp" />
+    <ClCompile Include="Hitbox\ResourceLoaders\ResourceLoader_Hitbox.cpp" />
     <ClCompile Include="Engine.cpp" />
     <ClCompile Include="Entity\EntityLog.cpp" />
     <ClCompile Include="Entity\EntityIDs.cpp" />
     <ClCompile Include="Entity\Systems\WorldSystem_EntityCollectionSpawner.cpp" />
+    <ClCompile Include="Imgui\Gizmos\ImguiGizmo_Base.cpp" />
+    <ClCompile Include="Imgui\Gizmos\ImguiGizmo_Rotate.cpp" />
+    <ClCompile Include="Imgui\Gizmos\ImguiGizmo_Scale.cpp" />
+    <ClCompile Include="Imgui\Gizmos\ImguiGizmo_Translate.cpp" />
+    <ClCompile Include="Imgui\ImguiGizmo.cpp" />
+    <ClCompile Include="Imgui\ImguiOrientationGuide.cpp" />
+    <ClCompile Include="Input\Components\Component_GameInput.cpp" />
     <ClCompile Include="Input\GameInput.cpp" />
     <ClCompile Include="Input\GameInputUpdaters.cpp" />
-    <ClCompile Include="Physics\Debug\PhysicsDebugRenderer.cpp" />
+    <ClCompile Include="Input\Systems\WorldSystem_GameInput.cpp" />
+    <ClCompile Include="Navmesh\Settings\ViewportSettings_Navmesh.cpp" />
+    <ClCompile Include="Physics\PhysicsTypes.cpp" />
+    <ClCompile Include="Physics\Ragdoll\PhysicsRagdoll_Definition.cpp" />
+    <ClCompile Include="Physics\Ragdoll\PhysicsRagdoll_Instance.cpp" />
+    <ClCompile Include="Physics\Settings\ViewportSettings_Physics.cpp" />
     <ClCompile Include="Physics\Physics.cpp" />
     <ClCompile Include="Physics\PhysicsMaterial.cpp" />
-    <ClCompile Include="Physics\PhysicsQuery.cpp" />
     <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.cpp" />
-    <ClCompile Include="Console\Console.cpp" />
-    <ClCompile Include="Render\RenderingSystem.cpp" />
-    <ClCompile Include="ThirdParty\RKIK\rkmath.cpp" />
-    <ClCompile Include="ThirdParty\RKIK\rksolver.cpp" />
+    <ClCompile Include="Render\Components\Component_Lights.cpp" />
+    <ClCompile Include="Render\DebugMesh\DebugMesh.cpp" />
+    <ClCompile Include="Render\DebugMesh\DebugMeshRegistry.cpp" />
+    <ClCompile Include="Render\Device\DeviceAppendBuffer.cpp" />
+    <ClCompile Include="Render\RenderGeometry.cpp" />
+    <ClCompile Include="Render\RenderGeometryBuilder.cpp" />
+    <ClCompile Include="Render\RenderProxies.cpp" />
+    <ClCompile Include="Render\Settings\ViewportSettings_Render.cpp" />
+    <ClCompile Include="Render\Device\DeviceRenderView.cpp" />
+    <ClCompile Include="Render\Device\DeviceRenderWorld.cpp" />
+    <ClCompile Include="Render\Imgui\ImguiImageCache.cpp" />
+    <ClCompile Include="Render\RenderMaterialShaderClusterCapacity.cpp" />
+    <ClCompile Include="Render\Renderer_ForwardShading.cpp" />
+    <ClCompile Include="Render\Device\DeviceResourceState.cpp" />
+    <ClCompile Include="Render\RenderPasses\RenderPass_CascadedShadow.cpp" />
+    <ClCompile Include="Render\RenderPasses\RenderPass_DebugDraw.cpp" />
+    <ClCompile Include="Render\RenderPasses\RenderPass_DepthDownsample.cpp" />
+    <ClCompile Include="Render\RenderPasses\RenderPass_ForwardShading.cpp" />
+    <ClCompile Include="Render\RenderPasses\RenderPass_GlobalEnvironmentMap.cpp" />
+    <ClCompile Include="Render\RenderPasses\RenderPass_PostProcess.cpp" />
+    <ClCompile Include="Render\RenderPasses\RenderPass_SMAA.cpp" />
+    <ClCompile Include="Render\RenderPasses\RenderPass_GTAO.cpp" />
+    <ClCompile Include="Render\RenderViewport.cpp" />
+    <ClCompile Include="Render\RenderMesh.cpp" />
+    <ClCompile Include="Render\Shaders\EngineShader.cpp" />
+    <ClCompile Include="Render\Imgui\ImguiRenderer.cpp" />
+    <ClCompile Include="Render\RenderSystem.cpp" />
+    <ClCompile Include="ThirdParty\box3d\src\aabb.c" />
+    <ClCompile Include="ThirdParty\box3d\src\arena_allocator.c" />
+    <ClCompile Include="ThirdParty\box3d\src\bitset.c" />
+    <ClCompile Include="ThirdParty\box3d\src\block_allocator.c" />
+    <ClCompile Include="ThirdParty\box3d\src\body.c" />
+    <ClCompile Include="ThirdParty\box3d\src\broad_phase.c" />
+    <ClCompile Include="ThirdParty\box3d\src\capsule.c" />
+    <ClCompile Include="ThirdParty\box3d\src\compound.c" />
+    <ClCompile Include="ThirdParty\box3d\src\constraint_graph.c" />
+    <ClCompile Include="ThirdParty\box3d\src\contact.c" />
+    <ClCompile Include="ThirdParty\box3d\src\contact_solver.c" />
+    <ClCompile Include="ThirdParty\box3d\src\convex_manifold.c" />
+    <ClCompile Include="ThirdParty\box3d\src\core.c" />
+    <ClCompile Include="ThirdParty\box3d\src\distance.c" />
+    <ClCompile Include="ThirdParty\box3d\src\distance_joint.c" />
+    <ClCompile Include="ThirdParty\box3d\src\dynamic_tree.c" />
+    <ClCompile Include="ThirdParty\box3d\src\height_field.c" />
+    <ClCompile Include="ThirdParty\box3d\src\hull.c" />
+    <ClCompile Include="ThirdParty\box3d\src\id_pool.c" />
+    <ClCompile Include="ThirdParty\box3d\src\island.c" />
+    <ClCompile Include="ThirdParty\box3d\src\joint.c" />
+    <ClCompile Include="ThirdParty\box3d\src\manifold.c" />
+    <ClCompile Include="ThirdParty\box3d\src\math_functions.c" />
+    <ClCompile Include="ThirdParty\box3d\src\mesh.c" />
+    <ClCompile Include="ThirdParty\box3d\src\mesh_contact.c" />
+    <ClCompile Include="ThirdParty\box3d\src\motor_joint.c" />
+    <ClCompile Include="ThirdParty\box3d\src\mover.c" />
+    <ClCompile Include="ThirdParty\box3d\src\name_cache.c" />
+    <ClCompile Include="ThirdParty\box3d\src\parallel_for.c" />
+    <ClCompile Include="ThirdParty\box3d\src\parallel_joint.c" />
+    <ClCompile Include="ThirdParty\box3d\src\physics_world.c" />
+    <ClCompile Include="ThirdParty\box3d\src\prismatic_joint.c" />
+    <ClCompile Include="ThirdParty\box3d\src\recording.c" />
+    <ClCompile Include="ThirdParty\box3d\src\recording_replay.c" />
+    <ClCompile Include="ThirdParty\box3d\src\revolute_joint.c" />
+    <ClCompile Include="ThirdParty\box3d\src\scheduler.c" />
+    <ClCompile Include="ThirdParty\box3d\src\sensor.c" />
+    <ClCompile Include="ThirdParty\box3d\src\shape.c" />
+    <ClCompile Include="ThirdParty\box3d\src\simd.c" />
+    <ClCompile Include="ThirdParty\box3d\src\solver.c" />
+    <ClCompile Include="ThirdParty\box3d\src\solver_set.c" />
+    <ClCompile Include="ThirdParty\box3d\src\sphere.c" />
+    <ClCompile Include="ThirdParty\box3d\src\spherical_joint.c" />
+    <ClCompile Include="ThirdParty\box3d\src\table.c" />
+    <ClCompile Include="ThirdParty\box3d\src\timer.c" />
+    <ClCompile Include="ThirdParty\box3d\src\triangle_manifold.c" />
+    <ClCompile Include="ThirdParty\box3d\src\types.c" />
+    <ClCompile Include="ThirdParty\box3d\src\weld_joint.c" />
+    <ClCompile Include="ThirdParty\box3d\src\wheel_joint.c" />
+    <ClCompile Include="ThirdParty\box3d\src\world_snapshot.c" />
+    <ClCompile Include="ThirdParty\meshoptimizer\meshoptimizer_esoterica.cpp" />
+    <ClCompile Include="Viewport\Viewport.cpp" />
+    <ClCompile Include="Viewport\ViewportPicking.cpp" />
     <ClCompile Include="Volumes\Components\Component_Volumes.cpp" />
-    <ClCompile Include="Camera\DebugViews\DebugView_Camera.cpp" />
-    <ClCompile Include="Entity\DebugViews\DebugView_EntityWorld.cpp" />
+    <ClCompile Include="Camera\Debug\DebugView_Camera.cpp" />
+    <ClCompile Include="Entity\Debug\DebugView_EntityWorld.cpp" />
     <ClCompile Include="Input\Debug\DebugView_Input.cpp" />
-    <ClCompile Include="DebugViews\DebugView_Resource.cpp" />
-    <ClCompile Include="DebugViews\DebugView_System.cpp" />
+    <ClCompile Include="Resource\Debug\DebugView_Resource.cpp" />
     <ClCompile Include="Entity\Entity.cpp" />
     <ClCompile Include="Entity\EntityComponent.cpp" />
     <ClCompile Include="Entity\EntityDescriptors.cpp" />
@@ -165,53 +267,42 @@
     <ClCompile Include="Entity\EntitySpatialComponent.cpp" />
     <ClCompile Include="Entity\EntityWorld.cpp" />
     <ClCompile Include="Entity\EntityWorldManager.cpp" />
-    <ClCompile Include="Entity\EntityWorldSystem.cpp" />
     <ClCompile Include="Entity\EntityWorldUpdateContext.cpp" />
-    <ClCompile Include="Navmesh\DebugViews\DebugView_Navmesh.cpp" />
+    <ClCompile Include="Navmesh\Debug\DebugView_Navmesh.cpp" />
     <ClCompile Include="Navmesh\NavmeshData.cpp" />
     <ClCompile Include="Navmesh\NavPower.cpp" />
     <ClCompile Include="Navmesh\ResourceLoaders\ResourceLoader_Navmesh.cpp" />
     <ClCompile Include="Navmesh\Systems\WorldSystem_Navmesh.cpp" />
     <ClCompile Include="Physics\Components\Component_PhysicsBox.cpp" />
     <ClCompile Include="Physics\Components\Component_PhysicsCapsule.cpp" />
-    <ClCompile Include="Physics\Components\Component_PhysicsCharacter.cpp" />
     <ClCompile Include="Physics\Components\Component_PhysicsCollisionMesh.cpp" />
     <ClCompile Include="Physics\Components\Component_PhysicsShape.cpp" />
     <ClCompile Include="Physics\Components\Component_PhysicsSphere.cpp" />
     <ClCompile Include="Physics\Debug\DebugView_Physics.cpp" />
     <ClCompile Include="Physics\PhysicsCollisionMesh.cpp" />
-    <ClCompile Include="Physics\PhysicsRagdoll.cpp" />
     <ClCompile Include="Physics\PhysicsWorld.cpp" />
     <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsCollisionMesh.cpp" />
     <ClCompile Include="Physics\ResourceLoaders\ResourceLoader_PhysicsRagdoll.cpp" />
     <ClCompile Include="Physics\Systems\WorldSystem_Physics.cpp" />
-    <ClCompile Include="Player\Systems\WorldSystem_PlayerManager.cpp" />
     <ClCompile Include="Render\Components\Component_RenderMesh.cpp" />
     <ClCompile Include="Render\Components\Component_SkeletalMesh.cpp" />
     <ClCompile Include="Render\Components\Component_StaticMesh.cpp" />
-    <ClCompile Include="Render\DebugViews\DebugView_Render.cpp" />
-    <ClCompile Include="Render\Material\RenderMaterial.cpp" />
-    <ClCompile Include="Render\Mesh\RenderMesh.cpp" />
-    <ClCompile Include="Render\Mesh\SkeletalMesh.cpp" />
-    <ClCompile Include="Render\Mesh\StaticMesh.cpp" />
-    <ClCompile Include="Render\RendererRegistry.cpp" />
-    <ClCompile Include="Render\Renderers\DebugRenderer.cpp" />
-    <ClCompile Include="Render\Renderers\DebugRenderStates.cpp" />
-    <ClCompile Include="Render\Renderers\ImguiRenderer.cpp" />
-    <ClCompile Include="Render\Renderers\WorldRenderer.cpp" />
     <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderMaterial.cpp" />
     <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderMesh.cpp" />
-    <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderShader.cpp" />
     <ClCompile Include="Render\ResourceLoaders\ResourceLoader_RenderTexture.cpp" />
-    <ClCompile Include="Render\Systems\WorldSystem_Renderer.cpp" />
+    <ClCompile Include="Render\Systems\WorldSystem_Render.cpp" />
     <ClCompile Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.cpp" />
     <ClCompile Include="ToolsUI\EngineDebugUI.cpp" />
     <ClCompile Include="_Module\EngineModule.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="AI\Components\Component_AI.h" />
-    <ClInclude Include="AI\Components\Component_AISpawn.h" />
-    <ClInclude Include="AI\Systems\WorldSystem_AIManager.h" />
+    <ClInclude Include="Animation\AnimationFloatChannels.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TimeControlledAnimationClip.h" />
+    <ClInclude Include="Debug\Widgets\MemoryTrackerWidget.h" />
+    <ClInclude Include="Debug\Widgets\FrameLimiterWidget.h" />
+    <ClInclude Include="Debug\Widgets\SystemLogWidget.h" />
+    <ClInclude Include="Debug\Widgets\PerformanceStatsWidget.h" />
+    <ClInclude Include="Hitbox\Components\Component_Hitbox.h" />
     <ClInclude Include="Animation\AnimationBlender.h" />
     <ClInclude Include="Animation\AnimationBoneMask.h" />
     <ClInclude Include="Animation\AnimationClip.h" />
@@ -222,25 +313,31 @@
     <ClInclude Include="Animation\AnimationSkeleton.h" />
     <ClInclude Include="Animation\AnimationSyncTrack.h" />
     <ClInclude Include="Animation\AnimationTarget.h" />
+    <ClInclude Include="Animation\AnimationSourcePath.h" />
+    <ClInclude Include="Animation\Events\AnimationEvent_FloatCurve.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_FootIK.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalPose.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetSelector.h" />
+    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_TimingInfo.h" />
+    <ClInclude Include="Animation\IK\IK.h" />
+    <ClInclude Include="Animation\IK\TwoBoneIK.h" />
+    <ClInclude Include="Animation\TaskSystem\Animation_BoneMaskPool.h" />
     <ClInclude Include="Animation\Components\Component_AnimationClipPlayer.h" />
     <ClInclude Include="Animation\Components\Component_AnimationGraph.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_SnapToFrame.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_RootMotion.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Transition.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Ragdoll.h" />
-    <ClInclude Include="Animation\DebugViews\DebugView_Animation.h" />
+    <ClInclude Include="Animation\Debug\DebugView_Animation.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Foot.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_ID.h" />
     <ClInclude Include="Animation\Events\AnimationEvent_Warp.h" />
-    <ClInclude Include="Animation\AnimationDebug.h" />
-    <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_LayerData.h" />
+    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Scale.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Recording.h" />
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_IK.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_Blend2D.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TargetWarp.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_SimulatedRagdoll.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ReferencedGraph.h" />
-    <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_ExternalGraph.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Context.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_Controller.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_SampledEvents.h" />
@@ -274,66 +371,144 @@
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_OrientationWarp.h" />
     <ClInclude Include="Animation\Graph\Animation_RuntimeGraph_ValueTypes.h" />
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TwoBoneIK.h" />
-    <ClInclude Include="Animation\IK\IKChainSolver.h" />
-    <ClInclude Include="Animation\IK\IKRig.h" />
     <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationClip.h" />
     <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationGraph.h" />
     <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_AnimationSkeleton.h" />
-    <ClInclude Include="Animation\ResourceLoaders\ResourceLoader_IKRig.h" />
     <ClInclude Include="Animation\Systems\EntitySystem_Animation.h" />
     <ClInclude Include="Animation\Systems\WorldSystem_Animation.h" />
-    <ClInclude Include="Animation\TaskSystem\Animation_Task.h" />
+    <ClInclude Include="Animation\TaskSystem\Animation_BoneMaskTask.h" />
+    <ClInclude Include="Animation\TaskSystem\Animation_PoseTask.h" />
     <ClInclude Include="Animation\TaskSystem\Animation_TaskPosePool.h" />
     <ClInclude Include="Animation\TaskSystem\Animation_TaskSystem.h" />
     <ClInclude Include="Animation\TaskSystem\Animation_TaskSerializer.h" />
-    <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_ChainSolver.h" />
-    <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_IK.h" />
+    <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_FootIK.h" />
+    <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_Scale.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_Blend.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_CachedPose.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_DefaultPose.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_Ragdoll.h" />
     <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_Sample.h" />
+    <ClInclude Include="Animation\TaskSystem\Tasks\Animation_Task_TwoBoneIK.h" />
+    <ClInclude Include="Camera\CameraMath.h" />
+    <ClInclude Include="Camera\Components\Component_ToolsCamera.h" />
     <ClInclude Include="Camera\Components\Component_Camera.h" />
-    <ClInclude Include="Camera\Components\Component_DebugCamera.h" />
-    <ClInclude Include="Camera\Components\Component_FreeLookCamera.h" />
-    <ClInclude Include="Camera\Components\Component_OrbitCamera.h" />
-    <ClInclude Include="Camera\Systems\WorldSystem_CameraManager.h" />
-    <ClInclude Include="Camera\Systems\EntitySystem_DebugCameraController.h" />
+    <ClInclude Include="Camera\Systems\WorldSystem_Camera.h" />
+    <ClInclude Include="Hitbox\Hitbox_Definition.h" />
+    <ClInclude Include="Hitbox\Hitbox_Instance.h" />
+    <ClInclude Include="Hitbox\ResourceLoaders\ResourceLoader_Hitbox.h" />
+    <ClInclude Include="Input\Components\Component_GameInput.h" />
+    <ClInclude Include="Input\Systems\WorldSystem_GameInput.h" />
+    <ClInclude Include="Physics\PhysicsCollisionSettings.h" />
+    <ClInclude Include="Physics\PhysicsQuery.h" />
+    <ClInclude Include="Physics\PhysicsTypes.h" />
+    <ClInclude Include="Physics\Ragdoll\PhysicsRagdoll_Definition.h" />
+    <ClInclude Include="Physics\Ragdoll\PhysicsRagdoll_Instance.h" />
+    <ClInclude Include="Render\DebugMesh\DebugMesh.h" />
+    <ClInclude Include="Render\DebugMesh\DebugMeshRegistry.h" />
+    <ClInclude Include="Render\Device\DeviceAppendBuffer.h" />
+    <ClInclude Include="Render\Device\DeviceResizeBuffer.h" />
+    <ClInclude Include="Render\RenderAsyncResourceUpdate.h" />
+    <ClInclude Include="Render\RenderGeometry.h" />
+    <ClInclude Include="Render\RenderGeometryBuilder.h" />
+    <ClInclude Include="Render\RenderPasses\RenderPass_DepthDownsample.h" />
+    <ClInclude Include="ThirdParty\box3d\include\box3d\base.h" />
+    <ClInclude Include="ThirdParty\box3d\include\box3d\box3d.h" />
+    <ClInclude Include="ThirdParty\box3d\include\box3d\collision.h" />
+    <ClInclude Include="ThirdParty\box3d\include\box3d\config.h" />
+    <ClInclude Include="ThirdParty\box3d\include\box3d\constants.h" />
+    <ClInclude Include="ThirdParty\box3d\include\box3d\id.h" />
+    <ClInclude Include="ThirdParty\box3d\include\box3d\math_functions.h" />
+    <ClInclude Include="ThirdParty\box3d\include\box3d\types.h" />
+    <ClInclude Include="ThirdParty\box3d\src\aabb.h" />
+    <ClInclude Include="ThirdParty\box3d\src\algorithm.h" />
+    <ClInclude Include="ThirdParty\box3d\src\arena_allocator.h" />
+    <ClInclude Include="ThirdParty\box3d\src\bitset.h" />
+    <ClInclude Include="ThirdParty\box3d\src\block_allocator.h" />
+    <ClInclude Include="ThirdParty\box3d\src\body.h" />
+    <ClInclude Include="ThirdParty\box3d\src\broad_phase.h" />
+    <ClInclude Include="ThirdParty\box3d\src\compound.h" />
+    <ClInclude Include="ThirdParty\box3d\src\constraint_graph.h" />
+    <ClInclude Include="ThirdParty\box3d\src\contact.h" />
+    <ClInclude Include="ThirdParty\box3d\src\contact_solver.h" />
+    <ClInclude Include="ThirdParty\box3d\src\container.h" />
+    <ClInclude Include="ThirdParty\box3d\src\core.h" />
+    <ClInclude Include="ThirdParty\box3d\src\ctz.h" />
+    <ClInclude Include="ThirdParty\box3d\src\hull_map.h" />
+    <ClInclude Include="ThirdParty\box3d\src\id_pool.h" />
+    <ClInclude Include="ThirdParty\box3d\src\island.h" />
+    <ClInclude Include="ThirdParty\box3d\src\joint.h" />
+    <ClInclude Include="ThirdParty\box3d\src\manifold.h" />
+    <ClInclude Include="ThirdParty\box3d\src\math_internal.h" />
+    <ClInclude Include="ThirdParty\box3d\src\name_cache.h" />
+    <ClInclude Include="ThirdParty\box3d\src\parallel_for.h" />
+    <ClInclude Include="ThirdParty\box3d\src\physics_world.h" />
+    <ClInclude Include="ThirdParty\box3d\src\platform.h" />
+    <ClInclude Include="ThirdParty\box3d\src\qsort.h" />
+    <ClInclude Include="ThirdParty\box3d\src\recording.h" />
+    <ClInclude Include="ThirdParty\box3d\src\recording_replay.h" />
+    <ClInclude Include="ThirdParty\box3d\src\scheduler.h" />
+    <ClInclude Include="ThirdParty\box3d\src\sensor.h" />
+    <ClInclude Include="ThirdParty\box3d\src\shape.h" />
+    <ClInclude Include="ThirdParty\box3d\src\simd.h" />
+    <ClInclude Include="ThirdParty\box3d\src\solver.h" />
+    <ClInclude Include="ThirdParty\box3d\src\solver_set.h" />
+    <ClInclude Include="ThirdParty\box3d\src\table.h" />
+    <ClInclude Include="ThirdParty\box3d\src\verstable.h" />
+    <ClInclude Include="ThirdParty\box3d\src\world_snapshot.h" />
+    <ClInclude Include="ThirdParty\meshoptimizer\meshoptimizer_esoterica.h" />
+    <ClInclude Include="Viewport\ViewportPicking.h" />
+    <ClInclude Include="Viewport\ViewportSettings.h" />
     <ClInclude Include="Engine.h" />
     <ClInclude Include="Entity\Components\Component_EntityCollection.h" />
     <ClInclude Include="Entity\EntityLoadingContext.h" />
     <ClInclude Include="Entity\EntityLog.h" />
-    <ClInclude Include="Entity\EntityWorldSettings.h" />
+    <ClInclude Include="Entity\EntityWorldSystemSignal.h" />
     <ClInclude Include="Entity\EntityWorldType.h" />
     <ClInclude Include="Entity\Systems\WorldSystem_EntityCollectionSpawner.h" />
+    <ClInclude Include="Imgui\Gizmos\ImguiGizmo_Base.h" />
+    <ClInclude Include="Imgui\Gizmos\ImguiGizmo_Rotate.h" />
+    <ClInclude Include="Imgui\Gizmos\ImguiGizmo_Scale.h" />
+    <ClInclude Include="Imgui\Gizmos\ImguiGizmo_Translate.h" />
+    <ClInclude Include="Imgui\ImguiGizmo.h" />
+    <ClInclude Include="Imgui\ImguiOrientationGuide.h" />
     <ClInclude Include="Input\GameInput.h" />
     <ClInclude Include="Input\GameInputUpdaters.h" />
     <ClInclude Include="Navmesh\Components\Component_NavmeshTester.h" />
-    <ClInclude Include="Physics\Components\Component_PhysicsTest.h" />
-    <ClInclude Include="Physics\Debug\PhysicsDebugRenderer.h" />
+    <ClInclude Include="Navmesh\Settings\ViewportSettings_Navmesh.h" />
+    <ClInclude Include="Physics\Settings\ViewportSettings_Physics.h" />
     <ClInclude Include="Physics\Physics.h" />
     <ClInclude Include="Physics\PhysicsMaterial.h" />
-    <ClInclude Include="Physics\PhysicsCollision.h" />
-    <ClInclude Include="Physics\PhysicsQuery.h" />
     <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsMaterialDatabase.h" />
-    <ClInclude Include="Render\RenderingSystem.h" />
-    <ClInclude Include="Render\Settings\WorldSettings_Render.h" />
-    <ClInclude Include="Console\Console.h" />
-    <ClInclude Include="ThirdParty\RKIK\rkarray.h" />
-    <ClInclude Include="ThirdParty\RKIK\rkassert.h" />
-    <ClInclude Include="ThirdParty\RKIK\rkbody.h" />
-    <ClInclude Include="ThirdParty\RKIK\rkeffector.h" />
-    <ClInclude Include="ThirdParty\RKIK\rkjoint.h" />
-    <ClInclude Include="ThirdParty\RKIK\rkmath.h" />
-    <ClInclude Include="ThirdParty\RKIK\rkmemory.h" />
-    <ClInclude Include="ThirdParty\RKIK\rksolver.h" />
-    <ClInclude Include="ThirdParty\RKIK\rktypes.h" />
+    <ClInclude Include="Render\Settings\ViewportSettings_Render.h" />
+    <ClInclude Include="Render\Device\DeviceRenderView.h" />
+    <ClInclude Include="Render\Device\DeviceRenderWorld.h" />
+    <ClInclude Include="Render\Device\DeviceResourceState.h" />
+    <ClInclude Include="Render\Imgui\ImguiImageCache.h" />
+    <ClInclude Include="Render\RenderMaterialShaderClusterCapacity.h" />
+    <ClInclude Include="Render\RenderViewLayer.h" />
+    <ClInclude Include="Render\Renderer_ForwardShading.h" />
+    <ClInclude Include="Render\RenderPasses\RenderPass.h" />
+    <ClInclude Include="Render\RenderPasses\RenderPass_CascadedShadow.h" />
+    <ClInclude Include="Render\RenderPasses\RenderPass_DebugDraw.h" />
+    <ClInclude Include="Render\RenderPasses\RenderPass_ForwardShading.h" />
+    <ClInclude Include="Render\RenderPasses\RenderPass_GlobalEnvironmentMap.h" />
+    <ClInclude Include="Render\RenderPasses\RenderPass_PostProcess.h" />
+    <ClInclude Include="Render\RenderPasses\RenderPass_SMAA.h" />
+    <ClInclude Include="Render\RenderPasses\RenderPass_GTAO.h" />
+    <ClInclude Include="Render\RenderViewport.h" />
+    <ClInclude Include="Render\RenderMaterial.h" />
+    <ClInclude Include="Render\RenderMesh.h" />
+    <ClInclude Include="Render\RenderTexture.h" />
+    <ClInclude Include="Render\Shaders\EngineShader.h" />
+    <ClInclude Include="Render\RenderProxies.h" />
+    <ClInclude Include="Render\Imgui\ImguiRenderer.h" />
+    <ClInclude Include="Render\RenderSystem.h" />
+    <ClInclude Include="Viewport\Viewport.h" />
     <ClInclude Include="Volumes\Components\Component_Volumes.h" />
-    <ClInclude Include="Camera\DebugViews\DebugView_Camera.h" />
-    <ClInclude Include="Entity\DebugViews\DebugView_EntityWorld.h" />
+    <ClInclude Include="Camera\Debug\DebugView_Camera.h" />
+    <ClInclude Include="Entity\Debug\DebugView_EntityWorld.h" />
     <ClInclude Include="Input\Debug\DebugView_Input.h" />
-    <ClInclude Include="DebugViews\DebugView_Resource.h" />
-    <ClInclude Include="DebugViews\DebugView_System.h" />
+    <ClInclude Include="Resource\Debug\DebugView_Resource.h" />
     <ClInclude Include="Entity\Entity.h" />
     <ClInclude Include="Entity\EntityInitializationContext.h" />
     <ClInclude Include="Entity\EntityComponent.h" />
@@ -343,419 +518,108 @@
     <ClInclude Include="Entity\EntitySpatialComponent.h" />
     <ClInclude Include="Entity\EntitySystem.h" />
     <ClInclude Include="Entity\EntityWorld.h" />
-    <ClInclude Include="DebugViews\DebugView.h" />
+    <ClInclude Include="Debug\DebugView.h" />
     <ClInclude Include="Entity\EntityWorldManager.h" />
     <ClInclude Include="Entity\EntityWorldSystem.h" />
     <ClInclude Include="Entity\EntityWorldUpdateContext.h" />
     <ClInclude Include="Navmesh\Components\Component_Navmesh.h" />
     <ClInclude Include="Navmesh\Components\Component_NavmeshVolumes.h" />
-    <ClInclude Include="Navmesh\DebugViews\DebugView_Navmesh.h" />
+    <ClInclude Include="Navmesh\Debug\DebugView_Navmesh.h" />
     <ClInclude Include="Navmesh\NavmeshData.h" />
     <ClInclude Include="Navmesh\NavPower.h" />
     <ClInclude Include="Navmesh\ResourceLoaders\ResourceLoader_Navmesh.h" />
     <ClInclude Include="Navmesh\Systems\WorldSystem_Navmesh.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsBox.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsCapsule.h" />
-    <ClInclude Include="Physics\Components\Component_PhysicsCharacter.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsCollisionMesh.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsShape.h" />
     <ClInclude Include="Physics\Components\Component_PhysicsSphere.h" />
     <ClInclude Include="Physics\Debug\DebugView_Physics.h" />
     <ClInclude Include="Physics\PhysicsCollisionMesh.h" />
-    <ClInclude Include="Physics\PhysicsRagdoll.h" />
     <ClInclude Include="Physics\PhysicsWorld.h" />
     <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsCollisionMesh.h" />
     <ClInclude Include="Physics\ResourceLoaders\ResourceLoader_PhysicsRagdoll.h" />
     <ClInclude Include="Physics\Systems\WorldSystem_Physics.h" />
-    <ClInclude Include="Player\Components\Component_Player.h" />
-    <ClInclude Include="Player\Components\Component_PlayerSpawn.h" />
-    <ClInclude Include="Player\Systems\WorldSystem_PlayerManager.h" />
     <ClInclude Include="Render\Components\Component_EnvironmentMaps.h" />
     <ClInclude Include="Render\Components\Component_Lights.h" />
     <ClInclude Include="Render\Components\Component_RenderMesh.h" />
     <ClInclude Include="Render\Components\Component_SkeletalMesh.h" />
     <ClInclude Include="Render\Components\Component_StaticMesh.h" />
-    <ClInclude Include="Render\DebugViews\DebugView_Render.h" />
-    <ClInclude Include="Render\IRenderer.h" />
-    <ClInclude Include="Render\Material\RenderMaterial.h" />
-    <ClInclude Include="Render\Mesh\RenderMesh.h" />
-    <ClInclude Include="Render\Mesh\SkeletalMesh.h" />
-    <ClInclude Include="Render\Mesh\StaticMesh.h" />
-    <ClInclude Include="Render\RendererRegistry.h" />
-    <ClInclude Include="Render\Renderers\DebugRenderer.h" />
-    <ClInclude Include="Render\Renderers\DebugRenderStates.h" />
-    <ClInclude Include="Render\Renderers\ImguiRenderer.h" />
-    <ClInclude Include="Render\Renderers\WorldRenderer.h" />
     <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderMaterial.h" />
     <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderMesh.h" />
-    <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderShader.h" />
     <ClInclude Include="Render\ResourceLoaders\ResourceLoader_RenderTexture.h" />
-    <ClInclude Include="Render\Shaders\DebugShaders.h" />
-    <ClInclude Include="Render\Shaders\EngineShaders.h" />
-    <ClInclude Include="Render\Shaders\ImguiShaders.h" />
-    <ClInclude Include="Render\Systems\WorldSystem_Renderer.h" />
+    <ClInclude Include="Render\Systems\WorldSystem_Render.h" />
     <ClInclude Include="Entity\ResourceLoaders\ResourceLoader_EntityCollection.h" />
     <ClInclude Include="ToolsUI\EngineDebugUI.h" />
-    <ClInclude Include="ToolsUI\IDevelopmentToolsUI.h" />
+    <ClInclude Include="ToolsUI\ToolsUI.h" />
     <ClInclude Include="UpdateContext.h" />
     <ClInclude Include="UpdateStage.h" />
     <ClInclude Include="_Module\API.h" />
     <ClInclude Include="_Module\EngineModule.h" />
-    <FxCompile Include="Render\Shaders\Engine\PS_LitPicking.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">WITH_PICKING</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">WITH_PICKING</PreprocessorDefinitions>
-      <PreprocessorDefinitions Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">WITH_PICKING</PreprocessorDefinitions>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\CS_PrecomputeDFG.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Compute</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Compute</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Compute</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\PS_Empty.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\PS_Skybox.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Pixel</ShaderType>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\PS_Lit.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\VS_Cube.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\VS_StaticPrimitive.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Vertex</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\Engine\VS_SkinnedPrimitive.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Vertex</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\Imgui\PS_imgui.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Pixel</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\Imgui\VS_imgui.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Vertex</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\GS_DebugRendererPoints.hlsl">
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Geometry</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Geometry</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Geometry</ShaderType>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererPoints.hlsl">
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Pixel</ShaderType>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\VS_DebugRendererPoints.hlsl">
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Vertex</ShaderType>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\GS_DebugRendererLines.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Geometry</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Geometry</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Geometry</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererLines.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Pixel</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\VS_DebugRendererLines.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Vertex</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererText.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Pixel</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\VS_DebugRendererText.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Vertex</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\PS_DebugRendererTriangles.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Pixel</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
-    <FxCompile Include="Render\Shaders\DebugRenderer\VS_DebugRendererTriangles.hlsl">
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">5.0</ShaderModel>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">g_byteCode_%(Filename)</VariableName>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">Vertex</ShaderType>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <HeaderFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">%(DefiningProjectDirectory)%(RelativeDir)..\_AutoGenerated\%(Filename)_$(Platform)_$(Configuration).h</HeaderFileOutput>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">g_byteCode_%(Filename)</VariableName>
-      <VariableName Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">g_byteCode_%(Filename)</VariableName>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-      <ObjectFileOutput Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(IntDir)%(Filename).cso</ObjectFileOutput>
-    </FxCompile>
+    <ClInclude Include="_Module\_AutoGenerated\EngineModule.typeinfo.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Shaders\DebugRenderer\DebugShaderCommon.hlsli" />
-    <None Include="Shaders\Engine\Common_Lit.hlsli" />
-    <None Include="ThirdParty\RKIK\rkarray.inl" />
-    <None Include="ThirdParty\RKIK\rkmath.inl" />
-    <None Include="ThirdParty\RKIK\rkmemory.inl" />
+    <None Include="Render\Shaders\AppendBuffer.esh" />
+    <None Include="Render\Shaders\BilateralUpsample.esf" />
+    <None Include="Render\Shaders\CommonFlags.esh" />
+    <None Include="Render\Shaders\CommonPacking.esh" />
+    <None Include="Render\Shaders\Debug\DebugDraw.esf" />
+    <None Include="Render\Shaders\Debug\DebugDraw.esh" />
+    <None Include="Render\Shaders\Debug\DebugDrawMesh.esf" />
+    <None Include="Render\Shaders\Debug\DebugDrawResolve.esf" />
+    <None Include="Render\Shaders\Downsample.esf" />
+    <None Include="Render\Shaders\FullscreenTriangle.esh" />
+    <None Include="Render\Shaders\GTAO\Denoise.esf" />
+    <None Include="Render\Shaders\GTAO\MainPass.esf" />
+    <None Include="Render\Shaders\GTAO\PrefilterDepth.esf" />
+    <None Include="Render\Shaders\GTAO\XeGTAO.esh" />
+    <None Include="Render\Shaders\GTAO\XeGTAO_Configuration.esh" />
+    <None Include="Render\Shaders\GTAO\XeGTAO_Types.esh" />
+    <None Include="Render\Shaders\Materials\ComplexSurfacePBR.esf" />
+    <None Include="Render\Shaders\Materials\DefaultPBR.esf" />
+    <None Include="Render\Shaders\Materials\Placeholder.esf" />
+    <None Include="Render\Shaders\Materials\DefaultColorOnlyPBR.esf" />
+    <None Include="Render\Shaders\MeshData.esh" />
+    <None Include="Render\Shaders\MeshInstance.esh" />
+    <None Include="Render\Shaders\OIT\OIT.esh" />
+    <None Include="Render\Shaders\OIT\OITResolve.esf" />
+    <None Include="Render\Shaders\Picking\InstancePickingResolve.esf" />
+    <None Include="Render\Shaders\Picking\Picking.esh" />
+    <None Include="Render\Shaders\CommonSamplers.esh" />
+    <None Include="Render\Shaders\EngineShader.esh" />
+    <None Include="Render\Shaders\PBR\CubemapDownsample.esf" />
+    <None Include="Render\Shaders\PBR\IrradianceFiltering.esf" />
+    <None Include="Render\Shaders\PBR\PBR.esh" />
+    <None Include="Render\Shaders\PBR\PrecomputeDFG.esf" />
+    <None Include="Render\Shaders\PBR\RadianceFiltering.esf" />
+    <None Include="Render\Shaders\PostProcess.esf" />
+    <None Include="Render\Shaders\Imgui.esf" />
+    <None Include="Render\Shaders\Renderer\BucketResolve.esf" />
+    <None Include="Render\Shaders\Renderer\ClusterCulling.esf" />
+    <None Include="Render\Shaders\Renderer\DefaultMeshShader.esh" />
+    <None Include="Render\Shaders\Renderer\InstanceCulling.esf" />
+    <None Include="Render\Shaders\Renderer\LightCulling.esf" />
+    <None Include="Render\Shaders\Renderer\RendererSurfaceShaderLayout.esh" />
+    <None Include="Render\Shaders\Renderer\RendererTypes.esh" />
+    <None Include="Render\Shaders\Renderer\ShadowMapSampling.esh" />
+    <None Include="Render\Shaders\Renderer\MaterialShaderPBR.esh" />
+    <None Include="Render\Shaders\Renderer\WorldUpdate.esf" />
+    <None Include="Render\Shaders\Renderer\WorldUpdate.esh" />
+    <None Include="Render\Shaders\SMAA\SMAA.esh" />
+    <None Include="Render\Shaders\SMAA\SMAA_BlendingWeightCalculation.esf" />
+    <None Include="Render\Shaders\SMAA\SMAA_Configuration.esh" />
+    <None Include="Render\Shaders\SMAA\SMAA_EdgeDetection.esf" />
+    <None Include="Render\Shaders\SMAA\SMAA_NeighborhoodBlending.esf" />
+    <None Include="Render\Shaders\Transform.esh" />
+    <None Include="ThirdParty\box3d\src\recording_ops.inl" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Base\Esoterica.Base.vcxproj">
       <Project>{07414ba8-87a7-449b-8ab7-551254b57fb3}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="ThirdParty\box3d\src\box3d.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

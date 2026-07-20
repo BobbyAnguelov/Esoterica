@@ -1,0 +1,30 @@
+{
+  "FileVersion": 2,
+  "Id": "15e4867a-f174-4f2a-a7c1-99cc6376d8d2",
+  "Items": [
+    {
+      "Id": "3535989e-3f6a-439d-bff2-80e71f3766c4",
+      "Command": "-test-handle-allocator"
+    },
+    {
+      "Id": "36af727d-069f-490c-9488-7f53a613146e",
+      "Command": "-map blah"
+    },
+    {
+      "Id": "d860cb11-74d2-47c8-b08a-f3272f2d012b",
+      "Command": "-packaged"
+    },
+    {
+      "Id": "03192fbc-dc1c-49cf-a924-1a5c1b826eb5",
+      "Command": "-float 23.4"
+    },
+    {
+      "Id": "699e5b80-b98d-4094-83d6-c548aa3c1b67",
+      "Command": "-int 76"
+    },
+    {
+      "Id": "e3782932-73bd-4ef1-a765-0165186cc630",
+      "Command": "-int2 -345"
+    }
+  ]
+}

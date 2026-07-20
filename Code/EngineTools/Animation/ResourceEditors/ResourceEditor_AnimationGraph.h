@@ -3,17 +3,16 @@
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Definition.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
-#include "EngineTools/Animation/Shared/AnimationClipBrowser.h"
+#include "EngineTools/Animation/AnimationClipBrowser.h"
 #include "EngineTools/Widgets/Pickers/ResourcePickers.h"
 #include "EngineTools/Core/EditorTool.h"
 #include "EngineTools/Widgets/TreeListView.h"
 #include "EngineTools/NodeGraph/NodeGraph_View.h"
-#include "EngineTools/Core/CategoryTree.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
-#include "Base/Time/Timers.h"
+#include "Engine/Imgui/ImguiGizmo.h"
+#include "Base/Utils/CategoryTree.h"
 #include "Base/Imgui/ImguiFilteredCombo.h"
-#include "Base/Imgui/ImguiGizmo.h"
 
 //-------------------------------------------------------------------------
 
@@ -33,7 +32,7 @@ namespace EE::Animation
     class ParameterReferenceToolsNode;
     class IDControlParameterToolsNode;
     class TargetControlParameterToolsNode;
-    class ReferencedGraphToolsNode;
+    class InternalReferencedGraphToolsNode;
     class VariationDataToolsNode;
 
     //-------------------------------------------------------------------------
@@ -63,6 +62,28 @@ namespace EE::Animation
                 return pVariation->m_skeleton.GetResourceID();
             }
 
+            inline int16_t GetRuntimeGraphNodeIndex( UUID const& nodeID ) const
+            {
+                auto const foundIter = m_nodeIDtoIndexMap.find( nodeID );
+                if ( foundIter != m_nodeIDtoIndexMap.end() )
+                {
+                    return foundIter->second;
+                }
+
+                return InvalidIndex;
+            }
+
+            inline UUID GetGraphNodeUUID( int16_t const& runtimeNodeIdx ) const
+            {
+                auto const foundIter = m_nodeIndexToIDMap.find( runtimeNodeIdx );
+                if ( foundIter != m_nodeIndexToIDMap.end() )
+                {
+                    return foundIter->second;
+                }
+
+                return UUID();
+            }
+
         public:
 
             ToolsGraphDefinition*                   m_pGraphDefinition = nullptr;
@@ -85,7 +106,7 @@ namespace EE::Animation
 
         public:
 
-            TVector<UUID>                           m_viewedGraphPath;
+            TPath<UUID>                             m_viewedGraphPath;
             TVector<NodeGraph::SelectedNode>        m_selectedNodes;
             NodeGraph::SelectedNode                 m_primaryViewSelectedNode;
             bool                                    m_isSecondaryViewSelection = false;
@@ -142,13 +163,13 @@ namespace EE::Animation
         struct DebugTarget
         {
             bool IsValid() const;
-            void Clear() { m_type = DebugTargetType::None; m_pComponentToDebug = nullptr; m_referencedGraphID.Clear(); m_externalSlotID.Clear(); }
+            void Clear() { m_type = DebugTargetType::None; m_pComponentToDebug = nullptr; m_graphInstanceID.Clear(); m_externalSlotID.Clear(); }
 
         public:
 
             DebugTargetType                     m_type = DebugTargetType::None;
             GraphComponent*                     m_pComponentToDebug = nullptr;
-            PointerID                           m_referencedGraphID;
+            PointerID                           m_graphInstanceID;
             StringID                            m_externalSlotID;
         };
 
@@ -216,7 +237,7 @@ namespace EE::Animation
 
         public:
 
-            NodeGraph::BaseNode const*        m_pNode = nullptr;
+            NodeGraph::BaseNode const*          m_pNode = nullptr;
             String                              m_label;
             String                              m_path;
             String                              m_sortKey;
@@ -243,24 +264,29 @@ namespace EE::Animation
 
         void NavigateTo( NodeGraph::BaseNode* pNode, bool focusViewOnNode = true );
         void NavigateTo( NodeGraph::BaseGraph* pGraph );
+        void NavigateTo( SourcePath const& sourcePath );
 
     private:
 
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
+        virtual void SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual void WorldUpdate( EntityWorldUpdateContext const& updateContext ) override;
 
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_STATE_MACHINE; }
         virtual void DrawMenu( UpdateContext const& context ) override;
+        virtual bool SupportsToolbar() const override { return true; }
+        virtual void DrawToolbar( UpdateContext const& context ) override;
         virtual bool SupportsViewport() const override { return true; }
         virtual bool IsDataFileManualEditingAllowed() const override { return false; }
-        virtual bool HasViewportToolbarTimeControls() const override { return true; }
-        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
-        virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) override;
+        virtual bool SupportsWorldTimeControls() const override { return true; }
+        virtual bool ExtendViewportToolBar_VisualizationControls( UpdateContext const& context, Viewport* pViewport ) override;
+        virtual void ExtendViewportToolBar_CameraControls( UpdateContext const& context, Viewport* pViewport ) override;
+        virtual void DrawViewportUI( UpdateContext const& context, Viewport const* pViewport, bool isFocused ) override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
         virtual bool AlwaysAllowSaving() const override { return true; }
+        virtual bool SaveData() override;
 
         // Dialogs
         //-------------------------------------------------------------------------
@@ -278,7 +304,7 @@ namespace EE::Animation
 
         void NodeDoubleClicked( NodeGraph::BaseNode* pNode );
         void GraphDoubleClicked( NodeGraph::BaseGraph* pGraph );
-        void PostPasteNodes( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes );
+        void PostPasteNodes( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes, THashMap<UUID, UUID> const& IDMapping );
 
         // Call this whenever any graph state is modified
         void OnGraphStateModified();
@@ -292,7 +318,7 @@ namespace EE::Animation
         void StartRenameIDs();
 
         // Draw the rename dialog
-        bool DrawRenameIDsDialog( UpdateContext const& context );
+        bool DrawRenameIDsDialog();
 
         // Copy all the found parameter names to the clipboard
         void CopyAllParameterNamesToClipboard();
@@ -331,7 +357,9 @@ namespace EE::Animation
         void DrawGraphViewNavigationBar();
         void UpdateSecondaryViewState();
 
-        inline bool IsInReadOnlyState() const;
+        bool IsInReadOnlyState() const;
+
+        bool IsViewingAClonedGraph() const;
 
         inline bool IsViewingMainGraph() const { return m_loadedGraphStack.empty(); }
         
@@ -364,7 +392,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         void StartNavigationOperation();
-        bool DrawNavigationDialogWindow( UpdateContext const& context );
+        bool DrawNavigationDialogWindow();
         void GenerateNavigationTargetList();
         void GenerateActiveTargetList();
 
@@ -404,9 +432,9 @@ namespace EE::Animation
         void DrawParameterListRow( FlowToolsNode* pParameter );
         void DrawPreviewParameterList( UpdateContext const& context );
 
-        bool DrawCreateOrRenameParameterDialogWindow( UpdateContext const& context, bool isRename );
-        bool DrawDeleteParameterDialogWindow( UpdateContext const& context );
-        bool DrawDeleteUnusedParameterDialogWindow( UpdateContext const& context );
+        bool DrawCreateOrRenameParameterDialogWindow( bool isRename );
+        bool DrawDeleteParameterDialogWindow();
+        bool DrawDeleteUnusedParameterDialogWindow();
 
         void ControlParameterGroupDragAndDropHandler( Category<ParameterBaseToolsNode*>& group );
 
@@ -445,9 +473,16 @@ namespace EE::Animation
         void RebuildVariationDataTree( TreeListViewItem* pRootItem );
 
         bool DrawVariationNameEditor( bool& isDialogOpen, bool isRename );
-        bool DrawCreateVariationDialogWindow( UpdateContext const& context );
-        bool DrawRenameVariationDialogWindow( UpdateContext const& context );
-        bool DrawDeleteVariationDialogWindow( UpdateContext const& context );
+        bool DrawCreateVariationDialogWindow();
+        bool DrawRenameVariationDialogWindow();
+        bool DrawDeleteVariationDialogWindow();
+
+        // Preview
+        //-------------------------------------------------------------------------
+
+        virtual TInlineVector<ResourceID, 2> GetPreviewResourceIDs() const override;
+        virtual void OnPreviewStarted() override;
+        virtual void OnPreviewStopped() override;
 
         // Debugging
         //-------------------------------------------------------------------------
@@ -455,23 +490,15 @@ namespace EE::Animation
         void DrawDebuggerWindow( UpdateContext const& context, bool isFocused );
 
         inline bool IsDebugging() const { return m_debugMode != DebugMode::None; }
-        inline bool IsPreviewing() const { return m_debugMode == DebugMode::Preview; }
         inline bool IsLiveDebugging() const { return m_debugMode == DebugMode::LiveDebug; }
         inline bool IsReviewingRecording() const { return m_debugMode == DebugMode::ReviewRecording; }
         inline bool IsPreviewOrReview() const { return m_debugMode == DebugMode::Preview || m_debugMode == DebugMode::ReviewRecording; }
 
-        virtual void OnResourceUnload( Resource::ResourcePtr* pResourcePtr ) override;
         virtual void OnDataFileLoadCompleted() override;
         virtual void OnDataFileUnload() override;
 
         // Request that we start a debug session, this may take several frames as we cannot start a session while hot-reloading, etc...
         void RequestDebugSession( UpdateContext const& context, DebugTarget target );
-
-        // Starts a debugging session. If a target component is provided we assume we are attaching to a live game
-        void StartDebugging( UpdateContext const& context );
-
-        // Ends the current debug session
-        void StopDebugging();
 
         // Set's the preview graph parameters to their default preview values
         void ReflectInitialPreviewParameterValues( UpdateContext const& context );
@@ -481,6 +508,10 @@ namespace EE::Animation
 
         // Calculate the offset at which to place the camera when tracking
         void CalculateCameraOffset();
+
+        void DrawDebugMenuControls( UpdateContext const& context, float availableWidth );
+
+        void DrawDebugOptions();
 
         // Recording
         //-------------------------------------------------------------------------
@@ -497,13 +528,13 @@ namespace EE::Animation
         // Stop recording the live preview state
         void StopRecording();
 
-        // Set the currently reviewed frame, this is set on all clients in the review
-        void SetFrameToReview( int32_t newFrameIdx );
+        // Set the currently reviewed update, this is set on all clients in the review
+        void SetUpdateToReview( int32_t newUpdateIdx );
 
-        // Step the review forwards one frame
+        // Step the review forwards one update
         void StepReviewForward();
 
-        // Step the review backwards one frame
+        // Step the review backwards one update
         void StepReviewBackward();
 
         // Undo/Redo/Reload
@@ -515,12 +546,12 @@ namespace EE::Animation
         void PropertyGridPreEdit( PropertyEditInfo const& info );
         void PropertyGridPostEdit( PropertyEditInfo const& info );
 
-        virtual void PreUndoRedo( UndoStack::Operation operation ) override;
+        virtual void PreUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
         void RecordViewAndSelectionState();
         void RestoreViewAndSelectionState();
-
+        
     private:
 
         ResourceID const                                                    m_openedResourceID;
@@ -646,8 +677,9 @@ namespace EE::Animation
         Skeleton::LOD                                                       m_skeletonLOD = Skeleton::LOD::High;
 
         // Recording
-        GraphRecorder                                                       m_graphRecorder;
-        int32_t                                                             m_currentReviewFrameIdx = InvalidIndex;
+        GraphRecording                                                      m_graphRecording;
+        GraphRecordingPlayer                                                m_graphRecordingPlayer;
+        int32_t                                                             m_currentlyReviewedUpdateIdx = InvalidIndex;
         bool                                                                m_isRecording = false;
         bool                                                                m_reviewStarted = false;
         bool                                                                m_drawExtraRecordingInfo = false;

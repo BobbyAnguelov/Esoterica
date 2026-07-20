@@ -246,7 +246,7 @@ namespace EE::NodeGraph
 
         virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;
 
-        virtual void EndModification() override final;
+        virtual void PostModify() override;
 
         // Override this if you want custom UI after/before the pin. Returns true if something was drawn, false otherwise
         virtual bool DrawPinControls( DrawContext const& ctx, UserContext* pUserContext, Pin const& pin ) { return false; }
@@ -419,7 +419,7 @@ namespace EE::NodeGraph
 
     protected:
 
-        virtual void PostDeserialize() override;
+        virtual void PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry ) override;
 
         virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;
 

@@ -11,13 +11,13 @@ namespace EE::Animation
     PoweredRagdollToolsNode::PoweredRagdollToolsNode()
         : VariationDataToolsNode()
     {
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
+
         CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Physics Blend Weight", GraphValueType::Float );
         CreateInputPin( "Impulse Origin", GraphValueType::Vector );
         CreateInputPin( "Impulse Force", GraphValueType::Vector );
-
-        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
     }
 
     int16_t PoweredRagdollToolsNode::Compile( GraphCompilationContext& context ) const
@@ -107,7 +107,6 @@ namespace EE::Animation
 
             auto pData = GetResolvedVariationDataAs<Data>( context.GetVariationHierarchy(), context.GetVariationID() );
             pDefinition->m_dataSlotIdx = context.RegisterResource( pData->m_ragdollDefinition.GetResourceID() );
-            pDefinition->m_profileID = m_profileID;
             pDefinition->m_physicsBlendWeight = m_physicsBlendWeight;
             pDefinition->m_isGravityEnabled = m_isGravityEnabled;
         }
@@ -119,16 +118,23 @@ namespace EE::Animation
     SimulatedRagdollToolsNode::SimulatedRagdollToolsNode()
         : VariationDataToolsNode()
     {
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
+
         CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
+        CreateInputPin( "Trigger Exit", GraphValueType::Bool );
         CreateInputPin( "Exit Option", GraphValueType::Pose );
-
-        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
     }
 
     bool SimulatedRagdollToolsNode::IsValidConnection( UUID const& inputPinID, FlowNode const* pOutputPinNode, UUID const& outputPinID ) const
     {
-        return Cast<FlowToolsNode>( pOutputPinNode )->IsAnimationClipReferenceNode();
+        int32_t const pinIdx = GetInputPinIndex( inputPinID );
+        if ( pinIdx != 1 )
+        {
+            return Cast<FlowToolsNode>( pOutputPinNode )->IsAnimationClipReferenceNode();
+        }
+
+        return FlowToolsNode::IsValidConnection( inputPinID, pOutputPinNode, outputPinID );
     }
 
     int16_t SimulatedRagdollToolsNode::Compile( GraphCompilationContext& context ) const
@@ -137,18 +143,6 @@ namespace EE::Animation
         NodeCompilationState const state = context.GetDefinition<SimulatedRagdollNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
-            if ( !m_entryProfileID.IsValid() )
-            {
-                context.LogError( this, "Invalid entry profile ID" );
-                return InvalidIndex;
-            }
-
-            if ( !m_simulatedProfileID.IsValid() )
-            {
-                context.LogError( this, "Invalid simulated profile ID" );
-                return InvalidIndex;
-            }
-
             // Entry
             //-------------------------------------------------------------------------
 
@@ -167,14 +161,31 @@ namespace EE::Animation
             }
             else
             {
-                context.LogError( this, "Disconnected input pin!" );
+                context.LogError( this, "Disconnected entry clip pin!" );
                 return InvalidIndex;
+            }
+
+            // Exit condition
+            //-------------------------------------------------------------------------
+
+            auto pExitConditionNode = GetConnectedInputNode<FlowToolsNode>( 1 );
+            if ( pExitConditionNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pExitConditionNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pDefinition->m_exitConditionNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
             }
 
             // Exits
             //-------------------------------------------------------------------------
 
-            for ( auto i = 1; i < GetNumInputPins(); i++ )
+            for ( auto i = 2; i < GetNumInputPins(); i++ )
             {
                 auto pExitOptionNode = GetConnectedInputNode<FlowToolsNode>( i );
                 if ( pExitOptionNode != nullptr )
@@ -191,22 +202,11 @@ namespace EE::Animation
                 }
             }
 
-            if ( !pDefinition->m_exitOptionNodeIndices.empty() )
-            {
-                if ( !m_exitProfileID.IsValid() )
-                {
-                    context.LogError( this, "Invalid exit profile ID" );
-                    return InvalidIndex;
-                }
-            }
-
             //-------------------------------------------------------------------------
 
             auto pData = GetResolvedVariationDataAs<Data>( context.GetVariationHierarchy(), context.GetVariationID() );
             pDefinition->m_dataSlotIdx = context.RegisterResource( pData->m_ragdollDefinition.GetResourceID() );
-            pDefinition->m_entryProfileID = m_entryProfileID;
-            pDefinition->m_simulatedProfileID = m_simulatedProfileID;
-            pDefinition->m_exitProfileID = m_exitProfileID;
+            pDefinition->m_blendTime = m_blendTime;
         }
         return pDefinition->m_nodeIdx;
     }

@@ -5,7 +5,7 @@
 
 namespace EE::Import
 {
-    ImportedSkeleton::Bone::Bone( char const* pName )
+    Skeleton::Bone::Bone( char const* pName )
         : m_name( pName )
     {
         EE_ASSERT( m_name.IsValid() );
@@ -13,7 +13,7 @@ namespace EE::Import
 
     //-------------------------------------------------------------------------
 
-    int32_t ImportedSkeleton::GetBoneIndex( StringID const& boneName ) const
+    int32_t Skeleton::GetBoneIndex( StringID const& boneName ) const
     {
         int32_t const numBones = GetNumBones();
 
@@ -28,7 +28,7 @@ namespace EE::Import
         return InvalidIndex;
     }
 
-    void ImportedSkeleton::CalculateLocalTransforms()
+    void Skeleton::CalculateParentSpaceTransforms()
     {
         EE_ASSERT( !m_bones.empty() );
         m_bones[0].m_parentSpaceTransform = m_bones[0].m_modelSpaceTransform;
@@ -41,7 +41,7 @@ namespace EE::Import
         }
     }
 
-    void ImportedSkeleton::CalculateModelSpaceTransforms()
+    void Skeleton::CalculateModelSpaceTransforms()
     {
         EE_ASSERT( !m_bones.empty() );
         m_bones[0].m_modelSpaceTransform = m_bones[0].m_parentSpaceTransform;
@@ -55,7 +55,7 @@ namespace EE::Import
         }
     }
 
-    bool ImportedSkeleton::IsChildBoneOf( int32_t parentBoneIdx, int32_t childBoneIdx ) const
+    bool Skeleton::IsChildBoneOf( int32_t parentBoneIdx, int32_t childBoneIdx ) const
     {
         EE_ASSERT( parentBoneIdx >= 0 && parentBoneIdx < m_bones.size() );
         EE_ASSERT( childBoneIdx >= 0 && childBoneIdx < m_bones.size() );
@@ -77,7 +77,7 @@ namespace EE::Import
         return isChild;
     }
 
-    void ImportedSkeleton::Finalize( TVector<StringID> const& highLODBones )
+    void Skeleton::Finalize( TVector<StringID> const& highLODBones )
     {
         if ( highLODBones.empty() )
         {
@@ -164,6 +164,16 @@ namespace EE::Import
             {
                 boneData.m_parentBoneIdx = GetBoneIndex( boneData.m_parentBoneName );
             }
+        }
+
+        // Sanitize all transforms
+        //-------------------------------------------------------------------------
+
+        size_t const numBones = m_bones.size();
+        for ( auto i = 0; i < numBones; i++ )
+        {
+            m_bones[i].m_parentSpaceTransform.Sanitize();
+            m_bones[i].m_modelSpaceTransform.Sanitize();
         }
     }
 }

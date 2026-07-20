@@ -26,13 +26,17 @@ namespace EE
     {
         EE_SERIALIZE( m_center, m_halfExtents );
 
+        // A 2x2x2 box centered around the origin
+        static Vector const s_referenceBoxCorners[8];
+
     public:
 
         inline static AABB FromMinMax( Vector const& min, Vector const& max )
         {
             EE_ASSERT( min.IsLessThanEqual3( max ) );
-            Vector const extents = ( max - min ) * Vector::Half;
-            Vector const center = min + extents;
+
+            Vector const extents = ( ( max - min ) * Vector::Half ).GetWithW0();
+            Vector const center = ( min + extents ).GetWithW0();
             return AABB( center, extents );
         }
 
@@ -61,6 +65,14 @@ namespace EE
             return AABB::FromMinMax( newMin, newMax );
         }
 
+        inline static AABB Lerp( AABB const& from, AABB const& to, float T )
+        {
+            EE_ASSERT( from.IsValid() && to.IsValid() );
+            Vector const lerpedCenter = Vector::Lerp( from.GetCenter(), to.GetCenter(), T );
+            Vector const lerpedExtents = Vector::Lerp( from.GetExtents(), to.GetExtents(), T );
+            return AABB( lerpedCenter, lerpedExtents );
+        }
+
     public:
 
         AABB() = default;
@@ -75,11 +87,38 @@ namespace EE
         inline void Reset( Float3 center ) { m_center = center; m_halfExtents = Vector::Zero; }
 
         EE_FORCE_INLINE Vector const& GetCenter() const { return m_center; }
+        EE_FORCE_INLINE Vector GetTopCenter() const { return m_center + Vector( 0, 0, m_halfExtents.GetZ() ); }
+        EE_FORCE_INLINE Vector GetBottomCenter() const { return m_center - Vector( 0, 0, m_halfExtents.GetZ() ); }
+
         EE_FORCE_INLINE Vector const& GetExtents() const { return m_halfExtents; }
         EE_FORCE_INLINE Vector GetMin() const { return m_center - m_halfExtents; }
         EE_FORCE_INLINE Vector GetMax() const { return m_center + m_halfExtents; }
 
-        EE_FORCE_INLINE void GetCorners( Vector corners[8] ) const;
+        EE_FORCE_INLINE void GetCorners( Vector corners[8] ) const
+        {
+            for ( int32_t i = 0; i < 8; ++i )
+            {
+                corners[i] = Vector::MultiplyAdd( m_halfExtents, AABB::s_referenceBoxCorners[i], m_center );
+            }
+        }
+
+        EE_FORCE_INLINE void GetCorners( TVector<Vector>& corners ) const
+        {
+            for ( int32_t i = 0; i < 8; ++i )
+            {
+                corners.emplace_back( Vector::MultiplyAdd( m_halfExtents, AABB::s_referenceBoxCorners[i], m_center ) );
+            }
+        }
+
+        template<size_t S>
+        void GetCorners( TInlineVector<Vector, S>& corners ) const
+        {
+            for ( int32_t i = 0; i < 8; ++i )
+            {
+                corners.emplace_back( Vector::MultiplyAdd( m_halfExtents, AABB::s_referenceBoxCorners[i], m_center ) );
+            }
+        }
+
         EE_FORCE_INLINE float GetVolume() const;
 
         //-------------------------------------------------------------------------
@@ -98,15 +137,24 @@ namespace EE
             m_center = min + m_halfExtents;
         }
 
+        // Set the center of the bounds
         EE_FORCE_INLINE void SetCenter( Vector const& newCenter ) { m_center = newCenter; }
 
-        // Move the AABB by the amount in deltaVector
-        EE_FORCE_INLINE void Translate( Vector const& deltaVector ) { m_center += deltaVector; }
+        // Move the AABB by the offset
+        EE_FORCE_INLINE void AddTranslationOffset( Vector const& offset ) { m_center += offset; }
 
         // Applies the given transform to the current AABB corners and calculates the new AABB for the transformed box
         void ApplyTransform( Transform const& transform );
+        void ApplyTransform( Matrix const& transform );
 
         EE_FORCE_INLINE AABB GetTransformed( Transform const& transform ) const
+        {
+            AABB result = *this;
+            result.ApplyTransform( transform );
+            return result;
+        }
+
+        EE_FORCE_INLINE AABB GetTransformed( Matrix const& transform ) const
         {
             AABB result = *this;
             result.ApplyTransform( transform );
@@ -118,7 +166,7 @@ namespace EE
             m_halfExtents -= shrinkSize;
         }
 
-        EE_FORCE_INLINE void Grow( Vector const& growSize )
+        EE_FORCE_INLINE void Expand( Vector const& growSize )
         {
             m_halfExtents += growSize;
         }
@@ -126,15 +174,15 @@ namespace EE
         // Queries
         //-------------------------------------------------------------------------
 
-        EE_FORCE_INLINE bool ContainsPoint( Vector const& point ) const { return ( point - m_center ).Abs().IsLessThanEqual3( m_halfExtents ); }
+        EE_FORCE_INLINE bool ContainsPoint( Vector const& point ) const { return ( point - m_center ).GetAbs().IsLessThanEqual3( m_halfExtents ); }
 
         OverlapResult OverlapTest( AABB const& other ) const;
         OverlapResult OverlapTest( OBB const& box ) const;
-        
+
         EE_FORCE_INLINE bool Overlaps( AABB const& other ) const;
         EE_FORCE_INLINE bool Overlaps( OBB const& box ) const;
 
-        public:
+    public:
 
         Vector          m_center = Vector::UnitW;
         Vector          m_halfExtents = Vector::NegativeOne;
@@ -164,7 +212,24 @@ namespace EE
         {
             for ( int32_t i = 0; i < 8; ++i )
             {
-                corners[i] = m_center + m_orientation.RotateVector( m_extents * Vector::BoxCorners[i] );
+                corners[i] = m_center + m_orientation.RotateVector( m_extents * AABB::s_referenceBoxCorners[i] );
+            }
+        }
+
+        EE_FORCE_INLINE void GetCorners( TVector<Vector>& corners ) const
+        {
+            for ( int32_t i = 0; i < 8; ++i )
+            {
+                corners.emplace_back( m_center + m_orientation.RotateVector( m_extents * AABB::s_referenceBoxCorners[i] ) );
+            }
+        }
+
+        template<size_t S>
+        void GetCorners( TInlineVector<Vector, S>& corners ) const
+        {
+            for ( int32_t i = 0; i < 8; ++i )
+            {
+                corners.emplace_back( m_center + m_orientation.RotateVector( m_extents * AABB::s_referenceBoxCorners[i] ) );
             }
         }
 
@@ -218,14 +283,6 @@ namespace EE
     // INLINE IMPLEMENTATIONS
     //-------------------------------------------------------------------------
 
-    EE_FORCE_INLINE void AABB::GetCorners( Vector corners[8] ) const
-    {
-        for ( int32_t i = 0; i < 8; ++i )
-        {
-            corners[i] = Vector::MultiplyAdd( m_halfExtents, Vector::BoxCorners[i], m_center );
-        }
-    }
-
     EE_FORCE_INLINE float AABB::GetVolume() const
     {
         Vector const fullExtents = ( m_halfExtents * 2 );
@@ -256,7 +313,7 @@ namespace EE
     // Fast overlap test
     EE_FORCE_INLINE bool AABB::Overlaps( AABB const& other ) const
     {
-        Vector const deltaCenters = ( m_center - other.m_center ).Abs();
+        Vector const deltaCenters = ( m_center - other.m_center ).GetAbs();
         Vector const sumExtents = m_halfExtents + other.m_halfExtents;
         return deltaCenters.IsLessThanEqual3( sumExtents );
     }
@@ -274,7 +331,7 @@ namespace EE
         Matrix rotationTransform( m_orientation );
         for ( auto i = 0; i < 4; i++ )
         {
-            rotationTransform[i] = rotationTransform[i].Abs();
+            rotationTransform[i] = rotationTransform[i].GetAbs();
         }
 
         Vector const newExtent = rotationTransform.RotateVector( m_extents );
@@ -297,7 +354,7 @@ namespace EE
         Vector const offset = other.m_center - m_center;
         for ( int32_t i = 0; i < 8; ++i )
         {
-            Vector C = other.m_orientation.RotateVector( other.m_extents * Vector::BoxCorners[i] ) + offset;
+            Vector C = other.m_orientation.RotateVector( other.m_extents * AABB::s_referenceBoxCorners[i]) + offset;
             C = m_orientation.RotateVectorInverse( C );
             if ( !C.IsInBounds3( m_extents ) )
             {

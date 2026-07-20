@@ -4,14 +4,16 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
     SampleTask::SampleTask( AnimationClip const* pAnimation, Percentage time )
-        : Task()
+        : PoseTask()
         , m_pAnimation( pAnimation )
         , m_time( time )
     {
         EE_ASSERT( m_pAnimation != nullptr );
+        EE_ASSERT( Math::IsFinite( time.ToFloat() ) );
+        EE_ASSERT( time.ToFloat() >= 0.0f && time.ToFloat() <= 1.0f );
     }
 
     void SampleTask::Execute( TaskContext const& context )
@@ -25,7 +27,7 @@ namespace EE::Animation::Tasks
         // Sample primary pose
         //-------------------------------------------------------------------------
 
-        m_pAnimation->GetPose( m_time, pResultBuffer->GetPrimaryPose(), context.m_skeletonLOD );
+        m_pAnimation->GetPose( m_time, pResultBuffer->GetPrimaryPose(), context.m_skeletonLOD, context.m_sampleFloatChannels );
 
         // Sample secondary poses
         //-------------------------------------------------------------------------
@@ -36,11 +38,11 @@ namespace EE::Animation::Tasks
             AnimationClip const* pSecondaryAnimation = m_pAnimation->GetSecondaryAnimation( pResultBuffer->m_poses[i].GetSkeleton() );
             if ( pSecondaryAnimation != nullptr )
             {
-                pSecondaryAnimation->GetPose( m_time, &pResultBuffer->m_poses[i], context.m_skeletonLOD );
+                pSecondaryAnimation->GetPose( m_time, &pResultBuffer->m_poses[i], context.m_skeletonLOD, context.m_sampleFloatChannels );
             }
             else
             {
-                pResultBuffer->m_poses[i].Reset( Pose::Type::None );
+                pResultBuffer->m_poses[i].Reset( Pose::Init::None );
             }
         }
 
@@ -62,8 +64,11 @@ namespace EE::Animation::Tasks
     #if EE_DEVELOPMENT_TOOLS
     InlineString SampleTask::GetDebugTextInfo( bool isDetailedModeEnabled ) const
     {
+        float const percentageThrough = m_time.ToFloat() * 100;
+        float const timeFrames = m_pAnimation->GetFrameTime( m_time ).ToFloat();
+
         InlineString str;
-        str.sprintf( "%s %s", m_pAnimation->GetResourceID().GetFilenameWithoutExtension().c_str(), m_pAnimation->IsAdditive() ? "(Additive)" : "" );
+        str.sprintf( "%s - %.1f%%, frame %.1f", m_pAnimation->GetResourceID().GetFilenameWithoutExtension().c_str(), percentageThrough, timeFrames, m_pAnimation->IsAdditive() ? " - (Additive)" : "" );
         return str;
     }
     #endif

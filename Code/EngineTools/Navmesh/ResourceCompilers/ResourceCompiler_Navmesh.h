@@ -7,6 +7,10 @@
 
 namespace EE::Navmesh
 {
+    class NavmeshData;
+
+    //-------------------------------------------------------------------------
+
     class NavmeshCompiler : public Resource::Compiler
     {
         EE_REFLECT_TYPE( NavmeshCompiler );
@@ -14,13 +18,12 @@ namespace EE::Navmesh
     public:
 
         NavmeshCompiler();
+
         virtual Resource::CompilationResult Compile( Resource::CompileContext const& ctx ) const override;
-        virtual bool IsInputFileRequired() const override { return false; }
-        virtual bool RequiresAdvancedUpToDateCheck( ResourceTypeID resourceTypeID ) const override { return true; }
-        virtual uint64_t CalculateAdvancedUpToDateHash( ResourceID resourceID ) const override;
+        virtual void GetAdditionalCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, ResourceID const& resourceID, Resource::ResourceDescriptor const* pDescriptor, TVector<Resource::CompileDependency>& outDependencies ) const override;
+        virtual uint64_t GetAdditionalVersionForResourceType( ResourceTypeID resourceTypeID ) const override;
 
-    private:
-
-        Resource::CompilationResult GenerateNavmesh( Resource::CompileContext const& ctx, bool updatePregeneratedNavmesh ) const;
+        bool LoadUserGeneratedNavmeshData( Resource::CompileContext const& ctx, FileSystem::Path const& path, NavmeshData& outData ) const;
+        bool GenerateNavmeshData( Resource::CompileContext const& ctx, NavmeshData& outData ) const;
     };
 }

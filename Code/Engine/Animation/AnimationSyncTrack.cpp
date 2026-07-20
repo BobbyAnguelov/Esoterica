@@ -108,6 +108,20 @@ namespace EE::Animation
         m_syncEvents.back().m_duration = 1.0f - m_syncEvents.back().m_startTime;
     }
 
+    bool SyncTrack::HasEventWithID( StringID ID ) const
+    {
+        int32_t const numEvents = (int32_t) m_syncEvents.size();
+        for ( int32_t i = 0; i < numEvents; i++ )
+        {
+            if ( m_syncEvents[i].m_ID == ID )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     int32_t SyncTrack::GetEventIndexForID( StringID ID ) const
     {
         int32_t const numEvents = (int32_t) m_syncEvents.size();
@@ -255,21 +269,22 @@ namespace EE::Animation
 
     Percentage SyncTrack::GetPercentageThrough( SyncTrackTime const& time, bool withOffset ) const
     {
-        EE_ASSERT( time.m_percentageThrough >= 0.0f && time.m_percentageThrough <= 1.0f );
+        EE_ASSERT( time.IsValid() );
 
         // Adjust event index based on event offset and clamp to the track
         int32_t offset = withOffset ? m_startEventOffset : 0;
         int32_t const eventIdx = ClampIndexToTrack( time.m_eventIdx + offset );
-        Percentage percentageThroughSyncTrack = m_syncEvents[eventIdx].m_startTime + ( m_syncEvents[eventIdx].m_duration * time.m_percentageThrough );
 
-        // Handle looping sequences
-        while ( percentageThroughSyncTrack > 1.0f )
+        // Get the percentage through the clip
+        Percentage percentageThroughClip = m_syncEvents[eventIdx].m_startTime + ( m_syncEvents[eventIdx].m_duration * time.m_percentageThrough );
+        EE_ASSERT( percentageThroughClip >= 0.0f );
+        if ( percentageThroughClip > 1.0f )
         {
-            percentageThroughSyncTrack -= 1.0f;
+            EE_ASSERT( eventIdx == ( int32_t( m_syncEvents.size() ) - 1 ) ); // Only the last event is allowed to wrap around!
+            percentageThroughClip = percentageThroughClip.GetNormalizedTime();
         }
 
-        EE_ASSERT( percentageThroughSyncTrack >= 0.0f && percentageThroughSyncTrack <= 1.0f );
-        return percentageThroughSyncTrack;
+        return percentageThroughClip;
     }
 
     Percentage SyncTrack::GetEventDuration( int32_t const eventIdx, bool withOffset ) const

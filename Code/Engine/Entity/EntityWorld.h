@@ -5,10 +5,11 @@
 #include "Entity.h"
 #include "EntityMap.h"
 #include "EntityLoadingContext.h"
-#include "Base/Render/RenderViewport.h"
+#include "Engine/Viewport/Viewport.h"
 #include "Base/Types/Arrays.h"
 #include "Base/Settings/SettingsRegistry.h"
 #include "Base/Drawing/DebugDrawingSystem.h"
+#include "Base/Math/Rectangle.h"
 
 //-------------------------------------------------------------------------
 
@@ -17,8 +18,9 @@ namespace EE
     class TaskSystem;
     class UpdateContext;
     class DebugView;
+    class SettingsRegistry;
 
-    namespace Settings { class SettingsRegistry; }
+    namespace Render { class RenderSystem; class Window; }
 
     //-------------------------------------------------------------------------
 
@@ -60,52 +62,59 @@ namespace EE
         // Any queued requests will be handled here as will any requests to the resource system.
         void UpdateLoading();
 
+        #if EE_DEVELOPMENT_TOOLS
+        void DebugDraw( UpdateContext const& context );
+        #endif
+
         //-------------------------------------------------------------------------
         // Systems
         //-------------------------------------------------------------------------
 
-        EntityWorldSystem* GetWorldSystem( uint32_t worldSystemID ) const;
+        EntityWorldSystem* GetWorldSystem( TypeSystem::TypeID worldSystemTypeID ) const;
 
         template<typename T>
-        inline T* GetWorldSystem() const { return reinterpret_cast<T*>( GetWorldSystem( T::s_entitySystemID ) ); }
+        inline T* GetWorldSystem() const { return reinterpret_cast<T*>( GetWorldSystem( T::GetStaticTypeID() ) ); }
 
         //-------------------------------------------------------------------------
-        // Settings
+        // Viewports
         //-------------------------------------------------------------------------
 
-        // Get world settings
-        template<typename T> T* GetSettings() { return m_pSettingsRegistry->GetSettings<T>( m_worldID.m_value ); }
+        // Do we have any created viewports for this world?
+        inline bool HasViewports() const { return !m_viewports.empty(); }
 
-        // Get world settings
-        template<typename T> T* GetMutableSettings() const { return const_cast<EntityWorld*>( this )->GetSettings<T>(); }
+        // Get the main viewport for this world
+        inline Viewport* GetMainViewport() const { EE_ASSERT( HasViewports() ); return m_viewports[0]; }
 
-        // Get world settings
-        template<typename T> T const* GetSettings() const { return const_cast<EntityWorld*>( this )->GetSettings<T>(); }
+        // Get all viewports for this world
+        inline TInlineVector<Viewport*, 3> const& GetViewports() const { return m_viewports; }
 
-        // Get world settings
-        Settings::ISettings* GetSettings( TypeSystem::TypeInfo const* pTypeInfo ) { return m_pSettingsRegistry->GetSettings( m_worldID.m_value, pTypeInfo ); }
+        // Create a new viewport
+        Viewport* CreateViewport( Render::Window* pRenderWindow );
 
-        // Get world settings
-        Settings::ISettings* GetMutableSettings( TypeSystem::TypeInfo const* pTypeInfo ) const { return const_cast<EntityWorld*>( this )->GetSettings( pTypeInfo ); }
+        // Destroy a created viewport
+        void DestroyViewport( Viewport* pViewport );
 
-        // Get world settings
-        Settings::ISettings const* GetSettings( TypeSystem::TypeInfo const* pTypeInfo ) const { return const_cast<EntityWorld*>( this )->GetSettings( pTypeInfo ); }
+        // Update all the viewport volumes from the active cameras
+        void UpdateViewportViewVolumes();
 
         //-------------------------------------------------------------------------
         // Time Management
         //-------------------------------------------------------------------------
 
         // Is the current world paused
-        inline bool IsPaused() const { return m_timeScale <= 0.0f; }
+        inline bool IsPaused() const { return m_isPaused; }
 
         // Pause the update of this world
-        inline void SetPaused() { m_timeScale = 0.0f; }
+        inline void Pause() { m_isPaused = true; }
+
+        // Pause the update of this world
+        inline void Unpause() { m_isPaused = false; }
 
         // Get the current time scale for this world
         inline float GetTimeScale() const { return m_timeScale; }
 
         // Get the current time scale for this world
-        inline void SetTimeScale( float newTimeScale ) { m_timeScale = newTimeScale; }
+        inline void SetTimeScale( float newTimeScale ) { EE_ASSERT( newTimeScale > 0 ); m_timeScale = newTimeScale; }
 
         // Request a time step - only applicable to paused worlds
         inline void RequestTimeStep() { EE_ASSERT( IsPaused() ); m_timeStepRequested = true; }
@@ -118,13 +127,6 @@ namespace EE
 
         // Set the length of each time step for this world
         inline void SetTimeStepLength( Seconds newTimeStepLength ) { EE_ASSERT( newTimeStepLength > 0 ); m_timeStepLength = newTimeStepLength; }
-
-        //-------------------------------------------------------------------------
-        // Viewport
-        //-------------------------------------------------------------------------
-
-        inline Render::Viewport* GetViewport() { return &m_viewport; }
-        inline Render::Viewport const* GetViewport() const { return &m_viewport; }
 
         //-------------------------------------------------------------------------
         // Map Management
@@ -142,7 +144,7 @@ namespace EE
         // Get the first non-persistent map
         EntityModel::EntityMap const* GetFirstNonPersistentMap() const { return ( m_maps.size() > 1 ) ? m_maps[1] : nullptr; }
 
-        // Create a transient map (one that is managed programatically)
+        // Create a transient map (one that is managed in code)
         EntityModel::EntityMap* CreateTransientMap();
 
         // Get a specific map
@@ -157,11 +159,11 @@ namespace EE
         // Get a specific map
         EntityModel::EntityMap* GetMap( EntityMapID const& mapID ) { return const_cast<EntityModel::EntityMap*>( const_cast<EntityWorld const*>( this )->GetMap( mapID ) ); }
 
-        // Get map for a given entity
-        EntityModel::EntityMap const* GetMapForEntity( Entity const* pEntity ) const;
+        // Try find the parent map for a given entity
+        EntityModel::EntityMap const* FindMapForEntity( Entity const* pEntity ) const;
 
-        // Get map for a given entity
-        EntityModel::EntityMap* GetMapForEntity( Entity const* pEntity ) { return const_cast<EntityModel::EntityMap*>( const_cast<EntityWorld const*>( this )->GetMapForEntity( pEntity ) ); }
+        // Try find the parent map for a given entity
+        EntityModel::EntityMap* FindMapForEntity( Entity const* pEntity ) { return const_cast<EntityModel::EntityMap*>( const_cast<EntityWorld const*>( this )->FindMapForEntity( pEntity ) ); }
 
         // Are we currently loading anything
         bool IsBusyLoading() const;
@@ -218,7 +220,7 @@ namespace EE
 
         // Get all the registered components of the specified type
         // Note: this will only find components that have successfully initialized
-        inline TVector<EntityComponent const*> const* GetAllRegisteredComponentsOfType( TypeSystem::TypeID typeID ) const 
+        inline TVector<EntityComponent const*> const* GetAllRegisteredComponentsOfType( TypeSystem::TypeID typeID ) const
         {
             auto iter = m_componentTypeLookup.find( typeID );
             if ( iter == m_componentTypeLookup.end() )
@@ -262,7 +264,12 @@ namespace EE
         {
             for ( auto pMap : m_maps )
             {
-                if ( pMap->IsLoading() )
+                if ( pMap->IsMapLoading() )
+                {
+                    return true;
+                }
+
+                if ( pMap->HasLoadingEntities() )
                 {
                     return true;
                 }
@@ -275,14 +282,32 @@ namespace EE
             return false;
         }
 
-        // This function will update all maps so as to complete any entity removal requests
-        // WARNING!!! Be very careful when you call this
-        inline void ProcessAllRemovalRequests()
+        // Do we have any pending entity state change actions (add/remove component/systems)
+        inline bool HasPendingEntityStateChangeActions() const
         {
-            // Shutdown Entities
-            UpdateLoading();
-            // Complete Removal
-            UpdateLoading();
+            for ( auto pMap : m_maps )
+            {
+                if ( pMap->HasEntitiesWithPendingStateChangeActions() )
+                {
+                    return true;
+                }
+
+                if ( pMap->HasPendingAddOrRemoveRequests() )
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // This function will update all maps so as to complete any entity removal/state change requests
+        // WARNING!!! Be very careful when you call this
+        inline void ProcessAllEntityStateChangeRequests()
+        {
+            while ( HasPendingEntityStateChangeActions() )
+            {
+                UpdateLoading();
+            }
         }
         #endif
 
@@ -295,8 +320,8 @@ namespace EE
         inline void SetDebugName( String const& newName ) { m_debugName = newName; }
         inline void SetDebugName( char const* pName ) { EE_ASSERT( pName != nullptr ); m_debugName = pName; }
 
-        inline Drawing::DrawingSystem* GetDebugDrawingSystem() { return &m_debugDrawingSystem; }
-        inline void ResetDebugDrawingSystem() { m_debugDrawingSystem.Reset(); }
+        inline DebugDrawSystem* GetDebugDrawSystem() { return &m_debugDrawSystem; }
+        inline void ResetDebugDrawingSystem() { m_debugDrawSystem.Reset(); }
         #endif
 
         //-------------------------------------------------------------------------
@@ -314,18 +339,22 @@ namespace EE
     private:
 
         EntityWorldID                                                           m_worldID = EntityWorldID::Generate();
+        TypeSystem::TypeRegistry*                                               m_pTypeRegistry = nullptr;
         TaskSystem*                                                             m_pTaskSystem = nullptr;
-        Settings::SettingsRegistry*                                             m_pSettingsRegistry = nullptr;
+        Render::RenderSystem*                                                   m_pRenderSystem = nullptr;
+        SettingsRegistry*                                                       m_pSettingsRegistry = nullptr;
         EntityModel::LoadingContext                                             m_loadingContext;
         EntityModel::InitializationContext                                      m_initializationContext;
         TVector<EntityWorldSystem*>                                             m_worldSystems;
         EntityWorldType                                                         m_worldType = EntityWorldType::Game;
         bool                                                                    m_initialized = false;
         bool                                                                    m_isSuspended = false;
-        Render::Viewport                                                        m_viewport = Render::Viewport( Int2::Zero, Int2( 640, 480 ), Math::ViewVolume( Float2( 640, 480 ), FloatRange( 0.1f, 100.0f ) ) );
 
         // Maps
         TInlineVector<EntityModel::EntityMap*, 3>                               m_maps;
+
+        // Viewports
+        TInlineVector<Viewport*, 3>                                             m_viewports;
 
         // Entities
         TVector<Entity*>                                                        m_entityUpdateList;
@@ -335,10 +364,11 @@ namespace EE
         float                                                                   m_timeScale = 1.0f; // <= 0 means that the world is paused
         Seconds                                                                 m_timeStepLength = 1.0f / 30.0f;
         bool                                                                    m_timeStepRequested = false;
+        bool                                                                    m_isPaused = false;
 
         #if EE_DEVELOPMENT_TOOLS
         EntityModel::EntityComponentTypeMap                                     m_componentTypeLookup;
-        Drawing::DrawingSystem                                                  m_debugDrawingSystem;
+        DebugDrawSystem                                                         m_debugDrawSystem;
         String                                                                  m_debugName;
         #endif
     };

@@ -8,9 +8,9 @@ namespace EE
 {
     bool TreeListViewItem::Compare( TreeListViewItem const* pItem ) const
     {
-        char const* const pNameA = GetNameID().c_str();
+        char const* const pNameA = GetSortingKey();
         size_t const lengthA = strlen( pNameA );
-        char const* const pNameB = pItem->GetNameID().c_str();
+        char const* const pNameB = pItem->GetSortingKey();
         size_t const lengthB = strlen( pNameB );
 
         int32_t const result = String::comparei( pNameA, pNameA + lengthA, pNameB, pNameB + lengthB );
@@ -54,6 +54,11 @@ namespace EE
                 break;
             }
         }
+
+        if ( IsLeaf() )
+        {
+            m_isExpanded = true;
+        }
     }
 
     void TreeListViewItem::DestroyChildren()
@@ -65,6 +70,22 @@ namespace EE
         }
 
         m_children.clear();
+        m_isExpanded = true;
+    }
+
+    int32_t TreeListViewItem::GetNumChildren( bool recurse ) const
+    {
+        int32_t numChildren = (int32_t) m_children.size();
+
+        if ( recurse )
+        {
+            for ( auto& pChildItem : m_children )
+            {
+                numChildren += pChildItem->GetNumChildren( true );
+            }
+        }
+
+        return numChildren;
     }
 
     TreeListViewItem const* TreeListViewItem::FindChild( uint64_t uniqueID ) const 
@@ -231,14 +252,14 @@ namespace EE
         pFoundParentItem->DestroyChild( uniqueID );
     }
 
-    void TreeListView::RebuildTree( TreeListViewContext context, bool maintainSelection )
+    void TreeListView::RebuildTree( TreeListViewContext context, bool maintainExpansionAndSelection )
     {
         EE_ASSERT( !IsCurrentlyDrawingTree() );
 
         // Record current state
         //-------------------------------------------------------------------------
 
-        if ( maintainSelection )
+        if ( maintainExpansionAndSelection )
         {
             CacheSelectionAndExpansionState();
         }
@@ -265,7 +286,7 @@ namespace EE
         // Restore original state
         //-------------------------------------------------------------------------
 
-        if ( maintainSelection )
+        if ( maintainExpansionAndSelection )
         {
             RestoreCachedSelectionAndExpansionState();
         }
@@ -456,17 +477,20 @@ namespace EE
         m_estimatedRowHeight = -1.0f;
         m_estimatedTreeHeight = -1.0f;
 
+        // Set view to selection
         //-------------------------------------------------------------------------
 
-        // Set view to selection
         if ( m_visualTreeState == VisualTreeState::NeedsRebuildAndFocusSelection )
         {
             for ( auto i = 0; i < m_visualTree.size(); i++ )
             {
                 if ( m_visualTree[i].m_pItem->m_isSelected )
                 {
-                    m_firstVisibleRowItemIdx = i;
-                    m_maintainVisibleRowIdx = true;
+                    if ( i < m_currentFirstVisibleRowIdx || i > m_currentLastVisibleRowIdx )
+                    {
+                        m_requestedFirstVisibleRowItemIdx = i;
+                    }
+
                     break;
                 }
             }
@@ -557,16 +581,16 @@ namespace EE
         AddToSelectionInternal( pItem, updateView );
     }
 
-    void TreeListView::AddToSelectionInternal( TVector<TreeListViewItem*> const& itemRange, bool updateView )
+    void TreeListView::AddToSelectionInternal( TVector<TreeListViewItem*> const& newSelection, bool updateView )
     {
-        if ( itemRange.empty() )
+        if ( newSelection.empty() )
         {
             return;
         }
 
         //-------------------------------------------------------------------------
 
-        for ( auto pItem : itemRange )
+        for ( auto pItem : newSelection )
         {
             EE_ASSERT( pItem != nullptr );
             AddToSelectionInternal( pItem, false );
@@ -596,11 +620,9 @@ namespace EE
         }
     }
 
-    void TreeListView::SetSelectionInternal( TVector<TreeListViewItem*> const& itemRange, bool updateView )
+    void TreeListView::SetSelectionInternal( TVector<TreeListViewItem*> const& newSelection, bool updateView )
     {
-        bool shouldModifySelection = true;
-
-        if ( itemRange.empty() )
+        if ( newSelection.empty() )
         {
             ClearSelection();
             return;
@@ -608,17 +630,17 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        // Deselect items not in the specified range
+        // Deselect items not in the new selection
         for( int32_t i = (int32_t) m_selection.size() - 1; i >=0; i-- )
         {
-            if ( VectorContains( itemRange, m_selection[i] ) )
+            if ( !VectorContains( newSelection, m_selection[i] ) )
             {
                 RemoveFromSelectionInternal( m_selection[i], false );
             }
         }
 
         // Select new items
-        for ( auto pItem : itemRange )
+        for ( auto pItem : newSelection )
         {
             EE_ASSERT( pItem != nullptr );
 
@@ -635,83 +657,11 @@ namespace EE
         }
     }
 
-    void TreeListView::HandleItemSelection( TreeListViewItem* pItem )
-    {
-        EE_ASSERT( pItem != nullptr );
-        bool const isSelected = pItem->m_isSelected;
-
-        // Left click follows regular selection logic
-        if ( ImGui::IsItemClicked( ImGuiMouseButton_Left ) )
-        {
-            if ( m_flags.IsFlagSet( MultiSelectionAllowed ) && ImGui::GetIO().KeyShift )
-            {
-                if ( m_selection.empty() )
-                {
-                    AddToSelectionInternal( pItem, false );
-                }
-                else
-                {
-                    // Get the index of the clicked item
-                    int32_t const clickedItemIdx = GetVisualTreeItemIndex( pItem );
-
-                    // Get the index of the selection range start item
-                    TreeListViewItem const* const pLastSelectedItem = m_selection.back();
-                    int32_t const lastSelectedItemIdx = GetVisualTreeItemIndex( pLastSelectedItem );
-
-                    // Get the items we want to add to the selection
-                    TVector<TreeListViewItem*> itemsToSelect;
-                    itemsToSelect.reserve( 20 );
-
-                    // Ensure that we always keep the last selected item as last item in the range (i.e. the last selected)
-                    if ( lastSelectedItemIdx <= clickedItemIdx )
-                    {
-                        for ( auto i = clickedItemIdx; i >= lastSelectedItemIdx; i-- )
-                        {
-                            itemsToSelect.emplace_back( m_visualTree[i].m_pItem );
-                        }
-                    }
-                    else // Selection is upwards in tree
-                    {
-                        for ( auto i = clickedItemIdx; i <= lastSelectedItemIdx; i++ )
-                        {
-                            itemsToSelect.emplace_back( m_visualTree[i].m_pItem );
-                        }
-                    }
-
-                    // Modify the selection
-                    SetSelectionInternal( itemsToSelect, false );
-                }
-            }
-            else  if ( m_flags.IsFlagSet( MultiSelectionAllowed ) && ImGui::GetIO().KeyCtrl )
-            {
-                if ( isSelected )
-                {
-                    RemoveFromSelectionInternal( pItem, false );
-                }
-                else
-                {
-                    AddToSelectionInternal( pItem, false );
-                }
-            }
-            else
-            {
-                SetSelectionInternal( pItem, false );
-            }
-        }
-        // Right click never deselects! Nor does it support multi-selection
-        else if ( ImGui::IsItemClicked( ImGuiMouseButton_Right ) )
-        {
-            if ( !isSelected )
-            {
-                SetSelectionInternal( pItem, false );
-            }
-        }
-    }
-
     //-------------------------------------------------------------------------
 
-    void TreeListView::DrawVisualItem( TreeListViewContext context, VisualTreeItem& visualTreeItem )
+    void TreeListView::DrawVisualItem( TreeListViewContext context, int32_t visualItemIdx )
     {
+        VisualTreeItem& visualTreeItem = m_visualTree[visualItemIdx];
         EE_ASSERT( visualTreeItem.m_pItem != nullptr && visualTreeItem.m_hierarchyLevel >= 0 );
 
         TreeListViewItem* const pItem = visualTreeItem.m_pItem;
@@ -736,7 +686,7 @@ namespace EE
         }
 
         // Set node flags
-        uint32_t treeNodeflags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding;
+        uint32_t treeNodeflags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_FramePadding | ImGuiTreeNodeFlags_SpanAllColumns;
 
         if ( pItem->IsHeader() )
         {
@@ -746,6 +696,11 @@ namespace EE
         if ( m_flags.IsFlagSet( ExpandItemsOnlyViaArrow ) )
         {
             treeNodeflags |= ImGuiTreeNodeFlags_OpenOnArrow;
+        }
+
+        if ( m_flags.IsFlagSet( ExpandItemsWithDoubleClick ) )
+        {
+            treeNodeflags |= ImGuiTreeNodeFlags_OpenOnDoubleClick;
         }
 
         if ( isSelectedItem )
@@ -768,131 +723,169 @@ namespace EE
             ImGui::SetNextItemOpen( pItem->IsExpanded() );
         }
 
-        // Draw label
+        //-------------------------------------------------------------------------
+
         InlineString const displayName = pItem->GetDisplayName();
-        bool newExpansionState = false;
+        bool isTreeNodeExpanded = false;
         TreeListViewItem::ItemState const state = isActiveItem ? TreeListViewItem::Active : isSelectedItem ? TreeListViewItem::Selected : TreeListViewItem::None;
         
         {
             ImGuiX::Font const activeItemFont = m_flags.IsFlagSet( UseSmallFont ) ? ImGuiX::Font::SmallBold : ImGuiX::Font::MediumBold;
             ImGuiX::Font const inactiveItemFont = m_flags.IsFlagSet( UseSmallFont ) ? ImGuiX::Font::Small : ImGuiX::Font::Medium;
 
-            ImGuiX::ScopedFont font( isActiveItem ? activeItemFont : inactiveItemFont, pItem->GetDisplayColor( state ) );
-            newExpansionState = ImGui::TreeNodeEx( displayName.c_str(), treeNodeflags);
-        }
+            ImGuiX::ScopedFont font( isActiveItem ? activeItemFont : inactiveItemFont );
 
-        // Tooltip
-        auto const pTooltipText = pItem->GetTooltipText();
-        if ( pTooltipText != nullptr )
-        {
-            ImGuiX::ItemTooltip( pTooltipText );
-        }
+            // Create tree item
+            InlineString treeItemLabel;
 
-        // Drag and Drop
-        if ( pItem->IsDragAndDropSource() )
-        {
-            if ( ImGui::BeginDragDropSource( ImGuiDragDropFlags_None ) )
+            if ( pItem->HasIcon() )
             {
-                pItem->SetDragAndDropPayloadData();
-                ImGui::Text( displayName.c_str() );
-                ImGui::EndDragDropSource();
+                treeItemLabel.sprintf( "##%s", pItem->GetIcon(), displayName.c_str() );
             }
-        }
-
-        if ( pItem->IsDragAndDropTarget() )
-        {
-            if ( ImGui::BeginDragDropTarget() )
+            else
             {
-                if ( context.m_onDragAndDropFunction != nullptr )
+                treeItemLabel = displayName.c_str();
+            }
+
+            ImGui::SetNextItemSelectionUserData( visualItemIdx );
+            isTreeNodeExpanded = ImGui::TreeNodeEx( treeItemLabel.c_str(), treeNodeflags | ImGuiTreeNodeFlags_AllowOverlap | ImGuiTreeNodeFlags_SpanFullWidth );
+
+            if ( pItem->IsLeaf() )
+            {
+                EE_ASSERT( isTreeNodeExpanded );
+            }
+
+            // Tooltip
+            auto const pTooltipText = pItem->GetTooltipText();
+            if ( pTooltipText != nullptr )
+            {
+                ImGuiX::ItemTooltip( pTooltipText );
+            }
+
+            // Drag and Drop
+            if ( pItem->IsDragAndDropSource() )
+            {
+                if ( ImGui::BeginDragDropSource( ImGuiDragDropFlags_SourceAllowNullID ) )
                 {
-                    context.m_onDragAndDropFunction( pItem );
+                    pItem->SetDragAndDropPayloadData();
+                    ImGui::Text( displayName.c_str() );
+                    ImGui::EndDragDropSource();
+                }
+            }
+
+            if ( pItem->IsDragAndDropTarget() )
+            {
+                if ( ImGui::BeginDragDropTarget() )
+                {
+                    if ( context.m_onDragAndDropFunction != nullptr )
+                    {
+                        context.m_onDragAndDropFunction( pItem );
+                    }
+
+                    ImGui::EndDragDropTarget();
+                }
+            }
+
+            // Context Menu
+            if ( pItem->HasContextMenu() )
+            {
+                if ( ImGui::BeginPopupContextItem( "ItemContextMenu" ) )
+                {
+                    if ( !isSelectedItem )
+                    {
+                        if ( m_flags.IsFlagSet( MultiSelectionAllowed ) && ImGui::GetIO().KeyShift || ImGui::GetIO().KeyCtrl )
+                        {
+                            AddToSelectionInternal( pItem, false );
+                        }
+                        else // Switch selection to this item
+                        {
+                            SetSelectionInternal( pItem, false );
+                        }
+                    }
+
+                    if ( context.m_drawItemContextMenuFunction != nullptr )
+                    {
+                        TVector<TreeListViewItem*> selectedItemsWithContextMenus;
+                        for ( auto pSelectedItem : m_selection )
+                        {
+                            if ( pSelectedItem->HasContextMenu() )
+                            {
+                                selectedItemsWithContextMenus.emplace_back( pSelectedItem );
+                            }
+                        }
+
+                        context.m_drawItemContextMenuFunction( selectedItemsWithContextMenus );
+                    }
+
+                    ImGui::EndPopup();
+                }
+            }
+
+            // Handle double click
+            if ( ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked( 0 ) )
+            {
+                if ( pItem->OnDoubleClick() )
+                {
+                    m_visualTreeState = VisualTreeState::NeedsRebuild;
                 }
 
-                ImGui::EndDragDropTarget();
+                // Activation
+                //-------------------------------------------------------------------------
+
+                if ( pItem->IsActivatable() )
+                {
+                    if ( m_pActiveItem == pItem )
+                    {
+                        m_pActiveItem = nullptr;
+                        m_pActiveItem->m_isActivated = false;
+                    }
+                    else
+                    {
+                        m_pActiveItem = pItem;
+                        m_pActiveItem->m_isActivated = true;
+                    }
+
+                    pItem->OnActivationStateChanged();
+                }
+            }
+
+            // Draw icon and label
+            //-------------------------------------------------------------------------
+
+            if ( pItem->HasIcon() )
+            {
+                ImGui::SameLine();
+
+                ImGui::PushStyleColor( ImGuiCol_Text, pItem->GetIconColor() );
+                ImGui::Text( pItem->GetIcon() );
+                ImGui::PopStyleColor();
+
+                ImGui::SameLine();
+
+                ImGui::PushStyleColor( ImGuiCol_Text, pItem->GetDisplayColor( state ) );
+                ImGui::Text( displayName.c_str() );
+                ImGui::PopStyleColor();
             }
         }
 
-        // Handle expansion
-        if ( newExpansionState )
+        // Pop Tree and Indent
+        if ( isTreeNodeExpanded )
         {
             ImGui::TreePop();
         }
 
-        if ( !pItem->IsLeaf() && pItem->IsExpanded() != newExpansionState )
-        {
-            pItem->SetExpanded( newExpansionState );
-            m_visualTreeState = VisualTreeState::NeedsRebuild;
-        }
-
-        // Handle selection
-        HandleItemSelection( pItem );
-
-        // Context Menu
-        if ( pItem->HasContextMenu() )
-        {
-            if ( ImGui::BeginPopupContextItem( "ItemContextMenu" ) )
-            {
-                if ( !isSelectedItem )
-                {
-                    if ( m_flags.IsFlagSet( MultiSelectionAllowed ) && ImGui::GetIO().KeyShift || ImGui::GetIO().KeyCtrl )
-                    {
-                        AddToSelectionInternal( pItem, false );
-                    }
-                    else // Switch selection to this item
-                    {
-                        SetSelectionInternal( pItem, false );
-                    }
-                }
-
-                if ( context.m_drawItemContextMenuFunction != nullptr )
-                {
-                    TVector<TreeListViewItem*> selectedItemsWithContextMenus;
-                    for ( auto pSelectedItem : m_selection )
-                    {
-                        if ( pSelectedItem->HasContextMenu() )
-                        {
-                            selectedItemsWithContextMenus.emplace_back( pSelectedItem );
-                        }
-                    }
-
-                    context.m_drawItemContextMenuFunction( selectedItemsWithContextMenus );
-                    ImGui::EndPopup();
-                }
-            }
-        }
-
-        // Handle double click
-        if ( ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked( 0 ) )
-        {
-            if ( pItem->OnDoubleClick() )
-            {
-                m_visualTreeState = VisualTreeState::NeedsRebuild;
-            }
-
-            // Activation
-            //-------------------------------------------------------------------------
-
-            if ( pItem->IsActivatable() )
-            {
-                if ( m_pActiveItem == pItem )
-                {
-                    m_pActiveItem = nullptr;
-                    m_pActiveItem->m_isActivated = false;
-                }
-                else
-                {
-                    m_pActiveItem = pItem;
-                    m_pActiveItem->m_isActivated = true;
-                }
-
-                pItem->OnActivationStateChanged();
-            }
-        }
-
-        // Pop indent level if set
         if ( requiresIndent )
         {
             ImGui::Unindent( indentLevel );
+        }
+
+        // Handle expansion
+        if ( !pItem->IsLeaf() && pItem->IsExpanded() != isTreeNodeExpanded )
+        {
+            bool const applyToChildren = ImGui::IsKeyDown( ImGuiMod_Ctrl );
+
+            pItem->SetExpanded( isTreeNodeExpanded, applyToChildren );
+            m_visualTreeState = VisualTreeState::NeedsRebuild;
         }
 
         // Draw extra columns
@@ -922,10 +915,21 @@ namespace EE
             return false;
         }
 
+        // Start Selection
         //-------------------------------------------------------------------------
 
         TVector<TreeListViewItem*> previousSelection = m_selection;
 
+        ImGuiMultiSelectFlags selectionFlags = ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_ClearOnClickVoid;
+        if ( m_flags.IsFlagCleared( MultiSelectionAllowed ) )
+        {
+            selectionFlags |= ImGuiMultiSelectFlags_SingleSelect;
+        }
+
+        int32_t const numVisualItems = (int32_t) m_visualTree.size();
+        ImGuiMultiSelectIO* msIO = ImGui::BeginMultiSelect( selectionFlags, -1, numVisualItems );
+
+        // Draw table
         //-------------------------------------------------------------------------
 
         ImGuiTableFlags tableFlags = ImGuiTableFlags_Resizable | ImGuiTableFlags_NoPadOuterX | ImGuiTableFlags_ScrollY;
@@ -937,14 +941,12 @@ namespace EE
 
         if ( m_flags.IsFlagSet( DrawBorders ) )
         {
-            tableFlags |= ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_BordersV;
+            tableFlags |= ImGuiTableFlags_Borders;
         }
-
-        //-------------------------------------------------------------------------
 
         ImGui::PushID( this );
         ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 2, 2 ) );
-        if ( ImGui::BeginTable( "TreeViewTable", context.m_numExtraColumns + 1, tableFlags, ImVec2( ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x / 2, -1 ) ) )
+        if ( ImGui::BeginTable( "TreeViewTable", context.m_numExtraColumns + 1, tableFlags, ImVec2( ImGui::GetContentRegionAvail().x, -1 ) ) )
         {
             ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthStretch );
             if ( context.m_setupExtraColumnHeadersFunction != nullptr )
@@ -955,22 +957,27 @@ namespace EE
             m_isDrawingTree = true;
 
             ImGuiListClipper clipper;
-            clipper.Begin( (int32_t) m_visualTree.size() );
+            clipper.Begin( numVisualItems );
 
             // If we want to maintain the current visible set of data, update the scroll bar position to keep the same first visible item
-            if ( m_maintainVisibleRowIdx && m_estimatedRowHeight > 0 )
+            if ( m_requestedFirstVisibleRowItemIdx != InvalidIndex && m_estimatedRowHeight > 0 )
             {
-                ImGui::SetScrollY( m_firstVisibleRowItemIdx * m_estimatedRowHeight );
-                m_maintainVisibleRowIdx = false;
+                ImGui::SetScrollY( m_requestedFirstVisibleRowItemIdx * m_estimatedRowHeight );
+                m_requestedFirstVisibleRowItemIdx = InvalidIndex;
             }
 
             // Draw clipped list
+            m_currentFirstVisibleRowIdx = InvalidIndex;
+            m_currentLastVisibleRowIdx = InvalidIndex;
             while ( clipper.Step() )
             {
+                m_currentFirstVisibleRowIdx = clipper.DisplayStart;
+                m_currentLastVisibleRowIdx = Math::Max( clipper.DisplayStart, clipper.DisplayEnd - 1 );
+
                 for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i )
                 {
                     float const cursorPosY = ImGui::GetCursorPosY();
-                    DrawVisualItem( context, m_visualTree[i] );
+                    DrawVisualItem( context, i );
                     m_estimatedRowHeight = ImGui::GetCursorPosY() - cursorPosY;
                 }
             }
@@ -980,6 +987,55 @@ namespace EE
         }
         ImGui::PopStyleVar();
         ImGui::PopID();
+
+        // Handle selection requests
+        //-------------------------------------------------------------------------
+
+        msIO = ImGui::EndMultiSelect();
+
+        for ( ImGuiSelectionRequest const& req : msIO->Requests )
+        {
+            if ( req.Type == ImGuiSelectionRequestType_SetAll )
+            {
+                // If we need to select all then just update the selection state for all unselected items
+                if ( req.Selected )
+                {
+                    m_selection.clear();
+
+                    for ( auto& vi : m_visualTree )
+                    {
+                        m_selection.emplace_back( vi.m_pItem );
+
+                        if ( !vi.m_pItem->m_isSelected )
+                        {
+                            vi.m_pItem->m_isSelected = true;
+                            vi.m_pItem->OnSelectionStateChanged();
+                        }
+                    }
+                }
+                else // Just clear the selection
+                {
+                    ClearSelection();
+                }
+            }
+            else if ( req.Type == ImGuiSelectionRequestType_SetRange )
+            {
+                if ( req.Selected )
+                {
+                    for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
+                    {
+                        AddToSelectionInternal( m_visualTree[i].m_pItem, false );
+                    }
+                }
+                else
+                {
+                    for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
+                    {
+                        RemoveFromSelectionInternal( m_visualTree[i].m_pItem, false );
+                    }
+                }
+            }
+        }
 
         // Handle input
         //-------------------------------------------------------------------------
@@ -1001,7 +1057,7 @@ namespace EE
             }
         }
 
-        // Check selection state
+        // Check selection state for the return value
         //-------------------------------------------------------------------------
 
         if ( previousSelection.size() != m_selection.size() )

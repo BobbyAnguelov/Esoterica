@@ -12,19 +12,21 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    Entity* ToolsContext::TryFindEntityInAllWorlds( EntityID ID ) const
+    ToolsContext::EntityLookupResult ToolsContext::TryFindEntityInAllWorlds( EntityID ID ) const
     {
-        Entity* pFoundEntity = nullptr;
-        for ( EntityWorld const* pWorld : GetWorldManager()->GetWorlds() )
+        EntityLookupResult result;
+
+        for ( EntityWorld* pWorld : GetWorldManager()->GetWorlds() )
         {
-            pFoundEntity = pWorld->FindEntity( ID );
-            if ( pFoundEntity != nullptr )
+            result.m_pEntity = pWorld->FindEntity( ID );
+            if ( result.m_pEntity != nullptr )
             {
+                result.m_pWorld = pWorld;
                 break;
             }
         }
 
-        return pFoundEntity;
+        return result;
     }
 
     TVector<EntityWorld const*> ToolsContext::GetAllWorlds() const

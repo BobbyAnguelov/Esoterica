@@ -16,7 +16,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Vector Info"; }
         virtual char const* GetCategory() const override { return "Values/Vector"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
@@ -37,7 +37,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Vector Create"; }
         virtual char const* GetCategory() const override { return "Values/Vector"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
@@ -53,7 +53,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Vector Negate"; }
         virtual char const* GetCategory() const override { return "Values/Vector"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 }

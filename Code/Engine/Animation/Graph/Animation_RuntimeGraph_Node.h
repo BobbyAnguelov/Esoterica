@@ -14,7 +14,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Drawing { class DrawContext; }
+namespace EE { class DebugDrawContext; }
 namespace EE::Resource { class ResourcePtr; }
 
 //-------------------------------------------------------------------------
@@ -79,7 +79,7 @@ namespace EE::Animation
         }
 
         template<typename T>
-        inline T const* GetResource( int16_t slotIdx ) const
+        inline T const* GetResourceForSlot( int16_t slotIdx ) const
         {
             if ( slotIdx == InvalidIndex )
             {
@@ -114,6 +114,7 @@ namespace EE::Animation
         uint64_t                                    m_userID;
 
         #if EE_DEVELOPMENT_TOOLS
+        SourcePath                                  m_basePath;
         TVector<GraphLogEntry>*                     m_pLog;
         #endif
     };
@@ -186,6 +187,13 @@ namespace EE::Animation
         virtual GraphValueType GetValueType() const = 0;
         inline int16_t GetNodeIndex() const { return m_pDefinition->m_nodeIdx; }
 
+        inline SourcePath GetNodePath( GraphContext const& context ) const
+        {
+            SourcePath path = context.GetBasePath();
+            path.Push( GetNodeIndex() );
+            return path;
+        }
+
         inline bool IsInitialized() const { return m_initializationCount > 0; }
         virtual void Initialize( GraphContext& context );
         void Shutdown( GraphContext& context );
@@ -202,13 +210,11 @@ namespace EE::Animation
         // Mark a node as being updated - value nodes will use this to cache values
         void MarkNodeActive( GraphContext& context );
 
-        // Debugging
+        // Recording
         //-------------------------------------------------------------------------
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState );
-        virtual void RestoreGraphState( RecordedGraphState const& inState );
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState );
 
     protected:
 
@@ -223,7 +229,7 @@ namespace EE::Animation
 
     private:
 
-        Definition const*                 m_pDefinition = nullptr;
+        Definition const*               m_pDefinition = nullptr;
         uint32_t                        m_lastUpdateID = 0xFFFFFFFF;
         int32_t                         m_initializationCount = 0;
     };
@@ -246,7 +252,6 @@ namespace EE::Animation
     #if EE_DEVELOPMENT_TOOLS
     struct PoseNodeDebugInfo
     {
-        int32_t                         m_loopCount = 0;
         Seconds                         m_duration = 0.0f;
         Percentage                      m_currentTime = 0.0f;       // Clamped percentage over the duration
         Percentage                      m_previousTime = 0.0f;      // Clamped percentage over the duration
@@ -262,7 +267,6 @@ namespace EE::Animation
 
         // Get internal animation state
         virtual SyncTrack const& GetSyncTrack() const = 0;
-        inline int32_t GetLoopCount() const { return m_loopCount; }
         inline Percentage const& GetPreviousTime() const { return m_previousTime; }
         inline Percentage const& GetCurrentTime() const { return m_currentTime; }
         inline Seconds GetDuration() const { return m_duration; }
@@ -283,15 +287,13 @@ namespace EE::Animation
         PoseNodeDebugInfo GetDebugInfo() const;
 
         // Perform debug drawing for the pose node
-        virtual void DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx ) {}
+        virtual void DrawDebug( GraphContext& graphContext, DebugDrawContext& drawCtx ) {}
         #endif
 
     protected:
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -301,7 +303,6 @@ namespace EE::Animation
 
     protected:
 
-        int32_t                         m_loopCount = 0;
         Seconds                         m_duration = 0.0f;
         Percentage                      m_currentTime = 0.0f;       // Clamped percentage over the duration
         Percentage                      m_previousTime = 0.0f;      // Clamped percentage over the duration

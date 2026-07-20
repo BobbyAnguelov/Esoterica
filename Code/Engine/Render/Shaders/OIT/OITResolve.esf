@@ -1,0 +1,38 @@
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/CommonPacking.esh"
+#include "Engine/Render/Shaders/CommonSamplers.esh"
+#include "Engine/Render/Shaders/FullscreenTriangle.esh"
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+struct HLSL_ALIGN_STRUCT OITRootConstants
+{
+    uint                            m_colorTexture      : 16;
+    uint                            m_padding0          : 16;
+    uint                            m_padding1;
+};
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#ifndef __cplusplus
+
+ESF_PARAMETER string ShaderType = "Surface";
+
+#define OITRootSignature    EE_BEGIN_ROOT_SIGNATURE \
+                            "RootConstants( b0, num32BitConstants = 2, space = 0 ),"
+
+EE_DECLARE_ROOT_CONSTANTS( OITRootConstants, b0, space0 );
+
+[RootSignature( OITRootSignature )]
+float4 PS_main( FullscreenTriangleVertexOutput input ) : SV_Target
+{
+    Texture2D<uint2>        colorTexture = GetTexture( RootConstants.m_colorTexture );
+    
+    uint2 oit = colorTexture.Load( int3( input.m_position.xy, 0 ), 0.0 );
+    
+    float4 color = UnpackColor( oit.r );
+    return color;
+}
+
+#endif

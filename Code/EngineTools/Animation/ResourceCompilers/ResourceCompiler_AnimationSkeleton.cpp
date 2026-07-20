@@ -1,4 +1,5 @@
 #include "ResourceCompiler_AnimationSkeleton.h"
+#include "EngineTools/Resource/ResourceCompilerContext.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Import/ImportedSkeleton.h"
 #include "EngineTools/Import/Importer.h"
@@ -13,92 +14,156 @@ namespace EE::Animation
     SkeletonCompiler::SkeletonCompiler() 
         : Resource::Compiler( "SkeletonCompiler" )
     {
-        AddOutputType<Skeleton>();
+        RegisterOutput<Skeleton>();
     }
 
     Resource::CompilationResult SkeletonCompiler::Compile( Resource::CompileContext const& ctx ) const
     {
-        SkeletonResourceDescriptor resourceDescriptor;
-        if ( !Resource::ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, ctx.m_inputFilePath, resourceDescriptor ) )
+        SkeletonResourceDescriptor resourceDescriptor = *ctx.GetDescriptor<SkeletonResourceDescriptor>();
+
+        // Basic validation
+        //-------------------------------------------------------------------------
+
+        if ( !resourceDescriptor.ValidateData( &ctx.m_log ) )
         {
-            return Error( "Failed to read resource descriptor from input file: %s", ctx.m_inputFilePath.c_str() );
+            return Resource::CompilationResult::Failure;
         }
 
         // Read Skeleton Data
         //-------------------------------------------------------------------------
 
-        FileSystem::Path skeletonFilePath;
-        if ( !ConvertDataPathToFilePath( resourceDescriptor.m_skeletonPath, skeletonFilePath ) )
-        {
-            return Error( "Invalid skeleton data path: %s", resourceDescriptor.m_skeletonPath.c_str() );
-        }
+        FileSystem::Path const skeletonFilePath = resourceDescriptor.m_skeletonPath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath );
 
-        Import::ReaderContext readerCtx = { [this]( char const* pString ) { Warning( pString ); }, [this] ( char const* pString ) { Error( pString ); } };
-        TUniquePtr<Import::ImportedSkeleton> pImportedSkeleton = Import::ReadSkeleton( readerCtx, skeletonFilePath, resourceDescriptor.m_skeletonRootBoneName, resourceDescriptor.m_highLODBones );
+        Import::ReaderContext readerCtx = { [&ctx]( char const* pString ) { ctx.LogWarning( pString ); }, [&ctx] ( char const* pString ) { ctx.LogError( pString ); } };
+        Import::Source const fileSource( skeletonFilePath, ctx.GetRawData( resourceDescriptor.m_skeletonPath ) );
+        TUniquePtr<Import::Skeleton> pImportedSkeleton = Import::Importer::ReadSkeleton( readerCtx, fileSource, resourceDescriptor.m_skeletonRootBoneName, resourceDescriptor.m_highLODBones );
         if ( pImportedSkeleton == nullptr )
         {
-            return Error( "Failed to read skeleton from source file" );
+            return ctx.LogError( "Failed to read skeleton from source file" );
         }
 
         // Reflect raw data into runtime format
         //-------------------------------------------------------------------------
 
         Skeleton skeleton;
-        int32_t const numBones = pImportedSkeleton->GetNumBones();
+        int32_t const numBones = (int32_t) pImportedSkeleton->GetNumBones();
         for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
             auto const& boneData = pImportedSkeleton->GetBoneData( boneIdx );
             skeleton.m_boneIDs.push_back( boneData.m_name );
             skeleton.m_parentIndices.push_back( boneData.m_parentBoneIdx );
             skeleton.m_parentSpaceReferencePose.push_back( Transform( boneData.m_parentSpaceTransform.GetRotation(), boneData.m_parentSpaceTransform.GetTranslation(), boneData.m_parentSpaceTransform.GetScale() ) );
-            skeleton.m_numBonesToSampleAtLowLOD = pImportedSkeleton->GetNumBonesToSampleAtLowLOD();
+            skeleton.m_numBonesToSampleAtLowLOD = (int32_t) pImportedSkeleton->GetNumBonesToSampleAtLowLOD();
+        }
+
+        // Setup secondary skeletons
+        //-------------------------------------------------------------------------
+
+        for ( SkeletonResourceDescriptor::SecondarySkeleton const& secondarySkeletonDesc : resourceDescriptor.m_secondarySkeletons )
+        {
+            if ( !secondarySkeletonDesc.m_skeleton.IsSet() )
+            {
+                continue;
+            }
+
+            Skeleton::SecondarySkeleton& secondarySkeleton = skeleton.m_secondarySkeletons.emplace_back();
+            secondarySkeleton.m_attachmentBoneID = secondarySkeletonDesc.m_attachmentBoneID;
+            secondarySkeleton.m_skeleton = secondarySkeletonDesc.m_skeleton;
+        }
+
+        // Generate bone index LUT
+        //-------------------------------------------------------------------------
+
+        skeleton.m_boneIndexLUT.clear();
+        for ( int32_t i = 0; i < skeleton.GetNumBones(); i++ )
+        {
+            skeleton.m_boneIndexLUT.try_emplace( skeleton.m_boneIDs[i], i );
         }
 
         // Generate runtime bone-masks
         //-------------------------------------------------------------------------
 
-        TVector<StringID> missingBones;
-        TVector<BoneMask::SerializedData> serializedBoneMasks;
+        TVector<BoneMaskSetDefinition> validBoneMaskSets;
 
-        for ( BoneMaskDefinition const& definition : resourceDescriptor.m_boneMaskDefinitions )
+        for ( BoneMaskSetDefinition const& boneMaskSet : resourceDescriptor.m_boneMaskSetDefinitions )
         {
-            if ( !definition.IsValid() )
+            if ( !boneMaskSet.IsValid() )
             {
-                Warning( "Invalid bone mask definition encountered (%s)", definition.m_ID.IsValid() ? definition.m_ID.c_str() : "No ID set!" );
+                ctx.LogWarning( "Ignoring invalid bone mask set encountered (%s)", boneMaskSet.m_ID.IsValid() ? boneMaskSet.m_ID.c_str() : "No ID set!" );
                 continue;
             }
 
-            BoneMask::SerializedData& serializedMask = serializedBoneMasks.emplace_back();
-            definition.GenerateSerializedBoneMask( &skeleton, serializedMask, &missingBones );
+            validBoneMaskSets.emplace_back( boneMaskSet );
+        }
 
-            for ( StringID boneID : missingBones )
+        // Transfer float channel sets
+        //-------------------------------------------------------------------------
+
+        for ( FloatChannelSet const &setDef : resourceDescriptor.m_floatChannelSets )
+        {
+            if ( !setDef.IsValid() )
             {
-                Warning( "Couldn't find bone (%s) while serializing bone mask (%s)", boneID.c_str(), definition.m_ID.c_str() );
+                ctx.LogWarning( "Ignoring invalid float channel set encountered (%s)", setDef.m_ID.IsValid() ? setDef.m_ID.c_str() : "No ID set!" );
+                continue;
+            }
+
+            //-------------------------------------------------------------------------
+
+            FloatChannelSet& reflectedFloatChannelSet = skeleton.m_floatChannelSets.emplace_back();
+            reflectedFloatChannelSet.m_ID = setDef.m_ID;
+
+            for ( size_t i = 0; i < setDef.m_channelIDs.size(); i++ )
+            {
+                if ( !setDef.m_channelIDs[i].IsValid() )
+                {
+                    ctx.LogWarning( "Ignoring invalid float channel ID in set (%s)", setDef.m_ID.c_str() );
+                    continue;
+                }
+
+                if ( VectorFindIndex( reflectedFloatChannelSet.m_channelIDs, setDef.m_channelIDs[i] ) != InvalidIndex )
+                {
+                    ctx.LogWarning( "Ignoring duplicate float channel ID (%s) in set (%s)", setDef.m_channelIDs[i].c_str(), setDef.m_ID.c_str() );
+                    continue;
+                }
+
+                if ( skeleton.GetBoneIndex( setDef.m_channelIDs[i] ) != InvalidIndex )
+                {
+                    ctx.LogError( "Float channel ID (%s) in set (%s) has the same name as a bone in the skeleton, this is not allowed!", setDef.m_channelIDs[i].c_str(), setDef.m_ID.c_str() );
+                    return Resource::CompilationResult::Failure;
+                }
+
+                reflectedFloatChannelSet.m_channelIDs.emplace_back( setDef.m_channelIDs[i] );
             }
         }
 
         // Serialize skeleton
         //-------------------------------------------------------------------------
 
+        Resource::ResourceHeader hdr( Skeleton::s_version, Skeleton::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+
+        for ( auto const& secondarySkeletonDesc : resourceDescriptor.m_secondarySkeletons )
+        {
+            hdr.AddInstallDependency( secondarySkeletonDesc.m_skeleton.GetResourceID() );
+        }
+
         Serialization::BinaryOutputArchive archive;
-        archive << Resource::ResourceHeader( Skeleton::s_version, Skeleton::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
+        archive << hdr;
         archive << skeleton;
-        archive << serializedBoneMasks;
+        archive << validBoneMaskSets;
 
         // Write preview data
         if ( ctx.IsCompilingForDevelopmentBuild() )
         {
             archive << resourceDescriptor.m_previewMesh.GetResourceID();
-            archive << resourceDescriptor.m_previewAttachmentSocketID;
         }
 
-        if ( archive.WriteToFile( ctx.m_outputFilePath ) )
+        if ( archive.WriteToFile( ctx.GetOutputPath() ) )
         {
-            return CompilationSucceeded( ctx );
+            return Resource::CompilationResult::Success;
         }
         else
         {
-            return CompilationFailed( ctx );
+            return Resource::CompilationResult::Failure;
         }
     }
 }

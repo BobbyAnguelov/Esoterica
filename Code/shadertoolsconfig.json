@@ -1,0 +1,10 @@
+{
+  "root": true,
+  "hlsl.preprocessorDefinitions": {
+    "PERMUTATION_DEPTH_ONLY": 1,
+    "PERMUTATION_ALPHA_TEST": 1
+  },
+  "hlsl.additionalIncludeDirectories": [
+    "..\\Code\\"
+  ]
+}

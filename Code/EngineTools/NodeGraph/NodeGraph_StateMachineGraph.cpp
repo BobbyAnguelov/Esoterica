@@ -12,24 +12,40 @@ namespace EE::NodeGraph
         , m_endStateID( pEndState->GetID() )
     {}
 
-    Color TransitionConduitNode::GetConduitColor( NodeGraph::DrawContext const& ctx, UserContext* pUserContext, TBitFlags<NodeGraph::NodeVisualState> visualState ) const
+    void TransitionConduitNode::SetStartStateID( UUID const &startStateID )
     {
-        if ( visualState.IsFlagSet( NodeVisualState::Active ) )
-        {
-            return NodeGraph::Style::s_connectionColorActive;
-        }
-        else if ( visualState.IsFlagSet( NodeVisualState::Hovered ) )
-        {
-            return NodeGraph::Style::s_connectionColorHovered;
-        }
-        else if ( visualState.IsFlagSet( NodeVisualState::Selected ) )
-        {
-            return NodeGraph::Style::s_connectionColorSelected;
-        }
-        else
-        {
-            return NodeGraph::Style::s_connectionColor;
-        }
+        auto pParentGraph = Cast<StateMachineGraph>( GetParentGraph() );
+
+        EE_ASSERT( startStateID.IsValid() );
+        EE_ASSERT( pParentGraph->FindNode( startStateID ) != nullptr );
+        EE_ASSERT( !pParentGraph->DoesTransitionConduitExist( startStateID, m_endStateID ) );
+
+        ScopedNodeModification const snm( this );
+        m_startStateID = startStateID;
+    }
+
+    void TransitionConduitNode::SetEndStateID( UUID const &endStateID )
+    {
+        auto pParentGraph = Cast<StateMachineGraph>( GetParentGraph() );
+
+        EE_ASSERT( endStateID.IsValid() );
+        EE_ASSERT( pParentGraph->FindNode( endStateID ) != nullptr );
+        EE_ASSERT( !pParentGraph->DoesTransitionConduitExist( m_startStateID, endStateID ) );
+
+        ScopedNodeModification const snm( this );
+        m_endStateID = endStateID;
+    }
+
+    void TransitionConduitNode::InvertDirection()
+    {
+        auto pParentGraph = Cast<StateMachineGraph>( GetParentGraph() );
+        EE_ASSERT( !pParentGraph->DoesTransitionConduitExist( m_endStateID, m_startStateID ) );
+
+        ScopedNodeModification const snm( this );
+
+        UUID tmp = m_startStateID;
+        m_startStateID = m_endStateID;
+        m_endStateID = tmp;
     }
 
     //-------------------------------------------------------------------------
@@ -63,6 +79,19 @@ namespace EE::NodeGraph
         return false;
     }
 
+    bool StateMachineGraph::DoesTransitionConduitExist( UUID const& startStateID, UUID const &endStateID ) const
+    {
+        auto pStartState = Cast<StateNode>( FindNode( startStateID ) );
+        auto pEndState = Cast<StateNode>( FindNode( endStateID ) );
+
+        if ( pStartState == nullptr || pEndState == nullptr )
+        {
+            return false;
+        }
+
+        return DoesTransitionConduitExist( pStartState, pEndState );
+    }
+
     bool StateMachineGraph::CanCreateTransitionConduit( StateNode const* pStartState, StateNode const* pEndState ) const
     {
         EE_ASSERT( pStartState != nullptr && pEndState != nullptr );
@@ -78,6 +107,19 @@ namespace EE::NodeGraph
         }
 
         return true;
+    }
+
+    bool StateMachineGraph::CanCreateTransitionConduit( UUID const &startStateID, UUID const &endStateID ) const
+    {
+        auto pStartState = Cast<StateNode>( FindNode( startStateID ) );
+        auto pEndState = Cast<StateNode>( FindNode( endStateID ) );
+
+        if ( pStartState == nullptr || pEndState == nullptr )
+        {
+            return false;
+        }
+
+        return CanCreateTransitionConduit( pStartState, pEndState );
     }
 
     void StateMachineGraph::PreDestroyNode( BaseNode* pNodeAboutToBeDestroyed )
@@ -108,9 +150,9 @@ namespace EE::NodeGraph
         BaseGraph::PostDestroyNode( nodeID );
     }
 
-    void StateMachineGraph::PostDeserialize()
+    void StateMachineGraph::PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry )
     {
-        BaseGraph::PostDeserialize();
+        BaseGraph::PostDeserialize( typeRegistry );
 
         // Ensure that the entry state is valid
         if ( FindNode( m_entryStateID ) == nullptr )

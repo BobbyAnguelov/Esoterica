@@ -104,10 +104,7 @@ namespace EE::TypeSystem
         void const*                 m_pDefaultValue = nullptr;              // A ptr to the default value of the property
         void const*                 m_pDefaultArrayData = nullptr;          // A ptr to the contained data within the default value array
         TBitFlags<Flags>            m_flags;                                // Info about property type
-
-        #if EE_DEVELOPMENT_TOOLS
-        PropertyMetadata            m_metadata;
+        PropertyMetadata            m_metadata;                             // Extra info about the property
         bool                        m_isForDevelopmentUseOnly = false;      // Whether this property only exists in development builds
-        #endif
     };
 }

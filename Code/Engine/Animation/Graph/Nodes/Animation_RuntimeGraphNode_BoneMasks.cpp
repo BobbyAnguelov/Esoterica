@@ -1,5 +1,5 @@
 #include "Animation_RuntimeGraphNode_BoneMasks.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
+#include "Engine/Animation/AnimationSkeleton.h"
 
 //-------------------------------------------------------------------------
 
@@ -8,18 +8,14 @@ namespace EE::Animation
     void BoneMaskNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<BoneMaskNode>( context, options );
-        int32_t const maskIdx = context.m_pSkeleton->GetBoneMaskIndex( m_boneMaskID );
+        int32_t const maskIdx = context.m_pSkeleton->GetBoneMaskSetIndex( m_boneMaskID );
         if ( maskIdx != InvalidIndex )
         {
-            EE_ASSERT( maskIdx >= 0 && maskIdx < 255 );
+            EE_ASSERT( maskIdx >= 0 && maskIdx < INT8_MAX );
             pNode->m_taskList.EmplaceTask( (uint8_t) maskIdx );
         }
         else
         {
-            #if EE_DEVELOPMENT_TOOLS
-            context.LogWarning( "Couldn't find bone mask with ID: %s", m_boneMaskID.c_str() );
-            #endif
-
             pNode->m_taskList.EmplaceTask( 0.0f );
         }
     }
@@ -229,8 +225,16 @@ namespace EE::Animation
                     }
                     else // Start a blend to the new mask
                     {
-                        m_currentTimeInBlend = 0.0f;
-                        m_isBlending = true;
+                        if ( pDefinition->m_blendTime > 0 )
+                        {
+                            m_currentTimeInBlend = 0.0f;
+                            m_isBlending = true;
+                        }
+                        else // Immediately switch mask
+                        {
+                            m_selectedMaskIndex = m_newMaskIndex;
+                            m_newMaskIndex = InvalidIndex;
+                        }
                     }
                 }
             }
@@ -265,7 +269,6 @@ namespace EE::Animation
         *reinterpret_cast<BoneMaskTaskList const**>( pOutValue ) = &m_taskList;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void BoneMaskSelectorNode::RecordGraphState( RecordedGraphState& outState )
     {
         BoneMaskValueNode::RecordGraphState( outState );
@@ -275,13 +278,143 @@ namespace EE::Animation
         outState.WriteValue( m_isBlending );
     }
 
-    void BoneMaskSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool BoneMaskSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        BoneMaskValueNode::RestoreGraphState( inState );
+        if ( !BoneMaskValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_selectedMaskIndex );
         inState.ReadValue( m_newMaskIndex );
         inState.ReadValue( m_currentTimeInBlend );
         inState.ReadValue( m_isBlending );
+
+        return true;
     }
-    #endif
+
+    //-------------------------------------------------------------------------
+
+    void BoneMaskSwitchNode::Definition::InstantiateNode( InstantiationContext const &context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<BoneMaskSwitchNode>( context, options );
+
+        context.SetNodePtrFromIndex( m_switchValueNodeIdx, pNode->m_pSwitchValueNode );
+        context.SetNodePtrFromIndex( m_trueMaskNodeIdx, pNode->m_pTrueMaskValueNode );
+        context.SetNodePtrFromIndex( m_falseMaskNodeIdx, pNode->m_pFalseMaskValueNode );
+    }
+
+    void BoneMaskSwitchNode::InitializeInternal( GraphContext &context )
+    {
+        EE_ASSERT( context.IsValid() );
+        BoneMaskValueNode::InitializeInternal( context );
+
+        m_pSwitchValueNode->Initialize( context );
+        m_pTrueMaskValueNode->Initialize( context );
+        m_pFalseMaskValueNode->Initialize( context );
+
+        m_selectedMaskIndex = m_pSwitchValueNode->GetValue<bool>( context ) ? 1 : 0;
+        m_isBlending = false;
+    }
+
+    void BoneMaskSwitchNode::ShutdownInternal( GraphContext &context )
+    {
+        m_isBlending = false;
+        m_pFalseMaskValueNode->Shutdown( context );
+        m_pTrueMaskValueNode->Shutdown( context );
+        m_pSwitchValueNode->Shutdown( context );
+
+        BoneMaskValueNode::ShutdownInternal( context );
+    }
+
+    void BoneMaskSwitchNode::GetValueInternal( GraphContext &context, void *pOutValue )
+    {
+        EE_ASSERT( context.IsValid() );
+
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            // Perform selection
+            //-------------------------------------------------------------------------
+
+            auto pDefinition = GetDefinition<BoneMaskSwitchNode>();
+            if ( pDefinition->m_switchDynamically )
+            {
+                // Only try to select a new mask if we are not blending
+                if ( !m_isBlending )
+                {
+                    int32_t const newMaskIdx = m_pSwitchValueNode->GetValue<bool>( context ) ? 1 : 0;
+
+                    // If the new mask is the same as the current one, do nothing
+                    if ( newMaskIdx != m_selectedMaskIndex )
+                    {
+                        m_selectedMaskIndex = newMaskIdx;
+
+                        if ( pDefinition->m_blendTime > 0 )
+                        {
+                            m_currentTimeInBlend = 0.0f;
+                            m_isBlending = true;
+                        }
+                    }
+                }
+            }
+
+            // Generate task list
+            //-------------------------------------------------------------------------
+
+            auto GetBoneMaskForIndex = [this, &context] ( int32_t idx )
+            {
+                return ( idx == 1 ) ? m_pTrueMaskValueNode->GetValue<BoneMaskTaskList const *>( context ) : m_pFalseMaskValueNode->GetValue<BoneMaskTaskList const *>( context );
+            };
+
+            if ( m_isBlending )
+            {
+                m_currentTimeInBlend += context.m_deltaTime;
+                float const blendWeight = m_currentTimeInBlend / pDefinition->m_blendTime;
+
+                // If the blend is complete, then update the selected mask index
+                if ( blendWeight >= 1.0f )
+                {
+                    m_taskList.CopyFrom( *GetBoneMaskForIndex( m_selectedMaskIndex ) );
+                    m_isBlending = false;
+                }
+                else // Perform blend and return the result
+                {
+                    auto pSourceList = GetBoneMaskForIndex( ( m_selectedMaskIndex == 1 ) ? 0 : 1 );
+                    auto pTargetList = GetBoneMaskForIndex( ( m_selectedMaskIndex == 1 ) ? 1 : 0 );
+                    m_taskList.SetToBlendBetweenTaskLists( *pSourceList, *pTargetList, blendWeight );
+                }
+            }
+            else
+            {
+                m_taskList.CopyFrom( *GetBoneMaskForIndex( m_selectedMaskIndex ) );
+            }
+        }
+
+        *reinterpret_cast<BoneMaskTaskList const **>( pOutValue ) = &m_taskList;
+    }
+
+    void BoneMaskSwitchNode::RecordGraphState( RecordedGraphState &outState )
+    {
+        BoneMaskValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_selectedMaskIndex );
+        outState.WriteValue( m_currentTimeInBlend );
+        outState.WriteValue( m_isBlending );
+    }
+
+    bool BoneMaskSwitchNode::RestoreGraphState( RecordedGraphState const &inState )
+    {
+        if ( !BoneMaskValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
+        inState.ReadValue( m_selectedMaskIndex );
+        inState.ReadValue( m_currentTimeInBlend );
+        inState.ReadValue( m_isBlending );
+
+        return true;
+    }
+
 }

@@ -85,13 +85,8 @@ namespace EE::Animation
 
         void EvaluateBlendSpace( GraphContext& context );
 
-        // Debugging
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     protected:
 
@@ -138,9 +133,7 @@ namespace EE::Animation
 
         void CreateParameterizationFromSpeeds();
 
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 

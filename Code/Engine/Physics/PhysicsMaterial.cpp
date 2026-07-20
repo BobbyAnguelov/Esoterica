@@ -1,25 +1,11 @@
 #include "PhysicsMaterial.h"
 #include "Base/Math/Math.h"
-#include "Physics.h"
-
-//-------------------------------------------------------------------------
-
-#if _MSC_VER
-#pragma warning( push, 0 )
-#pragma warning( disable : 4435, disable : 4996 )
-#endif
-
-#include <PxMaterial.h>
-
-#if _MSC_VER
-#pragma warning( pop )
-#endif
 
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
-    bool MaterialSettings::IsValid() const
+    bool Material::IsValid() const
     {
         static StringID const defaultMaterialID( s_defaultID );
 
@@ -28,67 +14,49 @@ namespace EE::Physics
             return false;
         }
 
-        if ( !Math::IsInRangeInclusive( m_staticFriction, 0.0f, FLT_MAX ) || !Math::IsInRangeInclusive( m_dynamicFriction, 0.0f, FLT_MAX ) )
+        if ( !Math::IsInRangeInclusive( m_friction, 0.0f, 1.0f ) ||
+             !Math::IsInRangeInclusive( m_restitution, 0.0f, 1.0f ) ||
+             !Math::IsInRangeInclusive( m_rollingResistance, 0.0f, 1.0f ) )
         {
             return false;
         }
 
-        return Math::IsInRangeInclusive( m_restitution, 0.0f, 1.0f );
+        return true;
     }
 
     //-------------------------------------------------------------------------
 
     void MaterialRegistry::Initialize()
     {
-        auto pPhysics = Core::GetPxPhysics();
-
         EE_ASSERT( m_materials.empty() );
 
-        // Create default physics material
-        m_defaultMaterialID = MaterialSettings::s_defaultID;
-        m_pDefaultMaterial = pPhysics->createMaterial( MaterialSettings::s_defaultStaticFriction, MaterialSettings::s_defaultDynamicFriction, MaterialSettings::s_defaultRestitution );
-        reinterpret_cast<uintptr_t&>( m_pDefaultMaterial->userData ) = m_defaultMaterialID.ToUint();
-        m_materials.insert( TPair<StringID, MaterialInstance>( m_defaultMaterialID, MaterialInstance( m_defaultMaterialID, m_pDefaultMaterial ) ) );
+        m_defaultMaterialID = Material::s_defaultID;
+        m_defaultMaterial.friction = 0.5f;
+        m_defaultMaterial.restitution = 0.5f;
+        m_defaultMaterial.rollingResistance = 0.5f;
+        m_defaultMaterial.userMaterialId = m_defaultMaterialID.ToUint();
+
+        m_materials.insert( TPair<StringID, b3SurfaceMaterial>( m_defaultMaterialID, m_defaultMaterial ) );
     }
 
     void MaterialRegistry::Shutdown()
     {
-        for ( auto& materialPair : m_materials )
-        {
-            materialPair.second.m_pMaterial->release();
-            materialPair.second.m_pMaterial = nullptr;
-        }
-
         m_materials.clear();
-
-        //-------------------------------------------------------------------------
-
-        m_pDefaultMaterial = nullptr;
         m_defaultMaterialID = StringID();
     }
 
-    void MaterialRegistry::RegisterMaterials( TVector<MaterialSettings> const& materials )
+    void MaterialRegistry::RegisterMaterials( TVector<Material> const& materials )
     {
-        auto pPhysics = Core::GetPxPhysics();
-
         EE_ASSERT( m_defaultMaterialID.IsValid() );
 
-        // Create physX materials
-        physx::PxMaterial* pPxMaterial = nullptr;
-        for ( auto const& materialSettings : materials )
+        for ( auto const& material : materials )
         {
-            EE_ASSERT( materialSettings.m_ID != m_defaultMaterialID );
-            EE_ASSERT( m_materials.find( materialSettings.m_ID ) == m_materials.end() );
-
-            pPxMaterial = pPhysics->createMaterial( materialSettings.m_staticFriction, materialSettings.m_dynamicFriction, materialSettings.m_restitution );
-            pPxMaterial->setFrictionCombineMode( (physx::PxCombineMode::Enum) materialSettings.m_frictionCombineMode );
-            pPxMaterial->setRestitutionCombineMode( (physx::PxCombineMode::Enum) materialSettings.m_restitutionCombineMode );
-            reinterpret_cast<uintptr_t&>( m_pDefaultMaterial->userData ) = materialSettings.m_ID.ToUint();
-            m_materials.insert( TPair<StringID, MaterialInstance>( materialSettings.m_ID, MaterialInstance( materialSettings.m_ID, pPxMaterial ) ) );
+            EE_ASSERT( m_materials.find( material.m_ID ) == m_materials.end() );
+            m_materials.try_emplace( material.m_ID, material.GetB3D() );
         }
     }
 
-    void MaterialRegistry::UnregisterMaterials( TVector<MaterialSettings> const& materials )
+    void MaterialRegistry::UnregisterMaterials( TVector<Material> const& materials )
     {
         EE_ASSERT( m_defaultMaterialID.IsValid() );
 
@@ -97,25 +65,21 @@ namespace EE::Physics
             EE_ASSERT( materialSettings.m_ID != m_defaultMaterialID );
             auto foundMaterialPairIter = m_materials.find( materialSettings.m_ID );
             EE_ASSERT( foundMaterialPairIter != m_materials.end() );
-
-            // Remove material
-            foundMaterialPairIter->second.m_pMaterial->release();
-            foundMaterialPairIter->second.m_pMaterial = nullptr;
             m_materials.erase( foundMaterialPairIter );
         }
     }
 
-    physx::PxMaterial* MaterialRegistry::GetMaterial( StringID materialID ) const
+    b3SurfaceMaterial const& MaterialRegistry::GetMaterial( StringID materialID ) const
     {
         EE_ASSERT( materialID.IsValid() );
 
         auto foundMaterialPairIter = m_materials.find( materialID );
         if ( foundMaterialPairIter != m_materials.end() )
         {
-            return foundMaterialPairIter->second.m_pMaterial;
+            return foundMaterialPairIter->second;
         }
 
-        EE_LOG_WARNING( "Physics", "Physics System", "Failed to find physic material with ID: %s", materialID.c_str() );
-        return nullptr;
+        EE_LOG_WARNING( LogCategory::Physics, "Physics System", "Failed to find physic material with ID: %s", materialID.c_str() );
+        return m_defaultMaterial;
     }
 }

@@ -24,7 +24,20 @@ namespace EE::Animation
         }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDebugText() const override { return ""; }
+        virtual InlineString GetDebugText( Percentage percentageThroughEvent ) const override 
+        {
+            InlineString str;
+
+            if ( percentageThroughEvent >= 0.0f )
+            {
+                if ( m_physicsWeightCurve.HasPoints() )
+                {
+                    str.append_sprintf( "Physics Curve: %f", m_physicsWeightCurve.EvaluateAtPercentageThroughParameterRange( percentageThroughEvent ) );
+                }
+            }
+
+            return str;
+        }
         #endif
 
     private:

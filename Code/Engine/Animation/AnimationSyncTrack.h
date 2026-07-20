@@ -25,9 +25,14 @@ namespace EE::Animation
             , m_percentageThrough( inPercentageThrough )
         {}
 
+        inline bool IsValid() const
+        {
+            return Math::IsFinite( m_percentageThrough.ToFloat() ) && m_percentageThrough >= 0.0f && m_percentageThrough <= 1.0f;
+        }
+
         inline float ToFloat() const
         {
-            EE_ASSERT( m_percentageThrough >= 0.0f && m_percentageThrough <= 1.0f );
+            EE_ASSERT( IsValid() );
             return m_percentageThrough.ToFloat() + m_eventIdx;
         }
 
@@ -54,6 +59,11 @@ namespace EE::Animation
             : m_startTime( InStartTime )
             , m_endTime( InEndTime )
         {}
+
+        inline bool IsValid() const
+        {
+            return m_endTime.IsValid() && m_startTime.IsValid();
+        }
 
         inline void Reset( SyncTrackTime const& InTime = SyncTrackTime() )
         {
@@ -149,6 +159,7 @@ namespace EE::Animation
 
         // Does this sync track artificially start at a different event than the first one
         inline bool HasStartOffset() const { return m_startEventOffset != 0; }
+        inline void ClearStartOffset() { m_startEventOffset = 0; }
         inline int32_t GetStartEventOffset() const { return m_startEventOffset; }
 
         // Get the event at the specified index, includes offset
@@ -164,6 +175,9 @@ namespace EE::Animation
             auto adjustedIndex = ClampIndexToTrack( i + m_startEventOffset );
             return m_syncEvents[adjustedIndex].m_ID;
         }
+
+        // Do we have an event matching this ID
+        bool HasEventWithID( StringID ID ) const;
 
         // Get the first event that matches this ID, if no events match this ID, then we return the first event including offset
         int32_t GetEventIndexForID( StringID ID ) const;
@@ -234,10 +248,10 @@ namespace EE::Animation
         // Get the sync track time for a percentage through the track - starting at the actual first event
         inline SyncTrackTime GetTimeWithoutOffset( Percentage const percentage ) const { return GetTime( percentage, false ); }
 
-        // Get the percentage through the track for a given tracking - starting from the 'first' event i.e. the event offset
+        // Get the percentage through the clip for a given sync time - starting from the 'first' event i.e. the event offset
         inline Percentage GetPercentageThrough( SyncTrackTime const& time ) const { return GetPercentageThrough( time, true ); }
 
-        // Get the percentage through the track for a given tracking - starting at the actual first event
+        // Get the percentage through the clip for a given sync time - starting at the actual first event
         inline Percentage GetPercentageThroughWithoutOffset( SyncTrackTime const& time ) const { return GetPercentageThrough( time, false ); }
 
     private:

@@ -6,6 +6,7 @@
 #include "Base/Profiling.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Utils/TreeLayout.h"
+#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
@@ -16,7 +17,7 @@ namespace EE::Animation
     void TaskSystem::InitializeTaskTypesList( TypeSystem::TypeRegistry const& typeRegistry )
     {
         EE_ASSERT( g_pTaskTypeTable == nullptr );
-        g_pTaskTypeTable = EE::New<TVector<EE::TypeSystem::TypeInfo const*>>( typeRegistry.GetAllDerivedTypes( Task::GetStaticTypeID(), false, false, true ) );
+        g_pTaskTypeTable = EE::New<TVector<EE::TypeSystem::TypeInfo const*>>( typeRegistry.GetAllDerivedTypes( PoseTask::GetStaticTypeID(), false, false, true ) );
     }
 
     void TaskSystem::ShutdownTaskTypesList()
@@ -35,21 +36,32 @@ namespace EE::Animation
 
     TaskSystem::TaskSystem( Skeleton const* pSkeleton )
         : m_posePool( pSkeleton )
-        , m_boneMaskPool( pSkeleton )
+        , m_boneMaskPool( pSkeleton, SecondarySkeletonList() )
         , m_taskContext( m_posePool, m_boneMaskPool )
-        , m_finalPoseBuffer( pSkeleton, SecondarySkeletonList() )
     {
         EE_ASSERT( pSkeleton != nullptr );
-        m_finalPoseBuffer.CalculateModelSpaceTransforms();
+
+        m_pFinalPoseBuffer = EE::New<PoseBuffer>( pSkeleton, SecondarySkeletonList() );
+        m_pFinalPoseBuffer->CalculateModelSpaceTransforms();
+
+        m_pPreviousFinalPoseBuffer = EE::New<PoseBuffer>( pSkeleton, SecondarySkeletonList() );
+        m_pPreviousFinalPoseBuffer->CalculateModelSpaceTransforms();
 
         auto pTaskTypesTable = GetTaskTypesList();
         m_maxBitsForTaskTypeID = Math::GetMaxNumberOfBitsForValue( (uint32_t) pTaskTypesTable->size() );
         EE_ASSERT( m_maxBitsForTaskTypeID <= 8 );
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_taskContext.m_pLog = &m_log;
+        #endif
     }
 
     TaskSystem::~TaskSystem()
     {
         Reset();
+
+        EE::Delete( m_pFinalPoseBuffer );
+        EE::Delete( m_pPreviousFinalPoseBuffer );
     }
 
     void TaskSystem::Reset()
@@ -61,29 +73,56 @@ namespace EE::Animation
 
         m_tasks.clear();
         m_posePool.Reset();
+        m_needsUpdate = false;
         m_hasPhysicsDependency = false;
+        m_executionTime = 0.0f;
 
         #if EE_DEVELOPMENT_TOOLS
-        m_debugPathTracker.Clear();
+        m_log.clear();
         #endif
+    }
+
+    void TaskSystem::ResetForNewUpdate()
+    {
+        Reset();
+        eastl::swap( m_pFinalPoseBuffer, m_pPreviousFinalPoseBuffer );
+        m_executionTime = 0.0f;
     }
 
     //-------------------------------------------------------------------------
 
     void TaskSystem::SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons )
     {
+        EE_ASSERT( Skeleton::ValidateSkeletonSetup( GetSkeleton(), secondarySkeletons ) );
+
         m_posePool.SetSecondarySkeletons( secondarySkeletons );
-        m_finalPoseBuffer.UpdateSecondarySkeletonList( secondarySkeletons );
+        m_boneMaskPool.SetSecondarySkeletons( secondarySkeletons );
+        m_pFinalPoseBuffer->UpdateSecondarySkeletonList( secondarySkeletons );
+        m_pPreviousFinalPoseBuffer->UpdateSecondarySkeletonList( secondarySkeletons );
     }
 
     TInlineVector<Pose const*, 1> TaskSystem::GetSecondaryPoses() const
     {
         TInlineVector<Pose const*, 1> secondaryPoses;
 
-        int8_t const numPoses = (int8_t) m_finalPoseBuffer.m_poses.size();
+        int8_t const numPoses = (int8_t) m_pFinalPoseBuffer->m_poses.size();
         for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
         {
-            secondaryPoses.emplace_back( &m_finalPoseBuffer.m_poses[poseIdx] );
+            secondaryPoses.emplace_back( &m_pFinalPoseBuffer->m_poses[poseIdx] );
+        }
+
+        return secondaryPoses;
+    }
+
+
+    TInlineVector<Pose const*, 1> TaskSystem::GetSecondaryPosesForPreviousUpdate() const
+    {
+        TInlineVector<Pose const*, 1> secondaryPoses;
+
+        int8_t const numPoses = (int8_t) m_pPreviousFinalPoseBuffer->m_poses.size();
+        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+        {
+            secondaryPoses.emplace_back( &m_pPreviousFinalPoseBuffer->m_poses[poseIdx] );
         }
 
         return secondaryPoses;
@@ -99,10 +138,6 @@ namespace EE::Animation
         {
             EE::Delete( m_tasks[t] );
             m_tasks.erase( m_tasks.begin() + t );
-
-            #if EE_DEVELOPMENT_TOOLS
-            m_debugPathTracker.RemoveTrackedPath( t );
-            #endif
         }
     }
 
@@ -145,6 +180,7 @@ namespace EE::Animation
         EE_PROFILE_SCOPE_ANIMATION( "Anim Pre-Physics Tasks" );
 
         #if EE_DEVELOPMENT_TOOLS
+        ScopedTimer<PlatformClock, Microseconds> st( m_executionTime );
         m_boneMaskPool.PerformValidation();
         #endif
 
@@ -179,8 +215,8 @@ namespace EE::Animation
             // If we've detected a co-dependent physics task, ignore all registered tasks by just pushing a new task and immediately executing it
             if ( m_hasCodependentPhysicsTasks )
             {
-                EE_LOG_WARNING( "Animation", "TODO", "Co-dependent physics tasks detected!" );
-                RegisterTask<Tasks::ReferencePoseTask>( InvalidIndex );
+                EE_LOG_WARNING( LogCategory::Animation, "TODO", "Co-dependent physics tasks detected!" );
+                RegisterTask<ReferencePoseTask>( SourcePath() );
                 m_tasks.back()->Execute( m_taskContext );
             }
             else // Execute pre-physics tasks
@@ -197,7 +233,14 @@ namespace EE::Animation
                         m_taskContext.m_dependencies.emplace_back( m_tasks[depTaskIdx] );
                     }
 
-                    m_tasks[prePhysicsTaskIdx]->Execute( m_taskContext );
+                    {
+                        #if EE_DEVELOPMENT_TOOLS
+                        ScopedTimer<PlatformClock, Microseconds> tt( m_tasks[prePhysicsTaskIdx]->m_executionTime );
+                        #endif
+
+                        //EE_DEVELOPMENT_TOOLS_ONLY( ScopedTimer<PlatformClock, Microseconds> tt( m_tasks[prePhysicsTaskIdx]->m_executionTime ) );
+                        m_tasks[prePhysicsTaskIdx]->Execute( m_taskContext );
+                    }
                 }
             }
         }
@@ -219,6 +262,11 @@ namespace EE::Animation
             return;
         }
 
+        #if EE_DEVELOPMENT_TOOLS
+        Timer<PlatformClock> timer;
+        timer.Start();
+        #endif
+
         // Execute tasks
         //-------------------------------------------------------------------------
         // Only run tasks if we have a physics dependency, else all tasks were already executed in the first update stage
@@ -228,41 +276,50 @@ namespace EE::Animation
             ExecuteTasks();
         }
 
-        // Reflect animation pose out
+        // Reflect animation pose
         //-------------------------------------------------------------------------
 
         if ( !m_tasks.empty() )
         {
+            #if EE_DEVELOPMENT_TOOLS
+            CalculateTaskTreeOffsets( m_taskContext.m_worldTransform );
+            #endif
+
             auto pFinalTask = m_tasks.back();
             EE_ASSERT( pFinalTask->IsComplete() );
             PoseBuffer const* pResultPoseBuffer = m_posePool.GetBuffer( pFinalTask->GetResultBufferIndex() );
 
-            // Always return a non-additive pose
-            if ( pResultPoseBuffer->IsAdditive() )
+            m_pFinalPoseBuffer->CopyFrom( pResultPoseBuffer );
+
+            int8_t const numPoses = (int8_t) m_pFinalPoseBuffer->m_poses.size();
+            for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
             {
-                int8_t const numPoses = (int8_t) m_finalPoseBuffer.m_poses.size();
-                for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
+                // Never return additive poses as a final result
+                if ( m_pFinalPoseBuffer->m_poses[poseIdx].IsAdditivePose() )
                 {
-                    Blender::ApplyAdditiveToReferencePose( m_taskContext.m_skeletonLOD, &pResultPoseBuffer->m_poses[poseIdx], 1.0f, nullptr, &m_finalPoseBuffer.m_poses[poseIdx] );
+                    Blender::ApplyAdditiveToReferencePose( m_taskContext.m_skeletonLOD, &m_pFinalPoseBuffer->m_poses[poseIdx], 1.0f, nullptr, &m_pFinalPoseBuffer->m_poses[poseIdx] );
                 }
-            }
-            else // Just copy the pose
-            {
-                m_finalPoseBuffer.CopyFrom( pResultPoseBuffer );
             }
 
             // Calculate the global transforms and release the task pose buffer
-            m_finalPoseBuffer.CalculateModelSpaceTransforms();
+            m_pFinalPoseBuffer->CalculateModelSpaceTransforms();
             m_posePool.ReleasePoseBuffer( pFinalTask->GetResultBufferIndex() );
         }
         else
         {
-            m_finalPoseBuffer.Release( Pose::Type::ReferencePose, true );
+            m_pFinalPoseBuffer->Release( Pose::Init::ReferencePose, true );
         }
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_executionTime += timer.GetElapsedTimeMicroseconds();
+        #endif
     }
 
     void TaskSystem::ExecuteTasks()
     {
+        // Execute all incomplete tasks
+        //-------------------------------------------------------------------------
+
         int16_t const numTasks = (int8_t) m_tasks.size();
         for ( int8_t i = 0; i < numTasks; i++ )
         {
@@ -272,16 +329,24 @@ namespace EE::Animation
 
                 // Set dependencies
                 m_taskContext.m_dependencies.clear();
-                for ( auto DepTaskIdx : m_tasks[i]->GetDependencyIndices() )
+                for ( auto depTaskIdx : m_tasks[i]->GetDependencyIndices() )
                 {
-                    EE_ASSERT( m_tasks[DepTaskIdx]->IsComplete() );
-                    m_taskContext.m_dependencies.emplace_back( m_tasks[DepTaskIdx] );
+                    EE_ASSERT( m_tasks[depTaskIdx]->IsComplete() );
+                    m_taskContext.m_dependencies.emplace_back( m_tasks[depTaskIdx] );
                 }
 
                 // Execute task
-                m_tasks[i]->Execute( m_taskContext );
+                {
+                    #if EE_DEVELOPMENT_TOOLS
+                    ScopedTimer<PlatformClock, Microseconds> tt( m_tasks[i]->m_executionTime );
+                    #endif
+
+                    m_tasks[i]->Execute( m_taskContext );
+                }
             }
         }
+
+        //-------------------------------------------------------------------------
 
         m_needsUpdate = false;
     }
@@ -291,6 +356,11 @@ namespace EE::Animation
     bool TaskSystem::IsValidCachedPose( CachedPoseID cachedPoseID ) const
     {
         return m_posePool.IsValidCachedPose( cachedPoseID );
+    }
+
+    PoseBuffer* TaskSystem::GetCachedPose( CachedPoseID cachedPoseID )
+    {
+        return m_posePool.GetCachedPoseBuffer( cachedPoseID );
     }
 
     CachedPoseID TaskSystem::CreateCachedPose()
@@ -305,11 +375,6 @@ namespace EE::Animation
     }
     #endif
 
-    void TaskSystem::ResetCachedPose( CachedPoseID cachedPoseID )
-    {
-        m_posePool.ResetCachedPoseBuffer( cachedPoseID );
-    }
-
     void TaskSystem::DestroyCachedPose( CachedPoseID cachedPoseID )
     {
         m_posePool.DestroyCachedPoseBuffer( cachedPoseID );
@@ -317,74 +382,100 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    bool TaskSystem::SerializeTasks( ResourceMappings const& resourceMappings, Blob& outSerializedData ) const
+    void TaskSystem::SerializeTasks( TaskSerializationContext const& taskSerializationContext, Blob& outSerializedTopologyData, Blob& outSerializedTaskData ) const
     {
-        auto FindTaskTypeID = [] ( TypeSystem::TypeID typeID )
-        {
-            auto const& taskTypeTable = *GetTaskTypesList();
-            uint8_t const numTaskTypes = (uint8_t) taskTypeTable.size();
-            for ( uint8_t i = 0; i < numTaskTypes; i++ )
-            {
-                if ( taskTypeTable[i]->m_ID == typeID )
-                {
-                    return i;
-                }
-            }
-
-            return uint8_t( 0xFF );
-        };
-
-        //-------------------------------------------------------------------------
-
         EE_ASSERT( !m_needsUpdate );
 
         uint8_t const numTasks = (uint8_t) m_tasks.size();
-        TaskSerializer serializer( GetSkeleton(), resourceMappings, numTasks );
-
-        // Serialize task types
-        for ( auto pTask : m_tasks )
+        if ( numTasks == 0 )
         {
-            EE_ASSERT( pTask->IsComplete() );
-            uint8_t serializedTypeID = FindTaskTypeID( pTask->GetTypeID() );
-            EE_ASSERT( serializedTypeID != 0xFF );
-            serializer.WriteUInt( serializedTypeID, m_maxBitsForTaskTypeID );
+            outSerializedTopologyData.clear();
+            outSerializedTaskData.clear();
+            return;
         }
+
+        //-------------------------------------------------------------------------
+
+        TaskSerializer serializer( taskSerializationContext );
+        serializer.WriteNumTasks( numTasks );
+
+        //-------------------------------------------------------------------------
 
         // Serialize task data
         for ( auto pTask : m_tasks )
         {
-            if ( !pTask->AllowsSerialization() )
+            EE_ASSERT( pTask->IsComplete() );
+
+            // Topology
+            //-------------------------------------------------------------------------
+
+            serializer.WriteTaskType( pTask );
+
+            for ( int32_t i = 0; i < pTask->m_dependencies.size(); i++ )
             {
-                return false;
+                serializer.WriteDependencyIndex( pTask->m_dependencies[i] );
             }
+
+            // Data
+            //-------------------------------------------------------------------------
 
             pTask->Serialize( serializer );
         }
 
-        serializer.GetWrittenData( outSerializedData );
-
-        return true;
+        serializer.m_topologyData.GetWrittenData( outSerializedTopologyData );
+        serializer.GetWrittenData( outSerializedTaskData );
     }
 
-    void TaskSystem::DeserializeTasks( ResourceMappings const& resourceMappings, Blob const& inSerializedData )
+    void TaskSystem::DeserializeTasks( TaskSerializationContext const& taskSerializationContext, Blob const& inSerializedTopologyData, Blob const& inSerializedTaskData )
     {
         EE_ASSERT( m_tasks.empty() );
         EE_ASSERT( !m_needsUpdate );
+        EE_ASSERT( !inSerializedTopologyData.empty() );
+        EE_ASSERT( !inSerializedTaskData.empty() );
 
-        TaskSerializer serializer( GetSkeleton(), resourceMappings, inSerializedData );
+        TaskSerializer serializer( taskSerializationContext, inSerializedTopologyData, inSerializedTaskData );
         uint8_t const numTasks = serializer.GetNumSerializedTasks();
 
         // Create tasks
+        bool hasErrorOccurred = false;
         for ( uint8_t i = 0; i < numTasks; i++ )
         {
-            auto const& taskTypeTable = *GetTaskTypesList();
-            uint8_t const taskTypeID = (uint8_t) serializer.ReadUInt( m_maxBitsForTaskTypeID );
-            Task* pTask = Cast<Task>( taskTypeTable[taskTypeID]->CreateType() );
-            EE_ASSERT( pTask->AllowsSerialization() );
+            // Create task
+            PoseTask* pTask = serializer.ReadTaskTypeAndCreateTask();
+            if ( pTask == nullptr )
+            {
+                hasErrorOccurred = true;
+                break;
+            }
+
             m_tasks.emplace_back( pTask );
+
+            // Get dependency data
+            //-------------------------------------------------------------------------
+
+            int32_t const numDependencies = pTask->GetNumDependencies();
+            pTask->m_dependencies.reserve( numDependencies );
+            for ( int32_t d = 0; d < numDependencies; d++ )
+            {
+                pTask->m_dependencies[d] = serializer.ReadDependencyIndex();
+            }
         }
 
-        // Deserialize Tasks
+        // If something went wrong, wipe the whole recipe!
+        if ( hasErrorOccurred )
+        {
+            for ( PoseTask* pTask : m_tasks )
+            {
+                EE::Delete( pTask );
+            }
+
+            m_tasks.clear();
+            return;
+        }
+
+        // Task Data
+        //-------------------------------------------------------------------------
+
         for ( auto pTask : m_tasks )
         {
             pTask->Deserialize( serializer );
@@ -400,7 +491,54 @@ namespace EE::Animation
         m_posePool.EnableRecording( m_debugMode != TaskSystemDebugMode::Off );
     }
 
-    void TaskSystem::DrawDebug( Drawing::DrawContext& drawingContext )
+    void TaskSystem::CalculateTaskTreeOffsets( Transform const &worldTransform ) const
+    {
+        EE_ASSERT( !RequiresUpdate() );
+        EE_ASSERT( !m_tasks.empty() );
+
+        // Create Tree Layout
+        //-------------------------------------------------------------------------
+
+        int32_t const numTasks = (int32_t) m_tasks.size();
+        TreeLayout layout;
+        layout.m_nodes.resize( numTasks );
+
+        for ( int32_t i = 0; i < numTasks; i++ )
+        {
+            auto pTask = m_tasks[i];
+            layout.m_nodes[i].m_pItem = pTask;
+            layout.m_nodes[i].m_width = 2.0f;
+            layout.m_nodes[i].m_height = 1.5f;
+
+            int32_t const numDependencies = pTask->GetNumDependencies();
+            if ( numDependencies > 0 )
+            {
+                for ( int32_t j = 0; j < numDependencies; j++ )
+                {
+                    layout.m_nodes[i].m_children.emplace_back( &layout.m_nodes[pTask->GetDependencyIndices()[j]] );
+                }
+            }
+        }
+
+        layout.PerformLayout( Float2( 0.1f, 0.1f ) );
+
+        // Set up final world transforms
+        //-------------------------------------------------------------------------
+
+        Vector const offsetVectorX = m_taskContext.m_worldTransform.GetAxisX();
+        Vector const offsetVectorY = m_taskContext.m_worldTransform.GetAxisY();
+
+        TInlineVector<Transform, 16> taskTransforms;
+        taskTransforms.resize( numTasks, m_taskContext.m_worldTransform );
+
+        for ( int32_t i = numTasks - 1; i >= 0; i-- )
+        {
+            Vector const offset = ( offsetVectorX * layout.m_nodes[i].m_position.m_x ) + ( offsetVectorY * layout.m_nodes[i].m_position.m_y );
+            taskTransforms[i].AddTranslation( offset );
+        }
+    }
+
+    void TaskSystem::DrawDebug( DebugDrawContext& drawingContext )
     {
         if ( m_debugMode == TaskSystemDebugMode::Off )
         {
@@ -417,7 +555,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        int8_t const numPoses = (int8_t) m_finalPoseBuffer.m_poses.size();
+        int8_t const numPoses = (int8_t) m_pFinalPoseBuffer->m_poses.size();
 
         // Only draw the final pose
         if ( m_debugMode == TaskSystemDebugMode::FinalPose )
@@ -429,51 +567,10 @@ namespace EE::Animation
 
             // Primary Pose
             pPoseBuffer->m_poses[0].DrawDebug( drawingContext, m_taskContext.m_worldTransform );
-            Task::DrawSecondaryPoses( drawingContext, m_taskContext.m_worldTransform, m_taskContext.m_skeletonLOD, pPoseBuffer, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
+            PoseTask::DrawSecondaryPoses( drawingContext, m_taskContext.m_worldTransform, m_taskContext.m_skeletonLOD, pPoseBuffer, m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
         }
         else // Draw Tree
         {
-            // Create Tree Layout
-            //-------------------------------------------------------------------------
-
-            int32_t const numTasks = (int32_t) m_tasks.size();
-            TreeLayout layout;
-            layout.m_nodes.resize( numTasks );
-
-            for ( int32_t i = 0; i < numTasks; i++ )
-            {
-                auto pTask = m_tasks[i];
-                layout.m_nodes[i].m_pItem = pTask;
-                layout.m_nodes[i].m_width = 2.0f;
-                layout.m_nodes[i].m_height = 1.5f;
-
-                int32_t const numDependencies = pTask->GetNumDependencies();
-                if ( numDependencies > 0 )
-                {
-                    for ( int32_t j = 0; j < numDependencies; j++ )
-                    {
-                        layout.m_nodes[i].m_children.emplace_back( &layout.m_nodes[pTask->GetDependencyIndices()[j]] );
-                    }
-                }
-            }
-
-            layout.PerformLayout( Float2( 0.1f, 0.1f ) );
-
-            // Set up final world transforms
-            //-------------------------------------------------------------------------
-
-            Vector const offsetVectorX = m_taskContext.m_worldTransform.GetAxisX();
-            Vector const offsetVectorY = m_taskContext.m_worldTransform.GetAxisY();
-
-            TInlineVector<Transform, 16> taskTransforms;
-            taskTransforms.resize( numTasks, m_taskContext.m_worldTransform );
-
-            for ( int32_t i = numTasks - 1; i >= 0; i-- )
-            {
-                Vector const offset = ( offsetVectorX * layout.m_nodes[i].m_position.m_x ) + ( offsetVectorY * layout.m_nodes[i].m_position.m_y );
-                taskTransforms[i].AddTranslation( offset );
-            }
-
             // Draw tree
             //-------------------------------------------------------------------------
 
@@ -481,20 +578,17 @@ namespace EE::Animation
 
             for ( int8_t i = (int8_t) m_tasks.size() - 1; i >= 0; i-- )
             {
-                auto pPoseBuffer = m_posePool.GetRecordedPoseBufferForTask( i );
+                PoseBuffer* pPoseBuffer = m_posePool.GetRecordedPoseBufferForTask( i );
                 EE_ASSERT( pPoseBuffer != nullptr );
 
                 // No point displaying a pile of bones, so display additives on top of their skeleton's reference pose
-                if ( pPoseBuffer->IsAdditive() )
+                for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
                 {
-                    for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
+                    Pose& pose = pPoseBuffer->m_poses[poseIdx];
+                    if ( pose.IsAdditivePose() )
                     {
-                        Pose& pose = pPoseBuffer->m_poses[poseIdx];
-                        if ( pose.IsAdditivePose() )
-                        {
-                            Blender::ApplyAdditiveToReferencePose( m_taskContext.m_skeletonLOD, &pose, 1.0f, nullptr, &pose );
-                            pPoseBuffer->m_poses[poseIdx].CalculateModelSpaceTransforms();
-                        }
+                        Blender::ApplyAdditiveToReferencePose( m_taskContext.m_skeletonLOD, &pose, 1.0f, nullptr, &pose );
+                        pPoseBuffer->m_poses[poseIdx].CalculateModelSpaceTransforms();
                     }
                 }
 
@@ -504,12 +598,12 @@ namespace EE::Animation
 
                 strBuffer.sprintf( "%s\n%s\n%.2f", m_tasks[i]->GetDebugName(), m_tasks[i]->GetDebugTextInfo( isDetailedModeEnabled ).c_str(), m_tasks[i]->GetDebugProgressOrWeight() );
 
-                m_tasks[i]->DrawDebug( drawingContext, taskTransforms[i], m_taskContext.m_skeletonLOD, pPoseBuffer, isDetailedModeEnabled );
-                drawingContext.DrawText3D( taskTransforms[i].GetTranslation(), strBuffer.c_str(), m_tasks[i]->GetDebugColor(), Drawing::FontSmall, Drawing::AlignMiddleCenter );
+                m_tasks[i]->DrawDebug( drawingContext, m_tasks[i]->m_debugWorldTransform, m_taskContext.m_skeletonLOD, pPoseBuffer, isDetailedModeEnabled );
+                drawingContext.DrawText3D( m_tasks[i]->m_debugWorldTransform.GetTranslation(), strBuffer.c_str(), m_tasks[i]->GetDebugColor(), DebugFont::Small, DebugTextAlign::MiddleCenter );
 
                 for ( auto& dependencyIdx : m_tasks[i]->GetDependencyIndices() )
                 {
-                    drawingContext.DrawLine( taskTransforms[i].GetTranslation(), taskTransforms[dependencyIdx].GetTranslation(), m_tasks[i]->GetDebugColor(), 2.0f );
+                    drawingContext.DrawLine( m_tasks[i]->m_debugWorldTransform.GetTranslation(), m_tasks[dependencyIdx]->m_debugWorldTransform.GetTranslation(), m_tasks[i]->GetDebugColor(), 2.0f );
                 }
             }
 
@@ -518,7 +612,7 @@ namespace EE::Animation
 
             if ( m_taskContext.m_skeletonLOD == Skeleton::LOD::Low )
             {
-                drawingContext.DrawTextBox3D( m_taskContext.m_worldTransform.GetTranslation() + Vector( 0, 0, 0.5f ), "Low LOD", Colors::Red, Drawing::FontSmall, Drawing::AlignMiddleCenter );
+                drawingContext.DrawTextBox3D( m_taskContext.m_worldTransform.GetTranslation() + Vector( 0, 0, 0.5f ), "Low LOD", Colors::Red, DebugFont::Small, DebugTextAlign::MiddleCenter );
             }
         }
     }

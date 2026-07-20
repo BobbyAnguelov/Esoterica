@@ -1,35 +1,35 @@
 #pragma once
 
-#include "Engine/_Module/API.h"
-#include "Base/Render/RenderDevice.h"
-#include "Base/Render/RenderTexture.h"
 #include "Base/Resource/ResourceLoader.h"
+#include "Engine/Render/RenderTexture.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Render
 {
+    class RenderSystem;
+
+    //-------------------------------------------------------------------------
+
     class TextureLoader final : public Resource::ResourceLoader
     {
     public:
 
         TextureLoader();
 
-        inline void SetRenderDevicePtr( RenderDevice* pRenderDevice )
+        inline void SetRenderSystem( RenderSystem* pRenderSystem )
         {
-            EE_ASSERT( pRenderDevice != nullptr );
-            m_pRenderDevice = pRenderDevice;
+            EE_ASSERT( !m_pRenderSystem );
+            m_pRenderSystem = pRenderSystem;
         }
 
-        inline void ClearRenderDevice() { m_pRenderDevice = nullptr; }
+    private:
+
+        virtual Resource::LoadResult Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive* pArchive ) const override;
+        virtual Resource::UnloadResult Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const override;
 
     private:
 
-        virtual Resource::ResourceLoader::LoadResult Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const override;
-        virtual void Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const override;
-
-    private:
-
-        RenderDevice* m_pRenderDevice;
+        RenderSystem* m_pRenderSystem = nullptr;
     };
 }

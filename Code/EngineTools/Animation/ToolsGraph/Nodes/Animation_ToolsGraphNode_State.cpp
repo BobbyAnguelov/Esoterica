@@ -1,9 +1,12 @@
 #include "Animation_ToolsGraphNode_State.h"
 #include "Animation_ToolsGraphNode_Result.h"
 #include "Animation_ToolsGraphNode_StateMachine.h"
+#include "Animation_ToolsGraphNode_Parameters.h"
+#include "EngineTools/NodeGraph/NodeGraph_Style.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
 #include "Base/Imgui/ImguiX.h"
+#include "Base/Serialization/TypeSerialization.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,6 +18,65 @@ namespace EE::Animation
         CreateInputPin( "Layer Weight", GraphValueType::Float );
         CreateInputPin( "Root Motion Weight", GraphValueType::Float );
         CreateInputPin( "Layer Mask", GraphValueType::BoneMask );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void StateToolsNode::UpdateAllClonedStates( TypeSystem::TypeRegistry const& typeRegistry, NodeGraph::BaseGraph *pGraph, bool isPartOfBulkUpdate )
+    {
+        TVector<UUID> updatedStates;
+
+        int32_t lowestDepth = 0;
+
+        auto FilterStateNodes = [&lowestDepth] ( NodeGraph::BaseNode const *pNode )
+        {
+            auto pStateNode = Cast<StateToolsNode>( pNode );
+            if ( !pStateNode->IsClonedState() )
+            {
+                return false;
+            }
+
+            int32_t const pathDepth = pStateNode->GetPathDepthFromRoot();
+            if ( pathDepth < lowestDepth )
+            {
+                return false;
+            }
+
+            return true;
+        };
+
+        // We need to progressively update all the cloned node from root to leaf, as cloning a node at one level might create new nodes on a level below it.
+        TInlineVector<StateToolsNode*, 20> foundStateNodes = pGraph->FindAllNodesOfTypeAdvanced<StateToolsNode>( FilterStateNodes, NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
+
+        while ( !foundStateNodes.empty() )
+        {
+            int32_t lowestFoundDepth = INT32_MAX;
+            for ( StateToolsNode *pStateNode : foundStateNodes )
+            {
+                int32_t const pathDepth = pStateNode->GetPathDepthFromRoot();
+                lowestFoundDepth = Math::Min( lowestFoundDepth, pathDepth );
+            }
+
+            for ( StateToolsNode *pStateNode : foundStateNodes )
+            {
+                int32_t const pathDepth = pStateNode->GetPathDepthFromRoot();
+                if ( pathDepth == lowestFoundDepth )
+                {
+                    pStateNode->UpdateClonedData( typeRegistry, true );
+                }
+            }
+
+            lowestDepth = lowestFoundDepth + 1;
+            foundStateNodes = pGraph->FindAllNodesOfTypeAdvanced<StateToolsNode>( FilterStateNodes, NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
+        }
+
+        // Fix up any parameter references 
+        //-------------------------------------------------------------------------
+
+        if ( !isPartOfBulkUpdate )
+        {
+            ParameterBaseToolsNode::RefreshParameterReferences( Cast<Animation::FlowGraph>( pGraph->GetRootGraph() ) );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -54,6 +116,16 @@ namespace EE::Animation
         }
     }
 
+    StateToolsNode::StateToolsNode( UUID const &sourceStateID )
+        : NodeGraph::StateNode()
+        , m_type( StateType::Clone )
+        , m_cloneSourceStateID( sourceStateID )
+    {
+        EE_ASSERT( m_cloneSourceStateID.IsValid() );
+        CreateChildGraph<FlowGraph>( GraphType::BlendTree );
+        CreateSecondaryGraph<FlowGraph>( GraphType::ValueTree );
+    }
+
     Color StateToolsNode::GetTitleBarColor() const
     {
         switch ( m_type )
@@ -75,12 +147,18 @@ namespace EE::Animation
                 return Colors::DarkCyan;
             }
             break;
+
+            case StateType::Clone:
+            {
+                return Colors::MediumVioletRed;
+            }
+            break;
         }
 
         return NodeGraph::StateNode::GetTitleBarColor();
     }
 
-    NodeGraph::BaseGraph* StateToolsNode::GetNavigationTarget()
+    NodeGraph::BaseGraph* StateToolsNode::GetNavigationTarget( NodeGraph::UserContext* pUserContext )
     {
         NodeGraph::BaseGraph* pTargetGraph = GetChildGraph();
 
@@ -92,25 +170,45 @@ namespace EE::Animation
                 pTargetGraph = stateMachineNodes[0]->GetChildGraph();
             }
         }
+        else if ( IsClonedState() )
+        {
+            auto pToolsGraphContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+
+            if ( !pUserContext->IsReadOnly() )
+            {
+                UpdateClonedData( *pToolsGraphContext->m_pTypeRegistry );
+            }
+        }
 
         return pTargetGraph;
     }
 
     void StateToolsNode::DrawContextMenuOptions( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos )
     {
-        if ( m_type == StateType::BlendTreeState && CanConvertToStateMachineState() )
+        if ( !ctx.m_isReadOnly )
         {
-            if ( ImGui::MenuItem( EE_ICON_STATE_MACHINE" Convert To State Machine State" ) )
+            if ( m_type == StateType::BlendTreeState && CanConvertToStateMachineState() )
             {
-                ConvertToStateMachineState();
+                if ( ImGui::MenuItem( EE_ICON_STATE_MACHINE" Convert To State Machine State" ) )
+                {
+                    ConvertToStateMachineState();
+                }
             }
-        }
 
-        if ( m_type == StateType::StateMachineState && CanConvertToBlendTreeState() )
-        {
-            if ( ImGui::MenuItem( EE_ICON_FILE_TREE" Convert to Blend Tree State" ) )
+            if ( m_type == StateType::StateMachineState && CanConvertToBlendTreeState() )
             {
-                ConvertToBlendTreeState();
+                if ( ImGui::MenuItem( EE_ICON_FILE_TREE" Convert to Blend Tree State" ) )
+                {
+                    ConvertToBlendTreeState();
+                }
+            }
+
+            if ( !IsClonedState() )
+            {
+                if ( ImGui::MenuItem( EE_ICON_CONTENT_DUPLICATE" Clone State" ) )
+                {
+                    CreateClone( pUserContext );
+                }
             }
         }
 
@@ -195,61 +293,55 @@ namespace EE::Animation
                 DrawStateTypeWindow( ctx, Colors::Turquoise, Colors::White, GetWidth(), EE_ICON_STATE_MACHINE, " State Machine" );
             }
             break;
+
+            case StateType::Clone:
+            {
+                DrawStateTypeWindow( ctx, Colors::MediumVioletRed, Colors::White, GetWidth(), EE_ICON_CONTENT_DUPLICATE, " Cloned State" );
+            }
+            break;
         }
 
         // State events
         //-------------------------------------------------------------------------
 
         InlineString string;
-        auto CreateEventString = [&] ( TVector<StringID> const& stateIDs, TVector<StringID> const& specificIDs )
+        auto CreateEventString = [&] ( TInlineVector<StringID, 5> const& IDs )
         {
-            TInlineVector<StringID, 10> finalIDs;
-            finalIDs.insert( finalIDs.end(), stateIDs.begin(), stateIDs.end() );
-
-            for ( StringID specificID : specificIDs )
-            {
-                if ( !VectorContains( finalIDs, specificID ) )
-                {
-                    finalIDs.emplace_back( specificID );
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
             string.clear();
-            for ( int32_t i = 0; i < (int32_t) finalIDs.size(); i++ )
+
+            for ( int32_t i = 0; i < (int32_t) IDs.size(); i++ )
             {
-                if ( !finalIDs[i].IsValid() )
+                if ( !IDs[i].IsValid() )
                 {
                     continue;
                 }
 
-                string += finalIDs[i].c_str();
-
-                if ( i != finalIDs.size() - 1 )
+                if ( !string.empty() )
                 {
                     string += ", ";
                 }
+
+                string += IDs[i].c_str();
             }
         };
 
-        auto CreateTimedEventString = [&] ( TVector<TimedStateEvent> const& events )
+        auto CreateTimedEventString = [&] ( TInlineVector<TimedStateEvent, 5> const& events )
         {
             string.clear();
+
             for ( int32_t i = 0; i < (int32_t) events.size(); i++ )
             {
-                if ( !events[i].m_ID.IsValid() )
+                if ( !events[i].IsValid() )
                 {
                     continue;
                 }
 
-                InlineString const eventStr( InlineString::CtorSprintf(), "%s (%.2fs)", events[i].m_ID.c_str(), events[i].m_timeValue.ToFloat() );
-                string += eventStr.c_str();
-
-                if ( i != events.size() - 1 )
+                if ( !string.empty() )
                 {
                     string += ", ";
                 }
+
+                string.append_sprintf( "%s (%.2fs)", events[i].m_ID.c_str(), events[i].m_timeValue.ToFloat() );
             }
         };
 
@@ -257,9 +349,10 @@ namespace EE::Animation
         {
             ImGuiX::ScopedFont const eventFont( ImGuiX::Font::Medium );
 
-            if ( !m_entryEvents.empty() || !m_events.empty() )
+            TInlineVector<StringID, 5> const uniqueEntryEvents = GetUniqueEntryEvents();
+            if ( !uniqueEntryEvents.empty() )
             {
-                CreateEventString( m_events, m_entryEvents );
+                CreateEventString( uniqueEntryEvents );
                 {
                     ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold, Colors::Green );
                     ImGui::Text( "Entry:", string.c_str() );
@@ -269,9 +362,10 @@ namespace EE::Animation
                 hasStateEvents = true;
             }
 
-            if ( !m_executeEvents.empty() || !m_events.empty() )
+            TInlineVector<StringID, 5> const uniqueExecuteEvents = GetUniqueFullyInStateEvents();
+            if ( !uniqueExecuteEvents.empty() )
             {
-                CreateEventString( m_events, m_executeEvents );
+                CreateEventString( uniqueExecuteEvents );
                 {
                     ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold, Colors::Gold );
                     ImGui::Text( "Execute:", string.c_str() );
@@ -281,9 +375,10 @@ namespace EE::Animation
                 hasStateEvents = true;
             }
 
-            if ( !m_exitEvents.empty() || !m_events.empty() )
+            TInlineVector<StringID, 5> const uniqueExitEvents = GetUniqueExitEvents();
+            if ( !uniqueExitEvents.empty() )
             {
-                CreateEventString( m_events, m_exitEvents );
+                CreateEventString( uniqueExitEvents );
                 {
                     ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold, Colors::Tomato );
                     ImGui::Text( "Exit:", string.c_str() );
@@ -293,9 +388,10 @@ namespace EE::Animation
                 hasStateEvents = true;
             }
 
-            if ( !m_timeRemainingEvents.empty() )
+            TInlineVector<TimedStateEvent, 5> const uniqueTimeRemainingEvents = GetUniqueTimeRemainingEvents();
+            if ( !uniqueTimeRemainingEvents.empty() )
             {
-                CreateTimedEventString( m_timeRemainingEvents );
+                CreateTimedEventString( uniqueTimeRemainingEvents );
                 {
                     ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold );
                     ImGui::Text( "Time Left: %s", string.c_str() );
@@ -303,9 +399,10 @@ namespace EE::Animation
                 hasStateEvents = true;
             }
 
-            if ( !m_timeElapsedEvents.empty() )
+            TInlineVector<TimedStateEvent, 5> const uniqueTimeElapsedEvents = GetUniqueTimeElapsedEvents();
+            if ( !uniqueTimeElapsedEvents.empty() )
             {
-                CreateTimedEventString( m_timeElapsedEvents );
+                CreateTimedEventString( uniqueTimeElapsedEvents );
                 {
                     ImGuiX::ScopedFont const label( ImGuiX::Font::MediumBold );
                     ImGui::Text( "Time Elapsed: %s", string.c_str() );
@@ -352,7 +449,7 @@ namespace EE::Animation
         ImGui::SetCursorPosY( ImGui::GetCursorPosY() + scaledVerticalGap );
     }
 
-    bool StateToolsNode::IsActive( NodeGraph::UserContext* pUserContext ) const
+    Color StateToolsNode::GetHighlightOutlineColor( NodeGraph::UserContext* pUserContext ) const
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
@@ -361,11 +458,39 @@ namespace EE::Animation
             auto const runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
             if ( runtimeNodeIdx != InvalidIndex )
             {
-                return pGraphNodeContext->IsNodeActive( runtimeNodeIdx );
+                auto pDebugNode = pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx );
+                if ( pDebugNode->IsInitialized() && !pDebugNode->IsValid() )
+                {
+                    return NodeGraph::Style::s_invalidBorderColor;
+                }
+                else if( pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
+                {
+                    return NodeGraph::Style::s_activeBorderColor;
+                }
             }
         }
 
-        return false;
+        return Colors::Transparent;
+    }
+
+    UUID StateToolsNode::RegenerateIDs( THashMap<UUID, UUID>& IDMapping )
+    {
+        if ( !IsClonedState() )
+        {
+            UpdateCloneVersion();
+        }
+
+        return NodeGraph::StateNode::RegenerateIDs( IDMapping );
+    }
+
+    void StateToolsNode::PostModify()
+    {
+        if ( !IsClonedState() )
+        {
+            UpdateCloneVersion();
+        }
+
+        NodeGraph::StateNode::PostModify();
     }
 
     //-------------------------------------------------------------------------
@@ -419,6 +544,101 @@ namespace EE::Animation
         m_type = StateType::StateMachineState;
     }
 
+    void StateToolsNode::UpdateCloneVersion()
+    {
+        EE_ASSERT( !IsClonedState() );
+        m_cloneVersion = UUID::GenerateID();
+    }
+
+    void StateToolsNode::UpdateCloneStateID( TypeSystem::TypeRegistry const& typeRegistry, THashMap<UUID, UUID> const& IDMapping )
+    {
+        m_cloneSourceStateID = IDMapping.at( m_cloneSourceStateID );
+        UpdateClonedData( typeRegistry );
+    }
+
+    void StateToolsNode::UpdateClonedData( TypeSystem::TypeRegistry const& typeRegistry, bool isPartOfBulkUpdate )
+    {
+        EE_ASSERT( IsClonedState() && m_cloneSourceStateID.IsValid() );
+
+        auto pSourceStateNode = Cast<StateToolsNode>( GetParentGraph()->FindNode( m_cloneSourceStateID ) );
+        EE_ASSERT( pSourceStateNode != nullptr );
+
+        // Early out if the versions match
+        if ( pSourceStateNode->m_cloneVersion == m_cloneVersion )
+        {
+            return;
+        }
+
+        pSourceStateNode->PreCopy();
+
+        // Copy Child Graph
+        //-------------------------------------------------------------------------
+
+        String serializedGraphStr;
+        Serialization::WriteTypeToString( typeRegistry, pSourceStateNode->GetChildGraph(), serializedGraphStr );
+        Log log;
+        bool result = Serialization::ReadTypeFromString( typeRegistry, log, serializedGraphStr, GetChildGraph() );
+        log.ReflectToSystemLogAndClear( LogCategory::Animation, "Serialize Clone State - Child Graph" );
+        EE_ASSERT( result );
+
+        // Copy Secondary Graph
+        //-------------------------------------------------------------------------
+
+        Serialization::WriteTypeToString( typeRegistry, pSourceStateNode->GetSecondaryGraph(), serializedGraphStr );
+        result = Serialization::ReadTypeFromString( typeRegistry, log, serializedGraphStr, GetSecondaryGraph() );
+        log.ReflectToSystemLogAndClear( LogCategory::Animation, "Serialize Clone State - Secondary Graph" );
+        EE_ASSERT( result );
+
+        // Fix parents
+        //-------------------------------------------------------------------------
+
+        UpdateChildGraphAndSecondaryGraphParents();
+
+        // Fix all IDs
+        //-------------------------------------------------------------------------
+
+        THashMap<UUID, UUID> IDMapping;
+        GetChildGraph()->RegenerateIDs( IDMapping );
+
+        IDMapping.clear();
+        GetSecondaryGraph()->RegenerateIDs( IDMapping );
+
+        // Copy events
+        //-------------------------------------------------------------------------
+
+        m_stateEvents = pSourceStateNode->m_stateEvents;
+        m_timedEvents = pSourceStateNode->m_timedEvents;
+
+        //-------------------------------------------------------------------------
+
+        UpdateAllClonedStates( typeRegistry, GetChildGraph(), isPartOfBulkUpdate );
+    }
+
+    StateToolsNode const *StateToolsNode::GetCloneStateSourceNode() const
+    {
+        EE_ASSERT( IsClonedState() );
+        return Cast<StateToolsNode>( GetParentGraph()->FindNode( m_cloneSourceStateID ) );
+    }
+
+    char const* StateToolsNode::GetClonedStateName() const
+    {
+        EE_ASSERT( IsClonedState() );
+        auto pSourceStateNode = Cast<StateToolsNode>( GetParentGraph()->FindNode( m_cloneSourceStateID ) );
+        return pSourceStateNode->GetName();
+    }
+
+    void StateToolsNode::CreateClone( NodeGraph::UserContext* pUserContext )
+    {
+        auto pToolsGraphContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        auto pParentGraph = GetParentGraph();
+
+        NodeGraph::ScopedGraphModification sgm( pParentGraph );
+        auto pClonedStateNode = pParentGraph->CreateNode<StateToolsNode>( GetID() );
+        pClonedStateNode->Rename( GetName() );
+        pClonedStateNode->SetPosition( GetPosition() + Float2( 100, 100 ) );
+        pClonedStateNode->UpdateClonedData( *pToolsGraphContext->m_pTypeRegistry );
+    }
+
     void StateToolsNode::OnShowNode()
     {
         NodeGraph::StateNode::OnShowNode();
@@ -434,34 +654,20 @@ namespace EE::Animation
 
     void StateToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
     {
-        for ( auto const ID : m_events )
+        for ( auto const& evt : m_stateEvents )
         {
-            outIDs.emplace_back( ID );
+            if ( evt.m_ID.IsValid() )
+            {
+                outIDs.emplace_back( evt.m_ID );
+            }
         }
 
-        for ( auto const ID : m_entryEvents )
+        for ( auto const& evt : m_timedEvents )
         {
-            outIDs.emplace_back( ID );
-        }
-
-        for ( auto const ID : m_executeEvents )
-        {
-            outIDs.emplace_back( ID );
-        }
-
-        for ( auto const ID : m_exitEvents )
-        {
-            outIDs.emplace_back( ID );
-        }
-
-        for ( auto const& evt : m_timeRemainingEvents )
-        {
-            outIDs.emplace_back( evt.m_ID );
-        }
-
-        for ( auto const& evt : m_timeElapsedEvents )
-        {
-            outIDs.emplace_back( evt.m_ID );
+            if ( evt.m_ID.IsValid() )
+            {
+                outIDs.emplace_back( evt.m_ID );
+            }
         }
     }
 
@@ -488,39 +694,7 @@ namespace EE::Animation
         {
             NodeGraph::ScopedNodeModification snm( this );
 
-            for ( auto& ID : m_events )
-            {
-                if ( ID == oldID )
-                {
-                    ID = newID;
-                }
-            }
-
-            for ( auto& ID : m_entryEvents )
-            {
-                if ( ID == oldID )
-                {
-                    ID = newID;
-                }
-            }
-
-            for ( auto& ID : m_executeEvents )
-            {
-                if ( ID == oldID )
-                {
-                    ID = newID;
-                }
-            }
-
-            for ( auto& ID : m_exitEvents )
-            {
-                if ( ID == oldID )
-                {
-                    ID = newID;
-                }
-            }
-
-            for ( auto& evt : m_timeRemainingEvents )
+            for ( auto& evt : m_stateEvents )
             {
                 if ( evt.m_ID == oldID )
                 {
@@ -528,7 +702,7 @@ namespace EE::Animation
                 }
             }
 
-            for ( auto& evt : m_timeElapsedEvents )
+            for ( auto& evt : m_timedEvents )
             {
                 if ( evt.m_ID == oldID )
                 {
@@ -536,5 +710,82 @@ namespace EE::Animation
                 }
             }
         }
+    }
+
+    //-------------------------------------------------------------------------
+
+    TInlineVector<StringID, 5> StateToolsNode::GetUniqueEntryEvents() const
+    {
+        TInlineVector<StringID, 5> evts;
+
+        for ( auto& evt : m_stateEvents )
+        {
+            if ( evt.m_isEntry )
+            {
+                VectorEmplaceBackUnique( evts, evt.m_ID );
+            }
+        }
+
+        return evts;
+    }
+
+    TInlineVector<StringID, 5> StateToolsNode::GetUniqueFullyInStateEvents() const
+    {
+        TInlineVector<StringID, 5> evts;
+
+        for ( auto& evt : m_stateEvents )
+        {
+            if ( evt.m_isFullyInState )
+            {
+                VectorEmplaceBackUnique( evts, evt.m_ID );
+            }
+        }
+
+        return evts;
+    }
+
+    TInlineVector<StringID, 5> StateToolsNode::GetUniqueExitEvents() const
+    {
+        TInlineVector<StringID, 5> evts;
+
+        for ( auto& evt : m_stateEvents )
+        {
+            if ( evt.m_isExit )
+            {
+                VectorEmplaceBackUnique( evts, evt.m_ID );
+            }
+        }
+
+        return evts;
+    }
+
+    TInlineVector<StateToolsNode::TimedStateEvent, 5> StateToolsNode::GetUniqueTimeRemainingEvents() const
+    {
+        TInlineVector<TimedStateEvent, 5> evts;
+
+        for ( TimedStateEvent const& evt : m_timedEvents )
+        {
+            if ( evt.IsTimeRemainingEvent() )
+            {
+                VectorEmplaceBackUnique( evts, evt );
+            }
+        }
+
+        return evts;
+    }
+
+    TInlineVector<StateToolsNode::TimedStateEvent, 5> StateToolsNode::GetUniqueTimeElapsedEvents() const
+    {
+        TInlineVector<TimedStateEvent, 5> evts;
+
+        for ( TimedStateEvent const& evt : m_timedEvents )
+        {
+            if ( evt.IsTimeElapsedEvent() )
+            {
+                VectorEmplaceBackUnique( evts, evt );
+            }
+        }
+
+        return evts;
     }
 }

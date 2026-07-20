@@ -66,6 +66,25 @@ namespace EE::Quantization
     //-------------------------------------------------------------------------
     // 32 bit float to 16bit uint
 
+    struct FloatRange
+    {
+        EE_SERIALIZE( m_rangeStart, m_rangeLength );
+
+        FloatRange() = default;
+
+        FloatRange( float start, float length )
+            : m_rangeStart( start )
+            , m_rangeLength( length )
+        {}
+
+        inline bool IsValid() const { return m_rangeLength > 0; }
+
+    public:
+
+        float                                     m_rangeStart = 0;
+        float                                     m_rangeLength = -1;
+    };
+
     inline uint16_t EncodeFloat( float value, float const quantizationRangeStartValue, float const quantizationRangeLength )
     {
         EE_ASSERT( quantizationRangeLength != 0 );
@@ -75,6 +94,11 @@ namespace EE::Quantization
         return encodedValue;
     }
 
+    inline uint16_t EncodeFloat( float value, FloatRange const& range )
+    {
+        return EncodeFloat( value, range.m_rangeStart, range.m_rangeLength );
+    }
+
     inline float DecodeFloat( uint16_t encodedValue, float const quantizationRangeStartValue, float const quantizationRangeLength )
     {
         EE_ASSERT( quantizationRangeLength != 0 );
@@ -82,6 +106,11 @@ namespace EE::Quantization
         float const normalizedValue = DecodeUnsignedNormalizedFloat<16>( encodedValue );
         float const decodedValue = ( normalizedValue * quantizationRangeLength ) + quantizationRangeStartValue;
         return decodedValue;
+    }
+
+    inline float DecodeFloat( uint16_t encodedValue, FloatRange const& range )
+    {
+        return DecodeFloat( encodedValue, range.m_rangeStart, range.m_rangeLength );
     }
 
     //-------------------------------------------------------------------------
@@ -159,31 +188,31 @@ namespace EE::Quantization
 
             if ( largestValueIndex == 0 )
             {
-                a = (uint16_t) Math::RoundToInt( ( ( floatValues.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                b = (uint16_t) Math::RoundToInt( ( ( floatValues.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                c = (uint16_t) Math::RoundToInt( ( ( floatValues.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                a = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                b = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                c = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
             }
             else if ( largestValueIndex == 1 )
             {
-                a = (uint16_t) Math::RoundToInt( ( ( floatValues.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                b = (uint16_t) Math::RoundToInt( ( ( floatValues.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                c = (uint16_t) Math::RoundToInt( ( ( floatValues.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                a = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                b = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                c = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
 
                 m_data1 = 0x8000; // 1 << 16
             }
             else if ( largestValueIndex == 2 )
             {
-                a = (uint16_t) Math::RoundToInt( ( ( floatValues.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                b = (uint16_t) Math::RoundToInt( ( ( floatValues.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                c = (uint16_t) Math::RoundToInt( ( ( floatValues.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                a = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                b = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                c = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_w * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
 
                 m_data0 = 0x8000; // 1 << 16
             }
             else if ( largestValueIndex == 3 )
             {
-                a = (uint16_t) Math::RoundToInt( ( ( floatValues.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                b = (uint16_t) Math::RoundToInt( ( ( floatValues.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
-                c = (uint16_t) Math::RoundToInt( ( ( floatValues.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                a = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_x * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                b = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_y * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
+                c = (uint16_t) Math::RoundToInt32( ( ( floatValues.m_z * signMultiplier ) - s_valueRangeMin ) * rangeMultiplier15Bit );
 
                 m_data0 = 0x8000; // 1 << 16
                 m_data1 = 0x8000; // 1 << 16

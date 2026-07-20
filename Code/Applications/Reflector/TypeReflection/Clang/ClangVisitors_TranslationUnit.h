@@ -4,13 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE
+namespace EE::Reflection
 {
-    namespace TypeSystem
-    {
-        namespace Reflection
-        {
-            CXChildVisitResult VisitTranslationUnit( CXCursor cr, CXCursor parent, CXClientData pClientData );
-        }
-    }
+    CXChildVisitResult VisitTranslationUnit( CXCursor cr, CXCursor parent, CXClientData pClientData );
 }

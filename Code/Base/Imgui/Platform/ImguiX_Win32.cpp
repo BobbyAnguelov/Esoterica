@@ -21,7 +21,7 @@ namespace EE::ImGuiX
         ImVec2 const titleBarPadding( 0, 8 );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, titleBarPadding );
         ImGuiViewport* pViewport = ImGui::GetMainViewport();
-        if ( ImGui::BeginViewportSideBar( "TitleBar", pViewport, ImGuiDir_Up, 40, ImGuiWindowFlags_NoDecoration ) )
+        if ( ImGui::BeginViewportSideBar( "TitleBar", pViewport, ImGuiDir_Up, 40, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoScrollWithMouse ) )
         {
             ImGui::PopStyleVar();
 
@@ -47,7 +47,7 @@ namespace EE::ImGuiX
 
             float const controlSectionFinalWidth = ( remainingSpace - controlsSectionDesiredWidth ) > 0 ? controlsSectionDesiredWidth : Math::Max( 0.0f, remainingSpace );
             remainingSpace -= controlSectionFinalWidth;
-            ImVec2 const controlSectionStartPos( windowControlsStartPos.x - s_sectionPadding - controlSectionFinalWidth, ImGui::GetCursorPosY() );
+            ImVec2 const controlSectionStartPos( windowControlsStartPos.x - s_sectionPadding - controlSectionFinalWidth, ImGui::GetCursorPosY() - titleBarPadding.y );
 
             // Draw sections
             //-------------------------------------------------------------------------
@@ -55,7 +55,7 @@ namespace EE::ImGuiX
             if ( menuSectionFinalWidth > 0 )
             {
                 #if EE_ENABLE_IMGUIX_DEBUG
-                ImGui::PushStyleColor( ImGuiCol_ChildBg, 0xFFFF0000 ); // Debug Color
+                ImGui::PushStyleColor( ImGuiCol_ChildBg, Colors::Green ); // Debug Color
                 #endif
 
                 ImGui::SetCursorPos( menuSectionStartPos );
@@ -84,7 +84,7 @@ namespace EE::ImGuiX
             if ( controlSectionFinalWidth > 0 )
             {
                 #if EE_ENABLE_IMGUIX_DEBUG
-                ImGui::PushStyleColor( ImGuiCol_ChildBg, 0xFF0000FF ); // Debug Color
+                ImGui::PushStyleColor( ImGuiCol_ChildBg, Colors::Red ); // Debug Color
                 #endif
 
                 ImGui::SetCursorPos( controlSectionStartPos );
@@ -107,11 +107,11 @@ namespace EE::ImGuiX
             //-------------------------------------------------------------------------
 
             #if EE_ENABLE_IMGUIX_DEBUG
-            ImGui::PushStyleColor( ImGuiCol_ChildBg, 0xFF00FF00 ); // Debug Color
+            ImGui::PushStyleColor( ImGuiCol_ChildBg, Colors::Blue ); // Debug Color
             #endif
 
             ImGui::SetCursorPos( windowControlsStartPos );
-            if ( ImGui::BeginChild( "WindowControls", ImVec2( windowControlsWidth, titleBarHeight ), false, ImGuiWindowFlags_NoDecoration ) )
+            if ( ImGui::BeginChild( "WindowControls", ImVec2( windowControlsWidth, titleBarHeight ), 0, ImGuiWindowFlags_NoDecoration ) )
             {
                 DrawWindowControls();
             }
@@ -139,7 +139,7 @@ namespace EE::ImGuiX
         // Minimize
         //-------------------------------------------------------------------------
 
-        if ( ImGuiX::FlatButton( EE_ICON_WINDOW_MINIMIZE"##Min", ImVec2( s_windowControlButtonWidth, -1 ) ) )
+        if ( ImGuiX::FlatIconButton( EE_ICON_WINDOW_MINIMIZE, "##Min", Colors::White, ImVec2( s_windowControlButtonWidth, -1 ), true ) )
         {
             if ( hwnd )
             {
@@ -164,7 +164,7 @@ namespace EE::ImGuiX
 
         if ( isMaximized )
         {
-            if ( ImGuiX::FlatButton( EE_ICON_WINDOW_RESTORE"##Res", ImVec2( s_windowControlButtonWidth, -1 ) ) )
+            if ( ImGuiX::FlatIconButton( EE_ICON_WINDOW_RESTORE, "##Res", Colors::White, ImVec2( s_windowControlButtonWidth, -1 ), true ) )
             {
                 if ( hwnd )
                 {
@@ -174,7 +174,7 @@ namespace EE::ImGuiX
         }
         else
         {
-            if ( ImGuiX::FlatButton( EE_ICON_WINDOW_MAXIMIZE"##Max", ImVec2( s_windowControlButtonWidth, -1 ) ) )
+            if ( ImGuiX::FlatIconButton( EE_ICON_WINDOW_MAXIMIZE, "##Max", Colors::White, ImVec2( s_windowControlButtonWidth, -1 ), true ) )
             {
                 if ( hwnd )
                 {
@@ -189,7 +189,13 @@ namespace EE::ImGuiX
         ImGui::SameLine();
 
         ImGui::PushStyleColor( ImGuiCol_ButtonHovered, 0xFF1C2BC4 );
-        if ( ImGuiX::FlatButton( EE_ICON_WINDOW_CLOSE"##X", ImVec2( s_windowControlButtonWidth, -1 ) ) )
+
+        ImU32 const backgroundColor = ImGui::ColorConvertFloat4ToU32( ImGui::GetStyle().Colors[ImGuiCol_Button] );
+        ImU32 const hoverColor = 0xFF1C2BC4;
+        ImU32 const activeColor = 0xFF141E89;
+
+        ImGuiX::ButtonSettings settings{ .m_backgroundColor = Colors::Transparent, .m_hoverColor = hoverColor, .m_activeColor = activeColor, .m_iconColor = Colors::White, .m_foregroundColor = Colors::White, .m_shouldCenterContents = true };
+        if ( ImGuiX::ButtonEx( EE_ICON_WINDOW_CLOSE, "##X", ImVec2( s_windowControlButtonWidth, -1 ), settings ) )
         {
             if ( hwnd )
             {

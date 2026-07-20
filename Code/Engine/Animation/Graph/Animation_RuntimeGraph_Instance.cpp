@@ -1,54 +1,21 @@
 #include "Animation_RuntimeGraph_Instance.h"
 #include "Animation_RuntimeGraph_Node.h"
-#include "Nodes/Animation_RuntimeGraphNode_ExternalGraph.h"
 #include "Nodes/Animation_RuntimeGraphNode_ReferencedGraph.h"
 #include "Nodes/Animation_RuntimeGraphNode_Layers.h"
+#include "Nodes/Animation_RuntimeGraphNode_ExternalPose.h"
 #include "Base/Profiling.h"
+#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
-    GraphInstance::GraphInstance( GraphDefinition const* pGraphDefinition, uint64_t ownerID, TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer, RootMotionDebugger* pRootMotionDebugger )
+    GraphInstance::GraphInstance( GraphDefinition const* pGraphDefinition, GraphContext *pParentContext )
         : m_pGraphDefinition( pGraphDefinition )
-        , m_ownerID( ownerID )
-        , m_graphContext( ownerID, pGraphDefinition->GetPrimarySkeleton() )
+        , m_isStandaloneGraphInstance( pParentContext == nullptr )
+        , m_graphContext( pGraphDefinition->GetPrimarySkeleton() )
     {
         EE_ASSERT( pGraphDefinition != nullptr );
-
-        //-------------------------------------------------------------------------
-
-        TaskSystem* pFinalTaskSystem = pTaskSystem;
-        SampledEventsBuffer* pFinalSampledEventsBuffer = pSampledEventsBuffer;
-        RootMotionDebugger* pFinalRootMotionDebugger = pRootMotionDebugger;
-
-        // If the supplied task system is null, then this is a standalone graph instance
-        m_isStandaloneGraph = ( pTaskSystem == nullptr );
-        if ( m_isStandaloneGraph )
-        {
-            m_pTaskSystem = EE::New<TaskSystem>( m_pGraphDefinition->GetPrimarySkeleton() );
-            m_pSampledEventsBuffer = EE::New<SampledEventsBuffer>();
-
-            #if EE_DEVELOPMENT_TOOLS
-            m_pRootMotionDebugger = EE::New<RootMotionDebugger>();
-            #endif
-
-            //-------------------------------------------------------------------------
-
-            pFinalTaskSystem = m_pTaskSystem;
-            pFinalSampledEventsBuffer = m_pSampledEventsBuffer;
-            
-            #if EE_DEVELOPMENT_TOOLS
-            pFinalRootMotionDebugger = m_pRootMotionDebugger;
-            #endif
-        }
-
-        EE_ASSERT( pFinalTaskSystem != nullptr );
-        EE_ASSERT( pFinalSampledEventsBuffer != nullptr );
-
-        #if EE_DEVELOPMENT_TOOLS
-        EE_ASSERT( pFinalRootMotionDebugger != nullptr );
-        #endif
 
         // Allocate memory
         //-------------------------------------------------------------------------
@@ -67,49 +34,60 @@ namespace EE::Animation
             m_nodes.emplace_back( reinterpret_cast<GraphNode*>( m_pAllocatedInstanceMemory + nodeOffset ) );
         }
 
+        // Set up graph context
+        //-------------------------------------------------------------------------
+
+        m_graphContext.Initialize( pParentContext );
+        EE_ASSERT( m_graphContext.IsValid() );
+
         // Create referenced graph instances
         //-------------------------------------------------------------------------
 
-        size_t const numReferencedGraphs = m_pGraphDefinition->m_referencedGraphSlots.size();
-        m_referencedGraphs.reserve( numReferencedGraphs );
+        size_t const numReferencedGraphs = m_pGraphDefinition->m_internalGraphSlots.size();
 
         TInlineVector<GraphInstance*, 20> createdReferencedGraphInstances;
         createdReferencedGraphInstances.reserve( numReferencedGraphs );
 
-        for ( auto const& referencedGraphSlot : m_pGraphDefinition->m_referencedGraphSlots )
+        for ( auto const& referencedGraphSlot : m_pGraphDefinition->m_internalGraphSlots )
         {
-            GraphDefinition const* pReferencedGraphDefinition = m_pGraphDefinition->GetResource<GraphDefinition>( referencedGraphSlot.m_dataSlotIdx );
+            GraphDefinition const* pReferencedGraphDefinition = m_pGraphDefinition->GetResourceForSlot<GraphDefinition>( referencedGraphSlot.m_dataSlotIdx );
             if ( pReferencedGraphDefinition != nullptr && pReferencedGraphDefinition->IsValid() )
             {
                 if ( pReferencedGraphDefinition->GetPrimarySkeleton() == pGraphDefinition->GetPrimarySkeleton() )
                 {
-                    ReferencedGraph cg;
-                    cg.m_nodeIdx = referencedGraphSlot.m_nodeIdx;
-                    cg.m_pInstance = EE::New<GraphInstance>( pReferencedGraphDefinition, m_ownerID, pFinalTaskSystem, pFinalSampledEventsBuffer, pFinalRootMotionDebugger );
-                    m_referencedGraphs.emplace_back( cg );
-
-                    createdReferencedGraphInstances.emplace_back( cg.m_pInstance );
+                    m_graphContext.PushBasePath( referencedGraphSlot.m_nodeIdx );
+                    auto pReferencedGraphInstance = EE::New<GraphInstance>( pReferencedGraphDefinition, &m_graphContext );
+                    m_graphContext.PopBasePath();
+                    createdReferencedGraphInstances.emplace_back( pReferencedGraphInstance );
                 }
                 else
                 {
                     createdReferencedGraphInstances.emplace_back( nullptr );
-                    EE_LOG_ERROR( "Animation", "Graph Instance", "Different skeleton for referenced graph detected, this is not allowed. Trying to use '%s' within '%s'", pReferencedGraphDefinition->GetResourceID().c_str(), pGraphDefinition->GetResourceID().c_str() );
+                    EE_LOG_ERROR( LogCategory::Animation, "Graph Instance", "Different skeleton for referenced graph detected, this is not allowed. Trying to use '%s' within '%s'", pReferencedGraphDefinition->GetResourceID().c_str(), pGraphDefinition->GetResourceID().c_str() );
                 }
             }
             else
             {
                 createdReferencedGraphInstances.emplace_back( nullptr );
-                m_referencedGraphs.emplace_back( ReferencedGraph() );
             }
         }
 
         // Instantiate individual nodes
         //-------------------------------------------------------------------------
 
-        InstantiationContext instantiationContext = { (int16_t) InvalidIndex, m_nodes, createdReferencedGraphInstances, m_pGraphDefinition->m_skeleton.GetPtr(), m_pGraphDefinition->m_parameterLookupMap, &m_pGraphDefinition->m_resources, m_ownerID };
+        InstantiationContext instantiationContext = { (int16_t) InvalidIndex, m_nodes, createdReferencedGraphInstances, m_pGraphDefinition->m_skeleton.GetPtr(), m_pGraphDefinition->m_parameterLookupMap, &m_pGraphDefinition->m_resources };
 
         #if EE_DEVELOPMENT_TOOLS
-        instantiationContext.m_pLog = &m_log;
+        if ( IsStandaloneInstance() )
+        {
+            instantiationContext.m_pLog = m_graphContext.m_pLog;
+            instantiationContext.m_basePath = m_graphContext.m_basePath;
+        }
+        else
+        {
+            instantiationContext.m_pLog = pParentContext->m_pLog;
+            instantiationContext.m_basePath = pParentContext->m_basePath;
+        }
         #endif
 
         for ( int16_t i = 0; i < numNodes; i++ )
@@ -118,61 +96,48 @@ namespace EE::Animation
             m_pGraphDefinition->m_nodeDefinitions[i]->InstantiateNode( instantiationContext, InstantiationOptions::CreateNode );
         }
 
-        // Set up graph context
+        // Set root node and initialize graph nodes
         //-------------------------------------------------------------------------
 
-        // Initialize context
-        m_graphContext.Initialize( pFinalTaskSystem, pFinalSampledEventsBuffer );
-        EE_ASSERT( m_graphContext.IsValid() );
+        m_pRootNode = reinterpret_cast<PoseNode *>( m_nodes[m_pGraphDefinition->m_rootNodeIdx] );
 
-        #if EE_DEVELOPMENT_TOOLS
-        m_graphContext.SetDebugSystems( pFinalRootMotionDebugger, &m_activeNodes, &m_log );
-        m_activeNodes.reserve( 50 );
-        #endif
-
-        // Initialize graph nodes
-        //-------------------------------------------------------------------------
-
-        // Initialize persistent graph nodes
-        for ( auto nodeIdx : m_pGraphDefinition->m_persistentNodeIndices )
-        {
-            m_nodes[nodeIdx]->Initialize( m_graphContext );
-        }
-
-        // Set root node
-        m_pRootNode = reinterpret_cast<PoseNode*>( m_nodes[m_pGraphDefinition->m_rootNodeIdx] );
-        EE_ASSERT( !m_pRootNode->IsInitialized() );
+        Initialize();
 
         // Resource Mappings needed for serialization
         //-------------------------------------------------------------------------
 
-        if ( m_isStandaloneGraph )
+        if ( m_isStandaloneGraphInstance )
         {
-            GenerateResourceMappings();
+            UpdateTaskSerializationContext();
         }
     }
 
     GraphInstance::~GraphInstance()
     {
-        // Ensure we dont have any connected external graphs
-        EE_ASSERT( m_externalGraphs.empty() );
-
-        // Shutdown persistent graph nodes
-        for ( int16_t nodeIdx : m_pGraphDefinition->m_persistentNodeIndices )
-        {
-            m_nodes[nodeIdx]->Shutdown( m_graphContext );
-        }
-
-        // shutdown and clear root node
-        if ( m_pRootNode->IsInitialized() )
-        {
-            m_pRootNode->Shutdown( m_graphContext );
-        }
+        Shutdown();
 
         m_pRootNode = nullptr;
 
+        DisconnectAllExternalGraphs();
+
+        for ( GraphDefinition::InternalGraphSlot const &internalGraphSlot : m_pGraphDefinition->m_internalGraphSlots )
+        {
+            auto pInternalGraphNode = static_cast<ReferencedGraphNode *>( m_nodes[internalGraphSlot.m_nodeIdx] );
+            EE_ASSERT( !pInternalGraphNode->IsInitialized() );
+
+            if ( !pInternalGraphNode->HasInstance() )
+            {
+                continue;
+            }
+
+            EE::Delete( pInternalGraphNode->m_pGraphInstance );
+        }
+
         // Shutdown context
-        m_graphContext.Shutdown();
+        if ( m_graphContext.IsInitialized() )
+        {
+            m_graphContext.Shutdown();
+        }
 
         //-------------------------------------------------------------------------
 
@@ -183,23 +148,96 @@ namespace EE::Animation
         }
         m_nodes.clear();
 
-        // Destroy referenced graph instances
-        for ( ReferencedGraph& referencedGraph : m_referencedGraphs )
+        EE::Free( m_pAllocatedInstanceMemory );
+    }
+
+    void GraphInstance::Initialize()
+    {
+        // Initialize persistent graph nodes
+        for ( auto nodeIdx : m_pGraphDefinition->m_persistentNodeIndices )
         {
-            if ( referencedGraph.m_pInstance != nullptr )
+            EE_ASSERT( !m_nodes[nodeIdx]->IsInitialized() );
+            m_nodes[nodeIdx]->Initialize( m_graphContext );
+        }
+
+        EE_ASSERT( m_pRootNode != nullptr );
+
+        // Output any instantiation warnings/errors
+        #if EE_DEVELOPMENT_TOOLS
+        if ( IsStandaloneInstance() )
+        {
+            OutputLog();
+        }
+        #endif
+    }
+
+    void GraphInstance::Shutdown()
+    {
+        if ( m_graphContext.IsInitialized() )
+        {
+            // Shutdown and clear root node
+            if ( m_pRootNode->IsInitialized() )
             {
-                EE::Delete( referencedGraph.m_pInstance );
+                m_pRootNode->Shutdown( m_graphContext );
+            }
+
+            // Shutdown persistent graph nodes
+            for ( int16_t nodeIdx : m_pGraphDefinition->m_persistentNodeIndices )
+            {
+                EE_ASSERT( m_nodes[nodeIdx]->IsInitialized() );
+                m_nodes[nodeIdx]->Shutdown( m_graphContext );
             }
         }
-        m_referencedGraphs.clear();
+        else // Verify that graph is correctly shutdown
+        {
+            EE_ASSERT( !m_pRootNode->IsInitialized() );
 
-        EE::Free( m_pAllocatedInstanceMemory );
-        EE::Delete( m_pTaskSystem );
-        EE::Delete( m_pSampledEventsBuffer );
+            for ( int16_t nodeIdx : m_pGraphDefinition->m_persistentNodeIndices )
+            {
+                EE_ASSERT( !m_nodes[nodeIdx]->IsInitialized() );
+            }
+        }
+    }
 
-        #if EE_DEVELOPMENT_TOOLS
-        EE::Delete( m_pRootMotionDebugger );
-        #endif
+    //-------------------------------------------------------------------------
+
+    void GraphInstance::SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons )
+    {
+        EE_ASSERT( m_isStandaloneGraphInstance );
+        m_secondarySkeletons = secondarySkeletons;
+        m_graphContext.m_pTaskSystem->SetSecondarySkeletons( m_secondarySkeletons );
+    }
+
+    Pose const* GraphInstance::GetSecondaryPose( Skeleton const* pSkeleton ) const
+    {
+        EE_ASSERT( pSkeleton != nullptr );
+
+        TInlineVector<Pose const*, 1> secondaryPoses = m_graphContext.m_pTaskSystem->GetSecondaryPoses();
+        for ( int32_t i = 0; i < secondaryPoses.size(); i++ )
+        {
+            if ( secondaryPoses[i]->GetSkeleton() == pSkeleton )
+            {
+                return secondaryPoses[i];
+            }
+        }
+
+        return nullptr;
+    }
+
+    Pose const* GraphInstance::GetSecondaryPoseForPreviousUpdate( Skeleton const* pSkeleton ) const
+    {
+        EE_ASSERT( pSkeleton != nullptr );
+
+        TInlineVector<Pose const*, 1> secondaryPoses = m_graphContext.m_pTaskSystem->GetSecondaryPosesForPreviousUpdate();
+        for ( int32_t i = 0; i < secondaryPoses.size(); i++ )
+        {
+            if ( secondaryPoses[i]->GetSkeleton() == pSkeleton )
+            {
+                return secondaryPoses[i];
+            }
+        }
+
+        return nullptr;
     }
 
     //-------------------------------------------------------------------------
@@ -208,40 +246,90 @@ namespace EE::Animation
     {
         LUTs.emplace_back( &m_pGraphDefinition->m_resourceLUT );
 
-        for ( auto const& externalGraph : m_externalGraphs )
+        TInlineVector<GraphDefinition*, 3> externalGraphDefs;
+        for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
         {
-            externalGraph.m_pInstance->GetResourceLookupTables( LUTs );
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode*>( m_nodes[eg.m_nodeIdx] );
+            if ( pReferencedGraphNode->HasInstance() )
+            {
+                pReferencedGraphNode->m_pGraphInstance->GetResourceLookupTables( LUTs );
+            }
         }
     }
 
-    void GraphInstance::GenerateResourceMappings()
+    TaskSerializationContext& GraphInstance::UpdateTaskSerializationContext()
     {
-        m_resourceMappings.Clear();
-        TInlineVector<ResourceLUT const*, 10> LUTs;
-        GetResourceLookupTables( LUTs );
-        m_resourceMappings.Generate( LUTs );
+        //m_taskSerializationContext.Clear();
+        //TInlineVector<ResourceLUT const*, 10> LUTs;
+        //GetResourceLookupTables( LUTs );
+
+        ////-------------------------------------------------------------------------
+
+        ////EE_UNIMPLEMENTED_FUNCTION();
+
+        ////-------------------------------------------------------------------------
+
+        //for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+        //{
+        //    //EE_UNIMPLEMENTED_FUNCTION();
+        //}
+
+        if ( m_taskSerializationRequiresUpdate )
+        {
+            EE_ASSERT( IsStandaloneInstance() );
+
+            TInlineVector<GraphDefinition const*, 3> externalGraphDefs;
+            for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+            {
+                auto pReferenceGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[eg.m_nodeIdx] );
+                if ( pReferenceGraphNode->HasInstance() )
+                {
+                    externalGraphDefs.emplace_back( pReferenceGraphNode->m_pGraphInstance->GetGraphDefinition() );
+                }
+            }
+
+            m_taskSerializationContext = TaskSerializationContext( *m_graphContext.GetTaskSystem()->GetTaskTypesList(), m_pGraphDefinition, externalGraphDefs, m_secondarySkeletons );
+            m_taskSerializationRequiresUpdate = false;
+        }
+
+        return m_taskSerializationContext;
     }
 
     bool GraphInstance::DoesTaskSystemNeedUpdate() const
     {
-        EE_ASSERT( m_isStandaloneGraph );
-        return m_pTaskSystem->RequiresUpdate();
+        EE_ASSERT( m_isStandaloneGraphInstance );
+        return m_graphContext.m_pTaskSystem->RequiresUpdate();
     }
 
-    void GraphInstance::SerializeTaskList( Blob& outBlob ) const
+    void GraphInstance::SerializeTaskList( Blob& outTopologyData, Blob& outTaskData )
     {
         EE_ASSERT( !DoesTaskSystemNeedUpdate() );
-        m_pTaskSystem->SerializeTasks( m_resourceMappings, outBlob );
+
+        // This will update the serialization context if needed
+        m_graphContext.m_pTaskSystem->SerializeTasks( GetTaskSerializationContext(), outTopologyData, outTaskData );
     }
 
     //-------------------------------------------------------------------------
 
+    int32_t GraphInstance::GetNumExternalGraphSlots() const
+    {
+        return (int32_t) m_pGraphDefinition->m_externalGraphSlots.size();
+    }
+
+    StringID GraphInstance::GetExternalGraphSlotID( int32_t slotIdx ) const
+    {
+        EE_ASSERT( slotIdx >= 0 && slotIdx < m_pGraphDefinition->m_externalGraphSlots.size() );
+        return m_pGraphDefinition->m_externalGraphSlots[slotIdx].m_slotID;
+    }
+
     int32_t GraphInstance::GetExternalGraphSlotIndex( StringID slotID ) const
     {
+        EE_ASSERT( slotID.IsValid() );
+
         int32_t const numSlots = (int32_t) m_pGraphDefinition->m_externalGraphSlots.size();
         for ( int32_t i = 0; i < numSlots; i++ )
         {
-            auto const& graphSlot = m_pGraphDefinition->m_externalGraphSlots[i];
+            auto const &graphSlot = m_pGraphDefinition->m_externalGraphSlots[i];
             if ( graphSlot.m_slotID == slotID )
             {
                 return i;
@@ -253,10 +341,12 @@ namespace EE::Animation
 
     int16_t GraphInstance::GetExternalGraphNodeIndex( StringID slotID ) const
     {
+        EE_ASSERT( slotID.IsValid() );
+
         int32_t const numSlots = (int32_t) m_pGraphDefinition->m_externalGraphSlots.size();
         for ( int32_t i = 0; i < numSlots; i++ )
         {
-            auto const& graphSlot = m_pGraphDefinition->m_externalGraphSlots[i];
+            auto const &graphSlot = m_pGraphDefinition->m_externalGraphSlots[i];
             if ( graphSlot.m_slotID == slotID )
             {
                 return graphSlot.m_nodeIdx;
@@ -266,98 +356,394 @@ namespace EE::Animation
         return InvalidIndex;
     }
 
-    int32_t GraphInstance::GetConnectedExternalGraphIndex( StringID slotID ) const
+    ReferencedGraphNode *GraphInstance::GetExternalGraphNode( StringID slotID ) const
     {
-        int32_t const numConnectedGraphs = (int32_t) m_externalGraphs.size();
-        for ( int32_t i = 0; i < numConnectedGraphs; i++ )
+        EE_ASSERT( slotID.IsValid() );
+
+        int32_t const numSlots = (int32_t) m_pGraphDefinition->m_externalGraphSlots.size();
+        for ( int32_t i = 0; i < numSlots; i++ )
         {
-            if ( m_externalGraphs[i].m_slotID == slotID )
+            auto const &graphSlot = m_pGraphDefinition->m_externalGraphSlots[i];
+            if ( graphSlot.m_slotID == slotID )
             {
-                return i;
+                auto pNode = reinterpret_cast<ReferencedGraphNode*>( m_nodes[graphSlot.m_nodeIdx] );
+                EE_ASSERT( pNode->IsExternalGraphSlot() );
+                return pNode;
+            }
+        }
+
+        return nullptr;
+    }
+
+    bool GraphInstance::IsExternalGraphSlotFilled( StringID slotID ) const
+    {
+        EE_ASSERT( slotID.IsValid() );
+
+        for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+        {
+            if ( eg.m_slotID == slotID )
+            {
+                auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[eg.m_nodeIdx] );
+                EE_ASSERT( pReferencedGraphNode->IsExternalGraphSlot() );
+                return pReferencedGraphNode->HasInstance();
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+        return false;
+    }
+
+    void GraphInstance::InitializeReferencedGraphContexts( GraphContext *pParentContext, bool initializeGraphInstances )
+    {
+        EE_ASSERT( !m_isStandaloneGraphInstance );
+        EE_ASSERT( !m_graphContext.IsInitialized() );
+
+        //-------------------------------------------------------------------------
+
+        m_graphContext.Initialize( pParentContext );
+
+        if ( initializeGraphInstances )
+        {
+            Initialize();
+        }
+
+        //-------------------------------------------------------------------------
+
+        int32_t const nNumInternalGraphSlots = (int32_t) m_pGraphDefinition->m_internalGraphSlots.size();
+        for ( int32_t i = 0; i < nNumInternalGraphSlots; i++ )
+        {
+            auto const &graphSlot = m_pGraphDefinition->m_internalGraphSlots[i];
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[graphSlot.m_nodeIdx] );
+            EE_ASSERT( !pReferencedGraphNode->IsExternalGraphSlot() );
+
+            if ( pReferencedGraphNode->HasInstance() )
+            {
+                pReferencedGraphNode->m_pGraphInstance->InitializeReferencedGraphContexts( &m_graphContext, initializeGraphInstances );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        int32_t const nNumExternalGraphSlots = (int32_t) m_pGraphDefinition->m_externalGraphSlots.size();
+        for ( int32_t i = 0; i < nNumExternalGraphSlots; i++ )
+        {
+            auto const &graphSlot = m_pGraphDefinition->m_externalGraphSlots[i];
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[graphSlot.m_nodeIdx] );
+            EE_ASSERT( pReferencedGraphNode->IsExternalGraphSlot() );
+
+            if ( pReferencedGraphNode->HasInstance() )
+            {
+                pReferencedGraphNode->m_pGraphInstance->InitializeReferencedGraphContexts( &m_graphContext, initializeGraphInstances );
+            }
+        }
+    }
+
+    void GraphInstance::ShutdownReferencedGraphContexts( bool shutdownGraphInstances )
+    {
+        EE_ASSERT( !m_isStandaloneGraphInstance );
+        EE_ASSERT( m_graphContext.IsInitialized() );
+
+        //-------------------------------------------------------------------------
+
+        int32_t const numExternalGraphSlots = (int32_t) m_pGraphDefinition->m_externalGraphSlots.size();
+        for ( int32_t i = 0; i < numExternalGraphSlots; i++ )
+        {
+            auto const &graphSlot = m_pGraphDefinition->m_externalGraphSlots[i];
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[graphSlot.m_nodeIdx] );
+            EE_ASSERT( pReferencedGraphNode->IsExternalGraphSlot() );
+
+            if ( pReferencedGraphNode->HasInstance() )
+            {
+                pReferencedGraphNode->m_pGraphInstance->ShutdownReferencedGraphContexts( shutdownGraphInstances );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        int32_t const nNumInternalGraphSlots = (int32_t) m_pGraphDefinition->m_internalGraphSlots.size();
+        for ( int32_t i = 0; i < nNumInternalGraphSlots; i++ )
+        {
+            auto const &graphSlot = m_pGraphDefinition->m_internalGraphSlots[i];
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[graphSlot.m_nodeIdx] );
+            EE_ASSERT( !pReferencedGraphNode->IsExternalGraphSlot() );
+
+            if ( pReferencedGraphNode->HasInstance() )
+            {
+                pReferencedGraphNode->m_pGraphInstance->ShutdownReferencedGraphContexts( shutdownGraphInstances );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( shutdownGraphInstances )
+        {
+            Shutdown();
+        }
+
+        m_graphContext.Shutdown();
+    }
+
+    bool GraphInstance::ConnectExternalGraph( StringID slotID, GraphInstance* pExternalGraphInstance )
+    {
+        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Connect External Graph" );
+
+        EE_ASSERT( slotID.IsValid() );
+        EE_ASSERT( pExternalGraphInstance != nullptr );
+
+        if ( pExternalGraphInstance->GetPrimarySkeleton() != m_pGraphDefinition->GetPrimarySkeleton() )
+        {
+            EE_LOG_ERROR( LogCategory::Animation, "Graph Instance", "Cannot insert external graph (%s) since skeletons dont match! Expected: %s, supplied: %s", pExternalGraphInstance->GetGraphDefinition()->GetResourceID().c_str(), m_pGraphDefinition->GetPrimarySkeleton()->GetResourceID().c_str(), pExternalGraphInstance->GetPrimarySkeleton()->GetResourceID().c_str() );
+            return false;
+        }
+
+        // Get the node idx for the graph and ensure it is valid, users are expected to check slot validity before calling this function
+        ReferencedGraphNode *pReferencedGraphNode = GetExternalGraphNode( slotID );
+        EE_ASSERT( pReferencedGraphNode != nullptr && pReferencedGraphNode->IsExternalGraphSlot() );
+        if ( pReferencedGraphNode == nullptr )
+        {
+            return false;
+        }
+
+        EE_ASSERT( pReferencedGraphNode->m_pGraphInstance == nullptr );
+        if ( pReferencedGraphNode->m_pGraphInstance != nullptr )
+        {
+            return false;
+        }
+
+        // Convert instance to not-standalone, this is unrecoverable operation
+        //-------------------------------------------------------------------------
+
+        if ( pExternalGraphInstance->IsStandaloneInstance() )
+        {
+            EE_ASSERT( pExternalGraphInstance->m_graphContext.IsInitialized() );
+
+            pExternalGraphInstance->m_isStandaloneGraphInstance = false;
+            pExternalGraphInstance->ShutdownReferencedGraphContexts( false );
+            pExternalGraphInstance->InitializeReferencedGraphContexts( &m_graphContext, false );
+            pExternalGraphInstance->ResetGraphState();
+        }
+        else
+        {
+            EE_ASSERT( !pExternalGraphInstance->IsInitialized() );
+            EE_ASSERT( pExternalGraphInstance->m_isExternalGraph );
+
+            pExternalGraphInstance->InitializeReferencedGraphContexts( &m_graphContext, true );
+        }
+
+        // Connect graph instance
+        //-------------------------------------------------------------------------
+
+        pReferencedGraphNode->ConnectExternalGraphInstance( m_graphContext, pExternalGraphInstance );
+        pReferencedGraphNode->m_pGraphInstance->m_isExternalGraph = true;
+
+        m_taskSerializationRequiresUpdate = true;
+        m_externalGraphStateChanged = true;
+
+        return true;
+    }
+
+    void GraphInstance::DisconnectExternalGraph( StringID slotID )
+    {
+        EE_ASSERT( slotID.IsValid() );
+
+        // Get the node idx for the graph and ensure it is valid, users are expected to check slot validity before calling this function
+        ReferencedGraphNode *pReferencedGraphNode = GetExternalGraphNode( slotID );
+        EE_ASSERT( pReferencedGraphNode != nullptr && pReferencedGraphNode->IsExternalGraphSlot() );
+        if ( pReferencedGraphNode == nullptr )
+        {
+            return;
+        }
+
+        EE_ASSERT( pReferencedGraphNode->m_pGraphInstance != nullptr );
+        if ( pReferencedGraphNode->m_pGraphInstance == nullptr )
+        {
+            return;
+        }
+
+        // Clear all execution state!
+        //-------------------------------------------------------------------------
+
+        pReferencedGraphNode->m_pGraphInstance->ShutdownReferencedGraphContexts( true );
+
+        // Detach graph
+        //-------------------------------------------------------------------------
+
+        pReferencedGraphNode->DisconnectExternalGraphInstance( m_graphContext );
+        m_taskSerializationRequiresUpdate = true;
+        m_externalGraphStateChanged = true;
+    }
+
+    void GraphInstance::DisconnectAllExternalGraphs()
+    {
+        for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+        {
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[eg.m_nodeIdx] );
+            EE_ASSERT( pReferencedGraphNode->IsExternalGraphSlot() );
+            if ( pReferencedGraphNode->HasInstance() )
+            {
+                DisconnectExternalGraph( eg.m_slotID );
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    int32_t GraphInstance::GetNumExternalPoseSlots() const
+    {
+        return (int32_t) m_pGraphDefinition->m_externalPoseSlots.size();
+    }
+
+    StringID GraphInstance::GetExternalPoseSlotID( int32_t nSlotIdx ) const
+    {
+        EE_ASSERT( nSlotIdx >= 0 && nSlotIdx < GetNumExternalPoseSlots() );
+
+        if ( nSlotIdx < 0 || nSlotIdx >= GetNumExternalPoseSlots() )
+        {
+            return StringID();
+        }
+
+        return m_pGraphDefinition->m_externalPoseSlots[nSlotIdx].m_slotID;
+    }
+
+    bool GraphInstance::IsExternalPoseSet( StringID slotID ) const
+    {
+        EE_ASSERT( slotID.IsValid() );
+
+        for ( auto const &eg : m_pGraphDefinition->m_externalPoseSlots )
+        {
+            if ( eg.m_slotID == slotID )
+            {
+                auto pExternalPoseNode = reinterpret_cast<ExternalPoseNode *>( m_nodes[eg.m_nodeIdx] );
+                return pExternalPoseNode->IsPoseSet();
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+        return false;
+    }
+
+    bool GraphInstance::GetExternalPoseState( StringID slotID, ExternalPoseData &outState )
+    {
+        EE_ASSERT( slotID.IsValid() );
+
+        for ( auto const &eg : m_pGraphDefinition->m_externalPoseSlots )
+        {
+            if ( eg.m_slotID == slotID )
+            {
+                auto pExternalPoseNode = reinterpret_cast<ExternalPoseNode *>( m_nodes[eg.m_nodeIdx] );
+                if ( pExternalPoseNode->IsPoseSet() )
+                {
+                    outState = pExternalPoseNode->m_poseData;
+                    return true;
+                }
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        outState.Reset();
+        return false;
+    }
+
+    bool GraphInstance::SetExternalPose( StringID slotID, ExternalPoseData const& poseData )
+    {
+        EE_ASSERT( slotID.IsValid() );
+
+        Skeleton const* pSkeleton = GetPrimarySkeleton();
+
+        // Get the node idx for the graph and ensure it is valid, users are expected to check slot validity before calling this function
+        ExternalPoseNode *pExternalPoseNode = GetExternalPoseNode( slotID );
+        EE_ASSERT( pExternalPoseNode != nullptr );
+        if ( pExternalPoseNode == nullptr )
+        {
+            EE_LOG_WARNING( LogCategory::Animation, "Graph Instance", "Cannot insert external pose into slot '%s' since the provide slot ID is INVALID!\n", slotID.c_str() );
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
+        pExternalPoseNode->m_poseData = poseData;
+        pExternalPoseNode->m_isPoseSet = true;
+
+        return true;
+    }
+
+    void GraphInstance::ClearExternalPose( StringID slotID )
+    {
+        // Get the node idx for the graph and ensure it is valid, users are expected to check slot validity before calling this function
+        ExternalPoseNode *pExternalPoseNode = GetExternalPoseNode( slotID );
+        EE_ASSERT( pExternalPoseNode != nullptr );
+        if ( pExternalPoseNode == nullptr )
+        {
+            EE_LOG_WARNING( LogCategory::Animation, "Graph Instance", "Cannot clear external pose for slot '%s' since the provide slot ID is INVALID!\n", slotID.c_str() );
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        pExternalPoseNode->m_poseData.Reset();
+        pExternalPoseNode->m_isPoseSet = false;
+        m_taskSerializationRequiresUpdate = true;
+    }
+
+    void GraphInstance::ClearAllExternalPoses()
+    {
+        for ( auto const &ep : m_pGraphDefinition->m_externalPoseSlots )
+        {
+            ClearExternalPose( ep.m_slotID );
+        }
+    }
+
+    int32_t GraphInstance::GetExternalPoseSlotIndex( StringID slotID ) const
+    {
+        EE_ASSERT( slotID.IsValid() );
+
+        int32_t const numSlots = (int32_t) m_pGraphDefinition->m_externalPoseSlots.size();
+        for ( int32_t slotIdx = 0; slotIdx < numSlots; slotIdx++ )
+        {
+            auto const &poseSlot = m_pGraphDefinition->m_externalPoseSlots[slotIdx];
+            if ( poseSlot.m_slotID == slotID )
+            {
+                return slotIdx;
             }
         }
 
         return InvalidIndex;
     }
 
-    GraphInstance* GraphInstance::ConnectExternalGraph( StringID slotID, GraphDefinition const* pExternalGraphDefinition )
+    int16_t GraphInstance::GetExternalPoseNodeIndex( StringID slotID ) const
     {
-        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Connect External Graph" );
-
-        if ( pExternalGraphDefinition->GetPrimarySkeleton() != m_pGraphDefinition->GetPrimarySkeleton() )
+        int32_t const numSlots = (int32_t) m_pGraphDefinition->m_externalPoseSlots.size();
+        for ( int32_t i = 0; i < numSlots; i++ )
         {
-            EE_LOG_ERROR( "Animation", "Graph Instance", "Cannot insert external graph (%s) since skeletons dont match! Expected: %s, supplied: %s", pExternalGraphDefinition->GetResourceID().c_str(), m_pGraphDefinition->GetPrimarySkeleton()->GetResourceID().c_str(), pExternalGraphDefinition->GetPrimarySkeleton()->GetResourceID().c_str() );
-            return nullptr;
+            auto const &poseSlot = m_pGraphDefinition->m_externalPoseSlots[i];
+            if ( poseSlot.m_slotID == slotID )
+            {
+                return poseSlot.m_nodeIdx;
+            }
         }
 
-        // Ensure we dont already have a graph connected for this slot
-        int32_t connectedGraphIdx = GetConnectedExternalGraphIndex( slotID );
-        EE_ASSERT( connectedGraphIdx == InvalidIndex );
-
-        // Get the slot idx for the graph and ensure it is valid, users are expected to check slot validity before calling this function
-        int32_t slotIdx = GetExternalGraphSlotIndex( slotID );
-        EE_ASSERT( slotIdx != InvalidIndex );
-
-        // Create the new connected graph record
-        ExternalGraph& connectedGraph = m_externalGraphs.emplace_back();
-        connectedGraph.m_slotID = slotID;
-        connectedGraph.m_nodeIdx = m_pGraphDefinition->m_externalGraphSlots[slotIdx].m_nodeIdx;
-
-        // Create graph instance
-        //-------------------------------------------------------------------------
-
-        connectedGraph.m_pInstance = new ( EE::Alloc( sizeof( GraphInstance ) ) ) GraphInstance( pExternalGraphDefinition, m_ownerID, m_pTaskSystem, m_pSampledEventsBuffer );
-        EE_ASSERT( connectedGraph.m_pInstance != nullptr );
-
-        // Attach instance to the node
-        //-------------------------------------------------------------------------
-
-        auto pExternalGraphNode = reinterpret_cast<ExternalGraphNode*> ( m_nodes[connectedGraph.m_nodeIdx] );
-        pExternalGraphNode->AttachExternalGraphInstance( m_graphContext, connectedGraph.m_pInstance );
-
-        // Update resource mappings
-        //-------------------------------------------------------------------------
-
-        // TODO: re-evaluate this whole thing with the context of referenced graphs and how we ensure that the resource mappings are 100% consistent between client and server. 
-        GenerateResourceMappings();
-
-        return connectedGraph.m_pInstance;
+        return InvalidIndex;
     }
 
-    void GraphInstance::DisconnectExternalGraph( StringID slotID )
+    ExternalPoseNode *GraphInstance::GetExternalPoseNode( StringID slotID ) const
     {
-        EE_PROFILE_SCOPE_ANIMATION( "Graph Instance - Disconnect External Graph" );
+        int32_t const numSlots = (int32_t) m_pGraphDefinition->m_externalPoseSlots.size();
+        for ( int32_t i = 0; i < numSlots; i++ )
+        {
+            auto const &poseSlot = m_pGraphDefinition->m_externalPoseSlots[i];
+            if ( poseSlot.m_slotID == slotID )
+            {
+                return reinterpret_cast<ExternalPoseNode *>( m_nodes[poseSlot.m_nodeIdx] );
+            }
+        }
 
-        // Ensure we have a graph connected for this slot
-        int32_t connectedGraphIdx = GetConnectedExternalGraphIndex( slotID );
-        EE_ASSERT( connectedGraphIdx != InvalidIndex );
-
-        ExternalGraph& connectedGraph = m_externalGraphs[connectedGraphIdx];
-
-        // Detach from node and destroy graph instance
-        //-------------------------------------------------------------------------
-
-        auto pExternalGraphNode = reinterpret_cast<ExternalGraphNode*> ( m_nodes[connectedGraph.m_nodeIdx] );
-        pExternalGraphNode->DetachExternalGraphInstance( m_graphContext );
-
-        connectedGraph.m_pInstance->~GraphInstance();
-        EE::Free( connectedGraph.m_pInstance );
-        connectedGraph.m_pInstance = nullptr;
-
-        // Remove record
-        //-------------------------------------------------------------------------
-
-        m_externalGraphs.erase_unsorted( m_externalGraphs.begin() + connectedGraphIdx );
-
-        // Update resource mappings
-        //-------------------------------------------------------------------------
-
-        GenerateResourceMappings();
+        return nullptr;
     }
 
     //-------------------------------------------------------------------------
 
-    void GraphInstance::ResetGraphState( SyncTrackTime initTime, TVector<GraphLayerUpdateState> const* pLayerInitInfo )
+    void GraphInstance::ResetGraphState( GraphTimeInfo const *pGraphTimeInfo, SyncTrackTime initTime )
     {
         EE_ASSERT( initTime.m_percentageThrough >= 0.0f && initTime.m_percentageThrough <= 1.0f );
 
@@ -366,70 +752,144 @@ namespace EE::Animation
             m_pRootNode->Shutdown( m_graphContext );
         }
 
+        m_rootMotionDelta = Transform::Identity;
+
         m_graphContext.m_updateID++; // Bump the update ID to ensure that any initialization code that relies on it is dirtied.
-        m_graphContext.m_pLayerInitializationInfo = pLayerInitInfo;
+        m_graphContext.m_pInitializationTimeInfo = pGraphTimeInfo;
         m_pRootNode->Initialize( m_graphContext, initTime );
-        m_graphContext.m_pLayerInitializationInfo = nullptr;
 
         #if EE_DEVELOPMENT_TOOLS
-        m_log.clear();
+        if ( IsStandaloneInstance() )
+        {
+            m_graphContext.ClearLog();
+        }
+
+        if ( IsRecording() )
+        {
+            GraphTimeInfo graphTimeInfo;
+            graphTimeInfo.m_baseUpdateRange = SyncTrackTimeRange( initTime );
+            RecordGraphState( RecordedUpdateType::Reset, graphTimeInfo, m_graphContext.m_worldTransform );
+        }
         #endif
+
+        m_graphContext.m_pInitializationTimeInfo = nullptr;
     }
 
-    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, bool resetGraphState )
+    void GraphInstance::ResetGraphState( SyncTrackTime initTime )
+    {
+        ResetGraphState( nullptr, initTime );
+    }
+
+    void GraphInstance::ResetGraphState( GraphTimeInfo const &graphTimeInfo )
+    {
+        ResetGraphState( &graphTimeInfo, graphTimeInfo.m_baseUpdateRange.m_endTime );
+    }
+
+    void GraphInstance::ResetReferencedGraphState( GraphContext const &parentContext, SyncTrackTime initTime )
+    {
+        m_graphContext.TransferContextDataFromParent( parentContext );
+        ResetGraphState( nullptr, initTime );
+        m_graphContext.m_pLayerContext = nullptr;
+    }
+
+    void GraphInstance::ResetReferencedGraphState( GraphContext const &parentContext, GraphTimeInfo const &graphTimeInfo )
+    {
+        m_graphContext.TransferContextDataFromParent( parentContext );
+        ResetGraphState( &graphTimeInfo, graphTimeInfo.m_baseUpdateRange.m_endTime );
+        m_graphContext.m_pLayerContext = nullptr;
+    }
+
+    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, BranchState const* pBranchState, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Evaluate Graph" );
 
         #if EE_DEVELOPMENT_TOOLS
-        m_activeNodes.clear();
+        ScopedTimer<PlatformClock, Microseconds> st( m_executionTime );
+        #endif
+
+        // Update the serialization context
+        //-------------------------------------------------------------------------
+
+        UpdateTaskSerializationContext();
+
+        // Record changes to external graph state
+        //-------------------------------------------------------------------------
+
+        if ( IsRecording() && m_externalGraphStateChanged )
+        {
+            RecordGraphState( RecordedUpdateType::ExternalGraphChanged, GraphTimeInfo(), m_graphContext.m_worldTransform );
+            m_externalGraphStateChanged = false;
+        }
+
+        // Pre-Update
+        //-------------------------------------------------------------------------
+
+        m_graphContext.m_activeNodes.clear();
+
+        #if EE_DEVELOPMENT_TOOLS
         RecordPreGraphEvaluateState( deltaTime, startWorldTransform );
         #endif
 
-        //-------------------------------------------------------------------------
-
-        if ( m_isStandaloneGraph )
+        if ( m_isStandaloneGraphInstance )
         {
-            m_pTaskSystem->Reset();
-            m_pSampledEventsBuffer->Clear();
+            m_graphContext.m_pTaskSystem->ResetForNewUpdate();
+            m_graphContext.m_pSampledEventsBuffer->ResetForNewUpdate();
 
             #if EE_DEVELOPMENT_TOOLS
-            m_pRootMotionDebugger->StartCharacterUpdate( startWorldTransform );
+            m_graphContext.m_pRootMotionDebugger->StartCharacterUpdate( startWorldTransform );
             #endif
         }
 
-        m_graphContext.Update( deltaTime, startWorldTransform, pPhysicsWorld );
-
+        // Update
         //-------------------------------------------------------------------------
 
-        if ( resetGraphState || !m_pRootNode->IsInitialized() )
+        m_graphContext.Update( deltaTime, startWorldTransform, pPhysicsWorld );
+
+        if ( !m_pRootNode->IsInitialized() )
         {
             ResetGraphState();
         }
 
-        //-------------------------------------------------------------------------
+        if ( pBranchState != nullptr )
+        {
+            m_graphContext.m_branchState = *pBranchState;
+        }
 
         auto result = m_pRootNode->Update( m_graphContext, pUpdateRange );
+        m_rootMotionDelta = result.m_rootMotionDelta;
+
+        // Post Update
+        //-------------------------------------------------------------------------
+
+        if ( m_isStandaloneGraphInstance )
+        {
+            EE_ASSERT( m_graphContext.GetBasePath().IsEmpty() );
+            m_graphContext.m_pSampledEventsBuffer->UpdateEventTracking();
+        }
 
         #if EE_DEVELOPMENT_TOOLS
         RecordPostGraphEvaluateState( nullptr );
 
-        if ( m_isStandaloneGraph )
+        if ( m_isStandaloneGraphInstance )
         {
-            EE_ASSERT( !m_pSampledEventsBuffer->HasDebugBasePathSet() );
-            EE_ASSERT( !m_pTaskSystem->HasDebugBasePathSet() );
-            EE_ASSERT( !m_pRootMotionDebugger->HasDebugBasePathSet() );
+            OutputLog();
         }
         #endif
 
         return result;
     }
 
-    GraphPoseNodeResult GraphInstance::EvaluateReferencedGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange, GraphLayerContext* pLayerContext )
+    GraphPoseNodeResult GraphInstance::EvaluateGraph( Seconds const deltaTime, Transform const& startWorldTransform, Physics::PhysicsWorld* pPhysicsWorld, SyncTrackTimeRange const* pUpdateRange )
     {
-        m_graphContext.m_pLayerContext = pLayerContext;
-        GraphPoseNodeResult result = EvaluateGraph( deltaTime, startWorldTransform, pPhysicsWorld, pUpdateRange );
-        m_graphContext.m_pLayerContext = nullptr;
+        GraphPoseNodeResult result = EvaluateGraph( deltaTime, startWorldTransform, pPhysicsWorld, nullptr, pUpdateRange );
+        return result;
+    }
 
+    GraphPoseNodeResult GraphInstance::EvaluateReferencedGraph( GraphContext const& parentContext, SyncTrackTimeRange const* pUpdateRange )
+    {
+        m_graphContext.TransferContextDataFromParent( parentContext );
+        GraphPoseNodeResult result = EvaluateGraph( parentContext.m_deltaTime, parentContext.m_worldTransform, parentContext.m_pPhysicsWorld, &parentContext.m_branchState, pUpdateRange );
+        m_graphContext.m_pLayerContext = nullptr;
         return result;
     }
 
@@ -437,317 +897,335 @@ namespace EE::Animation
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Pre-Physics Tasks" );
 
-        //-------------------------------------------------------------------------
-
         #if EE_DEVELOPMENT_TOOLS
-        m_pRootMotionDebugger->EndCharacterUpdate( endWorldTransform );
-
-        // Notify all connected external graphs
-        for ( auto& externalGraph : m_externalGraphs )
-        {
-            externalGraph.m_pInstance->m_pRootMotionDebugger->EndCharacterUpdate( endWorldTransform );
-        }
+        m_graphContext.m_pRootMotionDebugger->EndCharacterUpdate( endWorldTransform );
         #endif
 
-        //-------------------------------------------------------------------------
-
-        m_pTaskSystem->UpdatePrePhysics( m_graphContext.m_deltaTime, endWorldTransform, endWorldTransform.GetInverse() );
+        m_graphContext.m_pTaskSystem->UpdatePrePhysics( m_graphContext.m_deltaTime, endWorldTransform, endWorldTransform.GetInverse() );
     }
 
     void GraphInstance::ExecutePostPhysicsPoseTasks()
     {
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Post-Physics Tasks" );
-        m_pTaskSystem->UpdatePostPhysics();
+        m_graphContext.m_pTaskSystem->UpdatePostPhysics();
 
         #if EE_DEVELOPMENT_TOOLS
         RecordTasks();
+        OutputTaskSystemLog();
         #endif
     }
 
-    //-------------------------------------------------------------------------
-
-    #if EE_DEVELOPMENT_TOOLS
-    void GraphInstance::GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges )
+    void GraphInstance::GetCurrentGraphTimingInfo( GraphTimeInfo &outGraphTimeInfo ) const
     {
-        for ( auto activeNodeIdx : m_activeNodes )
+        EE_ASSERT( IsValid() );
+
+        outGraphTimeInfo.Reset();
+
+        SyncTrack const &syncTrack = m_pRootNode->GetSyncTrack();
+        outGraphTimeInfo.m_baseUpdateRange = SyncTrackTimeRange( syncTrack.GetTime( m_pRootNode->GetPreviousTime() ), syncTrack.GetTime( m_pRootNode->GetCurrentTime() ) );
+
+        for ( int16_t activeNodeIdx : m_graphContext.m_activeNodes )
         {
             auto pNodeDefinition = m_pGraphDefinition->m_nodeDefinitions[activeNodeIdx];
-            if ( IsOfType<LayerBlendNode::Definition>( pNodeDefinition ) )
+            if ( TryCast<LayerBlendNode::Definition>( pNodeDefinition ) )
             {
-                auto& layerUpdateRange = outRanges.emplace_back();
+                GraphLayerUpdateState &layerUpdateRange = outGraphTimeInfo.m_layerTimes.emplace_back();
                 layerUpdateRange.m_nodeIdx = activeNodeIdx;
 
-                auto pNode = static_cast<LayerBlendNode*>( m_nodes[activeNodeIdx] );
+                auto pNode = static_cast<LayerBlendNode *>( m_nodes[activeNodeIdx] );
                 pNode->GetSyncUpdateRangesForUnsynchronizedLayers( layerUpdateRange.m_updateRanges );
             }
-        }
-    }
-
-    TaskSystemDebugMode GraphInstance::GetTaskSystemDebugMode() const
-    {
-        EE_ASSERT( m_pTaskSystem != nullptr );
-        return m_pTaskSystem->GetDebugMode();
-    }
-
-    void GraphInstance::SetTaskSystemDebugMode( TaskSystemDebugMode mode )
-    {
-        EE_ASSERT( m_pTaskSystem != nullptr );
-        m_pTaskSystem->SetDebugMode( mode );
-    }
-
-    Transform GraphInstance::GetTaskSystemDebugWorldTransform()
-    {
-        return m_pTaskSystem->GetCharacterWorldTransform();
-    }
-
-    void GraphInstance::GetReferencedGraphsForDebug( TVector<DebuggableReferencedGraph>& outReferencedGraphInstances, DebugPath const& parentPath ) const
-    {
-        for ( auto const& referencedGraph : m_referencedGraphs )
-        {
-            DebugPath currentPath = parentPath;
-            currentPath.m_path.emplace_back( referencedGraph.m_nodeIdx, m_pGraphDefinition->m_nodePaths[referencedGraph.m_nodeIdx].c_str() );
-
-            auto& debuggableGraph = outReferencedGraphInstances.emplace_back();
-            debuggableGraph.m_pInstance = referencedGraph.m_pInstance;
-            debuggableGraph.m_path = currentPath;
-
-            //-------------------------------------------------------------------------
-
-            referencedGraph.m_pInstance->GetReferencedGraphsForDebug( outReferencedGraphInstances, currentPath );
-        }
-    }
-
-    GraphInstance const* GraphInstance::GetReferencedGraphDebugInstance( int16_t nodeIdx ) const
-    {
-        for ( auto const& referencedGraph : m_referencedGraphs )
-        {
-            if ( referencedGraph.m_nodeIdx == nodeIdx )
+            else if ( TryCast<ReferencedGraphNode::Definition>( pNodeDefinition ) )
             {
-                return referencedGraph.m_pInstance;
-            }
-        }
-
-        EE_UNREACHABLE_CODE();
-        return nullptr;
-    }
-
-    GraphInstance const* GraphInstance::GetReferencedGraphDebugInstance( PointerID referencedGraphInstanceID ) const
-    {
-        TVector<DebuggableReferencedGraph> debuggableReferencedGraphs;
-        GetReferencedGraphsForDebug( debuggableReferencedGraphs );
-
-        for ( auto const& referencedGraph : debuggableReferencedGraphs )
-        {
-            if ( PointerID( referencedGraph.m_pInstance ) == referencedGraphInstanceID )
-            {
-                return referencedGraph.m_pInstance;
-            }
-        }
-
-        EE_UNREACHABLE_CODE();
-        return nullptr;
-    }
-
-    GraphInstance const* GraphInstance::GetExternalGraphDebugInstance( StringID slotID ) const
-    {
-        int32_t const connectedGraphIdx = GetConnectedExternalGraphIndex( slotID );
-        if ( connectedGraphIdx == InvalidIndex )
-        {
-            return nullptr;
-        }
-
-        return m_externalGraphs[connectedGraphIdx].m_pInstance;
-    }
-
-    GraphInstance const* GraphInstance::GetReferencedOrExternalGraphDebugInstance( int16_t nodeIdx ) const
-    {
-        EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
-
-        for ( auto const& referencedGraphRecord : m_referencedGraphs )
-        {
-            if ( referencedGraphRecord.m_nodeIdx == nodeIdx )
-            {
-                return referencedGraphRecord.m_pInstance;
-            }
-        }
-
-        for ( auto const& externalGraphRecord : m_externalGraphs )
-        {
-            if ( externalGraphRecord.m_nodeIdx == nodeIdx )
-            {
-                return externalGraphRecord.m_pInstance;
-            }
-        }
-
-        return nullptr;
-    }
-
-    DebugPath GraphInstance::GetDebugPathForReferencedGraphInstance( PointerID instanceID ) const
-    {
-        TVector<DebuggableReferencedGraph> debuggableReferencedGraphs;
-        GetReferencedGraphsForDebug( debuggableReferencedGraphs );
-
-        for ( auto const& referencedGraph : debuggableReferencedGraphs )
-        {
-            if ( PointerID( referencedGraph.m_pInstance ) == instanceID )
-            {
-                return referencedGraph.m_path;
-            }
-        }
-
-        return DebugPath();
-    }
-
-    DebugPath GraphInstance::GetDebugPathForReferencedOrExternalGraphDebugInstance( PointerID instanceID ) const
-    {
-        TVector<DebuggableReferencedGraph> debuggableReferencedGraphs;
-        GetReferencedGraphsForDebug( debuggableReferencedGraphs );
-
-        for ( auto const& referencedGraph : debuggableReferencedGraphs )
-        {
-            if ( PointerID( referencedGraph.m_pInstance ) == instanceID )
-            {
-                return referencedGraph.m_path;
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        for ( auto const& externalGraphRecord : m_externalGraphs )
-        {
-            if ( PointerID( externalGraphRecord.m_pInstance ) == instanceID )
-            {
-                DebugPath path;
-                path.m_path.emplace_back( externalGraphRecord.m_nodeIdx, m_pGraphDefinition->m_nodePaths[externalGraphRecord.m_nodeIdx].c_str() );
-                return path;
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        return DebugPath();
-    }
-
-    DebugPath GraphInstance::ResolveSourcePath( TInlineVector<int64_t, 5> const& sourcePath ) const
-    {
-        EE_ASSERT( IsStandaloneInstance() );
-
-        //-------------------------------------------------------------------------
-
-        DebugPath debugPath;
-
-        GraphInstance const* pFinalGraphInstance = this;
-        int32_t const numElements = (int32_t) sourcePath.size();
-        for ( int32_t i = 0; i < numElements; i++ )
-        {
-            auto& element = debugPath.m_path.emplace_back();
-
-            // Resolve node path
-            if ( i == ( numElements - 1 ) )
-            {
-                element.m_itemID = sourcePath[i];
-                element.m_pathString = pFinalGraphInstance->m_pGraphDefinition->GetNodePath( (int16_t) sourcePath[i] ).c_str();
-            }
-            else // Resolve to referenced or external graph
-            {
-                element.m_itemID = sourcePath[i];
-                element.m_pathString = pFinalGraphInstance->m_pGraphDefinition->GetNodePath( (int16_t) sourcePath[i] ).c_str();
-                pFinalGraphInstance = pFinalGraphInstance->GetReferencedOrExternalGraphDebugInstance( (int16_t) sourcePath[i] );
-            }
-
-            // This should only ever happen if we detach an external graph directly after updating a graph instance and before drawing this debug display
-            if ( pFinalGraphInstance == nullptr )
-            {
-                debugPath.m_path.clear();
-                return debugPath;
-            }
-        }
-
-        return debugPath;
-    }
-
-    void GraphInstance::DrawNodeDebug( GraphContext& graphContext, Drawing::DrawContext& drawContext )
-    {
-        if ( m_debugMode != GraphDebugMode::Off )
-        {
-            for ( auto graphNodeIdx : m_activeNodes )
-            {
-                // Filter nodes
-                if ( !m_debugFilterNodes.empty() && !VectorContains( m_debugFilterNodes, graphNodeIdx ) )
+                for ( auto &referencedGraphSlot : m_pGraphDefinition->m_internalGraphSlots )
                 {
-                    continue;
-                }
-
-                // Draw node debug
-                auto pGraphNode = m_nodes[graphNodeIdx];
-                if ( pGraphNode->GetValueType() == GraphValueType::Pose )
-                {
-                    auto pPoseNode = reinterpret_cast<PoseNode*>( pGraphNode );
-                    pPoseNode->DrawDebug( m_graphContext, drawContext );
+                    if ( referencedGraphSlot.m_nodeIdx == activeNodeIdx )
+                    {
+                        auto pReferenceGraphNode = reinterpret_cast<ReferencedGraphNode*>( m_nodes[referencedGraphSlot.m_nodeIdx] );
+                        if ( pReferenceGraphNode->m_pGraphInstance != nullptr && pReferenceGraphNode->m_pGraphInstance->IsValid() )
+                        {
+                            GraphTimeInfo::ReferencedGraphState &rgs = outGraphTimeInfo.m_referencedGraphStates.emplace_back();
+                            rgs.m_referencedGraphNodeIdx = activeNodeIdx;
+                            rgs.m_pTimeInfo = EE::New<GraphTimeInfo>();
+                            pReferenceGraphNode->m_pGraphInstance->GetCurrentGraphTimingInfo( *rgs.m_pTimeInfo );
+                        }
+                        break;
+                    }
                 }
             }
-        }
-    }
-
-    void GraphInstance::DrawDebug( Drawing::DrawContext& drawContext )
-    {
-        // Graph
-        //-------------------------------------------------------------------------
-
-        DrawNodeDebug( m_graphContext, drawContext );
-
-        // Root Motion
-        //-------------------------------------------------------------------------
-
-        m_pRootMotionDebugger->DrawDebug( drawContext );
-
-        // Task System
-        //-------------------------------------------------------------------------
-
-        m_pTaskSystem->DrawDebug( drawContext );
-    }
-
-    void GraphInstance::OutputLog()
-    {
-        for ( m_lastOutputtedLogItemIdx; m_lastOutputtedLogItemIdx < m_log.size(); m_lastOutputtedLogItemIdx++ )
-        {
-            auto const& item = m_log[m_lastOutputtedLogItemIdx];
-            InlineString const source( InlineString::CtorSprintf(), "%s (%d)", m_pGraphDefinition->GetNodePath( item.m_nodeIdx ).c_str(), item.m_nodeIdx );
-            SystemLog::AddEntry( item.m_severity, "Animation", source.c_str(), "", 0, item.m_message.c_str() );
         }
     }
 
     //-------------------------------------------------------------------------
 
-    void GraphInstance::StartRecording( GraphRecorder* pRecorder )
+    void GraphInstance::StartRecording( GraphRecording* pRecording )
     {
-        EE_ASSERT( pRecorder != nullptr );
-        EE_ASSERT( m_pRecorder == nullptr );
+        EE_ASSERT( pRecording != nullptr );
+        EE_ASSERT( m_pRecording == nullptr );
+
+        m_pRecording = pRecording;
+        m_pRecording->m_graphID = m_pGraphDefinition->GetResourceID();
+        m_pRecording->m_variationID = m_pGraphDefinition->m_variationID;
 
         // Record initial state
         //-------------------------------------------------------------------------
 
-        RecordGraphState( pRecorder->m_initialState );
+        RecordGraphState( RecordedUpdateType::FirstRecording, GraphTimeInfo(), m_graphContext.m_worldTransform );
+    }
 
-        // (Optional) Set the update recorder to track update data
+    void GraphInstance::StopRecording()
+    {
+        EE_ASSERT( m_pRecording != nullptr );
+        m_pRecording = nullptr;
+    }
+
+    void GraphInstance::RecordPreGraphEvaluateState( Seconds const deltaTime, Transform const& startWorldTransform )
+    {
+        if ( m_pRecording == nullptr )
+        {
+            return;
+        }
+
         //-------------------------------------------------------------------------
 
-        m_pRecorder = pRecorder;
-
-        if ( m_pRecorder != nullptr )
+        auto RecordGraphData = [] ( GraphInstance *pInstance, Seconds const flDeltaTime, Transform const &startWorldTransform, RecordedGraphUpdateData &outData )
         {
-            m_pRecorder->m_graphID = m_pGraphDefinition->GetResourceID();
-            m_pRecorder->m_variationID = m_pGraphDefinition->m_variationID;
-            m_pRecorder->m_recordedResourceHash = GetGraphDefinition()->GetSourceResourceHash();
+            outData.m_deltaTime = flDeltaTime;
+            outData.m_characterWorldTransform = startWorldTransform;
+            outData.m_updateType = RecordedUpdateType::TimeStep;
+
+            // Record control parameter values
+            for ( auto i = 0; i < pInstance->GetNumControlParameters(); i++ )
+            {
+                auto pParameter = (ValueNode *) pInstance->m_nodes[i];
+                RecordedGraphUpdateData::ParameterData &paramData = outData.m_parameterData.emplace_back();
+
+                switch ( pParameter->GetValueType() )
+                {
+                    case GraphValueType::Bool:
+                    {
+                        paramData.m_bool = pParameter->GetValue<bool>( pInstance->m_graphContext );
+                    }
+                    break;
+
+                    case GraphValueType::ID:
+                    {
+                        paramData.m_ID = pParameter->GetValue<StringID>( pInstance->m_graphContext );
+                    }
+                    break;
+
+                    case GraphValueType::Float:
+                    {
+                        paramData.m_float = pParameter->GetValue<float>( pInstance->m_graphContext );
+                    }
+                    break;
+
+                    case GraphValueType::Vector:
+                    {
+                        paramData.m_vector = pParameter->GetValue<Float3>( pInstance->m_graphContext );
+                    }
+                    break;
+
+                    case GraphValueType::Target:
+                    {
+                        paramData.m_target = pParameter->GetValue<Target>( pInstance->m_graphContext );
+                    }
+                    break;
+
+                    default:
+                    EE_UNREACHABLE_CODE();
+                    break;
+                }
+            }
+
+            // Calculate sync start time
+            outData.m_updateRange.m_startTime = pInstance->m_pRootNode->GetSyncTrack().GetTime( pInstance->m_pRootNode->GetCurrentTime() );
+        };
+
+        // Record time delta and world transform
+        RecordedGraphUpdateData *pUpdateData = m_pRecording->CreateUpdateData();
+        RecordGraphData( this, deltaTime, startWorldTransform, *pUpdateData );
+
+        // Record all external pose nodes
+        //-------------------------------------------------------------------------
+
+        for ( auto const &ep : m_pGraphDefinition->m_externalPoseSlots )
+        {
+            auto pExternalPoseNode = reinterpret_cast<ExternalPoseNode *>( m_nodes[ep.m_nodeIdx] );
+            if ( pExternalPoseNode->IsPoseSet() )
+            {
+                /*RecordedExternalPoseData *pEPD = pUpdateData->CreateExternalPoseData();
+                pEPD->m_externalPoseNodeIdx = ep.m_nodeIdx;
+                pEPD->m_slotID = ep.m_slotID;
+
+                pEPD->m_clipResourceID0 = ( pExternalPoseNode->m_poseData.m_pClip0 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip0->GetResourceID() : ResourceID();
+                pEPD->m_startTime0 = pExternalPoseNode->m_poseData.m_startTime0;
+                pEPD->m_endTime0 = pExternalPoseNode->m_poseData.m_endTime0;
+
+                pEPD->m_clipResourceID1 = ( pExternalPoseNode->m_poseData.m_pClip1 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip1->GetResourceID() : ResourceID();
+                pEPD->m_startTime1 = pExternalPoseNode->m_poseData.m_startTime1;
+                pEPD->m_endTime1 = pExternalPoseNode->m_poseData.m_endTime1;
+
+                pEPD->m_blendWeight = pExternalPoseNode->m_poseData.m_blendWeight;*/
+            }
+        }
+
+        // Record all external graphs
+        //-------------------------------------------------------------------------
+
+        for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+        {
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode*>( m_nodes[eg.m_nodeIdx] );
+            if ( pReferencedGraphNode->HasInstance() )
+            {
+                RecordedExternalGraphData *pEGD = pUpdateData->CreateExternalGraphData();
+                pEGD->m_externalGraphNodeIdx = eg.m_nodeIdx;
+                pEGD->m_graphResourceID = pReferencedGraphNode->m_pGraphInstance->GetGraphDefinition()->GetResourceID();
+                RecordGraphData( pReferencedGraphNode->m_pGraphInstance, deltaTime, startWorldTransform, pEGD->m_updateData );
+            }
         }
     }
 
-    void GraphInstance::RecordGraphState( RecordedGraphState& recordedState )
+    void GraphInstance::RecordPostGraphEvaluateState( SyncTrackTimeRange const* pRange )
     {
-        recordedState.m_graphID = m_pGraphDefinition->GetResourceID();
+        if ( m_pRecording == nullptr )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        auto RecordGraphTimingInfo = [this, pRange] ( GraphInstance *pInstance, RecordedGraphUpdateData &outData )
+        {
+            // Record the global update range info
+            //-------------------------------------------------------------------------
+
+            if ( pRange == nullptr )
+            {
+                outData.m_updateRange.m_endTime = pInstance->m_pRootNode->GetSyncTrack().GetTime( pInstance->m_pRootNode->GetCurrentTime() );
+            }
+            else // Directly overwrite the sync update
+            {
+                outData.m_updateRange = *pRange;
+            }
+
+            // Record the layer update range info 
+            //-------------------------------------------------------------------------
+
+            GetCurrentGraphTimingInfo( outData.m_timingInfo );
+        };
+
+        RecordedGraphUpdateData *pUpdateData = m_pRecording->m_recordedUpdateData.back();
+        RecordGraphTimingInfo( this, *pUpdateData );
+
+        // Secondary Skeletons
+        //-------------------------------------------------------------------------
+
+        if ( IsStandaloneInstance() )
+        {
+            pUpdateData->SetSecondarySkeletons( m_secondarySkeletons );
+        }
+        else
+        {
+            pUpdateData->SetSecondarySkeletons( m_graphContext.GetTaskSystem()->GetSecondarySkeletons() );
+        }
+
+        // Record all external graphs
+        //-------------------------------------------------------------------------
+
+        for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+        {
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[eg.m_nodeIdx] );
+            if ( pReferencedGraphNode->HasInstance() )
+            {
+                RecordedExternalGraphData *pExternalGraphData = pUpdateData->TryGetExternalGraphData( eg.m_nodeIdx );
+                EE_ASSERT( pExternalGraphData != nullptr );
+                RecordGraphTimingInfo( pReferencedGraphNode->m_pGraphInstance, pExternalGraphData->m_updateData );
+            }
+        }
+    }
+
+    void GraphInstance::RecordReferencedGraphState( RecordedGraphState &recordedState )
+    {
+        EE_ASSERT( !m_isStandaloneGraphInstance );
+        RecordGraphNodeState( recordedState );
+    }
+
+    void GraphInstance::RecordGraphState( RecordedUpdateType updateType, GraphTimeInfo const &timingInfo, Transform const& worldTransform )
+    {
+        EE_ASSERT( m_pRecording != nullptr );
+        EE_ASSERT( updateType != RecordedUpdateType::Unknown && updateType != RecordedUpdateType::TimeStep );
+
+        RecordedGraphUpdateData *pUpdateData = m_pRecording->CreateUpdateData();
+        pUpdateData->m_updateType = updateType;
+        pUpdateData->m_characterWorldTransform = worldTransform;
+
+        // Record Graph State
+        //-------------------------------------------------------------------------
+
+        if ( updateType != RecordedUpdateType::ExternalGraphChanged )
+        {
+            pUpdateData->m_timingInfo = timingInfo;
+
+            pUpdateData->m_recordedGraphStateIdx = (int32_t) m_pRecording->m_recordedGraphStates.size();
+            RecordedGraphState *pGraphState = m_pRecording->m_recordedGraphStates.emplace_back( EE::New<RecordedGraphState>() );
+            RecordGraphNodeState( *pGraphState );
+        }
+
+        // External Graphs
+        //-------------------------------------------------------------------------
+
+        if ( updateType == RecordedUpdateType::FirstRecording || updateType == RecordedUpdateType::ExternalGraphChanged )
+        {
+            // Record all external pose nodes
+            //-------------------------------------------------------------------------
+
+            for ( auto const &ep : m_pGraphDefinition->m_externalPoseSlots )
+            {
+               /* auto pExternalPoseNode = reinterpret_cast<ExternalPoseNode *>( m_nodes[ep.m_nodeIdx] );
+                if ( pExternalPoseNode->IsPoseSet() )
+                {
+                    RecordedExternalPoseData *pEPD = pUpdateData->CreateExternalPoseData();
+                    pEPD->m_externalPoseNodeIdx = ep.m_nodeIdx;
+                    pEPD->m_slotID = ep.m_slotID;
+
+                    pEPD->m_clipResourceID0 = ( pExternalPoseNode->m_poseData.m_pClip0 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip0->GetResourceID() : ResourceID();
+                    pEPD->m_startTime0 = pExternalPoseNode->m_poseData.m_startTime0;
+                    pEPD->m_endTime0 = pExternalPoseNode->m_poseData.m_endTime0;
+
+                    pEPD->m_clipResourceID1 = ( pExternalPoseNode->m_poseData.m_pClip1 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip1->GetResourceID() : ResourceID();
+                    pEPD->m_startTime1 = pExternalPoseNode->m_poseData.m_startTime1;
+                    pEPD->m_endTime1 = pExternalPoseNode->m_poseData.m_endTime1;
+
+                    pEPD->m_blendWeight = pExternalPoseNode->m_poseData.m_blendWeight;
+                }*/
+            }
+
+            // Record all external graph nodes
+            for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+            {
+                auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[eg.m_nodeIdx] );
+                if ( pReferencedGraphNode->HasInstance() )
+                {
+                    RecordedExternalGraphData *pEGD = pUpdateData->CreateExternalGraphData();
+                    pEGD->m_externalGraphNodeIdx = eg.m_nodeIdx;
+                    pEGD->m_graphResourceID = pReferencedGraphNode->m_pGraphInstance->GetGraphDefinition()->GetResourceID();
+                    pEGD->m_updateData.m_updateType = RecordedUpdateType::Unknown;
+                    pEGD->m_updateData.m_recordedGraphStateIdx = (int32_t) m_pRecording->m_recordedGraphStates.size();
+
+                    RecordedGraphState *pGraphState = m_pRecording->m_recordedGraphStates.emplace_back( EE::New<RecordedGraphState>() );
+                    pReferencedGraphNode->m_pGraphInstance->RecordGraphNodeState( *pGraphState );
+                }
+            }
+        }
+    }
+
+    void GraphInstance::RecordGraphNodeState( RecordedGraphState &recordedState )
+    {
+        recordedState.m_graphResourceID = m_pGraphDefinition->GetResourceID();
         recordedState.m_variationID = m_pGraphDefinition->m_variationID;
-        recordedState.m_recordedResourceHash = GetGraphDefinition()->GetSourceResourceHash();
         recordedState.m_initializedNodeIndices.clear();
+        recordedState.m_isStandaloneGraph = m_isStandaloneGraphInstance;
 
         for ( int16_t i = 0; i < m_nodes.size(); i++ )
         {
@@ -759,107 +1237,65 @@ namespace EE::Animation
         }
     }
 
-    void GraphInstance::StopRecording()
+    void GraphInstance::RecordTasks()
     {
-        EE_ASSERT( m_pRecorder != nullptr );
-        m_pRecorder = nullptr;
-    }
-
-    void GraphInstance::RecordPreGraphEvaluateState( Seconds const deltaTime, Transform const& startWorldTransform )
-    {
-        if ( m_pRecorder == nullptr )
+        if ( m_pRecording == nullptr )
         {
             return;
         }
 
-        // Record time delta and world transform
-        auto& frameData = m_pRecorder->m_recordedData.emplace_back();
-        frameData.m_deltaTime = deltaTime;
-        frameData.m_characterWorldTransform = startWorldTransform;
+        // All the resources in use by this graph instance
+        TInlineVector<ResourceLUT const*, 10> LUTs;
+        GetResourceLookupTables( LUTs );
 
-        // Record control parameter values
-        for ( auto i = 0; i < GetNumControlParameters(); i++ )
+        // Record task
+        auto& pFrameData = m_pRecording->m_recordedUpdateData.back();
+        m_graphContext.m_pTaskSystem->SerializeTasks( UpdateTaskSerializationContext(), pFrameData->m_serializedTopologyData, pFrameData->m_serializedTaskData );
+    }
+
+    bool GraphInstance::SetToRecordedState( RecordedGraphUpdateData const &updateData, TVector<RecordedGraphState *> const &recordedGraphStates )
+    {
+        EE_ASSERT( updateData.m_updateType != RecordedUpdateType::Unknown );
+
+        // Should we restore the main graph state?
+        //-------------------------------------------------------------------------
+
+        if ( updateData.m_updateType == RecordedUpdateType::FirstRecording || updateData.m_updateType == RecordedUpdateType::Reset )
         {
-            auto pParameter = (ValueNode*) m_nodes[i];
-            auto& paramData = frameData.m_parameterData.emplace_back();
+            auto pGraphState = recordedGraphStates[updateData.m_recordedGraphStateIdx];
+            pGraphState->PrepareForReading();
 
-            switch ( pParameter->GetValueType() )
+            if ( !RestoreRecordedGraphState( *pGraphState ) )
             {
-                case GraphValueType::Bool :
-                {
-                    paramData.m_bool = pParameter->GetValue<bool>( m_graphContext );
-                }
-                break;
-
-                case GraphValueType::ID:
-                {
-                    paramData.m_ID = pParameter->GetValue<StringID>( m_graphContext );
-                }
-                break;
-
-                case GraphValueType::Float:
-                {
-                    paramData.m_float = pParameter->GetValue<float>( m_graphContext );
-                }
-                break;
-
-                case GraphValueType::Vector:
-                {
-                    paramData.m_vector = pParameter->GetValue<Float3>( m_graphContext );
-                }
-                break;
-
-                case GraphValueType::Target:
-                {
-                    paramData.m_target = pParameter->GetValue<Target>( m_graphContext );
-                }
-                break;
-
-                default:
-                EE_UNREACHABLE_CODE();
-                break;
+                return false;
             }
         }
 
-        // Calculate sync start time
-        frameData.m_updateRange.m_startTime = m_pRootNode->GetSyncTrack().GetTime( m_pRootNode->GetCurrentTime() );
+        // Should we update parameters
+        //-------------------------------------------------------------------------
+
+        if ( updateData.m_updateType == RecordedUpdateType::TimeStep )
+        {
+            RestoreRecordedGraphParameters( updateData );
+        }
+
+        return true;
     }
 
-    void GraphInstance::RecordPostGraphEvaluateState( SyncTrackTimeRange const* pRange )
+    bool GraphInstance::SetToRecordedReferencedGraphState( RecordedGraphState const &recordedState )
     {
-        if ( m_pRecorder == nullptr )
-        {
-            return;
-        }
-
-        auto& frameData = m_pRecorder->m_recordedData.back();
-
-        // Record the global update range info
-        //-------------------------------------------------------------------------
-
-        if ( pRange == nullptr )
-        {
-            frameData.m_updateRange.m_endTime = m_pRootNode->GetSyncTrack().GetTime( m_pRootNode->GetCurrentTime() );
-        }
-        else // Directly overwrite the sync update
-        {
-            frameData.m_updateRange = *pRange;
-        }
-
-        // Record the layer update range info 
-        //-------------------------------------------------------------------------
-
-        GetUpdateStateForActiveLayers( frameData.m_layerUpdateStates );
+        EE_ASSERT( !m_isStandaloneGraphInstance );
+        return RestoreRecordedGraphState( recordedState );
     }
 
-    void GraphInstance::SetToRecordedState( RecordedGraphState const& recordedState )
+    bool GraphInstance::RestoreRecordedGraphState( RecordedGraphState const &recordedState )
     {
         EE_ASSERT( !IsRecording() );
-        EE_ASSERT( recordedState.m_graphID == m_pGraphDefinition->GetResourceID() );
+        EE_ASSERT( recordedState.m_graphResourceID == m_pGraphDefinition->GetResourceID() );
         EE_ASSERT( recordedState.m_variationID == m_pGraphDefinition->m_variationID );
 
         // Shutdown this graph if it was initialized
-        if ( WasInitialized() )
+        if ( IsInitialized() )
         {
             m_pRootNode->Shutdown( m_graphContext );
         }
@@ -867,33 +1303,40 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Set nodes array to the current instance array
-        TVector<GraphNode*>* const pPreviousNodeArray = recordedState.m_pNodes;
-        const_cast<TVector<GraphNode*>*&>( recordedState.m_pNodes ) = &m_nodes;
+        TVector<GraphNode *> *const pPreviousNodeArray = recordedState.m_pNodes;
+        const_cast<TVector<GraphNode *> *&>( recordedState.m_pNodes ) = &m_nodes;
 
         // Restore the graph state
         for ( auto nodeIdx : recordedState.m_initializedNodeIndices )
         {
-            m_nodes[nodeIdx]->RestoreGraphState( recordedState );
+            if ( !m_nodes[nodeIdx]->RestoreGraphState( recordedState ) )
+            {
+                return false;
+            }
         }
 
         // Revert node array back to previous value
         const_cast<TVector<GraphNode*>*&>( recordedState.m_pNodes ) = pPreviousNodeArray;
 
         #if EE_DEVELOPMENT_TOOLS
-        if ( m_pRootMotionDebugger != nullptr )
+        if ( m_graphContext.m_pRootMotionDebugger != nullptr )
         {
-            m_pRootMotionDebugger->ResetRecordedPositions();
+            m_graphContext.m_pRootMotionDebugger->ResetRecordedPositions();
         }
         #endif
+
+        return true;
     }
 
-    void GraphInstance::SetRecordedFrameUpdateData( RecordedGraphFrameData const& recordedUpdateData )
+    void GraphInstance::RestoreRecordedGraphParameters( RecordedGraphUpdateData const &updateData )
     {
+        EE_ASSERT( GetNumControlParameters() == updateData.m_parameterData.size() );
+
         // Record control parameter values
         for ( auto i = 0; i < GetNumControlParameters(); i++ )
         {
-            auto pParameter = (ValueNode*) m_nodes[i];
-            auto const& paramData = recordedUpdateData.m_parameterData[i];
+            auto pParameter = (ValueNode *) m_nodes[i];
+            auto const &paramData = updateData.m_parameterData[i];
 
             switch ( pParameter->GetValueType() )
             {
@@ -928,26 +1371,307 @@ namespace EE::Animation
                 break;
 
                 default:
-                EE_UNREACHABLE_CODE();
+                {
+                    EE_UNREACHABLE_CODE();
+                }
                 break;
             }
         }
     }
 
-    void GraphInstance::RecordTasks()
+    void GraphInstance::GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges ) const
     {
-        if ( m_pRecorder == nullptr )
+        for ( int16_t activeNodeIdx : m_graphContext.m_activeNodes )
         {
-            return;
+            auto pNodeDefinition = m_pGraphDefinition->m_nodeDefinitions[activeNodeIdx];
+            if ( IsOfType<LayerBlendNode::Definition>( pNodeDefinition ) )
+            {
+                auto& layerUpdateRange = outRanges.emplace_back();
+                layerUpdateRange.m_nodeIdx = activeNodeIdx;
+
+                auto pNode = static_cast<LayerBlendNode*>( m_nodes[activeNodeIdx] );
+                pNode->GetSyncUpdateRangesForUnsynchronizedLayers( layerUpdateRange.m_updateRanges );
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    TaskSystemDebugMode GraphInstance::GetTaskSystemDebugMode() const
+    {
+        EE_ASSERT( m_graphContext.m_pTaskSystem != nullptr );
+        return m_graphContext.m_pTaskSystem->GetDebugMode();
+    }
+
+    void GraphInstance::SetTaskSystemDebugMode( TaskSystemDebugMode mode )
+    {
+        EE_ASSERT( m_graphContext.m_pTaskSystem != nullptr );
+        m_graphContext.m_pTaskSystem->SetDebugMode( mode );
+    }
+
+    Transform GraphInstance::GetTaskSystemDebugWorldTransform()
+    {
+        return m_graphContext.m_pTaskSystem->GetCharacterWorldTransform();
+    }
+
+    void GraphInstance::GetReferencedGraphsForDebug( TVector<DebuggableGraphInstance>& outReferencedGraphInstances, SourcePath const& parentPath ) const
+    {
+        for ( auto &internalGraphSlot : m_pGraphDefinition->m_internalGraphSlots )
+        {
+            auto pReferenceGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[internalGraphSlot.m_nodeIdx] );
+            EE_ASSERT( pReferenceGraphNode->IsInternalGraphSlot() );
+            if ( pReferenceGraphNode->m_pGraphInstance != nullptr && pReferenceGraphNode->m_pGraphInstance->IsValid() )
+            {
+                SourcePath currentPath = parentPath;
+                currentPath.m_path.emplace_back( internalGraphSlot.m_nodeIdx );
+
+                DebuggableGraphInstance &debuggableGraph = outReferencedGraphInstances.emplace_back();
+                debuggableGraph.m_pInstance = pReferenceGraphNode->m_pGraphInstance;
+                debuggableGraph.m_path = currentPath;
+
+                //-------------------------------------------------------------------------
+
+                pReferenceGraphNode->m_pGraphInstance->GetReferencedGraphsForDebug( outReferencedGraphInstances, currentPath );
+            }
         }
 
-        // All the resources in use by this graph instance
-        TInlineVector<ResourceLUT const*, 10> LUTs;
-        GetResourceLookupTables( LUTs );
+        for ( auto &externalGraphSlot : m_pGraphDefinition->m_externalGraphSlots )
+        {
+            auto pReferenceGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[externalGraphSlot.m_nodeIdx] );
+            EE_ASSERT( pReferenceGraphNode->IsExternalGraphSlot() );
+            if ( pReferenceGraphNode->m_pGraphInstance != nullptr )
+            {
+                SourcePath currentPath = parentPath;
+                currentPath.m_path.emplace_back( externalGraphSlot.m_nodeIdx );
 
-        // Record task
-        auto& frameData = m_pRecorder->m_recordedData.back();
-        m_pTaskSystem->SerializeTasks( LUTs, frameData.m_serializedTaskData );
+                DebuggableGraphInstance &debuggableGraph = outReferencedGraphInstances.emplace_back();
+                debuggableGraph.m_pInstance = pReferenceGraphNode->m_pGraphInstance;
+                debuggableGraph.m_path = currentPath;
+
+                //-------------------------------------------------------------------------
+
+                pReferenceGraphNode->m_pGraphInstance->GetReferencedGraphsForDebug( outReferencedGraphInstances, currentPath );
+            }
+        }
+    }
+
+    void GraphInstance::GetDebuggableGraphInstances( TVector<DebuggableGraphInstance> &outGraphInstances ) const
+    {
+        GetReferencedGraphsForDebug( outGraphInstances, SourcePath() );
+
+        for ( auto &externalGraphSlot : m_pGraphDefinition->m_externalGraphSlots )
+        {
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[externalGraphSlot.m_nodeIdx] );
+            if ( pReferencedGraphNode->m_pGraphInstance != nullptr && pReferencedGraphNode->m_pGraphInstance->IsValid() )
+            {
+                SourcePath currentPath;
+                currentPath.m_path.emplace_back( externalGraphSlot.m_nodeIdx );
+
+                DebuggableGraphInstance &debuggableGraph = outGraphInstances.emplace_back();
+                debuggableGraph.m_pInstance = pReferencedGraphNode->m_pGraphInstance;
+                debuggableGraph.m_externalSlotID = externalGraphSlot.m_slotID;
+                debuggableGraph.m_path = currentPath;
+            }
+        }
+    }
+
+    SourcePath GraphInstance::GetSourcePathForDebuggableGraphInstance( PointerID instanceID ) const
+    {
+        TVector<DebuggableGraphInstance> debuggableReferencedGraphs;
+        GetReferencedGraphsForDebug( debuggableReferencedGraphs, SourcePath() );
+
+        for ( auto const& referencedGraph : debuggableReferencedGraphs )
+        {
+            if ( PointerID( referencedGraph.m_pInstance ) == instanceID )
+            {
+                return referencedGraph.m_path;
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+        return SourcePath();
+    }
+
+    GraphInstance const* GraphInstance::GetDebuggableGraphInstance( PointerID referencedGraphInstanceID ) const
+    {
+        TVector<DebuggableGraphInstance> debuggableReferencedGraphs;
+        GetDebuggableGraphInstances( debuggableReferencedGraphs );
+
+        for ( auto const& debuggableInstance : debuggableReferencedGraphs )
+        {
+            if ( PointerID( debuggableInstance.m_pInstance ) == referencedGraphInstanceID )
+            {
+                return debuggableInstance.m_pInstance;
+            }
+        }
+
+        EE_UNREACHABLE_CODE();
+        return nullptr;
+    }
+
+    GraphInstance const* GraphInstance::GetDebuggableGraphInstance( int16_t nodeIdx ) const
+    {
+        EE_ASSERT( IsValidNodeIndex( nodeIdx ) );
+
+        for ( auto &referencedGraphSlot : m_pGraphDefinition->m_internalGraphSlots )
+        {
+            if ( referencedGraphSlot.m_nodeIdx == nodeIdx )
+            {
+                auto pReferenceGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[referencedGraphSlot.m_nodeIdx] );
+                return pReferenceGraphNode->m_pGraphInstance;
+            }
+        }
+
+        for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+        {
+            if ( eg.m_nodeIdx == nodeIdx )
+            {
+                auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[eg.m_nodeIdx] );
+                return pReferencedGraphNode->m_pGraphInstance;
+            }
+        }
+
+        return nullptr;
+    }
+
+    GraphInstance const* GraphInstance::GetDebuggableGraphInstance( StringID externalSlotID ) const
+    {
+        auto pReferencedGraphNode = GetExternalGraphNode( externalSlotID );
+        if ( pReferencedGraphNode != nullptr && pReferencedGraphNode->IsExternalGraphSlot() && pReferencedGraphNode->HasInstance() )
+        {
+            return pReferencedGraphNode->m_pGraphInstance;
+        }
+
+        return nullptr;
+    }
+
+    InlineString GraphInstance::ResolveSourcePath( SourcePath const& sourcePath ) const
+    {
+        EE_ASSERT( IsStandaloneInstance() );
+
+        //-------------------------------------------------------------------------
+
+        InlineString pathStr;
+
+        GraphInstance const* pFinalGraphInstance = this;
+        int32_t const numElements = (int32_t) sourcePath.Size();
+        for ( int32_t i = 0; i < numElements; i++ )
+        {
+            // Resolve node path
+            if ( i == ( numElements - 1 ) )
+            {
+                if ( !pathStr.empty() )
+                {
+                    pathStr.append( "/" );
+                }
+
+                pathStr.append( pFinalGraphInstance->m_pGraphDefinition->GetNodePath( (int16_t) sourcePath[i] ).c_str() );
+            }
+            else // Resolve to referenced or external graph
+            {
+                if ( !pathStr.empty() )
+                {
+                    pathStr.append( "/" );
+                }
+
+                pathStr.append( pFinalGraphInstance->m_pGraphDefinition->GetNodePath( (int16_t) sourcePath[i] ).c_str() );
+                pFinalGraphInstance = pFinalGraphInstance->GetDebuggableGraphInstance( (int16_t) sourcePath[i] );
+            }
+
+            // This should only ever happen if we detach an external graph directly after updating a graph instance and before drawing this debug display
+            if ( pFinalGraphInstance == nullptr )
+            {
+                pathStr.clear();
+                return pathStr;
+            }
+        }
+
+        return pathStr;
+    }
+
+    void GraphInstance::DrawDebug( DebugDrawContext& drawContext, TVector<SourcePath> const* pNodesToDebug )
+    {
+        // Graph
+        //-------------------------------------------------------------------------
+
+        if ( m_debugMode != GraphDebugMode::Off || m_isStandaloneGraphInstance == false )
+        {
+            m_graphContext.m_pNodesToDebug = pNodesToDebug;
+
+            for ( int16_t graphNodeIdx : m_graphContext.m_activeNodes )
+            {
+                auto pGraphNode = m_nodes[graphNodeIdx];
+                if ( pGraphNode->GetValueType() == GraphValueType::Pose )
+                {
+                    bool shouldDrawDebugNode = true;
+                    if ( pNodesToDebug )
+                    {
+                        shouldDrawDebugNode = false;
+
+                        SourcePath const nodePath = pGraphNode->GetNodePath( m_graphContext );
+                        for ( SourcePath const &nodeToDebugPath : *pNodesToDebug )
+                        {
+                            if ( nodeToDebugPath.IsUnderOrEqual( nodePath ) )
+                            {
+                                shouldDrawDebugNode = true;
+                            }
+                        }
+                    }
+
+                    if ( shouldDrawDebugNode )
+                    {
+                        auto pPoseNode = static_cast<PoseNode *>( pGraphNode );
+                        pPoseNode->DrawDebug( m_graphContext, drawContext );
+                    }
+                }
+            }
+
+            m_graphContext.m_pNodesToDebug = nullptr;
+        }
+
+        // Root Motion
+        //-------------------------------------------------------------------------
+
+        if ( IsStandaloneInstance() )
+        {
+            m_graphContext.m_pRootMotionDebugger->DrawDebug( drawContext );
+        }
+
+        // Task System
+        //-------------------------------------------------------------------------
+
+        if ( IsStandaloneInstance() )
+        {
+            m_graphContext.m_pTaskSystem->DrawDebug( drawContext );
+        }
+    }
+
+    void GraphInstance::OutputLog()
+    {
+        EE_ASSERT( IsStandaloneInstance() );
+
+        for ( m_graphContext.m_lastOutputtedLogItemIdx; m_graphContext.m_lastOutputtedLogItemIdx < m_graphContext.m_pLog->size(); m_graphContext.m_lastOutputtedLogItemIdx++ )
+        {
+            GraphLogEntry const& item = ( *m_graphContext.m_pLog )[m_graphContext.m_lastOutputtedLogItemIdx];
+
+            InlineString const pathStr = ResolveSourcePath( item.m_sourcePath );
+            InlineString const source( InlineString::CtorSprintf(), "%s - %s", m_pGraphDefinition->GetResourceID().c_str(), pathStr.c_str() );
+            SystemLog::AddEntry( item.m_severity, "Animation", source.c_str(), "", 0, item.m_message.c_str() );
+        }
+    }
+
+    void GraphInstance::OutputTaskSystemLog()
+    {
+        EE_ASSERT( IsStandaloneInstance() );
+
+        TVector<TaskLogEntry> const &taskSystemLog = m_graphContext.m_pTaskSystem->GetLog();
+        for ( TaskLogEntry const &entry : taskSystemLog )
+        {
+            InlineString const pathStr = ResolveSourcePath( entry.m_sourcePath );
+            InlineString const source( InlineString::CtorSprintf(), "%s - %s", m_pGraphDefinition->GetResourceID().c_str(), pathStr.c_str() );
+            SystemLog::AddEntry( entry.m_severity, "Animation", source.c_str(), "", 0, entry.m_message.c_str() );
+        }
     }
     #endif
 }

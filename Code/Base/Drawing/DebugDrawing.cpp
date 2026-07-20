@@ -1,38 +1,28 @@
 #include "DebugDrawing.h"
 #include "Base/Math/Plane.h"
+#include "Base/Memory/Memory.h"
+#include "Base/Math/MathUtils.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
-namespace EE::Drawing
+namespace EE
 {
     namespace
     {
         constexpr static uint32_t const g_numCircleVertices = 16;
         static_assert( ( g_numCircleVertices % 4 ) == 0 );
-
         static bool g_circleVerticesInitialized = false;
         static Float4 g_circleVerticesXUp[g_numCircleVertices];
         static Float4 g_circleVerticesYUp[g_numCircleVertices];
         static Float4 g_circleVerticesZUp[g_numCircleVertices];
 
-        static void CreateCircleVertices( Float4* pVerts, Vector planeVector, Vector upAxis )
+        static void InitializeCircleVertices()
         {
-            Radians const radiansPerEdge( Math::TwoPi / g_numCircleVertices );
-            Quaternion const rotation( upAxis, radiansPerEdge );
-            for ( auto i = 0; i < g_numCircleVertices; i++ )
-            {
-                planeVector = rotation.RotateVector( planeVector );
-                pVerts[i] = planeVector.SetW1();
-            }
-        }
-
-        static bool InitializeCircleVertices()
-        {
-            CreateCircleVertices( g_circleVerticesXUp, Vector::UnitY, Vector::UnitX );
-            CreateCircleVertices( g_circleVerticesYUp, Vector::UnitX, Vector::UnitY );
-            CreateCircleVertices( g_circleVerticesZUp, Vector::UnitX, Vector::UnitZ );
-            return true;
+            Math::CreateCircleVertices( Vector::UnitY, Vector::UnitX, g_numCircleVertices, g_circleVerticesXUp );
+            Math::CreateCircleVertices( Vector::UnitX, Vector::UnitY, g_numCircleVertices, g_circleVerticesYUp );
+            Math::CreateCircleVertices( Vector::UnitX, Vector::UnitZ, g_numCircleVertices, g_circleVerticesZUp );
+            g_circleVerticesInitialized = true;
         }
 
         //-------------------------------------------------------------------------
@@ -75,25 +65,25 @@ namespace EE::Drawing
     }
 
     //-------------------------------------------------------------------------
-    // Drawing Context
+    // Basic Shapes
     //-------------------------------------------------------------------------
 
-    void DrawContext::DrawWireTriangle( Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color, float lineThickness, DepthTest depthTestState, Seconds TTL )
+    void DebugDrawContext::DrawWireTriangle( Float3 const& v0, Float3 const& v1, Float3 const& v2, Float4 const& color, float lineThickness, DebugDrawLayer layer, Seconds TTL )
     {
-        InternalDrawLine( m_commandBuffer, v0, v1, color, lineThickness, depthTestState, TTL );
-        InternalDrawLine( m_commandBuffer, v1, v2, color, lineThickness, depthTestState, TTL );
-        InternalDrawLine( m_commandBuffer, v0, v2, color, lineThickness, depthTestState, TTL );
+        InternalDrawLine( m_commandBuffer, v0, v1, color, lineThickness, layer, TTL );
+        InternalDrawLine( m_commandBuffer, v1, v2, color, lineThickness, layer, TTL );
+        InternalDrawLine( m_commandBuffer, v0, v2, color, lineThickness, layer, TTL );
     }
 
     //-------------------------------------------------------------------------
     // Boxes / Volumes / Planes
     //-------------------------------------------------------------------------
 
-    void DrawContext::DrawPlane( Float4 const& planeEquation, Float4 const& color, DepthTest depthTestState, Seconds TTL )
+    void DebugDrawContext::DrawPlane( Float4 const& planeEquation, Float4 const& color, DebugDrawLayer layer, Seconds TTL )
     {
         auto const plane = Plane::FromPlaneEquation( planeEquation );
         auto const translation = plane.ProjectPoint( Vector::UnitW );
-        auto const rotation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::UnitZ, plane.GetNormal() );
+        auto const rotation = Quaternion::FromRotationBetweenUnitVectors( Vector::UnitZ, plane.GetNormal() );
 
         Transform transform;
         transform.SetTranslation( translation );
@@ -115,34 +105,11 @@ namespace EE::Drawing
             transform.TransformPoint( g_planeVertices[3] ),
         };
 
-        InternalDrawTriangle( m_commandBuffer, verts[0], verts[1], verts[2], color, depthTestState, TTL );
-        InternalDrawTriangle( m_commandBuffer, verts[2], verts[1], verts[3], color, depthTestState, TTL );
+        InternalDrawTriangle( m_commandBuffer, verts[0], verts[1], verts[2], color, layer, TTL );
+        InternalDrawTriangle( m_commandBuffer, verts[2], verts[1], verts[3], color, layer, TTL );
     }
 
-    void DrawContext::DrawBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, DepthTest depthTestState, Seconds TTL )
-    {
-        // Calculate transformed vertices
-        Vector verts[8] =
-        {
-            transform.TransformPoint( Vector( g_unitCubeVertices[0] ) * halfsize ),
-            transform.TransformPoint( Vector( g_unitCubeVertices[1] ) * halfsize ),
-            transform.TransformPoint( Vector( g_unitCubeVertices[2] ) * halfsize ),
-            transform.TransformPoint( Vector( g_unitCubeVertices[3] ) * halfsize ),
-            transform.TransformPoint( Vector( g_unitCubeVertices[4] ) * halfsize ),
-            transform.TransformPoint( Vector( g_unitCubeVertices[5] ) * halfsize ),
-            transform.TransformPoint( Vector( g_unitCubeVertices[6] ) * halfsize ),
-            transform.TransformPoint( Vector( g_unitCubeVertices[7] ) * halfsize )
-        };
-
-        // Register draw commands
-
-        for ( auto i = 0; i < 36; i += 3 )
-        {
-            InternalDrawTriangle( m_commandBuffer, verts[g_unitCubeSolidIndices[i]], verts[g_unitCubeSolidIndices[i + 1]], verts[g_unitCubeSolidIndices[i + 2]], color, depthTestState, TTL );
-        }
-    }
-
-    void DrawContext::DrawWireBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, float lineThickness, DepthTest depthTestState, Seconds TTL )
+    void DebugDrawContext::DrawWireBox( Transform const& transform, Float3 const& halfsize, Float4 const& color, float lineThickness, DebugDrawLayer layer, Seconds TTL )
     {
         // Calculate vertices
         Vector verts[8] =
@@ -158,10 +125,9 @@ namespace EE::Drawing
         };
 
         // Register draw commands
-
         for ( auto i = 0; i < 24; i += 2 )
         {
-            InternalDrawLine( m_commandBuffer, verts[g_unitCubeWireIndices[i]], verts[g_unitCubeWireIndices[i + 1]], color, lineThickness, depthTestState, TTL );
+            InternalDrawLine( m_commandBuffer, verts[g_unitCubeWireIndices[i]], verts[g_unitCubeWireIndices[i + 1]], color, lineThickness, layer, TTL );
         }
     }
 
@@ -169,7 +135,7 @@ namespace EE::Drawing
     // Sphere / Circle
     //-------------------------------------------------------------------------
 
-    void DrawContext::DrawCircle( Transform const& transform, Axis upAxis, float radius, Float4 const& color, float lineThickness, DepthTest depthTestState, Seconds TTL )
+    void DebugDrawContext::DrawCircle( Transform const& transform, Axis upAxis, float radius, Float4 const& color, float lineThickness, DebugDrawLayer layer, Seconds TTL )
     {
         if ( !g_circleVerticesInitialized )
         {
@@ -184,12 +150,12 @@ namespace EE::Drawing
             case Axis::NegX:
             pCircleVerts = g_circleVerticesXUp;
             break;
-            
+
             case Axis::Y:
             case Axis::NegY:
             pCircleVerts = g_circleVerticesYUp;
             break;
-            
+
             case Axis::Z:
             case Axis::NegZ:
             pCircleVerts = g_circleVerticesZUp;
@@ -208,20 +174,13 @@ namespace EE::Drawing
         // Register line commands
         for ( auto i = 1; i < g_numCircleVertices; i++ )
         {
-            InternalDrawLine( m_commandBuffer, verts[i - 1], verts[i], color, lineThickness, depthTestState, TTL );
+            InternalDrawLine( m_commandBuffer, verts[i - 1], verts[i], color, lineThickness, layer, TTL );
         }
 
-        InternalDrawLine( m_commandBuffer, verts[g_numCircleVertices - 1], verts[0], color, lineThickness, depthTestState, TTL );
+        InternalDrawLine( m_commandBuffer, verts[g_numCircleVertices - 1], verts[0], color, lineThickness, layer, TTL );
     }
 
-    void DrawContext::DrawSphere( Transform const& transform, float radius, Float4 const& color, float lineThickness, DepthTest depthTestState, Seconds TTL )
-    {
-        DrawCircle( transform, Axis::X, radius, color, lineThickness, depthTestState, TTL );
-        DrawCircle( transform, Axis::Y, radius, color, lineThickness, depthTestState, TTL );
-        DrawCircle( transform, Axis::Z, radius, color, lineThickness, depthTestState, TTL );
-    }
-
-    void DrawContext::DrawDisc( Float3 const& worldPoint, float radius, Float4 const& color, DepthTest depthTestState, Seconds TTL )
+    void DebugDrawContext::DrawDisc( Float3 const& worldPoint, float radius, Float4 const& color, DebugDrawLayer layer, Seconds TTL )
     {
         if ( !g_circleVerticesInitialized )
         {
@@ -243,15 +202,36 @@ namespace EE::Drawing
 
         for ( auto i = 1; i < numVerts; i++ )
         {
-            InternalDrawTriangle( m_commandBuffer, worldPoint, verts[i - 1], verts[i], color, depthTestState, TTL );
+            InternalDrawTriangle( m_commandBuffer, worldPoint, verts[i - 1], verts[i], color, layer, TTL );
         }
 
-        InternalDrawTriangle( m_commandBuffer, worldPoint, verts[numVerts - 1], verts[0], color, depthTestState, TTL );
+        InternalDrawTriangle( m_commandBuffer, worldPoint, verts[numVerts - 1], verts[0], color, layer, TTL );
     }
 
-
-    void DrawContext::InternalDrawCylinderOrCapsule( bool isCapsule, Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness, DepthTest depthTestState, Seconds TTL )
+    void DebugDrawContext::InternalDrawCapsule( Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, DebugMeshStyle style, DebugDrawLayer layer, Seconds TTL )
     {
+        Matrix m = worldTransform.ToMatrix();
+        m.SetScale( Vector( radius, radius, halfHeight ) );
+        InternalDrawMesh( m_commandBuffer, (uint64_t) DebugMeshID::OpenCylinder, m, color, style, layer, TTL );
+
+        Vector const offsetDir = worldTransform.GetUpVector();
+        Vector const offset = offsetDir * halfHeight;
+
+        Transform capTransform = worldTransform;
+        capTransform.SetScale( radius );
+        capTransform.AddTranslation( offset );
+        InternalDrawMesh( m_commandBuffer, (uint64_t) DebugMeshID::Hemisphere, capTransform.ToMatrix(), color, style, layer, TTL );
+
+        Quaternion const q = Quaternion( AxisAngle( worldTransform.GetForwardVector(), Degrees( 180.0f ) ) );
+        capTransform.SetRotation( capTransform.GetRotation() * q );
+        capTransform.AddTranslation( -offset * 2 );
+        InternalDrawMesh( m_commandBuffer, (uint64_t) DebugMeshID::Hemisphere, capTransform.ToMatrix(), color, style, layer, TTL );
+    }
+
+    void DebugDrawContext::InternalDrawWireCylinderOrCapsule( bool isCapsule, Transform const& worldTransform, float radius, float halfHeight, Float4 const& color, float thickness, DebugDrawLayer layer, Seconds TTL )
+    {
+        EE_ASSERT( radius >= 0.0f && halfHeight >= 0.0f );
+
         Vector const axisX = worldTransform.GetAxisX();
         Vector const axisY = worldTransform.GetAxisY();
         Vector const axisZ = worldTransform.GetAxisZ();
@@ -271,8 +251,8 @@ namespace EE::Drawing
         Vector lb0 = cylinderCenterBottom + xOffset;
         Vector lb1 = cylinderCenterBottom - xOffset;
 
-        DrawLine( lt0, lb0, color, thickness, depthTestState, TTL );
-        DrawLine( lt1, lb1, color, thickness, depthTestState, TTL );
+        DrawLine( lt0, lb0, color, thickness, layer, TTL );
+        DrawLine( lt1, lb1, color, thickness, layer, TTL );
 
         Vector yOffset = ( axisY * radius );
         Vector lt2 = cylinderCenterTop + yOffset;
@@ -280,8 +260,8 @@ namespace EE::Drawing
         Vector lb2 = cylinderCenterBottom + yOffset;
         Vector lb3 = cylinderCenterBottom - yOffset;
 
-        DrawLine( lt2, lb2, color, thickness, depthTestState, TTL );
-        DrawLine( lt3, lb3, color, thickness, depthTestState, TTL );
+        DrawLine( lt2, lb2, color, thickness, layer, TTL );
+        DrawLine( lt3, lb3, color, thickness, layer, TTL );
 
         Vector xzOffset0 = ( axisX + axisY ).GetNormalized3() * radius;
         Vector lt4 = cylinderCenterTop + xzOffset0;
@@ -289,8 +269,8 @@ namespace EE::Drawing
         Vector lb4 = cylinderCenterBottom + xzOffset0;
         Vector lb5 = cylinderCenterBottom - xzOffset0;
 
-        DrawLine( lt4, lb4, color, thickness, depthTestState, TTL );
-        DrawLine( lt5, lb5, color, thickness, depthTestState, TTL );
+        DrawLine( lt4, lb4, color, thickness, layer, TTL );
+        DrawLine( lt5, lb5, color, thickness, layer, TTL );
 
         Vector xzOffset1 = ( axisX - axisY ).GetNormalized3() * radius;
         Vector lt6 = cylinderCenterTop + xzOffset1;
@@ -298,14 +278,14 @@ namespace EE::Drawing
         Vector lb6 = cylinderCenterBottom + xzOffset1;
         Vector lb7 = cylinderCenterBottom - xzOffset1;
 
-        DrawLine( lt6, lb6, color, thickness, depthTestState, TTL );
-        DrawLine( lt7, lb7, color, thickness, depthTestState, TTL );
+        DrawLine( lt6, lb6, color, thickness, layer, TTL );
+        DrawLine( lt7, lb7, color, thickness, layer, TTL );
 
         // Caps
         //-------------------------------------------------------------------------
 
-        DrawCircle( Transform( worldTransform.GetRotation(), cylinderCenterTop ), Axis::Z, radius, color, thickness, depthTestState, TTL );
-        DrawCircle( Transform( worldTransform.GetRotation(), cylinderCenterBottom ), Axis::Z, radius, color, thickness, depthTestState, TTL );
+        DrawCircle( Transform( worldTransform.GetRotation(), cylinderCenterTop ), Axis::Z, radius, color, thickness, layer, TTL );
+        DrawCircle( Transform( worldTransform.GetRotation(), cylinderCenterBottom ), Axis::Z, radius, color, thickness, layer, TTL );
 
         //-------------------------------------------------------------------------
 
@@ -313,7 +293,7 @@ namespace EE::Drawing
         {
             Radians const radiansPerEdge( Math::TwoPi / g_numCircleVertices );
 
-            auto DrawSemiCircle = [&]( Vector const& startPoint, Vector const& capCenterPoint, Vector const& shapeOrigin )
+            auto DrawSemiCircle = [&] ( Vector const& startPoint, Vector const& capCenterPoint, Vector const& shapeOrigin )
             {
                 Vector planeVector = startPoint - capCenterPoint;
                 Vector const rotationAxis = ( startPoint - capCenterPoint ).Cross3( startPoint - shapeOrigin ).GetNormalized3();
@@ -324,7 +304,7 @@ namespace EE::Drawing
                 {
                     prevPlaneVector = planeVector;
                     planeVector = rotation.RotateVector( planeVector );
-                    DrawLine( capCenterPoint + prevPlaneVector, capCenterPoint + planeVector, color, thickness, depthTestState, TTL );
+                    DrawLine( capCenterPoint + prevPlaneVector, capCenterPoint + planeVector, color, thickness, layer, TTL );
                 }
             };
 
@@ -340,11 +320,31 @@ namespace EE::Drawing
         }
     }
 
+    void DebugDrawContext::InternalDrawCapsule( Vector const& c0, Vector const& c1, float radius, Float4 const& color, DebugMeshStyle style, DebugDrawLayer layer, Seconds TTL )
+    {
+        Vector center;
+        Quaternion orientation;
+        float halfHeight = 0.0f;
+        Math::CalculateCapsuleProperties( c0, c1, center, halfHeight, orientation );
+
+        InternalDrawCapsule( Transform( orientation, center ), radius, halfHeight, color, style, layer, TTL );
+    }
+
+    void DebugDrawContext::InternalDrawWireCylinderOrCapsule( bool isCapsule, Vector const& c0, Vector const& c1, float radius, Float4 const& color, float thickness, DebugDrawLayer layer, Seconds TTL )
+    {
+        Vector center;
+        Quaternion orientation;
+        float halfHeight = 0.0f;
+        Math::CalculateCapsuleProperties( c0, c1, center, halfHeight, orientation );
+
+        InternalDrawWireCylinderOrCapsule( isCapsule, Transform( orientation, center ), radius, halfHeight, color, thickness, layer, TTL );
+    }
+
     //-------------------------------------------------------------------------
     // Complex Shapes
     //-------------------------------------------------------------------------
 
-    void DrawContext::DrawArrow( Float3 const& startPoint, Float3 const& endPoint, Float4 const& color, float thickness, DepthTest depthTestState, Seconds TTL )
+    void DebugDrawContext::DrawArrow( Float3 const& startPoint, Float3 const& endPoint, Float4 const& color, float thickness, DebugDrawLayer layer, Seconds TTL )
     {
         constexpr static float const minArrowHeadThickness = 16.0f; // 16 pixels
         constexpr static float const maxArrowHeadLength = 0.1f; // 10cm
@@ -361,11 +361,14 @@ namespace EE::Drawing
         Vector const vArrowHeadStartPoint = vStart + ( arrowDirection * arrowHeadLength );
         Float3 const arrowHeadStartPoint = vArrowHeadStartPoint.ToFloat3();
 
-        InternalDrawLine( m_commandBuffer, startPoint, arrowHeadStartPoint, color, thickness, depthTestState, TTL );
-        InternalDrawLine( m_commandBuffer, arrowHeadStartPoint, endPoint, color, arrowHeadThickness, 2.0f, depthTestState, TTL );
+        InternalDrawLine( m_commandBuffer, startPoint, arrowHeadStartPoint, color, thickness, layer, TTL );
+
+        auto arrowCommand = DebugDrawInternal::LineCommand( arrowHeadStartPoint, endPoint, color, arrowHeadThickness, 2.0F, TTL );
+        arrowCommand.m_commandFlags |= DebugDrawInternal::DebugCommandFlagDisableAA;
+        m_commandBuffer.AddCommand( eastl::move( arrowCommand ), layer );
     }
 
-    void DrawContext::DrawCone( Transform const& transform, Radians coneAngle, float length, Float4 const& color, float thickness, DepthTest depthTestState, Seconds TTL )
+    void DebugDrawContext::DrawCone( Transform const& transform, Radians coneAngle, float length, Float4 const& color, float thickness, DebugDrawLayer layer, Seconds TTL )
     {
         Vector const capOffset = ( transform.GetForwardVector() * length );
         float const coneCapRadius = Math::Tan( coneAngle.ToFloat() ) * length;
@@ -386,68 +389,12 @@ namespace EE::Drawing
         // Register line commands
         for ( auto i = 1; i < g_numCircleVertices; i++ )
         {
-            InternalDrawLine( m_commandBuffer, transform.GetTranslation(), verts[i], color, thickness, depthTestState, TTL );
-            InternalDrawLine( m_commandBuffer, verts[i - 1], verts[i], color, thickness, depthTestState, TTL );
+            InternalDrawLine( m_commandBuffer, transform.GetTranslation(), verts[i], color, thickness, layer, TTL );
+            InternalDrawLine( m_commandBuffer, verts[i - 1], verts[i], color, thickness, layer, TTL );
         }
 
-        InternalDrawLine( m_commandBuffer, transform.GetTranslation(), verts[0], color, thickness, depthTestState, TTL );
-        InternalDrawLine( m_commandBuffer, verts[0], verts[g_numCircleVertices-1], color, thickness, depthTestState, TTL );
-    }
-
-    void DrawContext::DrawTwistLimits( Transform const& jointTransform, Axis twistAxis, Axis upAxis, Radians limitMin, Radians limitMax, Color color, float lineThickness, float limitSize )
-    {
-        EE_ASSERT( limitMin < limitMax );
-        EE_ASSERT( twistAxis != upAxis );
-        EE_ASSERT( upAxis != Axis( (int32_t) twistAxis + 3 ) );
-
-        Vector const vRotationAxis = jointTransform.GetAxis( twistAxis );
-        Vector const vZeroTwist = jointTransform.GetAxis( upAxis );
-
-        constexpr uint32_t const numVertices = 30;
-        TInlineVector<Vector, numVertices> vertices;
-
-        Radians const deltaAngle = ( limitMax - limitMin ) / numVertices;
-        for ( int32_t i = 0; i < numVertices; i++ )
-        {
-            auto rotatedVector = Quaternion( vRotationAxis, limitMin + ( deltaAngle * i ) ).RotateVector( vZeroTwist );
-            vertices.push_back( jointTransform.GetTranslation() + ( rotatedVector * limitSize ) );
-            DrawLine( jointTransform.GetTranslation(), vertices.back(), color, lineThickness );
-        }
-
-        for ( auto i = 1; i < numVertices; i++ )
-        {
-            DrawLine( vertices[i - 1], vertices[i], color, lineThickness );
-        }
-    }
-
-    void DrawContext::DrawSwingLimits( Transform const& jointTransform, Axis swingAxis1, Axis swingAxis2, Axis zeroAxis, Radians limit1, Radians limit2, Color color, float lineThickness, float limitSize )
-    {
-        Vector const vSwingAxis1 = jointTransform.GetAxis( swingAxis1 );
-        Vector const vSwingAxis2 = jointTransform.GetAxis( swingAxis2 );
-        Vector const vZeroSwing = jointTransform.GetAxis( zeroAxis );
-
-        constexpr uint32_t const numVertices = 30;
-        TInlineVector<Vector, numVertices> vertices;
-
-        Radians const startAngleY = -( limit1 / 2 );
-        Radians const deltaAngleY = limit1 / numVertices;
-        for ( int32_t i = 0; i < numVertices; i++ )
-        {
-            auto rotatedVector = Quaternion( vSwingAxis1, startAngleY + ( deltaAngleY * i ) ).RotateVector( vZeroSwing );
-            vertices.push_back( jointTransform.GetTranslation() + ( rotatedVector * limitSize ) );
-            DrawLine( jointTransform.GetTranslation(), vertices.back(), Colors::Green, lineThickness );
-        }
-
-        vertices.clear();
-
-        Radians const startAngleZ = -( limit2 / 2 );
-        Radians const deltaAngleZ = limit2 / numVertices;
-        for ( int32_t i = 0; i < numVertices; i++ )
-        {
-            auto rotatedVector = Quaternion( vSwingAxis2, startAngleZ + ( deltaAngleZ * i ) ).RotateVector( vZeroSwing );
-            vertices.push_back( jointTransform.GetTranslation() + ( rotatedVector * limitSize ) );
-            DrawLine( jointTransform.GetTranslation(), vertices.back(), Colors::RoyalBlue, lineThickness );
-        }
+        InternalDrawLine( m_commandBuffer, transform.GetTranslation(), verts[0], color, thickness, layer, TTL );
+        InternalDrawLine( m_commandBuffer, verts[0], verts[g_numCircleVertices - 1], color, thickness, layer, TTL );
     }
 }
 #endif

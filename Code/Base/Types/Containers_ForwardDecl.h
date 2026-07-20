@@ -33,23 +33,36 @@ namespace eastl
 
     template <typename T1, typename T2>
     struct pair;
+
+    template <typename T, size_t Extent>
+    class span;
+
+    //-------------------------------------------------------------------------
+
+    template <size_t Alignment> class TrackedAllocatorBase;
+    using TrackedAllocator = TrackedAllocatorBase<16>;
+    using TrackedAlignedAllocator = TrackedAllocatorBase<32>;
 }
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
-    using String = eastl::basic_string<char, eastl::allocator>;
-    template<size_t S> using TInlineString = eastl::fixed_string<char, S, true, eastl::allocator>;
-    using InlineString = eastl::fixed_string<char, 255, true, eastl::allocator>;
+    using String = eastl::basic_string<char, eastl::TrackedAllocator>;
+    template<size_t S> using TInlineString = eastl::fixed_string<char, S, true, eastl::TrackedAllocator>;
+    using InlineString = eastl::fixed_string<char, 255, true, eastl::TrackedAllocator>;
 
-    template<typename T> using TVector = eastl::vector<T, eastl::allocator>;
-    template<typename T, size_t S> using TInlineVector = eastl::fixed_vector<T, S, true, eastl::allocator>;
+    template<typename T> using TVector = eastl::vector<T, eastl::TrackedAllocator>;
+    template<typename T, size_t S> using TInlineVector = eastl::fixed_vector<T, S, true, eastl::TrackedAllocator>;
     template<typename T, size_t S> using TArray = eastl::array<T, S>;
+
+    template <typename T> using TAlignedVector = eastl::vector<T, eastl::TrackedAlignedAllocator>;
 
     using Blob = TVector<uint8_t>;
 
-    template<typename K, typename V> using THashMap = eastl::hash_map<K, V, eastl::hash<K>, eastl::equal_to<K>, eastl::allocator, false>;
+    template <typename T> using TArrayView = eastl::span<T, size_t( -1 )>;
+
+    template<typename K, typename V> using THashMap = eastl::hash_map<K, V, eastl::hash<K>, eastl::equal_to<K>, eastl::TrackedAllocator, false>;
 
     template<typename K, typename V> using TPair = eastl::pair<K, V>;
 }

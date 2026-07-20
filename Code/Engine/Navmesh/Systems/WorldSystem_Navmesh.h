@@ -27,6 +27,7 @@ namespace EE::Navmesh
     class EE_ENGINE_API NavmeshWorldSystem : public EntityWorldSystem
     {
         friend class NavmeshDebugView;
+        friend class NavmeshViewportSettings;
         friend class NavmeshDebugRenderer;
 
         //-------------------------------------------------------------------------
@@ -41,7 +42,7 @@ namespace EE::Navmesh
 
     public:
 
-        EE_ENTITY_WORLD_SYSTEM( NavmeshWorldSystem, RequiresUpdate( UpdateStage::Physics ) );
+        EE_ENTITY_WORLD_SYSTEM( NavmeshWorldSystem, RequiresUpdate( UpdateStage::GamePrePhysics ) );
 
     public:
 
@@ -58,8 +59,8 @@ namespace EE::Navmesh
         virtual void InitializeSystem( SystemRegistry const& systemRegistry ) override;
         virtual void ShutdownSystem() override;
 
-        virtual void RegisterComponent( Entity const* pEntity, EntityComponent* pComponent ) override final;
-        virtual void UnregisterComponent( Entity const* pEntity, EntityComponent* pComponent ) override final;
+        virtual void RegisterComponent( Entity* pEntity, EntityComponent* pComponent ) override final;
+        virtual void UnregisterComponent( Entity* pEntity, EntityComponent* pComponent ) override final;
 
         void RegisterNavmesh( NavmeshComponent* pComponent );
         void UnregisterNavmesh( NavmeshComponent* pComponent );
@@ -67,6 +68,7 @@ namespace EE::Navmesh
         void UpdateSystem( EntityWorldUpdateContext const& ctx ) override;
 
         #if EE_DEVELOPMENT_TOOLS
+        virtual void DebugDraw( EntityWorldUpdateContext const& ctx ) override;
         bool IsDebugRendererDepthTestEnabled() const;
         void SetDebugRendererDepthTestState( bool isDepthTestingEnabled );
         #endif

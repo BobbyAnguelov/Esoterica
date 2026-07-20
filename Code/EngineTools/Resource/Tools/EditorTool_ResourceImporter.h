@@ -1,8 +1,8 @@
 #pragma once
 #include "EngineTools/Import/RawFileInspector.h"
 #include "EngineTools/Core/EditorTool.h"
-#include "EngineTools/Core/CategoryTree.h"
 #include "EngineTools/Widgets/TreeListView.h"
+#include "Base/Utils/CategoryTree.h"
 
 //-------------------------------------------------------------------------
 
@@ -57,7 +57,7 @@ namespace EE::Resource
         virtual bool IsSingleWindowTool() const override { return true; }
         virtual bool SupportsMainMenu() const override { return false; }
         virtual void Initialize( UpdateContext const& context ) override;
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
+        virtual void SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
         void UpdateVisibility();

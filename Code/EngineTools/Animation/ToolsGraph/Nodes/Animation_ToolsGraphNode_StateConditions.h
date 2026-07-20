@@ -39,7 +39,7 @@ namespace EE::Animation
     private:
 
         EE_REFLECT() float                                    m_comparand = 0.0f;
-        EE_REFLECT() TimeConditionNode::ComparisonType        m_type = TimeConditionNode::ComparisonType::ElapsedTime;
+        EE_REFLECT() TimeConditionNode::ComparisonType        m_type = TimeConditionNode::ComparisonType::CurrentTime;
         EE_REFLECT() TimeConditionNode::Operator              m_operator = TimeConditionNode::Operator::LessThan;
     };
 }

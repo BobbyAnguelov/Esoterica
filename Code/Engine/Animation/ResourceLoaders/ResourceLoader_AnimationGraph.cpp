@@ -12,12 +12,12 @@ namespace EE::Animation
         m_loadableTypes.push_back( GraphDefinition::GetStaticResourceTypeID() );
     }
 
-    Resource::ResourceLoader::LoadResult GraphLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::LoadResult GraphLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive* pArchive ) const
     {
         auto const resourceTypeID = resourceID.GetResourceTypeID();
 
         auto* pGraphDef = EE::New<GraphDefinition>();
-        archive << *pGraphDef;
+        ( *pArchive ) << *pGraphDef;
         pResourceRecord->SetResourceData( pGraphDef );
 
         // Create parameter lookup map
@@ -39,28 +39,28 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        archive << pGraphDef->m_nodePaths;
+        ( *pArchive ) << pGraphDef->m_nodePaths;
         #endif
 
         // Create node definitions
         //-------------------------------------------------------------------------
 
         TypeSystem::TypeDescriptorCollection typeDescriptors;
-        archive << typeDescriptors;
+        ( *pArchive ) << typeDescriptors;
 
         typeDescriptors.CalculateCollectionRequirements( *m_pTypeRegistry );
         TypeSystem::TypeDescriptorCollection::InstantiateStaticCollection( *m_pTypeRegistry, typeDescriptors, pGraphDef->m_nodeDefinitions );
 
         for ( auto pNodeDefinition : pGraphDef->m_nodeDefinitions )
         {
-            pNodeDefinition->Load( archive );
+            pNodeDefinition->Load( *pArchive );
         }
 
         bool const loadSucceeded = pGraphDef->m_variationID.IsValid() && pGraphDef->m_skeleton.IsSet();
-        return loadSucceeded ? Resource::ResourceLoader::LoadResult::Succeeded : Resource::ResourceLoader::LoadResult::Failed;
+        return loadSucceeded ? Resource::LoadResult::Complete : Resource::LoadResult::Failed;
     }
 
-    Resource::ResourceLoader::LoadResult GraphLoader::Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
+    Resource::LoadResult GraphLoader::Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
     {
         auto pGraphDefinition = pResourceRecord->GetResourceData<GraphDefinition>();
 
@@ -72,8 +72,8 @@ namespace EE::Animation
 
         if ( !pGraphDefinition->m_skeleton.IsLoaded() )
         {
-            EE_LOG_ERROR( "Animation", "Graph Loader", "Failed to install skeleton for graph defintion: %s", resourceID.ToString().c_str() );
-            return ResourceLoader::LoadResult::Failed;
+            LogError( pResourceRecord, "Failed to install skeleton for graph definition: %s", resourceID.c_str() );
+            return Resource::LoadResult::Failed;
         }
 
         // Fill Slots
@@ -94,7 +94,7 @@ namespace EE::Animation
         for ( Resource::ResourcePtr const& installDependency : installDependencies )
         {
             // Add to LUT
-            pGraphDefinition->m_resourceLUT.insert( TPair<uint32_t, Resource::ResourcePtr>( installDependency.GetResourceID().GetPathID(), installDependency ) );
+            pGraphDefinition->m_resourceLUT.insert( TPair<uint64_t, Resource::ResourcePtr>( installDependency.GetResourceID().GetPathID(), installDependency ) );
 
             // Add referenced graph resources to the LUT
             if ( installDependency.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() )
@@ -102,17 +102,17 @@ namespace EE::Animation
                 GraphDefinition const* pReferencedGraphDef = installDependency.GetPtr<GraphDefinition>();
                 for ( auto const& iter : pReferencedGraphDef->m_resourceLUT )
                 {
-                    pGraphDefinition->m_resourceLUT.insert( TPair<uint32_t, Resource::ResourcePtr>( iter.second.GetResourceID().GetPathID(), iter.second ) );
+                    pGraphDefinition->m_resourceLUT.insert( TPair<uint64_t, Resource::ResourcePtr>( iter.second.GetResourceID().GetPathID(), iter.second ) );
                 }
             }
         }
 
         //-------------------------------------------------------------------------
 
-        return ResourceLoader::Install( resourceID, installDependencies, pResourceRecord );
+        return Resource::LoadResult::Complete;
     }
 
-    void GraphLoader::Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
+    Resource::UnloadResult GraphLoader::Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
     {
         auto const resourceTypeID = resourceID.GetResourceTypeID();
 
@@ -123,6 +123,6 @@ namespace EE::Animation
             TypeSystem::TypeDescriptorCollection::DestroyStaticCollection( pGraphDef->m_nodeDefinitions );
         }
 
-        ResourceLoader::Unload( resourceID, pResourceRecord );
+        return Resource::UnloadResult::Complete;
     }
 }

@@ -18,25 +18,21 @@ namespace EE::Animation
 
     public:
 
-        void UpdateInputPins();
+        EntryStateOverrideConditionsToolsNode();
 
-        void UpdatePinToStateMapping( THashMap<UUID, UUID> const& IDMapping );
-
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::EntryOverrideTree ); }
 
     private:
 
         virtual char const* GetTypeName() const override { return "Entry State Conditions"; }
         virtual char const* GetCategory() const override { return "State Machine"; }
         virtual bool IsUserCreatable() const override { return false; }
-        virtual void OnShowNode() override;
         virtual int16_t Compile( GraphCompilationContext& context ) const override { EE_UNREACHABLE_CODE(); return InvalidIndex; }
 
     private:
 
-        // For each pin, what state does it represent
         EE_REFLECT( Hidden );
-        TVector<UUID>  m_pinToStateMapping;
+        UUID m_stateID;
     };
 
     // State Machine Node
@@ -64,5 +60,6 @@ namespace EE::Animation
         virtual Color GetTitleBarColor() const override { return Colors::SlateBlue; }
         virtual char const* GetTypeName() const override { return "Entry Overrides"; }
         virtual bool IsUserCreatable() const override { return false; }
+        virtual void OnShowNode() override;
     };
 }

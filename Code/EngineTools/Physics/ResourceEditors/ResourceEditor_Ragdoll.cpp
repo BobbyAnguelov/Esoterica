@@ -1,6 +1,7 @@
 #include "ResourceEditor_Ragdoll.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
-#include "EngineTools/Core/Dialogs.h"
+#include "EngineTools/PropertyGrid/PropertyGridTypeEditingRules.h"
+#include "EngineTools/Core/SystemDialogs.h"
 #include "Engine/Physics/PhysicsWorld.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Animation/AnimationClip.h"
@@ -9,8 +10,8 @@
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Animation/AnimationPose.h"
-#include "Base/Math/MathUtils.h"
-#include "Base/Math/MathUtils.h"
+#include "Base/Math/Intersection.h"
+#include "../../Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
 
 //-------------------------------------------------------------------------
 
@@ -20,158 +21,68 @@ namespace EE::Physics
 
     //-------------------------------------------------------------------------
 
-    class [[nodiscard]] ScopedRagdollSettingsModification : public ScopedDataFileModification
-    {
-    public:
-
-        ScopedRagdollSettingsModification( RagdollEditor* pEditor )
-            : ScopedDataFileModification( pEditor )
-            , m_pRagdollEditor( pEditor )
-        {}
-
-        virtual ~ScopedRagdollSettingsModification()
-        {
-            if ( m_pRagdollEditor->IsPreviewing() )
-            {
-                m_pRagdollEditor->m_refreshRagdollSettings = true;
-            }
-            else // Any change should update the profile working copy (since we might have added/removed bodies)
-            {
-                m_pRagdollEditor->UpdateProfileWorkingCopy();
-            }
-        }
-
-    private:
-
-        RagdollEditor*  m_pRagdollEditor = nullptr;
-    };
-
-    //-------------------------------------------------------------------------
-
-    static int32_t GetParentBodyIndex( Animation::Skeleton const* pSkeleton, RagdollDefinition const& definition, int32_t bodyIdx )
-    {
-        EE_ASSERT( bodyIdx >= 0 && bodyIdx < definition.m_bodies.size() );
-
-        int32_t const boneIdx = pSkeleton->GetBoneIndex( definition.m_bodies[bodyIdx].m_boneID );
-
-        // Traverse the hierarchy to try to find the first parent bone that has a body
-        int32_t parentBoneIdx = pSkeleton->GetParentBoneIndex( boneIdx );
-        while ( parentBoneIdx != InvalidIndex )
-        {
-            // Do we have a body for this parent bone?
-            StringID const parentBoneID = pSkeleton->GetBoneID( parentBoneIdx );
-            for ( int32_t i = 0; i < definition.m_bodies.size(); i++ )
-            {
-                if ( definition.m_bodies[i].m_boneID == parentBoneID )
-                {
-                    return i;
-                }
-            }
-
-            parentBoneIdx = pSkeleton->GetParentBoneIndex( parentBoneIdx );
-        }
-
-        return InvalidIndex;
-    }
-
-    //-------------------------------------------------------------------------
-
     RagdollEditor::RagdollEditor( ToolsContext const* pToolsContext, ResourceID const& resourceID, EntityWorld* pWorld )
         : TResourceEditor<RagdollDefinition>( pToolsContext, resourceID, pWorld )
-        , m_bodyEditorPropertyGrid( pToolsContext )
-        , m_solverSettingsGrid( pToolsContext )
-        , m_resourceFilePicker( *pToolsContext )
+        , m_propertyGrid( pToolsContext )
+        , m_animPicker( *pToolsContext )
     {
-        auto OnPreEdit = [this] ( PropertyEditInfo const& info ) 
+        m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, true );
+        m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowCoordinateSpaceSwitching, true );
+        m_gizmo.SetMode( ImGuiX::Gizmo::Mode::Translation );
+
+        auto OnPreEdit = [this] ( PropertyEditInfo const& info )
         {
             BeginDataFileModification();
         };
-        
-        auto OnPostEdit = [this] ( PropertyEditInfo const& info ) 
+
+        auto OnPostEdit = [this] ( PropertyEditInfo const& info )
         {
             EE_ASSERT( m_pActiveUndoableAction != nullptr );
             EndDataFileModification();
         };
 
-        m_bodyGridPreEditEventBindingID = m_bodyEditorPropertyGrid.OnPreEdit().Bind( OnPreEdit );
-        m_bodyGridPostEditEventBindingID = m_bodyEditorPropertyGrid.OnPostEdit().Bind( OnPostEdit );
+        m_preEditEventBindingID = m_propertyGrid.OnPreEdit().Bind( OnPreEdit );
+        m_postEditEventBindingID = m_propertyGrid.OnPostEdit().Bind( OnPostEdit );
 
         //-------------------------------------------------------------------------
 
-        auto OnSolverPreEdit = [this] ( PropertyEditInfo const& info )
+        auto CustomResourceFilter = [this] ( Resource::ResourceDescriptor const* pDesc )
         {
-            EE_ASSERT( m_pActiveUndoableAction == nullptr );
-            BeginDataFileModification();
+            auto pClipDesc = Cast<Animation::AnimationClipResourceDescriptor>( pDesc );
+            return pClipDesc->m_skeleton == m_skeleton;
         };
 
-        auto OnSolverPostEdit = [this] ( PropertyEditInfo const& info )
-        {
-            EE_ASSERT( m_pActiveUndoableAction != nullptr );
-            auto pSolverSettings = Cast<RagdollDefinition::Profile>( m_solverSettingsGrid.GetEditedType() );
-            pSolverSettings->CorrectSettingsToValidRanges();
-            EndDataFileModification();
-        };
-
-        m_solverGridPreEditEventBindingID = m_solverSettingsGrid.OnPreEdit().Bind( OnSolverPreEdit );
-        m_solverGridPostEditEventBindingID = m_solverSettingsGrid.OnPostEdit().Bind( OnSolverPostEdit );
-
-        //-------------------------------------------------------------------------
-
-        m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
-        m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowCoordinateSpaceSwitching, false );
-        m_gizmo.SetMode( ImGuiX::Gizmo::GizmoMode::Translation );
+        m_animPicker.SetRequiredResourceType( Animation::AnimationClip::GetStaticResourceTypeID() );
+        m_animPicker.SetCustomResourceFilter( CustomResourceFilter );
     }
 
     RagdollEditor::~RagdollEditor()
     {
-        EE_ASSERT( !IsPreviewing() );
         EE_ASSERT( m_pSkeletonTreeRoot == nullptr );
         EE_ASSERT( !m_skeleton.IsSet() || m_skeleton.IsUnloaded() );
 
-        m_bodyEditorPropertyGrid.OnPreEdit().Unbind( m_bodyGridPreEditEventBindingID );
-        m_bodyEditorPropertyGrid.OnPostEdit().Unbind( m_bodyGridPostEditEventBindingID );
-        m_solverSettingsGrid.OnPreEdit().Unbind( m_solverGridPreEditEventBindingID );
-        m_solverSettingsGrid.OnPostEdit().Unbind( m_solverGridPostEditEventBindingID );
+        m_propertyGrid.OnPreEdit().Unbind( m_preEditEventBindingID );
+        m_propertyGrid.OnPostEdit().Unbind( m_postEditEventBindingID );
     }
 
     //-------------------------------------------------------------------------
     // Editor Lifetime
     //-------------------------------------------------------------------------
 
-    bool RagdollEditor::SaveData()
-    {
-        auto pResourceDescriptor = GetRagdollDescriptor();
-        pResourceDescriptor->m_bodies = m_ragdollDefinition.m_bodies;
-        pResourceDescriptor->m_profiles = m_ragdollDefinition.m_profiles;
-
-        return TResourceEditor::SaveData();
-    }
-
     void RagdollEditor::Initialize( UpdateContext const& context )
     {
         TResourceEditor::Initialize( context );
 
-        auto pResourceDescriptor = GetRagdollDescriptor();
-        m_ragdollDefinition.m_skeleton = pResourceDescriptor->m_skeleton;
-        m_ragdollDefinition.m_bodies = pResourceDescriptor->m_bodies;
-        m_ragdollDefinition.m_profiles = pResourceDescriptor->m_profiles;
-
         //-------------------------------------------------------------------------
 
-        CreateToolWindow( "Body Editor", [this] ( UpdateContext const& context, bool isFocused ) { DrawDataFileEditorWindow( context, isFocused ); } );
-        CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDataFileEditorWindow( context, isFocused ); } );
-        CreateToolWindow( "Profile Editor", [this] ( UpdateContext const& context, bool isFocused ) { DrawDataFileEditorWindow( context, isFocused ); } );
-        CreateToolWindow( "Preview Controls", [this] ( UpdateContext const& context, bool isFocused ) { DrawDataFileEditorWindow( context, isFocused ); } );
+        CreateToolWindow( "Outliner", [this] ( UpdateContext const& context, bool isFocused ) { DrawOutlinerWindow( context, isFocused ); } );
+        CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDetailsWindow( context, isFocused ); } );
+        CreateToolWindow( "Preview Controls", [this] ( UpdateContext const& context, bool isFocused ) { DrawPreviewControlsWindow( context, isFocused ); } );
+        CreateToolWindow( "Self Collision", [this] ( UpdateContext const& context, bool isFocused ) { DrawSelfCollisionEditorWindow( context, isFocused ); } );
     }
 
     void RagdollEditor::Shutdown( UpdateContext const& context )
     {
-        // Stop preview
-        if ( IsPreviewing() )
-        {
-            StopPreview();
-        }
-
         // Unload preview animation
         if ( m_previewAnimation.IsSet() && !m_previewAnimation.IsUnloaded() )
         {
@@ -180,31 +91,11 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        m_activeProfileID = StringID();
         TResourceEditor<RagdollDefinition>::Shutdown( context );
-    }
-
-    void RagdollEditor::PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
-    {
-        TResourceEditor<RagdollDefinition>::PostUndoRedo( operation, pAction );
-
-        if ( IsPreviewing() )
-        {
-            StopPreview();
-        }
-
-        UpdateProfileWorkingCopy();
     }
 
     void RagdollEditor::OnDataFileUnload()
     {
-        if ( IsPreviewing() )
-        {
-            StopPreview();
-        }
-
-        //-------------------------------------------------------------------------
-
         UnloadSkeleton();
     }
 
@@ -229,669 +120,18 @@ namespace EE::Physics
     {
         if ( pResourcePtr == &m_skeleton && m_skeleton.IsLoaded() )
         {
+            FixUpDescriptorBodiesAndSettings();
             CreatePreviewEntity();
             CreateSkeletonTree();
-            PerformAdvancedDefinitionValidation();
         }
     }
-
-    //-------------------------------------------------------------------------
-    // Editor UI
-    //-------------------------------------------------------------------------
-
-    void RagdollEditor::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
-    {
-        ImGuiID viewportDockID = 0;
-        ImGuiID leftDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Left, 0.3f, nullptr, &viewportDockID );
-        ImGuiID bottomleftDockID = ImGui::DockBuilderSplitNode( leftDockID, ImGuiDir_Down, 0.3f, nullptr, &leftDockID );
-        ImGuiID bottomDockID = ImGui::DockBuilderSplitNode( viewportDockID, ImGuiDir_Down, 0.2f, nullptr, &viewportDockID );
-        ImGuiID rightDockID = ImGui::DockBuilderSplitNode( viewportDockID, ImGuiDir_Right, 0.2f, nullptr, &viewportDockID );
-
-        // Dock windows
-        //-------------------------------------------------------------------------
-
-        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), viewportDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Body Editor" ).c_str(), leftDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomleftDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Profile Editor" ).c_str(), bottomDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomDockID);
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Preview Controls" ).c_str(), rightDockID );
-    }
-
-    void RagdollEditor::DrawMenu( UpdateContext const& context )
-    {
-        bool const isValidDefinition = IsValidDefinition();
-
-        ImGuiX::SameLineSeparator( 15 );
-
-        //-------------------------------------------------------------------------
-
-        ImGui::BeginDisabled( IsPreviewing() );
-        if ( ImGui::BeginMenu( EE_ICON_ACCOUNT_WRENCH" Authoring Tools" ) )
-        {
-            ImGui::BeginDisabled( !isValidDefinition );
-            if ( ImGui::MenuItem( "Autogenerate Bodies + joints" ) )
-            {
-                AutogenerateBodiesAndJoints();
-            }
-
-            if ( ImGui::MenuItem( "Autogenerate Body Masses" ) )
-            {
-                AutogenerateBodyWeights();
-            }
-            ImGui::EndDisabled();
-
-            ImGui::EndMenu();
-        }
-
-        if ( ImGui::BeginMenu( EE_ICON_RUN" Visualization" ) )
-        {
-            ImGui::SeparatorText( "Editing" );
-
-            ImGui::MenuItem( "Show Skeleton", nullptr, &m_drawSkeleton );
-            ImGui::MenuItem( "Show Body Axes", nullptr, &m_drawBodyAxes );
-            ImGui::MenuItem( "Show Only Selected Bodies", nullptr, &m_isolateSelectedBody );
-
-            ImGui::SeparatorText( "Preview" );
-
-            ImGui::MenuItem( "Draw Ragdoll", nullptr, &m_drawRagdoll );
-            ImGui::MenuItem( "Draw Anim Pose", nullptr, &m_drawAnimationPose );
-
-            ImGui::EndMenu();
-        }
-        ImGui::EndDisabled();
-
-        // Preview Button
-        //-------------------------------------------------------------------------
-
-        ImVec2 const menuDimensions = ImGui::GetContentRegionAvail();
-        float buttonDimensions = 130;
-        ImGui::SameLine( menuDimensions.x / 2 - buttonDimensions / 2 );
-
-        if ( IsPreviewing() )
-        {
-            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview", Colors::Red, ImVec2( buttonDimensions, 0 ) ) )
-            {
-                StopPreview();
-            }
-        }
-        else
-        {
-            ImGui::BeginDisabled( !isValidDefinition );
-            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Ragdoll", Colors::Green, ImVec2( buttonDimensions, 0 ) ) )
-            {
-                StartPreview( context );
-            }
-            ImGui::EndDisabled();
-        }
-    }
-
-    void RagdollEditor::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
-    {
-        TResourceEditor<RagdollDefinition>::DrawViewportOverlayElements( context, pViewport );
-
-        auto pRagdollDesc = GetRagdollDescriptor();
-        if ( !pRagdollDesc->IsValid() )
-        {
-            return;
-        }
-
-        if ( !IsValidDefinition() )
-        {
-            return;
-        }
-
-        if ( !m_skeleton.IsLoaded() )
-        {
-            return;
-        }
-
-        if ( !m_activeProfileID.IsValid() )
-        {
-            return;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( IsPreviewing() )
-        {
-            Transform previewWorldTransform = m_pMeshComponent->GetWorldTransform();
-            auto const gizmoResult = m_gizmo.Draw( previewWorldTransform.GetTranslation(), previewWorldTransform.GetRotation(), *pViewport );
-            if ( gizmoResult.m_state == ImGuiX::Gizmo::State::Manipulating )
-            {
-                gizmoResult.ApplyResult( previewWorldTransform );
-                m_pMeshComponent->SetWorldTransform( previewWorldTransform );
-            }
-
-            //-------------------------------------------------------------------------
-
-            if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
-            {
-                // Unproject mouse into viewport
-                Vector const nearPointWS = pViewport->ScreenSpaceToWorldSpaceNearPlane( ImGui::GetMousePos() - ImGui::GetWindowPos() );
-                Vector const farPointWS = pViewport->ScreenSpaceToWorldSpaceFarPlane( ImGui::GetMousePos() - ImGui::GetWindowPos() );
-
-                // Object
-                if ( ImGui::IsKeyDown( ImGuiKey_LeftShift ) || ImGui::IsKeyDown( ImGuiKey_LeftShift ) )
-                {
-                    Vector const initialVelocity = ( farPointWS - nearPointWS ).GetNormalized3() * m_collisionActorInitialVelocity;
-                    SpawnCollisionActor( nearPointWS, initialVelocity );
-                }
-                // Impulse
-                else if ( ImGui::IsKeyDown( ImGuiKey_LeftCtrl ) || ImGui::IsKeyDown( ImGuiKey_RightCtrl ) )
-                {
-                    m_pRagdoll->ApplyImpulse( nearPointWS, ( farPointWS - nearPointWS ).GetNormalized3(), m_impulseStrength );
-                }
-            }
-        }
-        else // Editing
-        {
-            auto drawingCtx = GetDrawingContext();
-
-            // Draw skeleton
-            if ( m_drawSkeleton )
-            {
-                drawingCtx.Draw( *m_skeleton.GetPtr(), Transform::Identity );
-            }
-
-            //-------------------------------------------------------------------------
-
-            if ( m_editorMode == Mode::BodyEditor )
-            {
-                int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
-                for ( auto i = 0; i < numBodies; i++ )
-                {
-                    auto const& body = m_ragdollDefinition.m_bodies[i];
-                    int32_t const boneIdx = m_skeleton->GetBoneIndex( body.m_boneID );
-                    EE_ASSERT( boneIdx != InvalidIndex );
-
-                    if ( m_isolateSelectedBody && body.m_boneID != m_selectedBoneID )
-                    {
-                        continue;
-                    }
-
-                    //-------------------------------------------------------------------------
-
-                    Transform const bodyTransform = body.m_offsetTransform * m_skeleton->GetBoneModelSpaceTransform( boneIdx );
-                    drawingCtx.DrawCapsule( bodyTransform, body.m_radius, body.m_halfHeight, Colors::Orange, 3.0f );
-
-                    // Draw body axes
-                    if ( m_drawBodyAxes )
-                    {
-                        drawingCtx.DrawAxis( bodyTransform, 0.025f, 2 );
-                    }
-
-                    // Draw joint
-                    if ( i > 0 )
-                    {
-                        int32_t const parentBodyIdx = GetParentBodyIndex( m_skeleton.GetPtr(), m_ragdollDefinition, i );
-                        int32_t const parentBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[parentBodyIdx].m_boneID );
-                        EE_ASSERT( parentBoneIdx != InvalidIndex );
-                        Transform const parentBodyTransform = m_ragdollDefinition.m_bodies[parentBodyIdx].m_offsetTransform * m_skeleton->GetBoneModelSpaceTransform( parentBoneIdx );
-
-                        drawingCtx.DrawAxis( body.m_jointTransform, 0.1f, 3 );
-                        drawingCtx.DrawLine( body.m_jointTransform.GetTranslation(), parentBodyTransform.GetTranslation(), Colors::Cyan, 2.0f );
-                        drawingCtx.DrawLine( body.m_jointTransform.GetTranslation(), bodyTransform.GetTranslation(), Colors::Cyan, 2.0f );
-                    }
-                }
-            }
-            else // Joint Editor
-            {
-                int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
-                auto pActiveProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
-
-                for ( auto bodyIdx = 1; bodyIdx < numBodies; bodyIdx++ )
-                {
-                    int32_t const jointIdx = bodyIdx - 1;
-                    auto const& body = m_ragdollDefinition.m_bodies[bodyIdx];
-                    int32_t const boneIdx = m_skeleton->GetBoneIndex( body.m_boneID );
-                    EE_ASSERT( boneIdx != InvalidIndex );
-
-                    if ( m_isolateSelectedBody && body.m_boneID != m_selectedBoneID )
-                    {
-                        continue;
-                    }
-
-                    int32_t const parentBodyIdx = GetParentBodyIndex( m_skeleton.GetPtr(), m_ragdollDefinition, bodyIdx );
-                    int32_t const parentBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[parentBodyIdx].m_boneID );
-                    EE_ASSERT( parentBoneIdx != InvalidIndex );
-
-                    Transform const bodyTransform = body.m_offsetTransform * m_skeleton->GetBoneModelSpaceTransform( boneIdx );
-                    Transform const parentBodyTransform = m_ragdollDefinition.m_bodies[parentBodyIdx].m_offsetTransform * m_skeleton->GetBoneModelSpaceTransform( parentBoneIdx );
-
-                    // Draw joint
-                    drawingCtx.DrawAxis( body.m_jointTransform, 0.1f, 4 );
-                    drawingCtx.DrawLine( body.m_jointTransform.GetTranslation(), parentBodyTransform.GetTranslation(), Colors::Cyan, 2.0f );
-                    drawingCtx.DrawLine( body.m_jointTransform.GetTranslation(), bodyTransform.GetTranslation(), Colors::Cyan, 2.0f );
-
-                    // Draw limits
-                    if ( pActiveProfile->m_jointSettings[jointIdx].m_twistLimitEnabled )
-                    {
-                        drawingCtx.DrawTwistLimits( body.m_jointTransform, Degrees( pActiveProfile->m_jointSettings[jointIdx].m_twistLimitMin ), Degrees( pActiveProfile->m_jointSettings[jointIdx].m_twistLimitMax ), Colors::Red, 1.0f );
-                    }
-
-                    if ( pActiveProfile->m_jointSettings[jointIdx].m_swingLimitEnabled )
-                    {
-                        drawingCtx.DrawSwingLimits( body.m_jointTransform, Degrees( pActiveProfile->m_jointSettings[jointIdx].m_swingLimitY ), Degrees( pActiveProfile->m_jointSettings[jointIdx].m_swingLimitZ ), Colors::Yellow, 1.0f );
-                    }
-                }
-            }
-
-            // Gizmo
-            //-------------------------------------------------------------------------
-
-            if ( m_selectedBoneID.IsValid() )
-            {
-                int32_t const boneIdx = m_skeleton->GetBoneIndex( m_selectedBoneID );
-                int32_t const bodyIdx = m_ragdollDefinition.GetBodyIndexForBoneID( m_selectedBoneID );
-                if ( bodyIdx != InvalidIndex )
-                {
-                    auto& body = m_ragdollDefinition.m_bodies[bodyIdx];
-
-                    if ( m_editorMode == Mode::BodyEditor )
-                    {
-                        Transform const boneTransform = m_skeleton->GetBoneModelSpaceTransform( boneIdx );
-                        Transform const bodyTransform = body.m_offsetTransform * boneTransform;
-
-                        auto const gizmoResult = m_gizmo.Draw( bodyTransform.GetTranslation(), bodyTransform.GetRotation(), *pViewport );
-                        switch ( gizmoResult.m_state )
-                        {
-                            case ImGuiX::Gizmo::State::StartedManipulating :
-                            {
-                                BeginDataFileModification();
-                                body.m_offsetTransform = Transform::Delta( boneTransform, gizmoResult.GetModifiedTransform( bodyTransform ) );
-                            }
-                            break;
-
-                            case ImGuiX::Gizmo::State::Manipulating :
-                            {
-                                body.m_offsetTransform = Transform::Delta( boneTransform, gizmoResult.GetModifiedTransform( bodyTransform ) );
-                            }
-                            break;
-
-                            case ImGuiX::Gizmo::State::StoppedManipulating :
-                            {
-                                body.m_offsetTransform = Transform::Delta( boneTransform, gizmoResult.GetModifiedTransform( bodyTransform ) );
-                                EndDataFileModification();
-                            }
-                            break;
-
-                            default:
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        auto const gizmoResult = m_gizmo.Draw( body.m_jointTransform.GetTranslation(), body.m_jointTransform.GetRotation(), *pViewport );
-                        switch ( gizmoResult.m_state )
-                        {
-                            case ImGuiX::Gizmo::State::StartedManipulating:
-                            {
-                                BeginDataFileModification();
-                                gizmoResult.ApplyResult( body.m_jointTransform );
-                            }
-                            break;
-
-                            case ImGuiX::Gizmo::State::Manipulating:
-                            {
-                                gizmoResult.ApplyResult( body.m_jointTransform );
-                            }
-                            break;
-
-                            case ImGuiX::Gizmo::State::StoppedManipulating:
-                            {
-                                gizmoResult.ApplyResult( body.m_jointTransform );
-                                EndDataFileModification();
-                            }
-                            break;
-
-                            default:
-                            break;
-                        }
-                    }
-                }
-
-                if ( m_isViewportFocused )
-                {
-                    if ( ImGui::IsKeyPressed( ImGuiKey_Space ) )
-                    {
-                        m_gizmo.SwitchToNextMode();
-                    }
-                }
-            }
-        }
-    }
-
-    void RagdollEditor::Update( UpdateContext const& context, bool isVisible, bool isFocused )
-    {
-        TResourceEditor::Update( context, isVisible, isFocused );
-
-        // Profile Management
-        //-------------------------------------------------------------------------
-
-        if ( m_ragdollDefinition.IsValid() )
-        {
-            // Ensure we always have a valid profile set
-            if ( !m_activeProfileID.IsValid() || m_ragdollDefinition.GetProfile( m_activeProfileID ) == nullptr )
-            {
-                SetActiveProfile( m_ragdollDefinition.GetDefaultProfile()->m_ID );
-            }
-        }
-    }
-
-    void RagdollEditor::WorldUpdate( EntityWorldUpdateContext const& updateContext )
-    {
-        if ( !IsPreviewing() )
-        {
-            return;
-        }
-
-        Seconds const deltaTime = updateContext.GetDeltaTime();
-
-        //-------------------------------------------------------------------------
-
-        if ( updateContext.GetUpdateStage() == UpdateStage::PrePhysics )
-        {
-            // Update animation time and sample pose
-            Percentage const previousAnimTime = m_animTime;
-            bool const hasValidAndLoadedPreviewAnim = m_previewAnimation.IsSet() && m_previewAnimation.IsLoaded();
-            if ( hasValidAndLoadedPreviewAnim )
-            {
-                if ( m_isPlayingAnimation )
-                {
-                    m_animTime = ( m_animTime + deltaTime / ( m_previewAnimation->GetDuration() ) ).GetClamped( m_enableAnimationLooping );
-
-                    // Allow reset
-                    if ( !m_enableAnimationLooping && m_animTime == 1.0f )
-                    {
-                        m_isPlayingAnimation = false;
-                    }
-
-                    if ( !updateContext.IsWorldPaused() && m_applyRootMotion )
-                    {
-                        Transform const& WT = m_pMeshComponent->GetWorldTransform();
-                        Transform const RMD = m_previewAnimation->GetRootMotionDelta( previousAnimTime, m_animTime );
-                        m_pMeshComponent->SetWorldTransform( RMD * WT );
-                    }
-                }
-
-                m_previewAnimation->GetPose( m_animTime, m_pPose );
-            }
-            else
-            {
-                m_pPose->Reset( Animation::Pose::Type::ReferencePose );
-            }
-
-            //-------------------------------------------------------------------------
-
-            Transform const worldTransform = m_pMeshComponent->GetWorldTransform();
-
-            // Draw the pose
-            if ( m_drawAnimationPose )
-            {
-                auto drawingCtx = GetDrawingContext();
-                drawingCtx.Draw( *m_pPose, worldTransform );
-            }
-
-            // Set ragdoll settings
-            if ( m_refreshRagdollSettings )
-            {
-                m_pRagdoll->RefreshSettings();
-                m_refreshRagdollSettings = false;
-            }
-
-            // Update ragdoll
-            m_pPose->CalculateModelSpaceTransforms();
-            if ( !updateContext.IsWorldPaused() )
-            {
-                m_pRagdoll->Update( updateContext.GetDeltaTime(), worldTransform, m_pPose, m_initializeRagdollPose );
-                m_initializeRagdollPose = false;
-            }
-        }
-        else if ( updateContext.GetUpdateStage() == UpdateStage::PostPhysics )
-        {
-            auto drawingCtx = GetDrawingContext();
-
-            // Copy the anim pose
-            m_pFinalPose->CopyFrom( m_pPose );
-
-            // Retrieve the ragdoll pose
-            Transform const& worldTransform = m_pMeshComponent->GetWorldTransform();
-            bool const shouldStopPreview = !m_pRagdoll->GetPose( worldTransform, m_pPose );
-
-            // Apply physics blend weight
-            Animation::Blender::ParentSpaceBlend( Animation::Skeleton::LOD::High, m_pFinalPose, m_pPose, m_physicsBlendWeight, nullptr, m_pFinalPose );
-
-            // Draw ragdoll pose
-            if ( m_drawRagdoll )
-            {
-                drawingCtx.Draw( *m_pRagdoll );
-            }
-
-            // Update mesh pose
-            m_pFinalPose->CalculateModelSpaceTransforms();
-            m_pMeshComponent->SetPose( m_pFinalPose );
-            m_pMeshComponent->FinalizePose();
-
-            //-------------------------------------------------------------------------
-
-            UpdateSpawnedCollisionActors( drawingCtx, updateContext.GetDeltaTime() );
-
-            //-------------------------------------------------------------------------
-
-            if ( shouldStopPreview )
-            {
-                EE_LOG_WARNING( "Physics", "Ragdoll", "Ragdoll destabilized" );
-                StopPreview();
-            }
-        }
-    }
-
-    bool RagdollEditor::DrawCreateProfileDialog( UpdateContext const& context )
-    {
-        // Validate current name in buffer
-        //-------------------------------------------------------------------------
-
-        bool isValidName = strlen( m_profileNameBuffer ) > 0;
-        if ( isValidName )
-        {
-            StringID const potentialID( m_profileNameBuffer );
-            for ( auto const& profile : m_ragdollDefinition.m_profiles )
-            {
-                if ( profile.m_ID == potentialID )
-                {
-                    isValidName = false;
-                    break;
-                }
-            }
-        }
-
-        // Draw UI
-        //-------------------------------------------------------------------------
-
-        bool shouldCloseDialog = false;
-        bool completeAction = false;
-
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text( "Name: " );
-        ImGui::SameLine();
-
-        ImGui::SetNextItemWidth( -1 );
-        ImGui::PushStyleColor( ImGuiCol_Text, isValidName ? ImGuiX::Style::s_colorText : Colors::Red );
-        completeAction = ImGui::InputText( "##ProfileName", m_profileNameBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
-        ImGui::PopStyleColor();
-
-        ImGui::NewLine();
-        ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
-
-        ImGui::BeginDisabled( !isValidName );
-        if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
-        {
-            completeAction = true;
-            shouldCloseDialog = true;
-        }
-        ImGui::EndDisabled();
-
-        ImGui::SameLine();
-        if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
-        {
-            shouldCloseDialog = true;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( completeAction )
-        {
-            StringID const newProfileID = CreateProfile( m_profileNameBuffer );
-            SetActiveProfile( newProfileID );
-        }
-
-        //-------------------------------------------------------------------------
-
-        return !shouldCloseDialog;
-    }
-
-    bool RagdollEditor::DrawDuplicateProfileDialog( UpdateContext const& context )
-    {
-        // Validate current name in buffer
-        //-------------------------------------------------------------------------
-
-        bool isValidName = strlen( m_profileNameBuffer ) > 0;
-        if ( isValidName )
-        {
-            StringID const potentialID( m_profileNameBuffer );
-            for ( auto const& profile : m_ragdollDefinition.m_profiles )
-            {
-                if ( profile.m_ID == potentialID )
-                {
-                    isValidName = false;
-                    break;
-                }
-            }
-        }
-
-        // Draw UI
-        //-------------------------------------------------------------------------
-
-        bool shouldCloseDialog = false;
-        bool completeAction = false;
-
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text( "Name: " );
-        ImGui::SameLine();
-
-        ImGui::SetNextItemWidth( -1 );
-        ImGui::PushStyleColor( ImGuiCol_Text, ( isValidName ? ImGuiX::Style::s_colorText : Colors::Red ).ToFloat4() );
-        completeAction = ImGui::InputText( "##ProfileName", m_profileNameBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
-        ImGui::PopStyleColor();
-
-        ImGui::NewLine();
-        ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
-
-        ImGui::BeginDisabled( !isValidName );
-        if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
-        {
-            completeAction = true;
-            shouldCloseDialog = true;
-        }
-        ImGui::EndDisabled();
-
-        ImGui::SameLine();
-        if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
-        {
-            shouldCloseDialog = true;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( completeAction )
-        {
-            StringID const newProfileID = DuplicateProfile( m_activeProfileID, m_profileNameBuffer );
-            SetActiveProfile( newProfileID );
-        }
-
-        //-------------------------------------------------------------------------
-
-        return !shouldCloseDialog;
-    }
-
-    bool RagdollEditor::DrawRenameProfileDialog( UpdateContext const& context )
-    {
-        // Validate current name in buffer
-        //-------------------------------------------------------------------------
-
-        bool isValidName = strlen( m_profileNameBuffer ) > 0;
-        if ( isValidName )
-        {
-            StringID const potentialID( m_profileNameBuffer );
-            for ( auto const& profile : m_ragdollDefinition.m_profiles )
-            {
-                if ( profile.m_ID == potentialID )
-                {
-                    isValidName = false;
-                    break;
-                }
-            }
-        }
-
-        // Draw UI
-        //-------------------------------------------------------------------------
-
-        bool shouldCloseDialog = false;
-        bool completeAction = false;
-
-        ImGui::AlignTextToFramePadding();
-        ImGui::Text( "Name: " );
-        ImGui::SameLine();
-
-        ImGui::SetNextItemWidth( -1 );
-        ImGui::PushStyleColor( ImGuiCol_Text, ( isValidName ? ImGuiX::Style::s_colorText : Colors::Red ).ToFloat4() );
-        completeAction = ImGui::InputText( "##ProfileName", m_profileNameBuffer, 256, ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_CharsNoBlank | ImGuiInputTextFlags_CallbackCharFilter, ImGuiX::FilterNameIDChars );
-        ImGui::PopStyleColor();
-
-        ImGui::NewLine();
-        ImGui::SameLine( ImGui::GetContentRegionAvail().x - 120 - ImGui::GetStyle().ItemSpacing.x );
-
-        ImGui::BeginDisabled( !isValidName );
-        if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
-        {
-            completeAction = true;
-            shouldCloseDialog = true;
-        }
-        ImGui::EndDisabled();
-
-        ImGui::SameLine();
-        if ( ImGui::Button( "Cancel", ImVec2( 60, 0 ) ) )
-        {
-            shouldCloseDialog = true;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( completeAction )
-        {
-            ScopedRagdollSettingsModification const sdm( this );
-            auto pProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
-            EE_ASSERT( pProfile != nullptr );
-            pProfile->m_ID = StringID( m_profileNameBuffer );
-            SetActiveProfile( pProfile->m_ID );
-        }
-
-        //-------------------------------------------------------------------------
-
-        return !shouldCloseDialog;
-    }
-
-    //-------------------------------------------------------------------------
-    // Resource Management
-    //-------------------------------------------------------------------------
 
     void RagdollEditor::LoadSkeleton()
     {
         EE_ASSERT( !m_skeleton.IsSet() || !m_skeleton.WasRequested() );
 
-        auto pRagdollDesc = GetRagdollDescriptor();
-        m_skeleton = pRagdollDesc->m_skeleton;
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        m_skeleton = pRagdollDescriptor->m_skeleton;
         if ( m_skeleton.IsSet() )
         {
             LoadResource( &m_skeleton );
@@ -916,141 +156,299 @@ namespace EE::Physics
         m_skeleton.Clear();
     }
 
-    void RagdollEditor::CreatePreviewEntity()
+    //-------------------------------------------------------------------------
+    // Descriptor
+    //-------------------------------------------------------------------------
+
+    void RagdollEditor::FixUpDescriptorBodiesAndSettings()
     {
-        EE_ASSERT( IsDataFileLoaded() );
-        EE_ASSERT( m_skeleton.IsLoaded() );
+        EE_ASSERT( IsDataFileLoaded() && m_skeleton.IsLoaded() );
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        pRagdollDescriptor->CleanupInvalidSettings( m_skeleton.GetPtr() );
+    }
 
-        // Load resource descriptor for skeleton to get the preview mesh
-        auto resourceDescPath = GetFileSystemPath( m_skeleton.GetDataPath() );
-        Animation::SkeletonResourceDescriptor skeletonResourceDesc;
-        bool const result = Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, resourceDescPath, skeletonResourceDesc );
-        EE_ASSERT( result );
+    //-------------------------------------------------------------------------
+    // Update
+    //-------------------------------------------------------------------------
 
-        // Create preview entity
-        ResourceID const previewMeshResourceID( skeletonResourceDesc.m_previewMesh.GetDataPath() );
-        if ( previewMeshResourceID.IsValid() )
+    void RagdollEditor::Update( UpdateContext const& context, bool isVisible, bool isFocused )
+    {
+        // Execute any schedule commands
+        if ( m_commandStack.HasCommands() )
         {
-            m_pMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
-            m_pMeshComponent->SetSkeleton( m_skeleton.GetResourceID() );
-            m_pMeshComponent->SetMesh( previewMeshResourceID );
+            m_commandStack.ExecuteCommands();
+            m_propertyGrid.SetTypeToEdit( nullptr );
+        }
 
-            m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
-            m_pPreviewEntity->AddComponent( m_pMeshComponent );
-            AddEntityToWorld( m_pPreviewEntity );
+        // Ensure selection is valid
+        IReflectedType* pTypeToEdit = GetTypeToEditBasedOnSelection();
+        if ( pTypeToEdit == nullptr )
+        {
+            m_selectedElement.Clear();
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( IsPreviewing() )
+        {
+            // Calculate the desired input pose
+            Seconds const animDeltaTime = m_pWorld->IsPaused() ? Seconds( 0.0f ) : ( context.GetDeltaTime() * m_pWorld->GetTimeScale() );
+            CalculateInputPose( animDeltaTime );
+
+            // Draw the input pose
+            auto drawingCtx = GetDebugDrawContext();
+            if ( m_drawInputAnimationPose )
+            {
+                Animation::DrawOptions options;
+                options.m_lineThickness = IsPreviewing() ? 5.0f : 2.0f;
+
+                m_pInputPose->DrawDebug( drawingCtx, m_previewStartTransform, Animation::Skeleton::LOD::High, options );
+            }
         }
     }
 
-    void RagdollEditor::DestroyPreviewEntity()
+    void RagdollEditor::WorldUpdate( EntityWorldUpdateContext const& updateContext )
     {
-        if ( m_pPreviewEntity != nullptr )
-        {
-            DestroyEntityInWorld( m_pPreviewEntity );
-            m_pMeshComponent = nullptr;
-        }
-    }
-
-    void RagdollEditor::PerformAdvancedDefinitionValidation()
-    {
-        InlineString errorMsg;
-
-        auto pRagdollDesc = GetRagdollDescriptor();
-        EE_ASSERT( pRagdollDesc->IsValid() );
-
-        
-        if ( m_ragdollDefinition.IsValid() )
+        if ( !IsPreviewing() )
         {
             return;
         }
 
-        // Ensure skeleton matches that of the descriptor
         //-------------------------------------------------------------------------
 
-        if ( !m_ragdollDefinition.m_skeleton.IsSet() )
+        // Update ragdoll
+        if ( updateContext.GetUpdateStage() == UpdateStage::PrePhysics )
         {
-            m_ragdollDefinition.m_skeleton = pRagdollDesc->m_skeleton;
-        }
-        else // Skeleton mismatch
-        {
-            if ( pRagdollDesc->m_skeleton.GetResourceID() != m_ragdollDefinition.m_skeleton.GetResourceID() )
+            if ( !updateContext.IsWorldPaused() )
             {
-                errorMsg.sprintf( "Skeleton mismatch detected.\r\nDescriptor Skeleton: %s\r\nDefinition Skeleton: %s\r\n\r\nThe definition will now be reset!", pRagdollDesc->m_skeleton.GetResourceID().c_str(), m_ragdollDefinition.m_skeleton.GetResourceID().c_str() );
-                MessageDialog::Error( "Ragdoll Skeleton Mismatch", errorMsg.c_str() );
-
-                // Remove all bodies
-                m_ragdollDefinition.m_bodies.clear();
-
-                // Reset all profiles
-                for ( auto& profile : m_ragdollDefinition.m_profiles )
-                {
-                    ResetProfile( profile );
-                }
-
-                MarkDirty();
+                Transform const worldTransform = m_pMeshComponent->GetWorldTransform();
+                m_pRagdoll->SetPoseFollowing( m_enablePoseFollowing );
+                m_pRagdoll->Update( updateContext.GetDeltaTime(), worldTransform, m_pInputPose );
             }
         }
-
-        // Ensure we have at least one profile
-        //-------------------------------------------------------------------------
-
-        int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
-
-        if ( m_ragdollDefinition.m_profiles.empty() )
+        else if ( updateContext.GetUpdateStage() == UpdateStage::PostPhysics )
         {
-            auto& profile = m_ragdollDefinition.m_profiles.emplace_back();
-            profile.m_ID = StringID( RagdollDefinition::Profile::s_defaultProfileID );
-            profile.m_bodySettings.resize( numBodies );
-            profile.m_materialSettings.resize( numBodies );
+            auto drawingCtx = GetDebugDrawContext();
 
-            if ( numBodies > 1 )
+            // Copy the animation pose
+            m_pFinalPose->CopyFrom( m_pInputPose );
+
+            // Retrieve the ragdoll pose
+            Transform const& worldTransform = m_pMeshComponent->GetWorldTransform();
+            bool const shouldStopPreview = !m_pRagdoll->GetPose( worldTransform, m_pInputPose );
+
+            // Apply physics blend weight
+            Animation::Blender::ParentSpaceBlend( Animation::Skeleton::LOD::High, m_pFinalPose, m_pInputPose, m_physicsBlendWeight, nullptr, m_pFinalPose );
+            m_pFinalPose->CalculateModelSpaceTransforms();
+
+            // Draw final animation pose
+            if ( m_drawFinalAnimationPose )
             {
-                profile.m_jointSettings.resize( numBodies - 1 );
+                drawingCtx.Draw( *m_pFinalPose, worldTransform );
             }
 
-            m_activeProfileID = profile.m_ID;
-            MarkDirty();
-        }
-
-        // Validate all profiles
-        //-------------------------------------------------------------------------
-
-        for ( auto& profile : m_ragdollDefinition.m_profiles )
-        {
-            if ( !profile.IsValid( numBodies ) )
+            // Draw ragdoll pose
+            if ( m_drawRagdoll )
             {
-                MessageDialog::Error( "Invalid Ragdoll Profile", "Profile %s is invalid. This profile will be reset!", profile.m_ID.c_str() );
+                drawingCtx.Draw( *m_pRagdoll );
+            }
 
-                // Reset Settings
-                ResetProfile( profile );
-                MarkDirty();
+            // Update mesh pose
+            if ( m_pMeshComponent->IsInitialized() && m_pMeshComponent->HasMeshResourceSet() )
+            {
+                m_pMeshComponent->SetPose( m_pFinalPose );
+                m_pMeshComponent->FinalizePose();
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( shouldStopPreview )
+            {
+                EE_LOG_WARNING( LogCategory::Physics, "Ragdoll", "Ragdoll destabilized" );
+                StopPreview();
             }
         }
     }
 
     //-------------------------------------------------------------------------
-    // Bodies
+    // Editor UI
+    //-------------------------------------------------------------------------
+
+    void RagdollEditor::SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
+    {
+        ImGuiID leftDockID = 0, bottomLeftDockID = 0, rightDockID = 0, bottomDockID = 0, viewportDockID = 0;
+        ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Left, 0.25f, &leftDockID, &viewportDockID );
+        ImGui::DockBuilderSplitNode( leftDockID, ImGuiDir_Up, 0.67f, &leftDockID, &bottomLeftDockID );
+        ImGui::DockBuilderSplitNode( viewportDockID, ImGuiDir_Right, 0.33f, &rightDockID, &viewportDockID );
+        ImGui::DockBuilderSplitNode( viewportDockID, ImGuiDir_Down, 0.33f, &bottomDockID, &viewportDockID );
+
+        // Dock windows
+        //-------------------------------------------------------------------------
+
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Outliner" ).c_str(), leftDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomLeftDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Self Collision" ).c_str(), bottomDockID );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Preview Controls" ).c_str(), rightDockID );
+    }
+
+    void RagdollEditor::DrawToolbar( UpdateContext const& context )
+    {
+        float availableWidth = ImGui::GetContentRegionAvail().x;
+        float const liveDebugButtonWidth = 250;
+        ImGui::SameLine( ( availableWidth - liveDebugButtonWidth ) / 2.0f, 0.0f );
+
+        if ( IsPreviewing() )
+        {
+            if ( ImGuiX::FlatIconButton( EE_ICON_STOP, "Stop Preview", Colors::Red, ImVec2( liveDebugButtonWidth, 0 ) ) )
+            {
+                StopPreview();
+            }
+        }
+        else
+        {
+            ImGui::BeginDisabled( !IsResourceLoaded() || IsPreviewingOrWaitingForPreview() );
+            if ( ImGuiX::FlatIconButton( EE_ICON_PLAY, "Preview Ragdoll", Colors::Green, ImVec2( liveDebugButtonWidth, 0 ) ) )
+            {
+                RequestPreview();
+            }
+            ImGui::EndDisabled();
+        }
+    }
+
+    void RagdollEditor::ExtendViewportToolBar( UpdateContext const& context, Viewport* pViewport )
+    {
+        if ( IsPreviewing() )
+        {
+            auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPhysicsWorld();
+            Seconds const timeStep = pPhysicsWorld->GetTimeStepInterval();
+
+            ImGui::NewLine();
+            ImGuiX::DrawShadowedText(  Colors::Yellow, "Current Physics Time Step: %.6fs", timeStep.ToFloat() );
+        }
+    }
+
+    bool RagdollEditor::ExtendViewportToolBar_VisualizationControls( UpdateContext const& context, Viewport* pViewport )
+    {
+        if ( ImGui::MenuItem( "Show Mesh", nullptr, &m_showMesh ) )
+        {
+            if ( m_pMeshComponent != nullptr )
+            {
+                m_pMeshComponent->SetVisible( m_showMesh );
+            }
+        }
+
+        ImGui::SeparatorText( "Editing" );
+
+        ImGui::MenuItem( "Show Skeleton", nullptr, &m_drawSkeleton );
+        ImGui::MenuItem( "Show Body Axes", nullptr, &m_drawBodyAxes );
+        ImGui::MenuItem( "Show Only Selected Bodies", nullptr, &m_isolateSelectedBody );
+
+        ImGui::SeparatorText( "Preview" );
+
+        ImGui::MenuItem( "Draw Ragdoll", nullptr, &m_drawRagdoll );
+        ImGui::MenuItem( "Draw Input Anim Pose", nullptr, &m_drawInputAnimationPose );
+        ImGui::MenuItem( "Draw Output Anim Pose", nullptr, &m_drawFinalAnimationPose );
+
+        return true;
+    }
+
+    void RagdollEditor::DrawViewportUI( UpdateContext const& context, Viewport const* pViewport, bool isFocused )
+    {
+        TResourceEditor<RagdollDefinition>::DrawViewportUI( context, pViewport, isFocused );
+
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        if ( pRagdollDescriptor == nullptr )
+        {
+            return;
+        }
+
+        if ( !m_skeleton.IsLoaded() )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( IsPreviewing() )
+        {
+            DrawViewportUIForPreview( context, pViewport, isFocused );
+        }
+        else // Editing
+        {
+            DrawViewportUIForEditing( context, pViewport, isFocused );
+        }
+    }
+
+    void RagdollEditor::HandleViewportInteractions()
+    {
+        if ( m_selectedElement.IsSet() && ImGui::IsKeyPressed( ImGuiKey_F ) )
+        {
+            Transform const selectedElementTransform = GetSelectedElementTransform();
+            FocusCameraView( selectedElementTransform.GetTranslation(), 2.0f );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+    // Shared
+    //-------------------------------------------------------------------------
+
+    Transform RagdollEditor::GetSelectedElementTransform()
+    {
+        Transform t;
+
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        if ( pRagdollDescriptor == nullptr )
+        {
+            return t;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if( !m_selectedElement.IsSet() )
+        {
+            t = Transform::Identity;
+        }
+        else if ( m_selectedElement.IsBoneOrBody() )
+        {
+            t = pRagdollDescriptor->GetBodyTransform( m_skeleton.GetPtr(), m_selectedElement.m_boneID );
+        }
+        else if ( m_selectedElement.IsJoint() )
+        {
+            t = pRagdollDescriptor->GetBodyTransform( m_skeleton.GetPtr(), m_selectedElement.m_boneID );
+        }
+        else if ( m_selectedElement.IsShape() )
+        {
+            t = pRagdollDescriptor->GetShapeTransform( m_skeleton.GetPtr(), m_selectedElement.m_boneID, m_selectedElement.m_shapeIdx );
+        }
+
+        return t;
+    }
+
+    //-------------------------------------------------------------------------
+    // Editor
     //-------------------------------------------------------------------------
 
     void RagdollEditor::CreateBody( StringID boneID )
     {
-        
-        EE_ASSERT( m_ragdollDefinition.IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( IsDataFileLoaded() );
+        EE_ASSERT( m_skeleton.IsLoaded() );
 
-        if ( m_ragdollDefinition.GetNumBodies() >= RagdollDefinition::s_maxNumBodies )
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        if ( !pRagdollDescriptor->IsValid() || pRagdollDescriptor->GetNumBodies() >= RagdollDefinition::s_maxNumBodies )
         {
             return;
         }
 
-        ScopedRagdollSettingsModification const sdm( this );
+        ScopedDataFileModification const sdm( this );
 
-        EE_ASSERT( m_ragdollDefinition.GetBodyIndexForBoneID( boneID ) == InvalidIndex );
+        EE_ASSERT( pRagdollDescriptor->GetBodyIndexForBoneID( boneID ) == InvalidIndex );
 
         int32_t const newBodyBoneIdx = m_skeleton->GetBoneIndex( boneID );
-        int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
+        int32_t const numBodies = pRagdollDescriptor->GetNumBodies();
         int32_t bodyInsertionIdx = 0;
         for ( bodyInsertionIdx = 0; bodyInsertionIdx < numBodies; bodyInsertionIdx++ )
         {
-            int32_t const existingBodyBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[bodyInsertionIdx].m_boneID );
+            int32_t const existingBodyBoneIdx = m_skeleton->GetBoneIndex( pRagdollDescriptor->m_bodies[bodyInsertionIdx].m_boneID );
             if ( existingBodyBoneIdx > newBodyBoneIdx )
             {
                 break;
@@ -1060,130 +458,55 @@ namespace EE::Physics
         // Body
         //-------------------------------------------------------------------------
 
-        m_ragdollDefinition.m_bodies.insert( m_ragdollDefinition.m_bodies.begin() + bodyInsertionIdx, RagdollDefinition::BodyDefinition() );
-        auto& newBody = m_ragdollDefinition.m_bodies[bodyInsertionIdx];
-        newBody.m_boneID = boneID;
+        pRagdollDescriptor->m_bodies.insert( pRagdollDescriptor->m_bodies.begin() + bodyInsertionIdx, RagdollBodyDefinition() );
+        auto& body = pRagdollDescriptor->m_bodies[bodyInsertionIdx];
+        body.m_boneID = boneID;
 
-        // Calculate initial  body and joint transforms
-        Transform boneTransform = m_skeleton->GetBoneModelSpaceTransform( newBodyBoneIdx );
-        Transform bodyGlobalTransform = boneTransform;
-
-        int32_t const firstChildIdx = m_skeleton->GetFirstChildBoneIndex( newBodyBoneIdx );
-        if ( firstChildIdx != InvalidIndex )
-        {
-            auto childBoneTransform = m_skeleton->GetBoneModelSpaceTransform( firstChildIdx );
-
-            Vector bodyAxisX;
-            float length = 0.0f;
-            ( childBoneTransform.GetTranslation() - boneTransform.GetTranslation() ).ToDirectionAndLength3( bodyAxisX, length );
-
-            // See if we need to adjust the default radius
-            float const halfLength = length / 2;
-            if ( newBody.m_radius > halfLength )
-            {
-                newBody.m_radius = halfLength * 2.0f / 3.0f;
-            }
-
-            // Calculate the new half-height for the capsule
-            newBody.m_halfHeight = Math::Max( ( length / 2 ) - newBody.m_radius, 0.0f );
-            Vector const bodyOffset = bodyAxisX * ( newBody.m_halfHeight + newBody.m_radius );
-
-            // Calculate the global transform for the body
-            Quaternion const orientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::UnitX, bodyAxisX );
-            bodyGlobalTransform.SetRotation( orientation );
-            bodyGlobalTransform.SetTranslation( boneTransform.GetTranslation() + bodyOffset );
-
-            newBody.m_offsetTransform = Transform::Delta( boneTransform, bodyGlobalTransform );
-        }
-        else // Leaf bone
-        {
-            newBody.m_offsetTransform = Transform::Identity;
-        }
-
-        // Joint Transform
-        newBody.m_jointTransform = Transform( bodyGlobalTransform.GetRotation(), boneTransform.GetTranslation() );
-
-        // Profiles
+        // Shape
         //-------------------------------------------------------------------------
 
-        for ( auto& profile : m_ragdollDefinition.m_profiles )
-        {
-            // Mass
-            profile.m_bodySettings.insert( profile.m_bodySettings.begin() + bodyInsertionIdx, RagdollBodySettings() );
-            float const capsuleVolume = Math::CalculateCapsuleVolume( m_ragdollDefinition.m_bodies[bodyInsertionIdx].m_radius, m_ragdollDefinition.m_bodies[bodyInsertionIdx].m_halfHeight * 2 );
-            profile.m_bodySettings[bodyInsertionIdx].m_mass = capsuleVolume * 985.0f; // human body density
+        CreateShape( bodyInsertionIdx );
 
-            // Materials
-            profile.m_materialSettings.insert( profile.m_materialSettings.begin() + bodyInsertionIdx, RagdollBodyMaterialSettings() ); // human body density
+        // Joint
+        //-------------------------------------------------------------------------
 
-            //-------------------------------------------------------------------------
-
-            int32_t jointInsertionIdx = bodyInsertionIdx - 1;
-
-            // If there are other bodies then we also need to add the joint between the new body and the previous root body
-            if ( bodyInsertionIdx == 0 && m_ragdollDefinition.m_bodies.size() > 1 )
-            {
-                jointInsertionIdx = 0;
-            }
-
-            // Add the joint settings
-            if ( jointInsertionIdx >= 0 )
-            {
-                profile.m_jointSettings.insert( profile.m_jointSettings.begin() + jointInsertionIdx, RagdollJointSettings() );
-            }
-        }
+        UpdateJointSetupDueToHierarchyChange();
     }
 
     void RagdollEditor::DestroyBody( int32_t bodyIdx )
     {
-        ScopedRagdollSettingsModification const sdm( this );
+        ScopedDataFileModification const sdm( this );
 
-        
-        EE_ASSERT( m_ragdollDefinition.IsValid() && m_skeleton.IsLoaded() );
-        EE_ASSERT( bodyIdx >= 0 && bodyIdx < m_ragdollDefinition.GetNumBodies() );
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < pRagdollDescriptor->GetNumBodies() );
+        StringID const boneID = pRagdollDescriptor->m_bodies[bodyIdx].m_boneID;
+        pRagdollDescriptor->m_bodies.erase( pRagdollDescriptor->m_bodies.begin() + bodyIdx );
 
-        // Body
-        //-------------------------------------------------------------------------
+        UpdateJointSetupDueToHierarchyChange();
 
-        m_ragdollDefinition.m_bodies.erase( m_ragdollDefinition.m_bodies.begin() + bodyIdx );
-
-        // Profiles
-        //-------------------------------------------------------------------------
-
-        for ( auto& profile : m_ragdollDefinition.m_profiles )
+        // Remove any rules for the body we're deleting
+        for ( int32_t i = (int32_t) pRagdollDescriptor->m_disableCollisionRules.size() - 1; i >= 0; i-- )
         {
-            profile.m_bodySettings.erase( profile.m_bodySettings.begin() + bodyIdx );
-            profile.m_materialSettings.erase( profile.m_materialSettings.begin() + bodyIdx );
-
-            int32_t jointIdx = bodyIdx - 1;
-
-            // If this isnt the last body being removed, then removing the first body should also remove the first joint
-            if ( bodyIdx == 0 && !profile.m_jointSettings.empty() )
+            if ( pRagdollDescriptor->m_disableCollisionRules[i].m_boneA == boneID || pRagdollDescriptor->m_disableCollisionRules[i].m_boneB == boneID )
             {
-                jointIdx = 0;
-            }
-
-            // Remove the relevant joint
-            if ( jointIdx >= 0 )
-            {
-                profile.m_jointSettings.erase( profile.m_jointSettings.begin() + jointIdx );
+                pRagdollDescriptor->m_disableCollisionRules.erase( pRagdollDescriptor->m_disableCollisionRules.begin() + i );
             }
         }
     }
 
     void RagdollEditor::DestroyChildBodies( int32_t destructionRootBodyIdx )
     {
-        ScopedRagdollSettingsModification const sdm( this );
+        ScopedDataFileModification const sdm( this );
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( destructionRootBodyIdx >= 0 && destructionRootBodyIdx < pRagdollDescriptor->GetNumBodies() );
 
-        
-        EE_ASSERT( m_ragdollDefinition.IsValid() && m_skeleton.IsLoaded() );
-        EE_ASSERT( destructionRootBodyIdx >= 0 && destructionRootBodyIdx < m_ragdollDefinition.GetNumBodies() );
+        int32_t const destructionRootBoneIdx = m_skeleton->GetBoneIndex( pRagdollDescriptor->m_bodies[destructionRootBodyIdx].m_boneID );
 
-        int32_t const destructionRootBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[destructionRootBodyIdx].m_boneID );
-
-        for ( int32_t bodyIdx = 0; bodyIdx < (int32_t) m_ragdollDefinition.m_bodies.size(); bodyIdx++ )
+        for ( int32_t bodyIdx = 0; bodyIdx < (int32_t) pRagdollDescriptor->m_bodies.size(); bodyIdx++ )
         {
-            int32_t const bodyBoneIdx = m_skeleton->GetBoneIndex( m_ragdollDefinition.m_bodies[bodyIdx].m_boneID );
+            int32_t const bodyBoneIdx = m_skeleton->GetBoneIndex( pRagdollDescriptor->m_bodies[bodyIdx].m_boneID );
             if ( m_skeleton->IsChildBoneOf( destructionRootBoneIdx, bodyBoneIdx ) )
             {
                 DestroyBody( bodyIdx );
@@ -1192,108 +515,261 @@ namespace EE::Physics
         }
     }
 
-    void RagdollEditor::AutogenerateBodiesAndJoints()
+    void RagdollEditor::CreateShape( int32_t bodyIdx )
     {
-        ScopedRagdollSettingsModification const sdm( this );
+        ScopedDataFileModification const sdm( this );
 
-        
-        EE_ASSERT( m_ragdollDefinition.IsValid() && m_skeleton.IsLoaded() );
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < pRagdollDescriptor->GetNumBodies() );
 
-        // Remove all bodies
-        //-------------------------------------------------------------------------
-
-        while ( !m_ragdollDefinition.m_bodies.empty() )
-        {
-            DestroyBody( 0 );
-        }
-
-        // Recreate all bodies
-        //-------------------------------------------------------------------------
-        // Skipping the root bone
-
-        int32_t const numBones = m_skeleton->GetNumBones();
-        int32_t const numBodiesToCreate = Math::Min( numBones, (int32_t) RagdollDefinition::s_maxNumBodies );
-        for ( auto i = 1; i < numBodiesToCreate; i++ )
-        {
-            CreateBody( m_skeleton->GetBoneID( i ) );
-        }
-    }
-
-    void RagdollEditor::AutogenerateBodyWeights()
-    {
-        ScopedRagdollSettingsModification const sdm( this );
-
-        
-        RagdollDefinition::Profile* pActiveProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
-        EE_ASSERT( pActiveProfile != nullptr );
-
-        int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
-        for ( int32_t i = 0; i < numBodies; i++ )
-        {
-            float const capsuleVolume = Math::CalculateCapsuleVolume( m_ragdollDefinition.m_bodies[i].m_radius, m_ragdollDefinition.m_bodies[i].m_halfHeight * 2 );
-            pActiveProfile->m_bodySettings[i].m_mass = capsuleVolume * 985; // human body density
-        }
-    }
-
-    void RagdollEditor::DrawBodyEditorWindow( UpdateContext const& context, bool isFocused )
-    {
-        if ( m_pSkeletonTreeRoot != nullptr )
-        {
-            ImGui::Text( "Skeleton ID: %s", m_skeleton->GetDataPath().GetFilenameWithoutExtension().c_str() );
-
-            if ( m_editorMode == Mode::BodyEditor )
-            {
-                if ( ImGuiX::ButtonColored( "Switch to Joint Editor", Colors::RoyalBlue, Colors::White, ImVec2( -1, 0 ) ) )
-                {
-                    m_editorMode = Mode::JointEditor;
-                }
-            }
-            else
-            {
-                if ( ImGuiX::ButtonColored("Switch to Body Editor", Colors::Orange, Colors::Black, ImVec2( -1, 0 ) ) )
-                {
-                    m_editorMode = Mode::BodyEditor;
-                }
-            }
-
-            ImGui::Separator();
-
-            EE_ASSERT( m_pSkeletonTreeRoot != nullptr );
-            RenderSkeletonTree( m_pSkeletonTreeRoot );
-        }
-    }
-
-    void RagdollEditor::DrawBodyEditorDetailsWindow( UpdateContext const& context, bool isFocused )
-    {
-        if ( m_selectedBoneID.IsValid() )
-        {
-            int32_t const bodyIdx = m_ragdollDefinition.GetBodyIndexForBoneID( m_selectedBoneID );
-            if ( bodyIdx != InvalidIndex )
-            {
-                if ( m_bodyEditorPropertyGrid.GetEditedType() != &m_ragdollDefinition.m_bodies[bodyIdx] )
-                {
-                    m_bodyEditorPropertyGrid.SetTypeToEdit( &m_ragdollDefinition.m_bodies[bodyIdx] );
-                }
-            }
-            else
-            {
-                if ( m_bodyEditorPropertyGrid.GetEditedType() != nullptr )
-                {
-                    m_bodyEditorPropertyGrid.SetTypeToEdit( nullptr );
-                }
-            }
-        }
-        else
-        {
-            if ( m_bodyEditorPropertyGrid.GetEditedType() != nullptr )
-            {
-                m_bodyEditorPropertyGrid.SetTypeToEdit( nullptr );
-            }
-        }
+        auto& body = pRagdollDescriptor->m_bodies[bodyIdx];
 
         //-------------------------------------------------------------------------
 
-        m_bodyEditorPropertyGrid.UpdateAndDraw();
+        int32_t const boneIdx = m_skeleton->GetBoneIndex( body.m_boneID );
+        Transform bodyTransform = m_skeleton->GetBoneModelSpaceTransform( boneIdx );
+        int32_t const firstChildIdx = m_skeleton->GetFirstChildBoneIndex( boneIdx );
+        if ( firstChildIdx != InvalidIndex )
+        {
+            auto childBoneTransform = m_skeleton->GetBoneModelSpaceTransform( firstChildIdx );
+
+            Vector bodyAxis;
+            float length = 0.0f;
+            ( childBoneTransform.GetTranslation() - bodyTransform.GetTranslation() ).ToDirectionAndLength3( bodyAxis, length );
+
+            // Create a default capsule shape
+            //-------------------------------------------------------------------------
+
+            RagdollShapeDefinition& shape = body.m_shapes.emplace_back();
+
+            // See if we need to adjust the default radius
+            float const halfLength = length / 2;
+            if ( shape.m_radius > halfLength )
+            {
+                shape.m_radius = halfLength * 2.0f / 3.0f;
+            }
+
+            // Calculate the new half-height for the capsule
+            shape.m_halfHeight = Math::Max( ( length / 2 ) - shape.m_radius, 0.0f );
+            Vector const bodyOffset = bodyAxis * ( shape.m_halfHeight + shape.m_radius );
+
+            // Calculate the offset transform for the shape
+            Quaternion const orientation = Quaternion::FromRotationBetweenUnitVectors( Vector::UnitZ, bodyAxis );
+            Transform const shapeTransform( orientation, bodyTransform.GetTranslation() + bodyOffset );
+            shape.m_offsetTransform = shapeTransform * bodyTransform.GetInverse();
+        }
+        else // Add default shape
+        {
+            RagdollShapeDefinition& shape = body.m_shapes.emplace_back();
+        }
+    }
+
+    bool RagdollEditor::CanDestroyShape( int32_t bodyIdx, int32_t shapeIdx ) const
+    {
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < pRagdollDescriptor->GetNumBodies() );
+        EE_ASSERT( shapeIdx >= 0 && shapeIdx < pRagdollDescriptor->m_bodies[bodyIdx].m_shapes.size() );
+        return pRagdollDescriptor->m_bodies[bodyIdx].m_shapes.size() > 1;
+    }
+
+    void RagdollEditor::DestroyShape( int32_t bodyIdx, int32_t shapeIdx )
+    {
+        ScopedDataFileModification const sdm( this );
+
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < pRagdollDescriptor->GetNumBodies() );
+        EE_ASSERT( shapeIdx >= 0 && shapeIdx < pRagdollDescriptor->m_bodies[bodyIdx].m_shapes.size() );
+        pRagdollDescriptor->m_bodies[bodyIdx].m_shapes.erase( pRagdollDescriptor->m_bodies[bodyIdx].m_shapes.begin() + shapeIdx );
+    }
+
+    void RagdollEditor::CopyShapeCollisionSettings( int32_t bodyIdx, int32_t shapeIdx )
+    {
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < pRagdollDescriptor->GetNumBodies() );
+        EE_ASSERT( shapeIdx >= 0 && shapeIdx < pRagdollDescriptor->m_bodies[bodyIdx].m_shapes.size() );
+
+        CollisionSettings const settings = pRagdollDescriptor->m_bodies[bodyIdx].m_shapes[shapeIdx].m_collisionSettings;
+
+        ScopedDataFileModification const sdm( this );
+        for ( auto& body : pRagdollDescriptor->m_bodies )
+        {
+            for ( auto& shape : body.m_shapes )
+            {
+                shape.m_collisionSettings = settings;
+            }
+        }
+    }
+
+    void RagdollEditor::UpdateJointSetupDueToHierarchyChange()
+    {
+        EE_ASSERT( HasActiveUndoableAction() );
+
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() && m_skeleton.IsLoaded() );
+
+        int32_t const numBodies = pRagdollDescriptor->GetNumBodies();
+        for ( int32_t bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
+        {
+            // If we are the root, we cannot have a joint type set
+            if ( pRagdollDescriptor->GetParentBodyIndex( m_skeleton.GetPtr(), bodyIdx ) == InvalidIndex )
+            {
+                pRagdollDescriptor->m_bodies[bodyIdx].m_joint.m_type = RagdollJointDefinition::Type::None;
+            }
+            else // Make sure all other bodies have joints set
+            {
+                if ( pRagdollDescriptor->m_bodies[bodyIdx].m_joint.m_type == RagdollJointDefinition::Type::None )
+                {
+                    pRagdollDescriptor->m_bodies[bodyIdx].m_joint.m_type = RagdollJointDefinition::Type::Spherical;
+                }
+            }
+        }
+    }
+
+    void RagdollEditor::ResetJointTransform( int32_t bodyIdx )
+    {
+        ScopedDataFileModification const sdm( this );
+
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < pRagdollDescriptor->GetNumBodies() );
+
+        int32_t const boneIdx = m_skeleton->GetBoneIndex( pRagdollDescriptor->m_bodies[bodyIdx].m_boneID );
+        Transform const bodyTransform = m_skeleton->GetBoneModelSpaceTransform( boneIdx );
+        pRagdollDescriptor->m_bodies[bodyIdx].m_joint.m_orientation = Quaternion::FromRotationBetweenUnitVectors( Vector::UnitZ, bodyTransform.GetAxisX() );
+    }
+
+    void RagdollEditor::ChangeJointType( int32_t bodyIdx, RagdollJointDefinition::Type jointType )
+    {
+        ScopedDataFileModification const sdm( this );
+
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() && m_skeleton.IsLoaded() );
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < pRagdollDescriptor->GetNumBodies() );
+        pRagdollDescriptor->m_bodies[bodyIdx].m_joint.m_type = jointType;
+    }
+
+    IReflectedType* RagdollEditor::GetTypeToEditBasedOnSelection() const
+    {
+        IReflectedType* pTypeToEdit = nullptr;
+
+        if ( m_selectedElement.IsSet() )
+        {
+            auto pRagdollDescriptor = const_cast<RagdollResourceDescriptor*>( GetDataFile<RagdollResourceDescriptor>() );
+            for ( auto& body : pRagdollDescriptor->m_bodies )
+            {
+                if ( m_selectedElement.m_boneID == body.m_boneID )
+                {
+                    if ( m_selectedElement.IsShape() )
+                    {
+                        if ( m_selectedElement.m_shapeIdx < body.m_shapes.size() )
+                        {
+                            pTypeToEdit = &body.m_shapes[m_selectedElement.m_shapeIdx];
+                        }
+                    }
+                    else if( m_selectedElement.IsJoint() )
+                    {
+                        if ( body.m_joint.m_type != RagdollJointDefinition::Type::None )
+                        {
+                            pTypeToEdit = &body.m_joint;
+                        }
+                    }
+                    else
+                    {
+                        pTypeToEdit = &body;
+                    }
+                }
+            }
+        }
+
+        return pTypeToEdit;
+    }
+
+    uint64_t RagdollEditor::ConvertRagdollElementToHitTestID( RagdollElement const& element ) const
+    {
+        if ( !m_skeleton.IsLoaded() || !element.IsSet() )
+        {
+            return 0;
+        }
+
+        uint16_t const type = (uint16_t) element.GetType();
+        uint32_t const boneIdx = (uint32_t) m_skeleton->GetBoneIndex( element.m_boneID );
+        uint16_t shapeIdx = 0;
+
+        if ( element.IsShape() )
+        {
+            EE_ASSERT( element.m_shapeIdx >= 0 && element.m_shapeIdx < INT16_MAX );
+            shapeIdx = uint16_t( element.m_shapeIdx );
+        }
+
+        //-------------------------------------------------------------------------
+
+        uint64_t ID = uint64_t( type ) << 48;
+        ID = ID | ( uint64_t( boneIdx ) << 16 );
+        ID = ID | uint64_t( shapeIdx );
+
+        return ID;
+    }
+
+    RagdollEditor::RagdollElement RagdollEditor::ConvertHitTestIDToRagdollElement( uint64_t hitTestID ) const
+    {
+        RagdollEditor::RagdollElement element;
+
+        if ( !m_skeleton.IsLoaded() || hitTestID == 0 )
+        {
+            return element;
+        }
+
+        //-------------------------------------------------------------------------
+
+        uint16_t const shapeIdx = uint16_t( hitTestID & 0xFFFF );
+        uint32_t const boneIdx = uint32_t( ( hitTestID >> 16 ) & 0xFFFFFFFF );
+        uint16_t const type = uint16_t( ( hitTestID >> 48 ) & 0xFFFF );
+
+        //-------------------------------------------------------------------------
+
+        if ( !m_skeleton->IsValidBoneIndex( (int32_t) boneIdx ) )
+        {
+            return element;
+        }
+
+        StringID const boneID = m_skeleton->GetBoneID( (int32_t) boneIdx );
+        EE_ASSERT( boneID.IsValid() );
+
+        //-------------------------------------------------------------------------
+
+        auto const elementType = (RagdollElement::Type) type;
+        switch ( elementType )
+        {
+            case RagdollElement::Type::BoneOrBody:
+            {
+                element.SetBoneOrBody( boneID );
+            }
+            break;
+
+            case RagdollElement::Type::Joint:
+            {
+                element.SetJoint( boneID );
+            }
+            break;
+
+            case RagdollElement::Type::Shape:
+            {
+                element.SetShape( boneID, shapeIdx );
+            }
+            break;
+
+            default:
+            {
+                EE_UNREACHABLE_CODE();
+            }
+            break;
+        }
+
+        return element;
     }
 
     void RagdollEditor::CreateSkeletonTree()
@@ -1329,15 +805,180 @@ namespace EE::Physics
         }
     }
 
-    ImRect RagdollEditor::RenderSkeletonTree( BoneInfo* pBone )
+    void RagdollEditor::DrawOutlinerWindow( UpdateContext const& context, bool isFocused )
     {
+        if ( m_pSkeletonTreeRoot != nullptr )
+        {
+            ImGui::Text( "Skeleton ID: %s", m_skeleton->GetDataPath().GetFilenameWithoutExtension().c_str() );
+            EE_ASSERT( m_pSkeletonTreeRoot != nullptr );
+            DrawOutlinerBoneItem( m_pSkeletonTreeRoot );
+        }
+
+        if ( isFocused && m_selectedElement.IsSet() && ImGui::IsKeyPressed( ImGuiKey_F ) )
+        {
+            Transform const selectedElementTransform = GetSelectedElementTransform();
+            FocusCameraView( selectedElementTransform.GetTranslation(), 2.0f );
+        }
+    }
+
+    void RagdollEditor::DrawDetailsWindow( UpdateContext const& context, bool isFocused )
+    {
+        if ( !IsDataFileLoaded() || !m_skeleton.IsLoaded() )
+        {
+            return;
+        }
+        //-------------------------------------------------------------------------
+
+        IReflectedType* pTypeToEdit = GetTypeToEditBasedOnSelection();
+        if ( m_propertyGrid.GetEditedType() != pTypeToEdit )
+        {
+            m_propertyGrid.SetTypeToEdit( pTypeToEdit );
+        }
+
+        //-------------------------------------------------------------------------
+
+        m_propertyGrid.UpdateAndDraw();
+    }
+
+    void RagdollEditor::DrawSelfCollisionEditorWindow( UpdateContext const& context, bool isFocused )
+    {
+        if ( !IsDataFileLoaded() || !m_skeleton.IsLoaded() )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        struct Pair
+        {
+            inline bool operator==( Pair const& rhs ) const
+            {
+                if ( m_bodyA == rhs.m_bodyA && m_bodyB == rhs.m_bodyB )
+                {
+                    return true;
+                }
+
+                if ( m_bodyA == rhs.m_bodyB && m_bodyB == rhs.m_bodyA )
+                {
+                    return true;
+                }
+
+                return false;
+            }
+
+            int32_t     m_bodyA;
+            int32_t     m_bodyB;
+            bool        m_collides;
+        };
+
+        // Generate Options
+        //-------------------------------------------------------------------------
+
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        auto pSkeleton = m_skeleton.GetPtr();
+        int32_t const numBodies = pRagdollDescriptor->GetNumBodies();
+
+        TInlineVector<Pair, 100> pairs;
+
+        for ( auto i = 0; i < numBodies; i++ )
+        {
+            for ( auto j = 0; j < numBodies; j++ )
+            {
+                if ( i == j )
+                {
+                    continue;
+                }
+
+                if ( pRagdollDescriptor->GetParentBodyIndex( pSkeleton, j ) == i || pRagdollDescriptor->GetParentBodyIndex( pSkeleton, i ) == j )
+                {
+                    continue;
+                }
+
+                Pair p = { i, j, !pRagdollDescriptor->IsCollisionDisabledBetweenBodies( i, j ) };
+                VectorEmplaceBackUnique( pairs, p );
+            }
+        }
+
+        // Draw list
+        //-------------------------------------------------------------------------
+
+        m_selfCollisionFilter.UpdateAndDraw();
+
+        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 16, 2 ) );
+        if ( ImGui::BeginTable( "PT", 3, ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders, ImGui::GetContentRegionAvail() ) )
+        {
+            ImGui::TableSetupColumn( "Body A", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize, 0.5 );
+            ImGui::TableSetupColumn( "Body B", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize, 0.5 );
+            ImGui::TableSetupColumn( "Collides", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 64 );
+
+            ImGui::TableHeadersRow();
+
+            for ( auto& p : pairs )
+            {
+                if ( m_selfCollisionFilter.HasFilterSet() )
+                {
+                    bool const matchesA = m_selfCollisionFilter.MatchesFilter( pRagdollDescriptor->m_bodies[p.m_bodyA].m_boneID.c_str() );
+                    bool const matchesB = m_selfCollisionFilter.MatchesFilter( pRagdollDescriptor->m_bodies[p.m_bodyB].m_boneID.c_str() );
+                    if ( !matchesA && !matchesB )
+                    {
+                        continue;
+                    }
+                }
+
+                //-------------------------------------------------------------------------
+
+                InlineString const str( InlineString::CtorSprintf(), "%d_%d", p.m_bodyA, p.m_bodyB );
+                ImGui::PushID( str.c_str() );
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "%s", pRagdollDescriptor->m_bodies[p.m_bodyA].m_boneID.c_str() );
+
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "%s", pRagdollDescriptor->m_bodies[p.m_bodyB].m_boneID.c_str() );
+
+                ImGui::TableNextColumn();
+                ImGui::BeginDisabled( IsPreviewing() );
+                if ( ImGui::Checkbox( "##", &p.m_collides ) )
+                {
+                    RagdollDisableCollisionRule rule;
+                    rule.m_boneA = pRagdollDescriptor->m_bodies[p.m_bodyA].m_boneID;
+                    rule.m_boneB = pRagdollDescriptor->m_bodies[p.m_bodyB].m_boneID;
+
+                    ScopedDataFileModification const sdm( this );
+                    if ( p.m_collides )
+                    {
+                        pRagdollDescriptor->m_disableCollisionRules.erase_first( rule );
+                    }
+                    else
+                    {
+                        VectorEmplaceBackUnique( pRagdollDescriptor->m_disableCollisionRules, rule );
+                    }
+                }
+                ImGui::EndDisabled();
+
+                ImGui::PopID();
+            }
+
+            ImGui::EndTable();
+        }
+        ImGui::PopStyleVar();
+    }
+
+    ImRect RagdollEditor::DrawOutlinerBoneItem( BoneInfo* pBone )
+    {
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() );
+        EE_ASSERT( m_skeleton.IsLoaded() );
         EE_ASSERT( pBone != nullptr );
-        
 
         //-------------------------------------------------------------------------
 
         StringID const currentBoneID = m_skeleton->GetBoneID( pBone->m_boneIdx );
-        int32_t const bodyIdx = m_ragdollDefinition.GetBodyIndexForBoneID( currentBoneID );
+        int32_t const bodyIdx = pRagdollDescriptor->GetBodyIndexForBoneID( currentBoneID );
         bool const hasBody = bodyIdx != InvalidIndex;
 
         //-------------------------------------------------------------------------
@@ -1350,17 +991,25 @@ namespace EE::Physics
             treeNodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
         }
 
-        if( currentBoneID == m_selectedBoneID )
+        bool const isSelected = m_selectedElement.IsBoneOrBody() && m_selectedElement.m_boneID == currentBoneID;
+        if ( isSelected )
         {
             treeNodeFlags |= ImGuiTreeNodeFlags_Selected;
         }
 
         InlineString boneLabel;
-        boneLabel.sprintf( "%d. %s", pBone->m_boneIdx, currentBoneID.c_str() );
+        if ( hasBody )
+        {
+            boneLabel.sprintf( "%d. %s %s", pBone->m_boneIdx, EE_ICON_ACCOUNT, currentBoneID.c_str() );
+        }
+        else
+        {
+            boneLabel.sprintf( "%d. %s", pBone->m_boneIdx, currentBoneID.c_str() );
+        }
 
         if ( hasBody )
         {
-            ImGuiX::ScopedFont const sf( ImGuiX::Font::MediumBold, Colors::LimeGreen );
+            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBoldItalic : ImGuiX::Font::Medium, Colors::HotPink );
             pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
         }
         else
@@ -1368,33 +1017,29 @@ namespace EE::Physics
             pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
         }
 
-        // Handle bone selection
-        if ( ImGui::IsItemHovered( ImGuiHoveredFlags_AllowWhenBlockedByPopup ) )
-        {
-            if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) || ImGui::IsMouseClicked( ImGuiMouseButton_Right ) )
-            {
-                m_selectedBoneID = m_skeleton->GetBoneID( pBone->m_boneIdx );
-            }
-        }
-
         // Context Menu
         if ( ImGui::BeginPopupContextItem() )
         {
             if ( hasBody )
             {
+                if ( ImGui::MenuItem( "Create shape" ) )
+                {
+                    m_commandStack.PushCommand( [this, bodyIdx] () { CreateShape( bodyIdx ); } );
+                }
+
                 if ( ImGui::MenuItem( "Destroy Body" ) )
                 {
-                    DestroyBody( bodyIdx );
+                    m_commandStack.PushCommand( [this, bodyIdx] () { DestroyBody( bodyIdx ); } );
                 }
 
                 if ( ImGui::MenuItem( "Destroy All Child Bodies" ) )
                 {
-                    DestroyChildBodies( bodyIdx );
+                    m_commandStack.PushCommand( [this, bodyIdx] () { DestroyChildBodies( bodyIdx ); } );
                 }
             }
             else
             {
-                if ( m_ragdollDefinition.GetNumBodies() >= RagdollDefinition::s_maxNumBodies )
+                if ( pRagdollDescriptor->GetNumBodies() >= RagdollDefinition::s_maxNumBodies )
                 {
                     ImGui::Text( "Max number of bodies reached" );
                 }
@@ -1402,12 +1047,21 @@ namespace EE::Physics
                 {
                     if ( ImGui::MenuItem( "Create Body" ) )
                     {
-                        CreateBody( currentBoneID );
+                        m_commandStack.PushCommand( [this, currentBoneID] () { CreateBody( currentBoneID ); } );
                     }
                 }
             }
 
             ImGui::EndPopup();
+        }
+
+        // Handle bone/body selection
+        if ( ImGui::IsItemHovered( ImGuiHoveredFlags_AllowWhenBlockedByPopup ) )
+        {
+            if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) || ImGui::IsMouseClicked( ImGuiMouseButton_Right ) )
+            {
+                m_selectedElement.SetBoneOrBody( currentBoneID );
+            }
         }
 
         //-------------------------------------------------------------------------
@@ -1416,6 +1070,13 @@ namespace EE::Physics
 
         if ( pBone->m_isExpanded )
         {
+            if ( hasBody )
+            {
+                DrawOutlinerBodyItems( bodyIdx );
+            }
+
+            //-------------------------------------------------------------------------
+
             ImU32 const TreeLineColor = ImGui::GetColorU32( ImGuiCol_TextDisabled );
             float const SmallOffsetX = 2;
             ImDrawList* drawList = ImGui::GetWindowDrawList();
@@ -1427,7 +1088,7 @@ namespace EE::Physics
             for ( BoneInfo* pChild : pBone->m_children )
             {
                 const float HorizontalTreeLineSize = 4.0f;
-                const ImRect childRect = RenderSkeletonTree( pChild );
+                const ImRect childRect = DrawOutlinerBoneItem( pChild );
                 const float midpoint = ( childRect.Min.y + childRect.Max.y ) / 2.0f;
                 drawList->AddLine( ImVec2( verticalLineStart.x, midpoint ), ImVec2( verticalLineStart.x + HorizontalTreeLineSize, midpoint ), TreeLineColor );
                 verticalLineEnd.y = midpoint;
@@ -1440,1070 +1101,430 @@ namespace EE::Physics
         return nodeRect;
     }
 
-    //-------------------------------------------------------------------------
-    // Profiles
-    //-------------------------------------------------------------------------
-
-    void RagdollEditor::SetActiveProfile( StringID profileID )
+    void RagdollEditor::DrawOutlinerBodyItems( int32_t bodyIdx )
     {
-        m_activeProfileID = profileID;
-        UpdateProfileWorkingCopy();
+        constexpr float const horizontalTreeLineSize = 4.0f;
 
-        if ( IsPreviewing() )
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr && pRagdollDescriptor->IsValid() );
+        EE_ASSERT( bodyIdx >= 0 && bodyIdx < pRagdollDescriptor->m_bodies.size() );
+
+        InlineString itemLabel;
+
+        ImGui::Indent();
+        auto const& body = pRagdollDescriptor->m_bodies[bodyIdx];
+
+        // Joint
+        //-------------------------------------------------------------------------
+
+        if ( body.m_joint.m_type != RagdollJointDefinition::Type::None )
         {
-            m_pRagdoll->SwitchProfile( m_activeProfileID );
-        }
-    }
+            ImU32 const treeLineColor = ImGui::GetColorU32( ImGuiCol_TextDisabled );
+            float const smallOffsetX = 2;
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
 
-    void RagdollEditor::UpdateProfileWorkingCopy()
-    {
-        if ( !m_activeProfileID.IsValid() )
-        {
-            return;
-        }
+            ImVec2 verticalLineStart = ImGui::GetCursorScreenPos();
+            verticalLineStart.x += smallOffsetX;
+            ImVec2 verticalLineEnd = verticalLineStart;
 
-        // Handle invalid profile IDs
-        auto pProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
-        if ( pProfile == nullptr )
-        {
-            m_activeProfileID.Clear();
-            return;
-        }
-
-        // Copy profile
-        m_workingProfileCopy = *pProfile;
-    }
-
-    String RagdollEditor::GetUniqueProfileName( String const& desiredName ) const
-    {
-        String uniqueName = desiredName;
-        bool isNameUnique = false;
-        int32_t suffixCounter = 0;
-
-        
-        while ( !isNameUnique )
-        {
-            isNameUnique = true;
-
-            // Check control parameters
-            for ( auto const& profile : m_ragdollDefinition.m_profiles )
+            switch ( body.m_joint.m_type )
             {
-                if ( _stricmp( uniqueName.c_str(), profile.m_ID.c_str() ) == 0 )
+                case RagdollJointDefinition::Type::Spherical:
                 {
-                    isNameUnique = false;
-                    break;
+                    itemLabel.sprintf( EE_ICON_CONE" Spherical Joint (%s)", body.m_boneID.c_str() );
                 }
-            }
+                break;
 
-            if ( !isNameUnique )
-            {
-                uniqueName.sprintf( "%s_%d", desiredName.c_str(), suffixCounter );
-                suffixCounter++;
-            }
-        }
+                case RagdollJointDefinition::Type::Revolute:
+                {
+                    itemLabel.sprintf( EE_ICON_ANGLE_ACUTE" Revolute Joint (%s)", body.m_boneID.c_str() );
+                }
+                break;
 
-        //-------------------------------------------------------------------------
-
-        return uniqueName;
-    }
-
-    StringID RagdollEditor::CreateProfile( String const newProfileName )
-    {
-        auto const uniqueNameID = GetUniqueProfileName( newProfileName.c_str() );
-
-        ScopedRagdollSettingsModification const sdm( this );
-        
-        auto& profile = m_ragdollDefinition.m_profiles.emplace_back();
-        profile.m_ID = StringID( uniqueNameID.c_str() );
-        ResetProfile( profile );
-        return profile.m_ID;
-    }
-
-    StringID RagdollEditor::DuplicateProfile( StringID originalProfileID, String duplicateProfileName )
-    {
-        auto const uniqueNameID = GetUniqueProfileName( duplicateProfileName.c_str() );
-
-        
-        auto pOriginalProfile = m_ragdollDefinition.GetProfile( originalProfileID );
-        EE_ASSERT( pOriginalProfile != nullptr );
-
-        //-------------------------------------------------------------------------
-
-        ScopedRagdollSettingsModification const sdm( this );
-        auto& profile = m_ragdollDefinition.m_profiles.emplace_back();
-        profile.m_ID = StringID( uniqueNameID.c_str() );
-        profile.CopySettingsFrom( *pOriginalProfile );
-        return profile.m_ID;
-    }
-
-    void RagdollEditor::ResetProfile( RagdollDefinition::Profile& profile ) const
-    {
-        
-        int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
-
-        //-------------------------------------------------------------------------
-
-        if ( !profile.m_ID.IsValid() )
-        {
-            profile.m_ID = StringID( GetUniqueProfileName( "Profile" ) );
-        }
-
-        //-------------------------------------------------------------------------
-
-        profile.m_bodySettings.clear();
-        profile.m_materialSettings.clear();
-        profile.m_jointSettings.clear();
-
-        //-------------------------------------------------------------------------
-
-        profile.m_bodySettings.resize( numBodies );
-        profile.m_materialSettings.resize( numBodies );
-
-        if ( numBodies > 1 )
-        {
-            profile.m_jointSettings.resize( numBodies - 1 );
-        }
-    }
-
-    void RagdollEditor::DestroyProfile( StringID profileID )
-    {
-        ScopedRagdollSettingsModification const sdm( this );
-
-        
-        for ( auto profileIter = m_ragdollDefinition.m_profiles.begin(); profileIter != m_ragdollDefinition.m_profiles.end(); ++profileIter )
-        {
-            if ( profileIter->m_ID == profileID )
-            {
-                m_ragdollDefinition.m_profiles.erase( profileIter );
+                case RagdollJointDefinition::Type::None:
+                {
+                    EE_UNREACHABLE_CODE();
+                }
                 break;
             }
-        }
-    }
 
-    void RagdollEditor::DrawProfileEditorWindow( UpdateContext const& context, bool isFocused )
-    {
-        DrawProfileManager();
-
-        //-------------------------------------------------------------------------
-
-        RagdollDefinition::Profile* pActiveProfile = nullptr;
-        if ( m_ragdollDefinition.IsValid() )
-        {
-            pActiveProfile = m_ragdollDefinition.GetProfile( m_activeProfileID );
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( pActiveProfile == nullptr )
-        {
-            ImGui::TextColored( Colors::Red.ToFloat4(), "Invalid Definition" );
-            if ( m_solverSettingsGrid.GetEditedType() != nullptr )
+            int32_t treeNodeFlags = 0;
+            bool const isSelected = m_selectedElement.IsJoint() && m_selectedElement.m_boneID == body.m_boneID;
+            if ( isSelected )
             {
-                m_solverSettingsGrid.SetTypeToEdit( nullptr );
+                treeNodeFlags |= ImGuiTreeNodeFlags_Selected;
             }
-        }
-        else if ( m_ragdollDefinition.GetNumBodies() == 0 )
-        {
-            ImGui::TextColored( Colors::Yellow.ToFloat4(), "No Bodies" );
-            if ( m_solverSettingsGrid.GetEditedType() != nullptr )
+
+            // Item
             {
-                m_solverSettingsGrid.SetTypeToEdit( nullptr );
+                ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBoldItalic : ImGuiX::Font::Medium, Colors::Gold );
+                ImGui::SetNextItemOpen( true );
+                if ( ImGui::TreeNodeEx( itemLabel.c_str(), treeNodeFlags ) )
+                {
+                    const ImRect childRect = ImRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
+                    const float midpoint = ( childRect.Min.y + childRect.Max.y ) / 2.0f;
+                    drawList->AddLine( ImVec2( verticalLineStart.x, midpoint ), ImVec2( verticalLineStart.x + horizontalTreeLineSize, midpoint ), treeLineColor );
+                    verticalLineEnd.y = midpoint;
+                    drawList->AddLine( verticalLineStart, verticalLineEnd, treeLineColor );
+                    ImGui::TreePop();
+                }
             }
-        }
-        else
-        {
-            if ( ImGui::BeginTabBar( "ProfileSetings" ) )
+
+            // Context Menu
+            if ( ImGui::BeginPopupContextItem() )
             {
-                if ( ImGui::BeginTabItem( "Body/Joint Settings" ) )
+                if ( body.m_joint.m_type != RagdollJointDefinition::Type::Revolute )
                 {
-                    DrawBodyAndJointSettingsTable( context, pActiveProfile );
-                    ImGui::EndTabItem();
-                }
-
-                //-------------------------------------------------------------------------
-
-                if ( ImGui::BeginTabItem( "Material Settings" ) )
-                {
-                    DrawMaterialSettingsTable( context, pActiveProfile );
-                    ImGui::EndTabItem();
-                }
-
-                //-------------------------------------------------------------------------
-
-                if ( ImGui::BeginTabItem( "Solver Settings" ) )
-                {
-                    if ( m_solverSettingsGrid.GetEditedType() != pActiveProfile )
+                    if ( ImGui::MenuItem( EE_ICON_ANGLE_ACUTE" Switch joint to Revolute" ) )
                     {
-                        m_solverSettingsGrid.SetTypeToEdit( pActiveProfile );
+                        m_commandStack.PushCommand( [this, bodyIdx] () { ChangeJointType( bodyIdx, RagdollJointDefinition::Type::Revolute ); } );
                     }
-                    m_solverSettingsGrid.UpdateAndDraw();
-                    ImGui::EndTabItem();
                 }
 
-                ImGui::EndTabBar();
+                if ( body.m_joint.m_type != RagdollJointDefinition::Type::Spherical )
+                {
+                    if ( ImGui::MenuItem( EE_ICON_CONE" Switch joint to Spherical" ) )
+                    {
+                        m_commandStack.PushCommand( [this, bodyIdx] () { ChangeJointType( bodyIdx, RagdollJointDefinition::Type::Spherical ); } );
+                    }
+                }
+
+                if ( ImGui::MenuItem( "Reset Transform" ) )
+                {
+                    m_commandStack.PushCommand( [this, bodyIdx] () { ResetJointTransform( bodyIdx ); } );
+                }
+
+                ImGui::EndPopup();
+            }
+
+            // Handle joint selection
+            if ( ImGui::IsItemHovered( ImGuiHoveredFlags_AllowWhenBlockedByPopup ) )
+            {
+                if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) || ImGui::IsMouseClicked( ImGuiMouseButton_Right ) )
+                {
+                    m_selectedElement.SetJoint( body.m_boneID );
+                }
             }
         }
+
+        // Shapes
+        //-------------------------------------------------------------------------
+
+        int32_t const numShapes = (int32_t) body.m_shapes.size();
+        for ( int32_t i = 0; i < numShapes; i++ )
+        {
+            auto const& shape = body.m_shapes[i];
+
+            ImU32 const treeLineColor = ImGui::GetColorU32( ImGuiCol_TextDisabled );
+            float const smallOffsetX = 2;
+            ImDrawList* drawList = ImGui::GetWindowDrawList();
+
+            ImVec2 verticalLineStart = ImGui::GetCursorScreenPos();
+            verticalLineStart.x += smallOffsetX;
+            ImVec2 verticalLineEnd = verticalLineStart;
+
+            switch ( shape.m_type )
+            {
+                case RagdollShapeDefinition::Type::Capsule:
+                {
+                    itemLabel.sprintf( EE_ICON_PILL" Capsule (%s)##%d", body.m_boneID.c_str(), i );
+                }
+                break;
+
+                case RagdollShapeDefinition::Type::Box:
+                {
+                    itemLabel.sprintf( EE_ICON_CUBE" Box (%s)##%d", body.m_boneID.c_str(), i );
+                }
+                break;
+
+                case RagdollShapeDefinition::Type::Sphere:
+                {
+                    itemLabel.sprintf( EE_ICON_SPHERE" Sphere (%s)##%d", body.m_boneID.c_str(), i );
+                }
+                break;
+            }
+
+            int32_t treeNodeFlags = 0;
+            bool const isSelected = m_selectedElement.IsShape() && m_selectedElement.m_boneID == body.m_boneID && m_selectedElement.m_shapeIdx == i;
+            if ( isSelected )
+            {
+                treeNodeFlags |= ImGuiTreeNodeFlags_Selected;
+            }
+
+            // Item
+            {
+                ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBoldItalic : ImGuiX::Font::Medium, Colors::LightSkyBlue );
+                ImGui::SetNextItemOpen( true );
+                if ( ImGui::TreeNodeEx( itemLabel.c_str(), treeNodeFlags ) )
+                {
+                    const ImRect childRect = ImRect( ImGui::GetItemRectMin(), ImGui::GetItemRectMax() );
+                    const float midpoint = ( childRect.Min.y + childRect.Max.y ) / 2.0f;
+                    drawList->AddLine( ImVec2( verticalLineStart.x, midpoint ), ImVec2( verticalLineStart.x + horizontalTreeLineSize, midpoint ), treeLineColor );
+                    verticalLineEnd.y = midpoint;
+                    drawList->AddLine( verticalLineStart, verticalLineEnd, treeLineColor );
+                    ImGui::TreePop();
+                }
+            }
+
+            // Context Menu
+            
+            if ( ImGui::BeginPopupContextItem() )
+            {
+                if ( ImGui::MenuItem( "Copy collision settings to all shapes" ) )
+                {
+                    m_commandStack.PushCommand( [this, bodyIdx, i] () { CopyShapeCollisionSettings( bodyIdx, i ); } );
+                }
+
+                if ( CanDestroyShape( bodyIdx, i ) )
+                {
+                    if ( ImGui::MenuItem( "Destroy shape" ) )
+                    {
+                        m_commandStack.PushCommand( [this, bodyIdx, i] () { DestroyShape( bodyIdx, i ); } );
+                    }
+                }
+
+                ImGui::EndPopup();
+            }
+
+            // Handle shape selection
+            if ( ImGui::IsItemHovered( ImGuiHoveredFlags_AllowWhenBlockedByPopup ) )
+            {
+                if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) || ImGui::IsMouseClicked( ImGuiMouseButton_Right ) )
+                {
+                    m_selectedElement.SetShape( body.m_boneID, i );
+                }
+            }
+        }
+
+        ImGui::Unindent();
     }
 
-    void RagdollEditor::DrawProfileManager()
+    void RagdollEditor::DrawViewportUIForEditing( UpdateContext const& context, Viewport const* pViewport, bool isFocused )
     {
-        constexpr static float const iconButtonWidth = 24;
-        constexpr static float const createButtonWidth = 60;
-        float const spacing = ImGui::GetStyle().ItemSpacing.x;
-
-        
-        if ( !m_ragdollDefinition.IsValid() )
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        if ( pRagdollDescriptor == nullptr )
         {
             return;
         }
 
-        // Profile Selector
-        //-------------------------------------------------------------------------
+        auto drawingCtx = GetDebugDrawContext();
 
-        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ( createButtonWidth + spacing ) - ( 3 * ( iconButtonWidth + spacing ) ) );
-        if ( ImGui::BeginCombo( "##ProfileSelector", m_activeProfileID.IsValid() ? m_activeProfileID.c_str() : "Invalid Profile ID" ) )
+        // Draw skeleton
+        if ( m_drawSkeleton )
         {
-            for ( auto const& profile : m_ragdollDefinition.m_profiles )
-            {
-                bool const isSelected = ( profile.m_ID == m_activeProfileID );
-                if ( ImGui::Selectable( profile.m_ID.c_str(), isSelected ) )
-                {
-                    SetActiveProfile( profile.m_ID );
-                }
-
-                if ( isSelected )
-                {
-                    ImGui::SetItemDefaultFocus();
-                }
-            }
-
-            ImGui::EndCombo();
+            m_skeleton->DrawDebug( drawingCtx, Transform::Identity, Animation::Skeleton::LOD::High );
         }
 
-        // Controls
         //-------------------------------------------------------------------------
 
-        ImGui::BeginDisabled( IsPreviewing() );
+        int32_t const numBodies = pRagdollDescriptor->GetNumBodies();
+        for ( auto bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
         {
-            ImGui::SameLine();
-            if ( ImGuiX::ButtonColored( EE_ICON_PLUS"New", Colors::Green, Colors::White, ImVec2( createButtonWidth, 0 ) ) )
+            auto& body = pRagdollDescriptor->m_bodies[bodyIdx];
+
+            if ( m_isolateSelectedBody )
             {
-                auto const newUniqueName = GetUniqueProfileName( "Profile" );
-                Printf( m_profileNameBuffer, 256, newUniqueName.c_str() );
-                m_dialogManager.CreateModalDialog( "Create Profile", [this] ( UpdateContext const& context ) { return DrawCreateProfileDialog( context ); } );
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::SameLine();
-            if ( ImGuiX::ButtonColored( EE_ICON_CONTENT_COPY"##Duplicate", Colors::Green, Colors::White, ImVec2( iconButtonWidth, 0 ) ) )
-            {
-                auto const newUniqueName = GetUniqueProfileName( m_activeProfileID.c_str() );
-                Printf( m_profileNameBuffer, 256, newUniqueName.c_str() );
-                m_dialogManager.CreateModalDialog( "Rename Profile", [this] ( UpdateContext const& context ) { return DrawDuplicateProfileDialog( context ); } );
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::SameLine();
-            if ( ImGuiX::ButtonColored( EE_ICON_RENAME_BOX"##Rename", Colors::RoyalBlue, Colors::White, ImVec2( iconButtonWidth, 0 ) ) )
-            {
-                Printf( m_profileNameBuffer, 256, m_activeProfileID.c_str() );
-                m_dialogManager.CreateModalDialog( "Rename Profile", [this] ( UpdateContext const& context ) { return DrawRenameProfileDialog( context ); } );
-            }
-            ImGuiX::ItemTooltip( "Rename Current Profile" );
-
-            //-------------------------------------------------------------------------
-
-            ImGui::SameLine();
-            ImGui::BeginDisabled( m_ragdollDefinition.GetNumProfiles() == 1 );
-            if ( ImGuiX::ButtonColored( EE_ICON_DELETE, Colors::MediumRed, Colors::White, ImVec2( iconButtonWidth, 0 ) ) )
-            {
-                if ( m_ragdollDefinition.GetNumProfiles() > 1 )
+                if ( m_selectedElement.IsBoneOrBody() && body.m_boneID != m_selectedElement.m_boneID )
                 {
-                    DestroyProfile( m_activeProfileID );
-                    SetActiveProfile( m_ragdollDefinition.GetDefaultProfile()->m_ID );
-                }
-            }
-            ImGui::EndDisabled();
-            ImGuiX::ItemTooltip( "Delete Current Profile" );
-        }
-        ImGui::EndDisabled();
-    }
-
-    void RagdollEditor::DrawBodyAndJointSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile )
-    {
-        EE_ASSERT( pProfile != nullptr );
-        
-
-        int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
-        int32_t const numJoints = numBodies - 1;
-
-        //-------------------------------------------------------------------------
-
-        ImGuiX::ScopedFont sf( ImGuiX::Font::Tiny );
-        if ( ImGui::BeginTable( "BST", 20, ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY, ImVec2( 0, ImGui::GetContentRegionAvail().y ) ) )
-        {
-            ImGui::TableSetupColumn( "Body", ImGuiTableColumnFlags_WidthFixed, 120 );
-            ImGui::TableSetupColumn( "Mass", ImGuiTableColumnFlags_WidthFixed, 40 );
-            ImGui::TableSetupColumn( "CCD", ImGuiTableColumnFlags_WidthFixed, 20 );
-            ImGui::TableSetupColumn( "Self Collision", ImGuiTableColumnFlags_WidthFixed, 20 );
-            ImGui::TableSetupColumn( "Kinematic", ImGuiTableColumnFlags_WidthFixed, 20 );
-            
-            ImGui::TableSetupColumn( "Int. Compliance", ImGuiTableColumnFlags_WidthFixed, 50 );
-            ImGui::TableSetupColumn( "Ext. Compliance", ImGuiTableColumnFlags_WidthFixed, 50 );
-
-            ImGui::TableSetupColumn( "Stiffness", ImGuiTableColumnFlags_WidthFixed, 50 );
-            ImGui::TableSetupColumn( "Damping", ImGuiTableColumnFlags_WidthFixed, 50 );
-            ImGui::TableSetupColumn( "Velocity", ImGuiTableColumnFlags_WidthFixed, 20 );
-
-            ImGui::TableSetupColumn( "Twist", ImGuiTableColumnFlags_WidthFixed, 20 );
-            ImGui::TableSetupColumn( "Twist Lmt Min", ImGuiTableColumnFlags_WidthFixed, 60 );
-            ImGui::TableSetupColumn( "Twist Lmt Max", ImGuiTableColumnFlags_WidthFixed, 60 );
-            ImGui::TableSetupColumn( "Twist C-Dist", ImGuiTableColumnFlags_WidthFixed, 60 );
-
-            ImGui::TableSetupColumn( "Swing", ImGuiTableColumnFlags_WidthFixed, 20 );
-            ImGui::TableSetupColumn( "Swing Lmt Y", ImGuiTableColumnFlags_WidthFixed, 60 );
-            ImGui::TableSetupColumn( "Swing Lmt Z", ImGuiTableColumnFlags_WidthFixed, 60 );
-            ImGui::TableSetupColumn( "Swing C-Dist", ImGuiTableColumnFlags_WidthFixed, 60 );
-            ImGui::TableSetupColumn( "Tang. Stiffness", ImGuiTableColumnFlags_WidthFixed, 50 );
-            ImGui::TableSetupColumn( "Tang. Damping", ImGuiTableColumnFlags_WidthFixed, 50 );
-
-            ImGui::TableHeadersRow();
-
-            //-------------------------------------------------------------------------
-
-            for ( auto bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
-            {
-                auto& cachedBodySettings = m_workingProfileCopy.m_bodySettings[bodyIdx];
-                auto& realBodySettings = pProfile->m_bodySettings[bodyIdx];
-
-                ImGui::PushID( &cachedBodySettings );
-
-                //-------------------------------------------------------------------------
-                // Body Settings
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "%d. %s", bodyIdx, m_ragdollDefinition.m_bodies[bodyIdx].m_boneID.c_str());
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                if ( ImGui::InputFloat( "##Mass", &cachedBodySettings.m_mass, 0.0f, 0.0f, "%.2f" ) )
-                {
-                    cachedBodySettings.m_mass = Math::Clamp( cachedBodySettings.m_mass, 0.01f, 1000000.0f );
-                }
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_mass = cachedBodySettings.m_mass;
-                }
-                ImGuiX::ItemTooltip( "The mass of the body. Note that physx articulations take into account the masses of all bodies in the articulation!" );
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::Checkbox( "##CCD", &cachedBodySettings.m_enableCCD );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_enableCCD = cachedBodySettings.m_enableCCD;
-                }
-                ImGuiX::ItemTooltip( "Enable continuous collision detection for this body" );
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::Checkbox( "##SC", &cachedBodySettings.m_enableSelfCollision );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_enableSelfCollision = cachedBodySettings.m_enableSelfCollision;
-                }
-                ImGuiX::ItemTooltip( "Should this body collide with other bodies in the ragdoll" );
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-
-                if ( ImGui::Checkbox( "##FP", &cachedBodySettings.m_followPose ) )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_followPose = cachedBodySettings.m_followPose;
-                }
-
-                ImGuiX::ItemTooltip( "The should this body be driven towards the target pose via linear/angular velocities!" );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        for ( int32_t i = 0; i < numBodies; i++ )
-                        {
-                            m_workingProfileCopy.m_bodySettings[i].m_followPose = cachedBodySettings.m_followPose;
-                            pProfile->m_bodySettings[i].m_followPose = cachedBodySettings.m_followPose;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                if ( bodyIdx == 0 )
-                {
-                    ImGui::PopID();
                     continue;
                 }
-
-                //-------------------------------------------------------------------------
-                // Joint Settings
-                //-------------------------------------------------------------------------
-
-                int32_t const jointIdx = bodyIdx - 1;
-                auto& cachedJointSettings = m_workingProfileCopy.m_jointSettings[jointIdx];
-                auto& realJointSettings = pProfile->m_jointSettings[jointIdx];
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##IntCompliance", &cachedJointSettings.m_internalCompliance, Math::HugeEpsilon, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
+                else if ( m_selectedElement.IsJoint() )
                 {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_internalCompliance = cachedJointSettings.m_internalCompliance;
-                }
-                ImGuiX::ItemTooltip( "How much resistance does this joint have to internal (joint drive) forces. 0 = max resistance, 1 = no resistance." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
+                    int32_t const parentBodyIdx = pRagdollDescriptor->GetParentBodyIndex( m_skeleton.GetPtr(), pRagdollDescriptor->GetBodyIndex( m_selectedElement.m_boneID ) );
+                    bool const isJointBody = body.m_boneID == m_selectedElement.m_boneID;
+                    bool const isJointParentBody = ( bodyIdx == parentBodyIdx );
+                    if ( !isJointBody && !isJointParentBody )
                     {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_internalCompliance;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_internalCompliance = value;
-                            pProfile->m_jointSettings[i].m_internalCompliance = value;
-                        }
+                        continue;
                     }
-                    ImGui::EndPopup();
                 }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##ExtCompliance", &cachedJointSettings.m_externalCompliance, Math::HugeEpsilon, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_externalCompliance = cachedJointSettings.m_externalCompliance;
-                }
-                ImGuiX::ItemTooltip( "How much resistance does this joint have to internal (gravity/contact) forces. 0 = max resistance, 1 = no resistance" );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_externalCompliance;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_externalCompliance = value;
-                            pProfile->m_jointSettings[i].m_externalCompliance = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                if ( ImGui::InputFloat( "##Stiffness", &cachedJointSettings.m_stiffness, 0.0f, 0.0f, "%.1f" ) )
-                {
-                    cachedJointSettings.m_stiffness = Math::Clamp( cachedJointSettings.m_stiffness, 0.0f, 1000000.0f );
-                }
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_stiffness = cachedJointSettings.m_stiffness;
-                }
-                ImGuiX::ItemTooltip( "The acceleration generated by the spring drive is proportional to this value and the angle between the drive target position and the current position" );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_stiffness;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_stiffness = value;
-                            pProfile->m_jointSettings[i].m_stiffness = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                if ( ImGui::InputFloat( "##Damping", &cachedJointSettings.m_damping, 0.0f, 0.0f, "%.1f" ) )
-                {
-                    cachedJointSettings.m_damping = Math::Clamp( cachedJointSettings.m_damping, 0.0f, 1000000.0f );
-                }
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_damping = cachedJointSettings.m_damping;
-                }
-                ImGuiX::ItemTooltip( "The acceleration generated by the spring drive is proportional to this value and the difference between the angular velocity of the joint and the target drive velocity." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_damping;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_damping = value;
-                            pProfile->m_jointSettings[i].m_damping = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::Checkbox( "##Velocity", &cachedJointSettings.m_useVelocity );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_useVelocity = cachedJointSettings.m_useVelocity;
-                }
-                ImGuiX::ItemTooltip( "Use velocity to drive joint (in addition to joint target)." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        bool const value = cachedJointSettings.m_useVelocity;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_useVelocity = value;
-                            pProfile->m_jointSettings[i].m_useVelocity = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::Checkbox( "##Twist", &cachedJointSettings.m_twistLimitEnabled );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_twistLimitEnabled = cachedJointSettings.m_twistLimitEnabled;
-                }
-                ImGuiX::ItemTooltip( "Enable Twist Limits." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        bool const value = cachedJointSettings.m_twistLimitEnabled;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_twistLimitEnabled = value;
-                            pProfile->m_jointSettings[i].m_twistLimitEnabled = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##TwistLimitMin", &cachedJointSettings.m_twistLimitMin, -179, cachedJointSettings.m_twistLimitMax - 1, "%.3f", ImGuiSliderFlags_AlwaysClamp );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    EE_ASSERT( cachedJointSettings.m_twistLimitMin < cachedJointSettings.m_twistLimitMax );
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_twistLimitMin = cachedJointSettings.m_twistLimitMin;
-                }
-                ImGuiX::ItemTooltip( "The lower limit value must be less than the upper limit if the limit is enabled." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_twistLimitMin;
-                        float const maxTwistContactDistance = ( cachedJointSettings.m_twistLimitMax - value ) / 2;
-
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            if ( value < m_workingProfileCopy.m_jointSettings[i].m_twistLimitMax )
-                            {
-                                m_workingProfileCopy.m_jointSettings[i].m_twistLimitMin = value;
-                                if ( m_workingProfileCopy.m_jointSettings[i].m_twistLimitContactDistance >= maxTwistContactDistance )
-                                {
-                                    m_workingProfileCopy.m_jointSettings[i].m_twistLimitContactDistance = maxTwistContactDistance / 2;
-                                }
-
-                                pProfile->m_jointSettings[i].m_twistLimitMin = m_workingProfileCopy.m_jointSettings[i].m_twistLimitMin;
-                                pProfile->m_jointSettings[i].m_twistLimitContactDistance = m_workingProfileCopy.m_jointSettings[i].m_twistLimitContactDistance;
-                            }
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##TwistLimitMax", &cachedJointSettings.m_twistLimitMax, cachedJointSettings.m_twistLimitMin + 1, 179, "%.3f", ImGuiSliderFlags_AlwaysClamp );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    EE_ASSERT( cachedJointSettings.m_twistLimitMin < cachedJointSettings.m_twistLimitMax );
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_twistLimitMax = cachedJointSettings.m_twistLimitMax;
-                }
-                ImGuiX::ItemTooltip( "The lower limit value must be less than the upper limit if the limit is enabled." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_twistLimitMax;
-                        float const maxTwistContactDistance = ( value - cachedJointSettings.m_twistLimitMin ) / 2;
-
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            if ( value > m_workingProfileCopy.m_jointSettings[i].m_twistLimitMin )
-                            {
-                                m_workingProfileCopy.m_jointSettings[i].m_twistLimitMax = value;
-                                if ( m_workingProfileCopy.m_jointSettings[i].m_twistLimitContactDistance >= maxTwistContactDistance )
-                                {
-                                    m_workingProfileCopy.m_jointSettings[i].m_twistLimitContactDistance = maxTwistContactDistance / 2;
-                                }
-
-                                pProfile->m_jointSettings[i].m_twistLimitMax = m_workingProfileCopy.m_jointSettings[i].m_twistLimitMax;
-                                pProfile->m_jointSettings[i].m_twistLimitContactDistance = m_workingProfileCopy.m_jointSettings[i].m_twistLimitContactDistance;
-                            }
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                // The contact distance should be less than half the distance between the upper and lower limits.
-                float const maxTwistContactDistance = ( cachedJointSettings.m_twistLimitMax - cachedJointSettings.m_twistLimitMin ) / 2;
-                if ( cachedJointSettings.m_twistLimitContactDistance >= maxTwistContactDistance )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    cachedJointSettings.m_twistLimitContactDistance = maxTwistContactDistance / 2;
-                    realJointSettings.m_twistLimitContactDistance = cachedJointSettings.m_twistLimitContactDistance;
-                }
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##TwistContactDistance", &cachedJointSettings.m_twistLimitContactDistance, 0, maxTwistContactDistance - Math::HugeEpsilon, "%.3f", ImGuiSliderFlags_AlwaysClamp );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_twistLimitContactDistance = cachedJointSettings.m_twistLimitContactDistance;
-                }
-                ImGuiX::ItemTooltip( "The contact distance should be less than half the distance between the upper and lower limits." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_twistLimitContactDistance;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_twistLimitContactDistance = value;
-                            pProfile->m_jointSettings[i].m_twistLimitContactDistance = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::Checkbox( "##Swing", &cachedJointSettings.m_swingLimitEnabled );
-                ImGuiX::ItemTooltip( "Enable Swing Limits." );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_swingLimitEnabled = cachedJointSettings.m_swingLimitEnabled;
-                }
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-
-                        bool const value = cachedJointSettings.m_swingLimitEnabled;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_swingLimitEnabled = value;
-                            pProfile->m_jointSettings[i].m_swingLimitEnabled = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##SwingLimitY", &cachedJointSettings.m_swingLimitY, 1, 179, "%.1f", ImGuiSliderFlags_AlwaysClamp );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_swingLimitY = cachedJointSettings.m_swingLimitY;
-                }
-                ImGuiX::ItemTooltip( "Limit the allowed extent of rotation around the y-axis." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-
-                        float const value = cachedJointSettings.m_swingLimitY;
-                        float const maxSwingContactDistance = Math::Min( cachedJointSettings.m_swingLimitY, cachedJointSettings.m_swingLimitZ );
-
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_swingLimitY = value;
-                            if ( m_workingProfileCopy.m_jointSettings[i].m_swingLimitContactDistance >= maxSwingContactDistance )
-                            {
-                                m_workingProfileCopy.m_jointSettings[i].m_swingLimitContactDistance = maxSwingContactDistance / 2;
-                            }
-
-                            pProfile->m_jointSettings[i].m_swingLimitY = m_workingProfileCopy.m_jointSettings[i].m_swingLimitY;
-                            pProfile->m_jointSettings[i].m_swingLimitContactDistance = m_workingProfileCopy.m_jointSettings[i].m_swingLimitContactDistance;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##SwingLimitZ", &cachedJointSettings.m_swingLimitZ, 1, 179, "%.1f", ImGuiSliderFlags_AlwaysClamp );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_swingLimitZ = cachedJointSettings.m_swingLimitZ;
-                }
-                ImGuiX::ItemTooltip( "Limit the allowed extent of rotation around the z-axis." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_swingLimitZ;
-                        float const maxSwingContactDistance = Math::Min( cachedJointSettings.m_swingLimitY, cachedJointSettings.m_swingLimitZ );
-
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_swingLimitZ = value;
-                            if ( m_workingProfileCopy.m_jointSettings[i].m_swingLimitContactDistance >= maxSwingContactDistance )
-                            {
-                                m_workingProfileCopy.m_jointSettings[i].m_swingLimitContactDistance = maxSwingContactDistance / 2;
-                            }
-
-                            pProfile->m_jointSettings[i].m_swingLimitZ = m_workingProfileCopy.m_jointSettings[i].m_swingLimitZ;
-                            pProfile->m_jointSettings[i].m_swingLimitContactDistance = m_workingProfileCopy.m_jointSettings[i].m_swingLimitContactDistance;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                // The contact distance should be less than either limit angle
-                float const maxSwingContactDistance = Math::Min( cachedJointSettings.m_swingLimitY, cachedJointSettings.m_swingLimitZ );
-                if ( cachedJointSettings.m_swingLimitContactDistance >= maxSwingContactDistance )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    cachedJointSettings.m_swingLimitContactDistance = maxSwingContactDistance - 1.0f;
-                    realJointSettings.m_swingLimitContactDistance = cachedJointSettings.m_swingLimitContactDistance;
-                }
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##SwingContactDistance", &cachedJointSettings.m_swingLimitContactDistance, 0, maxSwingContactDistance - Math::HugeEpsilon, "%.3f", ImGuiSliderFlags_AlwaysClamp );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_swingLimitContactDistance = cachedJointSettings.m_swingLimitContactDistance;
-                }
-                ImGuiX::ItemTooltip( "The contact distance should be less than either limit angle." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_swingLimitContactDistance;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_swingLimitContactDistance = value;
-                            pProfile->m_jointSettings[i].m_swingLimitContactDistance = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                if ( ImGui::InputFloat( "##TangStiffness", &cachedJointSettings.m_tangentialStiffness, 0.0f, 0.0f, "%.1f" ) )
-                {
-                    cachedJointSettings.m_tangentialStiffness = Math::Clamp( cachedJointSettings.m_tangentialStiffness, 0.0f, 1000000.0f );
-                }
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_tangentialStiffness = cachedJointSettings.m_tangentialStiffness;
-                }
-                ImGuiX::ItemTooltip( "The tangential stiffness for the swing limit cone." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_tangentialStiffness;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_tangentialStiffness = value;
-                            pProfile->m_jointSettings[i].m_tangentialStiffness = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                if ( ImGui::InputFloat( "##TangDamping", &cachedJointSettings.m_tangentialDamping, 0.0f, 0.0f, "%.1f" ) )
-                {
-                    cachedJointSettings.m_tangentialDamping = Math::Clamp( cachedJointSettings.m_tangentialDamping, 0.0f, 1000000.0f );
-                }
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realJointSettings.m_tangentialDamping = cachedJointSettings.m_tangentialDamping;
-                }
-                ImGuiX::ItemTooltip( "The tangential damping for the swing limit cone." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = cachedJointSettings.m_tangentialDamping;
-                        for ( int32_t i = 0; i < numJoints; i++ )
-                        {
-                            m_workingProfileCopy.m_jointSettings[i].m_tangentialDamping = value;
-                            pProfile->m_jointSettings[i].m_tangentialDamping = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                ImGui::PopID();
             }
 
+            // Draw Shapes
             //-------------------------------------------------------------------------
 
-            ImGui::EndTable();
+            Transform const bodyTransform = pRagdollDescriptor->GetBodyTransform( m_skeleton.GetPtr(), bodyIdx );
+            for ( int32_t shapeIdx = 0; shapeIdx < body.m_shapes.size(); shapeIdx++ )
+            {
+                RagdollElement element;
+                element.SetShape( body.m_boneID, shapeIdx );
+
+                uint64_t const hitTestID = ConvertRagdollElementToHitTestID( element );
+                drawingCtx.SetHitTestID( hitTestID );
+                RagdollShapeDefinition const& shape = body.m_shapes[shapeIdx];
+                shape.DrawDebug( drawingCtx, bodyTransform, m_selectedElement.IsJoint() ? Colors::LightGreen.GetAlphaVersion( 0.75f ) : Colors::LightGreen );
+                drawingCtx.ClearHitTestID();
+            }
+
+            // Draw joint
+            //-------------------------------------------------------------------------
+
+            if ( bodyIdx > 0 )
+            {
+                auto& joint = body.m_joint;
+                if ( joint.m_type != RagdollJointDefinition::Type::None )
+                {
+                    int32_t const parentBodyIdx = pRagdollDescriptor->GetParentBodyIndex( m_skeleton.GetPtr(), bodyIdx );
+                    EE_ASSERT( parentBodyIdx != InvalidIndex );
+                    Transform const transformA = pRagdollDescriptor->GetBodyTransform( m_skeleton.GetPtr(), parentBodyIdx );
+                    Transform const transformB = pRagdollDescriptor->GetBodyTransform( m_skeleton.GetPtr(), bodyIdx );
+
+                    joint.FinalizeJoint( transformA, transformB );
+
+                    RagdollElement element;
+                    element.SetJoint( body.m_boneID );
+
+                    uint64_t const hitTestID = ConvertRagdollElementToHitTestID( element );
+                    drawingCtx.SetHitTestID( hitTestID );
+                    joint.DrawDebug( drawingCtx, transformA, transformB );
+                    drawingCtx.ClearHitTestID();
+                }
+            }
         }
-    }
 
-    void RagdollEditor::DrawMaterialSettingsTable( UpdateContext const& context, RagdollDefinition::Profile* pProfile )
-    {
-        static char const* const comboOptions[4] = { "Average", "Min", "Multiply", "Max" };
-
-        EE_ASSERT( pProfile != nullptr );
-        
-
+        // Gizmo
         //-------------------------------------------------------------------------
 
-        ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
-        if ( ImGui::BeginTable( "MaterialSettingsTable", 6, ImGuiTableFlags_BordersInnerV ) )
+        if ( m_selectedElement.IsSet() )
         {
-            ImGui::TableSetupColumn( "Body", ImGuiTableColumnFlags_WidthFixed, 120 );
-            ImGui::TableSetupColumn( "Static Friction", ImGuiTableColumnFlags_WidthFixed, 100 );
-            ImGui::TableSetupColumn( "Dynamic Friction", ImGuiTableColumnFlags_WidthFixed, 100 );
-            ImGui::TableSetupColumn( "Restitution", ImGuiTableColumnFlags_WidthFixed, 100 );
-            ImGui::TableSetupColumn( "Friction Combine", ImGuiTableColumnFlags_WidthFixed, 100 );
-            ImGui::TableSetupColumn( "Restitution Combine", ImGuiTableColumnFlags_WidthFixed, 100 );
-
-            ImGui::TableHeadersRow();
-
-            //-------------------------------------------------------------------------
-
-            int32_t const numBodies = m_ragdollDefinition.GetNumBodies();
-            for ( auto bodyIdx = 0; bodyIdx < numBodies; bodyIdx++ )
+            auto TryGetGizmoTransform = [this, pRagdollDescriptor]( Transform &outTransform ) -> bool
             {
-                auto& bodySettings = m_workingProfileCopy.m_materialSettings[bodyIdx];
-                auto& realBodySettings = pProfile->m_materialSettings[bodyIdx];
-
-                ImGui::PushID( &bodySettings );
-                ImGui::TableNextRow();
-
-                ImGui::TableNextColumn();
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( m_ragdollDefinition.m_bodies[bodyIdx].m_boneID.c_str() );
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                if ( ImGui::SliderFloat( "##StaticFriction", &bodySettings.m_staticFriction, 0, 10000, "%.3f", ImGuiSliderFlags_AlwaysClamp ) )
+                if( m_selectedElement.IsJoint() )
                 {
-                    bodySettings.m_staticFriction = Math::Clamp( bodySettings.m_staticFriction, 0.0f, 1000000.0f );
+                    int32_t const bodyIdx = pRagdollDescriptor->GetBodyIndex( m_selectedElement.m_boneID );
+                    outTransform = pRagdollDescriptor->GetBodyTransform( m_skeleton.GetPtr(), m_selectedElement.m_boneID );
+                    outTransform.AddRotation( pRagdollDescriptor->m_bodies[bodyIdx].m_joint.m_orientation );
+                    return true;
                 }
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
+                else if ( m_selectedElement.IsShape() )
                 {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_staticFriction = bodySettings.m_staticFriction;
+                    outTransform = pRagdollDescriptor->GetShapeTransform( m_skeleton.GetPtr(), m_selectedElement.m_boneID, m_selectedElement.m_shapeIdx );
+                    return true;
                 }
-                ImGuiX::ItemTooltip( "The coefficient of static friction." );
 
-                if ( ImGui::BeginPopupContextItem() )
+                return false;
+            };
+
+            auto ApplyGizmoResult = [this, pRagdollDescriptor] ( ImGuiX::Gizmo::Result const& result )
+            {
+                if ( result.IsScale() )
                 {
-                    if ( ImGui::MenuItem( "Set To All" ) )
+                    EE_ASSERT( m_selectedElement.IsShape() );
+                    pRagdollDescriptor->ScaleShape( m_selectedElement.m_boneID, m_selectedElement.m_shapeIdx, result.m_delta );
+                }
+                else
+                {
+                    if ( m_selectedElement.IsShape() )
                     {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = bodySettings.m_staticFriction;
-                        for ( int32_t i = 0; i < numBodies; i++ )
+                        Transform shapeTransform = pRagdollDescriptor->GetShapeTransform( m_skeleton.GetPtr(), m_selectedElement.m_boneID, m_selectedElement.m_shapeIdx );
+                        shapeTransform = result.GetModifiedTransform( shapeTransform );
+                        pRagdollDescriptor->SetShapeTransform( m_skeleton.GetPtr(), m_selectedElement.m_boneID, m_selectedElement.m_shapeIdx, shapeTransform );
+                    }
+                    else if( m_selectedElement.IsJoint() )
+                    {
+                        if ( result.m_deltaType == ImGuiX::Gizmo::ResultDeltaType::Rotation )
                         {
-                            m_workingProfileCopy.m_materialSettings[i].m_staticFriction = value;
-                            pProfile->m_materialSettings[i].m_staticFriction = value;
+                            int32_t const bodyIdx = pRagdollDescriptor->GetBodyIndex( m_selectedElement.m_boneID );
+                            Quaternion delta( result.m_delta );
+                            Quaternion newR = pRagdollDescriptor->m_bodies[bodyIdx].m_joint.m_orientation * delta;
+
+                            EE_ASSERT( !newR.ToVector().IsZero4() );
+                            pRagdollDescriptor->m_bodies[bodyIdx].m_joint.m_orientation = newR.GetNormalized();
                         }
                     }
-                    ImGui::EndPopup();
+                }
+            };
+
+            Transform gizmoTransform;
+            bool const wasAbleToGetGizmoTransform = TryGetGizmoTransform( gizmoTransform );
+
+            if ( wasAbleToGetGizmoTransform )
+            {
+                m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::World );
+
+                if ( m_selectedElement.IsShape() )
+                {
+                    m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, true );
+                    m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, pRagdollDescriptor->GetShapeType( m_selectedElement.m_boneID, m_selectedElement.m_shapeIdx ) != RagdollShapeDefinition::Type::Sphere );
+                }
+                else
+                {
+                    m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
                 }
 
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                if( ImGui::SliderFloat( "##DynamicFriction", &bodySettings.m_dynamicFriction, 0, 10000, "%.3f", ImGuiSliderFlags_AlwaysClamp ) )
+                if ( m_selectedElement.IsJoint() )
                 {
-                    bodySettings.m_dynamicFriction = Math::Clamp( bodySettings.m_dynamicFriction, 0.0f, 1000000.0f );
-                }
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_dynamicFriction = bodySettings.m_dynamicFriction;
-                }
-                ImGuiX::ItemTooltip( "The coefficient of dynamic friction." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
+                    if ( !m_gizmo.IsManipulating() )
                     {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = bodySettings.m_dynamicFriction;
-                        for ( int32_t i = 0; i < numBodies; i++ )
+                        m_gizmo.SetMode( ImGuiX::Gizmo::Mode::Rotation );
+                    }
+                }
+
+                auto const gizmoResult = m_gizmo.Draw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport );
+                switch ( gizmoResult.m_state )
+                {
+                    case ImGuiX::GizmoState::StartedManipulating:
+                    {
+                        BeginDataFileModification();
+                        ApplyGizmoResult( gizmoResult );
+                    }
+                    break;
+
+                    case ImGuiX::GizmoState::Manipulating:
+                    {
+                        ApplyGizmoResult( gizmoResult );
+                    }
+                    break;
+
+                    case ImGuiX::GizmoState::StoppedManipulating:
+                    {
+                        ApplyGizmoResult( gizmoResult );
+                        EndDataFileModification();
+                    }
+                    break;
+
+                    default:
+                    break;
+                }
+
+                if ( isFocused )
+                {
+                    if ( ImGui::IsKeyPressed( ImGuiKey_Space ) )
+                    {
+                        m_gizmo.SwitchToNextMode();
+                        if ( m_gizmo.GetMode() == ImGuiX::Gizmo::Mode::Scale )
                         {
-                            m_workingProfileCopy.m_materialSettings[i].m_dynamicFriction = value;
-                            pProfile->m_materialSettings[i].m_dynamicFriction = value;
+                            m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
+                        }
+                        else
+                        {
+                            m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::World );
                         }
                     }
-                    ImGui::EndPopup();
                 }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                ImGui::SliderFloat( "##Restitution", &bodySettings.m_restitution, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp );
-                if ( ImGui::IsItemDeactivatedAfterEdit() )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_restitution = bodySettings.m_restitution;
-                }
-                ImGuiX::ItemTooltip( "A coefficient of 0 makes the object bounce as little as possible, higher values up to 1.0 result in more bounce." );
-
-                if ( ImGui::BeginPopupContextItem() )
-                {
-                    if ( ImGui::MenuItem( "Set To All" ) )
-                    {
-                        ScopedRagdollSettingsModification const sdm( this );
-                        float const value = bodySettings.m_restitution;
-                        for ( int32_t i = 0; i < numBodies; i++ )
-                        {
-                            m_workingProfileCopy.m_materialSettings[i].m_restitution = value;
-                            pProfile->m_materialSettings[i].m_restitution = value;
-                        }
-                    }
-                    ImGui::EndPopup();
-                }
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                int32_t fc = (int32_t) bodySettings.m_frictionCombineMode;
-                if( ImGui::Combo( "##FrictionCombine", &fc, comboOptions, 4 ) )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_frictionCombineMode = (CombineMode) fc;
-                    bodySettings.m_frictionCombineMode = (CombineMode) fc;
-                }
-                ImGuiX::ItemTooltip( "Friction combine mode to set for this material" );
-
-                //-------------------------------------------------------------------------
-
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth( -1 );
-                int32_t rc = (int32_t) bodySettings.m_restitutionCombineMode;
-                if( ImGui::Combo( "##RestitutionCombine", &rc, comboOptions, 4 ) )
-                {
-                    ScopedRagdollSettingsModification const sdm( this );
-                    realBodySettings.m_restitutionCombineMode = (CombineMode) rc;
-                    bodySettings.m_restitutionCombineMode = (CombineMode) rc;
-                }
-                ImGuiX::ItemTooltip( "Restitution combine mode for this material" );
-
-                ImGui::PopID();
             }
+            else
+            {
+                m_gizmo.Reset();
+            }
+        }
 
-            //-------------------------------------------------------------------------
+        // Selection
+        //-------------------------------------------------------------------------
 
-            ImGui::EndTable();
+        if ( !m_gizmo.IsManipulating() && ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
+        {
+            auto const& pd = GetPickingData();
+            PickingID const pickingID = GetPickingID();
+
+            if ( pickingID.IsSet() && !pickingID.HasSecondaryID() )
+            {
+                RagdollElement pickedElement = ConvertHitTestIDToRagdollElement( pickingID.m_primaryID );
+                if ( pickedElement.IsSet() )
+                {
+                    m_selectedElement = pickedElement;
+                }
+            }
         }
     }
 
@@ -2511,42 +1532,63 @@ namespace EE::Physics
     // Preview
     //-------------------------------------------------------------------------
 
+    void RagdollEditor::CreatePreviewEntity()
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+        EE_ASSERT( m_skeleton.IsLoaded() );
+
+        Log log;
+
+        // Load resource descriptor for skeleton to get the preview mesh
+        auto resourceDescPath = GetFileSystemPath( m_skeleton.GetDataPath() );
+        Animation::SkeletonResourceDescriptor skeletonResourceDesc;
+        bool const result = Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, log, resourceDescPath, skeletonResourceDesc );
+        EE_ASSERT( result );
+
+        // Create preview entity
+        ResourceID const previewMeshResourceID( skeletonResourceDesc.m_previewMesh.GetDataPath() );
+        if ( previewMeshResourceID.IsValid() )
+        {
+            m_pMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
+            m_pMeshComponent->SetSkeleton( m_skeleton.GetResourceID() );
+            m_pMeshComponent->SetMesh( previewMeshResourceID );
+            m_pMeshComponent->SetVisible( m_showMesh );
+
+            m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
+            m_pPreviewEntity->AddComponent( m_pMeshComponent );
+            AddEntityToWorld( m_pPreviewEntity );
+        }
+    }
+
+    void RagdollEditor::DestroyPreviewEntity()
+    {
+        if ( m_pPreviewEntity != nullptr )
+        {
+            DestroyEntityInWorld( m_pPreviewEntity );
+            m_pMeshComponent = nullptr;
+        }
+    }
+
     void RagdollEditor::DrawPreviewControlsWindow( UpdateContext const& context, bool isFocused )
     {
-        if ( IsPreviewing() )
-        {
-            if ( ImGuiX::ButtonColored( EE_ICON_STOP" Stop Preview", Colors::MediumRed, Colors::White, ImVec2( -1, 0 ) ) )
-            {
-                StopPreview();
-            }
-        }
-        else
-        {
-            ImGui::BeginDisabled( !m_ragdollDefinition.IsValid() && m_pMeshComponent != nullptr );
-            if ( ImGuiX::ButtonColored( EE_ICON_PLAY" Start Preview", Colors::Green, Colors::White, ImVec2( -1, 0 ) ) )
-            {
-                StartPreview( context );
-            }
-            ImGui::EndDisabled();
-        }
+        auto pRagdollDescriptor = GetDataFile<RagdollResourceDescriptor>();
+        EE_ASSERT( pRagdollDescriptor != nullptr );
+
+        ImGui::BeginDisabled( !IsResourceLoaded() );
 
         //-------------------------------------------------------------------------
         // General Settings
         //-------------------------------------------------------------------------
 
-        ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Start Transform" ) )
         {
-            ImGui::Indent();
-
             ImGuiX::InputTransform( "StartTransform", m_previewStartTransform, -1.0f );
 
             if ( ImGui::Button( EE_ICON_RESTART" Reset Start Transform", ImVec2( -1, 0 ) ) )
             {
                 m_previewStartTransform = Transform::Identity;
             }
-
-            ImGui::Unindent();
         }
 
         //-------------------------------------------------------------------------
@@ -2556,40 +1598,60 @@ namespace EE::Physics
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Ragdoll Settings" ) )
         {
-            ImGui::Indent();
-
-            if ( ImGui::Checkbox( "Enable Gravity", &m_enableGravity ) )
+            if ( ImGui::BeginTable( "GRID", 2, ImGuiTableFlags_NoBordersInBodyUntilResize | ImGuiTableFlags_Resizable ) )
             {
-                if ( IsPreviewing() )
-                {
-                    m_pRagdoll->SetGravityEnabled( m_enableGravity );
-                }
-            }
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Gravity Scale" );
 
-            if ( ImGui::Checkbox( "Enable Pose Following", &m_enablePoseFollowing ) )
-            {
-                if ( IsPreviewing() )
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth( -1 );
+                if ( ImGui::SliderFloat( "##Gravity", &m_gravityScale, 0.0f, 1.0f ) )
                 {
-                    m_pRagdoll->SetPoseFollowingEnabled( m_enablePoseFollowing );
+                    if ( IsPreviewing() )
+                    {
+                        m_pRagdoll->SetGravityScale( m_gravityScale );
+                    }
                 }
-            }
 
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "Blend Weight:" );
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth( -1 );
-            ImGui::SliderFloat( "##PhysicsWeight", &m_physicsBlendWeight, 0, 1, "%.3f", ImGuiSliderFlags_NoInput );
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Enable Pose Following" );
+
+                ImGui::TableNextColumn();
+                if ( ImGui::Checkbox( "##EPF", &m_enablePoseFollowing ) )
+                {
+                    if ( IsPreviewing() )
+                    {
+                        m_pRagdoll->SetPoseFollowing( m_enablePoseFollowing );
+                    }
+                }
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Blend Weight" );
+
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::SliderFloat( "##PhysicsWeight", &m_physicsBlendWeight, 0, 1, "%.3f", ImGuiSliderFlags_NoInput );
+
+                ImGui::EndTable();
+            }
 
             ImGui::BeginDisabled( !IsPreviewing() );
             if ( ImGui::Button( EE_ICON_RESTART" Reset Ragdoll State", ImVec2( -1, 0 ) ) )
             {
-                m_pRagdoll->ResetState();
+                m_pRagdoll->Update( 0.0f, m_previewStartTransform, m_pInputPose );
                 m_pMeshComponent->SetWorldTransform( m_previewStartTransform );
-                m_initializeRagdollPose = true;
             }
             ImGui::EndDisabled();
-
-            ImGui::Unindent();
         }
 
         //-------------------------------------------------------------------------
@@ -2599,73 +1661,122 @@ namespace EE::Physics
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Animation" ) )
         {
-            ImGui::Indent();
-
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "Preview Anim:" );
-            ImGui::SameLine();
-
-            if ( m_resourceFilePicker.UpdateAndDraw() )
+            if ( ImGui::BeginTable( "GRID", 2, ImGuiTableFlags_NoBordersInBodyUntilResize | ImGuiTableFlags_Resizable ) )
             {
-                // If we need to change resource ID, switch IDs
-                ResourceID const selectedResourceID = m_resourceFilePicker.GetResourceID();
-                if ( selectedResourceID != m_previewAnimation.GetResourceID() )
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Preview Anim" );
+
+                ImGui::TableNextColumn();
+                if ( m_animPicker.UpdateAndDraw() )
                 {
-                    if ( m_previewAnimation.IsSet() && m_previewAnimation.WasRequested() )
+                    // If we need to change resource ID, switch IDs
+                    ResourceID const selectedResourceID = m_animPicker.GetResourceID();
+                    if ( selectedResourceID != m_previewAnimation.GetResourceID() )
                     {
-                        UnloadResource( &m_previewAnimation );
-                    }
+                        if ( m_previewAnimation.IsSet() && m_previewAnimation.WasRequested() )
+                        {
+                            UnloadResource( &m_previewAnimation );
+                        }
 
-                    m_previewAnimation = selectedResourceID.IsValid() ? selectedResourceID : nullptr;
+                        if ( selectedResourceID.IsValid() )
+                        {
+                            m_previewAnimation = selectedResourceID;
+                        }
+                        else
+                        {
+                            m_previewAnimation.Clear();
+                        }
 
-                    if ( m_previewAnimation.IsSet() )
-                    {
-                        LoadResource( &m_previewAnimation );
+                        if ( m_previewAnimation.IsSet() )
+                        {
+                            LoadResource( &m_previewAnimation );
+                        }
                     }
                 }
-            }
 
-            ImGui::Checkbox( "Enable Looping", &m_enableAnimationLooping );
-            ImGui::Checkbox( "Apply Root Motion", &m_applyRootMotion );
-            ImGui::Checkbox( "Auto Start", &m_autoPlayAnimation );
+                //-------------------------------------------------------------------------
 
-            //-------------------------------------------------------------------------
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Enable Looping" );
 
-            bool const hasValidAndLoadedPreviewAnim = m_previewAnimation.IsSet() && m_previewAnimation.IsLoaded();
-            ImGui::BeginDisabled( !IsPreviewing() || !hasValidAndLoadedPreviewAnim );
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::Checkbox( "##Enable Looping", &m_enableAnimationLooping );
+                
 
-            ImVec2 const buttonSize( 30, 24 );
-            if ( m_isPlayingAnimation )
-            {
-                if ( ImGui::Button( EE_ICON_STOP"##StopAnim", buttonSize ) )
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Apply Root Motion" );
+
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::Checkbox( "##Apply Root Motion", &m_applyRootMotion );
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Auto Start" );
+
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::Checkbox( "##Auto Start", &m_autoPlayAnimation );
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Playback" );
+
+                ImGui::TableNextColumn();
+
+                bool const hasValidAndLoadedPreviewAnim = m_previewAnimation.IsSet() && m_previewAnimation.IsLoaded();
+                ImGui::BeginDisabled( !IsPreviewing() || !hasValidAndLoadedPreviewAnim );
+
+                ImVec2 const buttonSize( ImGuiX::Style::s_iconButtonWidth, 0 );
+                if ( m_isPlayingAnimation )
+                {
+                    if ( ImGui::Button( EE_ICON_STOP"##StopAnim", buttonSize ) )
+                    {
+                        m_isPlayingAnimation = false;
+                    }
+                }
+                else
+                {
+                    if ( ImGui::Button( EE_ICON_PLAY"##PlayAnim", buttonSize ) )
+                    {
+                        m_isPlayingAnimation = true;
+
+                        if ( !m_enableAnimationLooping && m_animTime == 1.0f )
+                        {
+                            m_animTime = 0.0f;
+                        }
+                    }
+                }
+                ImGui::EndDisabled();
+
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth( -1 );
+                float currentAnimTime = m_animTime.ToFloat();
+                if ( ImGui::SliderFloat( "##AnimTime", &currentAnimTime, 0, 1, "%.3f", ImGuiSliderFlags_NoInput ) )
                 {
                     m_isPlayingAnimation = false;
+                    m_animTime = currentAnimTime;
                 }
-            }
-            else
-            {
-                if ( ImGui::Button( EE_ICON_PLAY"##PlayAnim", buttonSize ) )
-                {
-                    m_isPlayingAnimation = true;
 
-                    if ( !m_enableAnimationLooping && m_animTime == 1.0f )
-                    {
-                        m_animTime = 0.0f;
-                    }
-                }
-            }
-            ImGui::EndDisabled();
+                //-------------------------------------------------------------------------
 
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth( -1 );
-            float currentAnimTime = m_animTime.ToFloat();
-            if ( ImGui::SliderFloat( "##AnimTime", &currentAnimTime, 0, 1, "%.3f", ImGuiSliderFlags_NoInput ) )
-            {
-                m_isPlayingAnimation = false;
-                m_animTime = currentAnimTime;
+                ImGui::EndTable();
             }
-
-            ImGui::Unindent();
         }
 
         //-------------------------------------------------------------------------
@@ -2675,112 +1786,66 @@ namespace EE::Physics
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Manipulation" ) )
         {
-            ImGui::Indent();
+            ImGui::TextWrapped( "Use CTRL + left click to apply an impulse to the ragdoll" );
 
-            constexpr float offset = 95;
+            if ( ImGui::BeginTable( "GRID", 2, ImGuiTableFlags_NoBordersInBodyUntilResize | ImGuiTableFlags_Resizable ) )
+            {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+                ImGui::Text( "Impulse Strength" );
 
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "Impulse Str:" );
-            ImGui::SameLine( offset );
-            ImGui::SetNextItemWidth( -1 );
-            ImGui::SliderFloat( "##IS", &m_impulseStrength, 0.1f, 1000.0f );
-            ImGuiX::ItemTooltip( "Applied impulse strength" );
+                ImGui::TableNextColumn();
+                ImGui::SetNextItemWidth( -1 );
+                ImGui::SliderFloat( "##IS", &m_impulseStrength, 0.1f, 1000.0f );
+                ImGuiX::ItemTooltip( "Applied impulse strength" );
 
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "CS Radius:" );
-            ImGui::SameLine( offset );
-            ImGui::SetNextItemWidth( -1 );
-            ImGui::SliderFloat( "##CAR", &m_collisionActorRadius, 0.1f, 1.0f );
-            ImGuiX::ItemTooltip( "Spawned Collision Sphere Radius" );
-
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "CS Mass:" );
-            ImGui::SameLine( offset );
-            ImGui::SetNextItemWidth( -1 );
-            ImGui::SliderFloat( "##CAM", &m_collisionActorMass, 1.0f, 500.0f );
-            ImGuiX::ItemTooltip( "Spawned Collision Sphere Mass" );
-
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "CS Velocity:" );
-            ImGui::SameLine( offset );
-            ImGui::SetNextItemWidth( -1 );
-            ImGui::SliderFloat( "##CAV", &m_collisionActorInitialVelocity, 1.0f, 250.0f );
-            ImGuiX::ItemTooltip( "Spawned Collision Sphere Velocity" );
-
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "CS Gravity:" );
-            ImGui::SameLine( offset );
-            ImGui::SetNextItemWidth( -1 );
-            ImGui::Checkbox( "##CAG", &m_collisionActorGravity );
-            ImGuiX::ItemTooltip( "Does the Spawned Collision Sphere have gravity" );
-
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "CS Lifetime:" );
-            ImGui::SameLine( offset );
-            ImGui::SetNextItemWidth( -1 );
-            ImGui::SliderFloat( "##CAL", &m_collisionActorLifetime, 1.0f, 20.0f );
-            ImGuiX::ItemTooltip( "Spawned Collision Sphere Lifetime" );
-
-            ImGui::Unindent();
+                ImGui::EndTable();
+            }
         }
 
-        //-------------------------------------------------------------------------
-        // PVD
-        //-------------------------------------------------------------------------
-
-        /*ImGui::SetNextItemOpen( false, ImGuiCond_FirstUseEver );
-        if ( ImGui::CollapsingHeader( "PhysX Visual Debugger" ) )
-        {
-            ImGui::Indent();
-
-            ImGui::BeginDisabled( IsPreviewing() );
-            ImGui::Checkbox( "Auto Connect to PVD", &m_autoConnectToPVD );
-            ImGui::EndDisabled();
-
-            ImGui::BeginDisabled( !IsPreviewing() );
-            if ( m_pPhysicsSystem != nullptr && m_pPhysicsSystem->IsConnectedToPVD() )
-            {
-                if ( ImGui::Button( "Disconnect From PVD", ImVec2( -1, 0 ) ) )
-                {
-                    m_pPhysicsSystem->DisconnectFromPVD();
-                }
-            }
-            else
-            {
-                if ( ImGui::Button( "Connect To PVD", ImVec2( -1, 0 ) ) )
-                {
-                    m_pPhysicsSystem->ConnectToPVD();
-                }
-            }
-            ImGui::EndDisabled();
-
-            ImGui::Unindent();
-        }*/
+        ImGui::EndDisabled();
     }
 
-    void RagdollEditor::StartPreview( UpdateContext const& context )
+    void RagdollEditor::CalculateInputPose( Seconds deltaTime )
     {
-        
-        EE_ASSERT( m_pRagdoll == nullptr && m_ragdollDefinition.IsValid() );
+        // Update animation time and sample pose
+        Percentage const previousAnimTime = m_animTime;
+        bool const hasValidAndLoadedPreviewAnim = m_previewAnimation.IsSet() && m_previewAnimation.IsLoaded();
+        if ( hasValidAndLoadedPreviewAnim )
+        {
+            if ( m_isPlayingAnimation )
+            {
+                m_animTime = ( m_animTime + deltaTime / ( m_previewAnimation->GetDuration() ) ).GetClamped( m_enableAnimationLooping );
+
+                // Allow reset
+                if ( !m_enableAnimationLooping && m_animTime == 1.0f )
+                {
+                    m_isPlayingAnimation = false;
+                }
+
+                if ( deltaTime > 0 && m_applyRootMotion )
+                {
+                    Transform const& WT = m_pMeshComponent->GetWorldTransform();
+                    Transform const RMD = m_previewAnimation->GetRootMotionDelta( previousAnimTime, m_animTime );
+                    m_pMeshComponent->SetWorldTransform( RMD * WT );
+                }
+            }
+
+            m_previewAnimation->GetPose( m_animTime, m_pInputPose );
+        }
+        else
+        {
+            m_pInputPose->Reset( Animation::Pose::Init::ReferencePose );
+        }
+
+        m_pInputPose->CalculateModelSpaceTransforms();
+    }
+
+    void RagdollEditor::OnPreviewStarted()
+    {
+        EE_ASSERT( m_pRagdoll == nullptr && IsResourceLoaded() );
         EE_ASSERT( m_skeleton.IsLoaded() );
-
-        // Skeleton is already loaded so the LoadResource will immediately set the loaded skeleton ptr
-        LoadResource( &m_ragdollDefinition.m_skeleton );
-        m_ragdollDefinition.CreateRuntimeData();
-
-        //-------------------------------------------------------------------------
-
-        //if ( m_autoConnectToPVD )
-        //{
-        //    m_pPhysicsSystem->ConnectToPVD();
-        //}
-
-        auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetWorld();
-        m_pRagdoll = pPhysicsWorld->CreateRagdoll( &m_ragdollDefinition, m_activeProfileID, 0 );
-        m_pRagdoll->SetGravityEnabled( m_enableGravity );
-        m_pRagdoll->SetPoseFollowingEnabled( m_enablePoseFollowing );
-
-        m_initializeRagdollPose = true;
 
         //-------------------------------------------------------------------------
 
@@ -2790,123 +1855,255 @@ namespace EE::Physics
             m_isPlayingAnimation = true;
         }
 
-        m_pPose = EE::New<Animation::Pose>( m_skeleton.GetPtr() );
+        m_pInputPose = EE::New<Animation::Pose>( m_skeleton.GetPtr() );
         m_pFinalPose = EE::New<Animation::Pose>( m_skeleton.GetPtr() );
 
         m_pMeshComponent->SetWorldTransform( m_previewStartTransform );
+
+        CalculateInputPose( 0.0f );
+
+        //-------------------------------------------------------------------------
+
+        RagdollDefinition const* pRagdollDefinition = GetPreviewResource<RagdollDefinition>();
+        auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPhysicsWorld();
+        m_pRagdoll = EE::New<Ragdoll>( pPhysicsWorld, pRagdollDefinition );
+        m_pRagdoll->SetGravityScale( m_gravityScale );
+        m_pRagdoll->SetPoseFollowing( m_enablePoseFollowing );
+
+        m_pRagdoll->Update( 0.0f, m_previewStartTransform, m_pInputPose, true );
     }
 
-    void RagdollEditor::StopPreview()
+    void RagdollEditor::OnPreviewStopped()
     {
         EE_ASSERT( m_pRagdoll != nullptr );
 
-        //-------------------------------------------------------------------------
-
-        //EE_ASSERT( m_pPhysicsSystem != nullptr );
-        //if ( m_pPhysicsSystem->IsConnectedToPVD() )
-        //{
-        //    m_pPhysicsSystem->DisconnectFromPVD();
-        //}
-        //m_pPhysicsSystem = nullptr;
-
-        //-------------------------------------------------------------------------
-
-        DestroySpawnedCollisionActors();
-
-        //-------------------------------------------------------------------------
-
-        m_pMeshComponent->ResetPose();
-        m_pMeshComponent->FinalizePose();
-        m_pMeshComponent->SetWorldTransform( Transform::Identity );
-
-        auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetWorld();
-        pPhysicsWorld->DestroyRagdoll( m_pRagdoll );
-
-        
-        if ( m_ragdollDefinition.m_skeleton.WasRequested() )
+        if ( m_isManipulatingRagdoll )
         {
-            UnloadResource( &m_ragdollDefinition.m_skeleton );
+            DestroyRagdollManipulationBody();
         }
 
         //-------------------------------------------------------------------------
 
-        EE::Delete( m_pPose );
+        if ( m_pMeshComponent->HasMeshResourceSet() )
+        {
+            m_pMeshComponent->ResetPose();
+            m_pMeshComponent->FinalizePose();
+        }
+
+        m_pMeshComponent->SetWorldTransform( Transform::Identity );
+
+        EE::Delete( m_pRagdoll );
+        EE::Delete( m_pInputPose );
         EE::Delete( m_pFinalPose );
     }
 
-    void RagdollEditor::SpawnCollisionActor( Vector const& startPos, Vector const& initialVelocity )
+    void RagdollEditor::CreateRagdollManipulationBody( b3RayResult const& result )
     {
-        //auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetWorld();
-        //physx::PxPhysics* pPhysics = Core::GetPxPhysics();
+        EE_ASSERT( !m_isManipulatingRagdoll );
 
-        //physx::PxMaterial* materials[] =
-        //{
-        //    pPhysics->createMaterial( 0.5f, 0.5f, 0.5f )
-        //};
+        auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPhysicsWorld();
+        b3WorldId const worldID = pPhysicsWorld->GetWorldID();
+        ScopedWriteLock const sl( pPhysicsWorld );
 
-        //auto pPhysicsShape = pPhysics->createShape( physx::PxSphereGeometry( m_collisionActorRadius ), materials, 1, true, physx::PxShapeFlag::eVISUALIZATION | physx::PxShapeFlag::eSIMULATION_SHAPE );
-        //pPhysicsShape->setSimulationFilterData( physx::PxFilterData( 0xFFFFFFFF, 0, 0, 0 ) );
-        //pPhysicsShape->setQueryFilterData( physx::PxFilterData( 0xFFFFFFFF, 0, 0, 0 ) );
+        b3BodyDef bodyDef = b3DefaultBodyDef();
+        bodyDef.type = b3_kinematicBody;
+        bodyDef.position = result.point;
+        bodyDef.enableSleep = false;
+        m_manipulationBodyID = b3CreateBody( worldID, &bodyDef );
 
-        ////-------------------------------------------------------------------------
+        b3BodyId const hitBodyID = b3Shape_GetBody( result.shapeId );
 
-        //auto pPhysicsActor = pPhysics->createRigidDynamic( ToPx( Transform( Quaternion::Identity, startPos ) ) );
-        //pPhysicsActor->attachShape( *pPhysicsShape );
-        //pPhysicsShape->release();
+        b3MotorJointDef jointDef = b3DefaultMotorJointDef();
+        jointDef.base.bodyIdA = m_manipulationBodyID;
+        jointDef.base.bodyIdB = hitBodyID;
+        jointDef.base.localFrameB.p = b3Body_GetLocalPoint( hitBodyID, result.point );
+        jointDef.linearHertz = 7.5f;
+        jointDef.linearDampingRatio = 1.0f;
 
-        //pPhysicsActor->setActorFlag( physx::PxActorFlag::eDISABLE_GRAVITY, !m_collisionActorGravity );
-        //physx::PxRigidBodyExt::setMassAndUpdateInertia( *pPhysicsActor, m_collisionActorMass );
+        b3MassData massData = b3Body_GetMassData( hitBodyID );
+        float const g = b3Length( b3World_GetGravity( worldID ) );
+        float const mg = massData.mass * g;
+        jointDef.maxSpringForce = 100.0f * mg;
 
-        //pPhysicsWorld->lockWrite();
-        //pPhysicsWorld->addActor( *pPhysicsActor );
-        //pPhysicsActor->setLinearVelocity( ToPx( initialVelocity ) );
-        //pPhysicsWorld->unlockWrite();
-
-        ////-------------------------------------------------------------------------
-
-        //CollisionActor CA;
-        //CA.m_pActor = pPhysicsActor;
-        //CA.m_radius = m_collisionActorRadius;
-        //CA.m_TTL = m_collisionActorLifetime;
-
-        //m_spawnedCollisionActors.emplace_back( CA );
-    }
-
-    void RagdollEditor::UpdateSpawnedCollisionActors( Drawing::DrawContext& drawingContext, Seconds deltaTime )
-    {
-        //auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetWorld();
-        //pPhysicsWorld->lockWrite();
-        //for ( int32_t i = int32_t( m_spawnedCollisionActors.size() ) - 1; i >= 0; i-- )
-        //{
-        //    m_spawnedCollisionActors[i].m_TTL -= deltaTime.ToFloat();
-
-        //    // Remove actor once lifetime exceeded
-        //    if ( m_spawnedCollisionActors[i].m_TTL <= 0.0f )
-        //    {
-        //        pPhysicsWorld->removeActor( *m_spawnedCollisionActors[i].m_pActor );
-        //        m_spawnedCollisionActors[i].m_pActor->release();
-        //        m_spawnedCollisionActors.erase( m_spawnedCollisionActors.begin() + i );
-        //    }
-        //    else // Draw actor
-        //    {
-        //        Transform actorTransform = FromPx( m_spawnedCollisionActors[i].m_pActor->getGlobalPose());
-        //        drawingContext.DrawSphere( actorTransform, m_spawnedCollisionActors[i].m_radius, Colors::Red, 3.0f );
-        //    }
-        //}
-        //pPhysicsWorld->unlockWrite();
-    }
-
-    void RagdollEditor::DestroySpawnedCollisionActors()
-    {
-        /*physx::PxScene* pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPxScene();
-        pPhysicsWorld->lockWrite();
-        for ( auto& CA : m_spawnedCollisionActors )
+        if ( massData.mass > 0.0f )
         {
-            pPhysicsWorld->removeActor( *CA.m_pActor );
-            CA.m_pActor->release();
+            // This acts like angular friction
+            float const trace = massData.inertia.cx.x + massData.inertia.cy.y + massData.inertia.cz.z;
+            float const lever = Math::Sqrt( trace / ( 3.0f * massData.mass ) );
+            jointDef.maxVelocityTorque = 0.5f * lever * mg;
         }
-        pPhysicsWorld->unlockWrite();
 
-        m_spawnedCollisionActors.clear();*/
+        m_manipulationJointID = b3CreateMotorJoint( worldID, &jointDef );
+
+        m_manipulationPlanePoint = FromBox3D( result.point );
+        m_isManipulatingRagdoll = true;
     }
+
+    void RagdollEditor::DestroyRagdollManipulationBody()
+    {
+        EE_ASSERT( m_isManipulatingRagdoll );
+
+        auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPhysicsWorld();
+        ScopedWriteLock const sl( pPhysicsWorld );
+
+        if ( b3Joint_IsValid( m_manipulationJointID ) )
+        {
+            b3DestroyJoint( m_manipulationJointID, false );
+            m_manipulationJointID = {};
+        }
+
+        if ( b3Body_IsValid( m_manipulationBodyID ) )
+        {
+            b3DestroyBody( m_manipulationBodyID );
+            m_manipulationBodyID = {};
+        }
+
+        m_isManipulatingRagdoll = false;
+    }
+
+    void RagdollEditor::UpdateRagdollManipulationBody( UpdateContext const& context, Viewport const* pViewport, bool isFocused )
+    {
+        auto pPhysicsWorld = m_pWorld->GetWorldSystem<PhysicsWorldSystem>()->GetPhysicsWorld();
+
+        //-------------------------------------------------------------------------
+
+        if ( isFocused && ImGui::IsMouseDragging( ImGuiMouseButton_Left ) )
+        {
+            Float2 const mouseViewportPos = ImGui::GetMousePos();
+            Vector const nearPointWS = pViewport->ScreenSpaceToWorldSpaceNearPlane( mouseViewportPos );
+            Vector const farPointWS = pViewport->ScreenSpaceToWorldSpaceFarPlane( mouseViewportPos );
+
+            if ( !m_isManipulatingRagdoll )
+            {
+                b3WorldId const worldID = pPhysicsWorld->GetWorldID();
+                b3QueryFilter const filter = { .categoryBits = 1, .maskBits = ~0llu };
+                b3RayResult const result = b3World_CastRayClosest( worldID, ToBox3D( nearPointWS ), ToBox3D( farPointWS - nearPointWS ), filter );
+                if ( result.hit )
+                {
+                    CreateRagdollManipulationBody( result );
+                }
+            }
+            else if ( b3Body_IsValid( m_manipulationBodyID ) )
+            {
+                Plane const manipulationPlane = Plane::FromNormalAndPoint( pViewport->GetViewForwardDirection(), m_manipulationPlanePoint );
+                auto const result = Math::IntersectRayPlane( nearPointWS, ( farPointWS - nearPointWS ).GetNormalized3(), manipulationPlane );
+                if ( result )
+                {
+                    ScopedWriteLock const sl( pPhysicsWorld );
+                    Transform targetTransform = Transform( Quaternion::Identity, result.m_intersectionPoint );
+                    b3Body_SetTargetTransform( m_manipulationBodyID, ToBox3D( targetTransform ), context.GetDeltaTime(), true );
+
+                    auto drawingCtx = GetDebugDrawContext();
+                    drawingCtx.DrawSphere( targetTransform, s_manipulationBodyRadius, Colors::Red );
+                }
+            }
+        }
+        else if( m_isManipulatingRagdoll )
+        {
+            DestroyRagdollManipulationBody();
+        }
+    }
+
+    void RagdollEditor::DrawViewportUIForPreview( UpdateContext const& context, Viewport const* pViewport, bool isFocused )
+    {
+        auto drawingCtx = GetDebugDrawContext();
+
+        Transform previewWorldTransform = m_pMeshComponent->GetWorldTransform();
+        auto const gizmoResult = m_gizmo.Draw( previewWorldTransform.GetTranslation(), previewWorldTransform.GetRotation(), *pViewport );
+        if ( gizmoResult.m_state == ImGuiX::GizmoState::Manipulating )
+        {
+            gizmoResult.ApplyResult( previewWorldTransform );
+            m_pMeshComponent->SetWorldTransform( previewWorldTransform );
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
+        {
+            // Unproject mouse into viewport
+            Float2 mouseViewportPos = ImGui::GetMousePos();
+            Vector const nearPointWS = pViewport->ScreenSpaceToWorldSpaceNearPlane( mouseViewportPos );
+            Vector const farPointWS = pViewport->ScreenSpaceToWorldSpaceFarPlane( mouseViewportPos );
+
+            // Impulse
+            if ( ImGui::IsKeyDown( ImGuiKey_LeftCtrl ) || ImGui::IsKeyDown( ImGuiKey_RightCtrl ) )
+            {
+                m_pRagdoll->ApplyImpulse( nearPointWS, ( farPointWS - nearPointWS ).GetNormalized3(), m_impulseStrength );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        UpdateRagdollManipulationBody( context, pViewport, isFocused );
+    }
+}
+
+//-------------------------------------------------------------------------
+
+namespace EE::Physics
+{
+    class RagdollJointDefinitionEditingRules : public PG::TTypeEditingRules<RagdollJointDefinition>
+    {
+        using PG::TTypeEditingRules<RagdollJointDefinition>::TTypeEditingRules;
+
+        virtual HiddenState IsHidden( StringID const& propertyID ) override
+        {
+            if ( propertyID == StringID( "m_enableHingeLimit" ) || propertyID == StringID( "m_hingeLowerLimit" ) || propertyID == StringID( "m_hingeUpperLimit" ) )
+            {
+                if ( m_pTypeInstance->m_type != RagdollJointDefinition::Type::Revolute )
+                {
+                    return HiddenState::Hidden;
+                }
+            }
+
+            if ( propertyID == StringID( "m_enableTwistLimit" ) || propertyID == StringID( "m_twistLowerLimit" ) || propertyID == StringID( "m_twistUpperLimit" ) || propertyID == StringID( "m_enableConeLimit" )  || propertyID == StringID( "m_coneAngle" ) )
+            {
+                if ( m_pTypeInstance->m_type != RagdollJointDefinition::Type::Spherical )
+                {
+                    return HiddenState::Hidden;
+                }
+            }
+
+            return HiddenState::Unhandled;
+        }
+    };
+
+    EE_PROPERTY_GRID_EDITING_RULES( RagdollJointDefinition, RagdollJointDefinitionEditingRules );
+
+
+    class RagdollShapeDefinitionEditingRules : public PG::TTypeEditingRules<RagdollShapeDefinition>
+    {
+        using PG::TTypeEditingRules<RagdollShapeDefinition>::TTypeEditingRules;
+
+        virtual HiddenState IsHidden( StringID const& propertyID ) override
+        {
+            if ( propertyID == StringID( "m_radius" )  )
+            {
+                if ( m_pTypeInstance->m_type != RagdollShapeDefinition::Type::Capsule && m_pTypeInstance->m_type != RagdollShapeDefinition::Type::Sphere )
+                {
+                    return HiddenState::Hidden;
+                }
+            }
+
+            if ( propertyID == StringID( "m_halfHeight" ) )
+            {
+                if ( m_pTypeInstance->m_type != RagdollShapeDefinition::Type::Capsule )
+                {
+                    return HiddenState::Hidden;
+                }
+            }
+
+            if ( propertyID == StringID( "m_boxExtents" ) )
+            {
+                if ( m_pTypeInstance->m_type != RagdollShapeDefinition::Type::Box )
+                {
+                    return HiddenState::Hidden;
+                }
+            }
+
+            return HiddenState::Unhandled;
+        }
+    };
+
+    EE_PROPERTY_GRID_EDITING_RULES( RagdollShapeDefinition, RagdollShapeDefinitionEditingRules );
 }

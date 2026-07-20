@@ -10,7 +10,8 @@ namespace EE::Animation
     {
         auto& entry = m_pLog->emplace_back();
         entry.m_updateID = 0;
-        entry.m_nodeIdx = m_currentNodeIdx;
+        entry.m_sourcePath = m_basePath;
+        entry.m_sourcePath.Push( m_currentNodeIdx );
         entry.m_severity = Severity::Warning;
 
         va_list args;
@@ -63,10 +64,7 @@ namespace EE::Animation
     void GraphNode::MarkNodeActive( GraphContext& context )
     {
         m_lastUpdateID = context.m_updateID;
-
-        #if EE_DEVELOPMENT_TOOLS
         context.TrackActiveNode( GetNodeIndex() );
-        #endif
     }
 
     void GraphNode::InitializeInternal( GraphContext& context )
@@ -81,17 +79,18 @@ namespace EE::Animation
         m_lastUpdateID = 0xFFFFFFFF;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void GraphNode::RecordGraphState( RecordedGraphState& outState )
     {
+        EE_ASSERT( IsInitialized() );
         outState.WriteValue( m_initializationCount );
     }
 
-    void GraphNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool GraphNode::RestoreGraphState( RecordedGraphState const& inState )
     {
         inState.ReadValue( m_initializationCount );
+        EE_ASSERT( IsInitialized() );
+        return true;
     }
-    #endif
 
     //-------------------------------------------------------------------------
 
@@ -112,7 +111,6 @@ namespace EE::Animation
         GraphNode::InitializeInternal( context );
 
         // Reset node state
-        m_loopCount = 0;
         m_previousTime = 0.0f;
         m_currentTime = m_previousTime;
 
@@ -120,35 +118,38 @@ namespace EE::Animation
         m_duration = 0.0f; 
     }
 
+    void PoseNode::RecordGraphState( RecordedGraphState& outState )
+    {
+        GraphNode::RecordGraphState( outState );
+        outState.WriteValue( m_duration );
+        outState.WriteValue( m_currentTime );
+        outState.WriteValue( m_previousTime );
+    }
+
+    bool PoseNode::RestoreGraphState( RecordedGraphState const& inState )
+    {
+        if ( !GraphNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
+        inState.ReadValue( m_duration );
+        inState.ReadValue( m_currentTime );
+        inState.ReadValue( m_previousTime );
+
+        return true;
+    }
+
     #if EE_DEVELOPMENT_TOOLS
     PoseNodeDebugInfo PoseNode::GetDebugInfo() const
     {
         PoseNodeDebugInfo info;
-        info.m_loopCount = m_loopCount;
         info.m_duration = m_duration;
         info.m_currentTime = m_currentTime;
         info.m_previousTime = m_previousTime;
         info.m_pSyncTrack = &GetSyncTrack();
         info.m_currentSyncTime = info.m_pSyncTrack->GetTime( m_currentTime );
         return info;
-    }
-
-    void PoseNode::RecordGraphState( RecordedGraphState& outState )
-    {
-        GraphNode::RecordGraphState( outState );
-        outState.WriteValue( m_loopCount );
-        outState.WriteValue( m_duration );
-        outState.WriteValue( m_currentTime );
-        outState.WriteValue( m_previousTime );
-    }
-
-    void PoseNode::RestoreGraphState( RecordedGraphState const& inState )
-    {
-        GraphNode::RestoreGraphState( inState );
-        inState.ReadValue( m_loopCount );
-        inState.ReadValue( m_duration );
-        inState.ReadValue( m_currentTime );
-        inState.ReadValue( m_previousTime );
     }
     #endif
 }

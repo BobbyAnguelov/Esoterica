@@ -5,16 +5,16 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
-    class FallingAction final : public Action
+    class PlayerAction_Falling final : public PlayerAction
     {
     public:
 
-        EE_PLAYER_ACTION_ID( FallingAction );
+        EE_PLAYER_ACTION_ID( PlayerAction_Falling );
 
-        virtual bool TryStartInternal( ActionContext const& ctx ) override;
-        virtual Status UpdateInternal( ActionContext const& ctx, bool isFirstUpdate ) override;
-        virtual void StopInternal( ActionContext const& ctx, StopReason reason ) override;
+        virtual bool TryStartInternal( PlayerActionContext const& ctx ) override;
+        virtual Status UpdateInternal( PlayerActionContext const& ctx, bool isFirstUpdate ) override;
+        virtual void StopInternal( PlayerActionContext const& ctx, StopReason reason ) override;
     };
 }

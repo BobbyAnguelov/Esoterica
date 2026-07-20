@@ -26,7 +26,13 @@ namespace EE
         //-------------------------------------------------------------------------
 
         TVector<ItemType> const& GetVector() const { return m_vector; }
+        ItemType const& operator[]( int32_t idx ) const { return m_vector[idx]; }
+        ItemType const& operator[]( size_t idx ) const { return m_vector[idx]; }
+        ItemType const& operator[]( uint32_t idx ) const { return m_vector[idx]; }
         ItemType& operator[]( int32_t idx ) { return m_vector[idx]; }
+        ItemType& operator[]( size_t idx ) { return m_vector[idx]; }
+        ItemType& operator[]( uint32_t idx ) { return m_vector[idx]; }
+
         int32_t size() const { return (int32_t) m_vector.size(); }
         bool empty() const { return m_vector.empty(); }
 
@@ -98,10 +104,31 @@ namespace EE
             m_indexMap.erase( foundIter );
         }
 
+        // Add a new item
+        void Remove( ItemType const& item )
+        {
+            IDType const ID = GetItemID( std::is_pointer<ItemType>(), item );
+            Remove( ID );
+        }
+
         // Try to find an item matching the ID, returns nullptr if no item for this ID exists
         ItemType* FindItem( IDType const& ID )
         {
             ItemType* pFound = nullptr;
+
+            auto foundIter = m_indexMap.find( ID );
+            if ( foundIter != m_indexMap.end() )
+            {
+                pFound = &m_vector[foundIter->second];
+            }
+
+            return pFound;
+        }
+
+        // Try to find an item matching the ID, returns nullptr if no item for this ID exists
+        ItemType const* FindItem( IDType const& ID ) const
+        {
+            ItemType const* pFound = nullptr;
 
             auto foundIter = m_indexMap.find( ID );
             if ( foundIter != m_indexMap.end() )
@@ -132,6 +159,28 @@ namespace EE
             auto pFoundItem = FindItem( ID );
             EE_ASSERT( pFoundItem != nullptr );
             return pFoundItem;
+        }
+
+        // Returns the item for a specified ID, expect the item to exists! Will crash if the item does not!
+        ItemType const* Get( IDType const& ID ) const
+        {
+            auto const pFoundItem = FindItem( ID );
+            EE_ASSERT( pFoundItem != nullptr );
+            return pFoundItem;
+        }
+
+        // Returns index of the item, expects the item to exist.
+        size_t IndexOf( ItemType* pItem )
+        {
+            EE_ASSERT( pItem >= m_vector.begin() && pItem < m_vector.end() );
+            return size_t( pItem - m_vector.begin() );
+        }
+
+        // Clears the container and removes all items
+        void Clear()
+        {
+            m_vector.clear();
+            m_indexMap.clear();
         }
 
     private:

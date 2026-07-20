@@ -14,6 +14,8 @@
 namespace EE
 {
     class TaskSystem;
+    class Log;
+    struct IDataFile;
     namespace TypeSystem { class TypeRegistry; }
     namespace Resource { struct ResourceDescriptor; }
 }
@@ -43,7 +45,6 @@ namespace EE
             Unknown,
             DataFile,
             ResourceDescriptor,
-            EntityDescriptor,
         };
 
         struct FileInfo
@@ -62,27 +63,24 @@ namespace EE
             // Data file
             inline bool IsDataFile() const { return m_fileType == FileType::DataFile; }
             inline bool HasLoadedDataFile() const { return m_pDataFile != nullptr; }
-            void LoadDataFile( TypeSystem::TypeRegistry const& typeRegistry );
-            void ReloadDataFile( TypeSystem::TypeRegistry const& typeRegistry );
+            void LoadDataFile( TypeSystem::TypeRegistry const& typeRegistry, Log& log );
+            void ReloadDataFile( TypeSystem::TypeRegistry const& typeRegistry, Log& log );
 
             // Descriptor
             inline bool IsResourceDescriptorFile() const { return m_fileType == FileType::ResourceDescriptor; }
             inline bool HasLoadedDescriptor() const { return HasLoadedDataFile(); }
 
-            // Entity Descriptor
-            inline bool IsEntityDescriptorFile() const { return m_fileType == FileType::EntityDescriptor; }
-
             // Helpers
             inline ResourceTypeID GetResourceTypeID() const
             {
-                EE_ASSERT( IsResourceDescriptorFile() || IsEntityDescriptorFile() );
-                EE_ASSERT( m_extensionFourCC != 0 );
-                return ResourceTypeID( m_extensionFourCC );
+                EE_ASSERT( IsResourceDescriptorFile() );
+                EE_ASSERT( m_dataFileExtension.IsValid() );
+                return ResourceTypeID( m_dataFileExtension );
             }
 
             inline ResourceID GetResourceID() const
             {
-                EE_ASSERT( IsResourceDescriptorFile() || IsEntityDescriptorFile() );
+                EE_ASSERT( IsResourceDescriptorFile() );
                 return ResourceID( m_dataPath );
             }
 
@@ -91,7 +89,7 @@ namespace EE
             DataPath                                                m_dataPath;
             FileSystem::Path                                        m_filePath;
             FileSystem::Extension                                   m_extension;
-            uint32_t                                                m_extensionFourCC = 0;
+            DataFileExtension                                       m_dataFileExtension;
             FileType                                                m_fileType = FileType::Unknown;
             IDataFile*                                              m_pDataFile = nullptr;
         };
@@ -105,6 +103,8 @@ namespace EE
             void Clear();
 
             void GetAllFiles( TVector<FileInfo const*>& files, bool recurseIntoChildDirectories = false ) const;
+
+            void GetAllResourceOrDataFiles( TVector<FileInfo const*>& files, bool recurseIntoChildDirectories = false ) const;
 
         public:
 
@@ -177,7 +177,7 @@ namespace EE
         {
             if ( dataPath.IsValid() && dataPath.IsDirectoryPath() )
             {
-                return FindDirectory( dataPath.GetFileSystemPath( m_sourceDataDirPath ) ); 
+                return FindDirectory( dataPath.GetFileSystemPath( m_sourceDataDirPath ) );
             }
 
             return nullptr;
@@ -198,8 +198,11 @@ namespace EE
         // Get a list of all known resource of the specified type
         TVector<FileInfo const*> GetAllResourceFileEntriesFiltered( ResourceTypeID resourceTypeID, TFunction<bool( Resource::ResourceDescriptor const* )> const& filter, bool includeDerivedTypes = false ) const;
 
-        // Get a list of all known data files
-        TVector<FileInfo const*> GetAllDataFileEntries( uint32_t extensionFourCC ) const;
+        // Get a list of all known data files for a given extension
+        TVector<FileInfo const*> GetAllDataFileEntries() const;
+
+        // Get a list of all known data files for a given extension
+        TVector<FileInfo const*> GetAllDataFileEntries( DataFileExtension extension ) const;
 
         // Check if this is a existing resource
         bool DoesFileExist( DataPath const& path ) const;
@@ -216,8 +219,11 @@ namespace EE
         // Get a list of all known resource of the specified type
         TVector<ResourceID> GetAllResourcesOfTypeFiltered( ResourceTypeID resourceTypeID, TFunction<bool( Resource::ResourceDescriptor const* )> const& filter, bool includeDerivedTypes = false ) const;
 
-        // Get all dependent resources - note: this is a very slow function so use sparingly
+        // Get all resources that depend on this file - note: this is a very slow function so use sparingly
         TVector<DataPath> GetAllDependentResources( DataPath sourceFile ) const;
+
+        // Get all files that have a reference on this file - note: this is a very slow function so use sparingly
+        TVector<FileInfo const*> GetAllFilesThatReferenceFile( DataPath sourceFile ) const;
 
         // Event that fires whenever a resource is deleted
         TEventHandle<DataPath> OnFileDeleted() const { return m_fileDeletedEvent; }
@@ -279,7 +285,7 @@ namespace EE
         // Database data
         DirectoryInfo                                               m_sourceDataDirectoryInfo;
         THashMap<ResourceTypeID, TVector<FileInfo*>>                m_resourcesPerType;
-        THashMap<uint32_t, TVector<FileInfo*>>                      m_dataFilesPerExtension;
+        THashMap<DataFileExtension, TVector<FileInfo*>>             m_dataFilesPerExtension;
         THashMap<DataPath, FileInfo*>                               m_filesPerPath;
         mutable TEvent<>                                            m_fileCacheUpdatedEvent;
         mutable TEvent<DataPath>                                    m_fileDeletedEvent;

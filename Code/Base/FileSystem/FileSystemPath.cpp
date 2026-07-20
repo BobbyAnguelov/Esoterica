@@ -9,19 +9,61 @@ namespace EE::FileSystem
 {
     static bool IsValidPath( char const* pPathString )
     {
+        if ( pPathString == nullptr )
+        {
+            return false;
+        }
+
+        size_t length = strlen( pPathString );
+        if ( length == 0 )
+        {
+            return false;
+        }
+
         // TODO: path validation
-        return pPathString != nullptr && strlen( pPathString ) > 0;
+        return true;
+    }
+
+    static bool IsValidFilename( char const* pFilenameString )
+    {
+        if ( pFilenameString == nullptr )
+        {
+            return false;
+        }
+
+        StringView const str( pFilenameString );
+        if ( str.empty() )
+        {
+            return false;
+        }
+
+        bool extensionFound = false;
+        for ( size_t i = 0; i < str.length(); i++ )
+        {
+            if ( str[i] == '.' )
+            {
+                extensionFound = true;
+            }
+
+            if ( str[i] == Path::s_pathDelimiter )
+            {
+                return false;
+            }
+        }
+
+        return extensionFound;
     }
 
     //-------------------------------------------------------------------------
 
-    size_t Path::FindExtensionStartIdx( String const& path, char const pathDelimiter, bool supportMultiExtensions )
+    template<typename T>
+    size_t TFindExtensionStartIdx( T const& path, char const pathDelimiter )
     {
         // Try to find the last period in the path
         //-------------------------------------------------------------------------
 
         size_t extensionIdx = path.rfind( '.' );
-        if ( extensionIdx == String::npos )
+        if ( extensionIdx == T::npos )
         {
             return extensionIdx;
         }
@@ -32,31 +74,29 @@ namespace EE::FileSystem
         size_t const pathDelimiterIdx = path.find_last_of( pathDelimiter );
         if ( pathDelimiterIdx > extensionIdx )
         {
-            extensionIdx = String::npos;
-            return extensionIdx;
+            extensionIdx = T::npos;
         }
 
-        // Try to handle multi-extensions like ".tar.gzip"
-        //-------------------------------------------------------------------------
-
-        size_t prevIdx = extensionIdx;
-
-        if ( supportMultiExtensions )
+        if ( extensionIdx >= ( path.length() - 1 ) )
         {
-            while ( extensionIdx != String::npos && extensionIdx > pathDelimiterIdx )
-            {
-                prevIdx = extensionIdx;
-                extensionIdx = path.rfind( '.', extensionIdx - 1 );
-            }
-
-            EE_ASSERT( prevIdx != String::npos );
+            extensionIdx = T::npos;
+        }
+        else
+        {
+            extensionIdx += 1;
         }
 
-        //-------------------------------------------------------------------------
-
-        prevIdx++;
-        extensionIdx = prevIdx;
         return extensionIdx;
+    }
+
+    size_t Path::FindExtensionStartIdx( String const& path, char const pathDelimiter )
+    {
+        return TFindExtensionStartIdx<String>( path, pathDelimiter );
+    }
+
+    size_t Path::FindExtensionStartIdx( InlineString const& path, char const pathDelimiter )
+    {
+        return TFindExtensionStartIdx<InlineString>( path, pathDelimiter );
     }
 
     bool Path::GetParentDirectory( String const& path, String& outParentPath )
@@ -280,7 +320,46 @@ namespace EE::FileSystem
         return strcmp( GetFilenameSubstr(), pString ) == 0;
     }
 
+    void Path::ReplaceFilename( char const* pFilename )
+    {
+        EE_ASSERT( IsFilePath() );
+        EE_ASSERT( IsValidFilename( pFilename ) );
+
+        size_t lastDelimiterIdx = m_fullpath.rfind( Path::s_pathDelimiter );
+        m_fullpath.resize( lastDelimiterIdx + 1 );
+        m_fullpath.append( pFilename );
+
+        UpdatePathInternals();
+    }
+
     //-------------------------------------------------------------------------
+    
+    bool Path::HasParentDirectory() const
+    {
+        EE_ASSERT( IsValid() );
+       
+        int32_t numDelimitersFound = 0;
+
+        // Handle directory paths
+        size_t lastDelimiterIdx = m_fullpath.rfind( Path::s_pathDelimiter );
+        if ( lastDelimiterIdx == m_fullpath.length() - 1 )
+        {
+            lastDelimiterIdx = m_fullpath.rfind( Path::s_pathDelimiter, lastDelimiterIdx - 1 );
+        }
+
+        while ( lastDelimiterIdx != String::npos )
+        {
+            lastDelimiterIdx = m_fullpath.rfind( Path::s_pathDelimiter, lastDelimiterIdx - 1 );
+            numDelimitersFound++;
+            if ( numDelimitersFound > 1 )
+            {
+                return true;
+            }
+        }
+
+        EE_ASSERT( numDelimitersFound >= 0 );
+        return false;
+    }
 
     Path Path::GetParentDirectory() const
     {
@@ -315,6 +394,17 @@ namespace EE::FileSystem
 
         idx++;
         return m_fullpath.substr( idx, m_fullpath.length() - idx - 1 );
+    }
+
+    Path& Path::AppendFilename( char const* pFilename )
+    {
+        EE_ASSERT( IsDirectoryPath() );
+        EE_ASSERT( IsValidFilename( pFilename ) );
+
+        m_fullpath.append( pFilename );
+        UpdatePathInternals();
+
+        return *this;
     }
 
     //-------------------------------------------------------------------------
@@ -352,7 +442,7 @@ namespace EE::FileSystem
         }
         else
         {
-            return nullptr;
+            return "";
         }
     }
 
@@ -384,7 +474,7 @@ namespace EE::FileSystem
         }
         else
         {
-            m_hashCode = Hash::GetHash32( m_fullpath );
+            m_hashCode = Hash::GetHash64( m_fullpath );
             m_isDirectoryPath = m_fullpath[m_fullpath.length() - 1] == s_pathDelimiter;
         }
     }

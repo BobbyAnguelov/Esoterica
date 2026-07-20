@@ -265,6 +265,39 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    class EE_ENGINE_API FloatCurveEventNode : public FloatValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Definition : public FloatValueNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_defaultValueNodeIdx, m_matchEventID, m_defaultValue, m_rules );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+        public:
+
+            int16_t                                     m_defaultValueNodeIdx = InvalidIndex;
+            StringID                                    m_matchEventID;
+            float                                       m_defaultValue = 0.0f;
+            TBitFlags<EventConditionRules>              m_rules;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        FloatValueNode*                                 m_pDefaultValueNode = nullptr;
+        float                                           m_result;
+    };
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINE_API SyncEventIndexConditionNode : public BoolValueNode
     {
     public:
@@ -339,42 +372,19 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API CurrentSyncEventIndexNode : public FloatValueNode
+    class EE_ENGINE_API CurrentSyncEventNode : public FloatValueNode
     {
     public:
 
-        struct EE_ENGINE_API Definition : public FloatValueNode::Definition
+        enum class InfoType : uint8_t
         {
-            EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_sourceStateNodeIdx );
+            EE_REFLECT_ENUM
 
-            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
-
-        public:
-
-            int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
+            IndexAndPercentage,
+            IndexOnly,
+            PercentageOnly
         };
 
-    private:
-
-        virtual void InitializeInternal( GraphContext& context ) override;
-
-    private:
-
-        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-
-    private:
-
-        StateNode*                                      m_pSourceStateNode = nullptr;
-        float                                           m_result = 0.0f;
-    };
-
-    //-------------------------------------------------------------------------
-
-    class EE_ENGINE_API CurrentSyncEventPercentageThroughNode : public FloatValueNode
-    {
-    public:
-
         struct EE_ENGINE_API Definition : public FloatValueNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
@@ -385,6 +395,7 @@ namespace EE::Animation
         public:
 
             int16_t                                     m_sourceStateNodeIdx = InvalidIndex;
+            InfoType                                    m_infoType = InfoType::IndexAndPercentage;
         };
 
     private:

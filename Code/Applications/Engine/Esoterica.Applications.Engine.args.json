@@ -7,6 +7,10 @@
       "Command": "-map data://maps/br_nav.map"
     },
     {
+      "Id": "b49612ff-f9f2-41ea-93d5-aeff6dfb3616",
+      "Command": "-map data://maps/test.map"
+    },
+    {
       "Id": "9f4e3eb2-43a5-4d5b-b8d2-42f2115be8f9",
       "Command": "-map data://maps/br_minimal.map"
     },

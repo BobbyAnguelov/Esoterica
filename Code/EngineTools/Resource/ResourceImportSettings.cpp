@@ -1,6 +1,6 @@
 #include "ResourceImportSettings.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "EngineTools/Core/Dialogs.h"
+#include "EngineTools/Core/SystemDialogs.h"
 #include "Base/TypeSystem/ResourceInfo.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 
@@ -63,7 +63,7 @@ namespace EE::Resource
         {
             if ( TrySaveDescriptorToDisk( defaultDescriptorFilePath ) )
             {
-                outCreatedDescriptorPath = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), defaultDescriptorFilePath );
+                outCreatedDescriptorPath = DataPath( defaultDescriptorFilePath, m_pToolsContext->GetSourceDataDirectory() );
                 wasDescriptorSuccessfullyCreated = true;
             }
         }
@@ -79,7 +79,7 @@ namespace EE::Resource
             {
                 if ( TrySaveDescriptorToDisk( userSpecifiedDescriptorFilePath ) )
                 {
-                    outCreatedDescriptorPath = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), userSpecifiedDescriptorFilePath );
+                    outCreatedDescriptorPath = DataPath( userSpecifiedDescriptorFilePath, m_pToolsContext->GetSourceDataDirectory() );
                     wasDescriptorSuccessfullyCreated = true;
                 }
             }
@@ -108,9 +108,7 @@ namespace EE::Resource
 
             //-------------------------------------------------------------------------
 
-            TInlineString<5> extension = resourceTypeID.ToString();
-            extension.make_lower();
-
+            FileSystem::Extension const extension = resourceTypeID.ToString();
             m_defaultDescriptorResourcePath = m_sourceResourcePath;
             m_defaultDescriptorResourcePath.ReplaceExtension( extension );
         }
@@ -129,7 +127,7 @@ namespace EE::Resource
         EE_ASSERT( m_defaultDescriptorResourcePath.IsValid() );
         FileSystem::Path const newDescriptorPath = m_defaultDescriptorResourcePath.GetFileSystemPath( m_pToolsContext->GetSourceDataDirectory() );
 
-        FileDialog::Result result = FileDialog::Save( m_pToolsContext, resourceTypeID, newDescriptorPath );
+        FileDialog::Result result = FileDialog::SaveResourceOrDataFile( m_pToolsContext, pDesc->GetExtension(), newDescriptorPath );
         if ( result )
         {
             outPath = result;
@@ -146,7 +144,7 @@ namespace EE::Resource
         ResourceDescriptor const* pDescriptor = GetDataFile();
         EE_ASSERT( pDescriptor != nullptr );
 
-        ResourceID resourceID = DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), filePath );
+        ResourceID resourceID = DataPath( filePath, m_pToolsContext->GetSourceDataDirectory() );
         EE_ASSERT( resourceID.GetResourceTypeID() == pDescriptor->GetCompiledResourceTypeID() );
 
         //-------------------------------------------------------------------------
@@ -163,7 +161,8 @@ namespace EE::Resource
         // Save the descriptor
         if ( result )
         {
-            if ( !IDataFile::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, filePath, pDescriptor ) )
+            Log log( LogCategory::Resource, "Write Imported Resource" );
+            if ( !IDataFile::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, log, filePath, pDescriptor ) )
             {
                 MessageDialog::Error( "Failed to save descriptor!", "Failed to write descriptor to disk!" );
                 result = false;

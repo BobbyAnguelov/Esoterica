@@ -70,7 +70,7 @@ namespace EE
         TypeSystem::TypeID GetInstanceTypeID() const;
 
         // Get the typeinfo for the created instance (returns nullptr if no instance exists)
-        inline TypeSystem::TypeInfo const* GetInstanceTypeInfo() const;
+        TypeSystem::TypeInfo const* GetInstanceTypeInfo() const;
 
         // Get the created instance (if it exists)
         inline IReflectedType* Get() { return m_pInstance; }

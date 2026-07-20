@@ -1,31 +1,26 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
+    <ClInclude Include="Win32\EngineApplication_Win32.h" />
+    <ClInclude Include="Win32\Resource.h" />
     <ClInclude Include="Win32\EngineApplication_Win32.h">
       <Filter>Win32</Filter>
     </ClInclude>
     <ClInclude Include="Win32\Resource.h">
       <Filter>Win32</Filter>
     </ClInclude>
+    <ClInclude Include="Win32\EngineApplication_Win32.h" />
+    <ClInclude Include="Win32\Resource.h" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Win32">
-      <UniqueIdentifier>{7576e166-55af-4c18-bcb1-715899e7a1d9}</UniqueIdentifier>
-    </Filter>
+    <ClCompile Include="Win32\EngineApplication_Win32.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="Win32\Apps.Engine.rc">
-      <Filter>Win32</Filter>
-    </ResourceCompile>
+    <ResourceCompile Include="Win32\Apps.Engine.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Win32\Engine.ico">
-      <Filter>Win32</Filter>
-    </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <ClCompile Include="Win32\EngineApplication_Win32.cpp">
-      <Filter>Win32</Filter>
-    </ClCompile>
+    <Image Include="Win32\Engine.ico" />
+    <Image Include="SplashScreen.bmp" />
+    <Image Include="Win32\SplashScreen.bmp" />
   </ItemGroup>
 </Project>

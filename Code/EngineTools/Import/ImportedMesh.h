@@ -2,29 +2,28 @@
 
 #include "ImportedSkeleton.h"
 #include "Base/Types/Arrays.h"
-#include "Base/Math/Matrix.h"
-#include "Base/Types/String.h"
 #include "Base/Types/StringID.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Import
 {
-    class EE_ENGINETOOLS_API ImportedMesh : public ImportedData
+    class EE_ENGINETOOLS_API Mesh : public ImportedData
     {
-
     public:
+
+        constexpr static uint32_t const s_maxNumOfBoneInfluences = 8;
+        constexpr static uint32_t const s_maxNumOfTextureCoords = 4;
 
         struct VertexData
         {
-            VertexData() = default;
+        public:
 
-            bool operator==( VertexData const& rhs ) const;
+            VertexData() {}
 
-            inline bool operator!=( VertexData const& rhs ) const
-            {
-                return !( *this == rhs );
-            }
+            inline void Reset() { *this = VertexData(); }
+
+            bool operator==( VertexData const& rhs ) const { return memcmp( this, &rhs, sizeof( VertexData ) ) == 0; }
 
         public:
 
@@ -33,60 +32,81 @@ namespace EE::Import
             Float4                              m_normal = Float4::Zero;
             Float4                              m_tangent = Float4::Zero;
             Float4                              m_binormal = Float4::Zero;
-            TInlineVector<Float2, 3>            m_texCoords;
+            Float2                              m_texCoords[s_maxNumOfTextureCoords] = { Float2::Zero, Float2::Zero };
 
             // Optional skinning data
-            TVector<int32_t>                    m_boneIndices;
-            TVector<float>                      m_boneWeights;
+            uint32_t                            m_numBoneWeights = 0;
+            int32_t                             m_boneIndices[s_maxNumOfBoneInfluences] = { -1,-1,-1,-1,-1,-1,-1,-1 };
+            float                               m_boneWeights[s_maxNumOfBoneInfluences] = { 0 };
         };
 
+        // Geometry Data
         //-------------------------------------------------------------------------
+        // Can be shared across multiple sub-meshes
 
-        struct GeometrySection
+        struct Geometry
         {
-            GeometrySection() = default;
+            Geometry() = default;
 
             inline uint32_t GetNumTriangles() const { return (uint32_t) m_indices.size() / 3; }
             inline int32_t GetNumUVChannels() const { return m_numUVChannels; }
 
         public:
 
-            String                              m_name;
-            StringID                            m_materialNameID;
+            StringID                            m_ID;
             TVector<VertexData>                 m_vertices;
             TVector<uint32_t>                   m_indices;
-            int32_t                             m_numUVChannels = 0;
+            uint32_t                            m_numUVChannels = 0;
+            uint32_t                            m_numBoneInfluences = 0; // Multiple of 4 and less than s_maxNumOfBoneInfluences
 
             bool                                m_clockwiseWinding = false;
         };
 
+        // A part of the mesh
+        //-------------------------------------------------------------------------
+        // Consists of a geometry, transform and material assignment
+
+        struct Submesh
+        {
+            StringID                            m_ID;
+            Matrix                              m_transform = Matrix::Identity;
+            int32_t                             m_geometryIdx = InvalidIndex;
+            StringID                            m_materialID;
+        };
+
     public:
 
-        ImportedMesh() = default;
+        Mesh() = default;
         virtual bool IsValid() const override final;
 
-        inline int32_t GetNumGeometrySections() const { return (int32_t) m_geometrySections.size(); }
-        inline TVector<GeometrySection> const& GetGeometrySections() const { return m_geometrySections; }
+        void Finalize();
+
+        inline int32_t GetNumGeometries() const { return (int32_t) m_geometries.size(); }
+        inline TVector<Geometry> const& GetGeometries() const { return m_geometries; }
+        inline TVector<Geometry>& GetGeometries() { return m_geometries; }
 
         inline bool IsSkeletalMesh() const { return m_isSkeletalMesh; }
-        inline ImportedSkeleton const& GetSkeleton() const { EE_ASSERT( IsSkeletalMesh() ); return m_skeleton; }
-        inline int32_t GetNumBones() const { EE_ASSERT( IsSkeletalMesh() ); return m_skeleton.GetNumBones(); }
-        inline int32_t GetNumBoneInfluencesPerVertex() const { EE_ASSERT( IsSkeletalMesh() ); return m_maxNumberOfBoneInfluences; }
+        inline Skeleton const& GetSkeleton() const { EE_ASSERT( IsSkeletalMesh() ); return m_skeleton; }
+        inline int32_t GetNumBones() const { EE_ASSERT( IsSkeletalMesh() ); return (int32_t) m_skeleton.GetNumBones(); }
 
-        // Get a unique name for a new geometry section
-        String GetUniqueGeometrySectionName( String const& desiredName ) const;
+        // Get the total number of mesh instances
+        uint32_t GetNumSubmeshes() const { return (uint32_t) m_submeshes.size(); }
 
-        // Merge all geometry sections together that have the same name
-        void MergeGeometrySectionsByMaterial();
+        // Get the mesh instances contain needed for this mesh
+        TVector<Submesh> const& GetSubmeshes() const { return m_submeshes; }
+
+        // Get the required number of influence, this will be a multiple of 4 and less than s_maxNumOfBoneInfluences
+        uint32_t GetMaxNumberOfBoneInfluencesPerVertex() const { EE_ASSERT( IsSkeletalMesh() ); return m_maxNumberOfBoneInfluences; }
 
         // Apply scale to this mesh
         void ApplyScale( Float3 const& scale );
 
     protected:
 
-        TVector<GeometrySection>                m_geometrySections;
-        ImportedSkeleton                        m_skeleton;
-        int32_t                                 m_maxNumberOfBoneInfluences = 0;
+        Skeleton                                m_skeleton;
+        TVector<Geometry>                       m_geometries;
+        TVector<Submesh>                        m_submeshes;
+        uint32_t                                m_maxNumberOfBoneInfluences = 0;
         bool                                    m_isSkeletalMesh = false;
     };
 }

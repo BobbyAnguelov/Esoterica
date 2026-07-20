@@ -14,17 +14,17 @@ namespace EE::Animation
         UpdateSecondarySkeletonList( secondarySkeletons );
     }
 
-    void PoseBuffer::ResetPose( Pose::Type poseType, bool calculateGlobalPose )
+    void PoseBuffer::ResetPose( Pose::Init poseInit, bool calculateGlobalPose )
     {
         for ( Pose& pose : m_poses )
         {
-            pose.Reset( poseType, calculateGlobalPose );
+            pose.Reset( poseInit, calculateGlobalPose );
         }
     }
 
-    void PoseBuffer::Release( Pose::Type poseType, bool calculateGlobalPose )
+    void PoseBuffer::Release( Pose::Init poseInit, bool calculateGlobalPose )
     {
-        ResetPose( poseType, calculateGlobalPose );
+        ResetPose( poseInit, calculateGlobalPose );
         m_isUsed = false;
     }
 
@@ -52,21 +52,22 @@ namespace EE::Animation
     {
         int32_t const numExistingSecondarySkeletons = int32_t( m_poses.size() ) - 1;
         int32_t const numRequiredSecondarySkeletons = int32_t( secondarySkeletons.size() );
-        int32_t const numSkeletonsToUpdate = Math::Min( numRequiredSecondarySkeletons, numExistingSecondarySkeletons );
+        int32_t const numSecondarySkeletonsToUpdate = Math::Min( numRequiredSecondarySkeletons, numExistingSecondarySkeletons );
 
-        for ( int32_t i = 1; i < numSkeletonsToUpdate; i++ )
+        for ( int32_t secondarySkeletonIdx = 0; secondarySkeletonIdx < numSecondarySkeletonsToUpdate; secondarySkeletonIdx++ )
         {
             // If the skeleton differs, then change it
-            if ( m_poses[i].GetSkeleton() != secondarySkeletons[i - 1] )
+            if ( m_poses[secondarySkeletonIdx + 1].GetSkeleton() != secondarySkeletons[secondarySkeletonIdx] )
             {
-                m_poses[i].ChangeSkeleton( secondarySkeletons[i - 1] );
+                m_poses[secondarySkeletonIdx + 1].ChangeSkeleton( secondarySkeletons[secondarySkeletonIdx] );
             }
         }
 
         // If we need less poses, then just destroy the extras
         if ( numExistingSecondarySkeletons > numRequiredSecondarySkeletons )
         {
-            while( m_poses.size() > numRequiredSecondarySkeletons )
+            int32_t const numPosesToRemove = numExistingSecondarySkeletons - numRequiredSecondarySkeletons;
+            for( int32_t i = 0; i < numPosesToRemove; i++ )
             {
                 m_poses.pop_back();
             }
@@ -74,9 +75,9 @@ namespace EE::Animation
         // If we need more poses, then create the excess
         else if( numExistingSecondarySkeletons < numRequiredSecondarySkeletons )
         {
-            for ( int32_t i = numExistingSecondarySkeletons; i < numRequiredSecondarySkeletons; i++ )
+            for ( int32_t secondarySkeletonIdx = numExistingSecondarySkeletons; secondarySkeletonIdx < numRequiredSecondarySkeletons; secondarySkeletonIdx++ )
             {
-                m_poses.emplace_back( secondarySkeletons[i] );
+                m_poses.emplace_back( secondarySkeletons[secondarySkeletonIdx] );
             }
         }
     }
@@ -85,9 +86,9 @@ namespace EE::Animation
     // Cached Pose Buffer
     //-------------------------------------------------------------------------
 
-    void CachedPoseBuffer::Release( Pose::Type poseType )
+    void CachedPoseBuffer::Release( Pose::Init poseInit )
     {
-        PoseBuffer::Release( poseType );
+        PoseBuffer::Release( poseInit );
         m_ID.Clear();
         m_isLifetimeInternallyManaged = false;
         m_wasAccessed = false;
@@ -103,10 +104,7 @@ namespace EE::Animation
         , m_secondarySkeletons( secondarySkeletons )
     {
         EE_ASSERT( m_pPrimarySkeleton != nullptr );
-
-        #if EE_DEVELOPMENT_TOOLS
-        ValidateSetOfSecondarySkeletons( m_pPrimarySkeleton, secondarySkeletons );
-        #endif
+        EE_ASSERT( Skeleton::ValidateSkeletonSetup( m_pPrimarySkeleton, secondarySkeletons ) );
 
         //-------------------------------------------------------------------------
 
@@ -174,9 +172,7 @@ namespace EE::Animation
 
     void PoseBufferPool::SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons )
     {
-        #if EE_DEVELOPMENT_TOOLS
-        ValidateSetOfSecondarySkeletons( m_pPrimarySkeleton, secondarySkeletons );
-        #endif
+        EE_ASSERT( Skeleton::ValidateSkeletonSetup( m_pPrimarySkeleton, secondarySkeletons ) );
 
         m_secondarySkeletons = secondarySkeletons;
 
@@ -219,7 +215,7 @@ namespace EE::Animation
             {
                 m_poseBuffers.emplace_back( PoseBuffer( m_pPrimarySkeleton, m_secondarySkeletons ) );
             }
-            EE_ASSERT( m_poseBuffers.size() < 255 );
+            EE_ASSERT( m_poseBuffers.size() < INT8_MAX );
         }
 
         int8_t const freeBufferIdx = m_firstFreeBuffer;
@@ -280,7 +276,7 @@ namespace EE::Animation
                 pCachedPoseBuffer = &m_cachedBuffers.emplace_back( CachedPoseBuffer( m_pPrimarySkeleton, m_secondarySkeletons ) );
             }
 
-            EE_ASSERT( m_cachedBuffers.size() < 255 );
+            EE_ASSERT( m_cachedBuffers.size() < INT8_MAX );
         }
         else
         {
@@ -352,6 +348,7 @@ namespace EE::Animation
 
         // Flag as accessed
         pCachedPoseBuffer->m_wasAccessed = true;
+        pCachedPoseBuffer->m_shouldBeReset = false;
 
         return pCachedPoseBuffer;
     }
@@ -373,19 +370,6 @@ namespace EE::Animation
         EE_UNREACHABLE_CODE();
     }
 
-    void PoseBufferPool::ResetCachedPoseBuffer( CachedPoseID cachedPoseID )
-    {
-        for ( auto& cachedBuffer : m_cachedBuffers )
-        {
-            if ( cachedBuffer.m_ID == cachedPoseID )
-            {
-                // Cached buffer destruction is deferred to the next frame since we may already have tasks reading from it already
-                cachedBuffer.Release();
-                return;
-            }
-        }
-    }
-
     CachedPoseBuffer* PoseBufferPool::GetCachedPoseBufferInternal( CachedPoseID cachedPoseID )
     {
         EE_ASSERT( cachedPoseID.IsValid() );
@@ -397,6 +381,7 @@ namespace EE::Animation
             {
                 pFoundCachedPoseBuffer = &cachedBuffer;
                 cachedBuffer.m_wasAccessed = true;
+                cachedBuffer.m_shouldBeReset = false;
                 break;
             }
         }
@@ -418,23 +403,6 @@ namespace EE::Animation
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void PoseBufferPool::ValidateSetOfSecondarySkeletons( Skeleton const* pPrimarySkeleton, SecondarySkeletonList const& secondarySkeletons )
-    {
-        EE_ASSERT( pPrimarySkeleton != nullptr );
-
-        int32_t const numSkeletons = (int32_t) secondarySkeletons.size();
-        for ( auto i = 0; i < numSkeletons; i++ )
-        {
-            EE_ASSERT( secondarySkeletons[i] != nullptr );
-            EE_ASSERT( secondarySkeletons[i] != pPrimarySkeleton );
-
-            for ( auto j = i + 1; j < numSkeletons; j++ )
-            {
-                EE_ASSERT( secondarySkeletons[j] != secondarySkeletons[i] );
-            }
-        }
-    }
-
     void PoseBufferPool::RecordPose( int8_t taskIdx, int8_t poseBufferIdx )
     {
         if ( !m_isDebugRecordingEnabled )
@@ -451,13 +419,25 @@ namespace EE::Animation
                 m_debugBufferTaskIdxMapping.emplace_back( int8_t( -1 ) );
             }
 
-            EE_ASSERT( m_debugPoseBuffers.size() < 255 );
+            EE_ASSERT( m_debugPoseBuffers.size() < INT8_MAX );
         }
 
         EE_ASSERT( m_poseBuffers[poseBufferIdx].m_isUsed );
         m_debugPoseBuffers[m_firstFreeDebugBuffer].CopyFrom( m_poseBuffers[poseBufferIdx] );
         m_debugBufferTaskIdxMapping[m_firstFreeDebugBuffer] = taskIdx;
         m_firstFreeDebugBuffer++;
+    }
+
+    bool PoseBufferPool::HasRecordedPoseBufferForTask( int8_t nTaskIdx ) const
+    {
+        for ( size_t i = 0; i < m_debugBufferTaskIdxMapping.size(); i++ )
+        {
+            if ( m_debugBufferTaskIdxMapping[i] == nTaskIdx )
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     PoseBuffer* PoseBufferPool::GetRecordedPoseBufferForTask( int8_t taskIdx ) const

@@ -1,4 +1,3 @@
-#include "Base/ThirdParty/cmdParser/cmdParser.h"
 #include <vector>
 #include <filesystem>
 #include <iostream>
@@ -216,7 +215,7 @@ bool Project::Parse( GlobalPaths const& globalPaths )
 
 static bool ParseSolutionAndGenerateBuildFile( fs::path const& slnFilePath )
 {
-    if ( !slnFilePath.has_filename() || slnFilePath.extension() != ".sln" )
+    if ( !slnFilePath.has_filename() )
     {
         std::cout << "Error: " << slnFilePath << std::endl;
         return false;
@@ -352,16 +351,13 @@ int main( int argc, char *argv[] )
     // Read CMD line arguments
     //-------------------------------------------------------------------------
 
-    cli::Parser cmdParser( argc, argv );
-    cmdParser.set_required<std::string>( "s", "SlnPath", "Solution Path." );
-
-    if ( !cmdParser.run() )
+    if ( argc != 2 )
     {
         std::cout << std::endl << "Error: Invalid command line arguments" << std::endl;
         return 1;
     }
 
-    fs::path const slnPath = cmdParser.get<std::string>( "s" ).c_str();
+    fs::path const slnPath = std::string( argv[1] ).c_str();
 
     // Execute reflector
     //-------------------------------------------------------------------------

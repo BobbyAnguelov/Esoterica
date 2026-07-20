@@ -1,49 +1,76 @@
 #pragma once
 
 #include "EngineTools/Resource/ResourceDescriptor.h"
-#include "Engine/Render/Material/RenderMaterial.h"
-#include "Base/Render/RenderTexture.h"
+#include "Engine/Render/RenderMaterial.h"
 #include "Base/Resource/ResourcePtr.h"
+#include "Base/TypeSystem/TypeInstance.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Render
 {
-    struct MaterialResourceDescriptor : public Resource::ResourceDescriptor
+    enum class MaterialTranslucency
+    {
+        EE_REFLECT_ENUM
+
+        Opaque,
+        Masked,
+        AlphaBlend,
+    };
+
+    //-------------------------------------------------------------------------
+
+    struct MaterialResourceDescriptor final : public Resource::ResourceDescriptor
     {
         EE_REFLECT_TYPE( MaterialResourceDescriptor );
 
-        virtual bool IsValid() const override { return m_albedoTexture.IsSet(); }
-        virtual int32_t GetFileVersion() const override { return 0; }
-        virtual bool IsUserCreateableDescriptor() const override { return true; }
-        virtual ResourceTypeID GetCompiledResourceTypeID() const override { return Material::GetStaticResourceTypeID(); }
+    public:
+
+        virtual bool                  IsValid() const override { return m_shader.IsValid() && m_shaderParameters.IsSet(); }
+        virtual int32_t               GetFileVersion() const override { return 0; }
+        virtual bool                  IsUserCreateableDescriptor() const override { return true; }
+        virtual ResourceTypeID        GetCompiledResourceTypeID() const override { return Material::GetStaticResourceTypeID(); }
         virtual FileSystem::Extension GetExtension() const override final { return Material::GetStaticResourceTypeID().ToString(); }
-        virtual char const* GetFriendlyName() const override final { return Material::s_friendlyName; }
-        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override {}
+        virtual char const*           GetFriendlyName() const override final { return Material::s_friendlyName; }
+
+        virtual void GetCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<Resource::CompileDependency>& outDependencies ) const override
+        {
+            ForEachDependency( [&outDependencies]( Resource::ResourcePtr const* pResource ) { outDependencies.emplace_back( pResource->GetDataPath(), true ); } );
+        }
+
+        virtual void GetInstallDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<ResourceID>& outDependencies ) const override
+        {
+            ForEachDependency( [&outDependencies] ( Resource::ResourcePtr const* pResource ) { VectorEmplaceBackUnique( outDependencies, pResource->GetResourceID() ); } );
+        }
 
         virtual void Clear() override
         {
-            m_albedoTexture.Clear();
-            m_metalnessTexture.Clear();
-            m_roughnessTexture.Clear();
-            m_normalMapTexture.Clear();
-            m_aoTexture.Clear();
-            m_albedo = Colors::Black;
-            m_metalness = 0.0f;
-            m_roughness = 0.0f;
-            m_normalScaler = 1.0f;
+            m_shaderParameters.CreateInstance( m_shaderParameters.GetInstanceTypeInfo() );
+        }
+
+        template<typename F>
+        inline void ForEachDependency( F fn ) const
+        {
+            EE_ASSERT( m_shaderParameters.IsSet() );
+            for ( TypeSystem::PropertyInfo const& property : m_shaderParameters.GetInstanceTypeInfo()->m_properties )
+            {
+                if ( property.IsResourcePtrProperty() )
+                {
+                    Resource::ResourcePtr const* pResource = property.GetPropertyAddress<Resource::ResourcePtr>( m_shaderParameters.Get() );
+                    if ( pResource->IsSet() )
+                    {
+                        fn( pResource );
+                    }
+                }
+            }
         }
 
     public:
 
-        EE_REFLECT() TResourcePtr<Texture>       m_albedoTexture;
-        EE_REFLECT() TResourcePtr<Texture>       m_metalnessTexture;
-        EE_REFLECT() TResourcePtr<Texture>       m_roughnessTexture;
-        EE_REFLECT() TResourcePtr<Texture>       m_normalMapTexture;
-        EE_REFLECT() TResourcePtr<Texture>       m_aoTexture;
-        EE_REFLECT() Color                       m_albedo = Colors::Black;
-        EE_REFLECT() float                       m_metalness = 0.0f;
-        EE_REFLECT() float                       m_roughness = 0.0f;
-        EE_REFLECT() float                       m_normalScaler = 1.0f;
+        EE_REFLECT( CustomEditor = "SurfaceShaderPicker" );
+        StringID m_shader;
+
+        EE_REFLECT( DisableTypePicker );
+        TypeInstance m_shaderParameters;
     };
 }

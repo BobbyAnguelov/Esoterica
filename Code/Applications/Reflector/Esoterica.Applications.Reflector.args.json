@@ -4,11 +4,27 @@
   "Items": [
     {
       "Id": "d61405fc-6c2e-4339-a10f-439bf32393ae",
-      "Command": "-s D:\\Esoterica\\Esoterica.sln"
+      "Command": "-s D:\\Esoterica\\Esoterica.slnx"
+    },
+    {
+      "Id": "a3416af9-56a7-409e-8cb0-0b7d2e4805ce",
+      "Command": "-typeinfo"
+    },
+    {
+      "Id": "6cb75c4d-c54e-44bc-ac80-9cf2931d61b2",
+      "Command": "-shaders"
+    },
+    {
+      "Id": "e2f001c7-db20-4330-97cc-ae79aa276365",
+      "Command": "-clean"
     },
     {
       "Id": "48f39e83-dbc6-4c0d-b5d0-66cd438d699c",
       "Command": "-rebuild"
+    },
+    {
+      "Id": "20dfcdbf-2fe4-42b2-b2b0-9a586b730b9f",
+      "Command": "-hotreload"
     }
   ]
 }

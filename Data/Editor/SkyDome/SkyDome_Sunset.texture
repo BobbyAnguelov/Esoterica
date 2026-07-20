@@ -1,0 +1,7 @@
+<Type TypeID="EE::Render::TextureResourceDescriptor" Version="0">
+  <Property ID="m_sourcePaths">
+    <Property Index="0" Value="data://editor/skydome/industrial_sunset_puresky_1k.hdr" />
+  </Property>
+  <Property ID="m_textureGroup" Value="data://render/texturegroups/environmentcubemaptexture.txtg" />
+  <Property ID="m_name" Value="Skydome" />
+</Type>

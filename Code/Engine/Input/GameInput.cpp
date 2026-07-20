@@ -4,7 +4,7 @@
 
 namespace EE::Input
 {
-    void GameInputMap::UnregisterInputs()
+    void GameInputState::UnregisterInputs()
     {
         m_axes.clear();
         m_values.clear();

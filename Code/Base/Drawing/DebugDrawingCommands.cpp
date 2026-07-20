@@ -1,14 +1,12 @@
-#include "DebugDrawingCommands.h"
+ #include "DebugDrawingCommands.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
-namespace EE::Drawing
+namespace EE::DebugDrawInternal
 {
     void CommandBuffer::Reset( Seconds deltaTime )
     {
-        // NAIVE delete version - profile this
-
         for ( int32_t i = (int32_t) m_pointCommands.size() - 1; i >= 0; i-- )
         {
             m_pointCommands[i].m_TTL -= deltaTime;
@@ -44,19 +42,22 @@ namespace EE::Drawing
                 m_textCommands.erase_unsorted( m_textCommands.begin() + i );
             }
         }
+
+        for ( int32_t i = (int32_t) m_meshCommands.size() - 1; i >= 0; i-- )
+        {
+            m_meshCommands[i].m_TTL -= deltaTime;
+            if ( m_meshCommands[i].m_TTL <= 0.0f )
+            {
+                m_meshCommands.erase_unsorted( m_meshCommands.begin() + i );
+            }
+        }
     }
 
     void FrameCommandBuffer::AddThreadCommands( ThreadCommandBuffer const& threadCommands )
     {
-        // TODO:
-        // Broad-phase culling
-        // Sort transparent and depth test off primitives by distance to camera
-        // Sort text by font
-
-        m_opaqueDepthOn.Append( threadCommands.GetOpaqueDepthTestEnabledBuffer() );
-        m_opaqueDepthOff.Append( threadCommands.GetOpaqueDepthTestDisabledBuffer() );
-        m_transparentDepthOn.Append( threadCommands.GetTransparentDepthTestEnabledBuffer() );
-        m_transparentDepthOff.Append( threadCommands.GetTransparentDepthTestDisabledBuffer() );
+        m_transparentDepthOnWrite.Append( threadCommands.GetTransparentDepthOnWrite() );
+        m_transparentDepthOnNoWrite.Append( threadCommands.GetTransparentDepthOnNoWrite() );
+        m_transparentDepthSeparateWrite.Append( threadCommands.GetTransparentDepthSeparateWrite() );
     }
 }
 #endif

@@ -1,0 +1,728 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master, integration ]
+
+# Cancel any in-flight jobs for the same PR/branch so there's only one active
+# at a time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  ci_pre_hashes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Compile hash_scene
+        run: |
+          mkdir build
+          clang test/hash_scene.c extra/ufbx_math.c -O2 -o build/hash_scene
+      - name: Generate reference hashes
+        run: |
+          python3 misc/generate_hashses.py --exe build/hash_scene -o build/hashes.txt --verbose
+      - name: Upload reference hashes
+        uses: actions/upload-artifact@v4
+        with:
+          name: reference-hashes
+          path: build/hashes.txt
+
+  ci_ubuntu:
+    runs-on: ubuntu-latest
+    needs: ci_pre_hashes
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y gcc-multilib g++-multilib
+      - name: Download reference hashes
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-hashes
+          path: build
+      - name: Run tests
+        run: python3 misc/run_tests.py tests stack readme threadcheck hashes --runner ci_linux
+      - name: Verbose test info
+        run: build/runner_clang_release_x64/runner -d data -v
+      - name: Compress hashdumps
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/hash_diff.py compress build/hashdumps -o build/hashdump_ci_linux.txt.gz
+      - name: Upload hashdumps
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: hash-dumps-ubuntu
+          path: build/hashdump_ci_linux.txt.gz
+
+  ci_windows:
+    runs-on: windows-2022
+    needs: ci_pre_hashes
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download reference hashes
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-hashes
+          path: build
+      - run: type build\hashes.txt
+      - name: Run tests
+        run: python misc/run_tests.py tests stack readme threadcheck hashes --runner ci_windows
+      - name: Verbose test info
+        run: build\runner_vs_cl64_release_x64\runner.exe -d data -v
+      - name: Check C++ tests
+        run: python misc/run_tests.py cpp --compiler vs_cl64
+      - name: Check features
+        run: python misc/run_tests.py features --compiler vs_cl64
+      - name: Check freestanding
+        run: python misc/run_tests.py freestanding --compiler vs_cl64
+      - name: Compress hashdumps
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/hash_diff.py compress build/hashdumps -o build/hashdump_ci_windows.txt.gz
+      - name: Upload hashdumps
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: hash-dumps-windows
+          path: build/hashdump_ci_windows.txt.gz
+
+  ci_macos:
+    runs-on: macos-14
+    needs: ci_pre_hashes
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download reference hashes
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-hashes
+          path: build
+      - name: Run tests
+        run: python3 misc/run_tests.py tests cpp stack readme threadcheck hashes --remove-compiler gcc --additional-compiler gcc-14 --remove-arch x86 --runner ci_macos
+      - name: Compile ufbx as Objective C
+        run: clang -Wall -Wextra -Werror -ObjC -c ufbx.c -o build/ufbx-objc.o
+      - name: Compress hashdumps
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/hash_diff.py compress build/hashdumps -o build/hashdump_ci_macos.txt.gz
+      - name: Upload hashdumps
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: hash-dumps-macos
+          path: build/hashdump_ci_macos.txt.gz
+
+  ci_coverage:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y gcc-multilib g++-multilib lcov llvm
+      - name: Generate coverage
+        run: LLVM_COV=llvm-cov bash misc/generate_coverage.sh
+      - name: Upload coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          curl -Os https://cli.codecov.io/latest/linux/codecov
+          sudo chmod +x codecov
+          ./codecov --verbose upload-process --disable-search --fail-on-error --plugin noop -t ${{ secrets.CODECOV_TOKEN }} -n ci_coverage-${{ github.run_id }} -F tests -f coverage.lcov
+
+  ci_coverage32:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y gcc-multilib g++-multilib lcov llvm
+      - name: Generate coverage
+        run: LLVM_COV=llvm-cov bash misc/generate_coverage_32.sh
+      - name: Upload coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          curl -Os https://cli.codecov.io/latest/linux/codecov
+          sudo chmod +x codecov
+          ./codecov --verbose upload-process --disable-search --fail-on-error --plugin noop -t ${{ secrets.CODECOV_TOKEN }} -n ci_coverage32-${{ github.run_id }} -F tests -f coverage.lcov
+
+  ci_no_assert:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y gcc-multilib g++-multilib lcov llvm
+      - name: Generate coverage
+        run: LLVM_COV=llvm-cov bash misc/generate_coverage_no_assert.sh
+      - name: Upload coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          curl -Os https://cli.codecov.io/latest/linux/codecov
+          sudo chmod +x codecov
+          ./codecov --verbose upload-process --disable-search --fail-on-error --plugin noop -t ${{ secrets.CODECOV_TOKEN }} -n ci_no_assert-${{ github.run_id }} -F tests -f coverage.lcov
+
+  ci_cpp:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y gcc-multilib g++-multilib llvm
+      - name: Run tests
+        run: python3 misc/run_tests.py cpp --heavy
+
+
+  ci_picort:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run picort
+        run: python misc/run_tests.py picort
+
+  ci_domfuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run domfuzz/objfuzz
+        run: python misc/run_tests.py domfuzz objfuzz
+
+  ci_unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run unit tests
+        run: python misc/run_tests.py unit
+
+  ci_viewer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run viewer
+        run: python misc/run_tests.py viewer
+
+  ci_features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y tcc
+      - name: Compile feature permutations (limited, Clang+GCC)
+        run: python misc/run_tests.py features
+      - name: Compile feature permutations (exhaustive, TCC)
+        run: python misc/run_tests.py features --heavy --additional-compiler tcc --compiler tcc
+
+  ci_analysis:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y cppcheck
+      - name: Install PIP dependencies
+        run: sudo pip3 install pcpp pycparser
+      - name: Prepare directories
+        run: mkdir build
+      - name: cppcheck
+        run: cppcheck --error-exitcode=1 --inline-suppr --std=c99 ufbx.c -DUFBX_STATIC_ANALYSIS=1
+      - name: Clang Analyzer
+        if: ${{ always() && !cancelled() }}
+        run: clang --analyze -Xanalyzer -analyzer-werror -Xanalyzer -analyzer-disable-checker=unix.Malloc ufbx.c
+      - name: Get Clang debug stack usage
+        if: ${{ always() && !cancelled() }}
+        run: clang -fstack-usage -DUFBX_DEV -DUFBX_STANDARD_C -c ufbx.c -o build/ufbx-clang-debug.o
+      - name: Get Clang release stack usage
+        if: ${{ always() && !cancelled() }}
+        run: clang -fstack-usage -DUFBX_DEV -O2 -c ufbx.c -o build/ufbx-clang-release.o
+      - name: Get GCC debug stack usage
+        if: ${{ always() && !cancelled() }}
+        run: gcc -fstack-usage -DUFBX_DEV -DUFBX_STANDARD_C -c ufbx.c -o build/ufbx-gcc-debug.o
+      - name: Get GCC release stack usage
+        if: ${{ always() && !cancelled() }}
+        run: gcc -fstack-usage -DUFBX_DEV -O2 -c ufbx.c -o build/ufbx-gcc-release.o
+      - name: Parse ufbx.c to AST for analysis
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/analyze_stack.py --no-su --cache build/ufbx-cache.pickle
+      - name: Analyze Clang debug stack
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/analyze_stack.py build/ufbx-clang-debug.su --limit 0x20000 --cache build/ufbx-cache.pickle
+      - name: Analyze Clang release stack
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/analyze_stack.py build/ufbx-clang-release.su --limit 0x20000 --cache build/ufbx-cache.pickle
+      - name: Analyze GCC debug stack
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/analyze_stack.py build/ufbx-gcc-debug.su --limit 0x20000 --cache build/ufbx-cache.pickle
+      - name: Analyze GCC release stack
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/analyze_stack.py build/ufbx-gcc-release.su --limit 0x20000 --cache build/ufbx-cache.pickle
+      - name: Analyze symbols (linked)
+        if: ${{ always() && !cancelled() }}
+        run: |
+          clang -c ufbx.c -o build/ufbx-linked.o
+          objdump -t build/ufbx-linked.o > build/ufbx-linked.syms
+          python3 misc/analyze_symbols.py build/ufbx-linked.syms
+      - name: Analyze symbols (static)
+        if: ${{ always() && !cancelled() }}
+        run: |
+          gcc -DUFBX_STATIC -c ufbx.c -o build/ufbx-static.o
+          objdump -t build/ufbx-static.o > build/ufbx-static.syms
+          python3 misc/analyze_symbols.py build/ufbx-static.syms --all-local
+
+  ci_compat:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y gcc-multilib g++-multilib
+      - name: Copy the current ufbx.h to ufbx_new.h
+        run: cp ufbx.h ufbx_new.h
+      - name: Downgrade to oldest compatible header
+        run: bash misc/downgrade_header.sh
+      - name: Run tests with old header (source compatability)
+        run: python3 misc/run_tests.py tests --no-sanitize --runner ci_compat
+      - name: Run tests with new header in ufbx.c, old header in runner.c (ABI compatability)
+        run: python3 misc/run_tests.py tests --no-sanitize-arch x86 --runner ci_compat --define UFBX_HEADER_PATH=\"ufbx_new.h\"
+
+  ci_lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check formatting
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/check_formatting.py ufbx.h ufbx.c
+      - name: Check for typos
+        if: ${{ always() && !cancelled() }}
+        uses: crate-ci/typos@master
+        with: 
+          files: ufbx.h ufbx.c
+          config: ./misc/typos.toml
+
+  ci_bindgen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create bindgen/build directory
+        run: mkdir bindgen/build
+      - name: Parse ufbx.h
+        run: python3 bindgen/ufbx_parser.py
+      - name: Generate typed IR
+        run: python3 bindgen/ufbx_ir.py
+
+  ci_exotic:
+    runs-on: ubuntu-22.04
+    needs: ci_pre_hashes
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download reference hashes
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-hashes
+          path: build
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y tcc qemu qemu-user gcc-multilib
+      - name: Install zig cc via PIP
+        run: sudo pip3 install ziglang
+      - name: Run tests with TCC
+        run: python3 misc/run_tests.py tests freestanding hashes --additional-compiler tcc --compiler tcc --remove-arch x86 --runner ci_exotic
+      - name: Compile ufbx.c wth x86 TCC
+        run: i386-tcc -Wall -Werror -c ufbx.c -o build/tcc-ufbx-x86.o
+      - name: Compile PowerPC tests
+        run: python3 -m ziglang cc -fno-sanitize=undefined -target powerpc-linux -DUFBX_DEV ufbx.c test/runner.c -g -o build/ppc-runner
+      - name: Run PowerPC tests
+        run: qemu-ppc build/ppc-runner -d data
+      - name: Compile PowerPC hash_scene
+        run: |
+          python3 -m ziglang cc -fno-sanitize=undefined -ffp-contract=off -target powerpc-linux extra/ufbx_math.c test/hash_scene.c -g -o build/ppc_hasher_debug
+          python3 -m ziglang cc -fno-sanitize=undefined -ffp-contract=off -O2 -target powerpc-linux extra/ufbx_math.c test/hash_scene.c -g -o build/ppc_hasher_release
+      - name: Check PowerPC hashes
+        run: |
+          qemu-ppc build/ppc_hasher_debug --check build/hashes.txt --dump build/hashdumps/ci_exotic_powerpc_debug.txt --max-dump-errors 3
+          qemu-ppc build/ppc_hasher_release --check build/hashes.txt --dump build/hashdumps/ci_exotic_powerpc_release.txt --max-dump-errors 3
+      - name: Compile freestanding WASM hasher
+        run: clang -O2 misc/wasm_hasher/wasm_hasher.c --target=wasm32 -mbulk-memory --no-standard-libraries -Wl,--no-entry -o build/ufbx_hasher.wasm
+      - name: Check freestanding WASM hashes
+        run: node misc/wasm_hasher/wasm_hasher.js --check build/hashes.txt --dump build/hashdumps/ci_exotic_wasm_freestanding.txt --max-dump-errors 3
+      - name: Compile runner with ufbx_math
+        run: clang -DUFBX_NO_MATH_H -DUFBX_EXTERNAL_MATH ufbx.c test/runner.c extra/ufbx_math.c -lm -o build/ufbx_math_runner
+      - name: Run tests using ufbx_math
+        run: build/ufbx_math_runner -d data
+      - name: Compile runner.c
+        run: gcc -c test/runner.c -o build/runner.o
+      - name: Hash scenes with threads
+        run: python3 misc/run_tests.py hashes --hash-threads --runner ci_hash_threads
+      - name: Build and run standard C99
+        run: |
+          gcc -Wall -Wextra -Werror -Wno-unused-function -std=c99 -DUFBX_STANDARD_C build/runner.o ufbx.c -lm -o build/runner-c99
+          build/runner-c99 -d data --allow-non-thread-safe
+      - name: Build and run standard C11
+        run: |
+          gcc -Wall -Wextra -Werror -Wno-unused-function -std=c11 -DUFBX_STANDARD_C build/runner.o ufbx.c -lm -o build/runner-c11
+          build/runner-c11 -d data
+      - name: Build and run standard C++98
+        run: |
+          g++ -Wall -Wextra -Werror -Wno-unused-function -std=c++98 -DUFBX_STANDARD_C build/runner.o -x c++ ufbx.c -lm -o build/runner-cpp98
+          build/runner-cpp98 -d data --allow-non-thread-safe
+      - name: Build and run standard C++11
+        run: |
+          g++ -Wall -Wextra -Werror -Wno-unused-function -std=c++11 -DUFBX_STANDARD_C build/runner.o -x c++ ufbx.c -lm -o build/runner-cpp11
+          build/runner-cpp11 -d data
+      - name: Build and run threadcheck (standard C11)
+        run: |
+          gcc -Wall -Wextra -Werror -Wno-unused-function -std=c11 -DUFBX_STANDARD_C -c ufbx.c -o build/ufbx-c11.o
+          g++ -Wall -Wextra -Werror -Wno-unused-function -pthread -std=c++11 build/ufbx-c11.o test/threadcheck.cpp -lm -o build/threadcheck-c11
+          build/threadcheck-c11 data/maya_cube_7500_binary.fbx 2
+      - name: Build and run threadcheck (standard C++11)
+        run: |
+          g++ -Wall -Wextra -Werror -Wno-unused-function -pthread -std=c++11 -DUFBX_STANDARD_C -x c++ ufbx.c test/threadcheck.cpp -lm -o build/threadcheck-cpp11
+          build/threadcheck-cpp11 data/maya_cube_7500_binary.fbx 2
+      - name: Link C/C++ LTO
+        run: bash misc/lto_compatability.sh
+      - name: Compress hashdumps
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/hash_diff.py compress build/hashdumps -o build/hashdump_ci_exotic.txt.gz
+      - name: Upload hashdumps
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: hash-dumps-exotic
+          path: build/hashdump_ci_exotic.txt.gz
+
+  ci_wasm64:
+    runs-on: ubuntu-24.04
+    needs: ci_pre_hashes
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare directories
+        run: |
+          mkdir build
+          mkdir build/hashdumps
+      - name: Download reference hashes
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-hashes
+          path: build
+      - name: Update apt
+        run: sudo apt-get update
+      - name: Install apt dependencies
+        run: sudo apt-get install -y clang-19 lld-19
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Check node version
+        run: node -v
+      - name: Compile freestanding WASM64 hasher
+        run: clang -O2 misc/wasm_hasher/wasm_hasher.c --target=wasm64 -DWASM64_MULTI3_WORKAROUND -mbulk-memory --no-standard-libraries -Wl,--no-entry -o build/ufbx_hasher.wasm
+      - name: Check freestanding WASM64 hashes
+        run: node misc/wasm_hasher/wasm_hasher64.js --check build/hashes.txt --dump build/hashdumps/ci_wasm64_freestanding.txt --max-dump-errors 3
+      - name: Compress hashdumps
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/hash_diff.py compress build/hashdumps -o build/hashdump_ci_wasm64.txt.gz
+      - name: Upload hashdumps
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: hash-dumps-wasm64
+          path: build/hashdump_ci_wasm64.txt.gz
+
+  ci_compilers:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add Ubuntu sources
+        run: |
+          echo "deb http://azure.archive.ubuntu.com/ubuntu/ xenial main universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb http://azure.archive.ubuntu.com/ubuntu/ bionic main universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb http://azure.archive.ubuntu.com/ubuntu/ focal main universe" | sudo tee -a /etc/apt/sources.list
+          sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 40976EAF437D05B5 3B4FE6ACC0B21F32
+          sudo apt update
+      - name: Install compilers
+        run: sudo apt-get install -y gcc-5 g++-5 gcc-6 g++-6 gcc-7 g++-7 gcc-8 g++-8 gcc-9 gcc-10 clang-6.0 clang-7 clang-8 clang-9 clang-10 clang-11 clang-12 clang-13
+      - name: Make build directory
+        run: mkdir build
+      - name: Run tests
+        run: python3 misc/run_tests.py tests --no-sanitize --force-opt O0 --additional-compiler gcc-5 --additional-compiler gcc-6 --additional-compiler gcc-7 --additional-compiler gcc-8 --additional-compiler gcc-9 --additional-compiler gcc-10 --additional-compiler clang-6.0 --additional-compiler clang-7 --additional-compiler clang-8 --additional-compiler clang-9 --additional-compiler clang-10 --additional-compiler clang-11 --additional-compiler clang-12 --additional-compiler clang-13
+
+  ci_hasher:
+    runs-on: ubuntu-latest
+    needs: ci_pre_hashes
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare directories
+        run: |
+          mkdir build
+          mkdir build/hashdumps
+      - name: Download reference hashes
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-hashes
+          path: build
+      - name: Compile and run hash_scene with various configurations
+        run: |
+          set -x
+          clang test/hash_scene.c extra/ufbx_math.c -O2 -o build/hash_scene
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_x64_release.txt --max-dump-errors 3
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_unbuffered_x64_release.txt --max-dump-errors 3 --no-read-buffer
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_dedicated_x64_release.txt --max-dump-errors 3 --dedicated-allocs
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_linear_x64_release.txt --max-dump-errors 3 --dedicated-allocs --allocator linear
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_linear_reverse_x64_release.txt --max-dump-errors 3 --dedicated-allocs --allocator linear-reverse
+          clang -DUFBX_DEV -DUFBX_REGRESSION test/hash_scene.c extra/ufbx_math.c -O2 -o build/hash_scene
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_regression_x64_release.txt --max-dump-errors 3
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_regression_unbuffered_x64_release.txt --max-dump-errors 3 --no-read-buffer
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_regression_dedicated_x64_release.txt --max-dump-errors 3 --dedicated-allocs
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_regression_linear_x64_release.txt --max-dump-errors 3 --dedicated-allocs --allocator linear
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_regression_linear_reverse_x64_release.txt --max-dump-errors 3 --dedicated-allocs --allocator linear-reverse
+          clang -fshort-enums -fshort-wchar test/hash_scene.c extra/ufbx_math.c -O2 -o build/hash_scene
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_short_x64_release.txt --max-dump-errors 3
+          clang -fsigned-char test/hash_scene.c extra/ufbx_math.c -O2 -o build/hash_scene
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_schar_x64_release.txt --max-dump-errors 3
+          clang -funsigned-char test/hash_scene.c extra/ufbx_math.c -O2 -o build/hash_scene
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_uchar_x64_release.txt --max-dump-errors 3
+          clang -DUFBX_STANDARD_C -DUFBX_DEV -DUFBX_REGRESSION test/hash_scene.c extra/ufbx_math.c -O2 -o build/hash_scene
+          build/hash_scene --check build/hashes.txt --dump build/hashdumps/ci_hasher_stdc_x64_release.txt --max-dump-errors 3
+      - name: Compress hashdumps
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/hash_diff.py compress build/hashdumps -o build/hashdump_ci_hasher.txt.gz
+      - name: Upload hashdumps
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: hash-dumps-hasher
+          path: build/hashdump_ci_hasher.txt.gz
+
+  ci_wasm:
+    runs-on: ubuntu-latest
+    needs: ci_pre_hashes
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install wasi-sdk
+        run: |
+          mkdir build
+          export WASI_VERSION=17
+          export WASI_VERSION_FULL=${WASI_VERSION}.0
+          curl -L https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_VERSION}/wasi-sdk-${WASI_VERSION_FULL}-linux.tar.gz -o build/wasi-sdk.tar.gz
+          tar xzf build/wasi-sdk.tar.gz -C build
+          mv build/wasi-sdk-${WASI_VERSION_FULL} build/wasi-sdk
+      - name: Install wasmtime
+        run: |
+          curl https://wasmtime.dev/install.sh -sSf > wasmtime-install.sh
+          bash wasmtime-install.sh --version v4.0.0
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+      - name: Test wasmtime
+        run: wasmtime --version
+      - name: Download reference hashes
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-hashes
+          path: build
+      - name: Run tests
+        run: python3 misc/run_tests.py tests hashes --wasi-sdk build/wasi-sdk --compiler wasi_clang --runner ci_wasm
+      - name: Compress hashdumps
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/hash_diff.py compress build/hashdumps -o build/hashdump_ci_wasm.txt.gz
+      - name: Upload hashdumps
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: hash-dumps-wasm
+          path: build/hashdump_ci_wasm.txt.gz
+
+  ci_arm32:
+    runs-on: [self-hosted, ARM]
+    needs: ci_pre_hashes
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Download reference hashes
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-hashes
+          path: build
+      - name: Run tests
+        run: python3 misc/run_tests.py tests hashes --no-sanitize --threads 2 --runner ci_arm64
+      - name: Compress hashdumps
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/hash_diff.py compress build/hashdumps -o build/hashdump_ci_arm32.txt.gz
+      - name: Upload hashdumps
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: hash-dumps-arm32
+          path: build/hashdump_ci_arm32.txt.gz
+
+  ci_arm64:
+    runs-on: [self-hosted, ARM64, legacy]
+    needs: ci_pre_hashes
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Download reference hashes
+        uses: actions/download-artifact@v4
+        with:
+          name: reference-hashes
+          path: build
+      - name: Run tests
+        run: python3 misc/run_tests.py tests hashes --no-sanitize --threads 2 --runner ci_arm64
+      - name: Compress hashdumps
+        if: ${{ always() && !cancelled() }}
+        run: python3 misc/hash_diff.py compress build/hashdumps -o build/hashdump_ci_arm64.txt.gz
+      - name: Upload hashdumps
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: hash-dumps-arm64
+          path: build/hashdump_ci_arm64.txt.gz
+
+  ci_dataset:
+    runs-on: [self-hosted, dataset]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Create build directory
+        run: mkdir build
+      - name: Compile check_fbx.c with coverage
+        run: clang -coverage -DUFBX_DEV=1 -DEXTERNAL_UFBX -g -Og ufbx.c test/check_fbx.c -lm -o build/check_fbx
+      - name: Run dataset tests
+        run: python3 misc/check_dataset.py --exe build/check_fbx --root /mnt/fbx-files --host-url https://ufbx-dataset.b-cdn.net --threads 4
+      - name: Generate coverage
+        run: LLVM_COV=llvm-cov bash misc/generate_lcov.sh
+      - name: Upload coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          set -x
+          curl -Os https://cli.codecov.io/latest/linux-arm64/codecov
+          chmod +x codecov
+          ./codecov --verbose upload-process --disable-search --fail-on-error --plugin noop -t ${{ secrets.CODECOV_TOKEN }} -n ci_dataset-${{ github.run_id }} -F dataset -f coverage.lcov
+
+  ci_cheri:
+    runs-on: [self-hosted, dataset]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Setup Morello environment
+        run: bash /setup-morello.sh
+      - name: Create build directory
+        run: mkdir build
+      - name: Compile tests with Morello
+        run: aarch64-none-linux-gnu-gcc -static -O2 -march=morello+c64 -mabi=purecap test/check_fbx.c -lm -o build/check_fbx
+      - name: Check test cases
+        run: python3 misc/execute_per_fbx.py --exe morelloie --root data --list misc/light_test_cases.txt --allow-non-fbx -- -- build/check_fbx '#' --allow-bad-unicode --allow-unknown --index-error-handling clamp
+
+  ci_fuzz:
+    runs-on: [self-hosted, ARM64, legacy]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Create build directory
+        run: mkdir build
+      - name: Compile check_fbx.c with coverage
+        run: clang -coverage -DUFBX_DEV=1 -DEXTERNAL_UFBX -O2 ufbx.c test/check_fbx.c -lm -o build/check_fbx
+      - name: Check fuzz files
+        run: |
+          build/check_fbx -d /mnt/fbx-files/fuzz/fuzz-fa
+          build/check_fbx -d /mnt/fbx-files/fuzz/fuzz-fb
+      - name: Generate coverage
+        run: LLVM_COV=llvm-cov bash misc/generate_lcov.sh
+      - name: Upload coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          set -x
+          curl -Os https://cli.codecov.io/latest/linux-arm64/codecov
+          chmod +x codecov
+          ./codecov --verbose upload-process --disable-search --fail-on-error --plugin noop -t ${{ secrets.CODECOV_TOKEN }} -n ci_fuzz-${{ github.run_id }} -F fuzz -f coverage.lcov
+
+  ci_msvc_arch:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create build directory
+        run: mkdir build
+      - name: Build x86
+        run: |
+          cmake -S misc/cmake -B build/cmake-x86 --preset x86 -DCMAKE_SYSTEM_VERSION=10
+          cmake --build build/cmake-x86
+      - name: Build x64
+        run: |
+          cmake -S misc/cmake -B build/cmake-x64 --preset x64 -DCMAKE_SYSTEM_VERSION=10
+          cmake --build build/cmake-x64
+      - name: Build ARM64
+        run: |
+          cmake -S misc/cmake -B build/cmake-arm64 --preset arm64 -DCMAKE_SYSTEM_VERSION=10
+          cmake --build build/cmake-arm64
+      - name: Build ARM64 EC
+        run: |
+          cmake -S misc/cmake -B build/cmake-arm64ec --preset arm64ec -DCMAKE_SYSTEM_VERSION=10
+          cmake --build build/cmake-arm64ec
+
+  ci_post_hashes:
+    runs-on: ubuntu-latest
+    if: ${{ always() }}
+    needs: [ci_ubuntu, ci_windows, ci_macos, ci_wasm, ci_arm32, ci_arm64, ci_exotic, ci_hasher]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Compile hash_scene
+        run: |
+          mkdir build
+          clang test/hash_scene.c extra/ufbx_math.c -O2 -o build/hash_scene
+      - name: Download combined hashdumps
+        uses: actions/download-artifact@v4
+        with:
+          pattern: hash-dumps-*
+          path: build/ci-hashdumps
+          merge-multiple: true
+      - name: List files to dump
+        run: python3 misc/hash_diff.py list build/ci-hashdumps -o build/dumped-files.txt
+      - name: Dump reference hashes
+        run: |
+          mkdir build/ref-hashdumps
+          build/hash_scene --check build/dumped-files.txt --dump build/ref-hashdumps/reference_linux_x64_release.txt --dump-all
+      - name: Compress reference hashdumps
+        run: python3 misc/hash_diff.py compress build/ref-hashdumps -o build/hashdump_ci_reference.txt.gz
+      - name: Diff CI and reference dumps
+        run: python3 misc/hash_diff.py diff build/ci-hashdumps --ref build/hashdump_ci_reference.txt.gz
+      - name: Upload reference hashdumps
+        uses: actions/upload-artifact@v4
+        if: ${{ always() && !cancelled() }}
+        with:
+          name: hash-dumps-reference
+          path: build/hashdump_ci_reference.txt.gz

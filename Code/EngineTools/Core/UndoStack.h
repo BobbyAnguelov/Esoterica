@@ -26,6 +26,7 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
+    // Internal class used to track all active compound actions
     class CompoundStackAction final : public IUndoableAction
     {
         friend class UndoStack;
@@ -41,6 +42,8 @@ namespace EE
                 EE::Delete( pAction );
             }
         }
+
+        TVector<IUndoableAction*> const& GetActions() const { return m_actions; }
 
     private:
 
@@ -78,16 +81,25 @@ namespace EE
         void Reset();
 
         // Do we have an action to undo
-        inline bool CanUndo() { return !m_recordedActions.empty(); }
+        inline bool CanUndo() const { return !m_recordedActions.empty(); }
 
         // Undo the last action - returns the action that we undid
         IUndoableAction const* Undo();
 
+        // Get the next action to be undone
+        IUndoableAction const* GetNextUndoAction() const { return CanUndo() ? m_recordedActions.back() : nullptr; }
+
         // Do we have an action we can redo
-        inline bool CanRedo() { return !m_undoneActions.empty(); }
+        inline bool CanRedo() const { return !m_undoneActions.empty(); }
 
         // Redoes the last action - returns the action that we redid
         IUndoableAction const* Redo();
+
+        // Get the next action to be redone
+        IUndoableAction const* GetNextRedoAction() const { return CanRedo() ? m_undoneActions.back() : nullptr; }
+
+        // Get the action for a given operation
+        IUndoableAction const* GetActionForOperation( Operation operation ) const { return ( operation == Operation::Redo ) ? GetNextRedoAction() : GetNextUndoAction(); }
 
         //-------------------------------------------------------------------------
 
@@ -99,6 +111,9 @@ namespace EE
 
         // Ends a compound action stack
         void EndCompoundAction();
+
+        // Is a compound action currently active
+        inline bool IsCompoundActionActive() const { return m_pCompoundStackAction != nullptr; }
 
         //-------------------------------------------------------------------------
 

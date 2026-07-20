@@ -54,17 +54,16 @@ namespace EE::FileSystem
 
                 bool shouldAddFile = ( numExtensionFilters == 0 );
 
-                // Optional: filter by extensions
-                if ( numExtensionFilters > 0 && path.has_extension() )
+                InlineString pathStr( path.string().c_str() );
+                size_t const extStartIdx = FileSystem::Path::FindExtensionStartIdx( pathStr, FileSystem::Path::s_pathDelimiter );
+                if ( extStartIdx != InlineString::npos )
                 {
-                    // Todo: there's likely a more efficient way to do a case insensitive compare
-                    auto pPathExtension = (char const*) path.extension().u8string().c_str() + 1;
-                    fileLowercaseExtension = Extension( pPathExtension );
-                    fileLowercaseExtension.make_lower();
+                    InlineString extStr = &pathStr[extStartIdx];
+                    extStr.make_lower();
 
                     for ( auto i = 0u; i < numExtensionFilters; i++ )
                     {
-                        if ( fileLowercaseExtension == lowercaseExtensionFilters[i].c_str() )
+                        if ( extStr == lowercaseExtensionFilters[i].c_str() )
                         {
                             shouldAddFile = true;
                             break;

@@ -1,0 +1,3 @@
+lcov_branch_coverage=1
+lcov_excl_br_line=ufbx_assert|ufbxi_dev_assert|ufbxi_regression_assert|ufbxi_macro_stable_sort|ufbxi_macro_lower_bound_eq|ufbxi_macro_upper_bound_eq|ufbxi_recursive_function
+lcov_excl_line=LCOV_EXCL_LINE|ufbxi_unreachable|ufbxi_uninit

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "IDevelopmentToolsUI.h"
-#include "Engine/DebugViews/DebugView_System.h"
+#include "ToolsUI.h"
 #include "Engine/UpdateContext.h"
+#include "Engine/Debug/Widgets/SystemLogWidget.h"
 #include "Base/Types/Arrays.h"
 
 //-------------------------------------------------------------------------
@@ -18,12 +18,12 @@ namespace EE
 {
     class DebugView;
     class EntityWorld;
-
-    namespace Render { class Viewport; }
+    class Viewport;
+    class EntityWorldUpdateContext;
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API EngineDebugUI final : public ImGuiX::IDevelopmentToolsUI
+    class EE_ENGINE_API EngineDebugUI : public ImGuiX::ToolsUI
     {
         // Helper to sort and categorize all the various menus that the debug views can register
         struct Menu
@@ -59,28 +59,25 @@ namespace EE
 
     public:
 
+        EngineDebugUI() = default;
+        EngineDebugUI( ImGuiWindowClass* pWindowClass ) : m_pWindowClass( pWindowClass ), m_isInEditorMode( true ) {}
+
         virtual void Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache ) override final;
         virtual void Shutdown( UpdateContext const& context ) override final;
         virtual void HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) override;
         virtual void HotReload_ReloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) override;
 
         void DrawMenu( UpdateContext const& context );
-        void DrawOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport );
+        void DrawOverlayUI( UpdateContext const& context, Viewport const* pViewport );
 
-        // Locks the game overlay to a given imgui window by ID
-        void EditorPreviewUpdate( UpdateContext const& context, ImGuiWindowClass* pWindowClass );
-
-    private:
-
+        virtual void StartFrame( UpdateContext const& context ) override final;
         virtual void EndFrame( UpdateContext const& context ) override final;
+
+    protected:
+
         void HandleUserInput( UpdateContext const& context );
 
-        void ToggleWorldPause();
-        void SetWorldTimeScale( float newTimeScale );
-        void ResetWorldTimeScale();
-        void RequestWorldTimeStep();
-
-        void DrawPlayerDebugOptionsMenu( UpdateContext const& context );
+        void DrawWorldDebugOptionsMenu( UpdateContext const& context );
 
         template<typename T>
         T* FindDebugView() const
@@ -100,13 +97,16 @@ namespace EE
 
         EntityWorld*                                        m_pGameWorld = nullptr;
         TVector<DebugView*>                                 m_debugViews;
-        Menu                                                m_mainMenu = Menu( "Main Menu" );
+        Menu                                                m_engineMenu = Menu( EE_ICON_ENGINE" Engine" );
+        Menu                                                m_gameMenu = Menu( EE_ICON_CONTROLLER" Game" );
         ImGuiWindowClass*                                   m_pWindowClass = nullptr;
-        bool                                                m_isInEditorPreviewMode = false;
+
+        SystemLogWidget                                     m_systemLogWidget;
+        bool                                                m_showSystemLog = false;
 
         Seconds                                             m_averageDeltaTime = 0.0f;
-        float                                               m_timeScale = 1.0f;
         bool                                                m_debugOverlayEnabled = false;
+        bool                                                m_isInEditorMode = false;
     };
 }
 #endif

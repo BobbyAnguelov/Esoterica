@@ -1,6 +1,7 @@
 #include "Animation_RuntimeGraphNode_Events.h"
 #include "Animation_RuntimeGraphNode_State.h"
 #include "Engine/Animation/Events/AnimationEvent_ID.h"
+#include "../../Events/AnimationEvent_FloatCurve.h"
 
 //-------------------------------------------------------------------------
 
@@ -73,7 +74,7 @@ namespace EE::Animation
         // Perform search
         //-------------------------------------------------------------------------
 
-        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pNodeDefinition->m_rules );
+        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.GetSampledEventsBuffer(), pNodeDefinition->m_rules );
         bool const ignoreInactiveEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
         bool const searchAnimEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchBothGraphAndAnimEvents ) || pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchOnlyAnimEvents );
         bool const searchGraphEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchBothGraphAndAnimEvents ) || pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::SearchOnlyGraphEvents );
@@ -83,7 +84,7 @@ namespace EE::Animation
         {
             StringID foundID;
 
-            SampledEvent const& sampledEvent = context.m_pSampledEventsBuffer->GetEvent( i );
+            SampledEvent const& sampledEvent = context.GetSampledEventsBuffer()->GetEvent( i );
 
             if ( sampledEvent.IsIgnored() )
             {
@@ -193,13 +194,13 @@ namespace EE::Animation
             bool eventFound = false;
 
             auto pDefinition = GetDefinition<IDEventNode>();
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.GetSampledEventsBuffer(), pDefinition->m_rules );
             bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
             bool const preferHigherWeight = pDefinition->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
 
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
+                auto pSampledEvent = &context.GetSampledEventsBuffer()->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
@@ -305,13 +306,13 @@ namespace EE::Animation
             bool eventFound = false;
 
             auto pDefinition = GetDefinition<IDEventPercentageThroughNode>();
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.GetSampledEventsBuffer(), pDefinition->m_rules );
             bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
             bool const preferHigherWeight = pDefinition->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
 
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
+                auto pSampledEvent = &context.GetSampledEventsBuffer()->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
@@ -428,13 +429,13 @@ namespace EE::Animation
         // Perform search
         //-------------------------------------------------------------------------
 
-        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pNodeDefinition->m_rules );
+        SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.GetSampledEventsBuffer(), pNodeDefinition->m_rules );
         bool const ignoreInactiveEvents = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
         bool const operatorOr = pNodeDefinition->m_rules.IsFlagSet( EventConditionRules::OperatorOr );
 
         for ( auto i = searchRange.m_startIdx; i != searchRange.m_endIdx; i++ )
         {
-            SampledEvent const& sampledEvent = context.m_pSampledEventsBuffer->GetEvent( i );
+            SampledEvent const& sampledEvent = context.GetSampledEventsBuffer()->GetEvent( i );
 
             if ( sampledEvent.IsIgnored() )
             {
@@ -527,10 +528,10 @@ namespace EE::Animation
             m_result = false;
 
             bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.GetSampledEventsBuffer(), pDefinition->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
+                auto pSampledEvent = &context.GetSampledEventsBuffer()->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
@@ -579,14 +580,21 @@ namespace EE::Animation
 
                         case FootEvent::PhaseCondition::LeftPhase:
                         {
-                            m_result = ( foot == FootEvent::Phase::RightFootPassing || foot == FootEvent::Phase::LeftFootDown );
+                            m_result = ( foot == FootEvent::Phase::RightFootDown || foot == FootEvent::Phase::LeftFootPassing );
                             eventFound = true;
                         }
                         break;
 
                         case FootEvent::PhaseCondition::RightPhase:
                         {
-                            m_result = ( foot == FootEvent::Phase::LeftFootPassing || foot == FootEvent::Phase::RightFootDown );
+                            m_result = ( foot == FootEvent::Phase::LeftFootDown || foot == FootEvent::Phase::RightFootPassing );
+                            eventFound = true;
+                        }
+                        break;
+
+                        case FootEvent::PhaseCondition::None:
+                        {
+                            m_result = ( foot == FootEvent::Phase::None );
                             eventFound = true;
                         }
                         break;
@@ -644,10 +652,10 @@ namespace EE::Animation
             float highestWeightFound = -1.0f;
             bool eventFound = false;
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.GetSampledEventsBuffer(), pDefinition->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
+                auto pSampledEvent = &context.GetSampledEventsBuffer()->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
@@ -704,7 +712,7 @@ namespace EE::Animation
 
                         case FootEvent::PhaseCondition::LeftPhase:
                         {
-                            if ( foot != FootEvent::Phase::RightFootPassing && foot != FootEvent::Phase::LeftFootDown )
+                            if ( foot != FootEvent::Phase::None && foot != FootEvent::Phase::RightFootDown && foot != FootEvent::Phase::LeftFootPassing )
                             {
                                 continue;
                             }
@@ -713,7 +721,16 @@ namespace EE::Animation
 
                         case FootEvent::PhaseCondition::RightPhase:
                         {
-                            if ( foot != FootEvent::Phase::LeftFootPassing && foot != FootEvent::Phase::RightFootDown )
+                            if ( foot != FootEvent::Phase::None && foot != FootEvent::Phase::LeftFootDown && foot != FootEvent::Phase::RightFootPassing )
+                            {
+                                continue;
+                            }
+                        }
+                        break;
+
+                        case FootEvent::PhaseCondition::None:
+                        {
+                            if ( foot != FootEvent::Phase::None )
                             {
                                 continue;
                             }
@@ -813,10 +830,10 @@ namespace EE::Animation
             StringID foundID;
             bool eventFound = false;
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.GetSampledEventsBuffer(), pDefinition->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                auto pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
+                auto pSampledEvent = &context.GetSampledEventsBuffer()->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;
@@ -875,6 +892,138 @@ namespace EE::Animation
         }
 
         *( (StringID*) pOutValue ) = m_result;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void FloatCurveEventNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<FloatCurveEventNode>( context, options );
+        context.SetOptionalNodePtrFromIndex( m_defaultValueNodeIdx, pNode->m_pDefaultValueNode );
+    }
+
+    void FloatCurveEventNode::InitializeInternal( GraphContext& context )
+    {
+        FloatValueNode::InitializeInternal( context );
+
+        auto pDefinition = GetDefinition<FloatCurveEventNode>();
+        m_result = pDefinition->m_defaultValue;
+
+        if ( m_pDefaultValueNode != nullptr )
+        {
+            m_pDefaultValueNode->Initialize( context );
+        }
+    }
+
+
+    void FloatCurveEventNode::ShutdownInternal( GraphContext& context )
+    {
+        if ( m_pDefaultValueNode != nullptr )
+        {
+            m_pDefaultValueNode->Shutdown( context );
+        }
+
+        FloatValueNode::ShutdownInternal( context );
+    }
+
+    void FloatCurveEventNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() && pOutValue != nullptr );
+        auto pDefinition = GetDefinition<FloatCurveEventNode>();
+
+        // Is the Result up to date?
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            // Get default Value
+            //-------------------------------------------------------------------------
+
+            float bestValueFound = pDefinition->m_defaultValue;
+
+            if ( m_pDefaultValueNode != nullptr )
+            {
+                bestValueFound = m_pDefaultValueNode->GetValue<float>( context );
+            }
+
+            // Search sampled events for all footstep events sampled this frame (we may have multiple, even From the same source)
+            //-------------------------------------------------------------------------
+
+            bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
+            bool const preferHigherWeight = pDefinition->m_rules.IsFlagSet( EventConditionRules::PreferHighestWeight );
+
+            float foundPercentageThrough = 0.0f;
+            float highestWeightFound = -1.0f;
+            bool eventFound = false;
+
+            int32_t const numSampledEvents = (int32_t) context.GetSampledEventsBuffer()->GetNumSampledEvents();
+            for ( auto i = 0; i < numSampledEvents; i++ )
+            {
+                auto pSampledEvent = &context.GetSampledEventsBuffer()->GetEvent( i );
+                if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
+                {
+                    continue;
+                }
+
+                // Skip events from inactive branch if so requested
+                if ( ignoreInactiveEvents && !pSampledEvent->IsFromActiveBranch() )
+                {
+                    continue;
+                }
+
+                //-------------------------------------------------------------------------
+
+                if ( auto pEvent = pSampledEvent->TryGetEvent<FloatCurveEvent>() )
+                {
+                    // Filter based on event ID
+                    if ( pDefinition->m_matchEventID.IsValid() && ( pEvent->GetID() != pDefinition->m_matchEventID ) )
+                    {
+                        continue;
+                    }
+
+                    bool updateEvent = false;
+
+                    // If we already have a found event then apply priority rule
+                    if ( eventFound )
+                    {
+                        if ( preferHigherWeight )
+                        {
+                            if ( pSampledEvent->GetWeight() >= highestWeightFound )
+                            {
+                                updateEvent = true;
+                            }
+                        }
+                        else // Prefer higher percentage through
+                        {
+                            if ( pSampledEvent->GetPercentageThrough().ToFloat() >= foundPercentageThrough )
+                            {
+                                updateEvent = true;
+                            }
+                        }
+                    }
+                    else // Just update the found data
+                    {
+                        updateEvent = true;
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    if ( updateEvent )
+                    {
+                        eventFound = true;
+                        foundPercentageThrough = pSampledEvent->GetPercentageThrough().ToFloat();
+                        highestWeightFound = pSampledEvent->GetWeight();
+                        bestValueFound = pEvent->EvaluateCurve( foundPercentageThrough );
+                    }
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            m_result = bestValueFound;
+        }
+
+        *( (float*) pOutValue ) = m_result;
     }
 
     //-------------------------------------------------------------------------
@@ -959,62 +1108,54 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void CurrentSyncEventIndexNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    void CurrentSyncEventNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
-        auto pNode = CreateNode<CurrentSyncEventIndexNode>( context, options );
+        auto pNode = CreateNode<CurrentSyncEventNode>( context, options );
         context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
     }
 
-    void CurrentSyncEventIndexNode::InitializeInternal( GraphContext& context )
+    void CurrentSyncEventNode::InitializeInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
         FloatValueNode::InitializeInternal( context );
         m_result = 0.0f;
     }
 
-    void CurrentSyncEventIndexNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    void CurrentSyncEventNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
 
         // Is the Result up to date?
         if ( !WasUpdated( context ) )
         {
-            auto const& sourceStateSyncTrack = m_pSourceStateNode->GetSyncTrack();
-            auto currentSyncTime = sourceStateSyncTrack.GetTime( m_pSourceStateNode->GetCurrentTime() );
-            m_result = (float) currentSyncTime.m_eventIdx;
             MarkNodeActive( context );
-        }
 
-        // Set Result
-        *( (float*) pOutValue ) = m_result;
-    }
+            auto pDefinition = GetDefinition<CurrentSyncEventNode>();
 
-    //-------------------------------------------------------------------------
-
-    void CurrentSyncEventPercentageThroughNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
-    {
-        auto pNode = CreateNode<CurrentSyncEventPercentageThroughNode>( context, options );
-        context.SetNodePtrFromIndex( m_sourceStateNodeIdx, pNode->m_pSourceStateNode );
-    }
-
-    void CurrentSyncEventPercentageThroughNode::InitializeInternal( GraphContext& context )
-    {
-        EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
-        FloatValueNode::InitializeInternal( context );
-        m_result = 0.0f;
-    }
-
-    void CurrentSyncEventPercentageThroughNode::GetValueInternal( GraphContext& context, void* pOutValue )
-    {
-        EE_ASSERT( context.IsValid() && m_pSourceStateNode != nullptr );
-
-        // Is the Result up to date?
-        if ( !WasUpdated( context ) )
-        {
             auto const& sourceStateSyncTrack = m_pSourceStateNode->GetSyncTrack();
-            auto currentSyncTime = sourceStateSyncTrack.GetTime( m_pSourceStateNode->GetCurrentTime() );
-            m_result = currentSyncTime.m_percentageThrough;
-            MarkNodeActive( context );
+            SyncTrackTime const currentSyncTime = sourceStateSyncTrack.GetTime( m_pSourceStateNode->GetCurrentTime() );
+            float const indexAndPercentage = currentSyncTime.ToFloat();;
+
+            switch ( pDefinition->m_infoType )
+            {
+                case InfoType::IndexAndPercentage:
+                {
+                    m_result = indexAndPercentage;
+                }
+                break;
+
+                case InfoType::IndexOnly:
+                {
+                    m_result = Math::Floor( indexAndPercentage );
+                }
+                break;
+
+                case InfoType::PercentageOnly:
+                {
+                    m_result = Math::GetFractionalPart( indexAndPercentage );
+                }
+                break;
+            }
         }
 
         // Set Result
@@ -1058,10 +1199,10 @@ namespace EE::Animation
 
             bool const ignoreInactiveEvents = pDefinition->m_rules.IsFlagSet( EventConditionRules::IgnoreInactiveEvents );
 
-            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.m_pSampledEventsBuffer, pDefinition->m_rules );
+            SampledEventRange searchRange = CalculateSearchRange( m_pSourceStateNode, *context.GetSampledEventsBuffer(), pDefinition->m_rules );
             for ( auto i = searchRange.m_startIdx; i < searchRange.m_endIdx; i++ )
             {
-                SampledEvent const* pSampledEvent = &context.m_pSampledEventsBuffer->GetEvent( i );
+                SampledEvent const* pSampledEvent = &context.GetSampledEventsBuffer()->GetEvent( i );
                 if ( pSampledEvent->IsIgnored() || pSampledEvent->IsGraphEvent() )
                 {
                     continue;

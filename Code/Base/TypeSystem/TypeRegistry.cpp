@@ -173,7 +173,7 @@ namespace EE::TypeSystem
         size_t const lastElementIdx = numPathElements - 1;
         for ( size_t i = 0; i < numPathElements; i++ )
         {
-            pFoundPropertyInfo = pParentTypeInfo->GetPropertyInfo( pathID[i].m_propertyID );
+            pFoundPropertyInfo = pParentTypeInfo->GetPropertyInfo( pathID[i].m_ID );
             if ( pFoundPropertyInfo == nullptr )
             {
                 break;
@@ -181,20 +181,35 @@ namespace EE::TypeSystem
 
             if ( i != lastElementIdx )
             {
-                // If this occurs, we have an invalid path as each element must contain other properties
-                if ( CoreTypeRegistry::IsCoreType( pFoundPropertyInfo->m_typeID ) && !pFoundPropertyInfo->IsArrayProperty() )
+                // If we are a type instance, then the expected type is the next path element, so use that as the parent type for the remainder of the resolution
+                if ( pFoundPropertyInfo->IsTypeInstanceProperty() )
                 {
-                    EE_LOG_WARNING( "TypeSystem", "Type Registry", "Cant resolve malformed property path" );
-                    pFoundPropertyInfo = nullptr;
-                    break;
+                    i++;
+                    pParentTypeInfo = GetTypeInfo( pathID[i].m_ID );
+                    if ( pParentTypeInfo == nullptr )
+                    {
+                        EE_LOG_WARNING( LogCategory::TypeSystem, "Type Registry", "Cant resolve malformed property path - invalid intermediate type instance ID" );
+                        pFoundPropertyInfo = nullptr;
+                        break;
+                    }
                 }
-
-                // Get the type desc of the property
-                pParentTypeInfo = GetTypeInfo( pFoundPropertyInfo->m_typeID );
-                if ( pParentTypeInfo == nullptr )
+                else // Regular properties
                 {
-                    EE_LOG_ERROR( "TypeSystem", "Type Registry", "Cant resolve property path since it contains an unknown type" );
-                    pFoundPropertyInfo = nullptr;
+                    // If this occurs, we have an invalid path as each element must contain other properties
+                    if ( CoreTypeRegistry::IsCoreType( pFoundPropertyInfo->m_typeID ) && !pFoundPropertyInfo->IsArrayProperty() )
+                    {
+                        EE_LOG_WARNING( LogCategory::TypeSystem, "Type Registry", "Cant resolve malformed property path" );
+                        pFoundPropertyInfo = nullptr;
+                        break;
+                    }
+
+                    // Get the type desc of the property
+                    pParentTypeInfo = GetTypeInfo( pFoundPropertyInfo->m_typeID );
+                    if ( pParentTypeInfo == nullptr )
+                    {
+                        EE_LOG_ERROR( LogCategory::TypeSystem, "Type Registry", "Cant resolve property path since it contains an unknown type" );
+                        pFoundPropertyInfo = nullptr;
+                    }
                 }
             }
         }
@@ -283,6 +298,106 @@ namespace EE::TypeSystem
         return matchingTypes;
     }
 
+    TVector<TypeInfo const*> TypeRegistry::GetAllDerivedLeafTypes( TypeID parentTypeID, bool includeParentTypeInResults, bool includeAbstractTypes, bool sortAlphabetically ) const
+    {
+        struct MatchingType
+        {
+            TypeInfo const*     m_pTypeinfo = nullptr;
+            int32_t             m_numIntermediateParents = 0;
+        };
+
+        TInlineVector<MatchingType, 50> matchingTypes;
+
+        for ( auto const& typeInfoPair : m_registeredTypes )
+        {
+            if ( !includeParentTypeInResults && typeInfoPair.first == parentTypeID )
+            {
+                continue;
+            }
+
+            if ( !includeAbstractTypes && typeInfoPair.second->IsAbstractType() )
+            {
+                continue;
+            }
+
+            if ( typeInfoPair.second->IsDerivedFrom( parentTypeID ) )
+            {
+                MatchingType& mt = matchingTypes.emplace_back();
+                mt.m_pTypeinfo = typeInfoPair.second;
+                mt.m_numIntermediateParents = 0;
+
+                if ( mt.m_pTypeinfo->m_ID != parentTypeID )
+                {
+                    TypeInfo const* pIntermediateParentTypeinfo = mt.m_pTypeinfo->m_pParentTypeInfo;
+                    while ( pIntermediateParentTypeinfo->m_ID != parentTypeID )
+                    {
+                        mt.m_numIntermediateParents++;
+                        pIntermediateParentTypeinfo = pIntermediateParentTypeinfo->m_pParentTypeInfo;
+                    }
+                }
+            }
+        }
+
+        // Remove intermediate types
+        //-------------------------------------------------------------------------
+
+        // Sort by number of intermediate parents descending
+        eastl::sort( matchingTypes.begin(), matchingTypes.end(), [] ( MatchingType const& mtA, MatchingType const& mtB ) { return mtA.m_numIntermediateParents > mtB.m_numIntermediateParents; } );
+
+        for ( int32_t i = 0; i < (size_t) matchingTypes.size(); i++ )
+        {
+            if ( matchingTypes[i].m_pTypeinfo->m_ID == parentTypeID )
+            {
+                continue;
+            }
+
+            //-------------------------------------------------------------------------
+
+            TypeInfo const* pIntermediateParentTypeinfo = matchingTypes[i].m_pTypeinfo->m_pParentTypeInfo;
+            while ( pIntermediateParentTypeinfo->m_ID != parentTypeID )
+            {
+                // Remove the intermediate type from the list
+                for ( int32_t j = i + 1; j < (size_t) matchingTypes.size(); j++ )
+                {
+                    if ( matchingTypes[j].m_pTypeinfo == pIntermediateParentTypeinfo )
+                    {
+                        matchingTypes.erase( matchingTypes.begin() + j );
+                        break;
+                    }
+                }
+
+                // Move up to the next parent
+                pIntermediateParentTypeinfo = pIntermediateParentTypeinfo->m_pParentTypeInfo;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        TVector<TypeInfo const*> matchingLeafTypes;
+        matchingLeafTypes.reserve( matchingTypes.size() );
+
+        for ( auto const& mt : matchingTypes )
+        {
+            matchingLeafTypes.emplace_back( mt.m_pTypeinfo );
+        }
+
+        if ( sortAlphabetically )
+        {
+            auto sortPredicate = [] ( TypeSystem::TypeInfo const* const& pTypeInfoA, TypeSystem::TypeInfo const* const& pTypeInfoB )
+            {
+                #if EE_DEVELOPMENT_TOOLS
+                return pTypeInfoA->m_friendlyName < pTypeInfoB->m_friendlyName;
+                #else
+                return strcmp( pTypeInfoA->m_ID.c_str(), pTypeInfoB->m_ID.c_str() );
+                #endif
+            };
+
+            eastl::sort( matchingLeafTypes.begin(), matchingLeafTypes.end(), sortPredicate );
+        }
+
+        return matchingLeafTypes;
+    }
+
     TInlineVector<EE::TypeSystem::TypeID, 5> TypeRegistry::GetAllCastableTypes( IReflectedType const* pType ) const
     {
         EE_ASSERT( pType != nullptr );
@@ -296,7 +411,7 @@ namespace EE::TypeSystem
         return parentTypeIDs;
     }
 
-    bool TypeRegistry::AreTypesInTheSameHierarchy( TypeID typeA, TypeID typeB ) const 
+    bool TypeRegistry::AreTypesInTheSameHierarchy( TypeID typeA, TypeID typeB ) const
     {
         auto pTypeInfoA = GetTypeInfo( typeA );
         auto pTypeInfoB = GetTypeInfo( typeB );
@@ -388,15 +503,13 @@ namespace EE::TypeSystem
 
     ResourceInfo const* TypeRegistry::GetResourceInfo( ResourceTypeID resourceTypeID ) const
     {
-        for ( auto const& resourceInfo : m_registeredResourceTypes )
+        auto iter = m_registeredResourceTypes.find( resourceTypeID );
+        if ( iter == m_registeredResourceTypes.end() )
         {
-            if ( resourceInfo.second->m_resourceTypeID == resourceTypeID )
-            {
-                return resourceInfo.second;
-            }
+            return nullptr;
         }
 
-        return nullptr;
+        return iter->second;
     }
 
     ResourceInfo const* TypeRegistry::GetResourceInfo( TypeID typeID ) const
@@ -427,7 +540,7 @@ namespace EE::TypeSystem
     TVector<ResourceTypeID> TypeRegistry::GetAllDerivedResourceTypes( ResourceTypeID resourceTypeID ) const
     {
         TVector<ResourceTypeID> derivedResourceTypes;
-        for ( auto const& pair: m_registeredResourceTypes )
+        for ( auto const& pair : m_registeredResourceTypes )
         {
             if ( pair.second->m_resourceTypeID == resourceTypeID )
             {
@@ -477,11 +590,11 @@ namespace EE::TypeSystem
         return false;
     }
 
-    bool TypeRegistry::IsRegisteredDataFileType( uint32_t extFourCC ) const
+    bool TypeRegistry::IsRegisteredDataFileType( DataFileExtension extension ) const
     {
         for ( auto const& pair : m_registeredDataFileTypes )
         {
-            if ( pair.second->m_extensionFourCC == extFourCC )
+            if ( pair.second->m_extension == extension )
             {
                 return true;
             }

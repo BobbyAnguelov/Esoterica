@@ -15,7 +15,7 @@ namespace EE::Animation
         EE_REFLECT_TYPE( OrientationWarpEvent );
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDebugText() const override { return "Warp"; }
+        virtual InlineString GetDebugText( Percentage percentageThroughEvent ) const override { return "Warp"; }
         #endif
     };
 
@@ -28,7 +28,10 @@ namespace EE::Animation
         WarpXY = 0,
         WarpZ,
         WarpXYZ,
-        RotationOnly
+        RotationOnly,
+
+        EE_REFLECT( Hidden )
+        FixedSection, // Not valid for events
     };
 
     #if EE_DEVELOPMENT_TOOLS
@@ -57,7 +60,7 @@ namespace EE::Animation
         inline TargetWarpAlgorithm GetTranslationAlgorithm() const { return m_algorithm; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDebugText() const override;
+        virtual InlineString GetDebugText( Percentage percentageThroughEvent ) const override;
         #endif
 
     private:

@@ -7,25 +7,8 @@ namespace EE::Input
 {
     void ControllerDevice::SetTriggerValues( float leftRawValue, float rightRawValue )
     {
-        if ( leftRawValue > 0.0f )
-        {
-            Press( InputID::Controller_LeftTrigger, leftRawValue );
-        }
-        else
-        {
-            Release( InputID::Controller_LeftTrigger );
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( rightRawValue > 0.0f )
-        {
-            Press( InputID::Controller_RightTrigger, rightRawValue );
-        }
-        else
-        {
-            Release( InputID::Controller_RightTrigger );
-        }
+        UpdateControllerButtonState( InputID::Controller_LeftTrigger, leftRawValue > 0.0f );
+        UpdateControllerButtonState( InputID::Controller_RightTrigger, rightRawValue > 0.0f );
     }
 
     void ControllerDevice::SetAnalogStickValues( Float2 const& leftValue, Float2 const& rightValue )

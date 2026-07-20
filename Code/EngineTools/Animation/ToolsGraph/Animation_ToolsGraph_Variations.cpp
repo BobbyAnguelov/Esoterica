@@ -12,8 +12,17 @@ namespace EE::Animation
 
     DataPath Variation::GenerateResourceDataPath( FileSystem::Path const& sourceDataDirectoryPath, FileSystem::Path const& graphPath, StringID variationID )
     {
-        String const pathStr( String::CtorSprintf(), "%s%c%s.%s", graphPath.c_str(), DataPath::s_pathDelimiter, variationID.c_str(), GraphDefinition::GetStaticResourceTypeID().ToString().c_str() );
-        return DataPath::FromFileSystemPath( sourceDataDirectoryPath, pathStr );
+        EE_ASSERT( sourceDataDirectoryPath.IsValid() );
+        EE_ASSERT( graphPath.IsValid() );
+        EE_ASSERT( variationID.IsValid() );
+
+        DataPath dataPath = DataPath( graphPath.c_str(), sourceDataDirectoryPath );
+        if ( variationID != Variation::s_defaultVariationID )
+        {
+            String const variationResource( String::CtorSprintf(), "%s.%s", variationID.c_str(), GraphDefinition::GetStaticResourceTypeID().ToString().c_str() );
+            dataPath.SetSubFilename( variationResource );
+        }
+        return dataPath;
     }
 
     String Variation::GetVariationNameFromResourceID( ResourceID const& resourceID )
@@ -21,7 +30,7 @@ namespace EE::Animation
         String variationName;
         if ( resourceID.IsSubResourceID() )
         {
-            variationName = resourceID.GetFilenameWithoutExtension();
+            variationName = resourceID.GetSubResourceNameWithoutExtension();
         }
         else
         {
@@ -33,7 +42,7 @@ namespace EE::Animation
     ResourceID Variation::GetGraphResourceID( ResourceID const& resourceID, StringID* pOutOptionalVariation )
     {
         ResourceID graphResourceID;
-        
+
         // Try to extract the actual graph ID from the resource ID for variations
         if ( resourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() && resourceID.IsSubResourceID() )
         {
@@ -41,12 +50,17 @@ namespace EE::Animation
 
             if ( pOutOptionalVariation != nullptr )
             {
-                *pOutOptionalVariation = StringID( resourceID.GetFilenameWithoutExtension() );
+                *pOutOptionalVariation = StringID( resourceID.GetSubResourceNameWithoutExtension() );
             }
         }
         else // Just pass through the resource ID
         {
             graphResourceID = resourceID;
+
+            if ( pOutOptionalVariation != nullptr )
+            {
+                *pOutOptionalVariation = Variation::s_defaultVariationID;
+            }
         }
 
         return graphResourceID;

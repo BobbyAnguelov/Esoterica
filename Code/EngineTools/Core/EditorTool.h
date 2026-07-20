@@ -1,15 +1,14 @@
 #pragma once
 #include "UndoStack.h"
 #include "ToolsContext.h"
-#include "DialogManager.h"
 #include "EngineTools/PropertyGrid/PropertyGrid.h"
 #include "EngineTools/FileSystem/FileRegistry.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
-#include "Base/Imgui/ImguiX.h"
+#include "Engine/Viewport/Viewport.h"
 #include "Base/Utils/GlobalRegistryBase.h"
 #include "Base/Resource/ResourcePtr.h"
-#include "Base/Render/RenderTarget.h"
 #include "Base/Drawing/DebugDrawing.h"
+#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
@@ -19,9 +18,19 @@ namespace EE
     class Entity;
     class EntityWorld;
     class EntityWorldUpdateContext;
-    class DebugCameraComponent;
+    class ToolsCameraComponent;
     class DataFileUndoableAction;
-    namespace Render { class Viewport; }
+
+    namespace Render
+    {
+        class StaticMeshComponent;
+        class DirectionalLightComponent;
+    }
+
+    namespace Physics
+    {
+        class CollisionMeshComponent;
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -38,12 +47,13 @@ namespace EE
     {
         friend class EditorUI;
 
+        constexpr static char const* const s_viewportWindowName = "Viewport";
+
     public:
 
         constexpr static char const* const s_dataFileWindowName = "Data File";
-        constexpr static char const* const s_viewportWindowName = "Viewport";
 
-        class ToolWindow
+        class ToolWindow final
         {
             friend class EditorTool;
             friend class EditorUI;
@@ -72,38 +82,33 @@ namespace EE
                 return m_disableScrolling;
             }
 
-            void SetShowInMenuFunction( TFunction<bool()>&& func )
+            ToolWindow& SetIsHiddenFunction( TFunction<bool()>&& func )
             {
-                m_showInMenuFunction = func;
+                m_isHiddenFunction = func;
+                return *this;
             }
 
-            inline bool ShouldShowInMenu() const
+            inline bool IsHidden() const
             {
-                if ( m_showInMenuFunction != nullptr )
+                if ( m_isHiddenFunction != nullptr )
                 {
-                    return m_showInMenuFunction();
+                    return m_isHiddenFunction();
                 }
 
-                return true;
+                return false;
             }
 
             inline void SetOpen( bool bIsOpen ) { m_isOpen = bIsOpen; }
 
-        protected:
+        private:
 
             String                                          m_name;
             TFunction<void( UpdateContext const&, bool )>   m_drawFunction = nullptr;
-            TFunction<bool()>                               m_showInMenuFunction = nullptr;
+            TFunction<bool()>                               m_isHiddenFunction = nullptr;
             ImVec2                                          m_windowPadding;
             bool                                            m_disableScrolling = false;
-            bool                                            m_isViewport = false;
+            Viewport*                                       m_pViewport = nullptr;
             bool                                            m_isOpen = true;
-        };
-
-        struct ViewportInfo
-        {
-            ImTextureID                                     m_viewportRenderTargetTextureID = 0;
-            TFunction<Render::PickingID( Int2 const& )>     m_retrievePickingID;
         };
 
     protected:
@@ -115,6 +120,18 @@ namespace EE
             return InlineString( InlineString::CtorSprintf(), "%s##%08X", pToolWindowName, dockspaceID );
         }
 
+    private:
+
+        enum class PreviewState
+        {
+            None,
+            Requested,
+            WaitForResourceLoad,
+            SettingUp,
+            Previewing,
+            TearingDown
+        };
+
     public:
 
         explicit EditorTool( ToolsContext const* pToolsContext, String const& displayName, EntityWorld* pWorld = nullptr );
@@ -124,11 +141,17 @@ namespace EE
         // Info
         //-------------------------------------------------------------------------
 
+        // Get the overall unique ID for this tool
+        inline uint64_t GetID() const { return m_ID; }
+
         // Get the hash of the unique type ID for this tool
-        virtual uint32_t GetUniqueTypeID() const = 0;
+        virtual uint64_t GetUniqueTypeID() const = 0;
 
         // Get the unique typename for this tool to be used for docking
         virtual char const* GetUniqueTypeName() const = 0;
+
+        // Get a descriptive name for this tool that includes the type and the file open if applicable
+        virtual InlineString GetName() const { return GetUniqueTypeName(); }
 
         // Was the base initialization function called
         inline bool WasInitialized() const { return m_wasInitializedCalled; }
@@ -159,12 +182,6 @@ namespace EE
         // Get this tool's title bar icon
         virtual char const* GetTitlebarIcon() const { EE_ASSERT( HasTitlebarIcon() ); return nullptr; }
 
-        // Docking and Tool Windows
-        //-------------------------------------------------------------------------
-
-        // Set up initial docking layout
-        virtual void InitializeDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const;
-
         // Lifetime/Update Functions
         //-------------------------------------------------------------------------
 
@@ -175,23 +192,29 @@ namespace EE
         // Shutdown the tool, free allocated memory, etc...
         virtual void Shutdown( UpdateContext const& context );
 
-        // Called just before the world is updated for each update stage
-        virtual void WorldUpdate( EntityWorldUpdateContext const& updateContext ) {}
-
-        // Frame update and draw any tool windows needed for the tool
+        // Pre-Draw update - Called before we draw all the tool windows
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) {}
 
-        // Called by the editor before the main update, this handles a lot of the shared functionality (undo/redo/etc...)
-        virtual void SharedUpdate( UpdateContext const& context, bool isVisible, bool isFocused );
+        // Called just before the world is updated for each update stage - this is called after the tool update and finalize
+        virtual void WorldUpdate( EntityWorldUpdateContext const& updateContext ) {}
 
         // Menu and Help
         //-------------------------------------------------------------------------
 
-        // Does this tool have a toolbar?
+        // Does this tool have a main menu?
         virtual bool SupportsMainMenu() const { return true; }
 
-        // Draws the tool toolbar menu
+        // Draws the tool main menu
         virtual void DrawMenu( UpdateContext const& context ) {}
+
+        // Toolbar
+        //-------------------------------------------------------------------------
+
+        // Does this tool have an additional toolbar?
+        virtual bool SupportsToolbar() const { return false; }
+
+        // Draws the tool toolbar menu
+        virtual void DrawToolbar( UpdateContext const& context ) {}
 
         // New file creation
         //-------------------------------------------------------------------------
@@ -205,11 +228,13 @@ namespace EE
         // Undo/Redo
         //-------------------------------------------------------------------------
 
+        inline bool HasActiveUndoableAction() const { return m_pActiveUndoableAction != nullptr; }
+
         // Does this tool support saving
         virtual bool SupportsUndoRedo() const { return true; }
 
         // Called immediately before we execute an undo or redo action - undo/redo commands occur before the tool "update" call
-        virtual void PreUndoRedo( UndoStack::Operation operation ) {}
+        virtual void PreUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) {}
 
         // Called immediately after we execute an undo or redo action - undo/redo commands occur before the tool "update" call
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction );
@@ -259,18 +284,20 @@ namespace EE
 
         void ResetWorldTimeScale();
 
+        // Should we draw the time control widget in the viewport toolbar
+        virtual bool SupportsWorldTimeControls() const { return false; }
+
         // Default Preview Map
         //-------------------------------------------------------------------------
 
         // Should we load the default editor map for this tool?
         virtual bool ShouldLoadDefaultEditorMap() const { return true; }
 
-        // Get the resource path for the default map to load in editor tools
-        // TODO: make this a setting
-        inline DataPath GetDefaultEditorMapPath() const { return DataPath( "data://Editor/EditorMap.map" ); }
-
         // Set the visibility of the default editor map floor
         void SetFloorVisibility( bool showFloorMesh );
+
+        // Is the default editor map floor visible
+        bool GetFloorVisibility() const;
 
         // Viewport
         //-------------------------------------------------------------------------
@@ -278,31 +305,30 @@ namespace EE
         // Should this tool display a viewport?
         virtual bool SupportsViewport() const { return m_pWorld != nullptr; }
 
-        // Should we draw the time control widget in the viewport toolbar
-        virtual bool HasViewportToolbarTimeControls() const { return false; }
-
         // Does this tool's viewport have a orientation guide drawn?
         virtual bool HasViewportOrientationGuide() const { return true; }
 
         // A large viewport overlay window is created for all editor tools allowing you to draw helpers and widgets over a viewport
         // Called as part of the tool drawing so at "Frame Start" - so be careful of any timing issue with 3D drawing
-        virtual void DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport ) {}
-
-        // Draw the viewport for this tool - returns true if this viewport is currently focused
-        virtual void DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo );
+        virtual void DrawViewportUI( UpdateContext const& context, Viewport const* pViewport, bool isFocused ) {}
 
         // Camera
         //-------------------------------------------------------------------------
-
-        void SetCameraUpdateEnabled( bool isEnabled );
 
         void ResetCameraView();
 
         void FocusCameraView( Entity* pTarget );
 
+        void FocusCameraView( AABB const& worldBounds );
+
+        void FocusCameraView( Vector const& worldPoint, float viewDistance = 1.0f );
+
         void SetCameraSpeed( float cameraSpeed );
 
         void SetCameraTransform( Transform const& cameraTransform );
+
+        // This is called when the focus shortcut key is pressed, each editor needs to handle this
+        virtual void FocusOnSelected() {}
 
         Transform GetCameraTransform() const;
 
@@ -320,12 +346,19 @@ namespace EE
         // Docking and Tool Windows
         //-------------------------------------------------------------------------
 
+        // Set up initial docking layout, if the tool has a viewport window, then that viewport is docked to the central node
+        virtual void SetupDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const {}
+
+        // Get the tool window class
         ImGuiWindowClass* GetToolWindowClass() { return &m_toolWindowClass; }
 
+        // Create a tool window
         ToolWindow* CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding = ImVec2( -1, -1 ), bool disableScrolling = false );
 
+        // Get all created tool windows
         EE_FORCE_INLINE TVector<ToolWindow*> const& GetToolWindows() const { return m_toolWindows; }
 
+        // Generate the actual final tool window name within the context of the current tool
         EE_FORCE_INLINE InlineString GetToolWindowName( String const& name ) const { return GetToolWindowName( name.c_str(), m_currentDockspaceID ); }
 
         // Menu and Help
@@ -365,10 +398,6 @@ namespace EE
         // Use this function to unload a required resource for this tool (hot-reload aware)
         void UnloadResource( Resource::ResourcePtr* pResourcePtr );
 
-        // Blocking call to force a recompile of a resource outside of the regular resource server flow, this is needed when you need to ensure a resource has been recompiled in advance of loading
-        // Will also flag the resource for hot-reload if there are any current users
-        bool RequestImmediateResourceCompilation( ResourceID const& resourceID );
-
         // Are we currently loading any resources?
         inline bool IsLoadingResources() const { return !m_loadingResources.empty(); }
 
@@ -384,17 +413,44 @@ namespace EE
         // Viewport
         //-------------------------------------------------------------------------
 
-        // Called whenever we click inside a tool viewport and get a non-zero picking ID
-        virtual void OnMousePick( Render::PickingID pickingID ) {}
+        // Get the closest picking ID for this update
+        PickingID GetPickingID() const { return m_pickingData.empty() ? PickingID() : m_pickingData.front(); }
+
+        // Get all the picking data for this update
+        PickingData const& GetPickingData() const { return m_pickingData; }
 
         // Called during the viewport drawing allowing the editor tools to handle drag and drop requests
-        virtual void OnDragAndDropIntoViewport( Render::Viewport* pViewport ) {}
+        virtual void OnDragAndDropIntoViewport( Viewport* pViewport ) {}
 
         // Called whenever we have a valid resource being dropped into the viewport, users can override to provide custom handling
         virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition ) {}
 
         // Draws the viewport toolbar
-        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport );
+        void DrawViewportToolbar( UpdateContext const& context, Viewport* pViewport );
+
+        // Draw the viewport render controls toolbar
+        void DrawViewportToolBar_ViewportVisualizationControls( UpdateContext const& context, Viewport* pViewport );
+
+        // Draw the viewport camera controls toolbar
+        void DrawViewportToolBar_CameraControls( UpdateContext const& context, Viewport* pViewport );
+
+        // Draw the viewport tool visualization controls toolbar
+        void DrawViewportToolBar_VisualizationControls( UpdateContext const& context, Viewport* pViewport );
+
+        // Draw the viewport time controls toolbar
+        void DrawViewportToolBar_TimeControls( UpdateContext const& context, Viewport* pViewport );
+
+        // Extend the viewport toolbar by adding custom widgets and controls
+        virtual void ExtendViewportToolBar( UpdateContext const& context, Viewport* pViewport ) {}
+
+        // Extend the viewport render controls toolbar, return true if an control was added
+        virtual void ExtendViewportToolBar_RenderControls( UpdateContext const& context, Viewport* pViewport ) {}
+
+        // Extend the viewport camera controls toolbar, return true if an control was added
+        virtual void ExtendViewportToolBar_CameraControls( UpdateContext const& context, Viewport* pViewport ) {}
+
+        // Extend the viewport visualization controls toolbar, return true if an control was added
+        virtual bool ExtendViewportToolBar_VisualizationControls( UpdateContext const& context, Viewport* pViewport ) { return false; }
 
         // Begin a toolbar group - You need to call end whether or not this returns true (match imgui child window pattern)
         bool BeginViewportToolbarGroup( char const* pGroupID, ImVec2 groupSize, ImVec2 const& padding = ImVec2( 4.0f, 4.0f ) );
@@ -408,17 +464,24 @@ namespace EE
         // Creates a fixed width viewport drop down with an icon as a label
         void DrawViewportToolbarComboIcon( char const* pID, char const* pIcon, char const* pTooltip, TFunction<void()> const& function );
 
-        // Draw the common viewport toolbar items (rendering/camera/etc...)
-        void DrawViewportToolBarCommon();
+        // Called once per update if we are hovering over the 3D viewport and not over an imgui item
+        // Use this to handle any interactions with the 3D world
+        virtual void HandleViewportInteractions() {}
 
-        // Draw the viewport time controls toolbar
-        void DrawViewportToolBar_TimeControls();
+        // Editor Map
+        //-------------------------------------------------------------------------
+
+        void SpawnEditorMapEntities();
+
+        void DespawnEditorMapEntities();
+
+        void DrawGrid();
 
         // Entity World Helpers
         //-------------------------------------------------------------------------
 
         // Helper function for debug drawing
-        Drawing::DrawContext GetDrawingContext();
+        DebugDrawContext GetDebugDrawContext();
 
         // Add an entity to the preview world
         // Ownership is transferred to the world, you dont need to call remove/destroy if you dont explicitly need to remove an entity
@@ -436,6 +499,56 @@ namespace EE
 
         // Create the tool camera
         void CreateCamera();
+
+        // Previewing Support
+        //-------------------------------------------------------------------------
+        // Provide support to load and preview a specified resource based on the edited data file
+        // This is built into the data file editor to support cases where we have a single data file
+        // that results in multiple sub-resources
+
+        // Request that we start a preview, this will save the datafile and request load for the preview resource
+        void RequestPreview();
+
+        // Stop previewing
+        void StopPreview();
+
+        // Are we currently previewing or waiting for a preview to start
+        bool IsPreviewing() const { return ( m_previewState == PreviewState::Previewing ); }
+
+        // Are we currently previewing or waiting for a preview to start
+        bool IsPreviewingOrWaitingForPreview() const { return ( m_previewState != PreviewState::None ); }
+
+        // Called when the preview resource has been successfully loaded
+        virtual void OnPreviewStarted() {}
+
+        // Called when a successfully started preview ends - will only be called if you got a "preview started" call
+        virtual void OnPreviewStopped() {}
+
+        // Get the resource ID of the resource we need to load to start the preview
+        virtual TInlineVector<ResourceID, 2> GetPreviewResourceIDs() const { EE_UNREACHABLE_CODE(); return {}; }
+
+        // Get the loaded resource (only valid to call when actually previewing or during 'OnPreviewStarted'/'OnPreviewEnded')
+        template<typename T>
+        T const* GetPreviewResource( ResourceID const& resourceID ) const
+        {
+            static_assert( std::is_base_of<Resource::IResource, T>::value, "T is not derived from IResource" );
+            EE_ASSERT( m_previewState != PreviewState::None && m_previewState != PreviewState::Requested );
+
+            for ( auto& resourcePtr : m_previewResources )
+            {
+                if ( resourcePtr.GetResourceID() == resourceID )
+                {
+                    EE_ASSERT( resourcePtr.IsLoaded() );
+                    return resourcePtr.GetPtr<T>();
+                }
+            }
+
+            EE_UNREACHABLE_CODE();
+            return nullptr;
+        }
+
+        // Get the list of preview resources
+        TVector<Resource::ResourcePtr> const& GetPreviewResources() const { return m_previewResources; }
 
         // Hot-reload
         //-------------------------------------------------------------------------
@@ -455,13 +568,25 @@ namespace EE
         //-------------------------------------------------------------------------
 
         // Calculate the dockspace ID for this tool relative to its parent
-        inline ImGuiID CalculateDockspaceID()
+        inline ImGuiID CalculateDockspaceID() const
         {
             int32_t dockspaceID = m_currentLocationID;
             char const* const pEditorToolTypeName = GetUniqueTypeName();
             dockspaceID = ImHashData( pEditorToolTypeName, strlen( pEditorToolTypeName ), dockspaceID );
             return dockspaceID;
         }
+
+        // Create a viewport tool window
+        ToolWindow* CreateViewportToolWindow( String const& name, Viewport* pViewport, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding = ImVec2( -1, -1 ), bool disableScrolling = false );
+
+        // Draw the viewport for this tool
+        void DrawViewportWindow( UpdateContext const& context, Viewport* pViewport );
+
+        // Called by the editor before the main update, this handles a lot of the shared functionality (undo/redo/etc...)
+        void PreDrawUpdate( UpdateContext const& context, bool isVisible, bool isFocused );
+
+        // Called by the editor after the main update, this handles a lot of the shared functionality (camera state, etc...)
+        void PostDrawUpdate( UpdateContext const& context, bool isVisible, bool isFocused );
 
         // Menu and Help
         //-------------------------------------------------------------------------
@@ -474,12 +599,10 @@ namespace EE
         Resource::ResourceSystem*                   m_pResourceSystem = nullptr;
         String                                      m_windowName;
         ImGuiID                                     m_ID = 0; // Document identifier (unique)
-        DialogManager                               m_dialogManager;
 
         // World
         EntityWorld*                                m_pWorld = nullptr;
-        DebugCameraComponent*                       m_pCamera = nullptr;
-        float                                       m_worldTimeScale = 1.0f;
+        ToolsCameraComponent*                       m_pCamera = nullptr;
 
         // Viewport
         bool                                        m_isViewportFocused = false;
@@ -501,6 +624,10 @@ namespace EE
         ImGuiWindowClass                            m_toolWindowClass;  // All our tools windows will share the same WindowClass (based on ID) to avoid mixing tools from different top-level window
 
         bool                                        m_wasInitializedCalled = false;
+        bool                                        m_requiresLayoutReset = false;
+
+        // Viewport
+        PickingData                                 m_pickingData;
 
         // Saving
         bool                                        m_isDirty = false;
@@ -509,24 +636,44 @@ namespace EE
         TVector<Resource::ResourcePtr*>             m_requestedResources;
         TVector<Resource::ResourcePtr*>             m_loadingResources;
         TVector<Resource::ResourcePtr*>             m_resourcesToBeReloaded;
+
+        // Editor Map
+        Entity*                                     m_pEditorMapEntity = nullptr;
+        Render::StaticMeshComponent*                m_pFloorMeshComponent = nullptr;
+        Physics::CollisionMeshComponent*            m_pFloorCollisionComponent = nullptr;
+        Render::StaticMeshComponent*                m_pSkyBoxMeshComponent = nullptr;
+        Render::DirectionalLightComponent*          m_pLightComponent = nullptr;
+
+        // Preview
+        PreviewState                                m_previewState = PreviewState::None;
+        TVector<Resource::ResourcePtr>              m_previewResources;
+        CountdownTimer<PlatformClock>               m_previewDelayTimer;
     };
+
+    //-------------------------------------------------------------------------
+
+    namespace ViewportNotificationWindows
+    {
+        void DrawLoadingWindow();
+        void DrawResourceCompilationFailedWindow( String const& compilationLog );
+    }
 }
 
 #define EE_EDITOR_TOOL( TypeName ) \
 constexpr static char const* const s_uniqueTypeName = #TypeName;\
-constexpr static uint32_t const s_toolTypeID = Hash::FNV1a::GetHash32( #TypeName );\
+constexpr static uint64_t const s_toolTypeID = Hash::FNV1a::GetHash64( #TypeName );\
 constexpr static bool const s_isSingleton = false; \
 virtual char const* GetUniqueTypeName() const override { return s_uniqueTypeName; }\
-virtual uint32_t GetUniqueTypeID() const override final { return TypeName::s_toolTypeID; }
+virtual uint64_t GetUniqueTypeID() const override final { return TypeName::s_toolTypeID; }
 
 //-------------------------------------------------------------------------
 
 #define EE_SINGLETON_EDITOR_TOOL( TypeName ) \
 constexpr static char const* const s_uniqueTypeName = #TypeName;\
-constexpr static uint32_t const s_toolTypeID = Hash::FNV1a::GetHash32( #TypeName ); \
+constexpr static uint64_t const s_toolTypeID = Hash::FNV1a::GetHash64( #TypeName ); \
 constexpr static bool const s_isSingleton = true; \
 virtual char const* GetUniqueTypeName() const { return s_uniqueTypeName; }\
-virtual uint32_t GetUniqueTypeID() const override final { return TypeName::s_toolTypeID; }\
+virtual uint64_t GetUniqueTypeID() const override final { return TypeName::s_toolTypeID; }\
 virtual bool IsSingleton() const override final { return true; }
 
 //-------------------------------------------------------------------------
@@ -544,6 +691,7 @@ namespace EE
     public:
 
         explicit DataFileEditor( ToolsContext const* pToolsContext, DataPath const& dataPath, EntityWorld* pWorld = nullptr );
+        virtual ~DataFileEditor();
 
         virtual bool IsDataFileTool() const override final { return true; }
         virtual bool IsEditingResourceDescriptor() const;
@@ -555,11 +703,12 @@ namespace EE
         // Editor Tool
         //-------------------------------------------------------------------------
 
+        virtual InlineString GetName() const override { return InlineString( GetUniqueTypeName() ) + " (" + GetDataFilePath().c_str() + ")"; }
+
         // Note: We try to load the data file during initialize, derived classes will have access to the data file in their initialize if the load was successful
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
 
-        virtual void InitializeDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual void DrawMenu( UpdateContext const& context ) override;
 
         virtual void MarkDirty() override;
@@ -569,7 +718,7 @@ namespace EE
         virtual String GetFilenameForSave() const override;
         virtual bool SaveData() override;
 
-        virtual void PreUndoRedo( UndoStack::Operation operation ) override;
+        virtual void PreUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
         virtual void HotReload_UnloadResources( TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload, TInlineVector<ResourceID, 20> const& resourcesToBeReloaded ) final;
@@ -661,6 +810,7 @@ namespace EE
         DataFileEditor*                     m_pEditor = nullptr;
         String                              m_valueBefore;
         String                              m_valueAfter;
+        Log                                 m_log;
     };
 
     //-------------------------------------------------------------------------
@@ -719,7 +869,7 @@ namespace EE
 
         virtual bool SupportsNewFileCreation() const { return GetDataFile<Resource::ResourceDescriptor>()->IsUserCreateableDescriptor(); }
 
-        virtual void CreateNewFile() const override { m_pToolsContext->TryCreateNewResourceDescriptor( GetDataFile<Resource::ResourceDescriptor>()->GetTypeID() ); }
+        virtual void CreateNewFile() const override { m_pToolsContext->TryCreateNewResourceDescriptorOrDataFile( GetDataFile<Resource::ResourceDescriptor>()->GetTypeID() ); }
 
         // Resource Status
         //-------------------------------------------------------------------------
@@ -730,21 +880,25 @@ namespace EE
         inline bool IsWaitingForResource() const { return IsLoading() || IsUnloaded() || m_editedResource.IsUnloading(); }
         inline bool HasLoadingFailed() const { return m_editedResource.HasLoadingFailed(); }
 
-    private:
+    protected:
 
-        virtual void DrawViewport( UpdateContext const& context, ViewportInfo const& viewportInfo ) override final
+        virtual void DrawViewportUI( UpdateContext const& context, Viewport const* pViewport, bool isFocused ) override
         {
-            DataFileEditor::DrawViewport( context, viewportInfo );
+            DataFileEditor::DrawViewportUI( context, pViewport, isFocused );
+
+            //-------------------------------------------------------------------------
 
             if ( m_editedResource.HasLoadingFailed() )
             {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::LargeBold );
-                ImGui::NewLine();
-                ImGui::Indent( 15.0f );
-                ImGui::TextColored( Colors::Red.ToFloat4(), "Resource Load Failed:\n%s", m_editedResource.GetResourceCompilationLog().c_str() );
-                ImGui::Unindent();
+                ViewportNotificationWindows::DrawResourceCompilationFailedWindow( m_editedResource.GetResourceCompilationLog() );
             }
         }
+
+        virtual TInlineVector<ResourceID, 2> GetPreviewResourceIDs() const final { return { m_editedResource.GetResourceID() }; }
+
+        // Get the loaded resource (only valid to call when actually previewing or during 'OnPreviewStarted'/'OnPreviewEnded')
+        template<typename PRT>
+        PRT const* GetPreviewResource() const { return DataFileEditor::GetPreviewResource<PRT>( m_editedResource.GetResourceID() ); }
 
     protected:
 
@@ -766,7 +920,7 @@ namespace EE
 
         virtual ~EditorToolFactory() = default;
 
-        static EditorTool* TryCreateEditor( ToolsContext const* pToolsContext, DataPath const& path, TFunction< EntityWorld*()> worldCreationFunction );
+        static EditorTool* TryCreateEditor( ToolsContext const* pToolsContext, DataPath const& path, TFunction< EntityWorld*( )> worldCreationFunction );
 
     protected:
 
@@ -777,7 +931,7 @@ namespace EE
         virtual ResourceTypeID GetSupportedResourceTypeID() const { return ResourceTypeID(); }
 
         // Get the resource type this factory supports
-        virtual uint32_t GetSupportedDataFileExtensionFourCC() const { return 0; }
+        virtual DataFileExtension GetSupportedDataFileExtension() const { return 0; }
 
         // Do we need an editor world?
         virtual bool RequiresEntityWorld() const = 0;
@@ -791,15 +945,15 @@ namespace EE
 //  Macro to create a editor tool factories
 //-------------------------------------------------------------------------
 // Use in a CPP to define a factory:
-// * EE_DATAFILE_EDITOR_FACTORY_NO_WORLD( PhysicMaterialsEditorFactory, 'pml', SkeletonEditor );
+// * EE_DATAFILE_EDITOR_FACTORY_NO_WORLD( PhysicMaterialsEditorFactory, "pml", SkeletonEditor );
 // * EE_RESOURCE_EDITOR_FACTORY( SkeletonEditorFactory, Skeleton, SkeletonEditor );
 
 //-------------------------------------------------------------------------
 
-#define EE_DATAFILE_EDITOR_FACTORY( factoryName, extensionFourCC, editorClass )\
+#define EE_DATAFILE_EDITOR_FACTORY( factoryName, extension, editorClass )\
 class factoryName final : public EditorToolFactory\
 {\
-    virtual uint32_t GetSupportedDataFileExtensionFourCC() const override { EE_ASSERT( FourCC::IsValidLowercase( extensionFourCC ) ); return extensionFourCC; }\
+    virtual DataFileExtension GetSupportedDataFileExtension() const override { EE_ASSERT( FourCC::IsValidLowercase( extensionFourCC ) ); return extensionFourCC; }\
     virtual bool RequiresEntityWorld() const override { return true; }\
     virtual EditorTool* CreateEditorInternal( ToolsContext const* pToolsContext, DataPath const& path, EntityWorld* pWorld ) const override\
     {\
@@ -811,10 +965,10 @@ static factoryName g_##factoryName;
 
 //-------------------------------------------------------------------------
 
-#define EE_DATAFILE_EDITOR_FACTORY_NO_WORLD( factoryName, extensionFourCC, editorClass )\
+#define EE_DATAFILE_EDITOR_FACTORY_NO_WORLD( factoryName, extension, editorClass )\
 class factoryName final : public EditorToolFactory\
 {\
-    virtual uint32_t GetSupportedDataFileExtensionFourCC() const override { EE_ASSERT( FourCC::IsValidLowercase( extensionFourCC ) ); return extensionFourCC; }\
+    virtual DataFileExtension GetSupportedDataFileExtension() const override { EE_ASSERT( FourCC::IsValidLowercase( extensionFourCC ) ); return extensionFourCC; }\
     virtual bool RequiresEntityWorld() const override { return false; }\
     virtual EditorTool* CreateEditorInternal( ToolsContext const* pToolsContext, DataPath const& path, EntityWorld* pWorld ) const override\
     {\

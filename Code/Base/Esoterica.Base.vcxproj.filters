@@ -1,20 +1,291 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="Imgui\ImguiGizmo.cpp">
+    <Natvis Include="ThirdParty\EA\EASTL\Doc\EASTL.natvis">
+      <Filter>ThirdParty\EA\EASTL\Doc</Filter>
+    </Natvis>
+    <Natvis Include="ThirdParty\pugixml\scripts\natvis\pugixml_compact.natvis">
+      <Filter>ThirdParty\pugixml\scripts\natvis</Filter>
+    </Natvis>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Systems.cpp" />
+    <ClCompile Include="Profiling.cpp" />
+    <ClCompile Include="Time\Time.cpp">
+      <Filter>Time</Filter>
+    </ClCompile>
+    <ClCompile Include="Time\TimeStamp.cpp">
+      <Filter>Time</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Intersection.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\line.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Plane.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\BlendWeight.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Easing.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Rectangle.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Curves.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\FloatCurve.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\MathRandom.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\MathUtils.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Transform.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\BoundingVolumes.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\AABBTree.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Math.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Matrix.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\PointSet.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Quaternion.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\Vector.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Math\ViewVolume.cpp">
+      <Filter>Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Imgui\ImguiCurveEditor.cpp">
       <Filter>Imgui</Filter>
     </ClCompile>
-    <ClCompile Include="Render\RenderViewport.cpp">
+    <ClCompile Include="Imgui\ImguiXNotifications.cpp">
+      <Filter>Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Imgui\ImguiFont.cpp">
+      <Filter>Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Imgui\ImguiStyle.cpp">
+      <Filter>Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Imgui\ImguiSystem.cpp">
+      <Filter>Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Imgui\ImguiX.cpp">
+      <Filter>Imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Imgui\Platform\ImguiPlatform_Win32.cpp">
+      <Filter>Imgui\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Imgui\Platform\ImguiX_Win32.cpp">
+      <Filter>Imgui\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Types\Severity.cpp">
+      <Filter>Types</Filter>
+    </ClCompile>
+    <ClCompile Include="Types\Color.cpp">
+      <Filter>Types</Filter>
+    </ClCompile>
+    <ClCompile Include="Types\StringUtils.cpp">
+      <Filter>Types</Filter>
+    </ClCompile>
+    <ClCompile Include="Types\Percentage.cpp">
+      <Filter>Types</Filter>
+    </ClCompile>
+    <ClCompile Include="Types\StringID.cpp">
+      <Filter>Types</Filter>
+    </ClCompile>
+    <ClCompile Include="Types\UUID.cpp">
+      <Filter>Types</Filter>
+    </ClCompile>
+    <ClCompile Include="Types\Platform\Types_Win32.cpp">
+      <Filter>Types\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\InputDevice.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\Input.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\InputSystem.cpp">
+      <Filter>Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\InputDevices\InputDevice_Controller.cpp">
+      <Filter>Input\InputDevices</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\InputDevices\InputDevice_KeyboardMouse.cpp">
+      <Filter>Input\InputDevices</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\InputDevices\Platform\InputDevice_KeyboardMouse_Win32.cpp">
+      <Filter>Input\InputDevices\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Input\InputDevices\Platform\InputDevice_XboxController_Win32.cpp">
+      <Filter>Input\InputDevices\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\StringKeyValueParser.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\StringTokenizer.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\TopologicalSort.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Utils\TreeLayout.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Fonts\Font_MaterialDesignIcons.cpp">
+      <Filter>Fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="Fonts\Font_RobotoMono_Regular.cpp">
+      <Filter>Fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="Fonts\Font_Roboto_Bold.cpp">
+      <Filter>Fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="Fonts\Font_Roboto_BoldItalic.cpp">
+      <Filter>Fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="Fonts\Font_Roboto_Italic.cpp">
+      <Filter>Fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="Fonts\Font_Roboto_Regular.cpp">
+      <Filter>Fonts</Filter>
+    </ClCompile>
+    <ClCompile Include="Render\HandleAllocator.cpp">
       <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="Profiling.cpp" />
-    <ClCompile Include="Settings\IniFile.cpp" />
-    <ClCompile Include="Systems.cpp" />
-    <ClCompile Include="Application\ApplicationGlobalState.cpp">
-      <Filter>Application</Filter>
+    <ClCompile Include="Render\RHI_Direct3D12.cpp">
+      <Filter>Render</Filter>
     </ClCompile>
-    <ClCompile Include="Application\Platform\Application_Win32.cpp">
-      <Filter>Application\Platform</Filter>
+    <ClCompile Include="Render\RenderWindow.cpp">
+      <Filter>Render</Filter>
+    </ClCompile>
+    <ClCompile Include="Memory\Memory.cpp">
+      <Filter>Memory</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\NetworkMessage.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\NetworkSystem.cpp">
+      <Filter>Network</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\Clients\NetworkClient.cpp">
+      <Filter>Network\Clients</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\Clients\NetworkClient_GNS.cpp">
+      <Filter>Network\Clients</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\Clients\NetworkClient_WebSockets.cpp">
+      <Filter>Network\Clients</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\Servers\NetworkServer.cpp">
+      <Filter>Network\Servers</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\Servers\NetworkServer_GNS.cpp">
+      <Filter>Network\Servers</Filter>
+    </ClCompile>
+    <ClCompile Include="Network\Servers\NetworkServer_WebSockets.cpp">
+      <Filter>Network\Servers</Filter>
+    </ClCompile>
+    <ClCompile Include="_Module\BaseModule.cpp">
+      <Filter>_Module</Filter>
+    </ClCompile>
+    <ClCompile Include="Logging\Log.cpp">
+      <Filter>Logging</Filter>
+    </ClCompile>
+    <ClCompile Include="Logging\LogCategory.cpp">
+      <Filter>Logging</Filter>
+    </ClCompile>
+    <ClCompile Include="Logging\SystemLog.cpp">
+      <Filter>Logging</Filter>
+    </ClCompile>
+    <ClCompile Include="Logging\Platform\SystemLog_Win32.cpp">
+      <Filter>Logging\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Drawing\DebugDrawingSystem.cpp">
+      <Filter>Drawing</Filter>
+    </ClCompile>
+    <ClCompile Include="Drawing\DebugDrawingCommands.cpp">
+      <Filter>Drawing</Filter>
+    </ClCompile>
+    <ClCompile Include="Drawing\DebugDrawing.cpp">
+      <Filter>Drawing</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\ResourceID.cpp">
+      <Filter>Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\ResourceLoader.cpp">
+      <Filter>Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\ResourceRecord.cpp">
+      <Filter>Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\ResourceRequest.cpp">
+      <Filter>Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\ResourceSystem.cpp">
+      <Filter>Resource</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\Settings\Settings_Resource.cpp">
+      <Filter>Resource\Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\ResourceProviders\ResourceProvider_Network.cpp">
+      <Filter>Resource\ResourceProviders</Filter>
+    </ClCompile>
+    <ClCompile Include="Resource\ResourceProviders\ResourceProvider_Package.cpp">
+      <Filter>Resource\ResourceProviders</Filter>
+    </ClCompile>
+    <ClCompile Include="Encoding\Embed.cpp">
+      <Filter>Encoding</Filter>
+    </ClCompile>
+    <ClCompile Include="Encoding\Encoding.cpp">
+      <Filter>Encoding</Filter>
+    </ClCompile>
+    <ClCompile Include="Settings\Settings.cpp">
+      <Filter>Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="Settings\SettingsRegistry.cpp">
+      <Filter>Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="Settings\IniFile.cpp">
+      <Filter>Settings</Filter>
+    </ClCompile>
+    <ClCompile Include="Platform\Platform.cpp">
+      <Filter>Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Platform\Platform_Win32.cpp">
+      <Filter>Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Platform\PlatformUtils_Win32.cpp">
+      <Filter>Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Threading\TaskSystem.cpp">
+      <Filter>Threading</Filter>
+    </ClCompile>
+    <ClCompile Include="Threading\Threading.cpp">
+      <Filter>Threading</Filter>
+    </ClCompile>
+    <ClCompile Include="Threading\Platform\Threading_Win32.cpp">
+      <Filter>Threading\Platform</Filter>
     </ClCompile>
     <ClCompile Include="ThirdParty\EA\eastl_Esoterica.cpp">
       <Filter>ThirdParty\EA</Filter>
@@ -70,14 +341,26 @@
     <ClCompile Include="ThirdParty\imgui\misc\freetype\imgui_freetype.cpp">
       <Filter>ThirdParty\imgui\misc\freetype</Filter>
     </ClCompile>
+    <ClCompile Include="ThirdParty\mpack\mpack_esoterica.cpp">
+      <Filter>ThirdParty\mpack</Filter>
+    </ClCompile>
     <ClCompile Include="ThirdParty\mpack\mpack.c">
       <Filter>ThirdParty\mpack</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\xxhash\xxhash.c">
-      <Filter>ThirdParty\xxhash</Filter>
-    </ClCompile>
     <ClCompile Include="ThirdParty\enkits\TaskScheduler.cpp">
       <Filter>ThirdParty\enkits</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\implot\implot.cpp">
+      <Filter>ThirdParty\implot</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\implot\implot_demo.cpp">
+      <Filter>ThirdParty\implot</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\implot\implot_items.cpp">
+      <Filter>ThirdParty\implot</Filter>
+    </ClCompile>
+    <ClCompile Include="ThirdParty\pugixml\src\pugixml.cpp">
+      <Filter>ThirdParty\pugixml\src</Filter>
     </ClCompile>
     <ClCompile Include="ThirdParty\rpmalloc\rpmalloc.c">
       <Filter>ThirdParty\rpmalloc</Filter>
@@ -88,209 +371,23 @@
     <ClCompile Include="ThirdParty\iniparser\iniparser.c">
       <Filter>ThirdParty\iniparser</Filter>
     </ClCompile>
-    <ClCompile Include="Render\RenderCoreResources.cpp">
-      <Filter>Render</Filter>
+    <ClCompile Include="ThirdParty\D3D12MemoryAllocator\Common.cpp">
+      <Filter>ThirdParty\D3D12MemoryAllocator</Filter>
     </ClCompile>
-    <ClCompile Include="Render\RenderShader.cpp">
-      <Filter>Render</Filter>
+    <ClCompile Include="ThirdParty\D3D12MemoryAllocator\D3D12MemAlloc.cpp">
+      <Filter>ThirdParty\D3D12MemoryAllocator</Filter>
     </ClCompile>
-    <ClCompile Include="Render\RenderTarget.cpp">
-      <Filter>Render</Filter>
+    <ClCompile Include="FileSystem\DataPath.cpp">
+      <Filter>FileSystem</Filter>
     </ClCompile>
-    <ClCompile Include="Render\RenderUtils.cpp">
-      <Filter>Render</Filter>
+    <ClCompile Include="FileSystem\FileSystem.cpp">
+      <Filter>FileSystem</Filter>
     </ClCompile>
-    <ClCompile Include="Render\RenderVertexFormats.cpp">
-      <Filter>Render</Filter>
+    <ClCompile Include="FileSystem\IDataFile.cpp">
+      <Filter>FileSystem</Filter>
     </ClCompile>
-    <ClCompile Include="Render\Platform\RenderContext_DX11.cpp">
-      <Filter>Render\Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Platform\RenderDevice_DX11.cpp">
-      <Filter>Render\Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Render\Platform\TextureLoader_Win32.cpp">
-      <Filter>Render\Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Imgui\ImguiFont.cpp">
-      <Filter>Imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="Imgui\ImguiImageCache.cpp">
-      <Filter>Imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="Imgui\ImguiStyle.cpp">
-      <Filter>Imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="Imgui\ImguiSystem.cpp">
-      <Filter>Imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="Imgui\ImguiX.cpp">
-      <Filter>Imgui</Filter>
-    </ClCompile>
-    <ClCompile Include="Imgui\Platform\ImguiPlatform_Win32.cpp">
-      <Filter>Imgui\Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Imgui\Platform\ImguiX_Win32.cpp">
-      <Filter>Imgui\Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\Curves.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\FloatCurve.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\MathRandom.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\MathUtils.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\Transform.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\BoundingVolumes.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\AABBTree.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\Math.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\Matrix.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\Plane.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\PointSet.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\Quaternion.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\Vector.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Math\ViewVolume.cpp">
-      <Filter>Math</Filter>
-    </ClCompile>
-    <ClCompile Include="Time\Time.cpp">
-      <Filter>Time</Filter>
-    </ClCompile>
-    <ClCompile Include="Time\TimeStamp.cpp">
-      <Filter>Time</Filter>
-    </ClCompile>
-    <ClCompile Include="Input\InputSystem.cpp">
-      <Filter>Input</Filter>
-    </ClCompile>
-    <ClCompile Include="Input\InputDevices\InputDevice_Controller.cpp">
-      <Filter>Input\InputDevices</Filter>
-    </ClCompile>
-    <ClCompile Include="Input\InputDevices\InputDevice_KeyboardMouse.cpp">
-      <Filter>Input\InputDevices</Filter>
-    </ClCompile>
-    <ClCompile Include="Input\InputDevices\Platform\InputDevice_KeyboardMouse_Win32.cpp">
-      <Filter>Input\InputDevices\Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Input\InputDevices\Platform\InputDevice_XboxController_Win32.cpp">
-      <Filter>Input\InputDevices\Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Types\Percentage.cpp">
-      <Filter>Types</Filter>
-    </ClCompile>
-    <ClCompile Include="Types\StringID.cpp">
-      <Filter>Types</Filter>
-    </ClCompile>
-    <ClCompile Include="Types\UUID.cpp">
-      <Filter>Types</Filter>
-    </ClCompile>
-    <ClCompile Include="Types\Platform\Types_Win32.cpp">
-      <Filter>Types\Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Fonts\FontData_Lexend.cpp">
-      <Filter>Fonts</Filter>
-    </ClCompile>
-    <ClCompile Include="Fonts\FontData_MaterialDesign.cpp">
-      <Filter>Fonts</Filter>
-    </ClCompile>
-    <ClCompile Include="Fonts\FontData_Proggy.cpp">
-      <Filter>Fonts</Filter>
-    </ClCompile>
-    <ClCompile Include="Fonts\FontDecompressor.cpp">
-      <Filter>Fonts</Filter>
-    </ClCompile>
-    <ClCompile Include="Memory\Memory.cpp">
-      <Filter>Memory</Filter>
-    </ClCompile>
-    <ClCompile Include="Network\NetworkSystem.cpp">
-      <Filter>Network</Filter>
-    </ClCompile>
-    <ClCompile Include="Network\IPC\IPCMessage.cpp">
-      <Filter>Network\IPC</Filter>
-    </ClCompile>
-    <ClCompile Include="Network\IPC\IPCMessageClient.cpp">
-      <Filter>Network\IPC</Filter>
-    </ClCompile>
-    <ClCompile Include="Network\IPC\IPCMessageServer.cpp">
-      <Filter>Network\IPC</Filter>
-    </ClCompile>
-    <ClCompile Include="Drawing\DebugDrawingSystem.cpp">
-      <Filter>Drawing</Filter>
-    </ClCompile>
-    <ClCompile Include="Drawing\DebugDrawingCommands.cpp">
-      <Filter>Drawing</Filter>
-    </ClCompile>
-    <ClCompile Include="Drawing\DebugDrawing.cpp">
-      <Filter>Drawing</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\ResourceID.cpp">
-      <Filter>Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\ResourceLoader.cpp">
-      <Filter>Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\ResourceRecord.cpp">
-      <Filter>Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\ResourceRequest.cpp">
-      <Filter>Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\Settings\GlobalSettings_Resource.cpp">
-      <Filter>Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\ResourceSystem.cpp">
-      <Filter>Resource</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\ResourceProviders\NetworkResourceProvider.cpp">
-      <Filter>Resource\ResourceProviders</Filter>
-    </ClCompile>
-    <ClCompile Include="Resource\ResourceProviders\PackagedResourceProvider.cpp">
-      <Filter>Resource\ResourceProviders</Filter>
-    </ClCompile>
-    <ClCompile Include="Platform\Platform_Win32.cpp">
-      <Filter>Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Platform\PlatformUtils_Win32.cpp">
-      <Filter>Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Threading\TaskSystem.cpp">
-      <Filter>Threading</Filter>
-    </ClCompile>
-    <ClCompile Include="Threading\Threading.cpp">
-      <Filter>Threading</Filter>
-    </ClCompile>
-    <ClCompile Include="Threading\Platform\Threading_Win32.cpp">
-      <Filter>Threading\Platform</Filter>
-    </ClCompile>
-    <ClCompile Include="Encoding\Hash.cpp">
-      <Filter>Algorithm</Filter>
-    </ClCompile>
-    <ClCompile Include="Utils\TopologicalSort.cpp">
-      <Filter>Algorithm</Filter>
-    </ClCompile>
-    <ClCompile Include="Encoding\Encoding.cpp">
-      <Filter>Algorithm</Filter>
+    <ClCompile Include="FileSystem\DataFileExtension.cpp">
+      <Filter>FileSystem</Filter>
     </ClCompile>
     <ClCompile Include="FileSystem\FileSystemPath.cpp">
       <Filter>FileSystem</Filter>
@@ -301,14 +398,17 @@
     <ClCompile Include="FileSystem\FileSystemUtils.cpp">
       <Filter>FileSystem</Filter>
     </ClCompile>
-    <ClCompile Include="FileSystem\Platform\FileSystemUtils_Win32.cpp">
-      <Filter>FileSystem\Platform</Filter>
-    </ClCompile>
     <ClCompile Include="FileSystem\Platform\FileSystemPath_Win32.cpp">
       <Filter>FileSystem\Platform</Filter>
     </ClCompile>
     <ClCompile Include="FileSystem\Platform\FileSystem_Win32.cpp">
       <Filter>FileSystem\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="TypeSystem\PropertyMetadata.cpp">
+      <Filter>TypeSystem</Filter>
+    </ClCompile>
+    <ClCompile Include="TypeSystem\TypeInstance.cpp">
+      <Filter>TypeSystem</Filter>
     </ClCompile>
     <ClCompile Include="TypeSystem\CoreTypeConversions.cpp">
       <Filter>TypeSystem</Filter>
@@ -317,9 +417,6 @@
       <Filter>TypeSystem</Filter>
     </ClCompile>
     <ClCompile Include="TypeSystem\EnumInfo.cpp">
-      <Filter>TypeSystem</Filter>
-    </ClCompile>
-    <ClCompile Include="TypeSystem\PropertyInfo.cpp">
       <Filter>TypeSystem</Filter>
     </ClCompile>
     <ClCompile Include="TypeSystem\PropertyPath.cpp">
@@ -334,60 +431,424 @@
     <ClCompile Include="TypeSystem\TypeRegistry.cpp">
       <Filter>TypeSystem</Filter>
     </ClCompile>
+    <ClCompile Include="Application\Module.cpp">
+      <Filter>Application</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\ApplicationGlobalState.cpp">
+      <Filter>Application</Filter>
+    </ClCompile>
+    <ClCompile Include="Application\Platform\Application_Win32.cpp">
+      <Filter>Application\Platform</Filter>
+    </ClCompile>
+    <ClCompile Include="Serialization\TypeSerialization.cpp">
+      <Filter>Serialization</Filter>
+    </ClCompile>
+    <ClCompile Include="Serialization\XmlSerialization.cpp">
+      <Filter>Serialization</Filter>
+    </ClCompile>
     <ClCompile Include="Serialization\BinarySerialization.cpp">
       <Filter>Serialization</Filter>
     </ClCompile>
-    <ClCompile Include="Math\Platform\Math_Win32.h" />
-    <ClCompile Include="ThirdParty\implot\implot.cpp" />
-    <ClCompile Include="ThirdParty\implot\implot_demo.cpp" />
-    <ClCompile Include="ThirdParty\implot\implot_items.cpp" />
-    <ClCompile Include="Logging\Platform\SystemLog_Win32.cpp" />
-    <ClCompile Include="Logging\SystemLog.cpp" />
-    <ClCompile Include="Imgui\ImguiXNotifications.cpp" />
-    <ClCompile Include="FileSystem\FileSystem.cpp" />
-    <ClCompile Include="_Module\BaseModule.cpp" />
-    <ClCompile Include="Platform\Platform.cpp" />
-    <ClCompile Include="Math\Easing.cpp" />
-    <ClCompile Include="Input\InputDevice.cpp" />
-    <ClCompile Include="Settings\SettingsRegistry.cpp" />
-    <ClCompile Include="Render\Settings\GlobalSettings_Render.cpp" />
-    <ClCompile Include="Types\Color.cpp" />
-    <ClCompile Include="Logging\Log.cpp" />
-    <ClCompile Include="Types\Severity.cpp" />
-    <ClCompile Include="Logging\LogEntry.cpp" />
-    <ClCompile Include="Input\Input.cpp" />
-    <ClCompile Include="TypeSystem\TypeInstance.cpp" />
-    <ClCompile Include="Application\Module.cpp" />
-    <ClCompile Include="FileSystem\DataPath.cpp" />
-    <ClCompile Include="Encoding\FourCC.cpp" />
-    <ClCompile Include="FileSystem\IDataFile.cpp" />
-    <ClCompile Include="ThirdParty\pugixml\src\pugixml.cpp" />
-    <ClCompile Include="Serialization\XmlSerialization.cpp" />
-    <ClCompile Include="Serialization\TypeSerialization.cpp" />
-    <ClCompile Include="Utils\StringKeyValueParser.cpp" />
-    <ClCompile Include="Utils\TreeLayout.cpp" />
-    <ClCompile Include="Math\Rectangle.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Imgui\ImguiGizmo.h">
-      <Filter>Imgui</Filter>
-    </ClInclude>
     <ClInclude Include="Esoterica.h" />
-    <ClInclude Include="Render\RenderViewport.h">
-      <Filter>Render</Filter>
+    <ClInclude Include="ThirdParty\EA\eastl_Esoterica_TrackedAllocator.h">
+      <Filter>ThirdParty\EA</Filter>
     </ClInclude>
-    <ClInclude Include="Settings\IniFile.h" />
-    <ClInclude Include="Logging\Log.h" />
     <ClInclude Include="Profiling.h" />
     <ClInclude Include="Systems.h" />
-    <ClInclude Include="Application\ApplicationGlobalState.h">
-      <Filter>Application</Filter>
+    <ClInclude Include="Time\TimeStamp.h">
+      <Filter>Time</Filter>
     </ClInclude>
-    <ClInclude Include="Application\Platform\Application_Win32.h">
-      <Filter>Application\Platform</Filter>
+    <ClInclude Include="Time\Time.h">
+      <Filter>Time</Filter>
     </ClInclude>
-    <ClInclude Include="ThirdParty\cmdParser\cmdParser.h">
-      <Filter>ThirdParty\cmdParser</Filter>
+    <ClInclude Include="Time\Timers.h">
+      <Filter>Time</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Intersection.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\BlendWeight.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Matrix43.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Easing.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Lerp.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\EigenVectors.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\FloatCurve.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\MathConstants.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\MathRandom.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\MathUtils.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Transform.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Curves.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\BoundingVolumes.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\AABBTree.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Line.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Math.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Matrix.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Plane.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\PointSet.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Quaternion.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\NumericRange.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Rectangle.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\SIMD.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\SimpleMovingAverage.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Triangle.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Vector.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\ViewVolume.h">
+      <Filter>Math</Filter>
+    </ClInclude>
+    <ClInclude Include="Math\Platform\Math_Win32.h">
+      <Filter>Math\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\ImguiCurveEditor.h">
+      <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\ImguiCommandStack.h">
+      <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\ImguiFilteredCombo.h">
+      <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\ImguiTextBuffer.h">
+      <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\ImguiXNotifications.h">
+      <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\ImguiFont.h">
+      <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\ImguiStyle.h">
+      <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\ImguiSystem.h">
+      <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\ImguiX.h">
+      <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\MaterialDesignIcons.h">
+      <Filter>Imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Imgui\Platform\ImguiPlatform_Win32.h">
+      <Filter>Imgui\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\Path.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\Severity.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\Event.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\HashMap.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\IDVector.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\Function.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\PointerID.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\Pool.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\Percentage.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\Color.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\Arrays.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\BitFlags.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\LoadingStatus.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\ScopedValue.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\String.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\Containers_ForwardDecl.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\StringID.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\Tag.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Types\UUID.h">
+      <Filter>Types</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\Input.h">
+      <Filter>Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\InputDevice.h">
+      <Filter>Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\InputSystem.h">
+      <Filter>Input</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\InputDevices\InputDevice_Controller.h">
+      <Filter>Input\InputDevices</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\InputDevices\InputDevice_KeyboardMouse.h">
+      <Filter>Input\InputDevices</Filter>
+    </ClInclude>
+    <ClInclude Include="Input\InputDevices\InputDevice_XBoxController.h">
+      <Filter>Input\InputDevices</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\CommandLineParser.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\CategoryTree.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\StringKeyValueParser.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\StringTokenizer.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\TopologicalSort.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\GlobalRegistryBase.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Utils\TreeLayout.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
+    <ClInclude Include="Fonts\Font_MaterialDesignIcons.h">
+      <Filter>Fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="Fonts\Font_RobotoMono_Regular.h">
+      <Filter>Fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="Fonts\Font_Roboto_Bold.h">
+      <Filter>Fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="Fonts\Font_Roboto_BoldItalic.h">
+      <Filter>Fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="Fonts\Font_Roboto_Italic.h">
+      <Filter>Fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="Fonts\Font_Roboto_Regular.h">
+      <Filter>Fonts</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\HandleAllocator.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\PageAllocator.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\RHI.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\RenderWindow.h">
+      <Filter>Render</Filter>
+    </ClInclude>
+    <ClInclude Include="Render\Settings\Settings_Render.h">
+      <Filter>Render\Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\SharedPtr.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\UniquePtr.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Memory\Memory.h">
+      <Filter>Memory</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\NetworkMessage.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\NetworkSystem.h">
+      <Filter>Network</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\Clients\NetworkClient_GNS.h">
+      <Filter>Network\Clients</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\Clients\NetworkClient.h">
+      <Filter>Network\Clients</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\Clients\NetworkClient_WebSockets.h">
+      <Filter>Network\Clients</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\Servers\NetworkServer.h">
+      <Filter>Network\Servers</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\Servers\NetworkServer_GNS.h">
+      <Filter>Network\Servers</Filter>
+    </ClInclude>
+    <ClInclude Include="Network\Servers\NetworkServer_WebSockets.h">
+      <Filter>Network\Servers</Filter>
+    </ClInclude>
+    <ClInclude Include="_Module\API.h">
+      <Filter>_Module</Filter>
+    </ClInclude>
+    <ClInclude Include="_Module\BaseModule.h">
+      <Filter>_Module</Filter>
+    </ClInclude>
+    <ClInclude Include="Logging\LogCategory.h">
+      <Filter>Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="Logging\SystemLog.h">
+      <Filter>Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="Logging\Log.h">
+      <Filter>Logging</Filter>
+    </ClInclude>
+    <ClInclude Include="Drawing\DebugDrawingSystem.h">
+      <Filter>Drawing</Filter>
+    </ClInclude>
+    <ClInclude Include="Drawing\DebugDrawingCommands.h">
+      <Filter>Drawing</Filter>
+    </ClInclude>
+    <ClInclude Include="Drawing\DebugDrawing.h">
+      <Filter>Drawing</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\IResource.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceHeader.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceID.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceLoader.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceProvider.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourcePtr.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceRecord.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceRequest.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceRequesterID.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceSystem.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceTypeID.h">
+      <Filter>Resource</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\Settings\Settings_Resource.h">
+      <Filter>Resource\Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceProviders\ResourceProvider_Network.h">
+      <Filter>Resource\ResourceProviders</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceProviders\ResourceProvider_Package.h">
+      <Filter>Resource\ResourceProviders</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource\ResourceProviders\ResourceNetworkMessages.h">
+      <Filter>Resource\ResourceProviders</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoding\Embed.h">
+      <Filter>Encoding</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoding\Hash.h">
+      <Filter>Encoding</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoding\Quantization.h">
+      <Filter>Encoding</Filter>
+    </ClInclude>
+    <ClInclude Include="Encoding\Encoding.h">
+      <Filter>Encoding</Filter>
+    </ClInclude>
+    <ClInclude Include="Settings\Settings.h">
+      <Filter>Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="Settings\SettingsRegistry.h">
+      <Filter>Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="Settings\IniFile.h">
+      <Filter>Settings</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Platform.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\Platform_Win32.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Platform\PlatformUtils_Win32.h">
+      <Filter>Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\TaskSystem.h">
+      <Filter>Threading</Filter>
+    </ClInclude>
+    <ClInclude Include="Threading\Threading.h">
+      <Filter>Threading</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\EA\eastl_Esoterica.h">
       <Filter>ThirdParty\EA</Filter>
@@ -1205,6 +1666,12 @@
     <ClInclude Include="ThirdParty\EA\EABase\include\Common\EABase\config\eaplatform.h">
       <Filter>ThirdParty\EA\EABase\include\Common\EABase\config</Filter>
     </ClInclude>
+    <ClInclude Include="ThirdParty\stb\stb_image_resize2.h">
+      <Filter>ThirdParty\stb</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\stb\stb_image_write.h">
+      <Filter>ThirdParty\stb</Filter>
+    </ClInclude>
     <ClInclude Include="ThirdParty\stb\stb_image.h">
       <Filter>ThirdParty\stb</Filter>
     </ClInclude>
@@ -1222,6 +1689,12 @@
     </ClInclude>
     <ClInclude Include="ThirdParty\pcg\include\pcg_uint128.hpp">
       <Filter>ThirdParty\pcg\include</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\lzav\lzav.h">
+      <Filter>ThirdParty\lzav</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\lzav\lzav_estoerica.h">
+      <Filter>ThirdParty\lzav</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\imgui\imconfig.h">
       <Filter>ThirdParty\imgui</Filter>
@@ -1250,9 +1723,6 @@
     <ClInclude Include="ThirdParty\mpack\mpack.h">
       <Filter>ThirdParty\mpack</Filter>
     </ClInclude>
-    <ClInclude Include="ThirdParty\xxhash\xxhash.h">
-      <Filter>ThirdParty\xxhash</Filter>
-    </ClInclude>
     <ClInclude Include="ThirdParty\enkits\LockLessMultiReadPipe.h">
       <Filter>ThirdParty\enkits</Filter>
     </ClInclude>
@@ -1262,8 +1732,23 @@
     <ClInclude Include="ThirdParty\enkits\TaskScheduler_Esoterica.h">
       <Filter>ThirdParty\enkits</Filter>
     </ClInclude>
+    <ClInclude Include="ThirdParty\implot\implot.h">
+      <Filter>ThirdParty\implot</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\implot\implot_internal.h">
+      <Filter>ThirdParty\implot</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\pugixml\src\pugiconfig.hpp">
+      <Filter>ThirdParty\pugixml\src</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\pugixml\src\pugixml.hpp">
+      <Filter>ThirdParty\pugixml\src</Filter>
+    </ClInclude>
     <ClInclude Include="ThirdParty\rpmalloc\rpmalloc.h">
       <Filter>ThirdParty\rpmalloc</Filter>
+    </ClInclude>
+    <ClInclude Include="ThirdParty\rapidhash\rapidhash.h">
+      <Filter>ThirdParty\rapidhash</Filter>
     </ClInclude>
     <ClInclude Include="ThirdParty\iniparser\dictionary.h">
       <Filter>ThirdParty\iniparser</Filter>
@@ -1280,320 +1765,23 @@
     <ClInclude Include="ThirdParty\concurrentqueue\lightweightsemaphore.h">
       <Filter>ThirdParty\concurrentqueue</Filter>
     </ClInclude>
-    <ClInclude Include="Render\RenderAPI.h">
-      <Filter>Render</Filter>
+    <ClInclude Include="ThirdParty\D3D12MemoryAllocator\D3D12MemAlloc.h">
+      <Filter>ThirdParty\D3D12MemoryAllocator</Filter>
     </ClInclude>
-    <ClInclude Include="Render\RenderBuffer.h">
-      <Filter>Render</Filter>
+    <ClInclude Include="ThirdParty\D3D12MemoryAllocator\Common.h">
+      <Filter>ThirdParty\D3D12MemoryAllocator</Filter>
     </ClInclude>
-    <ClInclude Include="Render\RenderCoreResources.h">
-      <Filter>Render</Filter>
+    <ClInclude Include="FileSystem\DataPath.h">
+      <Filter>FileSystem</Filter>
     </ClInclude>
-    <ClInclude Include="Render\RenderDevice.h">
-      <Filter>Render</Filter>
+    <ClInclude Include="FileSystem\FileSystemExtension.h">
+      <Filter>FileSystem</Filter>
     </ClInclude>
-    <ClInclude Include="Render\RenderPipelineState.h">
-      <Filter>Render</Filter>
+    <ClInclude Include="FileSystem\IDataFile.h">
+      <Filter>FileSystem</Filter>
     </ClInclude>
-    <ClInclude Include="Render\RenderShader.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\RenderStates.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\RenderTarget.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\RenderTexture.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\RenderUtils.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\RenderVertexFormats.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\RenderWindow.h">
-      <Filter>Render</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Platform\RenderContext_DX11.h">
-      <Filter>Render\Platform</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Platform\RenderDevice_DX11.h">
-      <Filter>Render\Platform</Filter>
-    </ClInclude>
-    <ClInclude Include="Render\Platform\TextureLoader_Win32.h">
-      <Filter>Render\Platform</Filter>
-    </ClInclude>
-    <ClInclude Include="Imgui\ImguiFont.h">
-      <Filter>Imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="Imgui\ImguiImageCache.h">
-      <Filter>Imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="Imgui\ImguiStyle.h">
-      <Filter>Imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="Imgui\ImguiSystem.h">
-      <Filter>Imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="Imgui\ImguiX.h">
-      <Filter>Imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="Imgui\MaterialDesignIcons.h">
-      <Filter>Imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="Imgui\Platform\ImguiPlatform_Win32.h">
-      <Filter>Imgui\Platform</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\EigenVectors.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\FloatCurve.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\MathConstants.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\MathRandom.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\MathUtils.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Transform.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Curves.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\BoundingVolumes.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\AABBTree.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Line.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Math.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Matrix.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Plane.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\PointSet.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Quaternion.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\NumericRange.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Rectangle.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\SIMD.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\SimpleMovingAverage.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Triangle.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\Vector.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Math\ViewVolume.h">
-      <Filter>Math</Filter>
-    </ClInclude>
-    <ClInclude Include="Time\TimeStamp.h">
-      <Filter>Time</Filter>
-    </ClInclude>
-    <ClInclude Include="Time\Time.h">
-      <Filter>Time</Filter>
-    </ClInclude>
-    <ClInclude Include="Time\Timers.h">
-      <Filter>Time</Filter>
-    </ClInclude>
-    <ClInclude Include="Input\InputDevice.h">
-      <Filter>Input</Filter>
-    </ClInclude>
-    <ClInclude Include="Input\InputSystem.h">
-      <Filter>Input</Filter>
-    </ClInclude>
-    <ClInclude Include="Input\InputDevices\InputDevice_Controller.h">
-      <Filter>Input\InputDevices</Filter>
-    </ClInclude>
-    <ClInclude Include="Input\InputDevices\InputDevice_KeyboardMouse.h">
-      <Filter>Input\InputDevices</Filter>
-    </ClInclude>
-    <ClInclude Include="Input\InputDevices\InputDevice_XBoxController.h">
-      <Filter>Input\InputDevices</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\Event.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\HashMap.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\IDVector.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\Function.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\PointerID.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\Pool.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\Percentage.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\Color.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\Arrays.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\BitFlags.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\LoadingStatus.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\ScopedValue.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\String.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\Containers_ForwardDecl.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\StringID.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\Tag.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Types\UUID.h">
-      <Filter>Types</Filter>
-    </ClInclude>
-    <ClInclude Include="Fonts\FontData_Lexend.h">
-      <Filter>Fonts</Filter>
-    </ClInclude>
-    <ClInclude Include="Fonts\FontData_MaterialDesign.h">
-      <Filter>Fonts</Filter>
-    </ClInclude>
-    <ClInclude Include="Fonts\FontData_Proggy.h">
-      <Filter>Fonts</Filter>
-    </ClInclude>
-    <ClInclude Include="Fonts\FontDecompressor.h">
-      <Filter>Fonts</Filter>
-    </ClInclude>
-    <ClInclude Include="Memory\Memory.h">
-      <Filter>Memory</Filter>
-    </ClInclude>
-    <ClInclude Include="_Module\API.h">
-      <Filter>_Module</Filter>
-    </ClInclude>
-    <ClInclude Include="Network\NetworkSystem.h">
-      <Filter>Network</Filter>
-    </ClInclude>
-    <ClInclude Include="Network\IPC\IPCMessage.h">
-      <Filter>Network\IPC</Filter>
-    </ClInclude>
-    <ClInclude Include="Network\IPC\IPCMessageClient.h">
-      <Filter>Network\IPC</Filter>
-    </ClInclude>
-    <ClInclude Include="Network\IPC\IPCMessageServer.h">
-      <Filter>Network\IPC</Filter>
-    </ClInclude>
-    <ClInclude Include="Drawing\DebugDrawingSystem.h">
-      <Filter>Drawing</Filter>
-    </ClInclude>
-    <ClInclude Include="Drawing\DebugDrawingCommands.h">
-      <Filter>Drawing</Filter>
-    </ClInclude>
-    <ClInclude Include="Drawing\DebugDrawing.h">
-      <Filter>Drawing</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\IResource.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceHeader.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceID.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceLoader.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceProvider.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourcePtr.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceRecord.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceRequest.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceRequesterID.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\Settings\GlobalSettings_Resource.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceSystem.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceTypeID.h">
-      <Filter>Resource</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceProviders\NetworkResourceProvider.h">
-      <Filter>Resource\ResourceProviders</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceProviders\PackagedResourceProvider.h">
-      <Filter>Resource\ResourceProviders</Filter>
-    </ClInclude>
-    <ClInclude Include="Resource\ResourceProviders\ResourceNetworkMessages.h">
-      <Filter>Resource\ResourceProviders</Filter>
-    </ClInclude>
-    <ClInclude Include="Platform\Platform_Win32.h">
-      <Filter>Platform</Filter>
-    </ClInclude>
-    <ClInclude Include="Platform\PlatformUtils_Win32.h">
-      <Filter>Platform</Filter>
-    </ClInclude>
-    <ClInclude Include="Threading\TaskSystem.h">
-      <Filter>Threading</Filter>
-    </ClInclude>
-    <ClInclude Include="Threading\Threading.h">
-      <Filter>Threading</Filter>
-    </ClInclude>
-    <ClInclude Include="Encoding\Hash.h">
-      <Filter>Algorithm</Filter>
-    </ClInclude>
-    <ClInclude Include="Encoding\Quantization.h">
-      <Filter>Algorithm</Filter>
-    </ClInclude>
-    <ClInclude Include="Utils\TopologicalSort.h">
-      <Filter>Algorithm</Filter>
-    </ClInclude>
-    <ClInclude Include="Encoding\Encoding.h">
-      <Filter>Algorithm</Filter>
+    <ClInclude Include="FileSystem\DataFileExtension.h">
+      <Filter>FileSystem</Filter>
     </ClInclude>
     <ClInclude Include="FileSystem\FileSystemUtils.h">
       <Filter>FileSystem</Filter>
@@ -1606,6 +1794,15 @@
     </ClInclude>
     <ClInclude Include="FileSystem\FileSystem.h">
       <Filter>FileSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="TypeSystem\DataFileInfo.h">
+      <Filter>TypeSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="TypeSystem\PropertyMetadata.h">
+      <Filter>TypeSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="TypeSystem\TypeInstance.h">
+      <Filter>TypeSystem</Filter>
     </ClInclude>
     <ClInclude Include="TypeSystem\CoreTypeConversions.h">
       <Filter>TypeSystem</Filter>
@@ -1620,6 +1817,9 @@
       <Filter>TypeSystem</Filter>
     </ClInclude>
     <ClInclude Include="TypeSystem\PropertyPath.h">
+      <Filter>TypeSystem</Filter>
+    </ClInclude>
+    <ClInclude Include="TypeSystem\ReflectedType.h">
       <Filter>TypeSystem</Filter>
     </ClInclude>
     <ClInclude Include="TypeSystem\ResourceInfo.h">
@@ -1637,52 +1837,40 @@
     <ClInclude Include="TypeSystem\TypeRegistry.h">
       <Filter>TypeSystem</Filter>
     </ClInclude>
+    <ClInclude Include="Application\Module.h">
+      <Filter>Application</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\ApplicationGlobalState.h">
+      <Filter>Application</Filter>
+    </ClInclude>
+    <ClInclude Include="Application\Platform\Application_Win32.h">
+      <Filter>Application\Platform</Filter>
+    </ClInclude>
+    <ClInclude Include="Serialization\TypeSerialization.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="Serialization\XmlSerialization.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
+    <ClInclude Include="Serialization\BitSerialization.h">
+      <Filter>Serialization</Filter>
+    </ClInclude>
     <ClInclude Include="Serialization\BinarySerialization.h">
       <Filter>Serialization</Filter>
     </ClInclude>
-    <ClInclude Include="TypeSystem\ReflectedType.h" />
-    <ClInclude Include="Utils\GlobalRegistryBase.h" />
-    <ClInclude Include="ThirdParty\implot\implot.h" />
-    <ClInclude Include="ThirdParty\implot\implot_internal.h" />
-    <ClInclude Include="Serialization\BitSerialization.h" />
-    <ClInclude Include="Imgui\ImguiFilteredCombo.h" />
-    <ClInclude Include="Platform\Platform.h" />
-    <ClInclude Include="Logging\SystemLog.h" />
-    <ClInclude Include="Imgui\ImguiXNotifications.h" />
-    <ClInclude Include="_Module\BaseModule.h" />
-    <ClInclude Include="Math\Easing.h" />
-    <ClInclude Include="Input\Input.h" />
-    <ClInclude Include="Settings\SettingsRegistry.h" />
-    <ClInclude Include="Settings\Settings.h" />
-    <ClInclude Include="Render\Settings\GlobalSettings_Render.h" />
-    <ClInclude Include="Types\Severity.h" />
-    <ClInclude Include="Logging\LogEntry.h" />
-    <ClInclude Include="Math\Lerp.h" />
-    <ClInclude Include="Memory\UniquePtr.h" />
-    <ClInclude Include="Memory\SharedPtr.h" />
-    <ClInclude Include="Memory\IntrusivePtr.h" />
-    <ClInclude Include="ThirdParty\LivePP\LivePP.h" />
-    <ClInclude Include="TypeSystem\TypeInstance.h" />
-    <ClInclude Include="Application\Module.h" />
-    <ClInclude Include="FileSystem\DataPath.h" />
-    <ClInclude Include="FileSystem\IDataFile.h" />
-    <ClInclude Include="Encoding\FourCC.h" />
-    <ClInclude Include="TypeSystem\DataFileInfo.h" />
-    <ClInclude Include="FileSystem\FileSystemExtension.h" />
-    <ClInclude Include="ThirdParty\pugixml\src\pugiconfig.hpp" />
-    <ClInclude Include="ThirdParty\pugixml\src\pugixml.hpp" />
-    <ClInclude Include="Serialization\XmlSerialization.h" />
-    <ClInclude Include="Serialization\TypeSerialization.h" />
-    <ClInclude Include="Utils\StringKeyValueParser.h" />
-    <ClInclude Include="TypeSystem\PropertyMetadata.h" />
-    <ClInclude Include="Utils\TreeLayout.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ThirdParty\cmdParser\LICENSE">
-      <Filter>ThirdParty\cmdParser</Filter>
+    <None Include="Render\RHI.esh">
+      <Filter>Render</Filter>
     </None>
     <None Include="ThirdParty\EA\EABase\doc\EABase.html">
       <Filter>ThirdParty\EA\EABase\doc</Filter>
+    </None>
+    <None Include="ThirdParty\pugixml\docs\manual.html">
+      <Filter>ThirdParty\pugixml\docs</Filter>
+    </None>
+    <None Include="ThirdParty\pugixml\docs\quickstart.html">
+      <Filter>ThirdParty\pugixml\docs</Filter>
     </None>
     <None Include="ThirdParty\concurrentqueue\LICENSE.md">
       <Filter>ThirdParty\concurrentqueue</Filter>
@@ -1690,8 +1878,6 @@
     <None Include="ThirdParty\concurrentqueue\README.md">
       <Filter>ThirdParty\concurrentqueue</Filter>
     </None>
-    <None Include="ThirdParty\pugixml\docs\manual.html" />
-    <None Include="ThirdParty\pugixml\docs\quickstart.html" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="ThirdParty\stb\LICENSE">
@@ -1702,224 +1888,247 @@
     </Text>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Imgui">
-      <UniqueIdentifier>{c63efa23-1513-437d-a93f-4bf27fbe04a5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render">
-      <UniqueIdentifier>{e0aa6073-f2d3-4e6c-8c03-83295c4b9662}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Application">
-      <UniqueIdentifier>{55591f63-66d3-48cd-b37f-3745368ef489}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Application\Platform">
-      <UniqueIdentifier>{81d5c9a8-a7d2-4d54-aac9-c7352b8881b6}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ThirdParty">
-      <UniqueIdentifier>{aff8fcb0-061a-4263-a732-1fa53c92ac0a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\cmdParser">
-      <UniqueIdentifier>{0cfb8e30-7d1e-4a0f-b7db-b02b8fedcdbc}</UniqueIdentifier>
+      <UniqueIdentifier>{d2610c58-f55d-4559-a41a-70ea7c6a70d3}</UniqueIdentifier>
     </Filter>
     <Filter Include="ThirdParty\EA">
-      <UniqueIdentifier>{50297027-ec5d-4d45-a083-489bba2facde}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL">
-      <UniqueIdentifier>{f13b5eaa-153c-4876-9184-7bc9da845733}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Doc">
-      <UniqueIdentifier>{f5d15113-ac1c-4e94-96ca-93b9dbf60529}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Source">
-      <UniqueIdentifier>{07454684-1630-4631-95cd-b7a9cbd73b73}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include">
-      <UniqueIdentifier>{6cf852f1-6a0b-47de-920c-7fe4aeda41f1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL">
-      <UniqueIdentifier>{3ff32b23-3e7b-46a2-9cf2-8bd5dcdf0752}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\bonus">
-      <UniqueIdentifier>{316ce190-1a86-4c9c-9e66-61983eab47b2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal">
-      <UniqueIdentifier>{c73e8d6f-c7c5-4f3d-87df-50018ec1766e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic">
-      <UniqueIdentifier>{485d2831-2fa3-4caa-9865-3a7a971ac12a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\arch">
-      <UniqueIdentifier>{377396ec-e554-4cb9-8750-5d06ef068e1b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\arch\x86">
-      <UniqueIdentifier>{48b9c29e-6977-43c0-8184-625d6792b081}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\arch\arm">
-      <UniqueIdentifier>{81a98038-d4af-4c10-b946-d6bd66b14774}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\compiler">
-      <UniqueIdentifier>{1e3d88ec-8eee-47fa-94eb-0a1a3972e426}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\compiler\gcc">
-      <UniqueIdentifier>{d20d1504-6583-481f-b2f4-e691fb092bf1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\compiler\msvc">
-      <UniqueIdentifier>{6e60520f-a0ac-4253-95ed-67d38896fade}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\atomic_macros">
-      <UniqueIdentifier>{f72705eb-0fea-43b4-b438-bf160285d17d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EABase">
-      <UniqueIdentifier>{ebe27c93-c8c5-4698-b15c-d524b54b4712}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EABase\doc">
-      <UniqueIdentifier>{566998c5-0556-4609-b27b-7ecec5451bc1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EABase\include">
-      <UniqueIdentifier>{742aab7f-4ac1-4fbb-a162-24161afb3ed4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EABase\include\Common">
-      <UniqueIdentifier>{64998b2d-7e48-477c-b60c-1f48b5c725b1}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EABase\include\Common\EABase">
-      <UniqueIdentifier>{da3a150a-508e-4139-af6e-b0f558779633}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\EA\EABase\include\Common\EABase\config">
-      <UniqueIdentifier>{9a56a2bc-64eb-4c0a-94ff-e5405a8bec45}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\stb">
-      <UniqueIdentifier>{4f743dc5-6c30-4d3a-ac14-5dfb6f6257d5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\pcg">
-      <UniqueIdentifier>{a480ae2f-ef70-421d-b6ec-f2781ac44a06}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\pcg\include">
-      <UniqueIdentifier>{5b5f0420-a3a3-431e-aa02-9ae6334b9a7b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\imgui">
-      <UniqueIdentifier>{3e17b5e6-51d2-42db-84e4-134dffe5384d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\imgui\misc">
-      <UniqueIdentifier>{bd1ac1ad-d82a-4091-9b3f-141e9f98a3a2}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\imgui\misc\freetype">
-      <UniqueIdentifier>{5041c110-41ad-4563-b182-fcb9982a6505}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\mpack">
-      <UniqueIdentifier>{ffd04ac5-874b-43fe-8808-7d43318dbacc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\xxhash">
-      <UniqueIdentifier>{070d7617-9975-4660-9c03-4f2c363a45ec}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\enkits">
-      <UniqueIdentifier>{34b76a3b-1a1f-4b62-8901-761bac357c77}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\rpmalloc">
-      <UniqueIdentifier>{51556e7b-0426-4b5e-9d78-0aceee2cd816}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\rapidjson">
-      <UniqueIdentifier>{84f239ac-0113-4291-8e92-374a2b066414}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\rapidjson\error">
-      <UniqueIdentifier>{53a6683d-77fa-45dc-ac3c-a6e87a7e5ac7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\rapidjson\internal">
-      <UniqueIdentifier>{7663c27d-7e20-4df0-a87e-9d741ca30ccd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\rapidjson\msinttypes">
-      <UniqueIdentifier>{aa01dcd6-d646-4697-b062-59b9f41279ea}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\iniparser">
-      <UniqueIdentifier>{8dda0761-c269-4590-9b28-a54d76c8e877}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="ThirdParty\concurrentqueue">
-      <UniqueIdentifier>{77d6a3d7-71eb-4e95-9675-4598ff5ff1de}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Render\Platform">
-      <UniqueIdentifier>{12d2e7a0-d2a7-428b-a33c-eab3fae89587}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Imgui\Platform">
-      <UniqueIdentifier>{0b7d6a4d-2821-4f2a-ae0d-b8d82e4390d0}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Math">
-      <UniqueIdentifier>{c21c8050-d37f-46d0-bb7c-1130084706ca}</UniqueIdentifier>
+      <UniqueIdentifier>{d43cc173-1608-4de1-ab42-73bdc72352b3}</UniqueIdentifier>
     </Filter>
     <Filter Include="Time">
-      <UniqueIdentifier>{82264783-dd57-4ead-ae29-653d77e98776}</UniqueIdentifier>
+      <UniqueIdentifier>{95c1731f-1778-408b-a9e4-8562f325f9f7}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Input">
-      <UniqueIdentifier>{21a51ab8-e722-48de-b028-1fc06ff4c30f}</UniqueIdentifier>
+    <Filter Include="Math">
+      <UniqueIdentifier>{3c1fe9e3-8807-41d5-9856-ca9ef41af47b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Input\InputStates">
-      <UniqueIdentifier>{c6ea4f5f-e83c-4c4f-93be-98d220650993}</UniqueIdentifier>
+    <Filter Include="Math\Platform">
+      <UniqueIdentifier>{e810ae3f-d6e7-4914-86ad-8b19ec928915}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Input\InputDevices">
-      <UniqueIdentifier>{8cf97272-ec6e-49f0-8174-765cdc0530c2}</UniqueIdentifier>
+    <Filter Include="Imgui">
+      <UniqueIdentifier>{8d95ddd7-4a14-4b27-a802-61ef2f949b8e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Input\InputDevices\Platform">
-      <UniqueIdentifier>{3e4872de-5b63-4243-a153-370b3e26c462}</UniqueIdentifier>
+    <Filter Include="Imgui\Platform">
+      <UniqueIdentifier>{b08e7dc5-9eb7-4276-a937-0c5dbac9b9b8}</UniqueIdentifier>
     </Filter>
     <Filter Include="Types">
-      <UniqueIdentifier>{607409c5-c0cf-42e5-ac88-d3f09039969f}</UniqueIdentifier>
+      <UniqueIdentifier>{6139a6f1-fdfd-4746-bebb-307afc270b79}</UniqueIdentifier>
     </Filter>
     <Filter Include="Types\Platform">
-      <UniqueIdentifier>{b1a7a8f3-c0a5-45ef-923e-b8a71b753649}</UniqueIdentifier>
+      <UniqueIdentifier>{b67be698-eb75-4d5c-a251-3cb5651e9425}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Input">
+      <UniqueIdentifier>{c3c837a6-3632-44cc-89b1-163ffe95e73c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Input\InputDevices">
+      <UniqueIdentifier>{f464e15f-595a-43f8-803d-6decd02a86b1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Input\InputDevices\Platform">
+      <UniqueIdentifier>{cebd7e3d-e8b7-4cc7-aa27-a8c91a526535}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Utils">
+      <UniqueIdentifier>{07a31578-9ba4-4bea-8659-7d77830b4716}</UniqueIdentifier>
     </Filter>
     <Filter Include="Fonts">
-      <UniqueIdentifier>{971dda5b-7e17-4f75-8a94-c8ad489efe2f}</UniqueIdentifier>
+      <UniqueIdentifier>{a8ec47c3-69fa-48ac-b379-d3986538c92b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render">
+      <UniqueIdentifier>{8ea97be8-1856-4018-9fa1-c52227efe5fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Render\Settings">
+      <UniqueIdentifier>{cbd86a2c-ca84-494b-990a-8c9e9f9dfd06}</UniqueIdentifier>
     </Filter>
     <Filter Include="Memory">
-      <UniqueIdentifier>{9d90b305-6cc4-45ae-84c4-5a2b0c2cf681}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="_Module">
-      <UniqueIdentifier>{d093b84d-eebb-4301-a59c-31aa11cd14cf}</UniqueIdentifier>
+      <UniqueIdentifier>{d341d6f8-5fb4-4aca-80c4-8437d1c69a49}</UniqueIdentifier>
     </Filter>
     <Filter Include="Network">
-      <UniqueIdentifier>{7fc07ba2-6fbc-4f73-9cfc-6de1ddcfe576}</UniqueIdentifier>
+      <UniqueIdentifier>{69249619-ffc5-4222-a0d9-513ba1163b92}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Network\IPC">
-      <UniqueIdentifier>{97172e9f-df66-44d8-89fb-8a14defb953c}</UniqueIdentifier>
+    <Filter Include="Network\Clients">
+      <UniqueIdentifier>{4cc6ef41-6a70-47f4-a3d7-ea46bca3caca}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Network\Servers">
+      <UniqueIdentifier>{89425d96-bfe8-4ead-9235-12bb8d0dcfb4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="_Module">
+      <UniqueIdentifier>{acf04a46-1970-4e57-ac0c-30225561e348}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Logging">
+      <UniqueIdentifier>{0975733c-e89f-4aa4-b908-ad7e0d6bf42c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Logging\Platform">
+      <UniqueIdentifier>{ee161679-38fc-4eb1-b99a-65eb0c5ac306}</UniqueIdentifier>
     </Filter>
     <Filter Include="Drawing">
-      <UniqueIdentifier>{5e20c93d-bb31-441e-bc66-549ca9c14dc1}</UniqueIdentifier>
+      <UniqueIdentifier>{7c9079a2-432d-4d57-a2f1-97099f1be267}</UniqueIdentifier>
     </Filter>
     <Filter Include="Resource">
-      <UniqueIdentifier>{1ba592a1-d6dd-4676-ab89-26a350442aea}</UniqueIdentifier>
+      <UniqueIdentifier>{2d5f7978-9485-406e-86a0-262fb26b6a19}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource\Settings">
+      <UniqueIdentifier>{d0fb7d3e-d17a-4013-a856-5d26a459ee3d}</UniqueIdentifier>
     </Filter>
     <Filter Include="Resource\ResourceProviders">
-      <UniqueIdentifier>{8f248ca3-a944-4b1b-babd-f261a1edce30}</UniqueIdentifier>
+      <UniqueIdentifier>{598eac96-4f90-4eb4-97fc-20189f63d42a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Encoding">
+      <UniqueIdentifier>{d6c7cd11-40ac-468f-b2cb-588a6d2947c1}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Settings">
+      <UniqueIdentifier>{ce1c304f-9749-4deb-800c-7134b86990da}</UniqueIdentifier>
     </Filter>
     <Filter Include="Platform">
-      <UniqueIdentifier>{1a954fd3-d911-46b5-8a75-d0e04684ddd3}</UniqueIdentifier>
+      <UniqueIdentifier>{afc9dcb3-c368-4173-b165-841ec102327c}</UniqueIdentifier>
     </Filter>
     <Filter Include="Threading">
-      <UniqueIdentifier>{dd57b6d0-1881-456b-9dea-3c90b61d7ea1}</UniqueIdentifier>
+      <UniqueIdentifier>{b9ac7ba9-85be-4988-b0d3-6a4c32fdc630}</UniqueIdentifier>
     </Filter>
     <Filter Include="Threading\Platform">
-      <UniqueIdentifier>{c2c4bd00-2e6a-46d5-b51e-ccdc35ca7a8d}</UniqueIdentifier>
+      <UniqueIdentifier>{b7bb3f9d-c6f2-467c-9d8f-4a4b21dd6468}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Algorithm">
-      <UniqueIdentifier>{f62ae861-d95c-4e97-aa8a-9d5b3a582cf7}</UniqueIdentifier>
+    <Filter Include="ThirdParty\EA\EASTL">
+      <UniqueIdentifier>{6de3c7ca-8e10-4cbc-bbe7-ae5ebab22aeb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Doc">
+      <UniqueIdentifier>{e9280659-1d58-4611-9c1e-1e1cae88dbdd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Source">
+      <UniqueIdentifier>{86220242-2429-417e-936b-9257af5c0fc4}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include">
+      <UniqueIdentifier>{70048481-6587-4eea-abbf-0b246f7e1c69}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL">
+      <UniqueIdentifier>{1c7c8231-f36c-4e10-b01a-a77e313c7b94}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\bonus">
+      <UniqueIdentifier>{24abb4ca-19ad-4fce-a105-19e045a4a25f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal">
+      <UniqueIdentifier>{5c73dbce-dc6d-4d5d-a885-54416b92e343}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic">
+      <UniqueIdentifier>{6238cb95-df17-42bf-8d59-9b9becc050eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\arch">
+      <UniqueIdentifier>{5ab328aa-eebe-4d2c-8053-0ef06202d3b9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\arch\x86">
+      <UniqueIdentifier>{602a7c3b-130a-43d2-80da-7267fdd5026c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\arch\arm">
+      <UniqueIdentifier>{9acb4adb-09ba-4d37-a763-ab45a63b4d5b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\compiler">
+      <UniqueIdentifier>{c2dfdb18-eca8-4bef-ae24-511fe83d4a6e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\compiler\gcc">
+      <UniqueIdentifier>{356292ee-447b-40f4-bab0-ae874a927b75}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\compiler\msvc">
+      <UniqueIdentifier>{4e140539-766d-4123-9080-0eed2a13d80a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EASTL\Include\EASTL\internal\atomic\atomic_macros">
+      <UniqueIdentifier>{756ad62b-6d6b-43d6-9a87-3f079fb6b77d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EABase">
+      <UniqueIdentifier>{4d1915eb-31a6-4cd2-9fdf-5fdded2823eb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EABase\doc">
+      <UniqueIdentifier>{aa2c3b95-d67e-4afa-9708-c5253b56cbbe}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EABase\include">
+      <UniqueIdentifier>{3184bd94-f409-482e-beed-675053f8e3bd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EABase\include\Common">
+      <UniqueIdentifier>{533bf382-4110-4cc6-8195-1b0360b29936}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EABase\include\Common\EABase">
+      <UniqueIdentifier>{b9d5a343-f917-48c2-8074-c30988de9df3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\EA\EABase\include\Common\EABase\config">
+      <UniqueIdentifier>{0d0a84b3-9bb7-49bd-90e2-5c18a5e52eb3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\stb">
+      <UniqueIdentifier>{11dccd98-c062-441f-8f82-bea418ffa77f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\pcg">
+      <UniqueIdentifier>{38624597-c4d9-4cb3-bf8b-014040742ef3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\pcg\include">
+      <UniqueIdentifier>{c18b2d90-8c78-446f-a128-de3190095e03}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\lzav">
+      <UniqueIdentifier>{83aa421f-726a-4ac8-b21e-f978640eb061}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\imgui">
+      <UniqueIdentifier>{583503f5-820b-47fa-820e-fbfefbb9f5de}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\imgui\misc">
+      <UniqueIdentifier>{8e947dc6-f318-4c40-8398-925f824d50bc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\imgui\misc\freetype">
+      <UniqueIdentifier>{ec220aae-11fb-440b-8401-bb4af376f8db}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\mpack">
+      <UniqueIdentifier>{10b0631d-62c3-40e8-a1eb-497b78c65edc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\enkits">
+      <UniqueIdentifier>{680bc58a-543d-440c-8ed4-4d03efde012a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\implot">
+      <UniqueIdentifier>{d42aaa68-6f3f-4370-ab6c-7300b4fd1cc9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\pugixml">
+      <UniqueIdentifier>{67393b24-c23f-4f43-8834-50205bade48f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\pugixml\src">
+      <UniqueIdentifier>{6d9f5490-bd4f-4c21-ab09-ddce4239cb8d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\pugixml\docs">
+      <UniqueIdentifier>{b7f7ed88-ed54-4020-9ede-4daec254660d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\pugixml\scripts">
+      <UniqueIdentifier>{4c51fcfc-77c2-41be-9647-4b1bd490cb18}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\pugixml\scripts\natvis">
+      <UniqueIdentifier>{63f63651-095c-42e8-bc81-5270966d1407}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\rpmalloc">
+      <UniqueIdentifier>{c661acfb-05bf-403f-9ed8-b2a1b9760c2c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\rapidhash">
+      <UniqueIdentifier>{6c132575-3148-41e8-8e76-d3cd9e7a07bd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\iniparser">
+      <UniqueIdentifier>{c89a2940-ad8e-4d0e-bf6c-6b61e3a53bea}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\concurrentqueue">
+      <UniqueIdentifier>{f447ad8c-5c22-42bb-baf1-cadeecf96b56}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ThirdParty\D3D12MemoryAllocator">
+      <UniqueIdentifier>{525cc0c7-4ed8-482f-ba39-65f5947223db}</UniqueIdentifier>
     </Filter>
     <Filter Include="FileSystem">
-      <UniqueIdentifier>{fd116ce6-13c9-4724-90f6-0ba64f0c53ab}</UniqueIdentifier>
+      <UniqueIdentifier>{0c051d43-a2fb-4ff8-b49c-81ee97fa9ef8}</UniqueIdentifier>
     </Filter>
     <Filter Include="FileSystem\Platform">
-      <UniqueIdentifier>{4f7571b1-8d47-428a-820d-80833738465d}</UniqueIdentifier>
+      <UniqueIdentifier>{4e0e25dc-fd10-4d2e-b409-687425fd7f44}</UniqueIdentifier>
     </Filter>
     <Filter Include="TypeSystem">
-      <UniqueIdentifier>{63c969d4-3a29-4d67-a1d8-c56eae330d00}</UniqueIdentifier>
+      <UniqueIdentifier>{abe50f48-2542-4343-8096-a52752d5236f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Application">
+      <UniqueIdentifier>{175b343e-0c0d-42c5-9eb8-a4123ffa0ecc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Application\Platform">
+      <UniqueIdentifier>{ba46ad54-d4b5-4d3e-be86-7ecfdd5f6c8d}</UniqueIdentifier>
     </Filter>
     <Filter Include="Serialization">
-      <UniqueIdentifier>{88455efa-8ad7-43d8-8c93-20130116aaa4}</UniqueIdentifier>
+      <UniqueIdentifier>{a8cf67f4-8339-4657-b6b2-97384a6e0621}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="ThirdParty\EA\EASTL\Doc\EASTL.natvis">
-      <Filter>ThirdParty\EA\EASTL\Doc</Filter>
-    </Natvis>
-    <Natvis Include="ThirdParty\pugixml\scripts\natvis\pugixml_compact.natvis" />
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="ThirdParty\pugixml\scripts\pugixml_dll.rc" />
+    <ResourceCompile Include="ThirdParty\pugixml\scripts\pugixml_dll.rc">
+      <Filter>ThirdParty\pugixml\scripts</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

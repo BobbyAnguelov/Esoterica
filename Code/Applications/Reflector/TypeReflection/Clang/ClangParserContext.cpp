@@ -3,7 +3,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::TypeSystem::Reflection
+namespace EE::Reflection
 {
     static void CalculateFullNamespace( TVector<String> const& namespaceStack, String& fullNamespace )
     {
@@ -71,12 +71,12 @@ namespace EE::TypeSystem::Reflection
 
     //-------------------------------------------------------------------------
 
-    ReflectionMacro::ReflectionMacro( ReflectedHeader const* pReflectedHeader, CXCursor cursor, CXSourceRange sourceRange, ReflectedHeader::ReflectionMacro type )
+    ParsedMacro::ParsedMacro( ReflectedHeader const* pReflectedHeader, CXCursor cursor, CXSourceRange sourceRange, ReflectionMacro type )
         : m_headerID( pReflectedHeader->m_ID )
         , m_type( type )
         , m_position( sourceRange.begin_int_data )
     {
-        EE_ASSERT( m_type < ReflectedHeader::ReflectionMacro::NumMacros );
+        EE_ASSERT( m_type < ReflectionMacro::NumMacros );
 
         clang_getExpansionLocation( clang_getRangeStart( sourceRange ), nullptr, &m_lineNumber, nullptr, nullptr );
 
@@ -86,7 +86,7 @@ namespace EE::TypeSystem::Reflection
 
         //-------------------------------------------------------------------------
 
-        if ( m_type == ReflectedHeader::ReflectionMacro::ReflectType || m_type == ReflectedHeader::ReflectionMacro::ReflectProperty || type == ReflectedHeader::ReflectionMacro::Resource || type == ReflectedHeader::ReflectionMacro::DataFile )
+        if ( m_type == ReflectionMacro::ReflectType || m_type == ReflectionMacro::ReflectProperty || type == ReflectionMacro::Resource || type == ReflectionMacro::DataFile )
         {
             // Read the contents of the macro
             //-------------------------------------------------------------------------
@@ -109,7 +109,7 @@ namespace EE::TypeSystem::Reflection
             if ( startIdx != String::npos && endIdx != String::npos && endIdx > startIdx )
             {
                 // Property macro contents are JSON, so apply some enclosing formatting
-                if ( type == ReflectedHeader::ReflectionMacro::ReflectProperty )
+                if ( type == ReflectionMacro::ReflectProperty )
                 {
                     m_macroContents = m_macroContents.substr( startIdx + 1, endIdx - startIdx - 1 );
                 }
@@ -125,24 +125,26 @@ namespace EE::TypeSystem::Reflection
         }
     }
 
-    String ReflectionMacro::GetReflectedTypeName() const
+    String ParsedMacro::GetReflectedTypeName() const
     {
         String typeName;
 
         switch ( m_type )
         {
-            case ReflectedHeader::ReflectionMacro::ReflectProperty:
-            case ReflectedHeader::ReflectionMacro::ReflectType:
-            case ReflectedHeader::ReflectionMacro::EntityComponent:
-            case ReflectedHeader::ReflectionMacro::SingletonEntityComponent:
-            case ReflectedHeader::ReflectionMacro::EntitySystem:
-            case ReflectedHeader::ReflectionMacro::EntityWorldSystem:
+            case ReflectionMacro::ReflectProperty:
+            case ReflectionMacro::ReflectType:
+            case ReflectionMacro::EntityComponent:
+            case ReflectionMacro::TransientEntityComponent:
+            case ReflectionMacro::SingletonEntityComponent:
+            case ReflectionMacro::TransientSingletonEntityComponent:
+            case ReflectionMacro::EntitySystem:
+            case ReflectionMacro::EntityWorldSystem:
             {
                 typeName = m_macroContents;
             }
             break;
 
-            case ReflectedHeader::ReflectionMacro::DataFile:
+            case ReflectionMacro::DataFile:
             {
                 size_t const endIdx = m_macroContents.find( ',', 0 );
                 typeName = m_macroContents.substr( 0, endIdx );
@@ -204,7 +206,7 @@ namespace EE::TypeSystem::Reflection
         // On Root namespace
         if ( m_namespaceStack.size() == 1 )
         {
-            m_inEngineNamespace = ( name == Reflection::Settings::g_engineNamespace );
+            m_inEngineNamespace = ( name == Settings::g_engineNamespace );
         }
     }
 
@@ -222,9 +224,9 @@ namespace EE::TypeSystem::Reflection
 
     bool ClangParserContext::SetModuleClassName( FileSystem::Path const& headerFilePath, String const& moduleClassName )
     {
-        for ( auto& prj : m_pDatabase->GetReflectedProjects() )
+        for ( ReflectedProject const& prj : m_pDatabase->GetReflectedProjects() )
         {
-            if ( headerFilePath.IsUnderDirectory( prj.m_parentDirectoryPath ) )
+            if ( headerFilePath.IsUnderDirectory( prj.m_directoryPath ) )
             {
                 EE_ASSERT( prj.m_moduleClassName.empty() );
                 prj.m_moduleClassName = moduleClassName;
@@ -237,29 +239,29 @@ namespace EE::TypeSystem::Reflection
 
     bool ClangParserContext::IsEngineNamespace( String const& namespaceString ) const
     {
-        return namespaceString == Reflection::Settings::g_engineNamespace;
+        return namespaceString == Settings::g_engineNamespace;
     }
 
     //-------------------------------------------------------------------------
 
-    void ClangParserContext::AddFoundReflectionMacro( ReflectionMacro const& foundMacro )
+    void ClangParserContext::AddFoundReflectionMacro( ParsedMacro const& foundMacro )
     {
         EE_ASSERT( foundMacro.m_headerID.IsValid() );
-        EE_ASSERT( foundMacro.m_type != ReflectedHeader::ReflectionMacro::Unknown );
+        EE_ASSERT( foundMacro.m_type != ReflectionMacro::Unknown );
 
-        if ( foundMacro.m_type == ReflectedHeader::ReflectionMacro::ReflectProperty )
+        if ( foundMacro.m_type == ReflectionMacro::ReflectProperty )
         {
-            TVector<ReflectionMacro>& macrosForHeader = m_propertyReflectionMacros[foundMacro.m_headerID];
+            TVector<ParsedMacro>& macrosForHeader = m_propertyReflectionMacros[foundMacro.m_headerID];
             macrosForHeader.push_back( foundMacro );
         }
         else // All other types
         {
-            TVector<ReflectionMacro>& macrosForHeader = m_typeReflectionMacros[foundMacro.m_headerID];
+            TVector<ParsedMacro>& macrosForHeader = m_typeReflectionMacros[foundMacro.m_headerID];
             macrosForHeader.push_back( foundMacro );
         }
     }
 
-    bool ClangParserContext::GetReflectionMacroForType( StringID headerID, CXCursor const& cr, ReflectionMacro& macro )
+    bool ClangParserContext::GetReflectionMacroForType( StringID headerID, CXCursor const& cr, ParsedMacro& macro )
     {
         // Try get macros for this header
         //-------------------------------------------------------------------------
@@ -270,7 +272,7 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
-        TVector<ReflectionMacro>& macrosForHeader = headerIter->second;
+        TVector<ParsedMacro>& macrosForHeader = headerIter->second;
 
         // Check the header macros
         //-------------------------------------------------------------------------
@@ -291,7 +293,7 @@ namespace EE::TypeSystem::Reflection
         return false;
     }
 
-    bool ClangParserContext::FindReflectionMacroForProperty( StringID headerID, uint32_t lineNumber, ReflectionMacro& reflectionMacro )
+    bool ClangParserContext::FindReflectionMacroForProperty( StringID headerID, uint32_t lineNumber, ParsedMacro& reflectionMacro )
     {
         // Try get macros for this header
         //-------------------------------------------------------------------------
@@ -302,12 +304,12 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
-        TVector<ReflectionMacro>& macrosForHeader = headerIter->second;
+        TVector<ParsedMacro>& macrosForHeader = headerIter->second;
 
         // Try to find the macro
         //-------------------------------------------------------------------------
 
-        TVector<ReflectionMacro>::iterator foundMacros[2] = { macrosForHeader.end(), macrosForHeader.end() };
+        TVector<ParsedMacro>::iterator foundMacros[2] = { macrosForHeader.end(), macrosForHeader.end() };
 
         bool hasMacroOnLineAbove = false;
         bool hasMacroOnSameLine = false;
@@ -340,7 +342,7 @@ namespace EE::TypeSystem::Reflection
             return false;
         }
 
-        TVector<ReflectionMacro>::iterator foundMacroIter = hasMacroOnLineAbove ? foundMacros[0] : foundMacros[1];
+        TVector<ParsedMacro>::iterator foundMacroIter = hasMacroOnLineAbove ? foundMacros[0] : foundMacros[1];
         reflectionMacro = *foundMacroIter;
         macrosForHeader.erase( foundMacroIter );
         return true;

@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Drawing { class DrawContext; }
+namespace EE { class DebugDrawContext; }
 
 //-------------------------------------------------------------------------
 
@@ -32,7 +32,7 @@ namespace EE::Math
             int32_t         m_parentNodeIdx = InvalidIndex;
             float           m_volume = 0;
 
-            uint64_t        m_userData = 0xFFFFFFFFFFFFFFFF;
+            uint64_t        m_userData = UINT64_MAX;
             bool            m_isFree = true;
         };
 
@@ -57,7 +57,7 @@ namespace EE::Math
         }
 
         #if EE_DEVELOPMENT_TOOLS
-        void DrawDebug( Drawing::DrawContext& drawingContext ) const;
+        void DrawDebug( DebugDrawContext& drawingContext ) const;
         #endif
 
     private:
@@ -74,8 +74,8 @@ namespace EE::Math
         void FindAllOverlappingLeafNodes( int32_t currentNodeIdx, OBB const& queryBox, TVector<uint64_t>& outResults ) const;
 
         #if EE_DEVELOPMENT_TOOLS
-        void DrawBranch( Drawing::DrawContext& drawingContext, int32_t nodeIdx ) const;
-        void DrawLeaf( Drawing::DrawContext& drawingContext, int32_t nodeIdx ) const;
+        void DrawBranch( DebugDrawContext& drawingContext, int32_t nodeIdx ) const;
+        void DrawLeaf( DebugDrawContext& drawingContext, int32_t nodeIdx ) const;
         #endif
 
     private:

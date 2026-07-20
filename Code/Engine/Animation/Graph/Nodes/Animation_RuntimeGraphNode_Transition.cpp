@@ -14,7 +14,7 @@ namespace EE::Animation
         auto pNode = CreateNode<TransitionNode>( context, options );
         context.SetNodePtrFromIndex( m_targetStateNodeIdx, pNode->m_pTargetNode );
         context.SetOptionalNodePtrFromIndex( m_durationOverrideNodeIdx, pNode->m_pDurationOverrideNode );
-        context.SetOptionalNodePtrFromIndex( m_syncEventOffsetOverrideNodeIdx, pNode->m_pEventOffsetOverrideNode );
+        context.SetOptionalNodePtrFromIndex( m_timeOffsetOverrideNodeIdx, pNode->m_pTimeOffsetOverrideNode );
         context.SetOptionalNodePtrFromIndex( m_startBoneMaskNodeIdx, pNode->m_pStartBoneMaskNode );
         context.SetOptionalNodePtrFromIndex( m_targetSyncIDNodeIdx, pNode->m_pTargetSyncIDNode );
     }
@@ -54,11 +54,11 @@ namespace EE::Animation
 
             if ( m_sourceType == SourceType::State )
             {
-                sourceNodeResult.m_sampledEventRange = GetSourceStateNode()->StartTransitionOut( context );
+                sourceNodeResult.m_sampledEventRange = GetSourceStateNode()->StartTransitionOut( context, isInstantTransition );
             }
             else
             {
-                SampledEventRange const newTargetEventRange = GetSourceTransitionNode()->m_pTargetNode->StartTransitionOut( context );
+                SampledEventRange const newTargetEventRange = GetSourceTransitionNode()->m_pTargetNode->StartTransitionOut( context, isInstantTransition );
                 sourceNodeResult.m_sampledEventRange.m_endIdx = newTargetEventRange.m_endIdx;
             }
 
@@ -74,7 +74,7 @@ namespace EE::Animation
                 m_pSourceNode = nullptr;
 
                 // Rollback the task system as we dont need to execute any of these tasks
-                context.m_pTaskSystem->RollbackToTaskIndexMarker( startOptions.m_sourceTasksStartMarker );
+                context.GetTaskSystem()->RollbackToTaskIndexMarker( startOptions.m_sourceTasksStartMarker );
             }
         };
 
@@ -94,8 +94,8 @@ namespace EE::Animation
 
         if ( m_cachedPoseBufferID.IsValid() && sourceNodeResult.HasRegisteredTasks() )
         {
-            EE_ASSERT( context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
-            sourceNodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::CachedPoseWriteTask>( GetNodeIndex(), sourceNodeResult.m_taskIdx, m_cachedPoseBufferID );
+            EE_ASSERT( context.GetTaskSystem()->IsValidCachedPose( m_cachedPoseBufferID ) );
+            sourceNodeResult.m_taskIdx = context.GetTaskSystem()->RegisterTask<CachedPoseWriteTask>( GetNodePath( context ), sourceNodeResult.m_taskIdx, m_cachedPoseBufferID );
         }
 
         // Use sync events to initialize the target state
@@ -137,25 +137,8 @@ namespace EE::Animation
                 Seconds const sourceDuration = m_pSourceNode->GetDuration();
                 if ( sourceDuration > 0.0f )
                 {
-                    Percentage const sourceTransitionDuration = Percentage( pDefinition->m_duration / sourceDuration );
-                    bool const shouldClamp = deltaBetweenCurrentTimeAndRealEndTime < sourceTransitionDuration;
-
-                    // Calculate the target end position for this transition
-                    SyncTrackTime transitionEndSyncTime;
-                    if ( shouldClamp )
-                    {
-                        // Clamp to the last sync event in the source
-                        transitionEndSyncTime = sourceRealEndSyncTime;
-                    }
-                    else
-                    {
-                        // Clamp to the estimated end position after the transition time
-                        Percentage const sourceEndTimeAfterTransition = ( sourceCurrentTime + sourceTransitionDuration ).GetNormalizedTime();
-                        transitionEndSyncTime = sourceSyncTrack.GetTime( sourceEndTimeAfterTransition );
-                    }
-
-                    // Calculate the transition duration in terms of event distance and update the progress for this transition
-                    m_transitionDuration = sourceSyncTrack.CalculatePercentageCovered( sourceUpdateRange.m_startTime, transitionEndSyncTime );
+                    Seconds const clampedTransitionDuration = sourceDuration * deltaBetweenCurrentTimeAndRealEndTime;
+                    m_transitionDuration = Math::Min( m_transitionDuration, clampedTransitionDuration );
                 }
             }
 
@@ -164,15 +147,15 @@ namespace EE::Animation
             // Only apply sync offset if we are not part of a sync'ed update
             if ( startOptions.m_pUpdateRange == nullptr )
             {
-                if ( m_pEventOffsetOverrideNode != nullptr )
+                if ( m_pTimeOffsetOverrideNode != nullptr )
                 {
-                    m_pEventOffsetOverrideNode->Initialize( context );
-                    m_syncEventOffset = Math::Floor( m_pEventOffsetOverrideNode->GetValue<float>( context ) );
-                    m_pEventOffsetOverrideNode->Shutdown( context );
+                    m_pTimeOffsetOverrideNode->Initialize( context );
+                    m_syncEventOffset = Math::Floor( m_pTimeOffsetOverrideNode->GetValue<float>( context ) );
+                    m_pTimeOffsetOverrideNode->Shutdown( context );
                 }
                 else
                 {
-                    m_syncEventOffset = Math::Floor( pDefinition->m_syncEventOffset );
+                    m_syncEventOffset = Math::Floor( pDefinition->m_timeOffset );
                 }
             }
             else
@@ -184,6 +167,8 @@ namespace EE::Animation
             targetUpdateRange = sourceUpdateRange;
             targetUpdateRange.m_startTime.m_eventIdx += int32_t( m_syncEventOffset );
             targetUpdateRange.m_endTime.m_eventIdx += int32_t( m_syncEventOffset );
+
+            EE_ASSERT( targetUpdateRange.IsValid() );
 
             // Transition out - this will resample any source state events so that the target state machine has all the correct state events
             StartTransitionOutForSource();
@@ -205,25 +190,25 @@ namespace EE::Animation
 
         else
         {
-            // Try get sync event offset
-            if ( m_pEventOffsetOverrideNode != nullptr )
+            // Try get sync event offset (note this may be in seconds based on the flags)
+            if ( m_pTimeOffsetOverrideNode != nullptr )
             {
-                m_pEventOffsetOverrideNode->Initialize( context );
-                m_syncEventOffset = m_pEventOffsetOverrideNode->GetValue<float>( context );
-                m_pEventOffsetOverrideNode->Shutdown( context );
+                m_pTimeOffsetOverrideNode->Initialize( context );
+                m_syncEventOffset = m_pTimeOffsetOverrideNode->GetValue<float>( context );
+                m_pTimeOffsetOverrideNode->Shutdown( context );
             }
             else
             {
-                m_syncEventOffset = pDefinition->m_syncEventOffset;
+                m_syncEventOffset = pDefinition->m_timeOffset;
             }
 
             // Should we clamp how long the transition is active for?
+            Seconds const sourceDuration = m_pSourceNode->GetDuration();
             if ( pDefinition->ShouldClampTransitionLength() )
             {
-                Seconds const sourceDuration = m_pSourceNode->GetDuration();
                 if ( sourceDuration > 0.0f )
                 {
-                    float const remainingNodeTime = ( 1.0f - m_pSourceNode->GetCurrentTime() ) * sourceDuration;
+                    Seconds const remainingNodeTime = ( 1.0f - m_pSourceNode->GetCurrentTime() ) * sourceDuration;
                     m_transitionDuration = Math::Min( m_transitionDuration, remainingNodeTime );
                 }
             }
@@ -234,59 +219,82 @@ namespace EE::Animation
             {
                 SyncTrackTime targetStartEventSyncTime;
 
-                // Calculate the target start position (if we need to match the source)
-                if ( shouldMatchSourceTime )
+                bool const shouldMatchSourceTimeInSeconds = pDefinition->ShouldMatchTimeInSeconds();
+                if ( shouldMatchSourceTimeInSeconds || pDefinition->ShouldOffsetTimeInSeconds() )
                 {
-                    SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
-                    SyncTrackTime sourceFromSyncTime = sourceSyncTrack.GetTime( m_pSourceNode->GetCurrentTime() );
-
-                    // Set the matching event index if required
-                    if ( pDefinition->ShouldMatchSyncEventIndex() )
+                    Seconds sourceCurrentTimeSeconds = 0.0f;
+                    if ( shouldMatchSourceTimeInSeconds )
                     {
-                        targetStartEventSyncTime.m_eventIdx = sourceFromSyncTime.m_eventIdx;
-                    }
-                    else if ( pDefinition->ShouldMatchSyncEventID() )
-                    {
-                        // Get the sync event ID to match
-                        StringID eventIDToMatch;
-                        if ( m_pTargetSyncIDNode != nullptr )
-                        {
-                            m_pTargetSyncIDNode->Initialize( context );
-                            eventIDToMatch = m_pTargetSyncIDNode->GetValue<StringID>( context );
-                            m_pTargetSyncIDNode->Shutdown( context );
-                        }
-                        else
-                        {
-                            eventIDToMatch = sourceSyncTrack.GetEventID( sourceFromSyncTime.m_eventIdx );
-                        }
-
-                        // Get the target sync track time
-                        if ( eventIDToMatch.IsValid() )
-                        {
-                            // TODO: check if this will become a performance headache - initialization/shutdown should be cheap!
-                            // If it becomes a headache - initialize it here and then conditionally initialize later... Our init time and update time will not match so that might be a problem for some nodes, but this option should be rarely used
-                            m_pTargetNode->Initialize( context, targetStartEventSyncTime );
-                            SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
-                            targetStartEventSyncTime.m_eventIdx = pDefinition->ShouldPreferClosestSyncEventID() ? targetSyncTrack.GetClosestEventIndexForID( sourceFromSyncTime, eventIDToMatch ) : targetSyncTrack.GetEventIndexForID( eventIDToMatch );
-                            m_pTargetNode->Shutdown( context );
-                        }
+                        sourceCurrentTimeSeconds = sourceDuration * m_pSourceNode->GetCurrentTime().ToFloat();
                     }
 
-                    // Should we keep the source "From" percentage through
-                    if ( pDefinition->ShouldMatchSyncEventPercentage() )
-                    {
-                        targetStartEventSyncTime.m_percentageThrough = sourceFromSyncTime.m_percentageThrough;
-                    }
+                    // Apply time offset
+                    Seconds const targetDesiredTimeSeconds = sourceCurrentTimeSeconds + m_syncEventOffset;
+                    m_syncEventOffset = 0.0f;
+
+                    // TODO: check if this will become a performance headache - initialization/shutdown should be cheap!
+                    // If it becomes a headache - initialize it here and then conditionally initialize later... Our init time and update time will not match so that might be a problem for some nodes, but this option should be rarely used
+                    m_pTargetNode->Initialize( context, SyncTrackTime() );
+                    Percentage const targetDesiredTime = ( m_pTargetNode->GetDuration() == 0.0f ) ? 0.0f : Math::Clamp( targetDesiredTimeSeconds.ToFloat() / m_pTargetNode->GetDuration(), 0.0f, 1.0f );
+                    targetStartEventSyncTime = m_pTargetNode->GetSyncTrack().GetTime( targetDesiredTime.ToFloat() );
+                    m_pTargetNode->Shutdown( context );
                 }
+                else // Match using sync time
+                {
+                    // Calculate the target start position (if we need to match the source)
+                    if ( pDefinition->ShouldMatchSourceTime() )
+                    {
+                        SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
+                        SyncTrackTime sourceFromSyncTime = sourceSyncTrack.GetTime( m_pSourceNode->GetCurrentTime() );
 
-                // Apply the sync event offset
-                float eventIdxOffset;
-                float percentageThroughOffset = Math::ModF( m_syncEventOffset, eventIdxOffset );
-                targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
+                        // Set the matching event index if required
+                        if ( pDefinition->ShouldMatchSyncEventIndex() )
+                        {
+                            targetStartEventSyncTime.m_eventIdx = sourceFromSyncTime.m_eventIdx;
+                        }
+                        else if ( pDefinition->ShouldMatchSyncEventID() )
+                        {
+                            // Get the sync event ID to match
+                            StringID eventIDToMatch;
+                            if ( m_pTargetSyncIDNode != nullptr )
+                            {
+                                m_pTargetSyncIDNode->Initialize( context );
+                                eventIDToMatch = m_pTargetSyncIDNode->GetValue<StringID>( context );
+                                m_pTargetSyncIDNode->Shutdown( context );
+                            }
+                            else
+                            {
+                                eventIDToMatch = sourceSyncTrack.GetEventID( sourceFromSyncTime.m_eventIdx );
+                            }
 
-                // Ensure we handle looping past the current event with the percentage offset
-                targetStartEventSyncTime.m_percentageThrough = Math::ModF( targetStartEventSyncTime.m_percentageThrough + percentageThroughOffset, eventIdxOffset );
-                targetStartEventSyncTime.m_eventIdx += (int32_t) eventIdxOffset;
+                            // Get the target sync track time
+                            if ( eventIDToMatch.IsValid() )
+                            {
+                                EE_ASSERT( targetUpdateRange.IsValid() );
+
+                                // TODO: check if this will become a performance headache - initialization/shutdown should be cheap!
+                                // If it becomes a headache - initialize it here and then conditionally initialize later... Our init time and update time will not match so that might be a problem for some nodes, but this option should be rarely used
+                                m_pTargetNode->Initialize( context, targetStartEventSyncTime );
+                                SyncTrack const& targetSyncTrack = m_pTargetNode->GetSyncTrack();
+                                targetStartEventSyncTime.m_eventIdx = pDefinition->ShouldPreferClosestSyncEventID() ? targetSyncTrack.GetClosestEventIndexForID( sourceFromSyncTime, eventIDToMatch ) : targetSyncTrack.GetEventIndexForID( eventIDToMatch );
+                                m_pTargetNode->Shutdown( context );
+                            }
+                        }
+
+                        // Should we keep the source "From" percentage through
+                        if ( pDefinition->ShouldMatchSyncEventPercentage() )
+                        {
+                            targetStartEventSyncTime.m_percentageThrough = sourceFromSyncTime.m_percentageThrough;
+                        }
+                    }
+
+                    // Apply the sync event offset
+                    float const flNewIdxAndPercentage = targetStartEventSyncTime.ToFloat() + m_syncEventOffset;
+                    float eventIdxOffset;
+                    float percentageThroughOffset = Math::Abs( Math::ModF( flNewIdxAndPercentage, eventIdxOffset ) );
+                    targetStartEventSyncTime = SyncTrackTime( (int32_t) eventIdxOffset, eventIdxOffset );
+                    EE_ASSERT( targetStartEventSyncTime.IsValid() );
+                }
 
                 // Transition out - this will resample any source state events so that the target state machine has all the correct state events
                 StartTransitionOutForSource();
@@ -361,7 +369,8 @@ namespace EE::Animation
             {
                 m_previousTime = 0.0f;
                 m_currentTime = 0.0f;
-                m_blendedDuration = Math::Lerp( IsSourceACachedPose() ? Seconds( 0.0f ) : m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), m_blendWeight );
+                m_blendedDuration = Math::Lerp( IsSourceACachedPoseOrOffState() ? Seconds( 0.0f ) : m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), m_blendWeight );
+                m_syncTrack = m_pTargetNode->GetSyncTrack();
             }
         }
 
@@ -369,7 +378,7 @@ namespace EE::Animation
         m_duration = m_pTargetNode->GetDuration();
 
         // Generate the blended event range
-        result.m_sampledEventRange = context.m_pSampledEventsBuffer->BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
+        result.m_sampledEventRange = context.GetSampledEventsBuffer()->BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
 
         return result;
     }
@@ -401,11 +410,14 @@ namespace EE::Animation
     void TransitionNode::ShutdownInternal( GraphContext& context )
     {
         // Release cached pose buffers
-        if ( m_cachedPoseBufferID.IsValid() )
+        if ( m_cachedPoseBufferID.IsValid() && !m_recreateCachedPoseBuffer )
         {
-            context.m_pTaskSystem->DestroyCachedPose( m_cachedPoseBufferID );
-            m_cachedPoseBufferID.Clear();
+            EE_ASSERT( context.GetTaskSystem()->IsValidCachedPose( m_cachedPoseBufferID ) );
+            context.GetTaskSystem()->DestroyCachedPose( m_cachedPoseBufferID );
         }
+
+        m_cachedPoseBufferID.Clear();
+        m_recreateCachedPoseBuffer = false;
 
         // Clear transition flags from target
         m_pTargetNode->SetTransitioningState( StateNode::TransitionState::None );
@@ -426,7 +438,7 @@ namespace EE::Animation
         {
             if ( m_transitionDuration != 0.0f )
             {
-                EE_ASSERT( IsSourceACachedPose() );
+                EE_ASSERT( IsSourceACachedPoseOrOffState() );
             }
         }
 
@@ -468,7 +480,7 @@ namespace EE::Animation
     void TransitionNode::StartCachingSourcePose( GraphContext& context )
     {
         EE_ASSERT( !m_cachedPoseBufferID.IsValid() );
-        m_cachedPoseBufferID = context.m_pTaskSystem->CreateCachedPose();
+        m_cachedPoseBufferID = context.GetTaskSystem()->CreateCachedPose();
         EE_ASSERT( m_cachedPoseBufferID.IsValid() );
     }
 
@@ -482,8 +494,14 @@ namespace EE::Animation
             StateNode* pSourceTransitionTargetState = pSourceTransitionNode->m_pTargetNode;
             if ( pSourceTransitionTargetState == pTargetStateNode )
             {
-                EE_ASSERT( m_cachedPoseBufferID.IsValid() ); // Ensure we were caching a pose
-                m_sourceType = SourceType::CachedPose;
+                if ( m_cachedPoseBufferID.IsValid() )
+                {
+                    m_sourceType = SourceType::CachedPose;
+                }
+                else
+                {
+                    m_sourceType = SourceType::OffState;
+                }
 
                 // We also need to explicitly shutdown the source transition target state as by default we dont shutdown target states when shutting down a transition
                 pSourceTransitionTargetState->Shutdown( context );
@@ -506,8 +524,15 @@ namespace EE::Animation
         {
             if ( m_pSourceNode == pTargetStateNode )
             {
-                EE_ASSERT( m_cachedPoseBufferID.IsValid() ); // Ensure we were caching a pose
-                m_sourceType = SourceType::CachedPose;
+                if ( m_cachedPoseBufferID.IsValid() )
+                {
+                    m_sourceType = SourceType::CachedPose;
+                }
+                else
+                {
+                    m_sourceType = SourceType::OffState;
+                }
+
                 m_pSourceNode->Shutdown( context );
                 m_pSourceNode = nullptr;
             }
@@ -544,7 +569,7 @@ namespace EE::Animation
         auto pDefinition = GetDefinition<TransitionNode>();
 
         // Do we need to skip registering the blend?
-        if ( m_pSourceNode == nullptr && !IsSourceACachedPose() )
+        if ( m_pSourceNode == nullptr && !IsSourceACachedPoseOrOffState() )
         {
             EE_ASSERT( m_transitionDuration == 0.0f );
             EE_ASSERT( m_blendWeight == 1.0f );
@@ -597,12 +622,12 @@ namespace EE::Animation
                 pBoneMaskTaskList = &m_boneMaskTaskList;
             }
 
-            outResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult.m_taskIdx, targetResult.m_taskIdx, poseBlendWeight, pBoneMaskTaskList );
+            outResult.m_taskIdx = context.GetTaskSystem()->RegisterTask<BlendTask>( GetNodePath( context ), sourceResult.m_taskIdx, targetResult.m_taskIdx, poseBlendWeight, pBoneMaskTaskList );
 
             //-------------------------------------------------------------------------
 
             #if EE_DEVELOPMENT_TOOLS
-            context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), m_rootMotionActionIdxSource, m_rootMotionActionIdxTarget, outResult.m_rootMotionDelta );
+            context.GetRootMotionDebugger()->RecordBlend( GetNodePath( context ), m_rootMotionActionIdxSource, m_rootMotionActionIdxTarget, outResult.m_rootMotionDelta );
             #endif
         }
         else
@@ -654,7 +679,7 @@ namespace EE::Animation
             else if ( pTargetLayerContext->m_layerMaskTaskList.HasTasks() )
             {
                 // Keep the target bone mask on the whole way through the blend
-                if ( IsSourceAState() && GetSourceStateNode()->IsOffState() )
+                if ( m_pSourceNode != nullptr && IsSourceAState() && GetSourceStateNode()->IsOffState() )
                 {
                     pSourceAndResultLayerContext->m_layerMaskTaskList = pTargetLayerContext->m_layerMaskTaskList;
                 }
@@ -673,7 +698,7 @@ namespace EE::Animation
     {
         EE_ASSERT( IsInitialized() && !IsComplete( context ) );
 
-        if ( !IsSourceACachedPose() )
+        if ( !IsSourceACachedPoseOrOffState() )
         {
             EE_ASSERT( m_pSourceNode != nullptr && m_pSourceNode->IsInitialized() );
         }
@@ -687,8 +712,8 @@ namespace EE::Animation
         if ( m_recreateCachedPoseBuffer )
         {
             EE_ASSERT( m_cachedPoseBufferID.IsValid() );
-            EE_ASSERT( !context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
-            context.m_pTaskSystem->EnsureCachedPoseExists( m_cachedPoseBufferID );
+            EE_ASSERT( !context.GetTaskSystem()->IsValidCachedPose( m_cachedPoseBufferID ) );
+            context.GetTaskSystem()->EnsureCachedPoseExists( m_cachedPoseBufferID );
             m_recreateCachedPoseBuffer = false;
         }
         #endif
@@ -707,7 +732,7 @@ namespace EE::Animation
         }
         else // No parent sync time so calculate the desired update range
         {
-            if ( !IsSourceACachedPose() && pDefinition->IsSynchronized() )
+            if ( !IsSourceACachedPoseOrOffState() && pDefinition->IsSynchronized() )
             {
                 shouldRunSyncUpdate = true;
 
@@ -759,13 +784,17 @@ namespace EE::Animation
 
         if ( IsSourceACachedPose() )
         {
-            EE_ASSERT( context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
-            sourceNodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::CachedPoseReadTask>( GetNodeIndex(), m_cachedPoseBufferID );
+            EE_ASSERT( context.GetTaskSystem()->IsValidCachedPose( m_cachedPoseBufferID ) );
+            sourceNodeResult.m_taskIdx = context.GetTaskSystem()->RegisterTask<CachedPoseReadTask>( GetNodePath( context ), m_cachedPoseBufferID );
             sourceNodeResult.m_sampledEventRange = context.GetEmptySampledEventRange();
 
             #if EE_DEVELOPMENT_TOOLS
-            m_rootMotionActionIdxSource = context.GetRootMotionDebugger()->RecordSampling( GetNodeIndex(), Transform::Identity );
+            m_rootMotionActionIdxSource = context.GetRootMotionDebugger()->RecordSampling( GetNodePath( context ), Transform::Identity );
             #endif
+        }
+        else if ( IsSourceAnOffState() )
+        {
+            sourceNodeResult.m_sampledEventRange = context.GetEmptySampledEventRange();
         }
         else // Source is a transition or state
         {
@@ -806,8 +835,8 @@ namespace EE::Animation
             // Cache source node pose
             if ( m_cachedPoseBufferID.IsValid() && sourceNodeResult.HasRegisteredTasks() )
             {
-                EE_ASSERT( context.m_pTaskSystem->IsValidCachedPose( m_cachedPoseBufferID ) );
-                sourceNodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::CachedPoseWriteTask>( GetNodeIndex(), sourceNodeResult.m_taskIdx, m_cachedPoseBufferID );
+                EE_ASSERT( context.GetTaskSystem()->IsValidCachedPose( m_cachedPoseBufferID ) );
+                sourceNodeResult.m_taskIdx = context.GetTaskSystem()->RegisterTask<CachedPoseWriteTask>( GetNodePath( context ), sourceNodeResult.m_taskIdx, m_cachedPoseBufferID );
             }
         }
 
@@ -848,7 +877,7 @@ namespace EE::Animation
         // Update internal time and events
         //-------------------------------------------------------------------------
 
-        if ( shouldRunSyncUpdate )
+        if ( shouldRunSyncUpdate && !IsSourceACachedPoseOrOffState() )
         {
             // Create the blended sync track
             SyncTrack const& sourceSyncTrack = m_pSourceNode->GetSyncTrack();
@@ -861,7 +890,7 @@ namespace EE::Animation
         }
         else
         {
-            m_blendedDuration = Math::Lerp( IsSourceACachedPose() ? Seconds( 0.0f ) : m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), m_blendWeight );
+            m_blendedDuration = Math::Lerp( IsSourceACachedPoseOrOffState() ? Seconds( 0.0f ) : m_pSourceNode->GetDuration(), m_pTargetNode->GetDuration(), m_blendWeight );
             if ( m_blendedDuration > 0.0f )
             {
                 Percentage const deltaPercentage = Percentage( context.m_deltaTime / m_blendedDuration );
@@ -878,7 +907,7 @@ namespace EE::Animation
         m_duration = m_pTargetNode->GetDuration();
 
         // Calculate the blended sampled event range
-        finalResult.m_sampledEventRange = context.m_pSampledEventsBuffer->BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
+        finalResult.m_sampledEventRange = context.GetSampledEventsBuffer()->BlendEventRanges( sourceNodeResult.m_sampledEventRange, targetNodeResult.m_sampledEventRange, m_blendWeight );
 
         //-------------------------------------------------------------------------
 
@@ -887,24 +916,29 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    #if EE_DEVELOPMENT_TOOLS
     void TransitionNode::RecordGraphState( RecordedGraphState& outState )
     {
+        bool const isInstantTransition = ( m_transitionDuration == 0.0f );
+
         PoseNode::RecordGraphState( outState );
 
         outState.WriteValue( m_transitionProgress );
         outState.WriteValue( m_transitionDuration );
         outState.WriteValue( m_syncEventOffset );
         outState.WriteValue( m_blendWeight );
-        outState.WriteValue( m_cachedPoseBufferID );
+        outState.WriteValue( isInstantTransition ? CachedPoseID::s_maxAllowableValue : m_cachedPoseBufferID.m_ID );
         outState.WriteValue( m_sourceType );
 
-        outState.WriteValue( m_pSourceNode != nullptr ? m_pSourceNode->GetNodeIndex() : InvalidIndex );
+        int16_t const sourceNodeIdx = m_pSourceNode != nullptr ? m_pSourceNode->GetNodeIndex() : InvalidIndex;
+        outState.WriteValue( sourceNodeIdx );
     }
 
-    void TransitionNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool TransitionNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( inState );
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
 
         inState.ReadValue( m_transitionProgress );
         inState.ReadValue( m_transitionDuration );
@@ -927,11 +961,11 @@ namespace EE::Animation
         {
             m_pSourceNode = inState.GetNode<PoseNode>( sourceNodeIdx );
         }
-        else // Mid-forced transition
+        else // Mid-forced transition or instant transition
         {
-            EE_ASSERT( m_cachedPoseBufferID.IsValid() );
             m_pSourceNode = nullptr;
         }
+
+        return true;
     }
-    #endif
 }

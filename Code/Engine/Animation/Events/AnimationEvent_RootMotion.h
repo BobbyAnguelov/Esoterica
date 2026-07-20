@@ -1,5 +1,6 @@
 #pragma once
 #include "Engine/Animation/AnimationEvent.h"
+#include "Base/Time/Time.h"
 
 //-------------------------------------------------------------------------
 // Helper event to provide rules for procedural vs root motion within an animation
@@ -18,11 +19,12 @@ namespace EE::Animation
         inline Seconds GetBlendTime() const { return m_blendTime; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDebugText() const override { return InlineString( InlineString::CtorSprintf(), "Disable Override - %.2f", m_blendTime.ToFloat() ); }
+        virtual InlineString GetDebugText( Percentage percentageThroughEvent ) const override { return InlineString( InlineString::CtorSprintf(), "Disable Override - %.2f", m_blendTime.ToFloat() ); }
         #endif
 
     private:
 
-        EE_REFLECT() Seconds   m_blendTime = 0.1f;
+        EE_REFLECT();
+        Seconds   m_blendTime = 0.1f;
     };
 }

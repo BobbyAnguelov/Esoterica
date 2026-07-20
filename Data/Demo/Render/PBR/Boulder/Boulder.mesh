@@ -1,0 +1,30 @@
+<Type TypeID="EE::Render::StaticMeshResourceDescriptor" Version="2">
+  <Property ID="m_meshPath" Value="data://demo/render/pbr/boulder/namaqualand_boulder_02_4k.fbx" />
+  <Property ID="m_materialMappings">
+    <Type Index="0" TypeID="EE::Render::MeshMaterialMapping">
+      <Property ID="m_mappingID" Value="namaqualand_boulder_02_LOD0/namaqualand_boulder_02/1" />
+      <Property ID="m_material" Value="data://demo/render/pbr/boulder/boulder.material" />
+    </Type>
+    <Type Index="1" TypeID="EE::Render::MeshMaterialMapping">
+      <Property ID="m_mappingID" Value="namaqualand_boulder_02_LOD0/namaqualand_boulder_02/2" />
+      <Property ID="m_material" Value="data://demo/render/pbr/boulder/boulder.material" />
+    </Type>
+    <Type Index="2" TypeID="EE::Render::MeshMaterialMapping">
+      <Property ID="m_mappingID" Value="namaqualand_boulder_02_LOD0/namaqualand_boulder_02/4" />
+      <Property ID="m_material" Value="data://demo/render/pbr/boulder/boulder.material" />
+    </Type>
+    <Type Index="3" TypeID="EE::Render::MeshMaterialMapping">
+      <Property ID="m_mappingID" Value="namaqualand_boulder_02_LOD0/namaqualand_boulder_02/8" />
+      <Property ID="m_material" Value="data://demo/render/pbr/boulder/boulder.material" />
+    </Type>
+    <Type Index="4" TypeID="EE::Render::MeshMaterialMapping">
+      <Property ID="m_mappingID" Value="namaqualand_boulder_02_LOD0/namaqualand_boulder_02/16" />
+      <Property ID="m_material" Value="data://demo/render/pbr/boulder/boulder.material" />
+    </Type>
+    <Type Index="5" TypeID="EE::Render::MeshMaterialMapping">
+      <Property ID="m_mappingID" Value="namaqualand_boulder_02_LOD0/namaqualand_boulder_02/32" />
+      <Property ID="m_material" Value="data://demo/render/pbr/boulder/boulder.material" />
+    </Type>
+  </Property>
+  <Property ID="m_meshGroup" Value="data://render/meshgroups/highpoly.meshgrp" />
+</Type>

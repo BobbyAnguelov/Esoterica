@@ -1,0 +1,242 @@
+
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Debug/DebugDraw.esh"
+#include "Engine/Render/Shaders/MeshInstance.esh"
+
+ESF_PARAMETER string ShaderType = "Compute";
+
+EE_DECLARE_ROOT_CONSTANTS( InstanceCullingRootConstants, b0, space0 );
+EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
+
+struct ClusterToInstance
+{
+    uint            m_instanceIndex;
+    uint            m_clusterOffset;
+    uint            m_numClusters;
+};
+
+groupshared uint                gsNumVisibleInstances;
+groupshared uint                gsNumVisibleClusters;
+groupshared uint                gsClusterWriteIndex;
+groupshared ClusterToInstance   gsClusterToInstance[64];
+
+float DistanceToAABBSquared( float3 position, float3 boxMin, float3 boxMax )
+{
+    float3 p = max( max( position - boxMax, boxMin - position ), 0.0.xxx );
+    return dot( p, p );
+}
+
+[RootSignature( InstanceCullingRootSignature )]
+[numthreads( 64, 1, 1 )]
+void CS_main(
+    uint groupThreadID      : SV_GroupThreadID,
+    uint groupID            : SV_GroupID,
+    uint3 dispatchThreadID  : SV_DispatchThreadID )
+{
+    if ( groupThreadID == 0 )
+    {
+        gsNumVisibleInstances = 0;
+        gsNumVisibleClusters = 0;
+        gsClusterWriteIndex = 0;
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+        
+    Buffer<uint64_t>                                meshInstancePageBuffer          = GetBuffer( RootCBV.m_meshInstancePageBuffer );
+    StructuredBuffer<MeshInstance>                  meshInstanceBuffer              = GetBuffer( RootCBV.m_meshInstanceBuffer );
+    ByteAddressBuffer                               meshInstanceRootBuffer          = GetBuffer( RootCBV.m_meshInstanceRootBuffer );
+    StructuredBuffer<RenderView>                    renderViewBuffer                = GetBuffer( RootCBV.m_renderViewBuffer );
+    
+    RWBuffer<uint>                                  instanceCulling_CounterBuffer   = GetRWBuffer( RootCBV.m_InstanceCulling_CounterBuffer );
+    RWBuffer<uint2>                                 clusterCulling_ClusterBuffer    = GetRWBuffer( RootCBV.m_ClusterCulling_ClusterBuffer );
+    RWBuffer<uint>                                  clusterCulling_CounterBuffer    = GetRWBuffer( RootCBV.m_ClusterCulling_CounterBuffer );
+    RWStructuredBuffer<ClusterCullingArgument>      clusterCulling_ArgumentBuffer   = GetRWBuffer( RootCBV.m_ClusterCulling_ArgumentBuffer );
+
+    StructuredBuffer<SkinningTransform>             skinningTransformBuffer         = GetBuffer( RootCBV.m_skinningTransformBuffer );
+
+    StructuredBuffer<Mesh>                          meshBuffer                      = GetBuffer( RootCBV.m_meshBuffer );
+    ByteAddressBuffer                               shaderDataBuffer                = GetBuffer( RootCBV.m_shaderDataBuffer );
+
+    // const ShaderDebugDraw                           debugDraw                       = InitializeShaderDebugDraw( BufferHandle( RootCBV.m_shaderDebugDrawBuffer ) );
+
+    uint64_t meshInstancePage = meshInstancePageBuffer[groupID];
+    uint64_t meshInstancePageMask = ( 1ULL << groupThreadID );
+        
+    if ( meshInstancePage & meshInstancePageMask )
+    {
+        const uint              instanceIndex           = dispatchThreadID.x;
+        const MeshInstance      meshInstance            = meshInstanceBuffer[instanceIndex];
+        
+        const uint              meshInstanceDataAddress;
+        const MeshInstanceRoot  meshInstanceRoot        = meshInstance.LoadRoot( meshInstanceRootBuffer, meshInstanceDataAddress );
+        Mesh                    mesh                    = meshBuffer[meshInstance.m_meshIndex];
+        
+        uint                    instanceLocalIndex      = meshInstanceRoot.GetLocalInstanceIndex( instanceIndex );
+
+        if ( !meshInstanceRoot.m_instanceHidden )
+        {
+            float3x4    meshInstanceTransform   = meshInstance.ComputeWorldTransform( meshInstanceRoot );
+            float3      meshInstancePosition    = float3( meshInstanceTransform[0][3], meshInstanceTransform[1][3], meshInstanceTransform[2][3] );
+            
+            // debugDraw.DrawBox( meshInstancePosition, 1.0.xxx, float3( 1.0, 0.0, 1.0 ), false );
+            
+            // Compute LOD
+            uint selectedLOD = 0;
+            {
+                float3 directionToCamera = meshInstancePosition - RootCBV.m_cameraPosition.xyz;
+                float distanceToCameraSquared = dot( directionToCamera, directionToCamera );
+                // float distanceToCameraSquared = DistanceToAABBSquared( );
+            
+                for ( uint lodIndex = 0; lodIndex < meshInstanceRoot.m_numLODs; ++lodIndex )
+                {
+                    selectedLOD = lodIndex;
+                    
+                    float lodDistance = meshInstanceRoot.ReadLODDistance( meshInstanceRootBuffer, meshInstanceDataAddress, lodIndex );
+                    if ( distanceToCameraSquared <= ( lodDistance * lodDistance ) )
+                    {
+                        break;
+                    }
+                }
+                
+                // debugDraw.DrawBox( aabbCenterWorld, aabbHalfExtentsWorld, lerp( float4( 1, 0, 0, 0.2 ), float4( 0, 1, 0, 0.2 ), float( selectedLOD ) / 6.0 ) );
+            }
+            
+            selectedLOD = max( selectedLOD, meshInstanceRoot.m_forceMinLOD );
+            if ( meshInstanceRoot.m_useForcedLOD )
+            {
+                selectedLOD = meshInstanceRoot.m_forceLOD;
+            }
+            
+            // Check if instance is hidden
+            bool instanceHidden = meshInstanceRoot.ReadInstanceHidden( meshInstanceRootBuffer, meshInstanceDataAddress, instanceLocalIndex );
+            
+            // Frustum culling per view
+            if ( !instanceHidden && meshInstance.IsVisibleInLOD( selectedLOD ) )
+            {
+                bool visible = false;
+            
+                // Compute transformed instance AABB in world space, including skinning
+                float3 aabbCenterWorld;
+                float3 aabbHalfExtentsWorld;
+                TransformAABB( meshInstanceTransform, mesh.m_aabbCenterLocal, mesh.m_aabbHalfExtentsLocal, aabbCenterWorld, aabbHalfExtentsWorld );
+
+                float3 aabbMinWorld = aabbCenterWorld - aabbHalfExtentsWorld;
+                float3 aabbMaxWorld = aabbCenterWorld + aabbHalfExtentsWorld;
+
+                for ( uint boneIndex = 0; boneIndex < mesh.m_numBones; ++boneIndex )
+                {
+                    SkinningTransform skinningTransform = skinningTransformBuffer[meshInstanceRoot.m_boneOffset + boneIndex];
+                    aabbMinWorld = min( aabbMinWorld, aabbCenterWorld + skinningTransform.m_translationScale.xyz );
+                    aabbMaxWorld = max( aabbMaxWorld, aabbCenterWorld + skinningTransform.m_translationScale.xyz );
+                }
+
+                aabbHalfExtentsWorld = ( aabbMaxWorld - aabbMinWorld ) * 0.5;
+                aabbCenterWorld = aabbMinWorld + aabbHalfExtentsWorld;
+                
+                // debugDraw.DrawWireBox( aabbCenterWorld, aabbHalfExtentsWorld, float3( 1.0, 1.0, 0.0 ) );
+        
+                // Cull instances in all views
+                for ( uint renderViewIndex = 0; renderViewIndex < RootConstants.m_commonRootConstants.m_numRenderViews; ++renderViewIndex )
+                {
+                    RenderView renderView = renderViewBuffer[renderViewIndex];
+
+                    float4 viewPlanes[6];
+                    renderView.ComputeViewPlanes( viewPlanes );
+
+                    if ( ( renderView.m_renderViewLayerFlags & meshInstanceRoot.m_renderViewLayerFlags ) == 0 )
+                    {
+                        continue;
+                    }
+                
+                    // Special case - global environment map view shouldn't compute lighting
+                    float3 worldPositionOffset = 0.0.xxx;
+                    if ( ( meshInstanceRoot.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP ) )
+                    {        
+                        // Envmap geometry is rendered in other views as well, but in that case it is always relative to camera
+                        if ( ( renderView.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP ) == 0 )
+                        {
+                            worldPositionOffset = RootCBV.m_cameraPosition.xyz;
+                        }
+                    }
+            
+                    bool visibleInThisView = IsFrustumVisible( aabbCenterWorld + worldPositionOffset, aabbHalfExtentsWorld, viewPlanes );
+
+                    if ( visibleInThisView )
+                    {
+                        float4 projectedAABB = 0.0.xxxx;
+                        if ( renderView.ProjectBox( aabbMinWorld + worldPositionOffset, aabbMaxWorld + worldPositionOffset, projectedAABB ) )
+                        {
+                            float width = ( projectedAABB.z - projectedAABB.x ) * renderView.m_renderTargetSize.x;
+                            float height = ( projectedAABB.w - projectedAABB.y ) * renderView.m_renderTargetSize.y;
+                            
+                            // Size is less than 2 pixels -> cull
+                            if ( width < 2.0 && height < 2.0 )
+                            {
+                                visibleInThisView = false;
+                            }
+                        }
+                    }
+                    
+                    visible = visible || visibleInThisView;
+                }
+
+                if ( visible )
+                {
+                    // debugDraw.DrawBox( aabbCenterWorld, aabbHalfExtentsWorld, float4( 0.55, 0.22, 0.6, 0.2 ) );
+                    // debugDraw.DrawWireBox( aabbCenterWorld, aabbHalfExtentsWorld, float3( 1.0, 1.0, 0.0 ) );
+            
+                    uint instanceWriteIndex = 0;
+                    InterlockedAdd( gsNumVisibleInstances, 1, instanceWriteIndex );
+
+                    ClusterToInstance clusterToInstance = ( ClusterToInstance )0;
+                    clusterToInstance.m_instanceIndex = instanceIndex;
+                    clusterToInstance.m_clusterOffset = mesh.m_clusterOffset;
+                    clusterToInstance.m_numClusters   = mesh.m_numClusters;
+            
+                    gsClusterToInstance[instanceWriteIndex] = clusterToInstance;
+            
+                    InterlockedAdd( gsNumVisibleClusters, clusterToInstance.m_numClusters );
+                }
+            }
+        }
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    if ( groupThreadID == 0 )
+    {
+        InterlockedAdd( instanceCulling_CounterBuffer[0], gsNumVisibleClusters, gsClusterWriteIndex );
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+   
+    uint clusterWriteIndex = gsClusterWriteIndex;
+    for ( uint visibleInstanceIndex = 0; visibleInstanceIndex < gsNumVisibleInstances; ++visibleInstanceIndex )
+    {
+        ClusterToInstance clusterToInstance = gsClusterToInstance[visibleInstanceIndex];
+        
+        EE_GROUP_THREAD_MAP( clusterToInstance.m_numClusters, 64,
+        {
+            clusterCulling_ClusterBuffer[clusterWriteIndex + workIndex] = uint2( clusterToInstance.m_instanceIndex, clusterToInstance.m_clusterOffset + workIndex );
+        } )
+        
+        clusterWriteIndex += clusterToInstance.m_numClusters;
+    }
+
+    if ( groupThreadID == 0 && gsNumVisibleClusters )
+    {
+        // TODO: Split dispatches to not exceed MAX_DISPATCH_SIZE
+        
+        uint clusterCullingArgumentWriteIndex = 0;
+        InterlockedAdd( clusterCulling_CounterBuffer[0], 1, clusterCullingArgumentWriteIndex );
+        
+        ClusterCullingArgument clusterCullingArgument = ( ClusterCullingArgument )0;
+        clusterCullingArgument.m_rootConstants.m_commonRootConstants          = RootConstants.m_commonRootConstants;
+        clusterCullingArgument.m_rootConstants.m_clusterRangeStart            = gsClusterWriteIndex;
+        clusterCullingArgument.m_rootConstants.m_clusterRangeEnd              = gsClusterWriteIndex + gsNumVisibleClusters;
+        clusterCullingArgument.m_rootCBV                                      = RootCBV.m_deviceAddress;
+        clusterCullingArgument.m_dispatchArguments                            = uint3( ( gsNumVisibleClusters + 63 ) / 64, 1, 1 );
+
+        clusterCulling_ArgumentBuffer[clusterCullingArgumentWriteIndex] = clusterCullingArgument;
+    }
+}

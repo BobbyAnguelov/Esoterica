@@ -4,8 +4,7 @@
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Ragdoll.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
-#include "Engine/Physics/PhysicsRagdoll.h"
-#include "Engine/Physics/PhysicsWorld.h"
+#include "Engine/Physics/Ragdoll/PhysicsRagdoll_Instance.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,6 +17,9 @@ namespace EE::Animation
         // Set entry node
         context.SetNodePtrFromIndex( m_entryNodeIdx, pNode->m_pEntryNode );
 
+        // Exit condition
+        context.SetOptionalNodePtrFromIndex( m_exitConditionNodeIdx, pNode->m_pExitConditionNode );
+
         // Get exit node options
         pNode->m_exitNodeOptions.reserve( m_exitOptionNodeIndices.size() );
         for ( auto exitOptionIdx : m_exitOptionNodeIndices )
@@ -27,17 +29,63 @@ namespace EE::Animation
         }
 
         // Get ragdoll definition
-        pNode->m_pRagdollDefinition = context.GetResource<Physics::RagdollDefinition>( m_dataSlotIdx );
+        pNode->m_pRagdollDefinition = context.GetResourceForSlot<Physics::RagdollDefinition>( m_dataSlotIdx );
     }
 
     bool SimulatedRagdollNode::IsValid() const
     {
-        if ( m_isFirstUpdate )
+        if ( !PoseNode::IsValid() )
         {
-            return PoseNode::IsValid() && m_pEntryNode->IsValid();
+            return false;
         }
 
-        return PoseNode::IsValid() && m_pEntryNode->IsValid() && m_pRagdollDefinition != nullptr && m_pRagdoll != nullptr;
+        if ( m_pRagdollDefinition == nullptr )
+        {
+            return false;
+        }
+
+        if ( m_stage == Stage::Invalid )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( m_stage == Stage::FullyInEntryAnim || m_stage == Stage::BlendToRagdoll )
+        {
+            if ( !m_isFirstUpdate && m_pRagdoll == nullptr )
+            {
+                return false;
+            }
+
+            if ( !m_pEntryNode->IsValid()  )
+            {
+                return false;
+            }
+        }
+        else if ( m_stage == Stage::FullyInRagdoll )
+        {
+            if ( m_pRagdoll == nullptr )
+            {
+                return false;
+            }
+        }
+        else if ( m_stage == Stage::BlendOutOfRagdoll )
+        {
+            if ( m_pRagdoll == nullptr || m_pExitNode == nullptr || !m_pExitNode->IsValid() )
+            {
+                return false;
+            }
+        }
+        else if ( m_stage == Stage::FullyInExitAnim )
+        {
+            if ( m_pExitNode == nullptr || !m_pExitNode->IsValid() )
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     SyncTrack const& SimulatedRagdollNode::GetSyncTrack() const
@@ -50,35 +98,44 @@ namespace EE::Animation
         EE_ASSERT( context.IsValid() );
 
         PoseNode::InitializeInternal( context, initialTime );
-        m_stage = Stage::Invalid;
-        m_isFirstUpdate = true;
+        SetStage( Stage::FullyInEntryAnim );
 
         // Initialize entry node
         m_pEntryNode->Initialize( context, initialTime );
 
-        //-------------------------------------------------------------------------
+        // Shutdown exit condition node
+        if ( m_pExitConditionNode != nullptr )
+        {
+            m_pExitConditionNode->Initialize( context );
+        }
 
         // Initialize exit options
         for ( auto pExitOptionNode : m_exitNodeOptions )
         {
             pExitOptionNode->Initialize( context, SyncTrackTime() );
         }
+
+        m_pExitNode = nullptr;
     }
 
     void SimulatedRagdollNode::ShutdownInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
 
-        // Destroy the ragdoll
-        if ( m_pRagdoll != nullptr )
-        {
-            context.m_pPhysicsWorld->DestroyRagdoll( m_pRagdoll );
-        }
+        DestroyRagdoll( context );
+
+        m_pExitNode = nullptr;
 
         // Shutdown exit options
         for ( auto pExitOptionNode : m_exitNodeOptions )
         {
             pExitOptionNode->Shutdown( context );
+        }
+
+        // Shutdown exit condition node
+        if ( m_pExitConditionNode != nullptr )
+        {
+            m_pExitConditionNode->Shutdown( context );
         }
 
         // Shutdown entry node
@@ -89,56 +146,33 @@ namespace EE::Animation
 
     void SimulatedRagdollNode::CreateRagdoll( GraphContext& context )
     {
-        if ( m_pEntryNode->IsValid() && m_pRagdollDefinition != nullptr && context.m_pPhysicsWorld != nullptr )
+        EE_ASSERT( m_pRagdoll == nullptr );
+        EE_ASSERT( m_pRagdollDefinition != nullptr );
+
+        #if EE_DEVELOPMENT_TOOLS
+        if ( context.m_pPhysicsWorld == nullptr )
         {
-            auto pNodeDefinition = GetDefinition<SimulatedRagdollNode>();
+            context.LogError( GetNodeIndex(), "Trying to create a ragdoll with no physics world set" );
+            return;
+        }
+        #endif
 
-            // Validate profile IDs
-            bool isValidSetup = m_pRagdollDefinition->HasProfile( pNodeDefinition->m_entryProfileID );
-            isValidSetup &= m_pRagdollDefinition->HasProfile( pNodeDefinition->m_simulatedProfileID );
-            if ( pNodeDefinition->m_exitOptionNodeIndices.size() > 0 )
-            {
-                isValidSetup &= m_pRagdollDefinition->HasProfile( pNodeDefinition->m_exitProfileID );
-            }
+        auto pNodeDefinition = GetDefinition<SimulatedRagdollNode>();
+        m_pRagdoll = EE::New<Physics::Ragdoll>( context.m_pPhysicsWorld, m_pRagdollDefinition, context.m_instanceID );
+        m_pRagdoll->SetPoseFollowing( true );
+    }
 
-            // Create ragdoll and set initial stage
-            if ( isValidSetup )
-            {
-                m_pRagdoll = context.m_pPhysicsWorld->CreateRagdoll( m_pRagdollDefinition, pNodeDefinition->m_entryProfileID, context.m_graphUserID );
-                m_pRagdoll->SetPoseFollowingEnabled( true );
-                m_pRagdoll->SetGravityEnabled( true );
-
-                //-------------------------------------------------------------------------
-
-                // Set stage to start blending immediately, if we find an event below, we'll switch to fully in anim and wait
-                m_stage = Stage::BlendToRagdoll;
-
-                // Try to find a ragdoll event
-                auto pEntryAnim = m_pEntryNode->GetAnimation();
-                auto const& events = pEntryAnim->GetEvents();
-                for ( auto pEvent : events )
-                {
-                    if ( IsOfType<RagdollEvent>( pEvent ) )
-                    {
-                        m_stage = Stage::FullyInEntryAnim;
-                        m_pRagdoll->PutToSleep();
-                        break;
-                    }
-                }
-            }
+    void SimulatedRagdollNode::DestroyRagdoll( GraphContext& context )
+    {
+        if ( m_pRagdoll != nullptr )
+        {
+            EE::Delete( m_pRagdoll );
         }
     }
 
     GraphPoseNodeResult SimulatedRagdollNode::Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
         EE_ASSERT( IsInitialized() );
-
-        if ( m_isFirstUpdate )
-        {
-            CreateRagdoll( context );
-        }
-
-        //-------------------------------------------------------------------------
 
         GraphPoseNodeResult result;
 
@@ -162,7 +196,7 @@ namespace EE::Animation
                 case Stage::BlendOutOfRagdoll:
                 case Stage::FullyInExitAnim:
                 {
-                    result = UpdateExit( context );
+                    result = UpdateExit( context, pUpdateRange );
                 }
                 break;
 
@@ -174,7 +208,7 @@ namespace EE::Animation
         else
         {
             result.m_sampledEventRange = context.GetEmptySampledEventRange();
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::ReferencePoseTask>( GetNodeIndex() );
+            result.m_taskIdx = context.GetTaskSystem()->RegisterTask<ReferencePoseTask>( GetNodePath( context ) );
         }
 
         //-------------------------------------------------------------------------
@@ -191,6 +225,45 @@ namespace EE::Animation
         m_previousTime = m_pEntryNode->GetPreviousTime();
         m_currentTime = m_pEntryNode->GetCurrentTime();
 
+        // Create the ragdoll
+        //-------------------------------------------------------------------------
+
+        if ( m_stage == Stage::FullyInEntryAnim && m_isFirstUpdate )
+        {
+            CreateRagdoll( context );
+
+            if ( m_pRagdoll != nullptr )
+            {
+                // Check if we have any ragdoll events
+                auto pEntryAnim = m_pEntryNode->GetAnimation();
+                auto const& events = pEntryAnim->GetEvents();
+                for ( auto pEvent : events )
+                {
+                    if ( IsOfType<RagdollEvent>( pEvent ) )
+                    {
+                        m_entryHasRagdollEvent = true;
+                        break;
+                    }
+                }
+
+                // If we have an event, go to fully in and when to start blending
+                if ( m_entryHasRagdollEvent )
+                {
+                    SetStage( Stage::FullyInEntryAnim );
+                    m_pRagdoll->PutToSleep();
+                }
+                else
+                {
+                    SetStage( Stage::BlendToRagdoll );
+                    m_pRagdoll->SetPoseFollowing( true );
+                }
+            }
+            else
+            {
+                SetStage( Stage::Invalid );
+            }
+        }
+
         // Wait for ragdoll event
         //-------------------------------------------------------------------------
 
@@ -198,10 +271,11 @@ namespace EE::Animation
         {
             for ( auto i = result.m_sampledEventRange.m_startIdx; i < result.m_sampledEventRange.m_endIdx; i++ )
             {
-                SampledEvent const& sampledEvent = context.m_pSampledEventsBuffer->GetEvent(i);
+                SampledEvent const& sampledEvent = context.GetSampledEventsBuffer()->GetEvent(i);
                 if ( sampledEvent.IsAnimationEvent() && sampledEvent.IsEventOfType<RagdollEvent>() )
                 {
-                    m_stage = Stage::BlendToRagdoll;
+                    SetStage( Stage::BlendToRagdoll );
+                    m_pRagdoll->WakeUp();
                     break;
                 }
             }
@@ -212,34 +286,43 @@ namespace EE::Animation
 
         if ( m_stage == Stage::BlendToRagdoll )
         {
-            float physicsBlendWeight = m_pEntryNode->GetCurrentTime();
+            float physicsBlendWeight = 0.0f;
 
-            // Try get ragdoll event and the blend weight from it
-            for ( auto i = result.m_sampledEventRange.m_startIdx; i < result.m_sampledEventRange.m_endIdx; i++ )
+            if ( m_entryHasRagdollEvent )
             {
-                SampledEvent const& sampledEvent = context.m_pSampledEventsBuffer->GetEvent( i );
-                if ( sampledEvent.IsAnimationEvent() && sampledEvent.IsEventOfType<RagdollEvent>() )
+                // Try get ragdoll event and the blend weight from it
+                for ( auto i = result.m_sampledEventRange.m_startIdx; i < result.m_sampledEventRange.m_endIdx; i++ )
                 {
-                    auto pRagDollEvent = sampledEvent.GetEvent<RagdollEvent>();
-                    if ( pRagDollEvent != nullptr )
+                    SampledEvent const& sampledEvent = context.GetSampledEventsBuffer()->GetEvent( i );
+                    if ( sampledEvent.IsAnimationEvent() && sampledEvent.IsEventOfType<RagdollEvent>() )
                     {
-                        physicsBlendWeight = pRagDollEvent->GetPhysicsBlendWeight( sampledEvent.GetPercentageThrough() );
-                        break;
+                        auto pRagDollEvent = sampledEvent.GetEvent<RagdollEvent>();
+                        if ( pRagDollEvent != nullptr )
+                        {
+                            physicsBlendWeight = pRagDollEvent->GetPhysicsBlendWeight( sampledEvent.GetPercentageThrough() );
+                            break;
+                        }
                     }
                 }
             }
+            else // Simple blend over time
+            {
+                auto pDefinition = GetDefinition<SimulatedRagdollNode>();
+                m_currentBlendTime += context.m_deltaTime;
+                physicsBlendWeight = Math::Min( ( m_currentBlendTime / pDefinition->m_blendTime ).ToFloat(), 1.0f );
+            }
 
             // Register ragdoll task
-            Tasks::RagdollSetPoseTask::InitOption const initOptions = m_isFirstUpdate ? Tasks::RagdollSetPoseTask::InitializeBodies : Tasks::RagdollSetPoseTask::DoNothing;
-            int8_t const setPoseTaskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollSetPoseTask>( GetNodeIndex(), m_pRagdoll, result.m_taskIdx, initOptions );
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( GetNodeIndex(), m_pRagdoll, setPoseTaskIdx, physicsBlendWeight );
+            RagdollSetPoseTask::InitOption const initOptions = m_isFirstUpdate ? RagdollSetPoseTask::InitializeBodies : RagdollSetPoseTask::DoNothing;
+            int8_t const setPoseTaskIdx = context.GetTaskSystem()->RegisterTask<RagdollSetPoseTask>( GetNodePath( context ), m_pRagdoll, result.m_taskIdx, initOptions );
+            result.m_taskIdx = context.GetTaskSystem()->RegisterTask<RagdollGetPoseTask>( GetNodePath( context ), m_pRagdoll, setPoseTaskIdx, physicsBlendWeight );
 
             // Once we hit fully in physics, switch stage
             if ( physicsBlendWeight >= 1.0f )
             {
                 auto pNodeDefinition = GetDefinition<SimulatedRagdollNode>();
-                m_pRagdoll->SwitchProfile( pNodeDefinition->m_simulatedProfileID );
-                m_stage = Stage::FullyInRagdoll;
+                m_pRagdoll->SetPoseFollowing( false );
+                SetStage( Stage::FullyInRagdoll );
             }
         }
 
@@ -248,15 +331,74 @@ namespace EE::Animation
 
     GraphPoseNodeResult SimulatedRagdollNode::UpdateSimulated( GraphContext& context )
     {
+        EE_ASSERT( m_stage == Stage::FullyInRagdoll );
+
         GraphPoseNodeResult result;
+        m_duration = 0.0f;
+        m_previousTime = m_currentTime = 0.0f;
+
         result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::RagdollGetPoseTask>( GetNodeIndex(), m_pRagdoll );
+        result.m_taskIdx = context.GetTaskSystem()->RegisterTask<RagdollGetPoseTask>( GetNodePath( context ), m_pRagdoll );
+
+        // TODO: EMIT ROOT MOTION!!!
+
+        if ( !m_exitNodeOptions.empty() && m_pExitConditionNode != nullptr && m_pExitConditionNode->GetValue<bool>( context ) )
+        {
+            SelectExitNode( context );
+            SetStage( Stage::BlendOutOfRagdoll );
+        }
+
         return result;
     }
 
-    GraphPoseNodeResult SimulatedRagdollNode::UpdateExit( GraphContext& context )
+    GraphPoseNodeResult SimulatedRagdollNode::UpdateExit( GraphContext& context, SyncTrackTimeRange const* pUpdateRange )
     {
-        GraphPoseNodeResult result = m_pEntryNode->Update( context );
+        EE_ASSERT( m_pExitNode != nullptr );
+
+        SyncTrackTimeRange const firstFrameUpdateRange;
+        SyncTrackTimeRange const* pFinalUpdateRange = ( m_stage == Stage::BlendOutOfRagdoll ) ? &firstFrameUpdateRange : pUpdateRange;
+
+        //-------------------------------------------------------------------------
+
+        GraphPoseNodeResult result = m_pExitNode->Update( context, pFinalUpdateRange );
+        m_duration = m_pExitNode->GetDuration();
+        m_previousTime = m_pExitNode->GetPreviousTime();
+        m_currentTime = m_pExitNode->GetCurrentTime();
+
+        // Use ragdoll to blend to exit anim pose
+        //-------------------------------------------------------------------------
+
+        if ( m_stage == Stage::BlendOutOfRagdoll )
+        {
+            auto pDefinition = GetDefinition<SimulatedRagdollNode>();
+
+            m_currentBlendTime += context.m_deltaTime;
+            float const physicsBlendWeight = 1.0f - Math::Min( ( m_currentBlendTime / pDefinition->m_blendTime).ToFloat(), 1.0f );
+
+            // TODO: FIX UP ROOT MOTION!!!
+
+            // Register ragdoll task
+            RagdollSetPoseTask::InitOption const initOptions = m_isFirstUpdate ? RagdollSetPoseTask::InitializeBodies : RagdollSetPoseTask::DoNothing;
+            int8_t const setPoseTaskIdx = context.GetTaskSystem()->RegisterTask<RagdollSetPoseTask>( GetNodePath( context ), m_pRagdoll, result.m_taskIdx, initOptions );
+            result.m_taskIdx = context.GetTaskSystem()->RegisterTask<RagdollGetPoseTask>( GetNodePath( context ), m_pRagdoll, setPoseTaskIdx, physicsBlendWeight );
+
+            // Once we hit fully in physics, switch stage
+            if ( physicsBlendWeight == 0.0f )
+            {
+                auto pNodeDefinition = GetDefinition<SimulatedRagdollNode>();
+                m_pRagdoll->SetPoseFollowing( false );
+                SetStage( Stage::FullyInExitAnim );
+            }
+        }
+
         return result;
+    }
+
+    void SimulatedRagdollNode::SelectExitNode( GraphContext& context )
+    {
+        EE_ASSERT( !m_exitNodeOptions.empty() && m_pExitNode == nullptr );
+
+        // TODO: pose match
+        m_pExitNode = m_exitNodeOptions[0];
     }
 }

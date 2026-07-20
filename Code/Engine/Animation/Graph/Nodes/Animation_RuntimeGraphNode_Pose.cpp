@@ -27,7 +27,7 @@ namespace EE::Animation
 
         GraphPoseNodeResult result;
         result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::ZeroPoseTask>( GetNodeIndex() );
+        result.m_taskIdx = context.GetTaskSystem()->RegisterTask<ZeroPoseTask>( GetNodePath( context) );
         return result;
     }
 
@@ -53,7 +53,7 @@ namespace EE::Animation
 
         GraphPoseNodeResult result;
         result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::ReferencePoseTask>( GetNodeIndex() );
+        result.m_taskIdx = context.GetTaskSystem()->RegisterTask<ReferencePoseTask>( GetNodePath( context ) );
         return result;
     }
 
@@ -64,7 +64,7 @@ namespace EE::Animation
         auto pNode = CreateNode<AnimationPoseNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_poseTimeValueNodeIdx, pNode->m_pPoseTimeValue );
 
-        pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIdx );
+        pNode->m_pAnimation = context.GetResourceForSlot<AnimationClip>( m_dataSlotIdx );
 
         //-------------------------------------------------------------------------
 
@@ -110,6 +110,8 @@ namespace EE::Animation
         EE_ASSERT( context.IsValid() );
 
         GraphPoseNodeResult result;
+        result.m_sampledEventRange = context.GetEmptySampledEventRange();
+
         if ( !IsValid() )
         {
             return result;
@@ -149,8 +151,7 @@ namespace EE::Animation
             m_previousTime = m_currentTime;
         }
 
-        result.m_sampledEventRange = context.GetEmptySampledEventRange();
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::SampleTask>( GetNodeIndex(), m_pAnimation, Percentage( m_currentTime ) );
+        result.m_taskIdx = context.GetTaskSystem()->RegisterTask<SampleTask>( GetNodePath( context ), m_pAnimation, Percentage( m_currentTime ) );
         return result;
     }
 }

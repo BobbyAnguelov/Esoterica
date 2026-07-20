@@ -4,14 +4,14 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
     void ReferencePoseTask::Execute( TaskContext const& context )
     {
         //EE_PROFILE_FUNCTION_ANIMATION();
 
         auto pResultBuffer = GetNewPoseBuffer( context );
-        pResultBuffer->ResetPose( Pose::Type::ReferencePose );
+        pResultBuffer->ResetPose( Pose::Init::ReferencePose );
         MarkTaskComplete( context );
     }
 
@@ -22,7 +22,7 @@ namespace EE::Animation::Tasks
         //EE_PROFILE_FUNCTION_ANIMATION();
 
         auto pResultBuffer = GetNewPoseBuffer( context );
-        pResultBuffer->ResetPose( Pose::Type::ZeroPose );
+        pResultBuffer->ResetPose( Pose::Init::ZeroPose );
         MarkTaskComplete( context );
     }
 }

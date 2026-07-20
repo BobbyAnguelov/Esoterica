@@ -1,90 +1,22 @@
 #include "ResourceLoader_PhysicsCollisionMesh.h"
 #include "Engine/Physics/PhysicsCollisionMesh.h"
-#include "Engine/Physics/Physics.h"
 #include "Base/Serialization/BinarySerialization.h"
-
-//-------------------------------------------------------------------------
-
-using namespace physx;
 
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
-    class PhysXSerializedInputData : public physx::PxInputStream
-    {
-    public:
-
-        PhysXSerializedInputData( Blob const& buffer ) : m_buffer( buffer ) {}
-
-    private:
-
-        virtual PxU32 read( void* dest, PxU32 count ) override final
-        {
-            EE_ASSERT( dest != nullptr );
-            memcpy( dest, &m_buffer[m_readByteIdx], count );
-            m_readByteIdx += count;
-            return count;
-        }
-
-    private:
-
-        Blob const&     m_buffer;
-        size_t          m_readByteIdx = 0;
-    };
-
-    //-------------------------------------------------------------------------
-
     CollisionMeshLoader::CollisionMeshLoader()
     {
         m_loadableTypes.push_back( CollisionMesh::GetStaticResourceTypeID() );
     }
 
-    Resource::ResourceLoader::LoadResult CollisionMeshLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::LoadResult CollisionMeshLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive* pArchive ) const
     {
-        // Create collision resource
         auto pCollision = EE::New<CollisionMesh>();
-        archive << *pCollision;
-
-        // Deserialize cooked mesh data
-        Blob cookedMeshData;
-        archive << cookedMeshData;
-
-        PhysXSerializedInputData cooked( cookedMeshData );
-        {
-            physx::PxPhysics* pPhysics = Core::GetPxPhysics();
-            EE_ASSERT( pPhysics != nullptr );
-
-            if ( pCollision->m_isConvexMesh )
-            {
-                auto pConvexMesh = pPhysics->createConvexMesh( cooked );
-                pCollision->m_bounds = OBB( FromPx( pConvexMesh->getLocalBounds() ) );
-                pCollision->m_pMesh = pConvexMesh;
-            }
-            else
-            {
-                auto pTriMesh = pPhysics->createTriangleMesh( cooked );
-                pCollision->m_bounds = OBB( FromPx( pTriMesh->getLocalBounds() ) );
-                pCollision->m_pMesh = pTriMesh;
-            }
-        }
+        ( *pArchive ) << *pCollision;
 
         pResourceRecord->SetResourceData( pCollision );
-        return Resource::ResourceLoader::LoadResult::Succeeded;
-    }
-
-    void CollisionMeshLoader::Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const
-    {
-        auto pCollision = pResourceRecord->GetResourceData<CollisionMesh>();
-        if ( pCollision != nullptr )
-        {
-            if ( pCollision->m_pMesh != nullptr )
-            {
-                pCollision->m_pMesh->release();
-                pCollision->m_pMesh = nullptr;
-            }
-        }
-
-        ResourceLoader::Unload( resourceID, pResourceRecord );
+        return Resource::LoadResult::Complete;
     }
 }

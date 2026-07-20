@@ -1,53 +1,31 @@
 #include "ResourceCompiler.h"
 #include "Base/FileSystem/FileSystem.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Resource
 {
-    CompileContext::CompileContext( FileSystem::Path const& sourceDataDirectoryPath, FileSystem::Path const& compiledResourceDirectoryPath, ResourceID const& resourceToCompile, bool isCompilingForShippingBuild )
-        : m_sourceDataDirectoryPath( sourceDataDirectoryPath )
-        , m_compiledResourceDirectoryPath( compiledResourceDirectoryPath )
-        , m_isCompilingForPackagedBuild( isCompilingForShippingBuild )
-        , m_resourceID( resourceToCompile )
+    uint64_t Compiler::GetVersionForResourceType( ResourceTypeID resourceTypeID ) const
     {
-        EE_ASSERT( sourceDataDirectoryPath.IsDirectoryPath() && FileSystem::Exists( sourceDataDirectoryPath ) && resourceToCompile.IsValid() );
-
-        // Resolve paths
-        const_cast<FileSystem::Path&>( m_inputFilePath ) = resourceToCompile.GetParentResourceFileSystemPath( m_sourceDataDirectoryPath );
-        const_cast<FileSystem::Path&>( m_outputFilePath ) = resourceToCompile.GetFileSystemPath( m_compiledResourceDirectoryPath );
-    }
-
-    bool CompileContext::IsValid() const
-    {
-        if ( !m_inputFilePath.IsValid() || !m_outputFilePath.IsValid() || !m_resourceID.IsValid() )
-        {
-            return false;
-        }
-
-        return true;
-    }
-
-    //-------------------------------------------------------------------------
-
-    int32_t Compiler::GetVersion( ResourceTypeID resourceTypeID ) const
-    {
-        for ( auto const& outputType : m_outputTypes )
+        for ( auto const& outputType : m_outputs )
         {
             if ( outputType.m_typeID == resourceTypeID )
             {
-                return Serialization::GetBinarySerializationVersion() + outputType.m_version;
+                uint64_t const additionalVersion = GetAdditionalVersionForResourceType( resourceTypeID );
+                return s_binarySerializationVersion + outputType.m_version + additionalVersion;
                 break;
             }
         }
 
         EE_UNREACHABLE_CODE();
-        return -1;
+        return UINT64_MAX;
     }
 
     bool Compiler::WillGenerateAdditionalDataFile( ResourceTypeID resourceTypeID ) const
     {
-        for ( auto const& outputType : m_outputTypes )
+        for ( auto const& outputType : m_outputs )
         {
             if ( outputType.m_typeID == resourceTypeID )
             {
@@ -59,61 +37,186 @@ namespace EE::Resource
         return false;
     }
 
-    void Compiler::Initialize( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath )
+    //-------------------------------------------------------------------------
+
+    void Compiler::PerformUpToDateCheck( CompileContext& ctx ) const
     {
-        m_pTypeRegistry = &typeRegistry;
-        m_sourceDataDirectoryPath = rawResourceDirectoryPath;
+        EE_ASSERT( ctx.HasValidArguments() );
+        ctx.m_compilerName = m_name;
+
+        // Prepare for compilation
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( ctx.m_sourceResourceDirectoryPath.IsValid() );
+        EE_ASSERT( ctx.m_compiledResourceDirectoryPath.IsValid() );
+
+        //-------------------------------------------------------------------------
+
+        ResourceTypeID const resourceTypeID = ctx.m_resourceID.GetResourceTypeID();
+        if ( !ctx.m_typeRegistry.IsRegisteredResourceType( resourceTypeID ) )
+        {
+            ctx.m_result = ctx.LogError( "Invalid resource type ID - %s", resourceTypeID.ToString().c_str() );
+            return;
+        }
+
+        {
+            ScopedTimer<PlatformClock> dependencyTreeTimer( ctx.m_createDependencyTreeTime );
+
+            ctx.m_pResourceToCompile = ctx.CreateResourceInfo( nullptr, ctx.m_resourceID );
+            EE_ASSERT( ctx.m_pResourceToCompile != nullptr );
+
+            if ( ctx.m_pResourceToCompile->HasError() )
+            {
+                ctx.m_result = ctx.LogError( ctx.m_pResourceToCompile->m_error.c_str() );
+                return;
+            }
+        }
+        ctx.LogMessage( "Dependency tree creation took: %.2fms", ctx.m_createDependencyTreeTime.ToFloat() );
+
+        // Ensure we can create the output files
+        //-------------------------------------------------------------------------
+
+        if ( !ctx.m_pResourceToCompile->m_outputFileExists )
+        {
+            if ( !ctx.m_pResourceToCompile->m_outputPath.EnsureDirectoryExists() )
+            {
+                ctx.m_result = ctx.LogError( "Failed to create output directory - %s", ctx.m_pResourceToCompile->m_outputPath.GetParentDirectory().c_str() );
+                return;
+            }
+        }
+
+        if ( ctx.m_pResourceToCompile->m_outputFileExists && FileSystem::IsFileReadOnly( ctx.m_pResourceToCompile->m_outputPath ) )
+        {
+            ctx.m_result = ctx.LogError( "Output file(% s) is read-only!", ctx.m_pResourceToCompile->m_outputPath.GetFullPath().c_str() );
+            return;
+        }
+
+        if ( ctx.m_pResourceToCompile->m_additionalOutputPath.IsValid() && !ctx.m_pResourceToCompile->m_additionalOutputFileExists )
+        {
+            if ( !ctx.m_pResourceToCompile->m_additionalOutputPath.EnsureDirectoryExists() )
+            {
+                ctx.m_result = ctx.LogError( "Failed to create additional output directory - %s", ctx.m_pResourceToCompile->m_additionalOutputPath.GetParentDirectory().c_str() );
+                return;
+            }
+        }
+
+        if ( ctx.m_pResourceToCompile->m_additionalOutputPath.IsValid() && ctx.m_pResourceToCompile->m_additionalOutputFileExists && FileSystem::IsFileReadOnly( ctx.m_pResourceToCompile->m_additionalOutputPath ) )
+        {
+            ctx.m_result = ctx.LogError( "Additional output file(% s) is read-only!", ctx.m_pResourceToCompile->m_additionalOutputPath.GetFullPath().c_str() );
+            return;
+        }
+
+        // Update to date check
+        //-------------------------------------------------------------------------
+
+        ctx.m_requiresCompilation = true;
+        {
+            ScopedTimer<PlatformClock> upToDateCheckTimer( ctx.m_upToDateCheckTime );
+
+            // Calculate the source hash for the dependency chain
+            //-------------------------------------------------------------------------
+
+            GenerateCustomDependencyHashes( ctx, ctx.m_pResourceToCompile );
+            ctx.CalculateSourceResourceHash();
+
+            // Check if we should be compiling this resource?
+            //-------------------------------------------------------------------------
+
+            if ( !ctx.m_forceCompilation )
+            {
+                if ( ctx.m_pResourceToCompile->m_outputFileExists )
+                {
+                    // If we have a valid compiled resource record (i.e. we have compiled this resource before) check the version and hashes
+                    if ( ctx.m_pResourceToCompile->m_compiledResourceRecord.IsValid() )
+                    {
+                        // Is the compiler version up to date?
+                        uint64_t const compiledResourceVersion = GetVersionForResourceType( resourceTypeID );
+                        if ( ctx.m_pResourceToCompile->m_compiledResourceRecord.m_compilerVersion == compiledResourceVersion )
+                        {
+                            ctx.m_requiresCompilation = ctx.m_pResourceToCompile->m_compiledResourceRecord.m_sourceResourceHash != ctx.m_sourceResourceHash;
+                        }
+                    }
+                }
+            }
+        }
+        ctx.LogMessage( "Up to Date Check took: %.2fms", ctx.m_upToDateCheckTime.ToFloat() );
+
+        // Should we proceed with the compilation?
+        //-------------------------------------------------------------------------
+
+        if ( !ctx.m_requiresCompilation )
+        {
+            ctx.LogMessage( "Resource is up to date, nothing to do!" );
+            ctx.m_result = CompilationResult::SuccessUpToDate;
+        }
+        else
+        {
+            ctx.m_result = ctx.m_log.HasWarnings() ? CompilationResult::SuccessWithWarnings : CompilationResult::Success;
+        }
     }
 
-    void Compiler::Shutdown()
+    void Compiler::CompileResource( CompileContext& ctx ) const
     {
-        m_pTypeRegistry = nullptr;
-        m_sourceDataDirectoryPath.Clear();
-    }
+        EE_ASSERT( ctx.HasValidArguments() );
+        EE_ASSERT( ctx.m_pResourceToCompile != nullptr ); // Did you run the up-to-date check?
+        EE_ASSERT( ctx.m_requiresCompilation );
 
-    CompilationResult Compiler::Error( char const* pFormat, ... ) const
-    {
-        va_list args;
-        va_start( args, pFormat );
-        SystemLog::AddEntryVarArgs( Severity::Error, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args);
-        va_end( args );
-        return CompilationResult::Failure;
-    }
+        // Compile
+        //-------------------------------------------------------------------------
 
-    CompilationResult Compiler::Warning( char const* pFormat, ... ) const
-    {
-        va_list args;
-        va_start( args, pFormat );
-        SystemLog::AddEntryVarArgs( Severity::Warning, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args );
-        va_end( args );
-        return CompilationResult::SuccessWithWarnings;
-    }
+        EE_ASSERT( ctx.m_sourceResourceHash != 0 );
 
-    CompilationResult Compiler::Message( char const* pFormat, ... ) const
-    {
-        va_list args;
-        va_start( args, pFormat );
-        SystemLog::AddEntryVarArgs( Severity::Info, "Resource", m_name.c_str(), __FILE__, __LINE__, pFormat, args );
-        va_end( args );
-        return CompilationResult::Success;
-    }
+        {
+            ScopedTimer<PlatformClock> compileTimer( ctx.m_compilationTime );
 
-    CompilationResult Compiler::CompilationSucceeded( CompileContext const& ctx ) const
-    {
-        Message( "Compiled successfully: %s", (char const*) ctx.m_inputFilePath );
-        Message( "Output File: %s", (char const*) ctx.m_outputFilePath );
-        return CompilationResult::Success;
-    }
+            ctx.m_result = Compile( ctx );
 
-    CompilationResult Compiler::CompilationSucceededWithWarnings( CompileContext const& ctx ) const
-    {
-        Warning( "Compiled with warnings: %s", (char const*) ctx.m_inputFilePath );
-        Message( "Output File: %s", (char const*) ctx.m_outputFilePath );
-        return CompilationResult::SuccessWithWarnings;
-    }
+            // Update database
+            if ( ctx.m_result == CompilationResult::Success || ctx.m_result == CompilationResult::SuccessWithWarnings )
+            {
+                CompiledResourceRecord record;
+                record.m_resourceID = ctx.m_pResourceToCompile->m_ID;
+                record.m_compilerVersion = ctx.m_pResourceToCompile->m_compiledResourceVersion;
+                record.m_sourceResourceHash = ctx.m_sourceResourceHash;
+                bool dbResult = ctx.m_compiledResourceDB.WriteRecord( record );
+                EE_ASSERT( dbResult );
 
-    CompilationResult Compiler::CompilationFailed( CompileContext const& ctx ) const
-    {
-        return Error( "Failed to compile resource: %s", (char const*) ctx.m_outputFilePath );
+                TVector<DataPath> compileDependencies;
+                ctx.m_pResourceToCompile->GetAllCompileDependencyPaths( compileDependencies );
+                dbResult = ctx.m_compiledResourceDB.WriteCompileDependencies( ctx.m_pResourceToCompile->m_ID, compileDependencies );
+                EE_ASSERT( dbResult );
+            }
+            else // Remove any compilation record for this resource, but keep any dependencies to attempt to automatically trigger a recompile if they change
+            {
+                EE_ASSERT( ctx.m_result == CompilationResult::Failure );
+                bool dbResult = ctx.m_compiledResourceDB.DeleteRecord( ctx.m_resourceID );
+                EE_ASSERT( dbResult );
+            }
+        }
+
+        ctx.LogMessage( "Compilation took: %.2fms", ctx.m_compilationTime.ToFloat() );
+
+        //-------------------------------------------------------------------------
+
+        if ( ctx.m_result == CompilationResult::SuccessWithWarnings || ( ctx.m_result == CompilationResult::Success && ctx.m_log.HasWarnings() ) )
+        {
+            ctx.LogWarning( "Compiled with warnings: %s", ctx.m_resourceID.c_str() );
+            ctx.LogMessage( "Total time: %.2fms", ( ctx.m_upToDateCheckTime + ctx.m_compilationTime ).ToFloat() );
+            ctx.LogMessage( "Output File: %s", ctx.m_pResourceToCompile->m_outputPath.c_str() );
+            ctx.m_result = CompilationResult::SuccessWithWarnings;
+        }
+
+        if ( ctx.m_result == CompilationResult::Success )
+        {
+            ctx.LogMessage( "Compiled successfully: %s", ctx.m_resourceID.c_str() );
+            ctx.LogMessage( "Total time: %.2fms", ( ctx.m_upToDateCheckTime + ctx.m_compilationTime ).ToFloat() );
+            ctx.LogMessage( "Output File: %s", ctx.m_pResourceToCompile->m_outputPath.c_str() );
+            ctx.m_result = CompilationResult::Success;
+        }
+
+        if ( ctx.m_result == CompilationResult::Failure )
+        {
+            ctx.LogError( "Failed to compile resource: %s", ctx.m_resourceID.c_str() );
+        }
     }
 }

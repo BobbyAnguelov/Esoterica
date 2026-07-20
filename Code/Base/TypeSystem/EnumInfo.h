@@ -23,6 +23,7 @@ namespace EE::TypeSystem
 
             #if EE_DEVELOPMENT_TOOLS
             String      m_description;
+            bool        m_isHiddenInTools = false;
             #endif
         };
 
@@ -56,7 +57,7 @@ namespace EE::TypeSystem
                 }
             }
 
-            EE_LOG_ERROR( "Type System", "Serialization", "Invalid enum constant value (%s) for enum (%s)", label.c_str(), m_ID.c_str() );
+            EE_LOG_ERROR( LogCategory::TypeSystem, "Enum Info", "Invalid enum constant value (%s) for enum (%s)", label.c_str(), m_ID.c_str() );
             return m_constants.begin()->m_value;
         }
 
@@ -103,6 +104,19 @@ namespace EE::TypeSystem
         }
 
         #if EE_DEVELOPMENT_TOOLS
+        inline bool IsConstantHiddenInTools( StringID label ) const
+        {
+            for ( auto const& constant : m_constants )
+            {
+                if ( constant.m_ID == label )
+                {
+                    return constant.m_isHiddenInTools;
+                }
+            }
+
+            return false;
+        }
+
         inline String const* TryGetConstantDescription( StringID label ) const
         {
             for ( auto const& constant : m_constants )

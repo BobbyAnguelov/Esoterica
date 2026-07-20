@@ -2,13 +2,13 @@
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_Parameters.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_VariationData.h"
-#include "EngineTools/Core/CommonToolTypes.h"
-#include "EngineTools/Core/CategoryTree.h"
-#include "Engine/Animation/AnimationClip.h"
-#include "Base/TypeSystem/TypeRegistry.h"
-#include "EASTL/sort.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_AnimationClip.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_Pose.h"
+#include "EngineTools/Core/CommonToolTypes.h"
+#include "Engine/Animation/AnimationClip.h"
+#include "Base/Utils/CategoryTree.h"
+#include "Base/TypeSystem/TypeRegistry.h"
+#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 

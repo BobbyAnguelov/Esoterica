@@ -1,8 +1,14 @@
 #include "TaskSystem.h"
 #include "Threading.h"
-#include "Base/Math/Math.h"
 #include "Base/Memory/Memory.h"
 #include "Base/Profiling.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE::Memory::Allocators
+{
+    static MemoryAllocator g_ENKI( "ENKI TS" );
+}
 
 //-------------------------------------------------------------------------
 
@@ -27,12 +33,12 @@ namespace EE
 
     static void* CustomAllocFunc( size_t alignment, size_t size, void* userData_, const char* file_, int line_ )
     {
-        return EE::Alloc( size, alignment );
+        return Memory::Allocators::g_ENKI.Alloc( size, alignment );
     }
 
     static void CustomFreeFunc( void* ptr, size_t size, void* userData_, const char* file_, int line_ )
     {
-        EE::Free( ptr );
+        Memory::Allocators::g_ENKI.Free( ptr );
     }
 
     //-------------------------------------------------------------------------

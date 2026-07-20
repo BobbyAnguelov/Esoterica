@@ -1,0 +1,51 @@
+
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+
+ESF_PARAMETER string ShaderType = "Compute";
+
+EE_DECLARE_ROOT_CONSTANTS( BucketResolveRootConstants, b0, space0 );
+EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
+
+[RootSignature( BucketResolveRootSignature )]
+[numthreads( 64, 1, 1 )]
+void CS_main(
+    uint groupThreadID      : SV_GroupThreadID,
+    uint groupID            : SV_GroupID,
+    uint3 dispatchThreadID  : SV_DispatchThreadID )
+{
+    StructuredBuffer<RenderBucket>              renderBucketBuffer          = GetBuffer( RootCBV.m_renderBucketBuffer );
+
+    if ( dispatchThreadID.x < RootConstants.m_commonRootConstants.m_numRenderBuckets )
+    {
+        RenderBucket                        renderBucket                 = renderBucketBuffer[dispatchThreadID.x];
+
+        Buffer<uint>                        clusterVisibleCounterBuffer  = GetBuffer( NonUniformResourceIndex( RWBufferToBuffer( renderBucket.m_clusterVisibleCounterBuffer ) ) );
+        RWBuffer<uint>                      drawCounterBuffer            = GetRWBuffer( NonUniformResourceIndex( renderBucket.m_drawCounterBuffer ) );
+        RWStructuredBuffer<DrawArgument>    drawArgumentBuffer           = GetRWBuffer( NonUniformResourceIndex( renderBucket.m_drawArgumentBuffer ) );
+
+        uint numVisibleClusters = clusterVisibleCounterBuffer[0];
+        if ( numVisibleClusters > 0 )
+        {
+            uint numDraws = ( numVisibleClusters + RHI_MAX_DISPATCH_SIZE - 1 ) / RHI_MAX_DISPATCH_SIZE;
+            drawCounterBuffer[0] = numDraws;
+            
+            uint drawClusterOffset = 0;
+            for ( uint drawIndex = 0; drawIndex < numDraws; ++drawIndex )
+            {                
+                uint numDrawClusters = min( numVisibleClusters - drawClusterOffset, RHI_MAX_DISPATCH_SIZE );
+                
+                DrawArgument drawArgument = ( DrawArgument ) 0;
+                drawArgument.m_rootConstants.m_commonRootConstants  = RootConstants.m_commonRootConstants;
+                drawArgument.m_rootConstants.m_renderViewIndex      = dispatchThreadID.x / RootConstants.m_commonRootConstants.m_numRenderViewBucketsPerView;
+                drawArgument.m_rootConstants.m_clusterOffset        = drawClusterOffset;
+                drawArgument.m_rootConstants.m_clusterVisibleBuffer = RWBufferToBuffer( renderBucket.m_clusterVisibleBuffer );
+                drawArgument.m_rootCBV                              = RootCBV.m_deviceAddress;
+                drawArgument.m_dispatchArguments                    = uint3( numDrawClusters, 1, 1 );
+
+                drawArgumentBuffer[drawIndex] = drawArgument;
+                
+                drawClusterOffset += RHI_MAX_DISPATCH_SIZE;
+            }
+        } 
+    }
+}

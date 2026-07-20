@@ -15,10 +15,10 @@ namespace EE
         float const lerpedA = Math::Lerp( float( c0.m_byteColor.m_a ), float( c1.m_byteColor.m_a ), blendWeight );
 
         Color result;
-        result.m_byteColor.m_r = (uint8_t) Math::Clamp( Math::RoundToInt( lerpedR ), 0, 255 );
-        result.m_byteColor.m_g = (uint8_t) Math::Clamp( Math::RoundToInt( lerpedG ), 0, 255 );
-        result.m_byteColor.m_b = (uint8_t) Math::Clamp( Math::RoundToInt( lerpedB ), 0, 255 );
-        result.m_byteColor.m_a = (uint8_t) Math::Clamp( Math::RoundToInt( lerpedA ), 0, 255 );
+        result.m_byteColor.m_r = (uint8_t) Math::Clamp( Math::RoundToInt32( lerpedR ), 0, 255 );
+        result.m_byteColor.m_g = (uint8_t) Math::Clamp( Math::RoundToInt32( lerpedG ), 0, 255 );
+        result.m_byteColor.m_b = (uint8_t) Math::Clamp( Math::RoundToInt32( lerpedB ), 0, 255 );
+        result.m_byteColor.m_a = (uint8_t) Math::Clamp( Math::RoundToInt32( lerpedA ), 0, 255 );
         return result;
     }
 
@@ -52,7 +52,7 @@ namespace EE
 
         float interval;
         float const blendWeight = Math::ModF( weight * g_colorGradientIntervals, interval );
-        int32_t const intervalIndex = Math::FloorToInt( interval );
+        int32_t const intervalIndex = Math::FloorToInt32( interval );
         return Color::Blend( gradientColors[intervalIndex], gradientColors[intervalIndex + 1], blendWeight );
     }
 
@@ -104,5 +104,26 @@ namespace EE
     Color Color::EvaluateYellowRedGradient( float weight, bool useDistinctColorForZero )
     {
         return EvaluateGradient( g_yellowRedGradient, weight, useDistinctColorForZero );
+    }
+
+    //-------------------------------------------------------------------------
+
+    Color Color::ToLinear() const
+    {
+        auto sRGBtoLinear = [] ( float c )
+        {
+            float linearRGBLo = c / 12.92F;
+            float linearRGBHi = Math::Pow( ( c + 0.055F ) / 1.055F, 2.4F );
+            float linearRGB = ( c <= 0.04045F ) ? linearRGBLo : linearRGBHi;
+            return linearRGB;
+        };
+
+        Float4 linearColor = ToFloat4();
+        linearColor.m_x = sRGBtoLinear( linearColor.m_x );
+        linearColor.m_y = sRGBtoLinear( linearColor.m_y );
+        linearColor.m_z = sRGBtoLinear( linearColor.m_z );
+        linearColor.m_w = linearColor.m_w; // sRGB EOTF is not applied to the alpha channel
+
+        return Color( linearColor );
     }
 }

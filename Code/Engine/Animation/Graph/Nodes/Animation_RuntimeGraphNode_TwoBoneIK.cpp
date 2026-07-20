@@ -1,6 +1,6 @@
 #include "Animation_RuntimeGraphNode_TwoBoneIK.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
-#include "Engine/Animation/TaskSystem/Tasks/Animation_Task_ChainSolver.h"
+#include "Engine/Animation/TaskSystem/Tasks/Animation_Task_TwoBoneIK.h"
 
 //-------------------------------------------------------------------------
 
@@ -10,53 +10,74 @@ namespace EE::Animation
     {
         auto pNode = CreateNode<TwoBoneIKNode>( context, options );
         PassthroughNode::Definition::InstantiateNode( context, InstantiationOptions::NodeAlreadyCreated );
-        context.SetNodePtrFromIndex( m_effectorTargetNodeIdx, pNode->m_pEffectorTarget );
+        context.SetNodePtrFromIndex( m_effectorTargetNodeIdx, pNode->m_pEffectorTargetNode );
+        context.SetOptionalNodePtrFromIndex( m_enableNodeIdx, pNode->m_pEnableNode );
+
+        // Lookup effector IDs
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( m_effectorBoneID.IsValid() );
+        pNode->m_effectorBoneIdx = context.m_pSkeleton->GetBoneIndex( m_effectorBoneID );
+
+        // Validate setup
+        //-------------------------------------------------------------------------
+
+        pNode->m_isValidSetup = true;
+        if ( pNode->m_effectorBoneIdx == InvalidIndex )
+        {
+            pNode->m_isValidSetup = false;
+        }
+        else
+        {
+            int32_t nParentCount = 0;
+            int32_t nParentIdx = context.m_pSkeleton->GetParentBoneIndex( pNode->m_effectorBoneIdx );
+            while ( nParentIdx != InvalidIndex && nParentCount < 2 )
+            {
+                nParentCount++;
+                nParentIdx = context.m_pSkeleton->GetParentBoneIndex( nParentIdx );
+            }
+
+            if ( nParentCount != 2 )
+            {
+                #if EE_DEVELOPMENT_TOOLS
+                context.LogWarning( "Invalid effector bone ID ('%s') specified, there are not enough bones in the chain to solve the IK request", m_effectorBoneID.c_str() );
+                #endif
+
+                pNode->m_effectorBoneIdx = InvalidIndex;
+                pNode->m_isValidSetup = false;
+            }
+        }
     }
 
     void TwoBoneIKNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
         EE_ASSERT( context.IsValid() );
         PassthroughNode::InitializeInternal( context, initialTime );
-        m_pEffectorTarget->Initialize( context );
+        m_pEffectorTargetNode->Initialize( context );
 
         auto pDefinition = GetDefinition<TwoBoneIKNode>();
-        EE_ASSERT( pDefinition->m_effectorBoneID.IsValid() );
 
-        // Get and validate effector chain
-        //-------------------------------------------------------------------------
-
-        m_effectorBoneIdx = context.m_pSkeleton->GetBoneIndex( pDefinition->m_effectorBoneID );
-        if ( m_effectorBoneIdx == InvalidIndex )
+        if ( m_pEnableNode != nullptr )
         {
-            #if EE_DEVELOPMENT_TOOLS
-            context.LogError( GetNodeIndex(), "Cant find specified bone ID ('%s') for two bone effector node", pDefinition->m_effectorBoneID.c_str() );
-            #endif
+            m_pEnableNode->Initialize( context );
+            m_IKWeight.Reset( pDefinition->m_blendTime, m_pEnableNode->GetValue<bool>( context ) );
         }
-
-        // Validate that there are at least two bones in the chain
-        int32_t parentCount = 0;
-        int32_t parentIdx = context.m_pSkeleton->GetParentBoneIndex( m_effectorBoneIdx );
-        while ( parentIdx != InvalidIndex && parentCount < 2 )
+        else
         {
-            parentCount++;
-            parentIdx = context.m_pSkeleton->GetParentBoneIndex( parentIdx );
-        }
-
-        if ( parentCount != 2 )
-        {
-            #if EE_DEVELOPMENT_TOOLS
-            context.LogError( GetNodeIndex(), "Invalid effector bone ID ('%s') specified, there are not enough bones in the chain to solve the IK request", pDefinition->m_effectorBoneID.c_str() );
-            #endif
-
-            m_effectorBoneIdx = InvalidIndex;
+            m_IKWeight.Reset( 0.0f, true );
         }
     }
 
     void TwoBoneIKNode::ShutdownInternal( GraphContext& context )
     {
         EE_ASSERT( context.IsValid() );
-        m_effectorBoneIdx = InvalidIndex;
-        m_pEffectorTarget->Shutdown( context );
+
+        if ( m_pEnableNode != nullptr )
+        {
+            m_pEnableNode->Shutdown( context );
+        }
+
+        m_pEffectorTargetNode->Shutdown( context );
         PassthroughNode::ShutdownInternal( context );
     }
 
@@ -66,42 +87,79 @@ namespace EE::Animation
 
         result = PassthroughNode::Update( context, pUpdateRange );
 
-        if ( result.HasRegisteredTasks() && m_effectorBoneIdx != InvalidIndex )
+        if ( result.HasRegisteredTasks() && m_isValidSetup )
         {
-            Target const effectorTarget = m_pEffectorTarget->GetValue<Target>( context );
-            if ( effectorTarget.IsTargetSet() )
+            // Update IK Weight
+            //-------------------------------------------------------------------------
+
+            bool isIKEnabled = true;
+            if ( m_pEnableNode != nullptr )
             {
-                bool shouldRegisterTask = true;
+                isIKEnabled = m_pEnableNode->GetValue<bool>( context );
+            }
 
-                // Validate input target
-                if ( effectorTarget.IsBoneTarget() )
+            float const weight = m_IKWeight.Update( context.m_deltaTime, isIKEnabled );
+
+            // Register Task
+            //-------------------------------------------------------------------------
+
+            if ( weight > 0.0f )
+            {
+                Target const effectorTarget = m_pEffectorTargetNode->GetValue<Target>( context );
+                if ( effectorTarget.IsTargetSet() )
                 {
-                    StringID const effectorTargetBoneID = effectorTarget.GetBoneID();
-                    if ( !effectorTargetBoneID.IsValid() )
+                    bool shouldRegisterTask = true;
+
+                    // Validate input target
+                    if ( effectorTarget.IsBoneTarget() )
                     {
-                        #if EE_DEVELOPMENT_TOOLS
-                        context.LogError( GetNodeIndex(), "No effector bone ID specified in input target" );
-                        #endif
-                        shouldRegisterTask = false;
+                        StringID const effectorTargetBoneID = effectorTarget.GetBoneID();
+                        if ( !effectorTargetBoneID.IsValid() )
+                        {
+                            #if EE_DEVELOPMENT_TOOLS
+                            context.LogError( GetNodeIndex(), "No input target bone ID specified" );
+                            #endif
+                            shouldRegisterTask = false;
+                        }
+
+                        if( context.m_pSkeleton->GetBoneIndex( effectorTargetBoneID ) == InvalidIndex )
+                        {
+                            #if EE_DEVELOPMENT_TOOLS
+                            context.LogError( GetNodeIndex(), "Invalid input target bone ID ('%s') specified", effectorTarget.GetBoneID().c_str() );
+                            #endif
+                            shouldRegisterTask = false;
+                        }
                     }
 
-                    if( context.m_pSkeleton->GetBoneIndex( effectorTargetBoneID ) == InvalidIndex )
+                    if ( shouldRegisterTask )
                     {
-                        #if EE_DEVELOPMENT_TOOLS
-                        context.LogError( GetNodeIndex(), "Invalid effector bone ID ('%s') specified in input target", effectorTarget.GetBoneID().c_str() );
-                        #endif
-                        shouldRegisterTask = false;
+                        auto pDefinition = GetDefinition<TwoBoneIKNode>();
+                        result.m_taskIdx = context.GetTaskSystem()->RegisterTask<TwoBoneIKTask>( GetNodePath( context ), result.m_taskIdx, m_effectorBoneIdx, pDefinition->m_isTargetInWorldSpace, effectorTarget, pDefinition->m_blendMode, weight, pDefinition->m_referencePoseTwistWeight );
                     }
-                }
-
-                if ( shouldRegisterTask )
-                {
-                    auto pDefinition = GetDefinition<TwoBoneIKNode>();
-                    result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::ChainSolverTask>( GetNodeIndex(), result.m_taskIdx, m_effectorBoneIdx, 3, pDefinition->m_isTargetInWorldSpace, effectorTarget );
                 }
             }
         }
 
         return result;
+    }
+
+    void TwoBoneIKNode::RecordGraphState( RecordedGraphState &outState )
+    {
+        PassthroughNode::RecordGraphState( outState );
+
+        outState.WriteValue( m_IKWeight.m_state );
+        outState.WriteValue( m_IKWeight.m_blendTime );
+    }
+
+    bool TwoBoneIKNode::RestoreGraphState( RecordedGraphState const &inState )
+    {
+        if ( !PassthroughNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
+        inState.ReadValue( m_IKWeight.m_blendTime );
+        inState.ReadValue( m_IKWeight.m_state );
+        return true;
     }
 }

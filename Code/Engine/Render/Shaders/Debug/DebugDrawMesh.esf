@@ -1,0 +1,226 @@
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Debug/DebugDraw.esh"
+#include "Engine/Render/Shaders/Picking/Picking.esh"
+#include "Engine/Render/Shaders/AppendBuffer.esh"
+#include "Engine/Render/Shaders/MeshInstance.esh"
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+struct HLSL_ALIGN_STRUCT DebugDrawMeshRootConstant
+{
+    uint                            m_clusterBuffer         : 16;
+    uint                            m_renderViewBuffer      : 16;
+    
+    uint                            m_clusterVertexBuffer   : 16;
+    uint                            m_clusterTriangleBuffer : 16;
+    
+    uint                            m_mainCameraRenderView;
+    uint                            m_packedColorTint;
+    
+    uint                            m_clusterOffset;
+    
+    uint                            m_wireframe             : 1;
+    uint                            m_fakeLighting          : 1;
+    uint                            m_padding0              : 30;
+    
+    uint                            m_pickingSortPriority;
+    
+    uint                            m_padding1;
+};
+
+struct HLSL_ALIGN_STRUCT DebugDrawMeshParameters
+{
+    float4x4                        m_transform;
+    uint64_t                        m_hitTestID;
+    AppendBufferHandle              m_debugDrawPickingResultsBuffer;
+};
+
+struct HLSL_ALIGN_STRUCT DebugDrawMeshArgument
+{
+    DebugDrawMeshRootConstant       m_rootConstant;
+    uint64_t                        m_rootCBV;
+    uint64_t                        m_rootSRV;
+    uint3                           m_dispatchArguments;
+    uint                            m_padding;
+};
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#ifndef __cplusplus
+
+ESF_PARAMETER string ShaderType = "Surface";
+ESF_PARAMETER bool UseMeshShader = true;
+
+#define DebugDrawMeshRootSignature  EE_BEGIN_ROOT_SIGNATURE \
+                                    "RootConstants( b0, num32BitConstants = 8, space = 0 )," \
+                                    "CBV( b1, space = 0 )," \
+                                    "SRV( t2, space = 0 )"
+
+EE_DECLARE_ROOT_CONSTANTS( DebugDrawMeshRootConstant, b0, space0 );
+EE_DECLARE_ROOT_CBV( DebugDrawParameters, b1, space0 );
+EE_DECLARE_ROOT_SRV( DebugDrawMeshParameters, t2, space0 );
+
+groupshared uint gsNumIntersections;
+groupshared uint gsIntersectionDistanceMin;
+
+groupshared float4 gsClipVertices[MAX_CLUSTER_VERTICES];
+
+[RootSignature( DebugDrawMeshRootSignature )]
+[NumThreads( MESH_SHADER_DISPATCH_COUNT, 1, 1 )]
+[OutputTopology( "triangle" )]
+void MS_main
+( 
+    uint                            groupThreadID   : SV_GroupThreadID, 
+    uint                            groupID         : SV_GroupID,
+    out indices     uint3           outTriangles[MAX_CLUSTER_TRIANGLES],
+    out primitives  PrimitiveOutput outPrimitives[MAX_CLUSTER_TRIANGLES],
+    out vertices    VertexOutput    outVertices[MAX_CLUSTER_VERTICES] 
+)
+{
+    if ( groupThreadID == 0 )
+    {
+        gsNumIntersections = 0;
+        gsIntersectionDistanceMin = asuint( 1.5E+10 );
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    StructuredBuffer<RenderView>        renderViewBuffer        = GetBuffer( RootConstants.m_renderViewBuffer );
+    RenderView                          mainCameraRenderView    = renderViewBuffer[RootConstants.m_mainCameraRenderView];
+    
+    StructuredBuffer<MeshCluster>       clusterBuffer           = GetBuffer( RootConstants.m_clusterBuffer );
+    ByteAddressBuffer                   clusterVertexBuffer     = GetBuffer( RootConstants.m_clusterVertexBuffer );
+    Buffer<uint>                        clusterTriangleBuffer   = GetBuffer( RootConstants.m_clusterTriangleBuffer );
+    
+    AppendBuffer<PickingResult>         pickingResultsBuffer    = CreateAppendBuffer<PickingResult>( RootSRV[0].m_debugDrawPickingResultsBuffer );
+    
+    //-------------------------------------------------------------------------------------------------------
+    
+    MeshCluster                         cluster                 = clusterBuffer[RootConstants.m_clusterOffset + groupID];
+    uint                                vertexStride            = sizeof( StaticMeshVertex );
+    
+    //-------------------------------------------------------------------------------------------------------
+
+    uint numClusterVertices = min( cluster.m_numVertices, MAX_CLUSTER_VERTICES );
+    uint numClusterTriangles = min( cluster.m_numTriangles, MAX_CLUSTER_TRIANGLES );
+        
+    SetMeshOutputCounts( numClusterVertices, numClusterTriangles );
+    
+    // Shade vertices
+    //-------------------------------------------------------------------------------------------------------
+        
+    float4 unpackedColorTint = UnpackColor( RootConstants.m_packedColorTint );
+    
+    uint64_t hitTestID = RootSRV[0].m_hitTestID;
+    bool flipWinding = determinant( ( float3x3 )RootSRV[0].m_transform ) < 0.0;
+    
+    if ( groupThreadID < numClusterVertices )
+    {
+        uint vertexIndex = cluster.m_vertexOffset + groupThreadID;
+        
+        TransformedVertex transformedVertex = TransformVertex( clusterVertexBuffer, vertexIndex, vertexStride, cluster.GetAnchor(), cluster.m_sharedExponent, RootSRV[0].m_transform, flipWinding );
+        
+        VertexOutput output;
+        output.m_clipPosition   = mul( mainCameraRenderView.m_viewProjectionMatrix, float4( transformedVertex.m_worldPosition, 1.0 ) );
+        output.m_worldPosition  = transformedVertex.m_worldPosition;
+        output.m_worldNormal    = transformedVertex.m_worldNormal;
+        output.m_uv             = float4( transformedVertex.m_vertex.m_uv0, transformedVertex.m_vertex.m_uv1 );
+        output.m_color          = UnpackColor( transformedVertex.m_vertex.m_packedColor ) * unpackedColorTint;
+        
+        output.m_clipPosition.z += 0.0001; // Bias debug meshes to avoid zfighting with world geometry
+        
+        //#define DEBUG_CLUSTERS
+        #ifdef DEBUG_CLUSTERS
+        output.m_color = float4(
+            float( groupID & 1 ),
+            float( groupID & 3 ) / 4,
+            float( groupID & 7 ) / 8,
+            1.0 );
+        #endif
+
+        gsClipVertices[groupThreadID]   = output.m_clipPosition;
+        outVertices[groupThreadID]      = output;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+    
+    if ( groupThreadID < numClusterTriangles )
+    {
+        uint3 triangleIndices = UnpackTriangle( clusterTriangleBuffer[cluster.m_triangleOffset + groupThreadID] );
+
+        outTriangles[groupThreadID] = triangleIndices;
+
+        float4 clipVertices[3];
+        clipVertices[0] = gsClipVertices[triangleIndices.x];
+        clipVertices[1] = gsClipVertices[triangleIndices.y];
+        clipVertices[2] = gsClipVertices[triangleIndices.z];
+            
+        PrimitiveOutput output = ( PrimitiveOutput ) 0;
+        output.m_cullPrimitive      = IsTriangleCulled( clipVertices, mainCameraRenderView.m_renderTargetSize.xy, false );
+        outPrimitives[groupThreadID] = output;
+            
+        if ( hitTestID != ~0ULL )
+        {
+            float hitDistance = 0.0;
+            if ( PickTriangleClipSpace( RootCBV.m_pickingInput.xy, RootCBV.m_pickingInput.z, clipVertices[0], clipVertices[1], clipVertices[2], hitDistance ) )
+            {
+                InterlockedAdd( gsNumIntersections, 1 );
+                InterlockedMin( gsIntersectionDistanceMin, asuint( hitDistance ) );
+            }
+        }
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+
+    if ( groupThreadID == 0 )
+    {
+        if ( hitTestID != ~0ULL && gsNumIntersections > 0 )
+        {
+            PickingResult result = ( PickingResult ) 0;
+            result.m_instanceID = ~0U;
+            result.m_hitTestID = hitTestID;
+            result.m_sortPriority = RootConstants.m_pickingSortPriority;
+            result.m_hitDistance = asfloat( gsIntersectionDistanceMin );
+            
+            if ( !pickingResultsBuffer.TryAppend( result ) )
+            {
+                // No space this frame
+            }
+        }
+    }
+}
+
+[RootSignature( DebugDrawMeshRootSignature )]
+float4 PS_main( VertexOutput vertex, PrimitiveOutput primitive, linear float3 barycentrics : SV_Barycentrics ) : SV_Target
+{
+    float dotNL = dot( normalize( vertex.m_worldNormal ), normalize( float3( -1, -1, -1 ) ) );
+
+    float3 color = vertex.m_color.rgb;
+
+    if ( RootConstants.m_fakeLighting )
+    {
+        color *= max( dotNL, 0.2 );
+    }
+
+    float4 result = float4( color.rgb, vertex.m_color.a );
+    
+    if ( RootConstants.m_wireframe > 0 )
+    {
+        float3 edgeDistance = barycentrics;
+        edgeDistance.z = 1.0 - edgeDistance.x - edgeDistance.y;
+        
+        float3 edgeWidth = fwidth( edgeDistance ) * 0.5;
+        edgeWidth = smoothstep( edgeWidth, 2.0 * edgeWidth, edgeDistance );
+        
+        float minWidth = min( edgeWidth.x, min( edgeWidth.y, edgeWidth.z ) );
+        
+        result.a = lerp( result.a, 0.0, minWidth );
+    }
+
+    clip( result.a - 0.01 );
+    return result;
+}
+
+#endif

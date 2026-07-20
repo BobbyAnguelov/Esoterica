@@ -1,0 +1,47 @@
+<Type TypeID="EE::EntityModel::EntityMapResourceDescriptor" Version="0" />
+<CustomData>
+  <Entities>
+    <Entity Name="Boulder">
+      <Components>
+        <Type TypeID="EE::Render::StaticMeshComponent">
+          <Property Path="m_mesh" Value="data://demo/render/pbr/boulder/boulder.mesh" />
+          <Property Path="m_name" Value="Static Mesh Component" />
+          <Property Path="m_transform" Value="0,-0,0,0,0,0,6" />
+        </Type>
+      </Components>
+      <ReferencedResources>
+        <Resource ID="data://demo/render/pbr/boulder/boulder.mesh" />
+      </ReferencedResources>
+    </Entity>
+    <Entity Name="Floor">
+      <Components>
+        <Type TypeID="EE::Render::StaticMeshComponent">
+          <Property Path="m_mesh" Value="data://editor/floor/floor.mesh" />
+          <Property Path="m_name" Value="Static Mesh Component" />
+          <Property Path="m_transform" Value="0,-0,0,0,0,-0.0182571,1" />
+        </Type>
+      </Components>
+      <ReferencedResources>
+        <Resource ID="data://editor/floor/floor.mesh" />
+      </ReferencedResources>
+    </Entity>
+    <Entity Name="Skydome">
+      <Components>
+        <Type TypeID="EE::Render::StaticMeshComponent">
+          <Property Path="m_mesh" Value="data://editor/skydome/skydome.mesh" />
+          <Property Path="m_name" Value="Static Mesh Component" />
+          <Property Path="m_transform" Value="0,-0,0,0,0,0,300" />
+          <Property Path="m_viewLayers" Value="ForwardShading|GlobalEnvironmentMap" />
+        </Type>
+        <Type TypeID="EE::Render::DirectionalLightComponent" SpatialParent="Static Mesh Component">
+          <Property Path="m_name" Value="Directional Light Component" />
+          <Property Path="m_shadowed" Value="True" />
+          <Property Path="m_transform" Value="135,-0,0,0,0,0,1" />
+        </Type>
+      </Components>
+      <ReferencedResources>
+        <Resource ID="data://editor/skydome/skydome.mesh" />
+      </ReferencedResources>
+    </Entity>
+  </Entities>
+</CustomData>

@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Import { class ImportedMesh; }
+namespace EE::Import { class Mesh; }
 
 //-------------------------------------------------------------------------
 
@@ -19,10 +19,11 @@ namespace EE::Physics
 
         CollisionMeshCompiler();
         virtual Resource::CompilationResult Compile( Resource::CompileContext const& ctx ) const override;
+        virtual uint64_t GetAdditionalVersionForResourceType( ResourceTypeID resourceTypeID ) const override;
 
     private:
 
-        bool CookTriangleMeshData( Import::ImportedMesh const& ImportedMesh, Blob& outCookedData ) const;
-        bool CookConvexMeshData( Import::ImportedMesh const& ImportedMesh, Blob& outCookedData ) const;
+        bool CookTriangleMeshData( Import::Mesh const& ImportedMesh, Blob& outCookedData ) const;
+        bool CookConvexMeshData( Import::Mesh const& ImportedMesh, Blob& outCookedData ) const;
     };
 }

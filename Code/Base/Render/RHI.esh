@@ -1,0 +1,163 @@
+
+#ifndef RHI_ESH_INCLUDED
+#define RHI_ESH_INCLUDED
+
+#ifdef __cplusplus
+#include <stdint.h>
+
+using uint  = uint32_t;
+using uint2 = uint32_t[2];
+using uint3 = uint32_t[3];
+using uint4 = uint32_t[4];
+
+using int2  = uint32_t[2];
+using int3  = uint32_t[3];
+using int4  = uint32_t[4];
+
+using float2 = float[2];
+using float3 = float[3];
+using float4 = float[4];
+
+using float4x4 = float[16];
+using uint4x4 = uint32_t[16];
+
+using float4x3 = float[12];
+using uint4x3 = uint32_t[12];
+
+using float3x4 = float[12];
+using uint3x4 = uint32_t[12];
+
+using float16_t = int16_t;
+using float16_t2 = int16_t[2];
+using float16_t3 = int16_t[3];
+using float16_t4 = int16_t[4];
+
+using int16_t2 = int16_t[2];
+using int16_t3 = int16_t[3];
+using int16_t4 = int16_t[4];
+
+using uint16_t2 = uint16_t[2];
+using uint16_t3 = uint16_t[3];
+using uint16_t4 = uint16_t[4];
+
+template <typename T> using RootParameter = uint64_t;
+
+#define HLSL_ALIGN_STRUCT alignas( 8 )
+#define HLSL_ALIGN_INDIRECT_ARGUMENT alignas( 16 )
+
+#define HLSL_FUNCTION_CONST const
+#define HLSL_PASS_BY_REFERENCE( X ) X&
+
+#define EE_BEGIN_SHADER_TYPES_NAMESPACE namespace EE::Render::ShaderTypes{
+#define EE_END_SHADER_TYPES_NAMESPACE }
+
+#define HLSL_STATIC_ASSERT( X, Y ) static_assert( X, Y )
+
+#else
+
+#define HLSL_ALIGN_STRUCT
+#define HLSL_ALIGN_INDIRECT_ARGUMENT
+
+#define HLSL_FUNCTION_CONST
+
+#define HLSL_PASS_BY_REFERENCE( X ) inout X
+
+#define EE_BEGIN_SHADER_TYPES_NAMESPACE
+#define EE_END_SHADER_TYPES_NAMESPACE
+
+#define HLSL_STATIC_ASSERT( X, Y ) _Static_assert( X, Y )
+#endif
+
+// Hacky macros to make it easier for shader compiler to recognize shader metadata
+#define ESF_PARAMETER static const
+#define ESF_CUSTOM_PARAMETERS
+#define ESF_RESOURCE_TABLE
+#define ESF_DEFAULT_VALUE( X )
+#define ESF_MIN_VALUE( X )
+#define ESF_MAX_VALUE( X )
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    typedef uint16_t GenericResourceHandle;
+
+    typedef uint16_t SamplerStateHandle;
+    typedef uint16_t BufferHandle;
+    typedef uint16_t TextureHandle;
+    typedef uint16_t RaytracingAccelerationStructureHandle;
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#ifndef __cplusplus
+
+#define RootParameter ConstantBuffer
+
+typedef uint Color;
+
+// Limit mesh dispatch group size, API doesn't allow more than this.
+#define RHI_MAX_DISPATCH_SIZE 65535U
+
+#ifdef EE_RGA_ANALYZE
+#define EE_BEGIN_ROOT_SIGNATURE     "RootFlags( CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |"    \
+                                              " SAMPLER_HEAP_DIRECTLY_INDEXED |"        \
+                                              " DENY_GEOMETRY_SHADER_ROOT_ACCESS |"     \
+                                              " DENY_HULL_SHADER_ROOT_ACCESS |"         \
+                                              " DENY_DOMAIN_SHADER_ROOT_ACCESS |"       \
+                                              " ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT ),"
+#else
+#define EE_BEGIN_ROOT_SIGNATURE     "RootFlags( CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |"    \
+                                              " SAMPLER_HEAP_DIRECTLY_INDEXED |"        \
+                                              " DENY_GEOMETRY_SHADER_ROOT_ACCESS |"     \
+                                              " DENY_HULL_SHADER_ROOT_ACCESS |"         \
+                                              " DENY_DOMAIN_SHADER_ROOT_ACCESS ),"
+#endif
+
+#define EE_DECLARE_ROOT_CONSTANTS( Type, Register, Space )  ConstantBuffer<Type>        RootConstants : register( Register, Space )
+#define EE_DECLARE_ROOT_CBV( Type, Register, Space )        ConstantBuffer<Type>        RootCBV : register( Register, Space )
+#define EE_DECLARE_ROOT_SRV( Type, Register, Space )        StructuredBuffer<Type>      RootSRV : register( Register, Space )
+#define EE_DECLARE_ROOT_UAV( Type, Register, Space )        RWStructuredBuffer<Type>    RootUAV : register( Register, Space )
+
+#define GetSamplerState( index )                    SamplerDescriptorHeap[index]
+#define GetBuffer( index )                          ResourceDescriptorHeap[index]
+#define GetTexture( index )                         ResourceDescriptorHeap[index]
+#define GetRaytracingAccelerationStructure( index ) ResourceDescriptorHeap[index]
+
+#define GetRWBuffer( index )                        ResourceDescriptorHeap[index]
+#define GetRWTexture( index )                       ResourceDescriptorHeap[index]
+
+BufferHandle RWBufferToBuffer( uint handle )
+{
+    return BufferHandle( int( handle ) - 1 );
+}
+
+BufferHandle BufferToRWBuffer( uint handle )
+{
+    return BufferHandle( int( handle ) + 1 );
+}
+
+// Convenience macro for common loop unrolling work in compute shaders.
+//
+// Applies expression X to each element in the 0..C range using all threads in the thread group
+//
+// Example usage:
+// EE_GROUP_THREAD_MAP( countBuffer[0], 64, {
+//     float data = dataBuffer[workIndex];
+//     resultBuffer[workIndex] = sin( data );
+// } )
+#define EE_GROUP_THREAD_MAP( C, T, X )                                          \
+    {                                                                           \
+        uint elementCount = C;                                                  \
+        uint fullIterations = elementCount / T;                                 \
+        uint remainderIterations = elementCount % T;                            \
+        for ( uint iteration = 0; iteration < fullIterations; ++iteration ) {   \
+            uint workIndex = iteration * T + groupThreadID;                     \
+            X                                                                   \
+        }                                                                       \
+        if ( groupThreadID < remainderIterations ) {                            \
+            uint workIndex = fullIterations * T + groupThreadID;                \
+            X                                                                   \
+        }                                                                       \
+    }
+
+#endif
+
+#endif

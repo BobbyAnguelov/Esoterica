@@ -53,7 +53,6 @@ namespace EE
         explicit StringID( char const* pStr );
         explicit StringID( uint64_t ID ) : m_ID( ID ) {}
         explicit StringID( String const& str );
-        explicit StringID( InlineString const& str );
 
         inline bool IsValid() const { return m_ID != 0; }
         inline uint64_t ToUint() const { return m_ID; }
@@ -108,6 +107,10 @@ namespace EE
         mutable StringID            m_ID;
         mutable bool                m_isCreated = false;
     };
+
+    //-------------------------------------------------------------------------
+
+    EE_BASE_API bool SortComparison_StringID( StringID const& a, StringID const& b );
 }
 
 //-------------------------------------------------------------------------

@@ -25,6 +25,11 @@ namespace EE
         inline void Start() { m_startTime = Clock::GetTime(); }
         inline void Reset() { Start(); }
 
+        inline Nanoseconds GetStartTimeNanoseconds() const { return m_startTime; }
+        inline Seconds GetStartTimeSeconds() const { return GetStartTimeNanoseconds().ToSeconds(); }
+        inline Milliseconds GetStartTimeMilliseconds() const { return GetStartTimeNanoseconds().ToMilliseconds(); }
+        inline Microseconds GetStartTimeMicroseconds() const { return GetStartTimeNanoseconds().ToMicroseconds(); }
+
         inline Nanoseconds GetElapsedTimeNanoseconds() const { return Clock::GetTime() - m_startTime; }
         inline Seconds GetElapsedTimeSeconds() const { return GetElapsedTimeNanoseconds().ToSeconds(); }
         inline Milliseconds GetElapsedTimeMilliseconds() const { return GetElapsedTimeNanoseconds().ToMilliseconds(); }
@@ -86,6 +91,11 @@ namespace EE
             return Percentage( GetElapsedTimeSeconds() / m_countdownTime ).GetClamped( false );
         }
 
+        inline Nanoseconds GetStartTimeNanoseconds() const { return m_startTime; }
+        inline Seconds GetStartTimeSeconds() const { return GetStartTimeNanoseconds().ToSeconds(); }
+        inline Milliseconds GetStartTimeMilliseconds() const { return GetStartTimeNanoseconds().ToMilliseconds(); }
+        inline Microseconds GetStartTimeMicroseconds() const { return GetStartTimeNanoseconds().ToMicroseconds(); }
+
         inline Seconds GetElapsedTimeSeconds() const { return ( Clock::GetTime() - m_startTime ).ToSeconds(); }
 
         inline Seconds GetElapsedTimeMilliseconds() const { return ( Clock::GetTime() - m_startTime ).ToMilliseconds(); }
@@ -99,13 +109,13 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    template<typename Clock>
-    class ScopedTimer
+    template<typename Clock, typename T = Milliseconds>
+    class [[nodiscard]] ScopedTimer
     {
 
     public:
 
-        ScopedTimer( Milliseconds& result ) : m_result( result ) {};
+        ScopedTimer( T& result ) : m_result( result ) {};
         ~ScopedTimer() { m_result = m_timer.GetElapsedTimeMilliseconds(); }
 
     private:
@@ -116,7 +126,7 @@ namespace EE
     private:
 
         Timer<Clock>        m_timer;
-        Milliseconds&       m_result;
+        T&                  m_result;
     };
 
     //-------------------------------------------------------------------------

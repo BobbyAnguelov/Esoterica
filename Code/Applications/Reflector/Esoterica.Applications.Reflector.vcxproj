@@ -24,12 +24,12 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>
     </CharacterSet>
@@ -37,7 +37,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet />
   </PropertyGroup>
@@ -62,15 +62,12 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <LinkIncremental>true</LinkIncremental>
     <TargetName>EsotericaReflector</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <LinkIncremental>false</LinkIncremental>
     <TargetName>EsotericaReflector</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">
-    <LinkIncremental>false</LinkIncremental>
     <TargetName>EsotericaReflector</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -89,6 +86,9 @@
     <PostBuildEvent>
       <Command />
     </PostBuildEvent>
+    <Manifest>
+      <AdditionalManifestFiles>$(SolutionDir)Code\Esoterica.manifest</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -103,14 +103,14 @@
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <Profile>true</Profile>
       <AdditionalDependencies>Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command />
     </PostBuildEvent>
+    <Manifest>
+      <AdditionalManifestFiles>$(SolutionDir)Code\Esoterica.manifest</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">
     <ClCompile>
@@ -125,17 +125,23 @@
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
-      <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <OptimizeReferences>true</OptimizeReferences>
-      <Profile>true</Profile>
       <AdditionalDependencies>Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>
       </Command>
     </PostBuildEvent>
+    <Manifest>
+      <AdditionalManifestFiles>$(SolutionDir)Code\Esoterica.manifest</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="ReflectedMacro.cpp" />
+    <ClCompile Include="ReflectorSettings.cpp" />
+    <ClCompile Include="ShaderReflection\ShaderReflection_CodeGenerator.cpp" />
+    <ClCompile Include="ShaderReflection\ShaderReflection_ShaderInputReflector.cpp" />
+    <ClCompile Include="ShaderReflection\ShaderReflection_ShaderCompiler.cpp" />
+    <ClCompile Include="ReflectedShader.cpp" />
     <ClCompile Include="TypeReflection\Clang\ClangParserContext.cpp" />
     <ClCompile Include="TypeReflection\Clang\ClangParser.cpp" />
     <ClCompile Include="TypeReflection\Clang\ClangUtils.cpp" />
@@ -143,20 +149,26 @@
     <ClCompile Include="TypeReflection\Clang\ClangVisitors_Macro.cpp" />
     <ClCompile Include="TypeReflection\Clang\ClangVisitors_Structure.cpp" />
     <ClCompile Include="TypeReflection\Clang\ClangVisitors_TranslationUnit.cpp" />
-    <ClCompile Include="TypeReflection\CodeGenerator.cpp" />
-    <ClCompile Include="TypeReflection\ReflectionSettings.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedDataFileType.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedHeader.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedProject.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedProperty.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedResourceType.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedSolution.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedType.cpp" />
-    <ClCompile Include="TypeReflection\ReflectionDatabase.cpp" />
+    <ClCompile Include="ShaderReflection\ShaderReflection_ShaderParser.cpp" />
+    <ClCompile Include="TypeReflection\TypeReflection_CodeGenerator.cpp" />
+    <ClCompile Include="TypeReflection\TypeReflection_ReflectedDataFileType.cpp" />
+    <ClCompile Include="TypeReflection\TypeReflection_ReflectedProperty.cpp" />
+    <ClCompile Include="TypeReflection\TypeReflection_ReflectedResourceType.cpp" />
+    <ClCompile Include="TypeReflection\TypeReflection_ReflectedType.cpp" />
+    <ClCompile Include="TypeReflection\TypeReflection_ReflectionDatabase.cpp" />
     <ClCompile Include="ReflectorApplication.cpp" />
-    <ClCompile Include="TypeReflection\TypeReflector.cpp" />
+    <ClCompile Include="Reflector.cpp" />
+    <ClCompile Include="ReflectedProject.cpp" />
+    <ClCompile Include="ReflectedHeader.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ReflectedCodeGenerator.h" />
+    <ClInclude Include="ReflectedMacro.h" />
+    <ClInclude Include="ReflectorSettings.h" />
+    <ClInclude Include="ShaderReflection\ShaderReflection_CodeGenerator.h" />
+    <ClInclude Include="ShaderReflection\ShaderReflection_ShaderInputReflector.h" />
+    <ClInclude Include="ShaderReflection\ShaderReflection_ShaderCompiler.h" />
+    <ClInclude Include="ReflectedShader.h" />
     <ClInclude Include="TypeReflection\Clang\ClangParserContext.h" />
     <ClInclude Include="TypeReflection\Clang\ClangParser.h" />
     <ClInclude Include="TypeReflection\Clang\ClangUtils.h" />
@@ -164,19 +176,18 @@
     <ClInclude Include="TypeReflection\Clang\ClangVisitors_Macro.h" />
     <ClInclude Include="TypeReflection\Clang\ClangVisitors_Structure.h" />
     <ClInclude Include="TypeReflection\Clang\ClangVisitors_TranslationUnit.h" />
-    <ClInclude Include="TypeReflection\CodeGenerator.h" />
-    <ClInclude Include="TypeReflection\ReflectionSettings.h" />
-    <ClInclude Include="TypeReflection\ReflectedDataFileType.h" />
-    <ClInclude Include="TypeReflection\ReflectedEnumConstant.h" />
-    <ClInclude Include="TypeReflection\ReflectedHeader.h" />
-    <ClInclude Include="TypeReflection\ReflectedProject.h" />
-    <ClInclude Include="TypeReflection\ReflectedProperty.h" />
-    <ClInclude Include="TypeReflection\ReflectedResourceType.h" />
-    <ClInclude Include="TypeReflection\ReflectedSolution.h" />
-    <ClInclude Include="TypeReflection\ReflectedType.h" />
-    <ClInclude Include="TypeReflection\ReflectionDatabase.h" />
-    <ClInclude Include="TypeReflection\TypeReflector.h" />
+    <ClInclude Include="ShaderReflection\ShaderReflection_ShaderParser.h" />
+    <ClInclude Include="TypeReflection\TypeReflection_CodeGenerator.h" />
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectedDataFileType.h" />
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectedEnumConstant.h" />
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectedProperty.h" />
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectedResourceType.h" />
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectedType.h" />
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectionDatabase.h" />
     <ClInclude Include="Resources\Resource.h" />
+    <ClInclude Include="Reflector.h" />
+    <ClInclude Include="ReflectedProject.h" />
+    <ClInclude Include="ReflectedHeader.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\Reflector.ico" />

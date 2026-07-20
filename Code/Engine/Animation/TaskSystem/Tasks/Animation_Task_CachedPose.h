@@ -1,12 +1,12 @@
 #pragma once
 
-#include "Engine/Animation/TaskSystem/Animation_Task.h"
+#include "Engine/Animation/TaskSystem/Animation_PoseTask.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
-    class CachedPoseWriteTask : public Task
+    class CachedPoseWriteTask : public PoseTask
     {
         EE_REFLECT_TYPE( CachedPoseWriteTask );
 
@@ -14,7 +14,7 @@ namespace EE::Animation::Tasks
 
         CachedPoseWriteTask( int8_t sourceTaskIdx, CachedPoseID cachedPoseID );
         virtual void Execute( TaskContext const& context ) override;
-        virtual bool AllowsSerialization() const override { return true; }
+        virtual int32_t GetNumDependencies() const override { return 1; }
         virtual void Serialize( TaskSerializer& serializer ) const override;
         virtual void Deserialize( TaskSerializer& serializer ) override;
 
@@ -25,7 +25,7 @@ namespace EE::Animation::Tasks
 
     private:
 
-        CachedPoseWriteTask() : Task() {}
+        CachedPoseWriteTask() : PoseTask() {}
 
     private:
 
@@ -35,7 +35,7 @@ namespace EE::Animation::Tasks
 
     //-------------------------------------------------------------------------
 
-    class CachedPoseReadTask : public Task
+    class CachedPoseReadTask : public PoseTask
     {
         EE_REFLECT_TYPE( CachedPoseReadTask );
 
@@ -43,7 +43,6 @@ namespace EE::Animation::Tasks
 
         CachedPoseReadTask( CachedPoseID cachedPoseID );
         virtual void Execute( TaskContext const& context ) override;
-        virtual bool AllowsSerialization() const override { return true; }
         virtual void Serialize( TaskSerializer& serializer ) const override;
         virtual void Deserialize( TaskSerializer& serializer ) override;
 
@@ -54,7 +53,7 @@ namespace EE::Animation::Tasks
 
     private:
 
-        CachedPoseReadTask() : Task() {}
+        CachedPoseReadTask() : PoseTask() {}
 
     private:
 

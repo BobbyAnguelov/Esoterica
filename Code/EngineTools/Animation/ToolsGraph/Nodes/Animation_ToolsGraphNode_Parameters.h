@@ -19,6 +19,10 @@ namespace EE::Animation
 
     public:
 
+        static void RefreshParameterReferences( FlowGraph* pRootGraph );
+
+    public:
+
         ParameterBaseToolsNode() = default;
         ParameterBaseToolsNode( String const& name, String const& groupName = String() );
 
@@ -56,9 +60,8 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Parameter"; }
         virtual char const* GetCategory() const override { return "Control Parameters"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
-        virtual bool IsPersistentNode() const override { return true; }
 
         virtual void ReflectPreviewValues( ControlParameterToolsNode const* pOtherParameterNode ) {}
     };
@@ -201,7 +204,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Parameter"; }
         virtual char const* GetCategory() const override { return "Virtual Parameters"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
@@ -287,6 +290,7 @@ namespace EE::Animation
         EE_REFLECT_TYPE( ParameterReferenceToolsNode );
 
         friend ToolsGraphDefinition;
+        friend ParameterBaseToolsNode;
 
     public:
 
@@ -317,7 +321,7 @@ namespace EE::Animation
         virtual char const* GetCategory() const override { return "Parameter"; }
         virtual bool IsUserCreatable() const override { return true; }
         virtual bool IsDestroyable() const override { return true; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
     private:
@@ -325,7 +329,7 @@ namespace EE::Animation
         void UpdateCachedParameterData();
 
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
-        virtual NodeGraph::BaseGraph* GetNavigationTarget() override;
+        virtual NodeGraph::BaseGraph* GetNavigationTarget( NodeGraph::UserContext* pUserContext ) override;
         virtual void PreCopy() override { UpdateCachedParameterData(); }
 
         FlowToolsNode* GetDisplayValueNode();

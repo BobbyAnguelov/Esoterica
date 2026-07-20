@@ -9,11 +9,11 @@ namespace EE::Animation
     AnimationClipToolsNode::AnimationClipToolsNode()
         :VariationDataToolsNode()
     {
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
+
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Play In Reverse", GraphValueType::Bool );
         CreateInputPin( "Reset Time", GraphValueType::Bool );
-
-        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
     }
 
     int16_t AnimationClipToolsNode::Compile( GraphCompilationContext& context ) const
@@ -60,7 +60,50 @@ namespace EE::Animation
             pDefinition->m_startSyncEventOffset = pData->m_startSyncEventOffset;
             pDefinition->m_sampleRootMotion = m_sampleRootMotion;
             pDefinition->m_allowLooping = m_allowLooping;
+
+            for ( auto const &ID : m_graphEvents )
+            {
+                if ( ID.IsValid() )
+                {
+                    pDefinition->m_graphEvents.emplace_back( ID );
+                }
+            }
         }
         return pDefinition->m_nodeIdx;
+    }
+
+    void AnimationClipToolsNode::DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
+    {
+        FlowToolsNode::DrawExtraControls( ctx, pUserContext );
+
+        //-------------------------------------------------------------------------
+
+        bool hasValidEvents = false;
+
+        for ( auto const &ID : m_graphEvents )
+        {
+            if ( ID.IsValid() )
+            {
+                hasValidEvents = true;
+                break;
+            }
+        }
+
+        if ( !hasValidEvents )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SeparatorText( "Graph Events" );
+
+        for ( auto const &ID : m_graphEvents )
+        {
+            if ( ID.IsValid() )
+            {
+                ImGui::BulletText( ID.c_str() );
+            }
+        }
     }
 }

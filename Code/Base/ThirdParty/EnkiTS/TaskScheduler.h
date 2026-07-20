@@ -60,6 +60,12 @@
 #define ENKI_ASSERT(x) assert(x)
 #endif
 
+#if (!defined(_MSVC_LANG) && __cplusplus >= 201402L) || (defined(_MSVC_LANG) && _MSVC_LANG >= 201402L)
+#define ENKI_DEPRECATED [[deprecated]]
+#else
+#define ENKI_DEPRECATED
+#endif
+
 namespace enki
 {
     struct TaskSetPartition
@@ -318,12 +324,12 @@ namespace enki
         // while( !GetIsShutdownRequested() ) {} can be used in tasks which loop, to check if enkiTS has been requested to shutdown.
         // If GetIsShutdownRequested() returns true should then exit. Not required for finite tasks
         // Safe to use with WaitforAllAndShutdown() and ShutdownNow() where this will be set
-        // Not safe to use with WaitforAll().
+        // Not safe to use with WaitforAll(), use GetIsWaitforAllCalled() instead.
         inline     bool            GetIsShutdownRequested() const { return m_bShutdownRequested.load( std::memory_order_acquire ); }
 
         // while( !GetIsWaitforAllCalled() ) {} can be used in tasks which loop, to check if WaitforAll() has been called.
         // If GetIsWaitforAllCalled() returns false should then exit. Not required for finite tasks
-        // This is intended to be used with code which calls WaitforAll() with flag WAITFORALLFLAGS_INC_WAIT_NEW_PINNED_TASKS set.
+        // This is intended to be used with code which calls WaitforAll().
         // This is also set when the task manager is shutting down, so no need to have an additional check for GetIsShutdownRequested()
         inline     bool            GetIsWaitforAllCalled() const { return m_bWaitforAllCalled.load( std::memory_order_acquire ); }
 
@@ -420,15 +426,15 @@ namespace enki
         // DEPRECATED: use GetIsShutdownRequested() instead of GetIsRunning() in external code
         // while( GetIsRunning() ) {} can be used in tasks which loop, to check if enkiTS has been shutdown.
         // If GetIsRunning() returns false should then exit. Not required for finite tasks.
-        inline     bool            GetIsRunning() const { return m_bRunning.load( std::memory_order_acquire ); }
+        ENKI_DEPRECATED inline bool GetIsRunning() const { return !GetIsShutdownRequested(); }
 
         // DEPRECATED - WaitforTaskSet, deprecated interface use WaitforTask.
-        inline void                WaitforTaskSet( const ICompletable* pCompletable_ ) { WaitforTask( pCompletable_ ); }
+        ENKI_DEPRECATED inline void WaitforTaskSet( const ICompletable* pCompletable_ ) { WaitforTask( pCompletable_ ); }
 
         // DEPRECATED - GetProfilerCallbacks.  Use TaskSchedulerConfig instead.
         // Returns the ProfilerCallbacks structure so that it can be modified to
         // set the callbacks. Should be set prior to initialization.
-        inline ProfilerCallbacks* GetProfilerCallbacks() { return &m_Config.profilerCallbacks; }
+        ENKI_DEPRECATED inline ProfilerCallbacks* GetProfilerCallbacks() { return &m_Config.profilerCallbacks; }
         // -------------  End DEPRECATED Functions  -------------
 
     private:
@@ -447,6 +453,8 @@ namespace enki
         void        WakeThreadsForTaskCompletion();
         bool        WakeSuspendedThreadsWithPinnedTasks( uint32_t threadNum_ );
         void        InitDependencies( ICompletable* pCompletable_  );
+        inline bool GetIsRunningInt() const { return m_bRunning.load( std::memory_order_acquire ); }
+
         ENKITS_API void TaskComplete( ICompletable* pTask_, bool bWakeThreads_, uint32_t threadNum_ );
         ENKITS_API void AddTaskSetToPipeInt( ITaskSet* pTaskSet_, uint32_t threadNum_ );
         ENKITS_API void AddPinnedTaskInt( IPinnedTask* pTask_ );

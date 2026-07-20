@@ -1,6 +1,0 @@
-<Type TypeID="EE::Render::StaticMeshResourceDescriptor" Version="0">
-  <Property ID="m_meshPath" Value="data://demo/renderdemo/matball/matball.gltf" />
-  <Property ID="m_materials">
-    <Property Index="0" Value="data://demo/renderdemo/matball/debug_texture.mtrl" />
-  </Property>
-</Type>

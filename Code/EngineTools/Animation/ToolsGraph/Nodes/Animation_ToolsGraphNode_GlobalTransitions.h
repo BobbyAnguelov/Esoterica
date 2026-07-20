@@ -19,12 +19,12 @@ namespace EE::Animation
 
     public:
 
-        inline UUID const& GetEndStateID() const { return m_stateID; }
+        virtual UUID GetEndStateID() const override { return m_stateID; }
 
         virtual char const* GetTypeName() const override { return "Global Transition"; }
         virtual char const* GetCategory() const override { return "State Machine"; }
         virtual bool IsUserCreatable() const override { return false; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::GlobalTransitionConduit ); }
 
     private:
 

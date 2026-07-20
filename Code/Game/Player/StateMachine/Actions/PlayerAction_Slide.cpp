@@ -1,36 +1,34 @@
 #include "PlayerAction_Slide.h"
-#include "Game/Player/Components/Component_MainPlayer.h"
-#include "Game/Player/Camera/PlayerCameraController.h"
+#include "Game/Player/Components/Component_PlayerCamera.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Base/Input/InputSystem.h"
 #include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
-    bool SlideAction::TryStartInternal( ActionContext const& ctx )
+    bool PlayerAction_Slide::TryStartInternal( PlayerActionContext const& ctx )
     {
-        if( ctx.m_pPlayerComponent->m_sprintFlag && ctx.m_pInput->m_crouch.WasPressed() )
+        if( ctx.m_pPlayerState->m_sprintFlag && ctx.m_pInput->m_crouch.WasPressed() )
         {
             Vector const movementInputs = ctx.m_pInput->m_move.GetValue();
-            Vector const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
-            Vector const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
+            Vector const& camFwd = ctx.m_pCamera->GetCameraRelativeForwardVector2D();
+            Vector const& camRight = ctx.m_pCamera->GetCameraRelativeRightVector2D();
             Vector const forward = camFwd * movementInputs.GetY();
             Vector const right = camRight * movementInputs.GetX();
             m_slideDirection = ( forward + right ).GetNormalized2();
 
-            ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::Ability );
+            ctx.m_pAnimationController->SetCharacterState( PlayerAnimationController::CharacterState::Ability );
             ctx.m_pAnimationController->StartSlide();
 
             #if EE_DEVELOPMENT_TOOLS
-            m_debugStartPosition = ctx.m_pCharacterComponent->GetPosition();
+            m_debugStartPosition = ctx.m_pPlayer->GetPosition();
             #endif
 
             // Cancel sprint and enable crouch
-            ctx.m_pPlayerComponent->m_sprintFlag = false;
-            //ctx.m_pPlayerComponent->m_crouchFlag = true;
+            ctx.m_pPlayerState->m_sprintFlag = false;
+            //ctx.m_pPlayerState->m_crouchFlag = true;
 
             return true;
         }
@@ -40,7 +38,7 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status SlideAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
+    PlayerAction::Status PlayerAction_Slide::UpdateInternal( PlayerActionContext const& ctx, bool isFirstUpdate )
     {
         // Calculate desired player displacement
         //-------------------------------------------------------------------------
@@ -56,15 +54,15 @@ namespace EE::Player
         //-------------------------------------------------------------------------
 
         auto pGraphController = ctx.m_pAnimationController;
-        ctx.m_pAnimationController->SetAbilityDesiredMovement( ctx.GetDeltaTime(), desiredVelocity, ctx.m_pCharacterComponent->GetForwardVector() );
+        ctx.m_pAnimationController->SetAbilityDesiredMovement( ctx.GetDeltaTime(), desiredVelocity, ctx.m_pPlayer->GetForwardVector() );
 
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        auto drawingCtx = ctx.m_pEntityWorldUpdateContext->GetDrawingContext();
+        auto drawingCtx = ctx.m_pEntityWorldUpdateContext->GetDebugDrawContext();
         if( m_enableVisualizations )
         {
-            Vector const Origin = ctx.m_pCharacterComponent->GetPosition();
+            Vector const Origin = ctx.m_pPlayer->GetPosition();
             drawingCtx.DrawArrow( m_debugStartPosition, m_debugStartPosition + m_slideDirection, Colors::HotPink );
         }
         #endif
@@ -80,7 +78,7 @@ namespace EE::Player
         return pGraphController->IsTransitionConditionallyAllowed( slideTransitionMarkerID ) ? Status::Interruptible : Status::Uninterruptible;
     }
 
-    void SlideAction::StopInternal( ActionContext const& ctx, StopReason reason )
+    void PlayerAction_Slide::StopInternal( PlayerActionContext const& ctx, StopReason reason )
     {
 
     }
@@ -88,7 +86,7 @@ namespace EE::Player
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void SlideAction::DrawDebugUI()
+    void PlayerAction_Slide::DrawDebugUI()
     {
         ImGui::Checkbox( "Enable Visualization", &m_enableVisualizations );
     }

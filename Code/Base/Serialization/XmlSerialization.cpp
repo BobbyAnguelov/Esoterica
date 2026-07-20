@@ -34,24 +34,35 @@ namespace EE::Serialization
 
         if ( !result )
         {
-            EE_LOG_ERROR( "Serialization", "XML", "Failed to load xml file (%s): %s", path.c_str(), result.description() );
+            EE_LOG_ERROR( LogCategory::Serialization, "XML", "Failed to load xml file (%s): %s", path.c_str(), result.description() );
         }
 
         return result;
     }
 
-    bool ReadXmlFromString( String const& str, xml_document& outDoc, bool suppressLogging )
+    bool ReadXmlFromBuffer( void const* pBuffer, size_t bufferSize, xml_document& outDoc, bool suppressLogging )
     {
-        if ( str.empty() )
-        {
-            return false;
-        }
+        EE_ASSERT( pBuffer != nullptr && bufferSize > 0 );
 
-        pugi::xml_parse_result const result = outDoc.load_buffer( str.c_str(), str.size() );
+        pugi::xml_parse_result const result = outDoc.load_buffer( pBuffer, bufferSize );
 
         if ( !result && !suppressLogging )
         {
-            EE_LOG_ERROR( "Serialization", "XML", "Failed to load xml from str: %s", result.description() );
+            EE_LOG_ERROR( LogCategory::Serialization, "XML", "Failed to load xml from str: %s", result.description() );
+        }
+
+        return result;
+    }
+
+    bool ReadXmlFromBufferInPlace( void* pBuffer, size_t bufferSize, xml_document& outDoc, bool suppressLogging )
+    {
+        EE_ASSERT( pBuffer != nullptr && bufferSize > 0 );
+
+        pugi::xml_parse_result const result = outDoc.load_buffer_inplace( pBuffer, bufferSize );
+
+        if ( !result && !suppressLogging )
+        {
+            EE_LOG_ERROR( LogCategory::Serialization, "XML", "Failed to load xml from str: %s", result.description() );
         }
 
         return result;

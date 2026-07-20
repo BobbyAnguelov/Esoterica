@@ -52,23 +52,21 @@ namespace EE
         return false;
     }
 
-    Transform SpatialEntityComponent::GetAttachmentSocketTransform( StringID socketID ) const
+    bool SpatialEntityComponent::TryGetAttachmentSocketTransform( StringID socketID, Transform& outTransform ) const
     {
-        Transform socketTransform;
-
         // If the socket ID is invalid, just return the current transform
         if ( !socketID.IsValid() )
         {
-            socketTransform = m_worldTransform;
-            return socketTransform;
+            outTransform = m_worldTransform;
+            return false;
         }
 
         //-------------------------------------------------------------------------
 
         // Try to find the attachment socket transform and if it succeeds return it
-        if ( TryFindAttachmentSocketTransform( socketID, socketTransform ) )
+        if ( GetAttachmentSocketTransformInternal( socketID, outTransform ) )
         {
-            return socketTransform;
+            return true;
         }
 
         //-------------------------------------------------------------------------
@@ -76,10 +74,10 @@ namespace EE
         // Search all children
         for ( auto pChildSpatialComponent : m_spatialChildren )
         {
-            auto foundTransform = pChildSpatialComponent->TryGetAttachmentSocketTransform( socketID, socketTransform );
+            auto foundTransform = pChildSpatialComponent->TryGetAttachmentSocketTransform( socketID, outTransform );
             if ( foundTransform )
             {
-                return socketTransform;
+                return true;
             }
         }
 
@@ -90,8 +88,8 @@ namespace EE
         }
 
         // Fallback to the world transform
-        socketTransform = m_worldTransform;
-        return socketTransform;
+        outTransform = m_worldTransform;
+        return false;
     }
 
     void SpatialEntityComponent::ApplyOffsetToAllChildren( Vector const& offset )
@@ -104,28 +102,7 @@ namespace EE
         }
     }
 
-    bool SpatialEntityComponent::TryGetAttachmentSocketTransform( StringID socketID, Transform& outSocketWorldTransform ) const
-    {
-        // Try to find the attachment socket transform and if it succeeds return it
-        if ( TryFindAttachmentSocketTransform( socketID, outSocketWorldTransform ) )
-        {
-            return true;
-        }
-
-        // Search all children
-        for ( auto pChildSpatialComponent : m_spatialChildren )
-        {
-            auto foundTransform = pChildSpatialComponent->TryGetAttachmentSocketTransform( socketID, outSocketWorldTransform );
-            if ( foundTransform )
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    bool SpatialEntityComponent::TryFindAttachmentSocketTransform( StringID socketID, Transform& outSocketWorldTransform ) const
+    bool SpatialEntityComponent::GetAttachmentSocketTransformInternal( StringID socketID, Transform& outSocketWorldTransform ) const
     {
         outSocketWorldTransform = m_worldTransform;
         return false;
@@ -154,6 +131,11 @@ namespace EE
 
         // Property edits always refresh the transform since properties could have an effect on bounds/transform
         CalculateWorldTransform();
+
+        if ( SupportsNonUniformScale() )
+        {
+            OnNonUniformScaleChanged();
+        }
     }
     #endif
 }

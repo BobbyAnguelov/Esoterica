@@ -1,6 +1,7 @@
 #pragma once
 
 #include "UUID.h"
+#include "Base/Threading/Threading.h"
 
 #include <EASTL/functional.h>
 
@@ -65,7 +66,7 @@ namespace EE
         {
             if ( HasBoundUsers() )
             {
-                EE_LOG_ERROR( "System", nullptr, "Event still has bound users at destruction" );
+                EE_LOG_ERROR( LogCategory::System, nullptr, "Event still has bound users at destruction" );
                 EE_HALT();
             }
         }
@@ -74,18 +75,23 @@ namespace EE
 
         inline bool HasBoundUsers() const { return !m_boundUsers.empty(); }
 
+        [[nodiscard]]
         inline EventBindingID Bind( eastl::function<void( Args... )>&& function )
         {
+            Threading::ScopeLock const sl( m_mutex );
+
             auto& boundUser = m_boundUsers.emplace_back( BoundUser( eastl::forward<eastl::function<void( Args... )>&&>( function ) ) );
             boundUser.m_function = function;
             return EventBindingID( boundUser.m_ID );
         }
 
-        inline void Unbind( EventBindingID bindingID )
+        inline void Unbind( EventBindingID& bindingID )
         {
             auto searchPredicate = [] ( BoundUser const& boundUser, EventBindingID const& bindingID ) { return boundUser.m_ID == bindingID.m_ID; };
-            auto foundIter = eastl::find( m_boundUsers.begin(), m_boundUsers.end(), bindingID, searchPredicate );
 
+            Threading::ScopeLock const sl( m_mutex );
+
+            auto foundIter = eastl::find( m_boundUsers.begin(), m_boundUsers.end(), bindingID, searchPredicate );
             EE_ASSERT( foundIter != m_boundUsers.end() );
             m_boundUsers.erase( foundIter );
             bindingID.Reset();
@@ -110,8 +116,8 @@ namespace EE
 
     private:
 
-        // TODO: make this threadsafe!
         TVector<BoundUser>              m_boundUsers;
+        Threading::Mutex                m_mutex;
     };
 
     //-------------------------------------------------------------------------

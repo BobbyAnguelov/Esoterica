@@ -3,6 +3,7 @@
 #include "Base/_Module/API.h"
 #include "TypeID.h"
 #include "Base/Types/Arrays.h"
+#include "Base/Types/String.h"
 
 //-------------------------------------------------------------------------
 // The path to a property within a reflected type
@@ -32,17 +33,17 @@ namespace EE::TypeSystem
 
         struct PathElement
         {
-            EE_SERIALIZE( m_propertyID, m_arrayElementIdx );
+            EE_SERIALIZE( m_ID, m_arrayElementIdx );
 
             PathElement() : m_arrayElementIdx( InvalidIndex ) {}
-            PathElement( StringID ID ) : m_propertyID( ID ), m_arrayElementIdx( InvalidIndex ) {}
-            PathElement( StringID ID, int32_t arrayElementIdx ) : m_propertyID( ID ), m_arrayElementIdx( arrayElementIdx ) {}
+            PathElement( StringID ID ) : m_ID( ID ), m_arrayElementIdx( InvalidIndex ) {}
+            PathElement( StringID ID, int32_t arrayElementIdx ) : m_ID( ID ), m_arrayElementIdx( arrayElementIdx ) {}
 
             inline bool IsArrayElement() const { return m_arrayElementIdx != InvalidIndex; }
 
             inline bool operator==( PathElement const& other ) const
             {
-                return m_propertyID == other.m_propertyID && m_arrayElementIdx == other.m_arrayElementIdx;
+                return m_ID == other.m_ID && m_arrayElementIdx == other.m_arrayElementIdx;
             }
 
             inline bool operator!=( PathElement const& other ) const
@@ -50,9 +51,27 @@ namespace EE::TypeSystem
                 return !( *this == other );
             }
 
+            inline bool operator<( PathElement const& rhs ) const
+            {
+                EE_ASSERT( m_ID.IsValid() && rhs.m_ID.IsValid() );
+
+                int32_t const result = StringUtils::Stricmp( m_ID.c_str(), rhs.m_ID.c_str() );
+                if ( result < 0 )
+                {
+                    return true;
+                }
+
+                if ( result == 0 )
+                {
+                    return m_arrayElementIdx < rhs.m_arrayElementIdx;
+                }
+
+                return false;
+            }
+
         public:
 
-            StringID            m_propertyID;
+            StringID            m_ID;
             int32_t             m_arrayElementIdx;
         };
 
@@ -103,7 +122,7 @@ namespace EE::TypeSystem
         inline void Append( StringID newElement, int32_t arrayElementIdx = InvalidIndex )
         {
             EE_ASSERT( newElement.IsValid() && arrayElementIdx >= InvalidIndex );
-            m_pathElements.emplace_back( PathElement( newElement, arrayElementIdx ) );
+            m_pathElements.emplace_back( newElement, arrayElementIdx );
             GenerateHashCode();
         }
 
@@ -148,9 +167,33 @@ namespace EE::TypeSystem
             return m_hash != other.m_hash;
         }
 
+        inline bool operator<( PropertyPath const& rhs ) const
+        {
+            if ( m_pathElements.size() != rhs.m_pathElements.size() )
+            {
+                return ( m_pathElements.size() < rhs.m_pathElements.size() );
+            }
+
+            size_t numElements = m_pathElements.size();
+            for ( size_t i = 0; i < numElements; i++ )
+            {
+                if ( m_pathElements[i] < rhs.m_pathElements[i] )
+                {
+                    return true;
+                }
+                else if ( m_pathElements[i] != rhs.m_pathElements[i] )
+                {
+                    return false;
+                }
+            }
+
+            // If we get here, it means all elements are equal
+            return false;
+        }
+
         inline PropertyPath& operator+=( StringID newElement )
         {
-            m_pathElements.emplace_back( PathElement( newElement ) );
+            m_pathElements.emplace_back( newElement );
             GenerateHashCode();
             return *this;
         }
@@ -165,5 +208,21 @@ namespace EE::TypeSystem
 
         TInlineVector<PathElement, 10>      m_pathElements;
         uint64_t                            m_hash = 0;
+    };
+}
+
+//-------------------------------------------------------------------------
+
+namespace eastl
+{
+    template <typename T> struct hash;
+
+    template <>
+    struct hash<EE::TypeSystem::PropertyPath>
+    {
+        size_t operator()( EE::TypeSystem::PropertyPath const& path ) const
+        {
+            return path.GetHashCode();
+        }
     };
 }

@@ -3,9 +3,9 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
-    StaticStringID const AnimationController::s_characterStateIDs[] =
+    StaticStringID const PlayerAnimationController::s_characterStateIDs[] =
     {
         StaticStringID( "CS_Locomotion" ),
         StaticStringID( "CS_InAir" ),
@@ -14,7 +14,7 @@ namespace EE::Player
         StaticStringID( "CS_GhostMode" ),
     };
 
-    StaticStringID const AnimationController::s_locomotionStateIDs[] =
+    StaticStringID const PlayerAnimationController::s_locomotionStateIDs[] =
     {
         StaticStringID( "Locomotion_Idle" ),
         StaticStringID( "Locomotion_TurnOnSpot" ),
@@ -24,14 +24,14 @@ namespace EE::Player
         StaticStringID( "Locomotion_Stop" ),
     };
 
-    StaticStringID const AnimationController::s_inAirStateParameterIDs[] =
+    StaticStringID const PlayerAnimationController::s_inAirStateParameterIDs[] =
     {
         StaticStringID( "InAir_Falling" ),
         StaticStringID( "InAir_SoftLanding" ),
         StaticStringID( "InAir_HardLanding" )
     };
 
-    StaticStringID const AnimationController::s_weaponStateIDs[] =
+    StaticStringID const PlayerAnimationController::s_weaponStateIDs[] =
     {
         StaticStringID( "Weapon_None" ),
         StaticStringID( "Weapon_Draw" ),
@@ -48,11 +48,11 @@ namespace EE::Player
         static StaticStringID g_slideID( "Ability_Slide" );
     }
 
-    StaticStringID const AnimationController::s_locomotionTransitionMarkerID( "Locomotion" );
+    StaticStringID const PlayerAnimationController::s_locomotionTransitionMarkerID( "Locomotion" );
 
     //-------------------------------------------------------------------------
 
-    AnimationController::AnimationController( Animation::GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent )
+    PlayerAnimationController::PlayerAnimationController( Animation::GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent )
         : Animation::GraphController( pGraphComponent, pMeshComponent )
     {
         m_characterState.TryBind( this );
@@ -97,7 +97,7 @@ namespace EE::Player
 
     //-------------------------------------------------------------------------
 
-    bool AnimationController::IsTransitionFullyAllowed( StringID specificID ) const
+    bool PlayerAnimationController::IsTransitionFullyAllowed( StringID specificID ) const
     {
         for ( auto const& pSampledEvent : m_transitionEvents )
         {
@@ -110,7 +110,7 @@ namespace EE::Player
         return false;
     }
 
-    bool AnimationController::IsTransitionConditionallyAllowed( StringID specificID ) const
+    bool PlayerAnimationController::IsTransitionConditionallyAllowed( StringID specificID ) const
     {
         for ( auto const& pSampledEvent : m_transitionEvents )
         {
@@ -123,7 +123,7 @@ namespace EE::Player
         return false;
     }
 
-    void AnimationController::PostGraphUpdate( Seconds deltaTime )
+    void PlayerAnimationController::PostGraphUpdate( Seconds deltaTime )
     {
         Animation::GraphController::PostGraphUpdate( deltaTime );
 
@@ -224,7 +224,7 @@ namespace EE::Player
     // General
     //-------------------------------------------------------------------------
 
-    void AnimationController::SetCharacterState( CharacterState state )
+    void PlayerAnimationController::SetCharacterState( CharacterState state )
     {
         EE_ASSERT( state < CharacterState::NumStates );
         m_characterState.Set( s_characterStateIDs[(uint8_t) state] );
@@ -234,7 +234,7 @@ namespace EE::Player
     // Locomotion
     //-------------------------------------------------------------------------
 
-    void AnimationController::RequestIdle()
+    void PlayerAnimationController::RequestIdle()
     {
         m_locomotionState.Set( s_locomotionStateIDs[(int8_t) LocomotionState::Idle] );
         m_locomotionMoveVelocity.Set( Vector::Zero );
@@ -243,7 +243,7 @@ namespace EE::Player
         m_locomotionSpeed.Set( 0.0f );
     }
 
-    void AnimationController::RequestTurnOnSpot( Vector const& directionWS )
+    void PlayerAnimationController::RequestTurnOnSpot( Vector const& directionWS )
     {
         m_locomotionState.Set( s_locomotionStateIDs[(int8_t) LocomotionState::TurnOnSpot] );
         m_locomotionMoveVelocity.Set( Vector::Zero );
@@ -252,7 +252,7 @@ namespace EE::Player
         m_locomotionSpeed.Set( 0.0f );
     }
 
-    void AnimationController::RequestStart( Vector const& movementVelocityWS )
+    void PlayerAnimationController::RequestStart( Vector const& movementVelocityWS )
     {
         Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
 
@@ -269,7 +269,7 @@ namespace EE::Player
         m_locomotionSpeed.Set( speed );
     }
 
-    void AnimationController::RequestMove( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
+    void PlayerAnimationController::RequestMove( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
     {
         Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
 
@@ -295,7 +295,7 @@ namespace EE::Player
         m_locomotionSpeed.Set( speed );
     }
 
-    void AnimationController::RequestPlantedTurn( Vector const& directionWS )
+    void PlayerAnimationController::RequestPlantedTurn( Vector const& directionWS )
     {
         EE_ASSERT( directionWS.IsNormalized3() );
         m_locomotionState.Set( s_locomotionStateIDs[(int8_t) LocomotionState::PlantedTurn] );
@@ -303,7 +303,7 @@ namespace EE::Player
         m_locomotionMoveDir.Set( directionWS );
     }
 
-    void AnimationController::RequestStop( Transform const& target )
+    void PlayerAnimationController::RequestStop( Transform const& target )
     {
         m_locomotionState.Set( s_locomotionStateIDs[(int8_t) LocomotionState::Stop] );
         m_locomotionMoveVelocity.Set( Vector::Zero );
@@ -312,22 +312,22 @@ namespace EE::Player
         m_locomotionSpeed.Set( 0.0f );
     }
 
-    void AnimationController::SetCrouch( bool isCrouch )
+    void PlayerAnimationController::SetCrouch( bool isCrouch )
     {
         m_locomotionCrouchState.Set( isCrouch );
     }
 
-    void AnimationController::SetSliding( bool isSliding )
+    void PlayerAnimationController::SetSliding( bool isSliding )
     {
         m_locomotionAutoSlidingState.Set( isSliding );
     }
 
-    bool AnimationController::IsLocomotionTransitionFullyAllowed() const
+    bool PlayerAnimationController::IsLocomotionTransitionFullyAllowed() const
     {
         return IsTransitionFullyAllowed( s_locomotionTransitionMarkerID );
     }
 
-    bool AnimationController::IsLocomotionTransitionConditionallyAllowed() const
+    bool PlayerAnimationController::IsLocomotionTransitionConditionallyAllowed() const
     {
         return IsTransitionFullyAllowed( s_locomotionTransitionMarkerID );
     }
@@ -336,16 +336,25 @@ namespace EE::Player
     // In Air
     //-------------------------------------------------------------------------
 
-    void AnimationController::SetInAirDesiredMovement( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
+    void PlayerAnimationController::SetInAirDesiredMovement( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
     {
         Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
-      
-        float speed;
-        Vector movementDirCS;
-        movementVelocityCS.ToDirectionAndLength3( movementDirCS, speed );
-        m_inAirMoveDir.Set( movementDirCS );
-        m_inAirMoveVelocity.Set( movementVelocityCS );
-        m_inAirSpeed.Set( speed );
+
+        if ( movementVelocityCS.IsNearZero3() )
+        {
+            m_inAirMoveDir.Set( Vector::WorldForward );
+            m_inAirMoveVelocity.Set( Vector::Zero );
+            m_inAirSpeed.Set( 0.0f );
+        }
+        else
+        {
+            float speed;
+            Vector movementDirCS;
+            movementVelocityCS.ToDirectionAndLength3( movementDirCS, speed );
+            m_inAirMoveDir.Set( movementDirCS );
+            m_inAirMoveVelocity.Set( movementVelocityCS );
+            m_inAirSpeed.Set( speed );
+        }
 
         //-------------------------------------------------------------------------
 
@@ -365,22 +374,22 @@ namespace EE::Player
     // Weapons
     //-------------------------------------------------------------------------
 
-    void AnimationController::FireWeapon()
+    void PlayerAnimationController::FireWeapon()
     {
         m_weaponFireSignal.Set( true );
     }
 
-    void AnimationController::DrawWeapon()
+    void PlayerAnimationController::DrawWeapon()
     {
         m_weaponState.Set( s_weaponStateIDs[(uint8_t) WeaponState::Drawing] );
     }
 
-    void AnimationController::HolsterWeapon()
+    void PlayerAnimationController::HolsterWeapon()
     {
         m_weaponState.Set( s_weaponStateIDs[(uint8_t) WeaponState::Holstering] );
     }
 
-    void AnimationController::AimWeapon( Vector const& targetWS )
+    void PlayerAnimationController::AimWeapon( Vector const& targetWS )
     {
         float angleH = 0.0f;
         float angleV = 0.0f;
@@ -395,15 +404,15 @@ namespace EE::Player
             Vector targetPosCS = ConvertWorldSpacePointToCharacterSpace( targetWS );
             Vector aimDir = ( targetPosCS - headPos ).GetNormalized3();
 
-            angleH = Math::GetYawAngleBetweenNormalizedVectors( Vector::WorldForward, aimDir ).ToDegrees().ToFloat();
-            angleV = Math::GetPitchAngleBetweenNormalizedVectors( Vector::WorldForward, aimDir ).ToDegrees().ToFloat();
+            angleH = Math::CalculateYawAngleBetweenVectors( Vector::WorldForward, aimDir ).ToDegrees().ToFloat();
+            angleV = Math::CalculatePitchAngleBetweenUnitVectors( Vector::WorldForward, aimDir ).ToDegrees().ToFloat();
         }
 
         m_weaponAimAngleHorizontal.Set( angleH );
         m_weaponAimAngleVertical.Set( angleV );
     }
 
-    void AnimationController::StartMeleeAttack()
+    void PlayerAnimationController::StartMeleeAttack()
     {
         static StringID const meleeAttackID( "MeleeAttack" );
         m_weaponState.Set( meleeAttackID );
@@ -413,22 +422,22 @@ namespace EE::Player
     // Abilities
     //-------------------------------------------------------------------------
 
-    void AnimationController::StartJump()
+    void PlayerAnimationController::StartJump()
     {
         m_abilityState.Set( AbilityIDs::g_jumpID );
     }
 
-    void AnimationController::StartDash()
+    void PlayerAnimationController::StartDash()
     {
         m_abilityState.Set( AbilityIDs::g_dashID );
     }
 
-    void AnimationController::StartSlide()
+    void PlayerAnimationController::StartSlide()
     {
         m_abilityState.Set( AbilityIDs::g_slideID );
     }
 
-    void AnimationController::SetAbilityDesiredMovement( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
+    void PlayerAnimationController::SetAbilityDesiredMovement( Seconds const deltaTime, Vector const& movementVelocityWS, Vector const& facingDirectionWS )
     {
         Vector const movementVelocityCS = ConvertWorldSpaceVectorToCharacterSpace( movementVelocityWS );
         
@@ -458,12 +467,12 @@ namespace EE::Player
     // Hit Reactions
     //-------------------------------------------------------------------------
 
-    void AnimationController::TriggerHitReaction()
+    void PlayerAnimationController::TriggerHitReaction()
     {
         m_hitReactionState.Set( StringID( "HR_Flinch" ) );
     }
 
-    void AnimationController::ClearHitReaction()
+    void PlayerAnimationController::ClearHitReaction()
     {
         m_hitReactionState.Set( StringID() );
     }

@@ -10,16 +10,42 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
-    void MaterialEditor::Initialize( UpdateContext const& context )
+    void MaterialEditor::SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
-        EE_ASSERT( m_pPreviewComponent == nullptr );
-
-        TResourceEditor<Material>::Initialize( context );
+        ImGuiID leftDockID = 0;
+        ImGuiID rightDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Right, 0.35f, nullptr, &leftDockID );
 
         //-------------------------------------------------------------------------
 
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), rightDockID );
+    }
+
+    void MaterialEditor::OnResourceLoadCompleted( Resource::ResourcePtr* pResourcePtr )
+    {
+        TResourceEditor<Material>::OnResourceLoadCompleted( pResourcePtr );
+
+        if ( pResourcePtr == &m_editedResource && IsResourceLoaded() )
+        {
+            CreatePreviewEntity();
+        }
+    }
+
+    void MaterialEditor::OnResourceUnload( Resource::ResourcePtr* pResourcePtr )
+    {
+        if ( pResourcePtr == &m_editedResource )
+        {
+            DestroyPreviewEntity();
+        }
+
+        TResourceEditor<Material>::OnResourceUnload( pResourcePtr );
+    }
+
+    void MaterialEditor::CreatePreviewEntity()
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+
         m_pPreviewComponent = EE::New<StaticMeshComponent>( StringID( "Static Mesh Component" ) );
-        m_pPreviewComponent->SetMesh( "data://Editor/MaterialBall/MaterialBall.msh" );
+        m_pPreviewComponent->SetMesh( "data://Editor/MaterialBall/MaterialBall.mesh" );
         m_pPreviewComponent->SetWorldTransform( Transform( Quaternion::Identity, Vector( 0, 0, 1 ) ) );
         m_pPreviewComponent->SetMaterialOverride( 0, m_editedResource.GetResourceID() );
 
@@ -27,48 +53,14 @@ namespace EE::Render
         auto pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
         pPreviewEntity->AddComponent( m_pPreviewComponent );
         AddEntityToWorld( pPreviewEntity );
-
-        //-------------------------------------------------------------------------
-
-        CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDetailsWindow( context, isFocused ); } );
     }
 
-    void MaterialEditor::Shutdown( UpdateContext const& context )
+    void MaterialEditor::DestroyPreviewEntity()
     {
-        m_pPreviewComponent = nullptr;
-        TResourceEditor<Material>::Shutdown( context );
-    }
-
-    void MaterialEditor::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
-    {
-        ImGuiID topDockID = 0;
-        ImGuiID bottomDockID = ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.5f, nullptr, &topDockID );
-
-        // Dock windows
-        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), topDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomDockID );
-    }
-
-    void MaterialEditor::DrawDetailsWindow( UpdateContext const& context, bool isFocused )
-    {
-        if ( IsWaitingForResource() )
+        if ( m_pPreviewEntity != nullptr )
         {
-            ImGui::Text( "Loading:" );
-            ImGui::SameLine();
-            ImGuiX::DrawSpinner( "Loading" );
-        }
-        else if ( HasLoadingFailed() )
-        {
-            ImGui::Text( "Loading Failed: %s", m_editedResource.GetResourceID().c_str() );
-            return;
-        }
-        else
-        {
-            if ( IsDataFileLoaded() )
-            {
-                m_pDataFilePropertyGrid->UpdateAndDraw();
-            }
+            DestroyEntityInWorld( m_pPreviewEntity );
+            m_pPreviewComponent = nullptr;
         }
     }
 }

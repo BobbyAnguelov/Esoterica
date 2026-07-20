@@ -153,7 +153,16 @@ namespace EE::Animation
             int32_t const numChildAnimations = m_pAnimation->GetNumSecondaryAnimations();
             for ( int32_t i = 0; i < numChildAnimations; i++ )
             {
-                m_pAnimation->GetSecondaryAnimations()[i]->GetPose( m_animTime, m_secondaryPoses[i], m_skeletonLOD );
+                AnimationClip const* pSecondaryClip = m_pAnimation->GetSecondaryAnimations()[i];
+                EE_ASSERT( m_secondaryPoses[i]->GetSkeleton() == pSecondaryClip->GetSkeleton() );
+
+                pSecondaryClip->GetPose( m_animTime, m_secondaryPoses[i], m_skeletonLOD );
+
+                if ( m_secondaryPoses[i]->IsAdditivePose() )
+                {
+                    Blender::ApplyAdditiveToReferencePose( m_skeletonLOD, m_secondaryPoses[i], 1.0f, nullptr, m_secondaryPoses[i] );
+                }
+
                 m_secondaryPoses[i]->CalculateModelSpaceTransforms();
             }
 

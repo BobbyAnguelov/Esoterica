@@ -1,0 +1,30 @@
+<Type TypeID="EE::Render::TextureGroup" Version="1">
+  <Property ID="m_fileMasks">
+    <Type Index="0" TypeID="EE::Render::TextureGroupFileMask">
+      <Property ID="m_channelName" Value="Roughness" />
+      <Property ID="m_sourceMask" Value="R" />
+      <Property ID="m_destinationMask" Value="A" />
+    </Type>
+    <Type Index="1" TypeID="EE::Render::TextureGroupFileMask">
+      <Property ID="m_channelName" Value="Metallic" />
+      <Property ID="m_sourceMask" Value="R" />
+      <Property ID="m_destinationMask" Value="R" />
+    </Type>
+    <Type Index="2" TypeID="EE::Render::TextureGroupFileMask">
+      <Property ID="m_channelName" Value="AmbientOcclusion" />
+      <Property ID="m_sourceMask" Value="R" />
+      <Property ID="m_destinationMask" Value="G" />
+    </Type>
+    <Type Index="3" TypeID="EE::Render::TextureGroupFileMask">
+      <Property ID="m_channelName" Value="Displacement" />
+      <Property ID="m_sourceMask" Value="R" />
+      <Property ID="m_destinationMask" Value="B" />
+    </Type>
+  </Property>
+  <Type ID="m_mipSettings" TypeID="EE::Render::TextureGroupMipSettings">
+    <Property ID="m_generateMipmaps" Value="True" />
+  </Type>
+  <Type ID="m_compressionSettings" TypeID="EE::Render::TextureGroupCompressionSettings">
+    <Property ID="m_textureType" Value="Color" />
+  </Type>
+</Type>

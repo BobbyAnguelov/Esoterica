@@ -1,0 +1,120 @@
+
+#ifndef SHADOWS_ESH
+#define SHADOWS_ESH
+
+#include "Engine/Render/Shaders/CommonSamplers.esh"
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+
+float3 ComputeShadowNormalOffset( float dotNL, float3 normal, float2 texelSize )
+{
+    const float OffsetScale = 5.0;
+    return OffsetScale * saturate( 1.0 - dotNL ) * texelSize.x * normal;
+}
+
+float SampleShadowCascade( CascadedShadow cascadedShadow, Texture2DArray shadowTexture, SamplerComparisonState shadowSampler, float3 shadowPosition, uint cascadeIndex )
+{
+    shadowPosition += cascadedShadow.m_cascadeOffsets[cascadeIndex].xyz;
+    shadowPosition *= cascadedShadow.m_cascadeScales[cascadeIndex].xyz;
+
+    // TODO: Low settings
+    // return shadowTexture.SampleCmpLevelZero( shadowSampler, float3( shadowPosition.xy, cascadeIndex ), shadowPosition.z );
+
+    float2 uv = shadowPosition.xy * cascadedShadow.m_cascadeSize.xy;
+
+    float2 baseUV = floor( uv + 0.5.xx );
+    float2 st = uv + 0.5.xx - baseUV;
+
+    baseUV -= 0.5.xx;
+    baseUV *= cascadedShadow.m_cascadeSize.zw;
+
+    float shadow = 0.0;
+
+    float uw0 = ( 3.0 - 2.0 * st.x );
+    float uw1 = ( 1.0 + 2.0 * st.x );
+
+    float u0 = ( 2.0 - st.x ) / uw0 - 1.0;
+    float u1 = st.x / uw1 + 1;
+
+    float vw0 = ( 3.0 - 2.0 * st.y );
+    float vw1 = ( 1.0 + 2.0 * st.y );
+
+    float v0 = ( 2.0 - st.y ) / vw0 - 1.0;
+    float v1 = st.y / vw1 + 1.0;
+
+    shadow += uw0 * vw0 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u0, v0 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), shadowPosition.z );
+    shadow += uw1 * vw0 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u1, v0 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), shadowPosition.z );
+    shadow += uw0 * vw1 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u0, v1 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), shadowPosition.z );
+    shadow += uw1 * vw1 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u1, v1 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), shadowPosition.z );
+
+    return shadow * ( 1.0 / 16.0 );
+}
+
+float SampleShadow( CascadedShadow cascadedShadow, float3 lightDirection, float3 worldSpacePosition, float depth, float3 normal, out float3 debugShadowColor )
+{
+    SamplerComparisonState  shadowSampler = GetLinearClampCompareSampler();
+    Texture2DArray          shadowTexture = GetTexture( cascadedShadow.m_shadowCascades );
+
+    float3 projectedPosition = mul( cascadedShadow.m_shadowMatrix, float4( worldSpacePosition, 1.0 ) ).xyz;
+
+    uint cascade = 3;
+
+    [unroll] for ( int cascadeIndex = 3; cascadeIndex >= 0; --cascadeIndex )
+    {
+        float3 cascadePosition = projectedPosition + cascadedShadow.m_cascadeOffsets[cascadeIndex].xyz;
+        cascadePosition *= cascadedShadow.m_cascadeScales[cascadeIndex].xyz;
+        cascadePosition = abs( cascadePosition - 0.5.xxx );
+        [flatten] if ( all( cascadePosition <= 0.5.xxx) )
+        {
+            cascade = cascadeIndex;
+        }
+    }
+
+    #if EE_DEVELOPMENT_TOOLS
+        float3 const DebugCascadeColors[4] = {
+            float3( 0.0, 1.0, 0.0 ),
+            float3( 0.0, 0.0, 1.0 ),
+            float3( 1.0, 0.0, 0.0 ),
+            float3( 1.0, 0.0, 1.0 )
+        };
+
+        debugShadowColor = DebugCascadeColors[cascade];
+    #endif
+
+    float dotNL = saturate( dot( normal, lightDirection ) );
+    float3 normalOffset = ComputeShadowNormalOffset( dotNL, normal, cascadedShadow.m_cascadeSize.zw ) / abs( cascadedShadow.m_cascadeScales[cascade].z );
+
+    float3 samplePosition = worldSpacePosition + normalOffset;
+    float3 shadowPosition = mul( cascadedShadow.m_shadowMatrix, float4( samplePosition, 1.0 ) ).xyz;
+
+    float shadow = SampleShadowCascade( cascadedShadow, shadowTexture, shadowSampler, shadowPosition, cascade );
+
+    // Blend cascades
+    // TODO: Toggle off on lower settings
+    const float BlendThreshold = 0.1;
+
+    float3 cascadePosition = projectedPosition + cascadedShadow.m_cascadeOffsets[cascade].xyz;
+    cascadePosition *= cascadedShadow.m_cascadeScales[cascade].xyz;
+    cascadePosition = abs( cascadePosition * 2.0 - 1.0.xxx );
+
+    float distanceToEdge = 1.0 - max( max( cascadePosition.x, cascadePosition.y ), cascadePosition.z );
+    [branch] if ( distanceToEdge < BlendThreshold && cascade != 3 )
+    {
+        uint nextCascade = cascade + 1;
+        float3 nextNormalOffset = ComputeShadowNormalOffset( dotNL, normal, cascadedShadow.m_cascadeSize.zw ) / abs( cascadedShadow.m_cascadeScales[nextCascade].z );
+
+        float3 nextSamplePosition = worldSpacePosition + nextNormalOffset;
+        float3 nextShadowPosition = mul( cascadedShadow.m_shadowMatrix, float4( nextSamplePosition, 1.0 ) ).xyz;
+
+        float blend = smoothstep( 0.0, BlendThreshold, distanceToEdge );
+        float nextShadow = SampleShadowCascade( cascadedShadow, shadowTexture, shadowSampler, nextShadowPosition, nextCascade );
+        shadow = lerp( nextShadow, shadow, blend );
+        
+        #if EE_DEVELOPMENT_TOOLS
+            debugShadowColor = lerp( DebugCascadeColors[nextCascade], debugShadowColor, blend );
+        #endif
+    }
+
+    return shadow;
+}
+
+#endif

@@ -26,6 +26,7 @@ namespace EE::TypeSystem
         PropertyDescriptor() = default;
 
         inline bool IsValid() const { return m_path.IsValid() && !m_byteValue.empty(); }
+        inline bool operator<( PropertyDescriptor const& rhs ) const { return m_path < rhs.m_path; }
 
     public:
 
@@ -76,7 +77,7 @@ namespace EE::TypeSystem
 
             // Set properties
             RestorePropertyState( typeRegistry, pTypeInfo, pTypeInstance );
-            pTypeInstance->PostDeserialize();
+            pTypeInstance->PostDeserialize( typeRegistry );
             return reinterpret_cast<T*>( pTypeInstance );
         }
 
@@ -102,7 +103,7 @@ namespace EE::TypeSystem
 
             // Set properties
             RestorePropertyState( typeRegistry, pTypeInfo, pAllocatedMemoryForInstance );
-            pAllocatedMemoryForInstance->PostDeserialize();
+            pAllocatedMemoryForInstance->PostDeserialize( typeRegistry );
             return reinterpret_cast<T*>( pAllocatedMemoryForInstance );
         }
 

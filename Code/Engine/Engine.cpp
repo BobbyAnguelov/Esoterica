@@ -1,11 +1,12 @@
 #include "Engine.h"
-#include "Engine/Console/Console.h"
-#include "Base/Network/NetworkSystem.h"
+#include "Engine/Render/RenderViewport.h"
 #include "Base/Profiling.h"
-#include "Base/FileSystem/FileSystem.h"
 #include "Base/Time/Timers.h"
 #include "Base/FileSystem/FileSystemUtils.h"
 #include "Base/Logging/SystemLog.h"
+#include "Base/Utils/CommandLineParser.h"
+#include "Base/Resource/Settings/Settings_Resource.h"
+#include "Base/Resource/ResourceProvider.h"
 
 //-------------------------------------------------------------------------
 
@@ -28,12 +29,39 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    bool Engine::Initialize( Int2 const& windowDimensions )
+    void Engine::UpdateResourceLoadingRequests_Blocking()
     {
-        EE_LOG_INFO( "System", nullptr, "Engine Application Startup" );
+        EE_ASSERT( Threading::IsMainThread() );
 
+        m_pResourceSystem->Update( true );
+
+        m_pRenderSystem->StartResourceUpdates( true );
+        m_pRenderSystem->SubmitResourceUpdates( true );
+
+        m_pRenderSystem->StartAsyncResourceUpdates( true );
+        m_pRenderSystem->SubmitAsyncResourceUpdates( true );
+    }
+
+    bool Engine::Initialize( int32_t argc, char** argv, Int2 const& windowDimensions )
+    {
         BaseModule* pBaseModule = GetBaseModule();
         EngineModule* pEngineModule = GetEngineModule();
+
+        //-------------------------------------------------------------------------
+        // Process command line
+        //-------------------------------------------------------------------------
+
+        CommandLineParser cl;
+        cl.AddOptionalStringArg( "map", "The startup map." );
+
+        #if EE_DEVELOPMENT_TOOLS
+        cl.AddOptionalBoolArg( "packaged", "Should we use packaged data instead of the networked resource server", false );
+        #endif
+
+        if ( !cl.Parse( argc, argv ) )
+        {
+            return m_fatalErrorHandler( "Invalid command line arguments!" );
+        }
 
         //-------------------------------------------------------------------------
         // Register all known types
@@ -55,6 +83,14 @@ namespace EE
         {
             return m_fatalErrorHandler( "Failed to initialize settings!" );
         }
+
+        // Set resource provider to use
+        #if EE_DEVELOPMENT_TOOLS
+        auto pResourceSettings = pSettingsRegistry->GetSettings<Resource::ResourceSettings>();
+        EE_ASSERT( pResourceSettings != nullptr );
+        bool const usePackagedResourceProvider = cl.GetBoolArg( "packaged" );
+        pResourceSettings->SetUsePackagedResourceProvider( usePackagedResourceProvider );
+        #endif
 
         //-------------------------------------------------------------------------
         // Initialize Engine Modules
@@ -80,13 +116,33 @@ namespace EE
         m_pSystemRegistry = pBaseModule->GetSystemRegistry();
         m_pInputSystem = pBaseModule->GetInputSystem();
         m_pResourceSystem = pBaseModule->GetResourceSystem();
-        m_pRenderDevice = pBaseModule->GetRenderDevice();
+        m_pResourceProvider = pBaseModule->GetResourceProvider();
+
         m_pEntityWorldManager = pEngineModule->GetEntityWorldManager();
         EE_DEVELOPMENT_TOOLS_ONLY( m_pImguiSystem = pBaseModule->GetImguiSystem() );
-        EE_DEVELOPMENT_TOOLS_ONLY( m_pConsole = pEngineModule->GetConsole(); );
+        EE_DEVELOPMENT_TOOLS_ONLY( m_pImguiRenderer = pEngineModule->GetImguiRenderer() );
+
+        m_pRenderSystem = m_pSystemRegistry->GetSystem<Render::RenderSystem>();
+        m_pRenderWindow = pEngineModule->GetRenderWindow();
+        m_pForwardShadingRenderer = pEngineModule->GetForwardShadingRenderer();
 
         // Setup update context
         m_updateContext.m_pSystemRegistry = m_pSystemRegistry;
+
+        // Wait for resource provider to connect
+        if ( !m_pResourceProvider->IsReady() )
+        {
+            while ( m_pResourceProvider->IsConnecting() )
+            {
+                m_pResourceProvider->Update();
+                Threading::Sleep( 25 );
+            }
+
+            if ( !m_pResourceProvider->IsReady() )
+            {
+                return m_fatalErrorHandler( "Resource provider failed to connect - See EngineApplication log for details" );
+            }
+        }
 
         //-------------------------------------------------------------------------
         // Load Required Module Resources
@@ -102,8 +158,7 @@ namespace EE
         // Wait for all load requests to complete
         while ( m_pResourceSystem->IsBusy() )
         {
-            Network::NetworkSystem::Update();
-            m_pResourceSystem->Update();
+            UpdateResourceLoadingRequests_Blocking();
         }
 
         for ( Module* pModule : m_modules )
@@ -123,27 +178,38 @@ namespace EE
 
         // Initialize entity world manager and load startup map
         m_pEntityWorldManager->Initialize( *m_pSystemRegistry );
-        if ( m_startupMap.IsValid() )
-        {
-            auto const mapResourceID = EE::ResourceID( m_startupMap );
-            m_pEntityWorldManager->GetWorlds()[0]->LoadMap( mapResourceID );
-        }
-
-        // Initialize rendering system
-        m_renderingSystem.Initialize( m_pRenderDevice, Float2( windowDimensions ), pEngineModule->GetRendererRegistry(), m_pEntityWorldManager );
-        m_pSystemRegistry->RegisterSystem( &m_renderingSystem );
 
         // Create tools UI
         #if EE_DEVELOPMENT_TOOLS
-        CreateDevelopmentToolsUI();
-        EE_ASSERT( m_pDevelopmentToolsUI != nullptr );
-        m_pDevelopmentToolsUI->Initialize( m_updateContext, m_pImguiSystem->GetImageCache() );
+        m_pRenderSystem->StartResourceUpdates( true );
+
+        CreateToolsUI();
+        EE_ASSERT( m_pToolsUI != nullptr );
+        m_pToolsUI->Initialize( m_updateContext, m_pImguiRenderer->GetImageCache() );
+
+        m_pRenderSystem->SubmitResourceUpdates( true );
+
+        m_pRenderSystem->StartAsyncResourceUpdates( true );
+        m_pRenderSystem->SubmitAsyncResourceUpdates( true );
+
         #endif
+
+        // Set startup map if provided
+        String const map = cl.GetStringArg( "map" );
+        if ( !map.empty() )
+        {
+            ResourceID const startupMapID = ResourceID( map.c_str() );
+            if ( startupMapID.IsValid() )
+            {
+                SetStartupMap( startupMapID );
+            }
+        }
 
         m_initializationStageReached = Stage::FullyInitialized;
 
         //-------------------------------------------------------------------------
 
+        ResizeMainWindow( windowDimensions );
         PostInitialize();
 
         return true;
@@ -151,7 +217,7 @@ namespace EE
 
     bool Engine::Shutdown()
     {
-        EE_LOG_INFO( "System", nullptr, "Engine Application Shutdown Started" );
+        EE_LOG_MESSAGE( LogCategory::System, "Shutdown", "Engine Application Shutdown Started" );
 
         BaseModule* pBaseModule = GetBaseModule();
 
@@ -163,6 +229,10 @@ namespace EE
         {
             m_pTaskSystem->WaitForAll();
         }
+
+        m_pRenderWindow = nullptr;
+
+        m_pRenderSystem->WaitAllQueuesIdle();
 
         if ( m_initializationStageReached == Stage::FullyInitialized )
         {
@@ -179,21 +249,17 @@ namespace EE
         {
             // Destroy development tools
             #if EE_DEVELOPMENT_TOOLS
-            EE_ASSERT( m_pDevelopmentToolsUI != nullptr );
-            m_pDevelopmentToolsUI->Shutdown( m_updateContext );
-            EE::Delete( m_pDevelopmentToolsUI );
+            EE_ASSERT( m_pToolsUI != nullptr );
+            m_pToolsUI->Shutdown( m_updateContext );
+            EE::Delete( m_pToolsUI );
             #endif
-
-            // Shutdown rendering system
-            m_pSystemRegistry->UnregisterSystem( &m_renderingSystem );
-            m_renderingSystem.Shutdown();
 
             // Wait for resource/object systems to complete all resource unloading
             m_pEntityWorldManager->Shutdown();
 
             while ( m_pEntityWorldManager->IsBusyLoading() || m_pResourceSystem->IsBusy() )
             {
-                m_pResourceSystem->Update();
+                UpdateResourceLoadingRequests_Blocking();
             }
 
             m_initializationStageReached = Stage::LoadModuleResources;
@@ -203,7 +269,7 @@ namespace EE
         // Unload engine resources
         //-------------------------------------------------------------------------
 
-        if( m_initializationStageReached == Stage::LoadModuleResources )
+        if ( m_initializationStageReached == Stage::LoadModuleResources )
         {
             if ( m_pResourceSystem != nullptr )
             {
@@ -214,7 +280,7 @@ namespace EE
 
                 while ( m_pResourceSystem->IsBusy() )
                 {
-                    m_pResourceSystem->Update();
+                    UpdateResourceLoadingRequests_Blocking();
                 }
             }
 
@@ -227,16 +293,18 @@ namespace EE
 
         if ( m_initializationStageReached == Stage::InitializeModules )
         {
+
             m_updateContext.m_pSystemRegistry = nullptr;
 
             EE_DEVELOPMENT_TOOLS_ONLY( m_pImguiSystem = nullptr );
-            EE_DEVELOPMENT_TOOLS_ONLY( m_pConsole = nullptr );
             m_pEntityWorldManager = nullptr;
             m_pTaskSystem = nullptr;
             m_pSystemRegistry = nullptr;
             m_pInputSystem = nullptr;
             m_pResourceSystem = nullptr;
-            m_pRenderDevice = nullptr;
+            m_pResourceProvider = nullptr;
+            m_pRenderSystem = nullptr;
+            m_pRenderWindow = nullptr;
 
             ModuleContext moduleContext = pBaseModule->GetModuleContext();
 
@@ -277,6 +345,12 @@ namespace EE
         return true;
     }
 
+    void Engine::SetStartupMap( ResourceID const& mapID )
+    {
+        EE_ASSERT( mapID.IsValid() );
+        m_pEntityWorldManager->GetWorlds()[0]->LoadMap( mapID );
+    }
+
     //-------------------------------------------------------------------------
 
     bool Engine::Update()
@@ -288,7 +362,7 @@ namespace EE
 
         if ( SystemLog::HasFatalErrorOccurred() )
         {
-            return m_fatalErrorHandler( SystemLog::GetFatalError().m_message );
+            return m_fatalErrorHandler( SystemLog::GetFatalError().m_message.c_str() );
         }
 
         // Perform Frame Update
@@ -305,7 +379,7 @@ namespace EE
 
             {
                 EE_PROFILE_SCOPE_NETWORK( "Networking" );
-                Network::NetworkSystem::Update();
+                // TODO
             }
 
             // Resource System Update
@@ -316,7 +390,25 @@ namespace EE
             {
                 EE_PROFILE_SCOPE_RESOURCE( "Resource System" );
 
+                // Wait for resource provider to connect
+                if ( !m_pResourceProvider->IsReady() )
+                {
+                    while ( m_pResourceProvider->IsConnecting() )
+                    {
+                        m_pResourceProvider->Update();
+                        Threading::Sleep( 1 );
+                    }
+
+                    if ( !m_pResourceProvider->IsReady() )
+                    {
+                        return m_fatalErrorHandler( "Resource provider connection failed - See EngineApplication log for details" );
+                    }
+                }
+
+                // Update resource system
+                m_pRenderSystem->StartAsyncResourceUpdates( false );
                 m_pResourceSystem->Update();
+                m_pRenderSystem->SubmitAsyncResourceUpdates( false );
 
                 // Handle hot-reloading of entities
                 #if EE_DEVELOPMENT_TOOLS
@@ -332,7 +424,7 @@ namespace EE
                     }
 
                     // Unload game and tool resources
-                    m_pDevelopmentToolsUI->HotReload_UnloadResources( usersToReload, resourcesToReload );
+                    m_pToolsUI->HotReload_UnloadResources( usersToReload, resourcesToReload );
 
                     if ( !usersToReload.empty() )
                     {
@@ -343,12 +435,11 @@ namespace EE
                     m_pResourceSystem->ClearHotReloadRequests();
                     while ( m_pResourceSystem->IsBusy() )
                     {
-                        Network::NetworkSystem::Update();
-                        m_pResourceSystem->Update( true );
+                        UpdateResourceLoadingRequests_Blocking();
                     }
 
                     // Reload game and tool resources
-                    m_pDevelopmentToolsUI->HotReload_ReloadResources( usersToReload, resourcesToReload );
+                    m_pToolsUI->HotReload_ReloadResources( usersToReload, resourcesToReload );
 
                     if ( !usersToReload.empty() )
                     {
@@ -371,8 +462,7 @@ namespace EE
                     {
                         while ( m_pResourceSystem->IsBusy() )
                         {
-                            Network::NetworkSystem::Update();
-                            m_pResourceSystem->Update( true );
+                            UpdateResourceLoadingRequests_Blocking();
                         }
 
                         for ( auto pModule : m_modules )
@@ -381,7 +471,7 @@ namespace EE
                             EE_ASSERT( state != Module::LoadingState::Busy );
                             if ( state == Module::LoadingState::Failed )
                             {
-                                EE_LOG_FATAL_ERROR( "Resource", "Hot-Reload", "Failed to hot-reload module resources! Check log for details!" );
+                                EE_LOG_FATAL_ERROR( LogCategory::Resource, "Hot-Reload", "Failed to hot-reload module resources! Check log for details!" );
                                 runEngineUpdate = false;
                             }
                         }
@@ -407,18 +497,17 @@ namespace EE
 
                     //-------------------------------------------------------------------------
 
-                    #if EE_DEVELOPMENT_TOOLS
-                    m_pImguiSystem->StartFrame( m_updateContext.GetDeltaTime() );
-                    m_pDevelopmentToolsUI->StartFrame( m_updateContext );
-                    m_pConsole->Update( m_updateContext );
-                    #endif
-
-                    //-------------------------------------------------------------------------
-
                     {
                         EE_PROFILE_SCOPE_ENTITY( "World Loading" );
                         m_pEntityWorldManager->UpdateLoading();
                     }
+
+                    //-------------------------------------------------------------------------
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_pImguiSystem->StartFrame( m_updateContext.GetDeltaTime() );
+                    m_pToolsUI->StartFrame( m_updateContext );
+                    #endif
 
                     //-------------------------------------------------------------------------
 
@@ -428,7 +517,33 @@ namespace EE
                     }
 
                     #if EE_DEVELOPMENT_TOOLS
-                    m_pDevelopmentToolsUI->Update( m_updateContext );
+                    m_pToolsUI->Update( m_updateContext );
+                    #endif
+
+                    m_pEntityWorldManager->UpdateWorlds( m_updateContext );
+                }
+
+                // Game Start
+                //-------------------------------------------------------------------------
+                {
+                    EE_PROFILE_SCOPE_ENTITY( "Game Setup Update" );
+                    m_updateContext.m_stage = UpdateStage::GameSetup;
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_pToolsUI->Update( m_updateContext );
+                    #endif
+
+                    m_pEntityWorldManager->UpdateWorlds( m_updateContext );
+                }
+
+                // Game Simulation
+                //-------------------------------------------------------------------------
+                {
+                    EE_PROFILE_SCOPE_ENTITY( "Game Pre-Physics Update" );
+                    m_updateContext.m_stage = UpdateStage::GamePrePhysics;
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_pToolsUI->Update( m_updateContext );
                     #endif
 
                     m_pEntityWorldManager->UpdateWorlds( m_updateContext );
@@ -441,7 +556,7 @@ namespace EE
                     m_updateContext.m_stage = UpdateStage::PrePhysics;
 
                     #if EE_DEVELOPMENT_TOOLS
-                    m_pDevelopmentToolsUI->Update( m_updateContext );
+                    m_pToolsUI->Update( m_updateContext );
                     #endif
 
                     m_pEntityWorldManager->UpdateWorlds( m_updateContext );
@@ -454,7 +569,7 @@ namespace EE
                     m_updateContext.m_stage = UpdateStage::Physics;
 
                     #if EE_DEVELOPMENT_TOOLS
-                    m_pDevelopmentToolsUI->Update( m_updateContext );
+                    m_pToolsUI->Update( m_updateContext );
                     #endif
 
                     m_pEntityWorldManager->UpdateWorlds( m_updateContext );
@@ -467,7 +582,20 @@ namespace EE
                     m_updateContext.m_stage = UpdateStage::PostPhysics;
 
                     #if EE_DEVELOPMENT_TOOLS
-                    m_pDevelopmentToolsUI->Update( m_updateContext );
+                    m_pToolsUI->Update( m_updateContext );
+                    #endif
+
+                    m_pEntityWorldManager->UpdateWorlds( m_updateContext );
+                }
+
+                // Game End
+                //-------------------------------------------------------------------------
+                {
+                    EE_PROFILE_SCOPE_ENTITY( "Game Post-Physics Update" );
+                    m_updateContext.m_stage = UpdateStage::GamePostPhysics;
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_pToolsUI->Update( m_updateContext );
                     #endif
 
                     m_pEntityWorldManager->UpdateWorlds( m_updateContext );
@@ -481,7 +609,7 @@ namespace EE
                     m_updateContext.m_stage = UpdateStage::Paused;
 
                     #if EE_DEVELOPMENT_TOOLS
-                    m_pDevelopmentToolsUI->Update( m_updateContext );
+                    m_pToolsUI->Update( m_updateContext );
                     #endif
 
                     m_pEntityWorldManager->UpdateWorlds( m_updateContext );
@@ -493,23 +621,96 @@ namespace EE
                     EE_PROFILE_SCOPE_ENTITY( "Frame End" );
                     m_updateContext.m_stage = UpdateStage::FrameEnd;
 
-                    #if EE_DEVELOPMENT_TOOLS
-                    m_pDevelopmentToolsUI->Update( m_updateContext );
-                    #endif
-
                     m_pEntityWorldManager->UpdateWorlds( m_updateContext );
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_pEntityWorldManager->DebugDrawWorlds( m_updateContext );
+                    #endif
 
                     //-------------------------------------------------------------------------
 
                     #if EE_DEVELOPMENT_TOOLS
-                    m_pDevelopmentToolsUI->EndFrame( m_updateContext );
+                    m_pToolsUI->Update( m_updateContext );
+                    m_pToolsUI->EndFrame( m_updateContext );
                     m_pImguiSystem->EndFrame();
                     #endif
 
                     m_pEntityWorldManager->EndFrame();
-
-                    m_renderingSystem.Update( m_updateContext );
                     m_pInputSystem->PrepareForNewMessages();
+                }
+
+                // Render everything
+                //-------------------------------------------------------------------------
+                {
+                    EE_PROFILE_SCOPE_ENTITY( "Frame Render" );
+
+                    m_pRenderSystem->WaitForFrameStart();
+
+                    m_pRenderSystem->StartResourceUpdates( false );
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    ImGui::Render();
+
+                    m_pImguiRenderer->UpdateDeviceResources();
+                    #endif
+
+                    m_pForwardShadingRenderer->UpdateDeviceResources( m_updateContext );
+
+                    // Per-world, viewport independent
+                    for ( EntityWorld* pWorld : m_pEntityWorldManager->GetWorlds() )
+                    {
+                        m_pForwardShadingRenderer->UpdateWorldDeviceResources( m_updateContext, pWorld );
+                    }
+
+                    m_pRenderSystem->SubmitResourceUpdates( false );
+
+                    // Main rendering
+                    m_pRenderSystem->StartFrame();
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_pImguiRenderer->StartFrame();
+                    #endif
+
+                    // Render all worlds to their corresponding viewports
+                    bool needSwapchainClear = true;
+                    for ( EntityWorld* pWorld : m_pEntityWorldManager->GetWorlds() )
+                    {
+                        // TODO: Hacky, need a way for dispatching stuff that is shared between viewports
+                        bool worldDispatched = false;
+
+                        for ( Viewport* pViewport : pWorld->GetViewports() )
+                        {
+                            if ( !pViewport->IsValid() )
+                            {
+                                continue;
+                            }
+
+                            Render::RenderViewport* pRenderViewport = static_cast<Render::RenderViewport*>( pViewport );
+
+                            if ( pRenderViewport->IsStandalone() )
+                            {
+                                needSwapchainClear = false;
+                            }
+
+                            if ( !worldDispatched )
+                            {
+                                m_pForwardShadingRenderer->DispatchWorld( m_updateContext, pRenderViewport, pWorld );
+                                worldDispatched = true;
+                            }
+
+                            m_pForwardShadingRenderer->UpdateViewportDeviceResources( m_updateContext, pRenderViewport, pWorld );
+                            m_pForwardShadingRenderer->DrawWorldToViewport( m_updateContext, pRenderViewport, pWorld );
+                        }
+                    }
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_pImguiRenderer->SubmitFrame( needSwapchainClear );
+                    #endif
+
+                    m_pRenderSystem->SubmitFrame();
+
+                    #if EE_DEVELOPMENT_TOOLS
+                    m_pImguiRenderer->EndFrame();
+                    #endif
                 }
             }
         }
@@ -545,4 +746,43 @@ namespace EE
 
         return true;
     }
+
+    void Engine::ResizeMainWindow( Int2 newMainWindowDimensions )
+    {
+        Float2 const newWindowDimensions = Float2( newMainWindowDimensions );
+        if ( m_pRenderWindow->GetSwapchainSize() != newMainWindowDimensions )
+        {
+            m_pRenderSystem->WaitGraphicsQueueIdle();
+            m_pRenderWindow->ResizeSwapchain( m_pRenderSystem->GetContextRHI(),
+                                              m_pRenderSystem->GetGraphicsQueue(),
+                                              m_pRenderSystem->GetComputeQueue(),
+                                              newMainWindowDimensions );
+        }
+    }
+
+    #if EE_ENABLE_LPP
+    void Engine::LivePP_PreReload()
+    {
+        ModuleContext moduleContext = GetBaseModule()->GetModuleContext();
+
+        for ( Module* pModule : m_modules )
+        {
+            pModule->LivePP_PreReload( moduleContext );
+        }
+
+        UpdateResourceLoadingRequests_Blocking();
+    }
+
+    void Engine::LivePP_PostReload()
+    {
+        ModuleContext moduleContext = GetBaseModule()->GetModuleContext();
+
+        for ( Module* pModule : m_modules )
+        {
+            pModule->LivePP_PostReload( moduleContext );
+        }
+
+        UpdateResourceLoadingRequests_Blocking();
+    }
+    #endif
 }

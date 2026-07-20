@@ -28,6 +28,7 @@
 #endif
 
 #include "implot.h"
+#ifndef IMGUI_DISABLE
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,6 +43,8 @@
 #endif
 
 #define CHECKBOX_FLAG(flags, flag) ImGui::CheckboxFlags(#flag, (unsigned int*)&flags, flag)
+
+#if !defined(IMGUI_DISABLE_DEMO_WINDOWS)
 
 // Encapsulates examples for customizing ImPlot.
 namespace MyImPlot {
@@ -612,6 +615,7 @@ void Demo_PieCharts() {
     ImGui::DragFloat4("Values", data1, 0.01f, 0, 1);
     CHECKBOX_FLAG(flags, ImPlotPieChartFlags_Normalize);
     CHECKBOX_FLAG(flags, ImPlotPieChartFlags_IgnoreHidden);
+    CHECKBOX_FLAG(flags, ImPlotPieChartFlags_Exploding);
 
     if (ImPlot::BeginPlot("##Pie1", ImVec2(250,250), ImPlotFlags_Equal | ImPlotFlags_NoMouseText)) {
         ImPlot::SetupAxes(nullptr, nullptr, ImPlotAxisFlags_NoDecorations, ImPlotAxisFlags_NoDecorations);
@@ -867,7 +871,14 @@ void Demo_Images() {
     ImGui::SliderFloat2("UV1", &uv1.x, -2, 2, "%.1f");
     ImGui::ColorEdit4("Tint",&tint.x);
     if (ImPlot::BeginPlot("##image")) {
-        ImPlot::PlotImage("my image",ImGui::GetIO().Fonts->TexID, bmin, bmax, uv0, uv1, tint);
+#ifdef IMGUI_HAS_TEXTURES
+        // We use the font atlas ImTextureRef for this demo, but in your real code when you submit
+        // an image that you have loaded yourself, you would normally have a ImTextureID which works
+        // just as well (as ImTextureRef can be constructed from ImTextureID).
+        ImPlot::PlotImage("my image", ImGui::GetIO().Fonts->TexRef, bmin, bmax, uv0, uv1, tint);
+#else
+        ImPlot::PlotImage("my image", ImGui::GetIO().Fonts->TexID, bmin, bmax, uv0, uv1, tint);
+#endif
         ImPlot::EndPlot();
     }
 }
@@ -2477,3 +2488,11 @@ void PlotCandlestick(const char* label_id, const double* xs, const double* opens
 }
 
 } // namespace MyImplot
+
+#else
+
+void ImPlot::ShowDemoWindow(bool* p_open) {}
+
+#endif
+
+#endif // #ifndef IMGUI_DISABLE

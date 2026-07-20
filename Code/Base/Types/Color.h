@@ -64,6 +64,11 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        inline bool IsTransparent() const
+        {
+            return m_byteColor.m_a == 0;
+        }
+
         // Get a version with the a different alpha value
         inline Color GetAlphaVersion( uint8_t newAlpha ) const
         {
@@ -82,9 +87,9 @@ namespace EE
         // Scale the color values with a multiplier
         inline void ScaleColor( float multiplier )
         {
-            m_byteColor.m_r = (uint8_t) Math::Clamp( Math::RoundToInt( float( m_byteColor.m_r ) * multiplier ), 0, 255 );
-            m_byteColor.m_g = (uint8_t) Math::Clamp( Math::RoundToInt( float( m_byteColor.m_g ) * multiplier ), 0, 255 );
-            m_byteColor.m_b = (uint8_t) Math::Clamp( Math::RoundToInt( float( m_byteColor.m_b ) * multiplier ), 0, 255 );
+            m_byteColor.m_r = (uint8_t) Math::Clamp( Math::RoundToInt32( float( m_byteColor.m_r ) * multiplier ), 0, 255 );
+            m_byteColor.m_g = (uint8_t) Math::Clamp( Math::RoundToInt32( float( m_byteColor.m_g ) * multiplier ), 0, 255 );
+            m_byteColor.m_b = (uint8_t) Math::Clamp( Math::RoundToInt32( float( m_byteColor.m_b ) * multiplier ), 0, 255 );
         }
 
         // Get a version with color values scaled
@@ -114,6 +119,9 @@ namespace EE
 
         // Returns a float4 color where x=R, y=G, z=B, w=A
         EE_FORCE_INLINE operator Float4() const { return ToFloat4(); }
+
+        // Returns a linear color, not in sRGB color space
+        Color ToLinear() const;
 
     public:
 

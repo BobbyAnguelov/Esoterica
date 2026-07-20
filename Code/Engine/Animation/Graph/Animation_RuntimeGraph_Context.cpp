@@ -1,50 +1,106 @@
 #include "Animation_RuntimeGraph_Context.h"
 #include "Animation_RuntimeGraph_SampledEvents.h"
-#include "Animation_RuntimeGraph_LayerData.h"
 #include "Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
-#include "Engine/Animation/AnimationBoneMask.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
-    GraphContext::GraphContext( uint64_t userID, Skeleton const* pSkeleton )
-        : m_graphUserID( userID )
+    static std::atomic<int32_t> g_instanceID = 1;
+
+    static int32_t GenerateInstanceID()
+    {
+        int32_t ID = g_instanceID++;
+        EE_ASSERT( ID != INT32_MAX );
+        return ID;
+    }
+
+    //-------------------------------------------------------------------------
+
+    GraphContext::GraphContext( Skeleton const* pSkeleton )
+        : m_instanceID( GenerateInstanceID() )
         , m_pSkeleton( pSkeleton )
     {
-        EE_ASSERT( m_graphUserID != 0 );
+        EE_ASSERT( m_instanceID != 0 );
         EE_ASSERT( m_pSkeleton != nullptr );
     }
 
     GraphContext::~GraphContext()
     {
         EE_ASSERT( m_pTaskSystem == nullptr );
+        EE_ASSERT( m_pSampledEventsBuffer == nullptr );
+        EE_ASSERT( !m_isInitialized );
     }
 
-    void GraphContext::Initialize( TaskSystem* pTaskSystem, SampledEventsBuffer* pSampledEventsBuffer )
+    void GraphContext::Initialize( GraphContext *pParentContext )
     {
+        EE_ASSERT( !m_isInitialized );
         EE_ASSERT( m_pTaskSystem == nullptr && m_pSampledEventsBuffer == nullptr );
-        EE_ASSERT( pTaskSystem != nullptr );
-        EE_ASSERT( pSampledEventsBuffer != nullptr );
-        m_pTaskSystem = pTaskSystem;
-        m_pSampledEventsBuffer = pSampledEventsBuffer;
-        m_pPreviousPose = pTaskSystem->GetPrimaryPose();
+
+        if ( pParentContext != nullptr )
+        {
+            m_pTaskSystem = pParentContext->m_pTaskSystem;
+            m_pSampledEventsBuffer = pParentContext->m_pSampledEventsBuffer;
+
+            #if EE_DEVELOPMENT_TOOLS
+            m_basePath = pParentContext->m_basePath;
+            m_pLog = pParentContext->m_pLog;
+            m_pRootMotionDebugger = pParentContext->m_pRootMotionDebugger;
+            #endif
+        }
+        else
+        {
+            m_pTaskSystem = EE::New<TaskSystem>( m_pSkeleton );
+            m_pSampledEventsBuffer = EE::New<SampledEventsBuffer>();
+
+            #if EE_DEVELOPMENT_TOOLS
+            m_pLog = EE::New<TVector<GraphLogEntry>>();
+            m_pRootMotionDebugger = EE::New<RootMotionDebugger>();
+            #endif
+        }
+
+        m_activeNodes.reserve( 50 );
+        m_activeNodes.clear();
+
+        m_isStandaloneGraphContext = ( pParentContext == nullptr );
+        m_isInitialized = true;
     }
 
     void GraphContext::Shutdown()
     {
-        m_pTaskSystem = nullptr;
+        EE_ASSERT( m_isInitialized );
 
-        #if EE_DEVELOPMENT_TOOLS
-        m_pActiveNodes = nullptr;
-        m_pRootMotionDebugger = nullptr;
-        m_pLog = nullptr;
-        #endif
+        if ( m_isStandaloneGraphContext )
+        {
+            EE::Delete( m_pTaskSystem );
+            EE::Delete( m_pSampledEventsBuffer );
+
+            #if EE_DEVELOPMENT_TOOLS
+            EE::Delete( m_pLog );
+            EE::Delete( m_pRootMotionDebugger );
+            #endif
+        }
+        else
+        {
+            m_pTaskSystem = nullptr;
+            m_pSampledEventsBuffer = nullptr;
+
+            #if EE_DEVELOPMENT_TOOLS
+            m_pLog = nullptr;
+            m_pRootMotionDebugger = nullptr;
+            #endif
+        }
+
+        m_activeNodes.clear();
+        m_isStandaloneGraphContext = true;
+        m_isInitialized = false;
     }
 
     void GraphContext::Update( Seconds const deltaTime, Transform const& currentWorldTransform, Physics::PhysicsWorld* pPhysicsWorld )
     {
+        EE_ASSERT( IsValid() );
+
         m_deltaTime = deltaTime;
         m_updateID++;
         m_worldTransform = currentWorldTransform;
@@ -55,35 +111,31 @@ namespace EE::Animation
 
     PoseBuffer const* GraphContext::GetPreviousPoseBuffer() const
     {
-        return m_pTaskSystem->GetPoseBuffer();
+        return m_pTaskSystem->GetPoseBufferForPreviousUpdate();
     }
 
     Pose const* GraphContext::GetPreviousPrimaryPose() const
     {
-        return m_pTaskSystem->GetPrimaryPose();
+        return m_pTaskSystem->GetPrimaryPoseForPreviousUpdate();
+    }
+
+    void GraphContext::TransferContextDataFromParent( GraphContext const &parentContext )
+    {
+        m_pLayerContext = parentContext.m_pLayerContext;
+        m_basePath = parentContext.m_basePath;
+        m_deltaTime = parentContext.m_deltaTime;
+        m_worldTransform = parentContext.m_worldTransform;
+        m_branchState = parentContext.m_branchState;
+        m_pInitializationTimeInfo = parentContext.m_pInitializationTimeInfo;
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void GraphContext::SetDebugSystems( RootMotionDebugger* pRootMotionRecorder, TVector<int16_t>* pActiveNodesList, TVector<GraphLogEntry>* pLog )
-    {
-        EE_ASSERT( m_pRootMotionDebugger == nullptr );
-        EE_ASSERT( m_pActiveNodes == nullptr );
-        EE_ASSERT( m_pLog == nullptr );
-
-        m_pRootMotionDebugger = pRootMotionRecorder;
-        m_pActiveNodes = pActiveNodesList;
-        m_pLog = pLog;
-
-        EE_ASSERT( m_pRootMotionDebugger != nullptr );
-        EE_ASSERT( m_pActiveNodes != nullptr );
-        EE_ASSERT( m_pLog != nullptr );
-    }
-
     void GraphContext::LogWarning( int16_t nodeIdx, char const* pFormat, ... )
     {
-        auto& entry = m_pLog->emplace_back();
+        GraphLogEntry& entry = m_pLog->emplace_back();
         entry.m_updateID = m_updateID;
-        entry.m_nodeIdx = nodeIdx;
+        entry.m_sourcePath = GetBasePath();
+        entry.m_sourcePath.Push( nodeIdx );
         entry.m_severity = Severity::Warning;
 
         va_list args;
@@ -94,9 +146,10 @@ namespace EE::Animation
 
     void GraphContext::LogError( int16_t nodeIdx, char const* pFormat, ... )
     {
-        auto& entry = m_pLog->emplace_back();
+        GraphLogEntry& entry = m_pLog->emplace_back();
         entry.m_updateID = m_updateID;
-        entry.m_nodeIdx = nodeIdx;
+        entry.m_sourcePath = GetBasePath();
+        entry.m_sourcePath.Push( nodeIdx );
         entry.m_severity = Severity::Error;
         
         va_list args;
@@ -104,19 +157,5 @@ namespace EE::Animation
         entry.m_message.append_sprintf_va_list( pFormat, args );
         va_end( args );
     }
-
-	void GraphContext::PushDebugPath( int16_t nodeIdx )
-	{
-        m_pSampledEventsBuffer->PushBaseDebugPath( nodeIdx );
-        m_pTaskSystem->PushBaseDebugPath( nodeIdx );
-        m_pRootMotionDebugger->PushBaseDebugPath( nodeIdx );
-	}
-
-    void GraphContext::PopDebugPath()
-    {
-        m_pTaskSystem->PopBaseDebugPath();
-        m_pSampledEventsBuffer->PopBaseDebugPath();
-        m_pRootMotionDebugger->PopBaseDebugPath();
-    }
-	#endif
+    #endif
 }

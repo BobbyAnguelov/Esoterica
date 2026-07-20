@@ -6,7 +6,7 @@ Support development of enkiTS through [Github Sponsors](https://github.com/spons
 # enkiTS
 | [Master branch](https://github.com/dougbinks/enkiTS/) | [Dev branch](https://github.com/dougbinks/enkiTS/tree/dev) |
 | --- | --- |
-| [![Build Status for branch: master](https://travis-ci.org/dougbinks/enkiTS.svg?branch=master)](https://travis-ci.org/dougbinks/enkiTS) | [![Build Status for branch: dev](https://travis-ci.org/dougbinks/enkiTS.svg?branch=dev)](https://travis-ci.org/dougbinks/enkiTS) |
+| [![Build Status for branch: master](https://github.com/dougbinks/enkiTS/actions/workflows/build.yml/badge.svg)](https://github.com/dougbinks/enkiTS/actions) | [![Build Status for branch: dev](https://github.com/dougbinks/enkiTS/actions/workflows/build.yml/badge.svg?branch=dev)](https://github.com/dougbinks/enkiTS/actions) |
 
 ## enki Task Scheduler
 
@@ -72,7 +72,15 @@ For cmake, on Windows / Mac OS X / Linux with cmake installed, open a prompt in 
 1. *Custom allocator API* - can configure enkiTS with custom allocators, see [example/CustomAllocator.cpp](example/CustomAllocator.cpp) and [example/CustomAllocator_c.c](example/CustomAllocator_c.c).
 1. *Dependencies* - can set dependendencies between tasks see [example/Dependencies.cpp](example/Dependencies.cpp) and [example/Dependencies_c.c](example/Dependencies_c.c).
 1. *Completion Actions* - can perform an action on task completion. This avoids the expensive action of adding the task to the scheduler, and can be used to safely delete a completed task. See [example/CompletionAction.cpp](example/CompletionAction.cpp) and [example/CompletionAction_c.c](example/CompletionAction_c.c)
-1. **NEW** *Can wait for pinned tasks* - Can wait for pinned tasks, useful for creating IO threads which do no other work. See [example/WaitForPinnedTasks.cpp](example/WaitForPinnedTasks.cpp) and [example/WaitForPinnedTasks_c.c](example/WaitForPinnedTasks_c.c).
+1. **NEW** *Can wait for pinned tasks* - Can wait for pinned tasks, useful for creating IO threads which do no other work. See [example/WaitForNewPinnedTasks.cpp](example/WaitForNewPinnedTasks.cpp) and [example/WaitForNewPinnedTasks_c.c](example/WaitForNewPinnedTasks_c.c).
+
+## Installing
+
+I recommend using enkiTS directly from source in each project rather than installing it for system wide use. However enkiTS' cmake script can also be used to install the library
+if the `ENKITS_INSTALL` cmake variable is set to `ON` (it defaults to `OFF`).
+
+When installed the header files are installed in a subdirectory of the include path, `include/enkiTS` to ensure that they do not conflict with header files from other packages.
+When building applications either ensure this is part of the `INCLUDE_PATH` variable or ensure that enkiTS is in the header path in the source files, for example use `#include "enkiTS/TaskScheduler.h"` instead of `#include "TaskScheduler.h"`.
 
 ## Using enkiTS
 
@@ -281,8 +289,8 @@ int main(int argc, const char * argv[])
 ```
 
 ### WaitForPinnedTasks thread usage in C++ (useful for IO threads)
-- full example in [example/WaitForPinnedTasks.cpp](example/WaitForPinnedTasks.cpp)
-- C example in [example/WaitForPinnedTasks_c.c](example/WaitForPinnedTasks_c.c)
+- full example in [example/WaitForNewPinnedTasks.cpp](example/WaitForNewPinnedTasks.cpp)
+- C example in [example/WaitForNewPinnedTasks_c.c](example/WaitForNewPinnedTasks_c.c)
 ```C++
 #include "TaskScheduler.h"
 
@@ -292,7 +300,7 @@ struct RunPinnedTaskLoopTask : enki::IPinnedTask
 {
     void Execute() override
     {
-        while( g_TS.GetIsRunning() )
+        while( !g_TS.GetIsShutdownRequested() )
         {
             g_TS.WaitForNewPinnedTasks(); // this thread will 'sleep' until there are new pinned tasks
             g_TS.RunPinnedTasks();
@@ -339,7 +347,7 @@ int main(int argc, const char * argv[])
 
 ## Bindings
 
-- C# [EnkiTasks C#](https://github.com/nxrighthere/EnkiTasks-CSharp)
+- Odin [enkiTS Odin bindings](https://github.com/nadako/odin-enkiTS) by @nadako
 
 ## Deprecated
 
@@ -364,7 +372,12 @@ GPU/CPU Texture Generator
 ### [ToyPathRacer](https://github.com/aras-p/ToyPathTracer)
 Aras Pranckevičius' code for his series on [Daily Path Tracer experiments with various languages](https://aras-p.info/blog/2018/03/28/Daily-Pathtracer-Part-0-Intro/).
 
-![ToyPathTracer screenshot](https://github.com/aras-p/ToyPathTracer/blob/master/Shots/screenshot.jpg?raw=true).
+![ToyPathTracer screenshot](https://github.com/aras-p/ToyPathTracer/blob/main/Shots/screenshot.jpg?raw=true).
+
+### [Mastering Graphics Programming with Vulkan](https://github.com/PacktPublishing/Mastering-Graphics-Programming-with-Vulkan)
+Marco Castorina and Gabriel Sassone's book on developing a modern rendering engine from first principles using the Vulkan API. enkiTS is used as the task library to distribute work across cores.
+
+![Mastering Graphics Programming with Vulkan](https://static.packt-cdn.com/products/9781803244792/cover/smaller)
 
 ## License (zlib)
 

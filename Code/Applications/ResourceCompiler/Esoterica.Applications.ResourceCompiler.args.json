@@ -3,12 +3,160 @@
   "Id": "bbcf3423-e4b4-4cdd-8a97-c6c390bacc23",
   "Items": [
     {
-      "Id": "72d1832e-5fd7-4976-983b-fbd4fd8d78c4",
-      "Command": "-compile data://maps/prototype_combat.nav"
-    },
-    {
       "Id": "165a2ead-bf6d-4989-ba0b-92fbd4213031",
       "Command": "-force"
+    },
+    {
+      "Id": "3dba8dce-36c9-4aa4-9957-dd9df9edd825",
+      "Command": "-compile data://characters/ash/ash.skelmesh"
+    },
+    {
+      "Id": "a50b90b3-ebb6-4959-8549-225ff0358857",
+      "Command": "-compile data://characters/ash/ash.skelmesh"
+    },
+    {
+      "Id": "a5089cc9-0189-44bf-80dc-85e3ac5e216d",
+      "Command": "-compile data://demo/render/pbr/boulder/boulder.mesh"
+    },
+    {
+      "Id": "6cc867e1-ea33-4de9-84d5-694dc4ffc313",
+      "Command": "-compile data://packs/br/environment/sm_env_dirtroad_end_01.physmesh"
+    },
+    {
+      "Id": "53e79794-29a9-4ab9-9352-b1d14e9d3aab",
+      "Command": "-compile data://packs/military/vehicles/sm_veh_jet_02.mesh"
+    },
+    {
+      "Id": "868f20c3-b520-4ba0-a235-b2eb8b47157b",
+      "Command": "-compile data://packs/br/environment/sm_prop_tirestack_01.mesh"
+    },
+    {
+      "Id": "4b69092d-7f90-42bf-bbec-cebd5ece93d1",
+      "Command": "-compile data://maps/br_minimal.map"
+    },
+    {
+      "Id": "117fafdf-2d31-41d8-a074-ff47bb28d528",
+      "Command": "-compile data://maps/prototype_3cs.map"
+    },
+    {
+      "Id": "f327b84c-41e8-491f-bc67-9bcc41b15e40",
+      "Command": "-compile data://player/player.ec"
+    },
+    {
+      "Id": "51161e97-906d-4f89-917d-1ab3793aa7a7",
+      "Command": "-compile data://packs/prototype/environment/sm_buildings_ramp_40_1x1_01.mesh"
+    },
+    {
+      "Id": "9977a433-7044-4ce4-a210-66ba9f5c1205",
+      "Command": "-compile data://packs/prototype/environment/sm_buildings_ramp_40_1x1_01.mesh"
+    },
+    {
+      "Id": "71c4e281-ae79-4267-a8e5-53e407f2b09d",
+      "Command": "-compile data://maps/br_full.map"
+    },
+    {
+      "Id": "5d053919-7934-441b-b69e-8e2c72b4fd99",
+      "Command": "-compile data://packs/amplify/AmplifySkeleton.skeleton"
+    },
+    {
+      "Id": "eccf9d64-4093-4955-9dc3-afd96ee6e488",
+      "Command": "-compile data://packs/military/vehicles/sm_veh_tank_usa_01.mesh"
+    },
+    {
+      "Id": "5275ee4c-a8ef-424f-8b5f-f4100650b8bf",
+      "Command": "-compile data://demo/render/pbr/boulder/boulder.mesh"
+    },
+    {
+      "Id": "48ef5382-9bae-4f88-93d2-04c13e5cfc11",
+      "Command": "-compile data://amp.skeleton"
+    },
+    {
+      "Id": "42b9d4d2-4b91-4f92-b110-f21c8829e39f",
+      "Command": "-compile data://test.anim"
+    },
+    {
+      "Id": "cf519aab-1266-4c1b-b789-b03722df9c77",
+      "Command": "-compile data://char.skelmesh"
+    },
+    {
+      "Id": "d5cd7d9b-fc1f-4931-9d1a-fe8e188abe9c",
+      "Command": "-compile data://packs/amplify/run_lean_fwd_l.anim"
+    },
+    {
+      "Id": "4a1b7e0f-e13a-4390-9f0a-29949f8d20d7",
+      "Command": "-compile data://packs/amplify/crouch_hardturn_180.anim"
+    },
+    {
+      "Id": "4349c188-e845-4028-b1a4-1e65b86ba12f",
+      "Command": "-compile data://player/player.ec"
+    },
+    {
+      "Id": "b643418c-a964-466e-94dc-e985e5232bbb",
+      "Command": "-compile data://smtest.mesh"
+    },
+    {
+      "Id": "c15afcd8-4159-47c1-9223-541be2cc93b6",
+      "Command": "-compile data://maps/br_minimal.map:navmesh.navmesh"
+    },
+    {
+      "Id": "a860b13d-872a-49a4-9888-c43c99742d80",
+      "Command": "-compile data://editor/floor/floor.physmesh"
+    },
+    {
+      "Id": "c8661f6e-8d30-4514-818e-4d24d7f1b7dd",
+      "Command": "-compile data://test.hitbox"
+    },
+    {
+      "Id": "f9f3fbd5-6965-4dc9-89e8-3e062c127160",
+      "Command": "-compile data://demo/physics/testragdoll.ragdoll"
+    },
+    {
+      "Id": "2706d7ed-df59-4c75-bb01-0df19b61ba14",
+      "Command": "-compile data://packs/amplify/run_fwd.anim"
+    },
+    {
+      "Id": "a4b0e834-da34-47a2-96b1-a934457fc83e",
+      "Command": "-compile data://ash_skeleton.skelmesh"
+    },
+    {
+      "Id": "3606dffb-4bbd-4c7a-b366-7f221d9c1c16",
+      "Command": "-compile data://packs/br/environment/sm_prop_wirespool_02.mesh"
+    },
+    {
+      "Id": "79578005-40a9-4849-810e-fe36bbf7cc39",
+      "Command": "-compile data://characters/ash/ash.skelmesh"
+    },
+    {
+      "Id": "e86d74e6-2a99-4e70-b4c1-247e2733f60f",
+      "Command": "-compile data://maps/navtest.map:navmesh.navmesh"
+    },
+    {
+      "Id": "ec34e253-9687-46b2-a2f9-1b14f2fd1f10",
+      "Command": "-compile data://characters/ash/textures/ash_face_mat_a.texture"
+    },
+    {
+      "Id": "82387268-7f32-4e50-af14-85c1894cd67c",
+      "Command": "-compile data://maps/br_full.map"
+    },
+    {
+      "Id": "61c26600-5bb9-463c-9669-c71f2ce6911a",
+      "Command": "-compile data://cs/crouch_n_pistol.anim"
+    },
+    {
+      "Id": "c5270be2-e820-4730-9cd5-4ab76bc5c513",
+      "Command": "-compile data://demo/physics/testragdoll.ragdoll"
+    },
+    {
+      "Id": "e2382f97-1841-49ca-a3d7-da169c80796d",
+      "Command": "-compile data://cs/ctm_sas_varianta.skelmesh"
+    },
+    {
+      "Id": "9e181267-ea20-4bed-8ed5-cbd3a9770a24",
+      "Command": "-compile data://maps/br_full.map:navmesh.navmesh"
+    },
+    {
+      "Id": "1585b190-e259-4317-ad04-2ba8ee00ccf5",
+      "Command": "-compile data://maps/br_minimal.map:navmesh.navmesh"
     }
   ]
 }

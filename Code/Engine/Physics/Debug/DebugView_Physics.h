@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "Engine/DebugViews/DebugView.h"
+#include "Engine/Debug/DebugView.h"
 
 //-------------------------------------------------------------------------
 
@@ -23,17 +23,16 @@ namespace EE::Physics
 
     public:
 
-        static void DrawMaterialDatabaseView( UpdateContext const& context );
-
-    public:
-
-        PhysicsDebugView() : DebugView( "Engine/Physics" ) {}
+        virtual Category GetCategory() const override { return Category::Engine; }
+        virtual char const* GetMenuPath() const override { return "Physics"; }
 
     private:
 
         virtual void Initialize( SystemRegistry const& systemRegistry, EntityWorld const* pWorld ) override;
         virtual void Shutdown() override;
         virtual void DrawMenu( EntityWorldUpdateContext const& context ) override;
+
+        void DrawMaterialDatabaseView( UpdateContext const& context );
 
     private:
 

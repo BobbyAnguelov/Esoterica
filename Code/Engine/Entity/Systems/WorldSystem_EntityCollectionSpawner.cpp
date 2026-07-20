@@ -14,7 +14,7 @@ namespace EE::EntityModel
         EE_ASSERT( m_entityCollectionReferences.empty() );
     }
 
-    void EntityCollectionSpawner::RegisterComponent( Entity const* pEntity, EntityComponent* pComponent )
+    void EntityCollectionSpawner::RegisterComponent( Entity* pEntity, EntityComponent* pComponent )
     {
         if ( auto pEntityCollectionComponent = TryCast<EntityCollectionComponent>( pComponent ) )
         {
@@ -23,7 +23,7 @@ namespace EE::EntityModel
         }
     }
 
-    void EntityCollectionSpawner::UnregisterComponent( Entity const* pEntity, EntityComponent* pComponent )
+    void EntityCollectionSpawner::UnregisterComponent( Entity* pEntity, EntityComponent* pComponent )
     {
         if ( auto pEntityCollectionComponent = TryCast<EntityCollectionComponent>( pComponent ) )
         {

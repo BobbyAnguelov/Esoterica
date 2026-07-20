@@ -5,5 +5,5 @@
 
 namespace EE::FileSystem
 {
-    using Extension = TInlineString<5>;
+    using Extension = TInlineString<9>; // 8CC + 1
 }

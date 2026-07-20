@@ -64,24 +64,44 @@ namespace EE
 
     public:
 
-        constexpr static float const s_absoluteMinimumHeight = 100;
-
         struct VisualState
         {
             inline void Clear()
             {
                 m_editedTypeID = TypeSystem::TypeID();
-                m_expandedCategories.clear();
-                m_expandedPaths.clear();
+                m_categories.clear();
+                m_paths.clear();
                 m_scrollPosY = 0;
+            }
+
+            inline bool GetCategoryExpansionState( String const& name ) const
+            {
+                auto iter = m_categories.find( name );
+                if ( iter != m_categories.end() )
+                {
+                    return iter->second;
+                }
+
+                return true; // New item are always expanded
+            }
+
+            inline bool GetPathExpansionState( TypeSystem::PropertyPath const& path ) const
+            {
+                auto iter = m_paths.find( path );
+                if ( iter != m_paths.end() )
+                {
+                    return iter->second;
+                }
+
+                return true; // New item are always expanded
             }
 
         public:
 
-            TypeSystem::TypeID                      m_editedTypeID;
-            TVector<String>                         m_expandedCategories;
-            TVector<TypeSystem::PropertyPath>       m_expandedPaths;
-            float                                   m_scrollPosY = 0;
+            TypeSystem::TypeID                              m_editedTypeID;
+            THashMap<String, bool>                          m_categories;
+            THashMap<TypeSystem::PropertyPath, bool>        m_paths;
+            float                                           m_scrollPosY = 0;
         };
 
     public:
@@ -92,7 +112,7 @@ namespace EE
         void SetUserContext( void* pContext );
 
         // Set this grid to be read only
-        void SetReadOnly( bool isReadOnly ) { m_isReadOnly = isReadOnly; }
+        void SetReadOnly( bool isReadOnly );
 
         // Get the current edited type
         IReflectedType const* GetEditedType() const { return m_pTypeInstance; }
@@ -103,8 +123,8 @@ namespace EE
         // Set the type instance to edit, will reset dirty status
         void SetTypeToEdit( IReflectedType* pTypeInstance, VisualState const* pVisualStateToRestore = nullptr );
 
-        // Display the grid
-        void UpdateAndDraw();
+        // Display the grid at the specified size: (-1 = fill all space, 0 = autosize, >0 fixed size );
+        void UpdateAndDraw( ImVec2 size = ImVec2( -1, -1 ) );
 
         // Has the type been modified
         inline bool IsDirty() const { return m_isDirty; }
@@ -129,15 +149,6 @@ namespace EE
 
         // Should the control bar be visible?
         inline void SetControlBarVisible( bool isVisible ) { m_isControlBarVisible = isVisible; }
-
-        // Should the property grid fill all available vertical space?
-        inline void SetFillAvailableVerticalSpace( bool shouldFillSpace ) { m_fillRemainingSpace = shouldFillSpace; }
-
-        // Set the minimum height for the property grid, any values less than 100 will be clamped to s_absoluteMinimumHeight
-        inline void SetMinimumHeight( float minimumHeight ) { EE_ASSERT( minimumHeight > 0 ); m_minimumHeight = Math::Max( s_absoluteMinimumHeight, minimumHeight ); }
-
-        // Get the minimum height for the property grid
-        inline float GetMinimumHeight() const { return m_minimumHeight; }
 
         // Events
         //-------------------------------------------------------------------------
@@ -165,15 +176,12 @@ namespace EE
         TypeSystem::TypeInfo const*                                 m_pTypeInfo = nullptr;
         IReflectedType*                                             m_pTypeInstance = nullptr;
         bool                                                        m_isDirty = false;
-        bool                                                        m_isReadOnly = false;
         ImGuiX::FilterWidget                                        m_filterWidget;
 
-        float                                                       m_minimumHeight = 400.0f;
         float                                                       m_scrollPosY = 0;
         bool                                                        m_restoreScrollPosY = false;
         bool                                                        m_isControlBarVisible = true;
-        bool                                                        m_showReadOnlyProperties = false;
-        bool                                                        m_fillRemainingSpace = true;
+        bool                                                        m_fullRebuildRequested = false;
 
         TInlineVector<PG::CategoryRow*, 10>                         m_categories;
 
@@ -215,7 +223,7 @@ namespace EE::PG
         TypeSystem::PropertyPath const& GetPath() const { return m_path; }
 
         inline bool IsHidden() const { return m_isDeclaredHidden || m_isHidden; }
-        inline bool IsReadOnly() const { return m_isDeclaredReadOnly || m_isReadOnly; }
+        bool IsReadOnly( bool takeGridReadOnlyStateIntoAccount = true ) const;
         inline bool IsExpanded() const { return m_isExpanded; }
 
         GridRow* GetParent() const { return m_pParent; }
@@ -236,6 +244,9 @@ namespace EE::PG
         // Set whether this row is hidden. Note: This doesn't apply to its children!
         void SetHidden( bool isHidden ) { m_isHidden = isHidden; }
 
+        // Do we have any visible children?
+        bool HasVisibleChildren() const;
+
         // Is this row declared read-only via metadata
         inline bool IsDeclaredReadOnly() const { return m_isDeclaredReadOnly; }
 
@@ -243,22 +254,15 @@ namespace EE::PG
         inline bool IsDeclaredHidden() const { return m_isDeclaredHidden; }
 
         // Override this to provide additional rules for whether we should draw this row
-        virtual bool ShouldDrawRow() const { return !m_isHidden; }
+        virtual bool ShouldDrawRow() const { return !IsHidden(); }
+
+        // Filtering
+        //-------------------------------------------------------------------------
+
+        void ApplyFilter( TVector<String> const& filters );
 
         // Helpers
         //-------------------------------------------------------------------------
-
-        // Apply some operation to this and all child rows
-        inline void RecursiveOperation( TFunction<void( GridRow* pRow )> const& function )
-        {
-            function( this );
-
-            for ( auto& pChild : m_children )
-            {
-                function( pChild );
-                pChild->RecursiveOperation( function );
-            }
-        }
 
         // Fill the expansion state from myself and my children
         void FillExpansionInfo( PropertyGrid::VisualState& expansionState );

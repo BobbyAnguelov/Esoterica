@@ -12,10 +12,11 @@ namespace EE
 {
     namespace EntityModel
     {
-        class EntityMapEditor;
+        class MapEditor;
         class EntityCollection;
         class EntityMap;
         struct EntityDescriptor;
+        struct ComponentDescriptor;
     }
 
     //-------------------------------------------------------------------------
@@ -27,6 +28,7 @@ namespace EE
         friend class Entity;
         friend class EntityWorld;
         friend EntityModel::EntityDescriptor;
+        friend EntityModel::ComponentDescriptor;
         friend EntityModel::EntityCollection;
         friend EntityModel::EntityMap;
 
@@ -62,6 +64,9 @@ namespace EE
         inline bool IsInitialized() const { return m_status == Status::Initialized; }
         inline Status GetStatus() const { return m_status; }
 
+        // Can this component be serialized/loaded or modified via tools. Useful for runtime state tracking components.
+        virtual bool IsTransientComponent() const { return false; }
+
         // Do we allow multiple components of the same type per entity?
         virtual bool IsSingletonComponent() const { return false; }
 
@@ -89,14 +94,24 @@ namespace EE
         // Called just before a component begins unloading
         virtual void Shutdown() { EE_ASSERT( m_entityID.IsValid() && m_status == Status::Initialized ); m_status = Status::Loaded; }
 
+        // Call this whenever we want to change a resource ptr value at runtime or load new resources from type instance creation
+        // It will queue the resource change action and call it once we unload the component, if the component is unloaded it will be called immediately
+        void RequestRuntimeResourceChange( TFunction<void()>&& stateChangeFunction );
+
     protected:
 
-        ComponentID                                         m_ID = ComponentID::Generate();                 // The unique ID for this component
-        EntityID                                            m_entityID;                                     // The ID of the entity that owns this component
-        EE_REFLECT( ReadOnly ) StringID     m_name;                                         // The name of the component
-        Status                                              m_status = Status::Unloaded;                    // Component status
-        bool                                                m_isRegisteredWithEntity = false;               // Registered with its parent entity's local systems
-        bool                                                m_isRegisteredWithWorld = false;                // Registered with the global systems in it's parent world
+        EE_REFLECT( ReadOnly )
+        StringID                                                    m_name;                                         // The name of the component
+
+        ComponentID                                                 m_ID = ComponentID::Generate();                 // The unique ID for this component
+        EntityID                                                    m_entityID;                                     // The ID of the entity that owns this component
+        Status                                                      m_status = Status::Unloaded;                    // Component status
+        bool                                                        m_isRegisteredWithEntity = false;               // Registered with its parent entity's local systems
+        bool                                                        m_isRegisteredWithWorld = false;                // Registered with the global systems in it's parent world
+
+    private:
+
+        TFunction<void( EntityComponent*, TFunction<void()>&& )>    m_componentResourceStateChangeFunction;         // Called whenever we need to perform a resource change action
     };
 }
 
@@ -109,10 +124,29 @@ namespace EE
         virtual void Unload( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
         virtual void UpdateLoading() override;
 
+// Use this macro to create a transient component (and hierarchy) - Note: All derived types must use the regular registration macro
+#define EE_TRANSIENT_ENTITY_COMPONENT( TypeName ) \
+        EE_REFLECT_TYPE( TypeName );\
+        protected:\
+        virtual bool IsTransientComponent() const override final { return true; }\
+        virtual void Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
+        virtual void Unload( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
+        virtual void UpdateLoading() override;
+
 // Use this macro to create a singleton component (and hierarchy) - Note: All derived types must use the regular registration macro
 #define EE_SINGLETON_ENTITY_COMPONENT( TypeName ) \
         EE_REFLECT_TYPE( TypeName );\
         protected:\
+        virtual bool IsSingletonComponent() const override final { return true; }\
+        virtual void Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
+        virtual void Unload( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
+        virtual void UpdateLoading() override;
+
+// Use this macro to create a transient singleton component (and hierarchy) - Note: All derived types must use the regular registration macro
+#define EE_TRANSIENT_SINGLETON_ENTITY_COMPONENT( TypeName ) \
+        EE_REFLECT_TYPE( TypeName );\
+        protected:\
+        virtual bool IsTransientComponent() const override final { return true; }\
         virtual bool IsSingletonComponent() const override final { return true; }\
         virtual void Load( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\
         virtual void Unload( EntityModel::LoadingContext const& context, Resource::ResourceRequesterID const& requesterID ) override;\

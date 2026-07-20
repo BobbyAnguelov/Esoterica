@@ -78,6 +78,17 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
+    void Entity::CreateAdditionalRequiredComponents()
+    {
+        EE_ASSERT( m_status == Status::Unloaded );
+        Threading::RecursiveScopeLock myLock( m_internalStateMutex );
+
+        for ( auto pSystem : m_systems )
+        {
+            pSystem->CreateAdditionalRequiredComponents( this );
+        }
+    }
+
     void Entity::LoadComponents( EntityModel::LoadingContext const& loadingContext )
     {
         EE_ASSERT( m_status == Status::Unloaded );
@@ -86,6 +97,7 @@ namespace EE
         for ( auto pComponent : m_components )
         {
             EE_ASSERT( pComponent->IsUnloaded() );
+            pComponent->m_componentResourceStateChangeFunction = [this] ( EntityComponent* pComponent, TFunction<void()>&& stateChangeFunction ) { RegisterComponentResourceChangeRequest( pComponent, eastl::forward<TFunction<void()>>( stateChangeFunction ) ); };
             pComponent->Load( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
         }
 
@@ -113,6 +125,7 @@ namespace EE
             }
 
             pComponent->Unload( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
+            pComponent->m_componentResourceStateChangeFunction = nullptr;
         }
 
         m_status = Status::Unloaded;
@@ -232,7 +245,7 @@ namespace EE
 
         if ( m_isSpatialAttachmentCreated )
         {
-            DestroySpatialAttachment( SpatialAttachmentRule::KeepLocalTranform );
+            DestroySpatialAttachment( SpatialAttachmentRule::KeepLocalTransform );
         }
 
         // Systems and Components
@@ -302,8 +315,9 @@ namespace EE
         for ( auto pSystem : m_systems )
         {
             pSystem->RegisterComponent( pComponent );
-            pComponent->m_isRegisteredWithEntity = true;
         }
+
+        pComponent->m_isRegisteredWithEntity = true;
     }
 
     void Entity::UnregisterComponentFromLocalSystems( EntityComponent* pComponent )
@@ -315,8 +329,39 @@ namespace EE
         for ( auto pSystem : m_systems )
         {
             pSystem->UnregisterComponent( pComponent );
-            pComponent->m_isRegisteredWithEntity = false;
         }
+
+        pComponent->m_isRegisteredWithEntity = false;
+    }
+
+    void Entity::RegisterComponentResourceChangeRequest( EntityComponent* pComponent, TFunction<void()>&& stateChangeFunction )
+    {
+        EE_ASSERT( pComponent != nullptr && VectorContains( m_components, pComponent ) );
+        EE_ASSERT( !pComponent->IsUnloaded() );
+
+        Threading::RecursiveScopeLock lock( m_internalStateMutex );
+
+        for ( auto& deferredAction : m_deferredActions )
+        {
+            if ( deferredAction.m_ptr == pComponent )
+            {
+                if ( deferredAction.m_type == EntityInternalStateAction::Type::ResourceChange || deferredAction.m_type == EntityInternalStateAction::Type::WaitForComponentUnregistrationToChangeResource )
+                {
+                    deferredAction.m_resourceChangeActions.emplace_back( eastl::forward<TFunction<void()>>( stateChangeFunction ) );
+                    return;
+                }
+
+                // We dont support resource changes for components that have other pending deferred operations in flight!
+                EE_UNREACHABLE_CODE();
+            }
+        }
+
+        auto& action = m_deferredActions.emplace_back( EntityInternalStateAction() );
+        action.m_type = EntityInternalStateAction::Type::ResourceChange;
+        action.m_ptr = pComponent;
+        action.m_resourceChangeActions.emplace_back( eastl::forward<TFunction<void()>>( stateChangeFunction ) );
+
+        s_entityInternalStateUpdatedEvent.Execute( this );
     }
 
     bool Entity::UpdateEntityState( EntityModel::LoadingContext const& loadingContext, EntityModel::InitializationContext& initializationContext )
@@ -396,12 +441,12 @@ namespace EE
                     if ( pComponentToDestroy->m_isRegisteredWithWorld )
                     {
                         initializationContext.m_componentsToUnregister.enqueue( EntityModel::EntityComponentPair( this, pComponentToDestroy ) );
-                        action.m_type = EntityInternalStateAction::Type::WaitForComponentUnregistration;
+                        action.m_type = EntityInternalStateAction::Type::WaitForComponentUnregistrationToDestroy;
                     }
                 }
                 // No Break: Intentional Fall-through here
 
-                case EntityInternalStateAction::Type::WaitForComponentUnregistration:
+                case EntityInternalStateAction::Type::WaitForComponentUnregistrationToDestroy:
                 {
                     auto pComponentToDestroy = (EntityComponent*) action.m_ptr;
 
@@ -416,6 +461,53 @@ namespace EE
 
                         pComponent->Unload( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
                         DestroyComponentImmediate( pComponent );
+                        m_deferredActions.erase( m_deferredActions.begin() + i );
+                        i--;
+                    }
+                }
+                break;
+
+                case EntityInternalStateAction::Type::ResourceChange:
+                {
+                    auto pComponentToUnload = (EntityComponent*) action.m_ptr;
+
+                    // Unregister from local systems
+                    if ( pComponentToUnload->m_isRegisteredWithEntity )
+                    {
+                        UnregisterComponentFromLocalSystems( pComponentToUnload );
+                    }
+
+                    // Request unregister from global systems
+                    if ( pComponentToUnload->m_isRegisteredWithWorld )
+                    {
+                        initializationContext.m_componentsToUnregister.enqueue( EntityModel::EntityComponentPair( this, pComponentToUnload ) );
+                        action.m_type = EntityInternalStateAction::Type::WaitForComponentUnregistrationToChangeResource;
+                    }
+                }
+                // No Break: Intentional Fall-through here
+
+                case EntityInternalStateAction::Type::WaitForComponentUnregistrationToChangeResource:
+                {
+                    auto pComponentToReload = (EntityComponent*) action.m_ptr;
+
+                    // We can destroy the component safely
+                    if ( !pComponentToReload->m_isRegisteredWithEntity && !pComponentToReload->m_isRegisteredWithWorld )
+                    {
+                        auto pComponent = (EntityComponent*) action.m_ptr;
+                        if ( pComponent->IsInitialized() )
+                        {
+                            pComponent->Shutdown();
+                        }
+
+                        pComponent->Unload( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
+
+                        for ( auto const& rca : action.m_resourceChangeActions )
+                        {
+                            rca();
+                        }
+
+                        pComponent->Load( loadingContext, Resource::ResourceRequesterID( m_ID.m_value ) );
+
                         m_deferredActions.erase( m_deferredActions.begin() + i );
                         i--;
                     }
@@ -690,10 +782,16 @@ namespace EE
             // Only refresh active attachments
             if ( pAttachedEntity->m_isSpatialAttachmentCreated )
             {
-                pAttachedEntity->DestroySpatialAttachment( SpatialAttachmentRule::KeepLocalTranform );
+                pAttachedEntity->DestroySpatialAttachment( SpatialAttachmentRule::KeepLocalTransform );
                 pAttachedEntity->CreateSpatialAttachment();
             }
         }
+    }
+
+    bool Entity::IsDirectSpatialChildOf( Entity const* pPotentialParent ) const
+    {
+        EE_ASSERT( pPotentialParent != nullptr );
+        return m_pParentSpatialEntity == pPotentialParent;
     }
 
     bool Entity::IsSpatialChildOf( Entity const* pPotentialParent ) const
@@ -712,6 +810,18 @@ namespace EE
         }
 
         return false;
+    }
+
+    bool Entity::IsDirectSpatialParentOf( Entity const* pPotentialChild ) const
+    {
+        EE_ASSERT( pPotentialChild != nullptr );
+        return pPotentialChild->m_pParentSpatialEntity == this;
+    }
+
+    bool Entity::IsSpatialParentOf( Entity const* pPotentialChild ) const
+    {
+        EE_ASSERT( pPotentialChild != nullptr );
+        return pPotentialChild->IsSpatialChildOf( this );
     }
 
     AABB Entity::GetCombinedWorldBounds() const
@@ -813,10 +923,37 @@ namespace EE
         }
     }
 
+    bool Entity::CanCreateSystem( TypeSystem::TypeInfo const* pNewSystemTypeInfo ) const
+    {
+        for ( auto pExistingSystem : m_systems )
+        {
+            if ( pExistingSystem->GetTypeID() == pNewSystemTypeInfo->m_ID )
+            {
+                return false;
+            }
+
+            if ( pExistingSystem->GetTypeInfo()->IsDerivedFrom( pNewSystemTypeInfo->m_ID ) )
+            {
+                return false;
+            }
+
+            if ( pNewSystemTypeInfo->IsDerivedFrom( pExistingSystem->GetTypeID() ) )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     void Entity::CreateSystem( TypeSystem::TypeInfo const* pSystemTypeInfo )
     {
         EE_ASSERT( pSystemTypeInfo != nullptr );
         EE_ASSERT( pSystemTypeInfo->IsDerivedFrom( EntitySystem::GetStaticTypeID() ) );
+        EE_ASSERT( CanCreateSystem( pSystemTypeInfo ) );
+
+        // We dont support multiple actions for a given component in the same frame, please avoid doing stupid things
+        EE_ASSERT( !VectorContains( m_deferredActions, pSystemTypeInfo ) );
 
         Threading::RecursiveScopeLock lock( m_internalStateMutex );
 
@@ -837,6 +974,9 @@ namespace EE
     {
         EE_ASSERT( pSystemTypeInfo != nullptr );
         EE_ASSERT( pSystemTypeInfo->IsDerivedFrom( EntitySystem::GetStaticTypeID() ) );
+
+        // We dont support multiple actions for a given component in the same frame, please avoid doing stupid things
+        EE_ASSERT( !VectorContains( m_deferredActions, pSystemTypeInfo ) );
 
         Threading::RecursiveScopeLock lock( m_internalStateMutex );
 
@@ -898,12 +1038,40 @@ namespace EE
         EE::Delete( pSystem );
         m_systems.erase_unsorted( m_systems.begin() + systemIdx );
     }
-    
+
     //-------------------------------------------------------------------------
     // Components
     //-------------------------------------------------------------------------
 
-    void Entity::CreateComponent( TypeSystem::TypeInfo const* pComponentTypeInfo, ComponentID const& parentSpatialComponentID )
+    bool Entity::CanCreateComponent( TypeSystem::TypeInfo const* pComponentTypeInfo ) const
+    {
+        if ( !pComponentTypeInfo->GetDefaultInstance<EntityComponent>()->IsSingletonComponent() )
+        {
+            return true;
+        }
+
+        for ( auto pExistingComponent : m_components )
+        {
+            if ( pExistingComponent->GetTypeID() == pComponentTypeInfo->m_ID )
+            {
+                return false;
+            }
+
+            if ( pExistingComponent->GetTypeInfo()->IsDerivedFrom( pComponentTypeInfo->m_ID ) )
+            {
+                return false;
+            }
+
+            if ( pComponentTypeInfo->IsDerivedFrom( pExistingComponent->GetTypeID() ) )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    EntityComponent* Entity::CreateComponent( TypeSystem::TypeInfo const* pComponentTypeInfo, ComponentID const& parentSpatialComponentID )
     {
         EE_ASSERT( pComponentTypeInfo != nullptr && pComponentTypeInfo->IsDerivedFrom<EntityComponent>() );
         EntityComponent* pComponent = Cast<EntityComponent>( pComponentTypeInfo->CreateType() );
@@ -915,6 +1083,8 @@ namespace EE
         #endif
 
         AddComponent( pComponent, parentSpatialComponentID );
+
+        return pComponent;
     }
 
     void Entity::AddComponent( EntityComponent* pComponent, ComponentID const& parentSpatialComponentID )
@@ -922,6 +1092,9 @@ namespace EE
         EE_ASSERT( pComponent != nullptr && pComponent->GetID().IsValid() );
         EE_ASSERT( !pComponent->m_entityID.IsValid() && pComponent->IsUnloaded() );
         EE_ASSERT( !VectorContains( m_components, (EntityComponent*) pComponent ) );
+
+        // We dont support multiple actions for a given component in the same frame, please avoid doing stupid things
+        EE_ASSERT( !VectorContains( m_deferredActions, pComponent ) );
 
         //-------------------------------------------------------------------------
 
@@ -990,6 +1163,9 @@ namespace EE
         EE_ASSERT( componentIdx != InvalidIndex );
         auto pComponent = m_components[componentIdx];
 
+        // We dont support multiple actions for a given component in the same frame, please avoid doing stupid things
+        EE_ASSERT( !VectorContains( m_deferredActions, pComponent ) );
+
         //-------------------------------------------------------------------------
 
         Threading::RecursiveScopeLock lock( m_internalStateMutex );
@@ -1020,6 +1196,7 @@ namespace EE
         Threading::RecursiveScopeLock lock( m_internalStateMutex );
         EE_ASSERT( pComponent != nullptr && pComponent->GetID().IsValid() && !pComponent->m_entityID.IsValid() );
         EE_ASSERT( pComponent->IsUnloaded() && !pComponent->m_isRegisteredWithWorld && !pComponent->m_isRegisteredWithEntity );
+        EE_ASSERT( !VectorContains( m_components, pComponent ) );
 
         // Update spatial hierarchy
         //-------------------------------------------------------------------------
@@ -1097,7 +1274,7 @@ namespace EE
             bool const recreateSpatialAttachment = m_isSpatialAttachmentCreated;
             if ( HasSpatialParent() && m_isSpatialAttachmentCreated )
             {
-                DestroySpatialAttachment( SpatialAttachmentRule::KeepLocalTranform );
+                DestroySpatialAttachment( SpatialAttachmentRule::KeepLocalTransform );
             }
 
             //-------------------------------------------------------------------------
@@ -1164,7 +1341,7 @@ namespace EE
     {
         if ( !desiredNameID.IsValid() )
         {
-            desiredNameID = pComponent->GetTypeID().ToStringID();
+            desiredNameID = StringID( pComponent->GetTypeInfo()->m_friendlyName );
         }
 
         //-------------------------------------------------------------------------

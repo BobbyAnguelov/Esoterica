@@ -3,45 +3,45 @@
 
 
 // Actions
-#include "Game/Player/StateMachine/Actions/PlayerAction_Locomotion.h"
+#include "Game/Player/StateMachine/Actions/PlayerAction_Move.h"
 #include "Game/Player/StateMachine/Actions/PlayerAction_Jump.h"
 #include "Game/Player/StateMachine/Actions/PlayerAction_Falling.h"
-#include "Game/Player/StateMachine/Actions/PlayerAction_Dash.h"
-#include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_Shoot.h"
-#include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_Aim.h"
+#include "Game/Player/StateMachine/Actions/PlayerAction_Dodge.h"
+#include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_Weapon.h"
 #include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_MeleeAttack.h"
+#include "Game/Player/StateMachine/OverlayActions/PlayerOverlayAction_TimeDilation.h"
 #include "Actions/PlayerAction_Slide.h"
 #include "Actions/PlayerAction_Ghost.h"
 #include "Actions/PlayerAction_Interact.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
-    ActionStateMachine::ActionStateMachine( ActionContext const& context )
+    PlayerActionStateMachine::PlayerActionStateMachine( PlayerActionContext const& context )
         : m_actionContext( context )
     {
         //-------------------------------------------------------------------------
         // Overlay Actions
         //-------------------------------------------------------------------------
 
-        m_overlayActions.emplace_back( EE::New<ShootOverlayAction>() );
-        m_overlayActions.emplace_back( EE::New<AimOverlayAction>() );
-        m_overlayActions.emplace_back( EE::New<MeleeAttackAction>() );
+        m_overlayActions[Weapon] = EE::New<PlayerOverlayAction_Weapon>();
+        m_overlayActions[MeleeAttack] = EE::New<PlayerOverlayAction_MeleeAttack>();
+        m_overlayActions[TimeDilation] = EE::New<PlayerOverlayAction_TimeDilation>();
 
         //-------------------------------------------------------------------------
         // Base Actions
         //-------------------------------------------------------------------------
 
-        m_baseActions[Locomotion] = EE::New<LocomotionAction>();
-        m_baseActions[Falling] = EE::New<FallingAction>();
-        m_baseActions[Jump] = EE::New<JumpAction>();
-        m_baseActions[Dash] = EE::New<DashAction>();
-        m_baseActions[Slide] = EE::New<SlideAction>();
-        m_baseActions[Interact] = EE::New<InteractAction>();
+        m_baseActions[Locomotion] = EE::New<PlayerAction_Move>();
+        m_baseActions[Falling] = EE::New<PlayerAction_Falling>();
+        m_baseActions[Jump] = EE::New<PlayerAction_Jump>();
+        m_baseActions[Dash] = EE::New<PlayerAction_Dodge>();
+        m_baseActions[Slide] = EE::New<PlayerAction_Slide>();
+        m_baseActions[Interact] = EE::New<PlayerAction_Interact>();
 
         #if EE_DEVELOPMENT_TOOLS
-        m_baseActions[DebugMode] = EE::New<GhostModeAction>();
+        m_baseActions[DebugMode] = EE::New<PlayerAction_GhostMode>();
         #endif
 
         //-------------------------------------------------------------------------
@@ -71,13 +71,12 @@ namespace EE::Player
         #endif
     }
 
-    ActionStateMachine::~ActionStateMachine()
+    PlayerActionStateMachine::~PlayerActionStateMachine()
     {
         for ( auto& pAction : m_overlayActions )
         {
             EE::Delete( pAction );
         }
-        m_overlayActions.clear();
 
         for ( auto& pAction : m_baseActions )
         {
@@ -102,21 +101,19 @@ namespace EE::Player
         {
             EE_ASSERT( pBaseAction == nullptr );
         }
-
-        EE_ASSERT( m_overlayActions.empty() );
     }
 
     //-------------------------------------------------------------------------
 
-    void ActionStateMachine::Update()
+    void PlayerActionStateMachine::Update()
     {
         EE_ASSERT( m_actionContext.IsValid() );
 
         //-------------------------------------------------------------------------
 
-        auto EvaluateTransitions = [this] ( Action::Status const activeStateStatus, TInlineVector<Transition, 6> const& transitions )
+        auto EvaluateTransitions = [this] ( PlayerAction::Status const activeStateStatus, TInlineVector<Transition, 6> const& transitions )
         {
-            EE_ASSERT( activeStateStatus != Action::Status::Uninterruptible );
+            EE_ASSERT( activeStateStatus != PlayerAction::Status::Uninterruptible );
 
             for ( auto const& transition : transitions )
             {
@@ -128,12 +125,12 @@ namespace EE::Player
                 if ( m_baseActions[transition.m_targetActionID]->TryStart( m_actionContext ) )
                 {
                     #if EE_DEVELOPMENT_TOOLS
-                    m_actionLog.emplace_back( m_actionContext.m_pEntityWorldUpdateContext->GetFrameID(), m_baseActions[m_activeBaseActionID]->GetName(), ( activeStateStatus == Action::Status::Completed ) ? LoggedStatus::ActionCompleted : LoggedStatus::ActionInterrupted );
+                    m_actionLog.emplace_back( m_actionContext.m_pEntityWorldUpdateContext->GetFrameID(), m_baseActions[m_activeBaseActionID]->GetName(), ( activeStateStatus == PlayerAction::Status::Completed ) ? LoggedStatus::ActionCompleted : LoggedStatus::ActionInterrupted );
                     m_actionLog.emplace_back( m_actionContext.m_pEntityWorldUpdateContext->GetFrameID(), m_baseActions[transition.m_targetActionID]->GetName(), LoggedStatus::ActionStarted );
                     #endif
 
                     // Stop the currently active state
-                    Action::StopReason const stopReason = ( activeStateStatus == Action::Status::Completed ) ? Action::StopReason::Completed : Action::StopReason::Interrupted;
+                    PlayerAction::StopReason const stopReason = ( activeStateStatus == PlayerAction::Status::Completed ) ? PlayerAction::StopReason::Completed : PlayerAction::StopReason::Interrupted;
                     m_baseActions[m_activeBaseActionID]->Stop( m_actionContext, stopReason );
                     m_activeBaseActionID = InvalidAction;
 
@@ -141,8 +138,8 @@ namespace EE::Player
 
                     // Start the new state
                     m_activeBaseActionID = transition.m_targetActionID;
-                    Action::Status const newActionStatus = m_baseActions[m_activeBaseActionID]->Update( m_actionContext, true );
-                    EE_ASSERT( newActionStatus != Action::Status::Completed ); // Why did you instantly completed the action you just started, this is likely a mistake!
+                    PlayerAction::Status const newActionStatus = m_baseActions[m_activeBaseActionID]->Update( m_actionContext, true );
+                    EE_ASSERT( newActionStatus != PlayerAction::Status::Completed ); // Why did you instantly completed the action you just started, this is likely a mistake!
 
                     return true;
                 }
@@ -159,8 +156,8 @@ namespace EE::Player
         {
             // Evaluate the current active state
             ActionID const initialStateID = m_activeBaseActionID;
-            Action::Status const status = m_baseActions[m_activeBaseActionID]->Update( m_actionContext, false );
-            if ( status != Action::Status::Uninterruptible )
+            PlayerAction::Status const status = m_baseActions[m_activeBaseActionID]->Update( m_actionContext, false );
+            if ( status != PlayerAction::Status::Uninterruptible )
             {
                 // Evaluate high priority global transitions
                 bool transitionFired = EvaluateTransitions( status, m_highPriorityGlobalTransitions );
@@ -178,9 +175,9 @@ namespace EE::Player
                 }
 
                 // Stop the current state if it completed and we didnt fire any transition
-                if ( !transitionFired && status == Action::Status::Completed )
+                if ( !transitionFired && status == PlayerAction::Status::Completed )
                 {
-                    m_baseActions[m_activeBaseActionID]->Stop( m_actionContext, Action::StopReason::Completed );
+                    m_baseActions[m_activeBaseActionID]->Stop( m_actionContext, PlayerAction::StopReason::Completed );
                     m_activeBaseActionID = InvalidAction;
                 }
             }
@@ -191,15 +188,15 @@ namespace EE::Player
         {
             if ( !m_isFirstUpdate )
             {
-                EE_LOG_ERROR( "Player", "State Machine", "Ended up with no state, starting default state!" );
+                EE_LOG_ERROR( LogCategory::Gameplay, "Player State Machine", "Ended up with no state, starting default state!" );
             }
 
             m_activeBaseActionID = DefaultAction;
             bool const tryStartResult = m_baseActions[m_activeBaseActionID]->TryStart( m_actionContext );
             EE_ASSERT( tryStartResult ); // The default state MUST always be able to start
 
-            Action::Status const newActionStatus = m_baseActions[m_activeBaseActionID]->Update( m_actionContext, true );
-            EE_ASSERT( newActionStatus == Action::Status::Interruptible ); // Why did you instantly completed the action you just started, this is likely a mistake!
+            PlayerAction::Status const newActionStatus = m_baseActions[m_activeBaseActionID]->Update( m_actionContext, true );
+            EE_ASSERT( newActionStatus == PlayerAction::Status::Interruptible ); // Why did you instantly completed the action you just started, this is likely a mistake!
 
             #if EE_DEVELOPMENT_TOOLS
             m_actionLog.emplace_back( m_actionContext.m_pEntityWorldUpdateContext->GetFrameID(), m_baseActions[m_activeBaseActionID]->GetName(), LoggedStatus::ActionStarted );
@@ -215,9 +212,9 @@ namespace EE::Player
             // Update running actions
             if ( pOverlayAction->IsActive() )
             {
-                if ( pOverlayAction->Update( m_actionContext, false ) == Action::Status::Completed )
+                if ( pOverlayAction->Update( m_actionContext, false ) == PlayerAction::Status::Completed )
                 {
-                    pOverlayAction->Stop( m_actionContext, Action::StopReason::Completed );
+                    pOverlayAction->Stop( m_actionContext, PlayerAction::StopReason::Completed );
 
                     #if EE_DEVELOPMENT_TOOLS
                     m_actionLog.emplace_back( m_actionContext.m_pEntityWorldUpdateContext->GetFrameID(), pOverlayAction->GetName(), LoggedStatus::ActionCompleted, false );
@@ -227,8 +224,8 @@ namespace EE::Player
             // Try to start action
             else if ( pOverlayAction->TryStart( m_actionContext ) )
             {
-                Action::Status const newActionStatus = pOverlayAction->Update( m_actionContext, true );
-                EE_ASSERT( newActionStatus != Action::Status::Completed ); // Why did you instantly complete the action you just started, this is likely a mistake!
+                PlayerAction::Status const newActionStatus = pOverlayAction->Update( m_actionContext, true );
+                EE_ASSERT( newActionStatus != PlayerAction::Status::Completed ); // Why did you instantly complete the action you just started, this is likely a mistake!
 
                 #if EE_DEVELOPMENT_TOOLS
                 m_actionLog.emplace_back( m_actionContext.m_pEntityWorldUpdateContext->GetFrameID(), pOverlayAction->GetName(), LoggedStatus::ActionStarted, false );
@@ -248,11 +245,11 @@ namespace EE::Player
         m_isFirstUpdate = false;
     }
 
-    void ActionStateMachine::ForceStopAllRunningActions()
+    void PlayerActionStateMachine::ForceStopAllRunningActions()
     {
         if ( m_activeBaseActionID != InvalidAction )
         {
-            m_baseActions[m_activeBaseActionID]->Stop( m_actionContext, Action::StopReason::Interrupted );
+            m_baseActions[m_activeBaseActionID]->Stop( m_actionContext, PlayerAction::StopReason::Interrupted );
             m_activeBaseActionID = InvalidAction;
         }
 
@@ -260,7 +257,7 @@ namespace EE::Player
         {
             if ( pOverlayAction->IsActive() )
             {
-                pOverlayAction->Stop( m_actionContext, Action::StopReason::Interrupted );
+                pOverlayAction->Stop( m_actionContext, PlayerAction::StopReason::Interrupted );
             }
         }
     }
@@ -268,7 +265,7 @@ namespace EE::Player
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void ActionStateMachine::DrawDebugUI() const
+    void PlayerActionStateMachine::DrawDebugUI() const
     {
         if ( ImGui::BeginTable( "DebuggerLayout", 2, ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable | ImGuiTableFlags_NoSavedSettings, ImGui::GetContentRegionAvail() ) )
         {
@@ -307,7 +304,7 @@ namespace EE::Player
                 }
             }
 
-            Action* pBaseAction = ( m_activeBaseActionID != ActionStateMachine::InvalidAction ) ? m_baseActions[m_activeBaseActionID] : nullptr;
+            PlayerAction* pBaseAction = ( m_activeBaseActionID != PlayerActionStateMachine::InvalidAction ) ? m_baseActions[m_activeBaseActionID] : nullptr;
             TInlineString<50> const headerString( TInlineString<50>::CtorSprintf(), "Base Action: %s###BaseActionHeader", ( pBaseAction != nullptr ) ? pBaseAction->GetName() : "None" );
 
             if ( ImGui::CollapsingHeader( headerString.c_str(), ImGuiTreeNodeFlags_DefaultOpen ) )
@@ -347,19 +344,19 @@ namespace EE::Player
                         ImGui::TableSetColumnIndex( 2 );
                         switch ( logEntry.m_status )
                         {
-                            case ActionStateMachine::LoggedStatus::ActionStarted:
+                            case PlayerActionStateMachine::LoggedStatus::ActionStarted:
                             {
                                 ImGui::TextColored( Colors::LimeGreen.ToFloat4(), "Started" );
                             }
                             break;
 
-                            case ActionStateMachine::LoggedStatus::ActionCompleted:
+                            case PlayerActionStateMachine::LoggedStatus::ActionCompleted:
                             {
                                 ImGui::TextColored( Colors::White.ToFloat4(), "Completed" );
                             }
                             break;
 
-                            case ActionStateMachine::LoggedStatus::ActionInterrupted:
+                            case PlayerActionStateMachine::LoggedStatus::ActionInterrupted:
                             {
                                 ImGui::TextColored( Colors::Red.ToFloat4(), "Interrupted" );
                             }

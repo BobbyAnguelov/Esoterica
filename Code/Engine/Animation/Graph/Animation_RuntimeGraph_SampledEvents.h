@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "Engine/Animation/AnimationDebug.h"
+#include "Engine/Animation/AnimationSourcePath.h"
 #include "Base/Types/Percentage.h"
 #include "Base/Types/StringID.h"
 #include "Base/Types/BitFlags.h"
@@ -66,6 +66,7 @@ namespace EE::Animation
         {
             Event const*                        m_pEvent = nullptr;
             Percentage                          m_percentageThrough = 1.0f;     // The percentage through the event when we sampled it
+            Seconds                             m_eventDuration = -1.0f;
         };
 
         struct GraphEventData
@@ -76,31 +77,15 @@ namespace EE::Animation
 
     public:
 
-        explicit SampledEvent( float weight, bool isFromActiveBranch, GraphEventType eventType, StringID eventID )
-            : m_weight( weight )
-            , m_isFromActiveBranch( isFromActiveBranch )
-            , m_isIgnored( false )
-            , m_isGraphEvent( true )
-        {
-            EE_ASSERT( eventID.IsValid() );
-            m_graphEventData.m_ID = eventID;
-            m_graphEventData.m_type = eventType;
-        }
-
-        explicit SampledEvent( float weight, bool isFromActiveBranch, Event const* pEvent, Percentage percentageThrough )
-            : m_weight( weight )
-            , m_isFromActiveBranch( isFromActiveBranch )
-            , m_isIgnored( false )
-            , m_isGraphEvent( false )
-        {
-            EE_ASSERT( pEvent != nullptr );
-            EE_ASSERT( percentageThrough >= 0 && percentageThrough <= 1.0f );
-            m_animEventData.m_pEvent = pEvent;
-            m_animEventData.m_percentageThrough = percentageThrough;
-        }
+        SampledEvent();
+        SampledEvent( SampledEvent const &rhs );
+        explicit SampledEvent( SourcePath const& path, float weight, bool isFromActiveBranch, GraphEventType eventType, StringID eventID );
+        explicit SampledEvent( SourcePath const& path, float weight, bool isFromActiveBranch, Event const* pEvent, Percentage percentageThrough, Seconds eventDuration );
 
         // Sampled Event
         //-------------------------------------------------------------------------
+
+        SourcePath const& GetSourcePath() const { return m_sourcePath; }
 
         inline bool IsAnimationEvent() const { return !m_isGraphEvent; }
         inline bool IsGraphEvent() const { return m_isGraphEvent; }
@@ -140,11 +125,32 @@ namespace EE::Animation
         inline bool IsFullyInStateEvent() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type == GraphEventType::FullyInState; }
         inline bool IsExitEvent() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type == GraphEventType::Exit; }
         inline bool IsTimedEvent() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type == GraphEventType::Timed; }
+        inline bool IsStateEvent() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type <= GraphEventType::Timed; }
         inline bool IsGenericEvent() const { EE_ASSERT( IsGraphEvent() ); return m_graphEventData.m_type == GraphEventType::Generic; }
+
+        // Operators/Comparison
+        //-------------------------------------------------------------------------
+
+        SampledEvent &operator=( SampledEvent const &rhs );
+
+        // Only compares path and payload, ignores all transient elements
+        bool operator==( SampledEvent const &rhs ) const { return m_uniqueID == rhs.m_uniqueID; }
+
+        // Only compares path and payload, ignores all transient elements
+        bool operator!=( SampledEvent const &rhs ) const { return m_uniqueID != rhs.m_uniqueID; }
+
+        // If this event less relevant than the other one, checks ignored state, active branch and weight
+        bool IsLessRelevant( SampledEvent const &rhs ) const;
 
     private:
 
-        float                               m_weight = 1.0f;                // The weight of the event when sampled
+        uint64_t CalculateUniqueID( SourcePath const& path ) const;
+
+    private:
+
+        uint64_t                            m_uniqueID = 0;     // Use for fast comparison
+        SourcePath                          m_sourcePath;
+        float                               m_weight = 1.0f;    // The weight of the event when sampled
         bool                                m_isFromActiveBranch = false;
         bool                                m_isIgnored = false;
         bool                                m_isGraphEvent = false;
@@ -175,6 +181,8 @@ namespace EE::Animation
     public:
 
         int16_t                               m_startIdx = InvalidIndex;
+
+        // The end index is not part of each range, it is the start index for the next range or the end of the sampled events buffer
         int16_t                               m_endIdx = InvalidIndex;
     };
 
@@ -190,6 +198,9 @@ namespace EE::Animation
 
         // Empty the buffer
         void Clear();
+
+        // Reset the buffer for a new update
+        void ResetForNewUpdate();
 
         // Get the total number of sampled events (for both anim and graph events )
         inline int16_t GetNumSampledEvents() const { return (int16_t) m_sampledEvents.size(); }
@@ -277,16 +288,10 @@ namespace EE::Animation
         // Animation Events
         //-------------------------------------------------------------------------
 
-        inline SampledEvent& EmplaceAnimationEvent( int16_t nodeIdx, Event const* pEvent, Percentage percentageThrough, bool isFromActiveBranch = true )
+        inline SampledEvent& EmplaceAnimationEvent( SourcePath const& path, Event const* pEvent, Percentage percentageThrough, Seconds eventDuration, bool isFromActiveBranch = true )
         {
-            EE_ASSERT( nodeIdx >= 0 );
-
-            #if EE_DEVELOPMENT_TOOLS
-            m_debugPathTracker.AddTrackedPath( nodeIdx );
-            #endif
-
             m_numAnimEventsSampled++;
-            return m_sampledEvents.emplace_back( 1.0f, isFromActiveBranch, pEvent, percentageThrough );
+            return m_sampledEvents.emplace_back( path, 1.0f, isFromActiveBranch, pEvent, percentageThrough, eventDuration );
         }
 
         inline int16_t GetNumAnimationEventsSampled() const { return m_numAnimEventsSampled; }
@@ -294,16 +299,10 @@ namespace EE::Animation
         // Graph Events
         //-------------------------------------------------------------------------
 
-        inline SampledEvent& EmplaceGraphEvent( int16_t nodeIdx, GraphEventType type, StringID ID, bool isFromActiveBranch )
+        inline SampledEvent& EmplaceGraphEvent( SourcePath const& path, GraphEventType type, StringID ID, bool isFromActiveBranch )
         {
-            EE_ASSERT( nodeIdx >= 0 );
-
-            #if EE_DEVELOPMENT_TOOLS
-            m_debugPathTracker.AddTrackedPath( nodeIdx );
-            #endif
-
             m_numGraphEventsSampled++;
-            return m_sampledEvents.emplace_back( 1.0f, isFromActiveBranch, type, ID );
+            return m_sampledEvents.emplace_back( path, 1.0f, isFromActiveBranch, type, ID );
         }
 
         inline int16_t GetNumGraphEventsSampled() const { return m_numGraphEventsSampled; }
@@ -312,19 +311,6 @@ namespace EE::Animation
         bool ContainsGraphEvent( SampledEventRange const& range, StringID ID, bool onlyFromActiveBranch = false ) const;
         bool ContainsSpecificGraphEvent( GraphEventType eventType, StringID ID, bool onlyFromActiveBranch = false ) const;
         bool ContainsSpecificGraphEvent( SampledEventRange const& range, GraphEventType eventType, StringID ID, bool onlyFromActiveBranch = false ) const;
-
-        // Mark all graph events in the range as ignored
-        inline void MarkOnlyGraphEventsAsIgnored( SampledEventRange range )
-        {
-            EE_ASSERT( IsValidRange( range ) );
-            for ( int16_t i = range.m_startIdx; i < range.m_endIdx; i++ )
-            {
-                if ( m_sampledEvents[i].IsGraphEvent() )
-                {
-                    m_sampledEvents[i].m_isIgnored = true;
-                }
-            }
-        }
 
         // Operators
         //-------------------------------------------------------------------------
@@ -336,25 +322,30 @@ namespace EE::Animation
         EE_FORCE_INLINE SampledEvent& operator[]( uint32_t i ) { return GetEvent(i); }
         EE_FORCE_INLINE SampledEvent const& operator[]( uint32_t i ) const { return GetEvent( i ); }
 
-        // Debug
+        // Event Tracking
         //-------------------------------------------------------------------------
+        // There's a bunch of event tracking to provide client code additional information about what has occurred
+        // Use the below functions to get the list of new events vs events that we were tracking but have stopped
+        // This is useful for things like stopping sounds/particle systems once we stop sampling an event
+        // 
+        // NOTE!	You may still get multiple events with the same ID or payloads since they come from different sources.
+        //			So you may have a graph event with the same ID both exiting and entering on the same update.
+        //			This is the responsibility of the client code to figure out and deal with.
 
-        #if EE_DEVELOPMENT_TOOLS
-        // Add a new path element to add extra information about the source of events (this should only be called from child/external graph nodes)
-        void PushBaseDebugPath( int16_t nodeIdx ) { EE_ASSERT( nodeIdx >= 0 ); m_debugPathTracker.PushBasePath( nodeIdx ); }
+        // Update the event tracking lists
+        void UpdateEventTracking();
 
-        // Pop a path element from the current path
-        void PopBaseDebugPath() { m_debugPathTracker.PopBasePath(); }
+        // Get the list of new events that have been received that we didn't have the previous update
+        // Immediate/Instant events will only ever be in this list
+        TInlineVector<SampledEvent, 20> const& GetNewlyReceivedEvents() const { return m_newEvents; }
 
-        // Do we currently have a debug path set?
-        inline bool HasDebugBasePathSet() const { return m_debugPathTracker.HasBasePath(); }
+        // Get the list of event that are continuing from a previous update (i.e. were received (entered) in a previous update and are still being received)
+        // This list should only ever contain duration anim events and graph events
+        TInlineVector<SampledEvent, 20> const& GetContinuousEvents() const { return m_continuousEvents; }
 
-        TInlineVector<int64_t, 5> const& GetEventDebugPath( int32_t eventIdx ) const
-        {
-            EE_ASSERT( eventIdx >= 0 && eventIdx < m_sampledEvents.size() );
-            return m_debugPathTracker.m_itemPaths[eventIdx];
-        }
-        #endif
+        // Get the list of previously continuing events that we have stopped receiving
+        // This list should only ever contain duration anim events and graph events
+        TInlineVector<SampledEvent, 20> const& GetEndedContinuousEvents() const { return m_endedContinuousEvents; }
 
     public:
 
@@ -362,8 +353,9 @@ namespace EE::Animation
         int16_t                                     m_numAnimEventsSampled = 0;
         int16_t                                     m_numGraphEventsSampled = 0;
 
-        #if EE_DEVELOPMENT_TOOLS
-        DebugPathTracker                            m_debugPathTracker;
-        #endif
+        TInlineVector<SampledEvent, 20>             m_newEvents;
+        TInlineVector<SampledEvent, 20>             m_continuousEvents;
+        TInlineVector<SampledEvent, 20>             m_endedContinuousEvents;
+
     };
 }

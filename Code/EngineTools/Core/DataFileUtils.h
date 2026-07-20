@@ -2,6 +2,7 @@
 #include "EngineTools/_Module/API.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/Types/Percentage.h"
+#include "Base/Logging/Log.h"
 
 //-------------------------------------------------------------------------
 
@@ -48,5 +49,6 @@ namespace EE
         TVector<FileSystem::Path>           m_filesToResave;
         int32_t                             m_numFilesResaved = 0;
         bool                                m_isResaving = false;
+        Log                                 m_log;
     };
 }

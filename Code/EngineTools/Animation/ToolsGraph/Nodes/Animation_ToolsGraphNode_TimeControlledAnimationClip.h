@@ -1,0 +1,51 @@
+#pragma once
+#include "Engine/Animation/AnimationClip.h"
+#include "Animation_ToolsGraphNode_VariationData.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE::Animation
+{
+    class TimeControlledAnimationClipToolsNode final : public VariationDataToolsNode
+    {
+        EE_REFLECT_TYPE( TimeControlledAnimationClipToolsNode );
+
+    public:
+
+        struct Data final : public VariationDataToolsNode::Data
+        {
+            EE_REFLECT_TYPE( Data );
+
+            virtual void GetReferencedResources( TInlineVector<ResourceID, 2>& outReferencedResources ) const override { outReferencedResources.emplace_back( m_animClip.GetResourceID() ); }
+            virtual VisualState GetVisualState() const override { return m_animClip.IsSet() ? VisualState::None : VisualState::HasUnsetData; }
+
+        public:
+
+            EE_REFLECT();
+            TResourcePtr<AnimationClip>                 m_animClip;
+        };
+
+    public:
+
+        TimeControlledAnimationClipToolsNode();
+
+        virtual bool IsAnimationClipReferenceNode() const override { return true; }
+        virtual char const* GetTypeName() const override { return "Time Controlled Animation Clip"; }
+        virtual char const* GetCategory() const override { return "Animation"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+
+    private:
+
+        virtual TypeSystem::TypeInfo const* GetVariationDataTypeInfo() const override { return TimeControlledAnimationClipToolsNode::Data::s_pTypeInfo; }
+        virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
+
+    private:
+
+        EE_REFLECT();
+        bool                               m_sampleRootMotion = true;
+
+        EE_REFLECT( Category = "Advanced" );
+        TVector<StringID>                  m_graphEvents;
+    };
+}

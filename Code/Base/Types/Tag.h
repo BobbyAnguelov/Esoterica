@@ -49,7 +49,7 @@ namespace EE
         template<typename T>
         static void EnsureUniqueID( T& container )
         {
-            auto SortPredicate = [] ( TTag const& a, TTag const& b )
+            auto SortPredicate = []( TTag const& a, TTag const& b )
             {
                 for ( int32_t i = 0; i < N; i++ )
                 {
@@ -150,9 +150,17 @@ namespace EE
 
         TTag( TTag&& tag ) { CopyFromTag( tag ); }
 
-        TTag& operator=( TTag const& tag ) { CopyFromTag( tag ); return *this; }
+        TTag& operator=( TTag const& tag )
+        {
+            CopyFromTag( tag );
+            return *this;
+        }
 
-        TTag& operator=( TTag&& tag ) { CopyFromTag( tag ); return *this; }
+        TTag& operator=( TTag&& tag )
+        {
+            CopyFromTag( tag );
+            return *this;
+        }
 
         //-------------------------------------------------------------------------
 
@@ -189,7 +197,7 @@ namespace EE
         void SetValueN( uint32_t depth, StringID ID )
         {
             EE_ASSERT( depth >= 0 && depth <= ( N - 1 ) );
-            EE_ASSERT( ( ( depth + 1 ) < ( N - 1 ) ) ? !m_c[depth + 1 ].IsValid() : true );
+            EE_ASSERT( ( ( depth + 1 ) < ( N - 1 ) ) ? !m_c[depth + 1].IsValid() : true );
             m_c[depth] = ID;
             EE_ASSERT( IsValid() );
         }
@@ -333,7 +341,7 @@ namespace EE
     template<size_t N>
     TTag<N> TTag<N>::GetParentTag() const
     {
-        TTag parentID;
+        TTag          parentID;
         int32_t const parentDepth = GetDepth() - 1;
         for ( int32_t idx = 0; idx < N; idx++ )
         {
@@ -396,7 +404,7 @@ namespace EE
     InlineString TTag<N>::ToString() const
     {
         // For now hard-coded to reduce the number of sprintf/appends
-        InlineString result;
+        InlineString   result;
         uint32_t const depth = GetDepth();
         switch ( depth )
         {
@@ -438,19 +446,23 @@ namespace EE
         Tag2( char const* p0, char const* p1 = nullptr )
             : TTag<2>()
         {
-            if ( p0 != nullptr ) { m_c[0] = StringID( p0 ); } else { return; }
-            if ( p1 != nullptr ) { m_c[1] = StringID( p1 ); } else { return; }
+            if ( p0 != nullptr ) { m_c[0] = StringID( p0 ); }
+            else { return; }
+            if ( p1 != nullptr ) { m_c[1] = StringID( p1 ); }
+            else { return; }
         }
 
         Tag2( StringID s0, StringID s1 = StringID() )
             : TTag<2>()
         {
-            if ( s0.IsValid() ) { m_c[0] = s0; } else { return; }
-            if ( s1.IsValid() ) { m_c[1] = s1; } else { return; }
+            if ( s0.IsValid() ) { m_c[0] = s0; }
+            else { return; }
+            if ( s1.IsValid() ) { m_c[1] = s1; }
+            else { return; }
         }
 
         using TTag::TTag;
-        using TTag::operator =;
+        using TTag::operator=;
     };
 
     class Tag4 : public TTag<4>
@@ -460,24 +472,32 @@ namespace EE
         Tag4( char const* p0, char const* p1 = nullptr, char const* p2 = nullptr, char const* p3 = nullptr )
             : TTag<4>()
         {
-            if ( p0 != nullptr ) { m_c[0] = StringID( p0 ); } else { return; }
-            if ( p1 != nullptr ) { m_c[1] = StringID( p1 ); } else { return; }
-            if ( p2 != nullptr ) { m_c[2] = StringID( p2 ); } else { return; }
-            if ( p3 != nullptr ) { m_c[3] = StringID( p3 ); } else { return; }
+            if ( p0 != nullptr ) { m_c[0] = StringID( p0 ); }
+            else { return; }
+            if ( p1 != nullptr ) { m_c[1] = StringID( p1 ); }
+            else { return; }
+            if ( p2 != nullptr ) { m_c[2] = StringID( p2 ); }
+            else { return; }
+            if ( p3 != nullptr ) { m_c[3] = StringID( p3 ); }
+            else { return; }
             EE_ASSERT( IsValid() );
         }
 
         Tag4( StringID s0, StringID s1 = StringID(), StringID s2 = StringID(), StringID s3 = StringID() )
             : TTag<4>()
         {
-            if ( s0.IsValid() ) { m_c[0] = s0; } else { return; }
-            if ( s1.IsValid() ) { m_c[1] = s1; } else { return; }
-            if ( s2.IsValid() ) { m_c[2] = s2; } else { return; }
-            if ( s3.IsValid() ) { m_c[3] = s3; } else { return; }
+            if ( s0.IsValid() ) { m_c[0] = s0; }
+            else { return; }
+            if ( s1.IsValid() ) { m_c[1] = s1; }
+            else { return; }
+            if ( s2.IsValid() ) { m_c[2] = s2; }
+            else { return; }
+            if ( s3.IsValid() ) { m_c[3] = s3; }
+            else { return; }
             EE_ASSERT( IsValid() );
         }
 
         using TTag::TTag;
-        using TTag::operator =;
+        using TTag::operator=;
     };
 }

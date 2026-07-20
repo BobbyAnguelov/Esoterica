@@ -1,7 +1,7 @@
 #pragma once
 #include "EngineTools/Core/EditorTool.h"
 #include "EngineTools/Widgets/TreeListView.h"
-#include "EngineTools/Core/CategoryTree.h"
+#include "Base/Utils/CategoryTree.h"
 #include "Base/Resource/ResourceTypeID.h"
 
 //-------------------------------------------------------------------------
@@ -18,7 +18,7 @@ namespace EE
 
 namespace EE::Resource
 {
-    class ResourceDescriptorCreator;
+    class ResourceDataFileCreator;
     class RawFileInspector;
 
     //-------------------------------------------------------------------------
@@ -30,6 +30,7 @@ namespace EE::Resource
             String                  m_friendlyName;
             FileSystem::Extension   m_extension;
             ResourceTypeID          m_resourceTypeID;
+            Color                   m_color;
         };
 
         struct NavigationRequest
@@ -49,6 +50,9 @@ namespace EE::Resource
             NameAscending,
             NameDescending
         };
+
+        constexpr static char const * const s_directoryInfoContextMenu = "DirectoryContextMenu";
+        constexpr static char const * const s_fileInfoContextMenu = "FileContextMenu";
 
     public:
 
@@ -82,21 +86,18 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         void DrawCreationControls( UpdateContext const& context );
-        void DrawDescriptorMenuCategory( FileSystem::Path const& path, Category<TypeSystem::TypeInfo const*> const& category );
-        bool DrawDeleteConfirmationDialog( UpdateContext const& context );
+        void DrawCreateDescriptorMenuCategory( FileSystem::Path const& startingPath, Category<TypeSystem::TypeInfo const*> const& category );
 
-        void DrawControlRow( UpdateContext const& context );
         void DrawResourceTypeFilterRow( UpdateContext const& context );
 
-        // Folders
+        // Directory Tree
         //-------------------------------------------------------------------------
 
-        void DrawFolderView( UpdateContext const& context );
-        void DrawFolderContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus );
+        void DrawDirectoryView( UpdateContext const& context );
+        void DrawDirectoryTreeContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus );
 
-        void RebuildFolderTreeView( TreeListViewItem* pRootItem );
-        void UpdateFolderTreeVisibility();
-        void SetSelectedFolder( DataPath const& newFolderPath );
+        void RebuildDirectoryTreeView( TreeListViewItem* pRootItem );
+        void SetSelectedDirectory( DataPath const& newFolderPath );
 
         // Files
         //-------------------------------------------------------------------------
@@ -104,9 +105,11 @@ namespace EE::Resource
         void DrawFileView( UpdateContext const& context );
 
         bool DoesFileMatchFilter( FileRegistry::FileInfo const* pFile, bool applyNameFilter = false );
-        void GenerateFileList();
+        void GenerateDirectoryContentsList();
         void SortFileList();
         void SetSelectedFile( DataPath const& filePath, bool setFocus );
+        void DrawDirectoryInfoContextMenu( FileRegistry::DirectoryInfo const& directoryInfo, bool isFileListView );
+        void DrawFileInfoContextMenu( FileRegistry::FileInfo const& fileInfo );
 
     private:
 
@@ -115,7 +118,7 @@ namespace EE::Resource
         TVector<int32_t>                                    m_selectedTypeFilterIndices;
         bool                                                m_showRawFiles = false;
         bool                                                m_filterUpdated = false;
-        bool                                                m_rebuildTree = false;
+        bool                                                m_refreshRequested = false;
         SortRule                                            m_sortRule = SortRule::NameAscending;
 
         EventBindingID                                      m_resourceDatabaseUpdateEventBindingID;
@@ -128,11 +131,15 @@ namespace EE::Resource
         NavigationRequest                                   m_navigationRequest;
         bool                                                m_setFocusToSelectedItem = false;
 
-        TreeListView                                        m_folderTreeView;
-        DataPath                                            m_selectedFolder;
+        TreeListView                                        m_directoryTreeView;
+        DataPath                                            m_selectedDirectory;
 
+        // Selected Directory Contents
+        //-------------------------------------------------------------------------
+
+        TVector<FileRegistry::DirectoryInfo>                m_directoryList;
         TVector<FileRegistry::FileInfo>                     m_fileList;
         TVector<int32_t>                                    m_sortedFileListIndices;
-        DataPath                                            m_selectedFile;
+        DataPath                                            m_selectedItem;
     };
 }

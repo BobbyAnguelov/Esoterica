@@ -4,12 +4,12 @@
 
 #include "Engine/Animation/Events/AnimationEvent_ID.h"
 #include "Engine/Animation/Events/AnimationEvent_SnapToFrame.h"
+#include "Engine/Animation/Events/AnimationEvent_FloatCurve.h"
 #include "Engine/Animation/Events/AnimationEvent_Foot.h"
 #include "Engine/Animation/Events/AnimationEvent_Warp.h"
 #include "Engine/Animation/Events/AnimationEvent_Ragdoll.h"
 #include "Engine/Animation/Events/AnimationEvent_Transition.h"
 #include "Engine/Animation/Events/AnimationEvent_RootMotion.h"
-#include "EngineTools/Widgets/CurveEditor.h"
 
 //-------------------------------------------------------------------------
 // Animation Event Tracks
@@ -26,6 +26,21 @@ namespace EE::Animation
         virtual Timeline::ItemType GetAllowedItemType() const override { return Timeline::ItemType::Both; }
         virtual bool AllowMultipleTracks() const override { return true; }
         virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class FloatCurveEventTrack final : public EventTrack
+    {
+        EE_REFLECT_TYPE( FloatCurveEventTrack );
+
+        virtual const char* GetTypeName() const override { return "Float Curve"; }
+        virtual TypeSystem::TypeInfo const* GetEventTypeInfo() const override;
+        virtual Timeline::ItemType GetAllowedItemType() const override { return Timeline::ItemType::Duration; }
+        virtual bool AllowMultipleTracks() const override { return true; }
+        virtual InlineString GetItemLabel( Timeline::TrackItem const* pItem ) const override;
+        virtual void DrawDurationItem( Timeline::TrackContext const& context, ImDrawList* pDrawList, ImRect const& itemRect, ItemState itemState, Timeline::TrackItem* pItem ) override;
+        virtual float GetTrackHeight() const override { return 70; }
     };
 
     //-------------------------------------------------------------------------

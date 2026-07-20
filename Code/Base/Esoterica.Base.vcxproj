@@ -16,25 +16,50 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application\Module.h" />
-    <ClInclude Include="Encoding\FourCC.h" />
+    <ClInclude Include="Encoding\Embed.h" />
     <ClInclude Include="Encoding\Hash.h" />
     <ClInclude Include="Encoding\Quantization.h" />
     <ClInclude Include="FileSystem\DataPath.h" />
     <ClInclude Include="FileSystem\FileSystemExtension.h" />
     <ClInclude Include="FileSystem\IDataFile.h" />
+    <ClInclude Include="Fonts\Font_MaterialDesignIcons.h" />
+    <ClInclude Include="Fonts\Font_RobotoMono_Regular.h" />
+    <ClInclude Include="Fonts\Font_Roboto_Bold.h" />
+    <ClInclude Include="Fonts\Font_Roboto_BoldItalic.h" />
+    <ClInclude Include="Fonts\Font_Roboto_Italic.h" />
+    <ClInclude Include="Fonts\Font_Roboto_Regular.h" />
+    <ClInclude Include="Imgui\ImguiCurveEditor.h" />
+    <ClInclude Include="Imgui\ImguiCommandStack.h" />
     <ClInclude Include="Imgui\ImguiFilteredCombo.h" />
+    <ClInclude Include="Imgui\ImguiTextBuffer.h" />
     <ClInclude Include="Imgui\ImguiXNotifications.h" />
     <ClInclude Include="Input\Input.h" />
-    <ClInclude Include="Logging\LogEntry.h" />
+    <ClInclude Include="Logging\LogCategory.h" />
     <ClInclude Include="Logging\SystemLog.h" />
+    <ClInclude Include="Math\Intersection.h" />
+    <ClInclude Include="Math\BlendWeight.h" />
+    <ClInclude Include="Math\Matrix43.h" />
+    <ClInclude Include="Network\Clients\NetworkClient_GNS.h" />
+    <ClInclude Include="Network\Clients\NetworkClient.h" />
+    <ClInclude Include="Network\Servers\NetworkServer.h" />
+    <ClInclude Include="Network\Servers\NetworkServer_GNS.h" />
+    <ClInclude Include="Render\HandleAllocator.h" />
+    <ClInclude Include="Render\PageAllocator.h" />
+    <ClInclude Include="FileSystem\DataFileExtension.h" />
+    <ClInclude Include="ThirdParty\EA\eastl_Esoterica_TrackedAllocator.h" />
+    <ClInclude Include="ThirdParty\lzav\lzav.h" />
+    <ClInclude Include="ThirdParty\lzav\lzav_estoerica.h" />
+    <ClInclude Include="ThirdParty\rapidhash\rapidhash.h" />
+    <ClInclude Include="Types\Path.h" />
+    <ClInclude Include="Utils\CommandLineParser.h" />
+    <ClInclude Include="ThirdParty\stb\stb_image_resize2.h" />
     <ClInclude Include="Types\Severity.h" />
     <ClInclude Include="Math\Easing.h" />
     <ClInclude Include="Math\Lerp.h" />
-    <ClInclude Include="Memory\IntrusivePtr.h" />
     <ClInclude Include="Memory\SharedPtr.h" />
     <ClInclude Include="Memory\UniquePtr.h" />
     <ClInclude Include="Platform\Platform.h" />
-    <ClInclude Include="Render\Settings\GlobalSettings_Render.h" />
+    <ClInclude Include="Render\Settings\Settings_Render.h" />
     <ClInclude Include="Serialization\TypeSerialization.h" />
     <ClInclude Include="Serialization\XmlSerialization.h" />
     <ClInclude Include="Serialization\BitSerialization.h" />
@@ -42,25 +67,21 @@
     <ClInclude Include="Settings\SettingsRegistry.h" />
     <ClInclude Include="ThirdParty\implot\implot.h" />
     <ClInclude Include="ThirdParty\implot\implot_internal.h" />
-    <ClInclude Include="ThirdParty\LivePP\LivePP.h" />
     <ClInclude Include="ThirdParty\pugixml\src\pugiconfig.hpp" />
     <ClInclude Include="ThirdParty\pugixml\src\pugixml.hpp" />
     <ClInclude Include="TypeSystem\DataFileInfo.h" />
     <ClInclude Include="TypeSystem\PropertyMetadata.h" />
     <ClInclude Include="TypeSystem\TypeInstance.h" />
+    <ClInclude Include="ThirdParty\stb\stb_image_write.h" />
+    <ClInclude Include="Utils\CategoryTree.h" />
     <ClInclude Include="Utils\StringKeyValueParser.h" />
+    <ClInclude Include="Utils\StringTokenizer.h" />
     <ClInclude Include="Utils\TopologicalSort.h" />
     <ClInclude Include="Encoding\Encoding.h" />
     <ClInclude Include="Application\ApplicationGlobalState.h" />
     <ClInclude Include="Application\Platform\Application_Win32.h" />
-    <ClInclude Include="Fonts\FontData_Lexend.h" />
-    <ClInclude Include="Fonts\FontData_MaterialDesign.h" />
-    <ClInclude Include="Fonts\FontData_Proggy.h" />
-    <ClInclude Include="Fonts\FontDecompressor.h" />
     <ClInclude Include="Utils\GlobalRegistryBase.h" />
-    <ClInclude Include="Imgui\ImguiGizmo.h" />
     <ClInclude Include="Imgui\ImguiFont.h" />
-    <ClInclude Include="Imgui\ImguiImageCache.h" />
     <ClInclude Include="Imgui\ImguiStyle.h" />
     <ClInclude Include="Imgui\ImguiSystem.h" />
     <ClInclude Include="Imgui\ImguiX.h" />
@@ -77,49 +98,34 @@
     <ClInclude Include="Math\FloatCurve.h" />
     <ClInclude Include="Math\MathConstants.h" />
     <ClInclude Include="Math\MathRandom.h" />
-    <ClInclude Include="Network\IPC\IPCMessage.h" />
-    <ClInclude Include="Network\IPC\IPCMessageClient.h" />
-    <ClInclude Include="Network\IPC\IPCMessageServer.h" />
+    <ClInclude Include="Network\NetworkMessage.h" />
+    <ClInclude Include="Network\Clients\NetworkClient_WebSockets.h" />
+    <ClInclude Include="Network\Servers\NetworkServer_WebSockets.h" />
     <ClInclude Include="Network\NetworkSystem.h" />
     <ClInclude Include="Platform\Platform_Win32.h" />
     <ClInclude Include="Drawing\DebugDrawingSystem.h" />
     <ClInclude Include="Math\MathUtils.h" />
-    <ClInclude Include="Render\Platform\RenderContext_DX11.h" />
-    <ClInclude Include="Render\Platform\RenderDevice_DX11.h" />
-    <ClInclude Include="Render\Platform\TextureLoader_Win32.h" />
-    <ClInclude Include="Render\RenderAPI.h" />
-    <ClInclude Include="Render\RenderBuffer.h" />
-    <ClInclude Include="Render\RenderCoreResources.h" />
-    <ClInclude Include="Render\RenderDevice.h" />
-    <ClInclude Include="Render\RenderPipelineState.h" />
-    <ClInclude Include="Render\RenderShader.h" />
-    <ClInclude Include="Render\RenderStates.h" />
-    <ClInclude Include="Render\RenderTarget.h" />
-    <ClInclude Include="Render\RenderTexture.h" />
-    <ClInclude Include="Render\RenderUtils.h" />
-    <ClInclude Include="Render\RenderVertexFormats.h" />
-    <ClInclude Include="Render\RenderViewport.h" />
+    <ClInclude Include="Render\RHI.h" />
     <ClInclude Include="Render\RenderWindow.h" />
     <ClInclude Include="Resource\IResource.h" />
     <ClInclude Include="Resource\ResourceHeader.h" />
     <ClInclude Include="Resource\ResourceID.h" />
     <ClInclude Include="Resource\ResourceLoader.h" />
     <ClInclude Include="Resource\ResourceProvider.h" />
-    <ClInclude Include="Resource\ResourceProviders\NetworkResourceProvider.h" />
-    <ClInclude Include="Resource\ResourceProviders\PackagedResourceProvider.h" />
+    <ClInclude Include="Resource\ResourceProviders\ResourceProvider_Network.h" />
+    <ClInclude Include="Resource\ResourceProviders\ResourceProvider_Package.h" />
     <ClInclude Include="Resource\ResourceProviders\ResourceNetworkMessages.h" />
     <ClInclude Include="Resource\ResourcePtr.h" />
     <ClInclude Include="Resource\ResourceRecord.h" />
     <ClInclude Include="Resource\ResourceRequest.h" />
     <ClInclude Include="Resource\ResourceRequesterID.h" />
-    <ClInclude Include="Resource\Settings\GlobalSettings_Resource.h" />
+    <ClInclude Include="Resource\Settings\Settings_Resource.h" />
     <ClInclude Include="Resource\ResourceSystem.h" />
     <ClInclude Include="Resource\ResourceTypeID.h" />
     <ClInclude Include="Serialization\BinarySerialization.h" />
     <ClInclude Include="Drawing\DebugDrawingCommands.h" />
     <ClInclude Include="Drawing\DebugDrawing.h" />
     <ClInclude Include="Settings\IniFile.h" />
-    <ClInclude Include="ThirdParty\cmdParser\cmdParser.h" />
     <ClInclude Include="ThirdParty\concurrentqueue\blockingconcurrentqueue.h" />
     <ClInclude Include="ThirdParty\concurrentqueue\concurrentqueue.h" />
     <ClInclude Include="ThirdParty\concurrentqueue\lightweightsemaphore.h" />
@@ -429,6 +435,7 @@
     <ClInclude Include="Math\Triangle.h" />
     <ClInclude Include="Math\Vector.h" />
     <ClInclude Include="Math\ViewVolume.h" />
+    <ClInclude Include="Math\Platform\Math_Win32.h" />
     <ClInclude Include="Memory\Memory.h" />
     <ClInclude Include="Platform\PlatformUtils_Win32.h" />
     <ClInclude Include="Profiling.h" />
@@ -455,7 +462,8 @@
     <ClInclude Include="ThirdParty\pcg\include\pcg_random.hpp" />
     <ClInclude Include="ThirdParty\pcg\include\pcg_uint128.hpp" />
     <ClInclude Include="ThirdParty\rpmalloc\rpmalloc.h" />
-    <ClInclude Include="ThirdParty\xxhash\xxhash.h" />
+    <ClInclude Include="ThirdParty\D3D12MemoryAllocator\D3D12MemAlloc.h" />
+    <ClInclude Include="ThirdParty\D3D12MemoryAllocator\Common.h" />
     <ClInclude Include="Threading\Threading.h" />
     <ClInclude Include="Types\HashMap.h" />
     <ClInclude Include="Types\IDVector.h" />
@@ -481,24 +489,41 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application\Module.cpp" />
-    <ClCompile Include="Encoding\FourCC.cpp" />
-    <ClCompile Include="Encoding\Hash.cpp" />
+    <ClCompile Include="Encoding\Embed.cpp" />
     <ClCompile Include="FileSystem\DataPath.cpp" />
     <ClCompile Include="FileSystem\FileSystem.cpp" />
     <ClCompile Include="FileSystem\IDataFile.cpp" />
+    <ClCompile Include="Fonts\Font_MaterialDesignIcons.cpp" />
+    <ClCompile Include="Fonts\Font_RobotoMono_Regular.cpp" />
+    <ClCompile Include="Fonts\Font_Roboto_Bold.cpp" />
+    <ClCompile Include="Fonts\Font_Roboto_BoldItalic.cpp" />
+    <ClCompile Include="Fonts\Font_Roboto_Italic.cpp" />
+    <ClCompile Include="Fonts\Font_Roboto_Regular.cpp" />
+    <ClCompile Include="Imgui\ImguiCurveEditor.cpp" />
     <ClCompile Include="Imgui\ImguiXNotifications.cpp" />
     <ClCompile Include="Input\InputDevice.cpp" />
     <ClCompile Include="Input\Input.cpp" />
     <ClCompile Include="Logging\Log.cpp" />
-    <ClCompile Include="Logging\LogEntry.cpp" />
+    <ClCompile Include="Logging\LogCategory.cpp" />
     <ClCompile Include="Logging\SystemLog.cpp" />
+    <ClCompile Include="FileSystem\DataFileExtension.cpp" />
+    <ClCompile Include="Math\Intersection.cpp" />
+    <ClCompile Include="Math\line.cpp" />
+    <ClCompile Include="Math\Plane.cpp" />
+    <ClCompile Include="Math\BlendWeight.cpp" />
+    <ClCompile Include="Network\Clients\NetworkClient.cpp" />
+    <ClCompile Include="Network\Clients\NetworkClient_GNS.cpp" />
+    <ClCompile Include="Network\Servers\NetworkServer.cpp" />
+    <ClCompile Include="Network\Servers\NetworkServer_GNS.cpp" />
+    <ClCompile Include="Render\HandleAllocator.cpp" />
+    <ClCompile Include="Settings\Settings.cpp" />
+    <ClCompile Include="ThirdParty\mpack\mpack_esoterica.cpp" />
+    <ClCompile Include="TypeSystem\PropertyMetadata.cpp" />
     <ClCompile Include="Types\Severity.cpp" />
     <ClCompile Include="Logging\Platform\SystemLog_Win32.cpp" />
     <ClCompile Include="Math\Easing.cpp" />
-    <ClCompile Include="Math\Platform\Math_Win32.h" />
     <ClCompile Include="Math\Rectangle.cpp" />
     <ClCompile Include="Platform\Platform.cpp" />
-    <ClCompile Include="Render\Settings\GlobalSettings_Render.cpp" />
     <ClCompile Include="Serialization\TypeSerialization.cpp" />
     <ClCompile Include="Serialization\XmlSerialization.cpp" />
     <ClCompile Include="Settings\SettingsRegistry.cpp" />
@@ -508,21 +533,16 @@
     <ClCompile Include="ThirdParty\pugixml\src\pugixml.cpp" />
     <ClCompile Include="TypeSystem\TypeInstance.cpp" />
     <ClCompile Include="Types\Color.cpp" />
+    <ClCompile Include="Types\StringUtils.cpp" />
     <ClCompile Include="Utils\StringKeyValueParser.cpp" />
+    <ClCompile Include="Utils\StringTokenizer.cpp" />
     <ClCompile Include="Utils\TopologicalSort.cpp" />
     <ClCompile Include="Encoding\Encoding.cpp" />
     <ClCompile Include="Application\ApplicationGlobalState.cpp" />
     <ClCompile Include="Application\Platform\Application_Win32.cpp" />
     <ClCompile Include="Drawing\DebugDrawingSystem.cpp" />
-    <ClCompile Include="FileSystem\Platform\FileSystemUtils_Win32.cpp" />
     <ClCompile Include="FileSystem\Platform\FileSystemPath_Win32.cpp" />
-    <ClCompile Include="Fonts\FontData_Lexend.cpp" />
-    <ClCompile Include="Fonts\FontData_MaterialDesign.cpp" />
-    <ClCompile Include="Fonts\FontData_Proggy.cpp" />
-    <ClCompile Include="Fonts\FontDecompressor.cpp" />
-    <ClCompile Include="Imgui\ImguiGizmo.cpp" />
     <ClCompile Include="Imgui\ImguiFont.cpp" />
-    <ClCompile Include="Imgui\ImguiImageCache.cpp" />
     <ClCompile Include="Imgui\ImguiStyle.cpp" />
     <ClCompile Include="Imgui\ImguiSystem.cpp" />
     <ClCompile Include="Imgui\ImguiX.cpp" />
@@ -539,27 +559,20 @@
     <ClCompile Include="Math\MathUtils.cpp" />
     <ClCompile Include="Drawing\DebugDrawingCommands.cpp" />
     <ClCompile Include="Drawing\DebugDrawing.cpp" />
-    <ClCompile Include="Network\IPC\IPCMessage.cpp" />
-    <ClCompile Include="Network\IPC\IPCMessageClient.cpp" />
-    <ClCompile Include="Network\IPC\IPCMessageServer.cpp" />
+    <ClCompile Include="Network\NetworkMessage.cpp" />
+    <ClCompile Include="Network\Clients\NetworkClient_WebSockets.cpp" />
+    <ClCompile Include="Network\Servers\NetworkServer_WebSockets.cpp" />
     <ClCompile Include="Network\NetworkSystem.cpp" />
     <ClCompile Include="Platform\Platform_Win32.cpp" />
-    <ClCompile Include="Render\Platform\RenderContext_DX11.cpp" />
-    <ClCompile Include="Render\Platform\RenderDevice_DX11.cpp" />
-    <ClCompile Include="Render\Platform\TextureLoader_Win32.cpp" />
-    <ClCompile Include="Render\RenderCoreResources.cpp" />
-    <ClCompile Include="Render\RenderShader.cpp" />
-    <ClCompile Include="Render\RenderTarget.cpp" />
-    <ClCompile Include="Render\RenderUtils.cpp" />
-    <ClCompile Include="Render\RenderVertexFormats.cpp" />
-    <ClCompile Include="Render\RenderViewport.cpp" />
+    <ClCompile Include="Render\RHI_Direct3D12.cpp" />
+    <ClCompile Include="Render\RenderWindow.cpp" />
     <ClCompile Include="Resource\ResourceID.cpp" />
     <ClCompile Include="Resource\ResourceLoader.cpp" />
-    <ClCompile Include="Resource\ResourceProviders\NetworkResourceProvider.cpp" />
-    <ClCompile Include="Resource\ResourceProviders\PackagedResourceProvider.cpp" />
+    <ClCompile Include="Resource\ResourceProviders\ResourceProvider_Network.cpp" />
+    <ClCompile Include="Resource\ResourceProviders\ResourceProvider_Package.cpp" />
     <ClCompile Include="Resource\ResourceRecord.cpp" />
     <ClCompile Include="Resource\ResourceRequest.cpp" />
-    <ClCompile Include="Resource\Settings\GlobalSettings_Resource.cpp" />
+    <ClCompile Include="Resource\Settings\Settings_Resource.cpp" />
     <ClCompile Include="Resource\ResourceSystem.cpp" />
     <ClCompile Include="FileSystem\FileSystemPath.cpp" />
     <ClCompile Include="FileSystem\FileStreams.cpp" />
@@ -570,7 +583,6 @@
     <ClCompile Include="Math\AABBTree.cpp" />
     <ClCompile Include="Math\Math.cpp" />
     <ClCompile Include="Math\Matrix.cpp" />
-    <ClCompile Include="Math\Plane.cpp" />
     <ClCompile Include="Math\PointSet.cpp" />
     <ClCompile Include="Math\Quaternion.cpp" />
     <ClCompile Include="Math\Vector.cpp" />
@@ -605,7 +617,8 @@
     <ClCompile Include="ThirdParty\iniparser\dictionary.c" />
     <ClCompile Include="ThirdParty\iniparser\iniparser.c" />
     <ClCompile Include="ThirdParty\rpmalloc\rpmalloc.c" />
-    <ClCompile Include="ThirdParty\xxhash\xxhash.c" />
+    <ClCompile Include="ThirdParty\D3D12MemoryAllocator\Common.cpp" />
+    <ClCompile Include="ThirdParty\D3D12MemoryAllocator\D3D12MemAlloc.cpp" />
     <ClCompile Include="Threading\Threading.cpp" />
     <ClCompile Include="Threading\Platform\Threading_Win32.cpp" />
     <ClCompile Include="Time\Time.cpp" />
@@ -613,7 +626,6 @@
     <ClCompile Include="TypeSystem\CoreTypeConversions.cpp" />
     <ClCompile Include="TypeSystem\CoreTypeIDs.cpp" />
     <ClCompile Include="TypeSystem\EnumInfo.cpp" />
-    <ClCompile Include="TypeSystem\PropertyInfo.cpp" />
     <ClCompile Include="TypeSystem\PropertyPath.cpp" />
     <ClCompile Include="TypeSystem\TypeDescriptors.cpp" />
     <ClCompile Include="TypeSystem\TypeInfo.cpp" />
@@ -626,7 +638,7 @@
     <ClCompile Include="_Module\BaseModule.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ThirdParty\cmdParser\LICENSE" />
+    <None Include="Render\RHI.esh" />
     <None Include="ThirdParty\concurrentqueue\LICENSE.md" />
     <None Include="ThirdParty\concurrentqueue\README.md" />
     <None Include="ThirdParty\EA\EABase\doc\EABase.html" />
@@ -653,20 +665,20 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <CharacterSet>
     </CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -677,18 +689,32 @@
     <Import Project="..\PropertySheets\Esoterica.props" />
     <Import Project="..\PropertySheets\GameNetworkingSockets.props" />
     <Import Project="..\PropertySheets\FreeType.props" />
+    <Import Project="..\PropertySheets\DXC.props" />
+    <Import Project="..\PropertySheets\RenderDoc.props" />
+    <Import Project="..\PropertySheets\AmdAgs.props" />
+    <Import Project="..\PropertySheets\WinPixEventRuntime.props" />
+    <Import Project="..\PropertySheets\ixWebSocket.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
     <Import Project="..\PropertySheets\GameNetworkingSockets.props" />
     <Import Project="..\PropertySheets\FreeType.props" />
+    <Import Project="..\PropertySheets\DXC.props" />
+    <Import Project="..\PropertySheets\RenderDoc.props" />
+    <Import Project="..\PropertySheets\AmdAgs.props" />
+    <Import Project="..\PropertySheets\WinPixEventRuntime.props" />
+    <Import Project="..\PropertySheets\ixWebSocket.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
     <Import Project="..\PropertySheets\GameNetworkingSockets.props" />
     <Import Project="..\PropertySheets\FreeType.props" />
+    <Import Project="..\PropertySheets\DXC.props" />
+    <Import Project="..\PropertySheets\RenderDoc.props" />
+    <Import Project="..\PropertySheets\AmdAgs.props" />
+    <Import Project="..\PropertySheets\WinPixEventRuntime.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">

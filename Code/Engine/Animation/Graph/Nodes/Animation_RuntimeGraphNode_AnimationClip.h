@@ -12,6 +12,7 @@ namespace EE::Animation
     {
     public:
 
+        virtual bool HasAnimation() const = 0;
         virtual AnimationClip const* GetAnimation() const = 0;
         virtual void DisableRootMotionSampling() = 0;
         virtual bool IsLooping() const = 0;
@@ -27,18 +28,21 @@ namespace EE::Animation
         struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_playInReverseValueNodeIdx, m_resetTimeValueNodeIdx, m_speedMultiplier, m_startSyncEventOffset, m_sampleRootMotion, m_allowLooping, m_dataSlotIdx );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_dataSlotIdx, m_playInReverseValueNodeIdx, m_resetTimeValueNodeIdx, m_sampleRootMotion, m_allowLooping, m_graphEvents, m_speedMultiplier, m_startSyncEventOffset );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                                     m_dataSlotIdx = InvalidIndex;
             int16_t                                     m_playInReverseValueNodeIdx = InvalidIndex;
             int16_t                                     m_resetTimeValueNodeIdx = InvalidIndex;
-            float                                       m_speedMultiplier = 1.0f;
-            int32_t                                     m_startSyncEventOffset = 0;
             bool                                        m_sampleRootMotion = true;
             bool                                        m_allowLooping = false;
+            TInlineVector<StringID, 2>	                m_graphEvents;
+            float                                       m_speedMultiplier = 1.0f;
+            int32_t                                     m_startSyncEventOffset = 0;
         };
+
+        static void SampleEvents( GraphContext &context, PoseNode* pSourceNode, AnimationClip const* pAnimation, Percentage fromTime, Percentage toTime, bool shouldPlayInReverse );
 
     public:
 
@@ -48,6 +52,7 @@ namespace EE::Animation
 
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
+        virtual bool HasAnimation() const final { return m_pAnimation != nullptr; }
         virtual AnimationClip const* GetAnimation() const final { EE_ASSERT( IsValid() ); return m_pAnimation; }
         virtual void DisableRootMotionSampling() final { EE_ASSERT( IsValid() ); m_shouldSampleRootMotion = false; }
         virtual bool IsLooping() const final { return GetDefinition<AnimationClipNode>()->m_allowLooping; }
@@ -59,12 +64,10 @@ namespace EE::Animation
         virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
 
-        GraphPoseNodeResult CalculateResult( GraphContext& context ) const;
+        GraphPoseNodeResult CalculateResult( GraphContext& context );
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -74,5 +77,7 @@ namespace EE::Animation
         SyncTrack*                                      m_pSyncTrack = nullptr;
         bool                                            m_shouldPlayInReverse = false;
         bool                                            m_shouldSampleRootMotion = true;
+        bool                                            m_isFirstUpdate = true;
+        bool                                            m_hasLooped = false;
     };
 }

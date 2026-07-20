@@ -8,28 +8,6 @@
 
 namespace EE::NodeGraph
 {
-    static ImVec2 const                 g_graphTitleMargin( 16, 10 );
-    constexpr static float const        g_gridSpacing = 30;
-    constexpr static float const        g_nodeSelectionBorderThickness = 2.0f;
-    constexpr static float const        g_connectionSelectionExtraRadius = 5.0f;
-    constexpr static float const        g_transitionArrowWidth = 3.0f;
-    constexpr static float const        g_transitionArrowOffset = 8.0f;
-    constexpr static float const        g_titleBarColorItemWidth = 8.0f;
-    constexpr static float const        g_spacingBetweenTitleAndNodeContents = 6.0f;
-    constexpr static float const        g_pinRadius = 6.0f;
-    constexpr static float const        g_spacingBetweenInputOutputPins = 16.0f;
-    constexpr static float const        g_autoConnectMaxDistanceThreshold = 200.0f;
-
-    static Color const                  g_gridBackgroundColor( 40, 40, 40, 200 );
-    static Color const                  g_gridLineColor( 200, 200, 200, 40 );
-    static Color const                  g_graphTitleColor( 255, 255, 255, 255 );
-    static Color const                  g_graphTitleReadOnlyColor( 196, 196, 196, 255 );
-    static Color const                  g_selectionBoxOutlineColor( 61, 224, 133, 150 );
-    static Color const                  g_selectionBoxFillColor( 61, 224, 133, 30 );
-    static Color const                  g_readOnlyCanvasBorderColor = Colors::LightCoral;
-
-    //-------------------------------------------------------------------------
-
     static void GetConnectionPointsBetweenStateMachineNodes( ImRect const& startNodeRect, ImRect const& endNodeRect, ImVec2& startPoint, ImVec2& endPoint )
     {
         startPoint = startNodeRect.GetCenter();
@@ -60,6 +38,26 @@ namespace EE::NodeGraph
         }
 
         return false;
+    }
+
+    static Color AdjustColorBasedOnVisualState( Color const& color, TBitFlags<NodeVisualState> visualState )
+    {
+        Color modifiedColor = color;
+
+        if ( visualState.IsFlagSet( NodeVisualState::Selected ) && visualState.IsFlagSet( NodeVisualState::Hovered ) )
+        {
+            modifiedColor = color.GetScaledColor( 1.6f );
+        }
+        else if ( visualState.IsFlagSet( NodeVisualState::Selected ) )
+        {
+            modifiedColor = color.GetScaledColor( 1.45f );
+        }
+        else if ( visualState.IsFlagSet( NodeVisualState::Hovered ) )
+        {
+            modifiedColor = color.GetScaledColor( 1.15f );
+        }
+
+        return modifiedColor;
     }
 
     static void GetNodeBackgroundAndBorderColors( Color titleBarColor, Color baseColor, TBitFlags<NodeVisualState> visualState, Color& outTitleBarColor, Color& outBackgroundColor, Color& outBorderColor )
@@ -210,7 +208,7 @@ namespace EE::NodeGraph
         //-------------------------------------------------------------------------
 
         ImGui::PushID( this );
-        ImGui::PushStyleColor( ImGuiCol_ChildBg, g_gridBackgroundColor );
+        ImGui::PushStyleColor( ImGuiCol_ChildBg, Style::s_gridBackgroundColor );
         ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4, 4 ) );
 
         if ( m_requestFocus )
@@ -237,15 +235,15 @@ namespace EE::NodeGraph
             float const canvasWidth = windowRect.GetWidth();
             float const canvasHeight = windowRect.GetHeight();
 
-            Color const gridLineColor = IsReadOnly() ? g_readOnlyCanvasBorderColor.GetScaledColor( 0.4f ) : g_gridLineColor;
+            Color const gridLineColor = IsReadOnly() ? Color( Style::s_readOnlyCanvasBorderColor ).GetScaledColor( 0.4f ) : Color( Style::s_gridLineColor );
 
             // Draw Grid
-            for ( float x = Math::FModF( 0, g_gridSpacing ); x < canvasWidth; x += g_gridSpacing )
+            for ( float x = Math::FModF( 0, Style::s_gridSpacing ); x < canvasWidth; x += Style::s_gridSpacing )
             {
                 pDrawList->AddLine( windowTL + ImVec2( x, 0.0f ), windowTL + ImVec2( x, canvasHeight ), gridLineColor );
             }
 
-            for ( float y = Math::FModF( 0, g_gridSpacing ); y < canvasHeight; y += g_gridSpacing )
+            for ( float y = Math::FModF( 0, Style::s_gridSpacing ); y < canvasHeight; y += Style::s_gridSpacing )
             {
                 pDrawList->AddLine( windowTL + ImVec2( 0.0f, y ), windowTL + ImVec2( canvasWidth, y ), gridLineColor );
             }
@@ -267,13 +265,13 @@ namespace EE::NodeGraph
                 static constexpr float const rectThickness = 8.0f;
                 static constexpr float const rectMargin = 2.0f;
                 static ImVec2 const offset( ( rectThickness / 2.f ) + rectMargin, ( rectThickness / 2.f ) + rectMargin );
-                ctx.m_pDrawList->AddRect( ctx.m_windowRect.Min + offset, ctx.m_windowRect.Max - offset, g_readOnlyCanvasBorderColor, 8.0f, 0, rectThickness );
+                ctx.m_pDrawList->AddRect( ctx.m_windowRect.Min + offset, ctx.m_windowRect.Max - offset, Style::s_readOnlyCanvasBorderColor, 8.0f, 0, rectThickness );
             }
 
             // Title Block
             //-------------------------------------------------------------------------
 
-            ImVec2 textPosition = ctx.m_windowRect.Min + g_graphTitleMargin;
+            ImVec2 textPosition = ctx.m_windowRect.Min + Style::s_graphTitleMargin;
             {
                 ImGuiX::ScopedFont font( ImGuiX::Font::LargeBold );
                 auto pViewedGraph = GetViewedGraph();
@@ -282,18 +280,20 @@ namespace EE::NodeGraph
                     // Draw title text
                     //-------------------------------------------------------------------------
 
-                    ImFont* pTitleFont = ImGuiX::GetFont( ImGuiX::Font::LargeBold );
+                    auto pTitleFont = ImGuiX::GetFont( ImGuiX::FontType::Bold );
+                    float const titleFontSize = ImGuiX::GetFontSize( ImGuiX::FontSize::Large );
                     InlineString const title( InlineString::CtorSprintf(), "%s%s", pViewedGraph->GetName(), IsReadOnly() ? " (Read-Only)" : "" );
-                    ctx.m_pDrawList->AddText( pTitleFont, pTitleFont->FontSize, textPosition, IsReadOnly() ? ImGuiX::Style::s_colorTextDisabled : g_graphTitleColor, title.c_str() );
-                    textPosition += ImVec2( 0, pTitleFont->FontSize );
+                    ctx.m_pDrawList->AddText( pTitleFont, titleFontSize, textPosition, IsReadOnly() ? ImGuiX::Style::s_colorTextDisabled : Color( Style::s_graphTitleColor ), title.c_str() );
+                    textPosition += ImVec2( 0, titleFontSize );
 
                     // Draw extra info
                     //-------------------------------------------------------------------------
 
-                    ImFont* pMediumFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
+                    auto pMediumFont = ImGuiX::GetFont( ImGuiX::FontType::Regular );
+                    float const mediumFontSize = ImGuiX::GetFontSize( ImGuiX::FontSize::Medium );
                     if ( !m_pUserContext->GetExtraGraphTitleInfoText().empty() )
                     {
-                        ctx.m_pDrawList->AddText( pMediumFont, pMediumFont->FontSize, textPosition, m_pUserContext->GetExtraTitleInfoTextColor(), m_pUserContext->GetExtraGraphTitleInfoText().c_str() );
+                        ctx.m_pDrawList->AddText( pMediumFont, mediumFontSize, textPosition, m_pUserContext->GetExtraTitleInfoTextColor(), m_pUserContext->GetExtraGraphTitleInfoText().c_str() );
                     }
                 }
                 else
@@ -352,7 +352,7 @@ namespace EE::NodeGraph
         ImVec2 newNodeWindowSize( 0, 0 );
         ImVec2 const windowPosition = ctx.CanvasToWindowPosition( pNode->GetPosition() );
         ImVec2 const scaledNodeMargin = ctx.CanvasToWindow( pNode->GetNodeMargin() );
-        ImVec2 const scaledColorItemSpacing( ( g_titleBarColorItemWidth * ctx.m_viewScaleFactor ) - scaledNodeMargin.x, 0 );
+        ImVec2 const scaledColorItemSpacing( ( Style::s_titleBarColorItemWidth * ctx.m_viewScaleFactor ) - scaledNodeMargin.x, 0 );
 
         ImGui::SetCursorPos( windowPosition );
         ImGui::BeginGroup();
@@ -375,7 +375,7 @@ namespace EE::NodeGraph
             newNodeWindowSize = ImGui::GetItemRectSize();
             pNode->m_titleRectSize = ctx.WindowToCanvas( newNodeWindowSize );
 
-            float const scaledSpacing = ctx.CanvasToWindow( g_spacingBetweenTitleAndNodeContents );
+            float const scaledSpacing = ctx.CanvasToWindow( Style::s_spacingBetweenTitleAndNodeContents );
             ImGui::SetCursorPosY( ImGui::GetCursorPos().y + scaledSpacing );
             newNodeWindowSize.y += scaledSpacing;
 
@@ -409,7 +409,6 @@ namespace EE::NodeGraph
         //-------------------------------------------------------------------------
 
         TBitFlags<NodeVisualState> visualState;
-        visualState.SetFlag( NodeVisualState::Active, pNode->IsActive( m_pUserContext ) );
         visualState.SetFlag( NodeVisualState::Selected, IsNodeSelected( pNode ) );
         visualState.SetFlag( NodeVisualState::Hovered, pNode->m_isHovered );
 
@@ -423,18 +422,20 @@ namespace EE::NodeGraph
         ImVec2 const backgroundRectMin = ctx.WindowToScreenPosition( windowPosition - scaledNodeMargin );
         ImVec2 const backgroundRectMax = ctx.WindowToScreenPosition( windowPosition + newNodeWindowSize + scaledNodeMargin );
         ImVec2 const rectTitleBarMax = ctx.WindowToScreenPosition( windowPosition + ImVec2( newNodeWindowSize.x, ctx.CanvasToWindow( pNode->m_titleRectSize.m_y ) ) + scaledNodeMargin );
-        ImVec2 const rectTitleBarColorItemMax = ImVec2( backgroundRectMin.x + ( ctx.m_viewScaleFactor * g_titleBarColorItemWidth ), rectTitleBarMax.y );
+        ImVec2 const rectTitleBarColorItemMax = ImVec2( backgroundRectMin.x + ( ctx.m_viewScaleFactor * Style::s_titleBarColorItemWidth ), rectTitleBarMax.y );
         float const scaledCornerRounding = 2 * ctx.m_viewScaleFactor;
-        float const scaledBorderThickness = g_nodeSelectionBorderThickness * ctx.m_viewScaleFactor;
+        float const scaledBorderThickness = Style::s_nodeSelectionBorderThickness * ctx.m_viewScaleFactor;
 
         ctx.SetDrawChannel( (uint8_t) DrawChannel::Background );
 
         if ( IsOfType<StateNode>( pNode ) )
         {
-            if ( visualState.IsFlagSet( NodeVisualState::Active ) )
+            Color outlineColor = pNode->GetHighlightOutlineColor( m_pUserContext );
+            if ( !outlineColor.IsTransparent() )
             {
+                outlineColor = AdjustColorBasedOnVisualState( outlineColor, visualState );
                 ImVec2 const activeBorderPadding( Style::s_activeBorderIndicatorPadding, Style::s_activeBorderIndicatorPadding );
-                ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, Style::s_activeIndicatorBorderColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll, Style::s_activeBorderIndicatorThickness );
+                ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, outlineColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll, Style::s_activeBorderIndicatorThickness );
             }
 
             ctx.m_pDrawList->AddRectFilled( backgroundRectMin, backgroundRectMax, nodeBackgroundColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll );
@@ -480,7 +481,7 @@ namespace EE::NodeGraph
 
         Vector const arrowDir = Vector( endPoint - startPoint ).GetNormalized2();
         Vector const orthogonalDir = arrowDir.Orthogonal2D();
-        ImVec2 const offset = ( orthogonalDir * g_transitionArrowOffset ).ToFloat2();
+        ImVec2 const offset = ( orthogonalDir * Style::s_transitionArrowOffset ).ToFloat2();
 
         startPoint += offset;
         endPoint += offset;
@@ -488,7 +489,7 @@ namespace EE::NodeGraph
         // Update hover state and visual state
         //-------------------------------------------------------------------------
 
-        float const scaledSelectionExtraRadius = ctx.WindowToCanvas( g_connectionSelectionExtraRadius );
+        float const scaledSelectionExtraRadius = ctx.WindowToCanvas( Style::s_connectionSelectionExtraRadius );
         ImVec2 const closestPointOnTransitionToMouse = ImLineClosestPoint( startPoint, endPoint, ctx.m_mouseCanvasPos );
         if ( m_isViewHovered && ImLengthSqr( ctx.m_mouseCanvasPos - closestPointOnTransitionToMouse ) < Math::Pow( scaledSelectionExtraRadius, 2 ) )
         {
@@ -500,7 +501,6 @@ namespace EE::NodeGraph
         }
 
         TBitFlags<NodeVisualState> visualState;
-        visualState.SetFlag( NodeVisualState::Active, pTransitionConduit->IsActive( m_pUserContext ) );
         visualState.SetFlag( NodeVisualState::Selected, IsNodeSelected( pTransitionConduit ) );
         visualState.SetFlag( NodeVisualState::Hovered, pTransitionConduit->m_isHovered );
 
@@ -513,26 +513,46 @@ namespace EE::NodeGraph
         //-------------------------------------------------------------------------
 
         float const scaledArrowHeadWidth = ctx.CanvasToWindow( 5.0f );
-        float const scaledArrowWidth = ctx.CanvasToWindow( g_transitionArrowWidth );
+        float const scaledArrowWidth = ctx.CanvasToWindow( Style::s_transitionArrowWidth );
         float const transitionProgress = pTransitionConduit->m_transitionProgress.GetNormalizedTime().ToFloat();
         bool const hasTransitionProgress = transitionProgress > 0.0f;
-        Color const transitionColor = pTransitionConduit->GetConduitColor( ctx, m_pUserContext, visualState );
+
+        Color conduitColor = pTransitionConduit->GetConduitColor( m_pUserContext );
+        if ( conduitColor.IsTransparent() )
+        {
+            if ( visualState.IsFlagSet( NodeVisualState::Hovered ) )
+            {
+                conduitColor = Style::s_connectionColorHovered;
+            }
+            else if ( visualState.IsFlagSet( NodeVisualState::Selected ) )
+            {
+                conduitColor = Style::s_connectionColorSelected;
+            }
+            else
+            {
+                conduitColor = Style::s_connectionColor;
+            }
+        }
+        else
+        {
+            conduitColor = AdjustColorBasedOnVisualState( pTransitionConduit->GetConduitColor( m_pUserContext ), visualState );
+        }
 
         if ( hasTransitionProgress )
         {
             ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasToScreenPosition( startPoint ), ctx.CanvasToScreenPosition( endPoint ), Colors::DimGray, scaledArrowWidth, scaledArrowHeadWidth );
             ImVec2 const progressEndPoint = Math::Lerp( startPoint, endPoint, transitionProgress );
-            ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasToScreenPosition( startPoint ), ctx.CanvasToScreenPosition( progressEndPoint ), transitionColor, scaledArrowWidth, scaledArrowHeadWidth );
+            ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasToScreenPosition( startPoint ), ctx.CanvasToScreenPosition( progressEndPoint ), conduitColor, scaledArrowWidth, scaledArrowHeadWidth );
         }
         else
         {
             if ( visualState.IsFlagSet( NodeVisualState::Selected ) )
             {
-                ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasToScreenPosition( startPoint ), ctx.CanvasToScreenPosition( endPoint ), transitionColor, scaledArrowWidth * 1.5f, scaledArrowHeadWidth * 1.5f );
+                ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasToScreenPosition( startPoint ), ctx.CanvasToScreenPosition( endPoint ), conduitColor, scaledArrowWidth * 1.5f, scaledArrowHeadWidth * 1.5f );
             }
             else
             {
-                ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasToScreenPosition( startPoint ), ctx.CanvasToScreenPosition( endPoint ), transitionColor, scaledArrowWidth, scaledArrowHeadWidth );
+                ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasToScreenPosition( startPoint ), ctx.CanvasToScreenPosition( endPoint ), conduitColor, scaledArrowWidth, scaledArrowHeadWidth );
             }
         }
 
@@ -571,7 +591,7 @@ namespace EE::NodeGraph
         ImVec2 newNodeWindowSize( 0, 0 );
         ImVec2 const windowPosition = ctx.CanvasToWindowPosition( pNode->GetPosition() );
         ImVec2 const scaledNodeMargin = ctx.CanvasToWindow( pNode->GetNodeMargin() );
-        ImVec2 const scaledColorItemSpacing( ( g_titleBarColorItemWidth * ctx.m_viewScaleFactor ) - scaledNodeMargin.x, 0 );
+        ImVec2 const scaledColorItemSpacing( ( Style::s_titleBarColorItemWidth * ctx.m_viewScaleFactor ) - scaledNodeMargin.x, 0 );
 
         ImGui::SetCursorPos( windowPosition );
         ImGui::BeginGroup();
@@ -596,7 +616,7 @@ namespace EE::NodeGraph
                 newNodeWindowSize = ImGui::GetItemRectSize();
                 pNode->m_titleRectSize = ctx.WindowToCanvas( newNodeWindowSize );
 
-                float const scaledSpacing = ctx.CanvasToWindow( g_spacingBetweenTitleAndNodeContents );
+                float const scaledSpacing = ctx.CanvasToWindow( Style::s_spacingBetweenTitleAndNodeContents );
                 ImGui::SetCursorPosY( ImGui::GetCursorPos().y + scaledSpacing );
                 newNodeWindowSize.y += scaledSpacing;
             }
@@ -610,7 +630,8 @@ namespace EE::NodeGraph
                 ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny );
 
                 ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, 2 * ctx.m_viewScaleFactor ) );
-               
+                ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 6 * ctx.m_viewScaleFactor, 6 * ctx.m_viewScaleFactor ) );
+
                 pNode->m_pHoveredPin = nullptr;
 
                 //-------------------------------------------------------------------------
@@ -665,7 +686,7 @@ namespace EE::NodeGraph
 
                         // Check hover state - do it in window space since pin position/size are in window space
                         Color pinColor = pNode->GetPinColor( pin );
-                        bool const isPinHovered = Vector( pin.m_position ).GetDistance2( ImGui::GetMousePos() ) < ctx.CanvasToWindow( g_pinRadius + FlowNode::s_pinSelectionExtraRadius );
+                        bool const isPinHovered = Vector( pin.m_position ).GetDistance2( ImGui::GetMousePos() ) < ctx.CanvasToWindow( Style::s_pinRadius + FlowNode::s_pinSelectionExtraRadius );
                         if ( isPinHovered )
                         {
                             pNode->m_pHoveredPin = &pin;
@@ -673,7 +694,7 @@ namespace EE::NodeGraph
                         }
 
                         // Draw pin
-                        float const scaledPinRadius = ctx.CanvasToWindow( g_pinRadius );
+                        float const scaledPinRadius = ctx.CanvasToWindow( Style::s_pinRadius );
                         ctx.m_pDrawList->AddCircleFilled( pin.m_position, scaledPinRadius, pinColor );
                     };
 
@@ -699,7 +720,7 @@ namespace EE::NodeGraph
                         }
 
                         float const inputPinWidth = hasInputPin ? pNode->m_inputPins[i].GetWidth() : 0;
-                        float const scaledSpacingBetweenPins = ctx.CanvasToWindow( g_spacingBetweenInputOutputPins );
+                        float const scaledSpacingBetweenPins = ctx.CanvasToWindow( Style::s_spacingBetweenInputOutputPins );
                         estimatedSpacingBetweenPins = ctx.CanvasToWindow( pNode->GetWidth() ) - inputPinWidth - pNode->m_outputPins[i].GetWidth();
                         estimatedSpacingBetweenPins = Math::Max( estimatedSpacingBetweenPins, scaledSpacingBetweenPins );
                         ImGui::SameLine( 0, estimatedSpacingBetweenPins );
@@ -742,7 +763,7 @@ namespace EE::NodeGraph
                 newNodeWindowSize.x = Math::Max( newNodeWindowSize.x, pinRectSize.x );
                 newNodeWindowSize.y += pinRectSize.y;
 
-                ImGui::PopStyleVar();
+                ImGui::PopStyleVar( 2 );
             }
 
             // Draw extra controls
@@ -778,7 +799,6 @@ namespace EE::NodeGraph
         //-------------------------------------------------------------------------
 
         TBitFlags<NodeVisualState> visualState;
-        visualState.SetFlag( NodeVisualState::Active, pNode->IsActive( m_pUserContext ) );
         visualState.SetFlag( NodeVisualState::Selected, IsNodeSelected( pNode ) );
         visualState.SetFlag( NodeVisualState::Hovered, pNode->m_isHovered && pNode->m_pHoveredPin == nullptr );
 
@@ -790,16 +810,18 @@ namespace EE::NodeGraph
         ImVec2 const backgroundRectMin = ctx.WindowToScreenPosition( windowPosition - scaledNodeMargin );
         ImVec2 const backgroundRectMax = ctx.WindowToScreenPosition( windowPosition + newNodeWindowSize + scaledNodeMargin );
         ImVec2 const rectTitleBarMax = ctx.WindowToScreenPosition( windowPosition + ImVec2( newNodeWindowSize.x, ctx.CanvasToWindow( pNode->m_titleRectSize.m_y ) ) + scaledNodeMargin );
-        ImVec2 const rectTitleBarColorItemMax = ImVec2( backgroundRectMin.x + ( ctx.m_viewScaleFactor * g_titleBarColorItemWidth ), rectTitleBarMax.y );
+        ImVec2 const rectTitleBarColorItemMax = ImVec2( backgroundRectMin.x + ( ctx.m_viewScaleFactor * Style::s_titleBarColorItemWidth ), rectTitleBarMax.y );
         float const scaledCornerRounding = 8 * ctx.m_viewScaleFactor;
-        float const scaledBorderThickness = g_nodeSelectionBorderThickness * ctx.m_viewScaleFactor;
+        float const scaledBorderThickness = Style::s_nodeSelectionBorderThickness * ctx.m_viewScaleFactor;
 
         ctx.SetDrawChannel( (uint8_t) DrawChannel::Background );
 
-        if ( visualState.IsFlagSet( NodeVisualState::Active ) )
+        Color outlineColor = pNode->GetHighlightOutlineColor( m_pUserContext );
+        if ( !outlineColor.IsTransparent() )
         {
+            outlineColor = AdjustColorBasedOnVisualState( outlineColor, visualState );
             ImVec2 const activeBorderPadding( Style::s_activeBorderIndicatorPadding, Style::s_activeBorderIndicatorPadding );
-            ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, Style::s_activeIndicatorBorderColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll, Style::s_activeBorderIndicatorThickness );
+            ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, outlineColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll, Style::s_activeBorderIndicatorThickness );
         }
 
         ctx.m_pDrawList->AddRectFilled( backgroundRectMin, backgroundRectMax, nodeBackgroundColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll );
@@ -867,7 +889,6 @@ namespace EE::NodeGraph
         //-------------------------------------------------------------------------
 
         TBitFlags<NodeVisualState> visualState;
-        visualState.SetFlag( NodeVisualState::Active, pNode->IsActive( m_pUserContext ) );
         visualState.SetFlag( NodeVisualState::Selected, IsNodeSelected( pNode ) );
         visualState.SetFlag( NodeVisualState::Hovered, pNode->m_isHovered );
 
@@ -878,7 +899,7 @@ namespace EE::NodeGraph
         ImVec2 const rectMax = ctx.WindowToScreenPosition( windowPosition + ctx.CanvasToWindow( pNode->GetCommentBoxSize() ) + windowNodeMargin );
         ImVec2 const titleRectMax( rectMax.x, ctx.WindowToScreenPosition( textCursorStartPos ).y + ctx.CanvasToWindow( pNode->m_titleRectSize.m_y ) + windowNodeMargin.y );
 
-        float const scaledBorderThickness = ctx.CanvasToWindow( g_nodeSelectionBorderThickness );
+        float const scaledBorderThickness = ctx.CanvasToWindow( Style::s_nodeSelectionBorderThickness );
 
         Color nodeTitleBarColor, nodeBackgroundColor, nodeBorderColor;
         GetNodeBackgroundAndBorderColors( pNode->GetCommentBoxColor(), pNode->GetCommentBoxColor(), visualState, nodeTitleBarColor, nodeBackgroundColor, nodeBorderColor );
@@ -937,6 +958,7 @@ namespace EE::NodeGraph
         m_pUserContext->m_isAltDown = ImGui::GetIO().KeyAlt;
         m_pUserContext->m_isCtrlDown = ImGui::GetIO().KeyCtrl;
         m_pUserContext->m_isShiftDown = ImGui::GetIO().KeyShift;
+        m_pUserContext->m_isReadOnly = m_isReadOnly;
 
         // Node visual update
         //-------------------------------------------------------------------------
@@ -972,8 +994,8 @@ namespace EE::NodeGraph
             //-------------------------------------------------------------------------
 
             ImGuiStyle unscaledStyle = ImGui::GetStyle();
-            ImGui::SetWindowFontScale( drawingContext.m_viewScaleFactor );
-            ImGui::GetStyle().ScaleAllSizes( drawingContext.m_viewScaleFactor );
+            ImGui::GetStyle().ScaleAllSizes( ImGuiX::Style::GetMaxDpiScale() * drawingContext.m_viewScaleFactor );
+            ImGui::GetStyle().FontScaleMain = drawingContext.m_viewScaleFactor;
 
             // Draw nodes
             //-------------------------------------------------------------------------
@@ -1067,7 +1089,7 @@ namespace EE::NodeGraph
                         ImVec2 const p3 = p4 + ImVec2( -50, 0 );
 
                         Color connectionColor = pFromNode->GetPinColor( *pStartPin );
-                        if ( m_hasFocus && IsHoveredOverCurve( p1, p2, p3, p4, drawingContext.m_mouseScreenPos, g_connectionSelectionExtraRadius ) )
+                        if ( m_hasFocus && IsHoveredOverCurve( p1, p2, p3, p4, drawingContext.m_mouseScreenPos, Style::s_connectionSelectionExtraRadius ) )
                         {
                             m_hoveredConnectionID = connection.m_ID;
                             connectionColor = Color( Style::s_connectionColorHovered );
@@ -1484,6 +1506,7 @@ namespace EE::NodeGraph
         // Deserialize pasted nodes and regenerated IDs
         //-------------------------------------------------------------------------
 
+        Log log( LogCategory::Tools, "Node Graph - Paste Node" );
         xml_node copiedNodesNode = copiedDataNode.child( s_copiedNodesNodeName );
         TInlineVector<xml_node, 10> graphNodeNodes;
         Serialization::GetAllChildNodes( copiedNodesNode, Serialization::g_typeNodeName, graphNodeNodes );
@@ -1497,24 +1520,13 @@ namespace EE::NodeGraph
         TInlineVector<BaseNode*, 20> pastedNodes;
         for ( xml_node& graphNodeNode : copiedNodesNode )
         {
-            auto pPastedNode = Cast<BaseNode>( Serialization::TryCreateAndReadType( typeRegistry, graphNodeNode ) );
+            auto pPastedNode = Cast<BaseNode>( Serialization::TryCreateAndReadType( typeRegistry, log, graphNodeNode ) );
 
             if ( m_pGraph->CanCreateNode( pPastedNode->GetTypeInfo() ) )
             {
                 // Set parent graph ptr
                 pPastedNode->m_pParentGraph = m_pGraph;
-
-                // Set child graph parent ptrs
-                if ( pPastedNode->HasChildGraph() )
-                {
-                    pPastedNode->GetChildGraph()->m_pParentNode = pPastedNode;
-                }
-
-                // Set secondary graph parent ptrs
-                if ( pPastedNode->HasSecondaryGraph() )
-                {
-                    pPastedNode->GetSecondaryGraph()->m_pParentNode = pPastedNode;
-                }
+                pPastedNode->UpdateChildGraphAndSecondaryGraphParents();
 
                 pPastedNode->RegenerateIDs( IDMapping );
                 pPastedNode->PostPaste();
@@ -1563,7 +1575,7 @@ namespace EE::NodeGraph
 
             for ( xml_node connectionNode : connectionNodes )
             {
-                FlowGraph::Connection* pPastedConnection = Cast<FlowGraph::Connection>( Serialization::TryCreateAndReadType( typeRegistry, connectionNode ) );
+                FlowGraph::Connection* pPastedConnection = Cast<FlowGraph::Connection>( Serialization::TryCreateAndReadType( typeRegistry, log, connectionNode ) );
 
                 pPastedConnection->m_fromNodeID = IDMapping.at( pPastedConnection->m_fromNodeID );
                 pPastedConnection->m_outputPinID = IDMapping.at( pPastedConnection->m_outputPinID );
@@ -1611,8 +1623,8 @@ namespace EE::NodeGraph
         // Notify graph that nodes were pasted
         //-------------------------------------------------------------------------
 
-        m_pGraph->PostPasteNodes( pastedNodes );
-        m_pUserContext->NotifyNodesPasted( pastedNodes );
+        m_pGraph->PostPasteNodes( pastedNodes, IDMapping );
+        m_pUserContext->NotifyNodesPasted( pastedNodes, IDMapping );
         m_pGraph->EndModification();
     }
 
@@ -1714,8 +1726,8 @@ namespace EE::NodeGraph
             return;
         }
 
-        ctx.m_pDrawList->AddRectFilled( m_dragState.m_startValue, ImGui::GetMousePos(), g_selectionBoxFillColor );
-        ctx.m_pDrawList->AddRect( m_dragState.m_startValue, ImGui::GetMousePos(), g_selectionBoxOutlineColor );
+        ctx.m_pDrawList->AddRectFilled( m_dragState.m_startValue, ImGui::GetMousePos(), Style::s_selectionBoxFillColor );
+        ctx.m_pDrawList->AddRect( m_dragState.m_startValue, ImGui::GetMousePos(), Style::s_selectionBoxOutlineColor );
     }
 
     void GraphView::StopDraggingSelection( DrawContext const& ctx )
@@ -1826,11 +1838,17 @@ namespace EE::NodeGraph
 
     //-------------------------------------------------------------------------
 
+    void GraphView::SetAutoConnectionDistance( float distance )
+    {
+        EE_ASSERT( distance > 0 );
+        m_autoConnectMaxDistanceThreshold = distance;
+    }
+
     void GraphView::TryGetAutoConnectionNodeAndPin( DrawContext const& ctx, FlowNode*& pOutNode, Pin*& pOutPin ) const
     {
         auto pFlowGraph = GetFlowGraph();
         auto pDraggedFlowNode = m_dragState.GetAsFlowNode();
-        float const autoConnectThreshold = ( ctx.m_viewScaleFactor * g_autoConnectMaxDistanceThreshold );
+        float const autoConnectThreshold = ( ctx.m_viewScaleFactor * m_autoConnectMaxDistanceThreshold );
 
         //-------------------------------------------------------------------------
 
@@ -1942,7 +1960,7 @@ namespace EE::NodeGraph
 
             bool const isValidConnection = pEndState != nullptr && pStateMachineGraph->CanCreateTransitionConduit( Cast<StateNode>( m_dragState.m_pNode ), pEndState );
             Color const connectionColor = isValidConnection ? Style::s_connectionColorValid : Style::s_connectionColorInvalid;
-            ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasToScreenPosition( m_dragState.m_pNode->GetRect().GetCenter() ), ctx.m_mouseScreenPos, connectionColor, g_transitionArrowWidth );
+            ImGuiX::DrawArrow( ctx.m_pDrawList, ctx.CanvasToScreenPosition( m_dragState.m_pNode->GetRect().GetCenter() ), ctx.m_mouseScreenPos, connectionColor, Style::s_transitionArrowWidth );
         }
         else
         {
@@ -2144,7 +2162,7 @@ namespace EE::NodeGraph
 
         if ( m_isViewHovered && IO.MouseWheel != 0 )
         {
-            float const desiredViewScale = Math::Clamp( m_pGraph->m_viewScaleFactor + IO.MouseWheel * 0.05f, 0.2f, 1.4f );
+            float const desiredViewScale = Math::Clamp( m_pGraph->m_viewScaleFactor + IO.MouseWheel * 0.05f, 0.2f, 2.0f );
             ChangeViewScale( ctx, desiredViewScale );
         }
 
@@ -2231,7 +2249,7 @@ namespace EE::NodeGraph
                     }
                     else
                     {
-                        auto pNavChildGraph = m_pHoveredNode->GetNavigationTarget();
+                        auto pNavChildGraph = m_pHoveredNode->GetNavigationTarget( m_pUserContext );
                         if ( pNavChildGraph != nullptr )
                         {
                             m_pUserContext->NavigateTo( pNavChildGraph );
@@ -2259,7 +2277,7 @@ namespace EE::NodeGraph
                 {
                     if ( m_pGraph != nullptr )
                     {
-                        auto pNavParentGraph = m_pGraph->GetNavigationTarget();
+                        auto pNavParentGraph = m_pGraph->GetNavigationTarget( m_pUserContext );
                         if ( pNavParentGraph != nullptr )
                         {
                             m_pUserContext->NavigateTo( pNavParentGraph );

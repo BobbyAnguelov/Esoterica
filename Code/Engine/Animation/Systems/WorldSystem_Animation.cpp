@@ -12,7 +12,7 @@ namespace EE::Animation
         EE_ASSERT( m_graphComponents.empty() );
     }
 
-    void AnimationWorldSystem::RegisterComponent( Entity const* pEntity, EntityComponent* pComponent )
+    void AnimationWorldSystem::RegisterComponent( Entity* pEntity, EntityComponent* pComponent )
     {
         if ( auto pGraphComponent = TryCast<GraphComponent>( pComponent ) )
         {
@@ -20,7 +20,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationWorldSystem::UnregisterComponent( Entity const* pEntity, EntityComponent* pComponent )
+    void AnimationWorldSystem::UnregisterComponent( Entity* pEntity, EntityComponent* pComponent )
     {
         if ( auto pGraphComponent = TryCast<GraphComponent>( pComponent ) )
         {
@@ -31,7 +31,7 @@ namespace EE::Animation
     void AnimationWorldSystem::UpdateSystem( EntityWorldUpdateContext const& ctx )
     {
         #if EE_DEVELOPMENT_TOOLS
-        Drawing::DrawContext drawingCtx = ctx.GetDrawingContext();
+        DebugDrawContext drawingCtx = ctx.GetDebugDrawContext();
         for ( auto pComponent : m_graphComponents )
         {
             pComponent->DrawDebug( drawingCtx );

@@ -4,10 +4,10 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
     CachedPoseWriteTask::CachedPoseWriteTask( int8_t sourceTaskIdx, CachedPoseID cachedPoseID )
-        : Task( TaskUpdateStage::Any, { sourceTaskIdx } )
+        : PoseTask( TaskUpdateStage::Any, { sourceTaskIdx } )
         , m_cachedPoseID( cachedPoseID )
     {
         EE_ASSERT( sourceTaskIdx != InvalidIndex );
@@ -43,14 +43,11 @@ namespace EE::Animation::Tasks
 
     void CachedPoseWriteTask::Serialize( TaskSerializer& serializer ) const
     {
-        serializer.WriteDependencyIndex( m_dependencies[0] );
         serializer.WriteUInt( m_cachedPoseID.m_ID, CachedPoseID::s_requiredBitsToSerialize );
     }
 
     void CachedPoseWriteTask::Deserialize( TaskSerializer& serializer )
     {
-        m_dependencies.resize( 1 );
-        m_dependencies[0] = serializer.ReadDependencyIndex();
         m_cachedPoseID.m_ID = (uint8_t) serializer.ReadUInt( CachedPoseID::s_requiredBitsToSerialize );
         EE_ASSERT( m_cachedPoseID.IsValid() );
         m_isDeserializedTask = true;
@@ -59,7 +56,7 @@ namespace EE::Animation::Tasks
     //-------------------------------------------------------------------------
 
     CachedPoseReadTask::CachedPoseReadTask( CachedPoseID cachedPoseID )
-        : Task()
+        : PoseTask()
         , m_cachedPoseID( cachedPoseID )
     {
         EE_ASSERT( m_cachedPoseID.IsValid() );
@@ -85,7 +82,7 @@ namespace EE::Animation::Tasks
         }
         else // Clear the result buffer
         {
-            pPoseBuffer->ResetPose( Pose::Type::None );
+            pPoseBuffer->ResetPose( Pose::Init::None );
         }
 
         MarkTaskComplete( context );

@@ -34,9 +34,10 @@ namespace EE::Animation
         virtual bool CanDestroyNode( NodeGraph::BaseNode const* pNode ) const override;
         virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;
         virtual NodeGraph::TransitionConduitNode* CreateTransitionConduit( NodeGraph::StateNode const* pStartState, NodeGraph::StateNode const* pEndState ) override;
-        virtual void PostPasteNodes( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes ) override;
+        virtual void PostModify() override;
+        virtual void PostPasteNodes( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes, THashMap<UUID, UUID> const& IDMapping ) override;
         virtual void PostDestroyNode( UUID const& nodeID ) override;
-        virtual BaseGraph* GetNavigationTarget() override;
+        virtual BaseGraph* GetNavigationTarget( NodeGraph::UserContext* pUserContext ) override;
         virtual void OnNodeModified( NodeGraph::BaseNode* pModifiedNode ) override { UpdateDependentNodes(); }
     };
 }

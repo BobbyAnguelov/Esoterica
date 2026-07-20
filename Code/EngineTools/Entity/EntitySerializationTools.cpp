@@ -15,29 +15,49 @@ using namespace EE::Serialization;
 
 namespace EE::EntityModel
 {
-    static bool Error( char const* pFormat, ... )
-    {
-        va_list args;
-        va_start( args, pFormat );
-        SystemLog::AddEntryVarArgs( Severity::Error, "Entity", "Serialization", __FILE__, __LINE__, pFormat, args);
-        va_end( args );
-        return false;
-    }
-
-    static bool Warning( char const* pFormat, ... )
-    {
-        va_list args;
-        va_start( args, pFormat );
-        SystemLog::AddEntryVarArgs( Severity::Warning, "Entity", "Serializer", __FILE__, __LINE__, pFormat, args );
-        va_end( args );
-        return false;
-    }
-
     //-------------------------------------------------------------------------
     // Descriptors
     //-------------------------------------------------------------------------
 
-    bool CreateEntityDescriptor( TypeSystem::TypeRegistry const& typeRegistry, Entity const* pEntity, EntityModel::EntityDescriptor& outDesc )
+    bool CreateComponentDescriptor( TypeSystem::TypeRegistry const& typeRegistry, Log& log, Entity const* pEntity, EntityComponent const* pComponent, ComponentDescriptor& outDesc )
+    {
+        EE_ASSERT( !pComponent->IsTransientComponent() );
+
+        outDesc.Clear();
+
+        outDesc.m_name = pComponent->GetNameID();
+
+        #if EE_DEVELOPMENT_TOOLS
+        outDesc.m_transientComponentID = pComponent->GetID();
+        #endif
+
+        // Spatial info
+        auto pSpatialEntityComponent = TryCast<SpatialEntityComponent>( pComponent );
+        if ( pSpatialEntityComponent != nullptr )
+        {
+            if ( pEntity != nullptr && !pSpatialEntityComponent->IsRootComponent() )
+            {
+                EntityComponent const* pSpatialParentComponent = pEntity->FindComponent( pSpatialEntityComponent->GetSpatialParentID() );
+                outDesc.m_spatialParentName = pSpatialParentComponent->GetNameID();
+                outDesc.m_attachmentSocketID = pSpatialEntityComponent->GetAttachmentSocketID();
+            }
+
+            outDesc.m_isSpatialComponent = true;
+        }
+
+        // Type descriptor - Properties
+        TypeSystem::TypeDescriptor::DescribeType( typeRegistry, pComponent, outDesc );
+        return true;
+    }
+
+    bool CreateSystemDescriptor( TypeSystem::TypeRegistry const& typeRegistry, Log& log, EntitySystem const* pSystem, SystemDescriptor& outDesc )
+    {
+        outDesc.Clear();
+        outDesc.m_typeID = pSystem->GetTypeID();
+        return true;
+    }
+
+    bool CreateEntityDescriptor( TypeSystem::TypeRegistry const& typeRegistry, Log& log, Entity const* pEntity, EntityModel::EntityDescriptor& outDesc )
     {
         EE_ASSERT( !outDesc.IsValid() );
         outDesc.m_name = pEntity->GetNameID();
@@ -94,41 +114,28 @@ namespace EE::EntityModel
         TVector<StringID> entityComponentList;
         for ( auto pComponent : sortedComponents )
         {
-            EntityModel::ComponentDescriptor componentDesc;
-            componentDesc.m_name = pComponent->GetNameID();
+            // Transient components are not allowed to be serialized
+            if ( pComponent->IsTransientComponent() )
+            {
+                continue;
+            }
 
-            #if EE_DEVELOPMENT_TOOLS
-            componentDesc.m_transientComponentID = pComponent->GetID();
-            #endif
+            EntityModel::ComponentDescriptor componentDesc;
+            if ( !CreateComponentDescriptor( typeRegistry, log, pEntity, pComponent, componentDesc ) )
+            {
+                return false;
+            }
 
             // Check for unique names
             if ( VectorContains( entityComponentList, componentDesc.m_name ) )
             {
                 // Duplicate name detected!!
-                EE_LOG_ENTITY_ERROR( pEntity, "Entity", "Failed to create entity descriptor, duplicate component name detected: %s on entity %s", pComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
-                return false;
+                return log.LogError( "Failed to create entity descriptor, duplicate component name detected: %s on entity %s", pComponent->GetNameID().c_str(), pEntity->GetNameID().c_str() );
             }
             else
             {
                 entityComponentList.emplace_back( componentDesc.m_name );
             }
-
-            // Spatial info
-            auto pSpatialEntityComponent = TryCast<SpatialEntityComponent>( pComponent );
-            if ( pSpatialEntityComponent != nullptr )
-            {
-                if ( !pSpatialEntityComponent->IsRootComponent() )
-                {
-                    EntityComponent const* pSpatialParentComponent = pEntity->FindComponent( pSpatialEntityComponent->GetSpatialParentID() );
-                    componentDesc.m_spatialParentName = pSpatialParentComponent->GetNameID();
-                    componentDesc.m_attachmentSocketID = pSpatialEntityComponent->GetAttachmentSocketID();
-                }
-
-                componentDesc.m_isSpatialComponent = true;
-            }
-
-            // Type descriptor - Properties
-            TypeSystem::TypeDescriptor::DescribeType( typeRegistry, pComponent, componentDesc );
 
             // Add component
             outDesc.m_components.emplace_back( componentDesc );
@@ -144,7 +151,11 @@ namespace EE::EntityModel
         for ( EntitySystem const* pSystem : pEntity->GetSystems() )
         {
             EntityModel::SystemDescriptor systemDesc;
-            systemDesc.m_typeID = pSystem->GetTypeID();
+            if ( !CreateSystemDescriptor( typeRegistry, log, pSystem, systemDesc ) )
+            {
+                return false;
+            }
+
             outDesc.m_systems.emplace_back( systemDesc );
         }
 
@@ -161,9 +172,8 @@ namespace EE::EntityModel
         return true;
     }
 
-    bool CreateEntityMapDescriptor( TypeSystem::TypeRegistry const& typeRegistry, EntityMap const* pMap, EntityMapDescriptor& outDesc )
+    bool CreateEntityMapDescriptor( TypeSystem::TypeRegistry const& typeRegistry, Log& log, EntityMap const* pMap, EntityCollection& outCollection )
     {
-        //EE_ASSERT( pMap->IsLoaded() );
         EE_ASSERT( !pMap->HasPendingAddOrRemoveRequests() );
 
         THashMap<StringID, StringID> entityNameMap;
@@ -177,7 +187,7 @@ namespace EE::EntityModel
             // Check for unique names - This should never happen but we're paranoid so let's keep the extra validation
             if ( entityNameMap.find( pEntity->GetNameID() ) != entityNameMap.end() )
             {
-                EE_LOG_ENTITY_ERROR( pEntity, "Entity", "Failed to create entity collection descriptor, duplicate entity name found: %s", pEntity->GetNameID().c_str() );
+                log.LogError( "Failed to create entity collection descriptor, duplicate entity name found: %s", pEntity->GetNameID().c_str() );
                 return false;
             }
             else
@@ -188,7 +198,7 @@ namespace EE::EntityModel
             //-------------------------------------------------------------------------
 
             EntityDescriptor entityDesc;
-            if ( !CreateEntityDescriptor( typeRegistry, pEntity, entityDesc ) )
+            if ( !CreateEntityDescriptor( typeRegistry, log, pEntity, entityDesc ) )
             {
                 return false;
             }
@@ -198,17 +208,22 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
-        outDesc.SetCollectionData( eastl::move( entityDescs ) );
+        outCollection.SetCollectionData( eastl::move( entityDescs ) );
         return true;
+    }
+
+    bool CreateEntityMapDescriptor( TypeSystem::TypeRegistry const& typeRegistry, Log& log, EntityMap const* pMap, EntityMapDescriptor& outDesc )
+    {
+        return CreateEntityMapDescriptor( typeRegistry, log, pMap, (EntityCollection&) outDesc );
     }
 
     //-------------------------------------------------------------------------
     // Reading
     //-------------------------------------------------------------------------
 
-    struct ParsingContext
+    struct ReadContext
     {
-        ParsingContext( TypeSystem::TypeRegistry const& typeRegistry ) : m_typeRegistry( typeRegistry ) {}
+        ReadContext( TypeSystem::TypeRegistry const& typeRegistry ) : m_typeRegistry( typeRegistry ) {}
 
         inline void ClearComponentNames()
         {
@@ -259,21 +274,31 @@ namespace EE::EntityModel
         return InlineString();
     }
 
-    static bool ReadComponent( ParsingContext& ctx, xml_node componentNode, ComponentDescriptor& outComponentDesc )
+    static bool ReadComponent( ReadContext& ctx, Log& log, xml_node componentNode, ComponentDescriptor& outComponentDesc )
     {
         // Read type descriptor
         //-------------------------------------------------------------------------
 
-        if ( !Serialization::ReadTypeDescriptorFromXML( ctx.m_typeRegistry, componentNode, outComponentDesc ) )
+        if ( !Serialization::ReadTypeDescriptorFromXML( ctx.m_typeRegistry, log, componentNode, outComponentDesc ) )
         {
             InlineString const componentName = GetComponentName( componentNode );
-            return Error( "Failed to deserialize type descriptor for component '%s' on entity % s!", componentName.c_str(), ctx.m_parsingContextName.c_str());
+            return log.LogError( "Failed to deserialize type descriptor for component '%s' on entity % s!", componentName.c_str(), ctx.m_parsingContextName.c_str());
         }
 
         TypeSystem::TypeInfo const* pTypeInfo = ctx.m_typeRegistry.GetTypeInfo( outComponentDesc.m_typeID );
         if ( pTypeInfo == nullptr )
         {
-            return Error( "Invalid entity component type ID detected for entity (%s): %s", ctx.m_parsingContextName.c_str(), outComponentDesc.m_typeID.c_str() );
+            return log.LogError( "Invalid entity component type ID detected for entity (%s): %s", ctx.m_parsingContextName.c_str(), outComponentDesc.m_typeID.c_str() );
+        }
+
+        if ( pTypeInfo->IsAbstractType() )
+        {
+            return log.LogError( "Abstract component type detected on entity (%s): %s", ctx.m_parsingContextName.c_str(), outComponentDesc.m_typeID.c_str() );
+        }
+
+        if ( pTypeInfo->GetDefaultInstance<EntityComponent>()->IsTransientComponent() )
+        {
+            return log.LogError( "Transient component type detected on entity (%s): %s", ctx.m_parsingContextName.c_str(), outComponentDesc.m_typeID.c_str() );
         }
 
         // Try get name
@@ -289,7 +314,7 @@ namespace EE::EntityModel
 
         if ( !outComponentDesc.m_name.IsValid() )
         {
-            outComponentDesc.m_name = Cast<EntityComponent>( pTypeInfo->GetDefaultInstance() )->GetNameID();
+            outComponentDesc.m_name = pTypeInfo->GetDefaultInstance<EntityComponent>()->GetNameID();
         }
 
         // Spatial component info
@@ -316,7 +341,7 @@ namespace EE::EntityModel
 
         if ( ctx.DoesComponentExist( outComponentDesc.m_name ) )
         {
-            return Error( "Duplicate component detected: '%s' on entity %s!", outComponentDesc.m_name.c_str(), ctx.m_parsingContextName.c_str() );
+            return log.LogError( "Duplicate component detected: '%s' on entity %s!", outComponentDesc.m_name.c_str(), ctx.m_parsingContextName.c_str() );
         }
         else
         {
@@ -327,12 +352,12 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    static bool ReadSystemData( ParsingContext& ctx, xml_node systemNode, SystemDescriptor& outSystemDesc )
+    static bool ReadSystemData( ReadContext& ctx, Log& log, xml_node systemNode, SystemDescriptor& outSystemDesc )
     {
         xml_attribute typeAttr = systemNode.attribute( g_typeIDAttrName );
         if ( typeAttr.empty() )
         {
-            return Error( "Invalid entity system format (systems must have a TypeID string value set) on entity %s", ctx.m_parsingContextName.c_str() );
+            return log.LogError( "Invalid entity system format (systems must have a TypeID string value set) on entity %s", ctx.m_parsingContextName.c_str() );
         }
 
         outSystemDesc.m_typeID = StringID( typeAttr.as_string() );
@@ -341,7 +366,7 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    static bool ReadEntityData( ParsingContext& ctx, xml_node entityNode, EntityDescriptor& outEntityDesc )
+    static bool ReadEntityData( ReadContext& ctx, Log& log, xml_node entityNode, EntityDescriptor& outEntityDesc )
     {
         // Read name
         //-------------------------------------------------------------------------
@@ -349,7 +374,7 @@ namespace EE::EntityModel
         xml_attribute nameAttr = entityNode.attribute( g_entityNameAttrName );
         if ( nameAttr.empty() )
         {
-            return Error( "Invalid entity format detected for entity (%s): entities must have name set", ctx.m_parsingContextName.c_str() );
+            return log.LogError( "Invalid entity format detected for entity (%s): entities must have name set", ctx.m_parsingContextName.c_str() );
         }
 
         outEntityDesc.m_name = StringID( nameAttr.as_string() );
@@ -396,9 +421,9 @@ namespace EE::EntityModel
 
             for ( int32_t i = 0; i < numComponents; i++ )
             {
-                if ( !ReadComponent( ctx, componentNodes[i], outEntityDesc.m_components[i] ) )
+                if ( !ReadComponent( ctx, log, componentNodes[i], outEntityDesc.m_components[i] ) )
                 {
-                    return Error( "Failed to read component definition %u for entity (%s)", i, outEntityDesc.m_name.c_str() );
+                    return log.LogError( "Failed to read component definition %u for entity (%s)", i, outEntityDesc.m_name.c_str() );
                 }
 
                 if ( outEntityDesc.m_components[i].IsSpatialComponent() )
@@ -407,7 +432,7 @@ namespace EE::EntityModel
                     {
                         if ( wasRootComponentFound )
                         {
-                            return Error( "Multiple root components found on entity (%s)", outEntityDesc.m_name.c_str() );
+                            return log.LogError( "Multiple root components found on entity (%s)", outEntityDesc.m_name.c_str() );
                         }
                         else
                         {
@@ -428,7 +453,7 @@ namespace EE::EntityModel
                 {
                     if ( !ctx.DoesComponentExist( componentDesc.m_spatialParentName ) )
                     {
-                        return Error( "Couldn't find spatial parent (%s) for component (%s) on entity (%s)", componentDesc.m_spatialParentName.c_str(), componentDesc.m_name.c_str(), outEntityDesc.m_name.c_str() );
+                        return log.LogError( "Couldn't find spatial parent (%s) for component (%s) on entity (%s)", componentDesc.m_spatialParentName.c_str(), componentDesc.m_name.c_str(), outEntityDesc.m_name.c_str() );
                     }
                 }
             }
@@ -440,12 +465,7 @@ namespace EE::EntityModel
             for ( int32_t i = 0; i < numComponents; i++ )
             {
                 auto pComponentTypeInfo = ctx.m_typeRegistry.GetTypeInfo( outEntityDesc.m_components[i].m_typeID );
-                if ( pComponentTypeInfo->IsAbstractType() )
-                {
-                    return Error( "Abstract component type detected (%s) found on entity (%s)", pComponentTypeInfo->GetTypeName(), outEntityDesc.m_name.c_str() );
-                }
-
-                auto pDefaultComponentInstance = Cast<EntityComponent>( pComponentTypeInfo->GetDefaultInstance() );
+                auto pDefaultComponentInstance = pComponentTypeInfo->GetDefaultInstance<EntityComponent>();
                 if ( !pDefaultComponentInstance->IsSingletonComponent() )
                 {
                     continue;
@@ -460,7 +480,7 @@ namespace EE::EntityModel
 
                     if ( ctx.m_typeRegistry.IsTypeDerivedFrom( outEntityDesc.m_components[j].m_typeID, outEntityDesc.m_components[i].m_typeID ) )
                     {
-                        return Error( "Multiple singleton components of type (%s) found on the same entity (%s)", pComponentTypeInfo->GetTypeName(), outEntityDesc.m_name.c_str() );
+                        return log.LogError( "Multiple singleton components of type (%s) found on the same entity (%s)", pComponentTypeInfo->GetTypeName(), outEntityDesc.m_name.c_str() );
                     }
                 }
             }
@@ -517,9 +537,9 @@ namespace EE::EntityModel
 
             for ( int32_t i = 0; i < numSystems; i++ )
             {
-                if ( !ReadSystemData( ctx, systemNodes[i], outEntityDesc.m_systems[i] ) )
+                if ( !ReadSystemData( ctx, log, systemNodes[i], outEntityDesc.m_systems[i] ) )
                 {
-                    return Error( "Failed to read system definition %u on entity (%s)", i, outEntityDesc.m_name.c_str() );
+                    return log.LogError( "Failed to read system definition %u on entity (%s)", i, outEntityDesc.m_name.c_str() );
                 }
             }
         }
@@ -538,10 +558,18 @@ namespace EE::EntityModel
 
             for ( int32_t i = 0; i < numResources; i++ )
             {
-                ResourceID const resourceID( resourceNodes[i].attribute( g_referencedResourceValueAttrName ).as_string() );
-                if ( resourceID.IsValid() )
+                String resourcePath = resourceNodes[i].attribute( g_referencedResourceValueAttrName ).as_string();
+                if ( DataPath::IsValidPath( resourcePath ) )
                 {
-                    outEntityDesc.m_referencedResources[i] = resourceID;
+                    ResourceID const resourceID( resourcePath );
+                    if ( resourceID.IsValid() )
+                    {
+                        outEntityDesc.m_referencedResources[i] = resourcePath;
+                    }
+                }
+                else
+                {
+                    log.LogWarning( "Invalid referenced resource path encountered: %s", resourcePath.c_str() );
                 }
             }
         }
@@ -554,7 +582,7 @@ namespace EE::EntityModel
 
         if ( ctx.DoesEntityExist( outEntityDesc.m_name ) )
         {
-            return Error( "Duplicate entity name ID detected: %s", outEntityDesc.m_name.c_str() );
+            return log.LogError( "Duplicate entity name ID detected: %s", outEntityDesc.m_name.c_str() );
         }
         else
         {
@@ -563,54 +591,57 @@ namespace EE::EntityModel
         }
     }
 
-    static bool ReadEntityCollection( ParsingContext& ctx, xml_node entitiesParentNode, EntityCollection& outCollection )
+    static bool ReadEntityCollection( ReadContext& ctx, Log& log, xml_node const& rootNode, xml_node entitiesNode, EntityCollection& outCollection )
     {
         // Get all entity nodes
         TInlineVector<xml_node, 10> entityNodes;
-        GetAllChildNodes( entitiesParentNode, g_entityNodeName, entityNodes );
+        GetAllChildNodes( entitiesNode, g_entityNodeName, entityNodes );
         int32_t const numEntities = (int32_t) entityNodes.size();
 
+        TVector<StringID> groups;
         TVector<EntityDescriptor> entityDescs;
         entityDescs.reserve( numEntities );
 
         for ( int32_t i = 0; i < numEntities; i++ )
         {
             EntityDescriptor entityDesc;
-            if ( !ReadEntityData( ctx, entityNodes[i], entityDesc ) )
+            if ( ReadEntityData( ctx, log, entityNodes[i], entityDesc ) )
             {
-                return false;
+                entityDescs.emplace_back( entityDesc );
             }
-
-            entityDescs.emplace_back( entityDesc );
+            else
+            {
+                log.LogWarning( "Ignoring invalid entity: %s", entityDesc.m_name.IsValid() ? entityDesc.m_name.c_str() : "Invalid Entity Name" );
+            }
         }
 
         //-------------------------------------------------------------------------
 
         outCollection.SetCollectionData( eastl::move( entityDescs ) );
+
         return true;
     }
 
-    static bool ReadEntityDescriptor( TypeSystem::TypeRegistry const& typeRegistry, xml_node entityNode, EntityDescriptor& outEntityDesc )
+    static bool ReadEntityCollectionFromXml( ReadContext& ctx, Log& log, xml_node const& node, EntityCollection& outCollection )
     {
-        ParsingContext ctx( typeRegistry );
-        return ReadEntityData( ctx, entityNode, outEntityDesc );
-    }
-
-    static bool ReadEntityCollectionFromXml( TypeSystem::TypeRegistry const& typeRegistry, xml_document const& doc, EntityCollection& outCollection )
-    {
-        xml_node entitiesNode = doc.child( g_entitiesNodeName );
+        xml_node entitiesNode = node.child( g_entitiesNodeName );
         if ( entitiesNode.empty() )
         {
-            return Error( "Invalid format for entity collection file, missing root entities array" );
+            return log.LogError( "Invalid format for entity collection file, missing root entities array" );
         }
 
-        ParsingContext ctx( typeRegistry );
-        return ReadEntityCollection( ctx, entitiesNode, outCollection );
+        return ReadEntityCollection( ctx, log, node, entitiesNode, outCollection );
     }
 
     //-------------------------------------------------------------------------
 
-    bool ReadEntityCollectionFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& filePath, EntityCollection& outCollection )
+    bool ReadEntityCollectionFromXML( TypeSystem::TypeRegistry const& typeRegistry, Log& log, pugi::xml_node& node, EntityCollection& outCollection )
+    {
+        ReadContext ctx( typeRegistry );
+        return ReadEntityCollectionFromXml( ctx, log, node, outCollection );
+    }
+
+    bool ReadEntityCollectionFromFile( TypeSystem::TypeRegistry const& typeRegistry, Log& log, FileSystem::Path const& filePath, EntityCollection& outCollection )
     {
         EE_ASSERT( filePath.IsValid() );
 
@@ -620,28 +651,30 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
+        ReadContext ctx( typeRegistry );
+
         xml_document doc;
         if ( !Serialization::ReadXmlFromFile( filePath, doc ) )
         {
-            return Error( "Cant read source file %s", filePath.GetFullPath().c_str() );
+            return log.LogError( "Cant read source file %s", filePath.GetFullPath().c_str() );
         }
 
         // Read Entities
         //-------------------------------------------------------------------------
 
-        return ReadEntityCollectionFromXml( typeRegistry, doc, outCollection );
+        return ReadEntityCollectionFromXml( ctx, log, doc, outCollection );
     }
 
-    bool ReadMapDescriptorFromFile( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& filePath, EntityMapDescriptor& outMap )
+    bool ReadMapDescriptorFromFile( TypeSystem::TypeRegistry const& typeRegistry, Log& log, FileSystem::Path const& filePath, EntityMapDescriptor& outMap )
     {
-        return ReadEntityCollectionFromFile( typeRegistry, filePath, outMap );
+        return ReadEntityCollectionFromFile( typeRegistry, log, filePath, outMap );
     }
 
     //-------------------------------------------------------------------------
     // Writing
     //-------------------------------------------------------------------------
 
-    static bool WriteEntityComponent( xml_node componentsNode, TypeSystem::TypeRegistry const& typeRegistry, ComponentDescriptor const& componentDesc )
+    static bool WriteEntityComponent( TypeSystem::TypeRegistry const& typeRegistry, Log& log, xml_node componentsNode, ComponentDescriptor const& componentDesc )
     {
         xml_node componentDescNode = Serialization::WriteTypeDescriptorToXML( typeRegistry, componentsNode, componentDesc );
 
@@ -658,11 +691,11 @@ namespace EE::EntityModel
         return true;
     }
 
-    static bool WriteEntitySystem( xml_node systemsNode, TypeSystem::TypeRegistry const& typeRegistry, SystemDescriptor const& systemDesc )
+    static bool WriteEntitySystem( TypeSystem::TypeRegistry const& typeRegistry, Log& log, xml_node systemsNode, SystemDescriptor const& systemDesc )
     {
         if ( !systemDesc.m_typeID.IsValid() )
         {
-            return Error( "Failed to write entity system desc since the system type ID was invalid." );
+            return log.LogError( "Failed to write entity system desc since the system type ID was invalid." );
         }
 
         xml_node systemNode = systemsNode.append_child( g_entitySystemNodeName );
@@ -670,7 +703,7 @@ namespace EE::EntityModel
         return true;
     }
 
-    static bool WriteEntity( TypeSystem::TypeRegistry const& typeRegistry, EntityDescriptor const& entityDesc, xml_node entitiesNode )
+    static bool WriteEntity( TypeSystem::TypeRegistry const& typeRegistry, Log& log, EntityDescriptor const& entityDesc, xml_node entitiesNode )
     {
         xml_node entityNode = entitiesNode.append_child( g_entityNodeName );
         entityNode.append_attribute( g_entityNameAttrName ).set_value( entityDesc.m_name.c_str() );
@@ -692,7 +725,7 @@ namespace EE::EntityModel
             xml_node componentsNode = entityNode.append_child( g_entityComponentsParentNodeName );
             for ( auto const& component : entityDesc.m_components )
             {
-                if ( !WriteEntityComponent( componentsNode, typeRegistry, component ) )
+                if ( !WriteEntityComponent( typeRegistry, log, componentsNode, component ) )
                 {
                     return false;
                 }
@@ -706,7 +739,7 @@ namespace EE::EntityModel
             xml_node systemsNode = entityNode.append_child( g_entitySystemsParentNodeName );
             for ( auto const& system : entityDesc.m_systems )
             {
-                if ( !WriteEntitySystem( systemsNode, typeRegistry, system ) )
+                if ( !WriteEntitySystem( typeRegistry, log, systemsNode, system ) )
                 {
                     return false;
                 }
@@ -728,31 +761,31 @@ namespace EE::EntityModel
         return true;
     }
 
-    static bool WriteEntity( TypeSystem::TypeRegistry const& typeRegistry, Entity const* pEntity, xml_node entitiesNode )
+    static bool WriteEntity( TypeSystem::TypeRegistry const& typeRegistry, Log& log, Entity const* pEntity, xml_node entitiesNode )
     {
         EntityDescriptor entityDesc;
-        if ( !CreateEntityDescriptor( typeRegistry, pEntity, entityDesc ) )
+        if ( !CreateEntityDescriptor( typeRegistry, log, pEntity, entityDesc ) )
         {
             return false;
         }
 
-        return WriteEntity( typeRegistry, entityDesc, entitiesNode );
+        return WriteEntity( typeRegistry, log, entityDesc, entitiesNode );
     }
 
-    static bool WriteEntityCollection( TypeSystem::TypeRegistry const& typeRegistry, EntityCollection const& collection, xml_document& doc )
+    static bool WriteEntityCollection( TypeSystem::TypeRegistry const& typeRegistry, Log& log, EntityCollection const& collection, xml_node& doc )
     {
-        xml_node entitiesNode = doc.append_child( g_entitiesNodeName );
+        TVector<EntityDescriptor> const& entityDescs = collection.GetEntityDescriptors();
 
         // Sort descriptors by name to ensure consistency in output file
         //-------------------------------------------------------------------------
 
-        TVector<EntityDescriptor> const& entityDescs = collection.GetEntityDescriptors();
         int32_t const numEntityDescs = (int32_t) entityDescs.size();
         TVector<int32_t> alphabeticallySortedDescriptors;
         alphabeticallySortedDescriptors.reserve( numEntityDescs );
 
         for ( int32_t i = 0; i < numEntityDescs; i++ )
         {
+            // Add to sort list
             alphabeticallySortedDescriptors.emplace_back( i );
         }
 
@@ -763,12 +796,13 @@ namespace EE::EntityModel
 
         eastl::sort( alphabeticallySortedDescriptors.begin(), alphabeticallySortedDescriptors.end(), SortPredicate );
 
-        // Write collection to document
+        // Entities
         //-------------------------------------------------------------------------
 
+        xml_node entitiesNode = doc.append_child( g_entitiesNodeName );
         for ( int32_t i = 0; i < numEntityDescs; i++ )
         {
-            if ( !WriteEntity( typeRegistry, entityDescs[alphabeticallySortedDescriptors[i]], entitiesNode) )
+            if ( !WriteEntity( typeRegistry, log, entityDescs[alphabeticallySortedDescriptors[i]], entitiesNode) )
             {
                 return false;
             }
@@ -779,26 +813,38 @@ namespace EE::EntityModel
 
     //-------------------------------------------------------------------------
 
-    bool WriteEntityCollectionToFile( TypeSystem::TypeRegistry const& typeRegistry, EntityCollection const& collection, FileSystem::Path const& outFilePath )
+    bool WriteEntityCollectionToXML( TypeSystem::TypeRegistry const& typeRegistry, Log& log, EntityCollection const& collection, xml_node& node )
+    {
+        return WriteEntityCollection( typeRegistry, log, collection, node );
+    }
+
+    bool WriteEntityCollectionToFile( TypeSystem::TypeRegistry const& typeRegistry, Log& log, EntityCollection const& collection, FileSystem::Path const& outFilePath )
     {
         EE_ASSERT( outFilePath.IsValid() );
 
         xml_document doc;
-        WriteEntityCollection( typeRegistry, collection, doc );
+        if( !WriteEntityCollection( typeRegistry, log, collection, doc ) )
+        {
+            return false;
+        }
+
         return Serialization::WriteXmlToFile( doc, outFilePath );
     }
 
-    bool WriteMapDescriptorToFile( TypeSystem::TypeRegistry const& typeRegistry, EntityMapDescriptor const& mapDesc, FileSystem::Path const& outFilePath )
+    bool WriteMapDescriptorToFile( TypeSystem::TypeRegistry const& typeRegistry, Log& log, EntityMapDescriptor const& mapDesc, FileSystem::Path const& outFilePath )
     {
         xml_document doc;
-        WriteEntityCollection( typeRegistry, mapDesc, doc );
+        if ( !WriteEntityCollection( typeRegistry, log, mapDesc, doc ) )
+        {
+            return false;
+        }
         return Serialization::WriteXmlToFile( doc, outFilePath );
     }
 
-    bool WriteMapToFile( TypeSystem::TypeRegistry const& typeRegistry, EntityMap const& map, FileSystem::Path const& outFilePath )
+    bool WriteMapToFile( TypeSystem::TypeRegistry const& typeRegistry, Log& log, EntityMap const& map, FileSystem::Path const& outFilePath )
     {
         EntityMapDescriptor mapDesc;
-        if ( !CreateEntityMapDescriptor( typeRegistry, &map, mapDesc ) )
+        if ( !CreateEntityMapDescriptor( typeRegistry, log, &map, mapDesc ) )
         {
             return false;
         }
@@ -806,7 +852,10 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         xml_document doc;
-        WriteEntityCollection( typeRegistry, mapDesc, doc );
+        if ( !WriteEntityCollection( typeRegistry, log, mapDesc, doc ) )
+        {
+            return false;
+        }
         return Serialization::WriteXmlToFile( doc, outFilePath );
     }
 }

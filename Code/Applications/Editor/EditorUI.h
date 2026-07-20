@@ -2,9 +2,12 @@
 
 #include "EngineTools/FileSystem/FileRegistry.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "Engine/ToolsUI/IDevelopmentToolsUI.h"
-#include "Engine/DebugViews/DebugView_System.h"
-#include "Base/Imgui/ImguiImageCache.h"
+#include "EngineTools/Core/DialogManager.h"
+#include "Engine/ToolsUI/ToolsUI.h"
+#include "Engine/Debug/Widgets/FrameLimiterWidget.h"
+#include "Engine/Debug/Widgets/PerformanceStatsWidget.h"
+
+#include "Engine/Render/Imgui/ImguiImageCache.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,13 +16,11 @@ namespace EE
     class EditorTool;
     class EntityWorldManager;
     class GamePreviewer;
-    namespace EntityModel { class EntityMapEditor; }
-    namespace Render { class RenderingSystem; }
-    namespace Resource { class ResourceDescriptorCreator; }
+    namespace EntityModel { class MapEditor; }
 
     //-------------------------------------------------------------------------
 
-    class EditorUI final : public ImGuiX::IDevelopmentToolsUI, public ToolsContext
+    class EditorUI final : public ImGuiX::ToolsUI, public ToolsContext
     {
         struct ToolOperation
         {
@@ -64,15 +65,25 @@ namespace EE
 
         void GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const;
 
+        bool HasOpenAndDirtyTools() const;
+        void SaveAllDirtyTools();
+
     private:
 
         virtual void StartFrame( UpdateContext const& context ) override final;
         virtual void EndFrame( UpdateContext const& context ) override final;
         virtual void Update( UpdateContext const& context ) override final;
+
+        // Tools Context
+        //-------------------------------------------------------------------------
+
         virtual EntityWorldManager* GetWorldManager() const override final { return m_pWorldManager; }
+
         virtual bool TryOpenDataFile( DataPath const& path ) const override;
         virtual bool TryFindInResourceBrowser( DataPath const& path ) const override;
-        virtual void TryCreateNewResourceDescriptor( TypeSystem::TypeID descriptorTypeID, FileSystem::Path const& startingDir = FileSystem::Path() ) const override;
+        virtual void TryCreateNewResourceDescriptorOrDataFile( TypeSystem::TypeID typeID, FileSystem::Path const& startingDir = FileSystem::Path() ) const override;
+        virtual void OpenResourceImporter() const override;
+        virtual void ShowResourceDependencies( ResourceID const& resourceID ) const override;
 
         // Title bar
         //-------------------------------------------------------------------------
@@ -93,6 +104,8 @@ namespace EE
 
         // Editor Tool Management
         //-------------------------------------------------------------------------
+
+        virtual InlineString GetEditorToolName( uint64_t toolID ) const override;
 
         // Immediately destroy a editor tool
         void DestroyTool( UpdateContext const& context, EditorTool* pEditorTool, bool isEditorShutdown = false );
@@ -197,9 +210,9 @@ namespace EE
         ResourceID                                      m_startupMapResourceID;
         ImGuiX::ApplicationTitleBar                     m_titleBar;
         ImGuiX::ImageInfo                               m_editorIcon;
+        DialogManager                                   m_dialogManager;
 
         // Systems
-        Render::RenderingSystem*                        m_pRenderingSystem = nullptr;
         EntityWorldManager*                             m_pWorldManager = nullptr;
 
         // Window Management
@@ -212,17 +225,15 @@ namespace EE
         FileRegistry                                    m_fileRegistry;
         EventBindingID                                  m_resourceDeletedEventID;
         float                                           m_resourceBrowserViewWidth = 150;
-        Resource::ResourceDescriptorCreator*            m_pResourceDescriptorCreator = nullptr;
 
         // Tools
         TVector<EditorTool*>                            m_editorTools;
         mutable TVector<ToolOperation>                  m_toolOperations;
         void*                                           m_pLastActiveTool = nullptr;
-        bool                                            m_hasOpenModalDialog = false;
         String                                          m_focusTargetWindowName; // If this is set we need to switch focus to this window
 
         // Map Editor and Game Preview
-        EntityModel::EntityMapEditor*                   m_pMapEditor = nullptr;
+        EntityModel::MapEditor*                         m_pMapEditor = nullptr;
         GamePreviewer*                                  m_pGamePreviewer = nullptr;
         EventBindingID                                  m_gamePreviewStartRequestEventBindingID;
         EventBindingID                                  m_gamePreviewStopRequestEventBindingID;

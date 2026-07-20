@@ -2,6 +2,7 @@
 #include "EngineTools/Import/ImportedSkeleton.h"
 #include "EngineTools/Import/ImportedAnimation.h"
 #include "EngineTools/Import/ImportedMesh.h"
+#include "Base/Types/HashMap.h"
 
 #define CGLTF_IMPLEMENTATION
 #include "EngineTools/ThirdParty/cgltf/cgltf.h"
@@ -28,9 +29,9 @@ namespace EE::Import::gltf
 
     //-------------------------------------------------------------------------
 
-    SceneContext::SceneContext( FileSystem::Path const& filePath, float additionalScalingFactor )
+    SceneContext::SceneContext( Source const& source, float additionalScalingFactor )
     {
-        Initialize( filePath, additionalScalingFactor );
+        Initialize( source, additionalScalingFactor );
     }
 
     SceneContext::~SceneContext()
@@ -40,35 +41,52 @@ namespace EE::Import::gltf
 
     //-------------------------------------------------------------------------
 
-    void SceneContext::LoadFile( FileSystem::Path const& filePath, float additionalScalingFactor )
+    void SceneContext::LoadFile( Source const& source, float additionalScalingFactor )
     {
         Shutdown();
-        Initialize( filePath, additionalScalingFactor );
+        Initialize( source, additionalScalingFactor );
     }
 
     //-------------------------------------------------------------------------
 
-    void SceneContext::Initialize( FileSystem::Path const& filePath, float additionalScalingFactor )
+    void SceneContext::Initialize( Source const& source, float additionalScalingFactor )
     {
+        EE_ASSERT( source.IsValid() );
+
         cgltf_options options = { cgltf_file_type_invalid, 0 };
 
-        // Parse gltf/glb files
-        //-------------------------------------------------------------------------
-
-        cgltf_result const parseResult = cgltf_parse_file( &options, filePath.c_str(), &m_pSceneData );
-        if ( parseResult != cgltf_result_success )
+        if ( source.m_pFileData != nullptr )
         {
-            m_error.sprintf( "Failed to load specified gltf file ( %s ) : %s", filePath.c_str(), g_errorStrings[parseResult] );
-            return;
+            // Parse gltf/glb files
+            //-------------------------------------------------------------------------
+
+            cgltf_result const parseResult = cgltf_parse( &options, source.m_pFileData->data(), source.m_pFileData->size(), &m_pSceneData );
+            if ( parseResult != cgltf_result_success )
+            {
+                m_error.sprintf( "Failed to load specified gltf file ( %s ) : %s", source.m_path.c_str(), g_errorStrings[parseResult] );
+                return;
+            }
+        }
+        else // Load file from disk
+        {
+            // Parse gltf/glb files
+            //-------------------------------------------------------------------------
+
+            cgltf_result const parseResult = cgltf_parse_file( &options, source.m_path.c_str(), &m_pSceneData );
+            if ( parseResult != cgltf_result_success )
+            {
+                m_error.sprintf( "Failed to load specified gltf file ( %s ) : %s", source.m_path.c_str(), g_errorStrings[parseResult] );
+                return;
+            }
         }
 
         // Load all data buffers
         //-------------------------------------------------------------------------
 
-        cgltf_result bufferLoadResult = cgltf_load_buffers( &options, m_pSceneData, filePath.c_str() );
+        cgltf_result bufferLoadResult = cgltf_load_buffers( &options, m_pSceneData, source.m_path.c_str() );
         if ( bufferLoadResult != cgltf_result_success )
         {
-            m_error.sprintf( "Failed to load gltf file buffers ( %s ) : %s", filePath.c_str(), g_errorStrings[parseResult] );
+            m_error.sprintf( "Failed to load gltf file buffers ( %s ) : %s", source.m_path.c_str(), g_errorStrings[bufferLoadResult] );
             return;
         }
 
@@ -93,7 +111,7 @@ namespace EE::Import::gltf
 
 namespace EE::Import::gltf
 {
-    class gltfImportedSkeleton : public ImportedSkeleton
+    class gltfImportedSkeleton : public Skeleton
     {
         friend class gltfSkeletonFileReader;
         friend class gltfMeshFileReader;
@@ -106,30 +124,30 @@ namespace EE::Import::gltf
 
     public:
 
-        static TUniquePtr<ImportedSkeleton> ReadSkeleton( FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName )
+        static TUniquePtr<Skeleton> ReadSkeleton( Source const& source, String const& skeletonRootBoneName )
         {
-            EE_ASSERT( sourceFilePath.IsValid() );
+            EE_ASSERT( source.IsValid() );
 
-            TUniquePtr<ImportedSkeleton> pSkeleton( EE::New<gltfImportedSkeleton>() );
+            TUniquePtr<Skeleton> pSkeleton( EE::New<gltfImportedSkeleton>() );
             gltfImportedSkeleton* pImportedSkeleton = (gltfImportedSkeleton*) pSkeleton.get();
-            pImportedSkeleton->m_sourcePath = sourceFilePath;
+            pImportedSkeleton->m_sourcePath = source.m_path;
 
             //-------------------------------------------------------------------------
 
-            gltf::SceneContext sceneCtx( sourceFilePath );
+            gltf::SceneContext sceneCtx( source );
             if ( sceneCtx.IsValid() )
             {
                 ReadSkeleton( sceneCtx, skeletonRootBoneName, *pImportedSkeleton );
             }
             else
             {
-                pImportedSkeleton->LogError( "Failed to read gltf file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                pImportedSkeleton->LogError( "Failed to read gltf file: %s -> %s", source.m_path.c_str(), sceneCtx.GetErrorMessage().c_str() );
             }
 
             return pSkeleton;
         }
 
-        static void ReadSkeleton( gltf::SceneContext const& sceneCtx, String const& skeletonRootBoneName, gltfImportedSkeleton& ImportedSkeleton )
+        static void ReadSkeleton( gltf::SceneContext const& sceneCtx, String const& skeletonRootBoneName, gltfImportedSkeleton& skeleton )
         {
             auto pSceneData = sceneCtx.GetSceneData();
 
@@ -164,51 +182,51 @@ namespace EE::Import::gltf
             {
                 if ( skeletonRootBoneName.empty() )
                 {
-                    ImportedSkeleton.LogError( "Failed to find any skeletons" );
+                    skeleton.LogError( "Failed to find any skeletons" );
                 }
                 else
                 {
-                    ImportedSkeleton.LogError( "Failed to find specified skeleton: %s", skeletonRootBoneName.c_str() );
+                    skeleton.LogError( "Failed to find specified skeleton: %s", skeletonRootBoneName.c_str() );
                 }
                 return;
             }
 
-            ImportedSkeleton.m_name = StringID( (char const*) pSkeletonToRead->name );
-            ReadBoneHierarchy( ImportedSkeleton, sceneCtx, pSkeletonToRead, -1 );
+            skeleton.m_name = StringID( (char const*) pSkeletonToRead->name );
+            ReadBoneHierarchy( skeleton, sceneCtx, pSkeletonToRead, -1 );
 
-            if ( ImportedSkeleton.GetNumBones() > 0 )
+            if ( skeleton.GetNumBones() > 0 )
             {
-                ImportedSkeleton.m_bones[0].m_parentSpaceTransform = sceneCtx.ApplyUpAxisCorrection( ImportedSkeleton.m_bones[0].m_parentSpaceTransform );
-                ImportedSkeleton.CalculateModelSpaceTransforms();
+                skeleton.m_bones[0].m_parentSpaceTransform = sceneCtx.ApplyUpAxisCorrection( skeleton.m_bones[0].m_parentSpaceTransform );
+                skeleton.CalculateModelSpaceTransforms();
             }
         }
 
-        static void ReadBoneHierarchy( gltfImportedSkeleton& ImportedSkeleton, gltf::SceneContext const& sceneCtx, cgltf_node* pNode, int32_t parentIdx )
+        static void ReadBoneHierarchy( gltfImportedSkeleton& skeleton, gltf::SceneContext const& sceneCtx, cgltf_node* pNode, int32_t parentIdx )
         {
             EE_ASSERT( pNode != nullptr );
 
-            auto const boneIdx = (int32_t) ImportedSkeleton.m_bones.size();
-            ImportedSkeleton.m_bones.push_back( ImportedSkeleton::Bone( pNode->name ) );
-            ImportedSkeleton.m_bones[boneIdx].m_parentBoneName = ( parentIdx != InvalidIndex ) ? ImportedSkeleton.m_bones[parentIdx].m_name : StringID();
-            ImportedSkeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
+            auto const boneIdx = (int32_t) skeleton.m_bones.size();
+            skeleton.m_bones.push_back( Skeleton::Bone( pNode->name ) );
+            skeleton.m_bones[boneIdx].m_parentBoneName = ( parentIdx != InvalidIndex ) ? skeleton.m_bones[parentIdx].m_name : StringID();
+            skeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
 
             // Default Bone transform
-            ImportedSkeleton.m_bones[boneIdx].m_parentSpaceTransform = sceneCtx.GetNodeTransform( pNode );
+            skeleton.m_bones[boneIdx].m_parentSpaceTransform = sceneCtx.GetNodeTransform( pNode );
 
             // Read child bones
             for ( int i = 0; i < pNode->children_count; i++ )
             {
                 cgltf_node* pChildNode = pNode->children[i];
-                ReadBoneHierarchy( ImportedSkeleton, sceneCtx, pChildNode, boneIdx );
+                ReadBoneHierarchy( skeleton, sceneCtx, pChildNode, boneIdx );
             }
         }
     };
 
     //-------------------------------------------------------------------------
 
-    TUniquePtr<ImportedSkeleton> ReadSkeleton( FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName )
+    TUniquePtr<Skeleton> ReadSkeleton( Source const& source, String const& skeletonRootBoneName )
     {
-        return gltfSkeletonFileReader::ReadSkeleton( sourceFilePath, skeletonRootBoneName );
+        return gltfSkeletonFileReader::ReadSkeleton( source, skeletonRootBoneName );
     }
 }
 
@@ -218,13 +236,13 @@ namespace EE::Import::gltf
 
 namespace EE::Import::gltf
 {
-    class gltfImportedAnimation : public ImportedAnimation
+    class gltfImportedAnimation : public Animation
     {
         friend class gltfAnimationFileReader;
 
     public:
 
-        using ImportedAnimation::ImportedAnimation;
+        using Animation::Animation;
     };
 
     //-------------------------------------------------------------------------
@@ -240,15 +258,21 @@ namespace EE::Import::gltf
 
     public:
 
-        static TUniquePtr<ImportedAnimation> ReadAnimation( FileSystem::Path const& sourceFilePath, ImportedSkeleton const& importedSkeleton, String const& animationName )
+        static TUniquePtr<Animation> ReadAnimation( Source const& source, Skeleton const* pPrimarySkeleton, TVector<Import::Skeleton const*> const& secondarySkeletons, String const& animationName )
         {
-            EE_ASSERT( sourceFilePath.IsValid() && importedSkeleton.IsValid() );
+            EE_ASSERT( source.IsValid() && pPrimarySkeleton != nullptr && pPrimarySkeleton->IsValid() );
 
-            TUniquePtr<ImportedAnimation> pAnimation( EE::New<gltfImportedAnimation>( importedSkeleton ) );
+            if ( !secondarySkeletons.empty() )
+            {
+                // TODO!!!!!
+                EE_UNIMPLEMENTED_FUNCTION();
+            }
+
+            TUniquePtr<Animation> pAnimation( EE::New<gltfImportedAnimation>( *pPrimarySkeleton ) );
             gltfImportedAnimation* pImportedAnimation = (gltfImportedAnimation*) pAnimation.get();
-            pImportedAnimation->m_sourcePath = sourceFilePath;
+            pImportedAnimation->m_sourcePath = source.m_path;
 
-            gltf::SceneContext sceneCtx( sourceFilePath );
+            gltf::SceneContext sceneCtx( source );
             if ( sceneCtx.IsValid() )
             {
                 auto pSceneData = sceneCtx.GetSceneData();
@@ -307,44 +331,44 @@ namespace EE::Import::gltf
                 // Read animation transforms
                 //-------------------------------------------------------------------------
 
-                ReadAnimationData( sceneCtx, *pImportedAnimation, pAnimationNode );
+                ReadAnimationData( sceneCtx, *pImportedAnimation, pImportedAnimation->GetPrimaryClip(), pAnimationNode );
             }
             else
             {
-                pImportedAnimation->LogError( "Failed to read gltf file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                pImportedAnimation->LogError( "Failed to read gltf file: %s -> %s", source.m_path.c_str(), sceneCtx.GetErrorMessage().c_str() );
             }
 
             return pAnimation;
         }
 
-        static void ReadAnimationData( gltf::SceneContext const& ctx, gltfImportedAnimation& ImportedAnimation, cgltf_animation const* pAnimation )
+        static void ReadAnimationData( gltf::SceneContext const& ctx, gltfImportedAnimation& animation, AnimationClip& animClip, cgltf_animation const* pAnimation )
         {
             EE_ASSERT( pAnimation != nullptr );
 
             // Create temporary transform storage
-            size_t const numBones = ImportedAnimation.GetNumBones();
+            size_t const numBones = animClip.GetNumBones();
             TVector<TVector<TransformData>> trackData;
             trackData.resize( numBones );
             for ( auto& track : trackData )
             {
-                track.resize( ImportedAnimation.m_numFrames );
+                track.resize( animation.m_numFrames );
             }
 
             // Read raw transform data
             //-------------------------------------------------------------------------
 
-            size_t const numFrames = ImportedAnimation.m_numFrames;
+            size_t const numFrames = animation.m_numFrames;
             for ( auto c = 0; c < pAnimation->channels_count; c++ )
             {
                 cgltf_animation_channel const& channel = pAnimation->channels[c];
 
                 if ( channel.target_node->name == nullptr )
                 {
-                    ImportedAnimation.LogError( "Invalid setup in gltf file, bones have no names" );
+                    animation.LogError( "Invalid setup in gltf file, bones have no names" );
                     return;
                 }
 
-                int32_t const boneIdx = ImportedAnimation.m_skeleton.GetBoneIndex( StringID( channel.target_node->name ) );
+                int32_t const boneIdx = animClip.m_skeleton.GetBoneIndex( StringID( channel.target_node->name ) );
                 if ( boneIdx == InvalidIndex )
                 {
                     continue;
@@ -403,19 +427,19 @@ namespace EE::Import::gltf
             // Create matrices from raw gltf data
             //-------------------------------------------------------------------------
 
-            ImportedAnimation.m_tracks.resize( ImportedAnimation.GetNumBones() );
+            animClip.m_tracks.resize( animClip.GetNumBones() );
             for ( auto boneIdx = 0u; boneIdx < numBones; boneIdx++ )
             {
-                ImportedAnimation.m_tracks[boneIdx].m_localTransforms.resize( ImportedAnimation.m_numFrames );
-                for ( auto f = 0; f < ImportedAnimation.m_numFrames; f++ )
+                animClip.m_tracks[boneIdx].m_parentSpaceTransforms.resize( animation.m_numFrames );
+                for ( auto f = 0; f < animation.m_numFrames; f++ )
                 {
                     TransformData const& transformData = trackData[boneIdx][f];
-                    ImportedAnimation.m_tracks[boneIdx].m_localTransforms[f] = Transform( transformData.m_rotation, transformData.m_translation, transformData.m_scale );
+                    animClip.m_tracks[boneIdx].m_parentSpaceTransforms[f] = Transform( transformData.m_rotation, transformData.m_translation, transformData.m_scale );
 
                     // Correct the up-axis for all root transform
                     if ( boneIdx == 0 )
                     {
-                        ImportedAnimation.m_tracks[boneIdx].m_localTransforms[f] = ctx.ApplyUpAxisCorrection( ImportedAnimation.m_tracks[boneIdx].m_localTransforms[f] );
+                        animClip.m_tracks[boneIdx].m_parentSpaceTransforms[f] = ctx.ApplyUpAxisCorrection( animClip.m_tracks[boneIdx].m_parentSpaceTransforms[f] );
                     }
                 }
             }
@@ -424,9 +448,9 @@ namespace EE::Import::gltf
 
     //-------------------------------------------------------------------------
 
-    TUniquePtr<ImportedAnimation> ReadAnimation( FileSystem::Path const& animationFilePath, ImportedSkeleton const& ImportedSkeleton, String const& takeName )
+    TUniquePtr<Animation> ReadAnimation( Source const& source, Skeleton const* pPrimarySkeleton, TVector<Import::Skeleton const*> const& secondarySkeletons, String const& takeName )
     {
-        return gltfAnimationFileReader::ReadAnimation( animationFilePath, ImportedSkeleton, takeName );
+        return gltfAnimationFileReader::ReadAnimation( source, pPrimarySkeleton, secondarySkeletons, takeName );
     }
 }
 
@@ -436,7 +460,7 @@ namespace EE::Import::gltf
 
 namespace EE::Import::gltf
 {
-    class gltfImportedMesh : public ImportedMesh
+    class gltfImportedMesh : public Mesh
     {
         friend class gltfMeshFileReader;
     };
@@ -445,21 +469,26 @@ namespace EE::Import::gltf
 
     class gltfMeshFileReader
     {
-    public:
-
-        struct SkinInfo
+        struct MeshEntry
         {
-            cgltf_skin*             m_pSkin = nullptr;
-            TVector<cgltf_mesh*>    m_meshes;
+            cgltf_mesh const*   m_pMesh = nullptr;
+            uint32_t            m_firstGeometryIdx = 0;
+            uint32_t            m_numGeometries = 0;
         };
 
-        //-------------------------------------------------------------------------
-
-        static bool IsValidTriangleMesh( cgltf_mesh const& meshNode )
+        struct SkinInstanceInfo
         {
-            for ( auto p = 0; p < meshNode.primitives_count; p++ )
+            cgltf_skin*             m_pSkin = nullptr;
+            TVector<cgltf_node*>    m_nodes;
+        };
+
+    public:
+
+        static bool IsValidTriangleMesh( cgltf_mesh const& mesh )
+        {
+            for ( auto p = 0; p < mesh.primitives_count; p++ )
             {
-                if ( meshNode.primitives[p].type != cgltf_primitive_type_triangles )
+                if ( mesh.primitives[p].type != cgltf_primitive_type_triangles )
                 {
                     return false;
                 }
@@ -468,24 +497,24 @@ namespace EE::Import::gltf
             return true;
         }
 
-        static void ReadMeshGeometry( gltf::SceneContext const& ctx, gltfImportedMesh& ImportedMesh, cgltf_mesh const& meshData, Transform const& nodeTransform = Transform::Identity )
+        static void ReadMeshGeometry( gltf::SceneContext const& ctx, gltfImportedMesh& importedMesh, cgltf_mesh const& mesh )
         {
-            EE_ASSERT( IsValidTriangleMesh( meshData ) );
+            EE_ASSERT( IsValidTriangleMesh( mesh ) );
 
-            for ( auto p = 0; p < meshData.primitives_count; p++ )
+            for ( auto p = 0; p < mesh.primitives_count; p++ )
             {
-                cgltf_primitive const& primitive = meshData.primitives[p];
+                cgltf_primitive const& primitive = mesh.primitives[p];
 
-                // Create new geometry section and allocate vertex memory
+                // Create new sub mesh and allocate vertex memory
                 //-------------------------------------------------------------------------
 
-                auto& geometrySection = ImportedMesh.m_geometrySections.emplace_back( ImportedMesh::GeometrySection() );
-                geometrySection.m_name = meshData.name;
-                geometrySection.m_clockwiseWinding = false;
+                auto& geo = importedMesh.m_geometries.emplace_back();
+                geo.m_ID = StringID( mesh.name );
+                geo.m_clockwiseWinding = false;
 
                 EE_ASSERT( primitive.attributes_count > 0 );
                 size_t const numVertices = primitive.attributes[0].data->count;
-                geometrySection.m_vertices.resize( numVertices );
+                geo.m_vertices.resize( numVertices );
 
                 // Read vertex data
                 //-------------------------------------------------------------------------
@@ -500,15 +529,7 @@ namespace EE::Import::gltf
                     }
                 }
 
-                if ( numTexcoordAttributes > 0 )
-                {
-                    for ( auto v = 0; v < numVertices; v++ )
-                    {
-                        geometrySection.m_vertices[v].m_texCoords.resize( numTexcoordAttributes );
-                    }
-                }
-
-                geometrySection.m_numUVChannels = numTexcoordAttributes;
+                geo.m_numUVChannels = Math::Min( Import::Mesh::s_maxNumOfTextureCoords, numTexcoordAttributes );
 
                 //-------------------------------------------------------------------------
 
@@ -524,8 +545,8 @@ namespace EE::Import::gltf
                             {
                                 Float3 position;
                                 cgltf_accessor_read_float( primitive.attributes[a].data, i, &position.m_x, 3 );
-                                geometrySection.m_vertices[i].m_position = ctx.ApplyUpAxisCorrection( nodeTransform.TransformPoint( Vector( position ) ) );
-                                geometrySection.m_vertices[i].m_position.m_w = 1.0f;
+                                geo.m_vertices[i].m_position = ctx.ApplyUpAxisCorrection( Vector( position ) );
+                                geo.m_vertices[i].m_position.m_w = 1.0f;
                             }
                         }
                         break;
@@ -538,8 +559,8 @@ namespace EE::Import::gltf
                             {
                                 Float3 normal;
                                 cgltf_accessor_read_float( primitive.attributes[a].data, i, &normal.m_x, 3 );
-                                geometrySection.m_vertices[i].m_normal = ctx.ApplyUpAxisCorrection( Vector( normal ) );
-                                geometrySection.m_vertices[i].m_position.m_w = 0.0f;
+                                geo.m_vertices[i].m_normal = ctx.ApplyUpAxisCorrection( Vector( normal ) );
+                                geo.m_vertices[i].m_normal.m_w = 0.0f;
                             }
                         }
                         break;
@@ -552,8 +573,8 @@ namespace EE::Import::gltf
                             {
                                 Float4 tangent;
                                 cgltf_accessor_read_float( primitive.attributes[a].data, i, &tangent.m_x, 4 );
-                                geometrySection.m_vertices[i].m_tangent = ctx.ApplyUpAxisCorrection( Vector( tangent ) );
-                                geometrySection.m_vertices[i].m_position.m_w = tangent.m_w;
+                                geo.m_vertices[i].m_tangent = ctx.ApplyUpAxisCorrection( Vector( tangent ) );
+                                geo.m_vertices[i].m_tangent.m_w = tangent.m_w;
                             }
                         }
                         break;
@@ -565,8 +586,8 @@ namespace EE::Import::gltf
                             for ( auto i = 0; i < numVertices; i++ )
                             {
                                 Float2 texcoord;
-                                cgltf_accessor_read_float( primitive.attributes[a].data, i, &texcoord.m_x, 3 );
-                                geometrySection.m_vertices[i].m_texCoords[primitive.attributes[a].index] = texcoord;
+                                cgltf_accessor_read_float( primitive.attributes[a].data, i, &texcoord.m_x, 2 );
+                                geo.m_vertices[i].m_texCoords[primitive.attributes[a].index] = texcoord;
                             }
                         }
                         break;
@@ -588,9 +609,11 @@ namespace EE::Import::gltf
 
                                 for ( auto j = 0; j < 4; j++ )
                                 {
-                                    geometrySection.m_vertices[i].m_boneIndices.emplace_back( joints[j] );
+                                    geo.m_vertices[i].m_boneIndices[j] = (int32_t) joints[j];
                                 }
                             }
+
+                            geo.m_numBoneInfluences = 4;
                         }
                         break;
 
@@ -605,7 +628,7 @@ namespace EE::Import::gltf
                                 cgltf_accessor_read_float( primitive.attributes[a].data, i, weights, 4 );
                                 for ( auto w = 0; w < 4; w++ )
                                 {
-                                    geometrySection.m_vertices[i].m_boneWeights.emplace_back( weights[w] );
+                                    geo.m_vertices[i].m_boneWeights[w] = weights[w];
                                 }
                             }
                         }
@@ -623,14 +646,14 @@ namespace EE::Import::gltf
                 {
                     for ( auto i = 0; i < primitive.indices->count; i++ )
                     {
-                        geometrySection.m_indices.emplace_back( (uint16_t) cgltf_accessor_read_index( primitive.indices, i ) );
+                        geo.m_indices.emplace_back( (uint16_t) cgltf_accessor_read_index( primitive.indices, i ) );
                     }
                 }
                 else if ( primitive.indices->component_type == cgltf_component_type_r_32u )
                 {
                     for ( auto i = 0; i < primitive.indices->count; i++ )
                     {
-                        geometrySection.m_indices.emplace_back( (uint32_t) cgltf_accessor_read_index( primitive.indices, i ) );
+                        geo.m_indices.emplace_back( (uint32_t) cgltf_accessor_read_index( primitive.indices, i ) );
                     }
                 }
                 else
@@ -640,9 +663,49 @@ namespace EE::Import::gltf
             }
         }
 
-        static TVector<SkinInfo> GetSkeletalMeshDefitions( gltf::SceneContext const& ctx )
+        // Create Submeshes
+        //-------------------------------------------------------------------------
+
+        static void CreateInstancesFromNodes( gltf::SceneContext const& ctx, gltfImportedMesh& importedMesh, cgltf_data const* pSceneData, THashMap<cgltf_mesh const*, MeshEntry> const& meshMap )
         {
-            TVector<SkinInfo> skeletalMeshes;
+            for ( auto n = 0; n < pSceneData->nodes_count; n++ )
+            {
+                cgltf_node const& node = pSceneData->nodes[n];
+                if ( node.mesh == nullptr )
+                {
+                    continue;
+                }
+
+                auto const foundIter = meshMap.find( node.mesh );
+                if ( foundIter == meshMap.end() )
+                {
+                    continue;
+                }
+
+                MeshEntry const& entry = foundIter->second;
+
+                Transform const nodeTransform = ctx.GetNodeTransform( const_cast<cgltf_node*>( &node ), true );
+
+                for ( uint32_t geoIdx = 0; geoIdx < entry.m_numGeometries; geoIdx++ )
+                {
+                    Mesh::Submesh& submesh = importedMesh.m_submeshes.emplace_back();
+                    submesh.m_ID = StringID( node.name );
+                    submesh.m_transform = nodeTransform.ToMatrix();
+                    submesh.m_geometryIdx = entry.m_firstGeometryIdx + geoIdx;
+
+                    cgltf_primitive const& primitive = entry.m_pMesh->primitives[geoIdx];
+                    char const* pMaterialName = ( primitive.material != nullptr && primitive.material->name != nullptr ) ? primitive.material->name : "Default";
+                    submesh.m_materialID = StringID( pMaterialName );
+                }
+            }
+        }
+
+        // Skeletal Mesh Helpers
+        //-------------------------------------------------------------------------
+
+        static TVector<SkinInstanceInfo> GetSkeletalMeshDefinitions( gltf::SceneContext const& ctx )
+        {
+            TVector<SkinInstanceInfo> skeletalMeshes;
 
             auto pSceneData = ctx.GetSceneData();
             for ( auto n = 0; n < pSceneData->nodes_count; n++ )
@@ -651,11 +714,11 @@ namespace EE::Import::gltf
                 if ( node.skin != nullptr && node.mesh != nullptr )
                 {
                     bool foundSkin = false;
-                    for ( auto& skin : skeletalMeshes )
+                    for ( auto& skinInfo : skeletalMeshes )
                     {
-                        if ( skin.m_pSkin == node.skin )
+                        if ( skinInfo.m_pSkin == node.skin )
                         {
-                            skin.m_meshes.emplace_back( node.mesh );
+                            skinInfo.m_nodes.emplace_back( const_cast<cgltf_node*>( &node ) );
                             foundSkin = true;
                             break;
                         }
@@ -663,9 +726,9 @@ namespace EE::Import::gltf
 
                     if ( !foundSkin )
                     {
-                        auto& skin = skeletalMeshes.emplace_back( SkinInfo() );
-                        skin.m_pSkin = node.skin;
-                        skin.m_meshes.emplace_back( node.mesh );
+                        auto& skinInfo = skeletalMeshes.emplace_back( SkinInstanceInfo() );
+                        skinInfo.m_pSkin = node.skin;
+                        skinInfo.m_nodes.emplace_back( const_cast<cgltf_node*>( &node ) );
                     }
                 }
             }
@@ -675,7 +738,7 @@ namespace EE::Import::gltf
 
         //-------------------------------------------------------------------------
 
-        static void ReadJointHierarchy( gltfImportedSkeleton& ImportedSkeleton, TVector<StringID> const& skinnedJoints, TVector<Transform> const& bindPose, cgltf_node* pNode, int32_t parentIdx )
+        static void ReadJointHierarchy( gltfImportedSkeleton& skeleton, TVector<StringID> const& skinnedJoints, TVector<Transform> const& bindPose, cgltf_node* pNode, int32_t parentIdx )
         {
             EE_ASSERT( pNode != nullptr );
 
@@ -686,187 +749,322 @@ namespace EE::Import::gltf
                 return;
             }
 
-            auto const boneIdx = (int32_t) ImportedSkeleton.m_bones.size();
-            ImportedSkeleton.m_bones.push_back( ImportedSkeleton::Bone( pNode->name ) );
-            ImportedSkeleton.m_bones[boneIdx].m_parentBoneName = ( parentIdx != InvalidIndex ) ? ImportedSkeleton.m_bones[parentIdx].m_name : StringID();
-            ImportedSkeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
+            auto const boneIdx = (int32_t) skeleton.m_bones.size();
+            skeleton.m_bones.push_back( Skeleton::Bone( pNode->name ) );
+            skeleton.m_bones[boneIdx].m_parentBoneName = ( parentIdx != InvalidIndex ) ? skeleton.m_bones[parentIdx].m_name : StringID();
+            skeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
 
             // Default Bone transform
-            ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform = bindPose[bindPoseIdx];
+            skeleton.m_bones[boneIdx].m_modelSpaceTransform = bindPose[bindPoseIdx];
 
             // Read child bones
             for ( int i = 0; i < pNode->children_count; i++ )
             {
                 cgltf_node* pChildNode = pNode->children[i];
-                ReadJointHierarchy( ImportedSkeleton, skinnedJoints, bindPose, pChildNode, boneIdx );
+                ReadJointHierarchy( skeleton, skinnedJoints, bindPose, pChildNode, boneIdx );
             }
         }
 
+        // Static Mesh Import
         //-------------------------------------------------------------------------
 
-        static TUniquePtr<ImportedMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
+        static TUniquePtr<Mesh> ReadStaticMesh( Source const& source, TVector<String> const& meshesToInclude )
         {
-            EE_ASSERT( sourceFilePath.IsValid() );
+            EE_ASSERT( source.IsValid() );
 
-            TUniquePtr<ImportedMesh> pMesh( EE::New<gltfImportedMesh>() );
+            TUniquePtr<Mesh> pMesh( EE::New<gltfImportedMesh>() );
             gltfImportedMesh* pImportedMesh = (gltfImportedMesh*) pMesh.get();
-            pImportedMesh->m_sourcePath = sourceFilePath;
+            pImportedMesh->m_sourcePath = source.m_path;
 
             //-------------------------------------------------------------------------
 
-            gltf::SceneContext sceneCtx( sourceFilePath );
+            gltf::SceneContext sceneCtx( source );
             if ( !sceneCtx.IsValid() )
             {
-                pImportedMesh->LogError( "Failed to read gltf file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                pImportedMesh->LogError( "Failed to read gltf file: %s -> %s", source.m_path.c_str(), sceneCtx.GetErrorMessage().c_str() );
                 return pMesh;
             }
 
-            // Read all meshes
             auto pSceneData = sceneCtx.GetSceneData();
-            if ( meshesToInclude.empty() )
-            {
-                for ( auto n = 0; n < pSceneData->nodes_count; n++ )
-                {
-                    cgltf_node& node = pSceneData->nodes[n];
-                    if ( node.mesh )
-                    {
-                        if ( IsValidTriangleMesh( *node.mesh ) )
-                        {
-                            Transform nodeTransform = sceneCtx.GetNodeTransform( &node, true );
-                            ReadMeshGeometry( sceneCtx, *pImportedMesh, *node.mesh, nodeTransform );
-                        }
-                        else
-                        {
-                            pImportedMesh->LogError( "Non-triangle mesh skipped: %s", node.mesh->name );
-                        }
-                    }
-                }
-            }
-            else // Try to find the meshes to read
-            {
-                TInlineVector<bool, 10> meshFound( meshesToInclude.size(), false );
-                for ( size_t n = 0; n < pSceneData->nodes_count; n++ )
-                {
-                    cgltf_node& node = pSceneData->nodes[n];
-                    if ( node.mesh )
-                    {
-                        int32_t const meshIdx = VectorFindIndex( meshesToInclude, String( node.mesh->name ) );
-                        if ( meshIdx != InvalidIndex )
-                        {
-                            meshFound[meshIdx] = true;
 
-                            if ( IsValidTriangleMesh( *node.mesh ) )
-                            {
-                                bool const includeParentTransform = true;
-                                Transform nodeTransform = sceneCtx.GetNodeTransform( &node, includeParentTransform );
-                                ReadMeshGeometry( sceneCtx, *pImportedMesh, *node.mesh, nodeTransform );
-                            }
-                            else
-                            {
-                                pImportedMesh->LogError( "Specified mesh is not a triangle mesh: %s", node.mesh->name );
-                            }
-                        }
-                    }
-                }
-
-                if ( VectorContains( meshFound, false ) )
-                {
-                    InlineString meshNames;
-                    for ( int32_t i = 0; i < meshesToInclude.size(); i++ )
-                    {
-                        if ( !meshFound[i] )
-                        {
-                            meshNames.append_sprintf( "%s, ", meshesToInclude[i].c_str() );
-                        }
-                    }
-
-                    EE_ASSERT( meshNames.length() > 2 );
-                    meshNames = meshNames.substr( 0, meshNames.length() - 2 );
-                    pImportedMesh->LogError( "Failed to find some of the specified meshes in gltf file: %s", meshNames.c_str() );
-                }
-            }
-
-            return pMesh;
-        }
-
-        static TUniquePtr<ImportedMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences = 4 )
-        {
-            EE_ASSERT( sourceFilePath.IsValid() );
-
-            TUniquePtr<ImportedMesh> pMesh( EE::New<gltfImportedMesh>() );
-            gltfImportedMesh* pImportedMesh = (gltfImportedMesh*) pMesh.get();
-            pImportedMesh->m_sourcePath = sourceFilePath;
-            pImportedMesh->m_isSkeletalMesh = true;
-
+            // Build map of unique meshes
             //-------------------------------------------------------------------------
 
-            gltf::SceneContext sceneCtx( sourceFilePath );
-            if ( sceneCtx.IsValid() )
+            THashMap<cgltf_mesh const*, MeshEntry> meshMap;
+            bool meshFilterActive = !meshesToInclude.empty();
+
+            for ( auto n = 0; n < pSceneData->nodes_count; n++ )
             {
-                TVector<SkinInfo> skins = GetSkeletalMeshDefitions( sceneCtx );
-
-                if ( skins.size() == 0 )
+                cgltf_node const& node = pSceneData->nodes[n];
+                if ( node.mesh == nullptr )
                 {
-                    pImportedMesh->LogError( "No skins found in file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                    continue;
                 }
-                else if ( skins.size() > 1 )
+
+                // Filter by name if requested
+                if ( meshFilterActive && node.mesh->name != nullptr )
                 {
-                    pImportedMesh->LogError( "More than one skin found in file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                    if ( !VectorContains( meshesToInclude, String( node.mesh->name ) ) )
+                    {
+                        continue;
+                    }
                 }
-                else // Read skeletal mesh data
+
+                if ( meshMap.find( node.mesh ) != meshMap.end() )
                 {
-                    TVector<StringID> skinnedJoints;
-                    for ( auto l = 0; l < skins[0].m_pSkin->joints_count; l++ )
+                    continue;
+                }
+
+                if ( !IsValidTriangleMesh( *node.mesh ) )
+                {
+                    pImportedMesh->LogError( "Non-triangle mesh skipped: %s", node.mesh->name );
+                    continue;
+                }
+
+                MeshEntry entry;
+                entry.m_pMesh = node.mesh;
+                entry.m_firstGeometryIdx = (uint32_t) pImportedMesh->m_geometries.size();
+                entry.m_numGeometries = (uint32_t) node.mesh->primitives_count;
+
+                ReadMeshGeometry( sceneCtx, *pImportedMesh, *node.mesh );
+                meshMap[node.mesh] = entry;
+            }
+
+            // Report missing meshes if filtering
+            //-------------------------------------------------------------------------
+
+            if ( meshFilterActive )
+            {
+                for ( auto const& meshName : meshesToInclude )
+                {
+                    bool found = false;
+                    for ( auto const& pair : meshMap )
                     {
-                        if ( skins[0].m_pSkin->joints[l]->name == nullptr )
+                        if ( pair.first->name != nullptr && meshName == pair.first->name )
                         {
-                            pImportedMesh->LogError( "Unnamed joint (%d) encountered, this is not supported by the EE importer: %s -> %s", l, sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
-                            return pMesh;
+                            found = true;
+                            break;
                         }
-
-                        skinnedJoints.push_back( StringID( skins[0].m_pSkin->joints[l]->name ) );
                     }
 
-                    // Read bind pose
-                    TVector<Transform> bindPose;
-                    for ( auto i = 0; i < skins[0].m_pSkin->joints_count; i++ )
+                    if ( !found )
                     {
-                        float matrixValues[16];
-                        cgltf_accessor_read_float( skins[0].m_pSkin->inverse_bind_matrices, i, matrixValues, 16 );
-                        Matrix m( matrixValues );
+                        pImportedMesh->LogError( "Couldn't find specified mesh: %s", meshName.c_str() );
+                    }
+                }
+            }
 
-                        Transform t( m.GetInverse() );
-                        bindPose.emplace_back( t );
+            // Create instances from nodes
+            //-------------------------------------------------------------------------
+
+            if ( meshMap.empty() )
+            {
+                pImportedMesh->LogError( "No valid meshes found in gltf file" );
+                return pMesh;
+            }
+
+            if ( meshFilterActive )
+            {
+                // Only create instances for nodes whose mesh is in the filtered set
+                for ( auto n = 0; n < pSceneData->nodes_count; n++ )
+                {
+                    cgltf_node const& node = pSceneData->nodes[n];
+                    if ( node.mesh == nullptr )
+                    {
+                        continue;
                     }
 
-                    EE_ASSERT( skins[0].m_pSkin->joints_count > 0 );
-                    gltfImportedSkeleton& ImportedSkeleton = (gltfImportedSkeleton&) pImportedMesh->m_skeleton;
-                    ImportedSkeleton.m_name = StringID( (char const*) skins[0].m_pSkin->joints[0]->name );
-                    ReadJointHierarchy( ImportedSkeleton, skinnedJoints, bindPose, skins[0].m_pSkin->joints[0], -1 );
-                    if ( ImportedSkeleton.GetNumBones() > 0 )
+                    auto const foundIt = meshMap.find( node.mesh );
+                    if ( foundIt == meshMap.end() )
                     {
-                        ImportedSkeleton.CalculateLocalTransforms();
-                        ImportedSkeleton.m_bones[0].m_parentSpaceTransform = sceneCtx.ApplyUpAxisCorrection( ImportedSkeleton.m_bones[0].m_parentSpaceTransform );
-                        ImportedSkeleton.CalculateModelSpaceTransforms();
+                        continue;
                     }
 
-                    for ( auto pMeshData : skins[0].m_meshes )
-                    {
-                        if ( !meshesToInclude.empty() )
-                        {
-                            if ( !VectorContains( meshesToInclude, pMeshData->name ) )
-                            {
-                                continue;
-                            }
-                        }
+                    MeshEntry const& entry = foundIt->second;
+                    Transform const nodeTransform = sceneCtx.GetNodeTransform( const_cast<cgltf_node*>( &node ), true );
 
-                        ReadMeshGeometry( sceneCtx, *pImportedMesh, *pMeshData );
+                    for ( uint32_t geoIdx = 0; geoIdx < entry.m_numGeometries; ++geoIdx )
+                    {
+                        Mesh::Submesh& submesh = pImportedMesh->m_submeshes.emplace_back();
+                        submesh.m_ID = StringID( node.name );
+                        submesh.m_transform = nodeTransform.ToMatrix();
+                        submesh.m_geometryIdx = entry.m_firstGeometryIdx + geoIdx;
+
+                        cgltf_primitive const& primitive = entry.m_pMesh->primitives[geoIdx];
+                        char const* pMaterialName = ( primitive.material != nullptr && primitive.material->name != nullptr ) ? primitive.material->name : "Default";
+                        submesh.m_materialID = StringID( pMaterialName );
                     }
                 }
             }
             else
             {
-                pImportedMesh->LogError( "Failed to read gltf file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                CreateInstancesFromNodes( sceneCtx, *pImportedMesh, pSceneData, meshMap );
+            }
+
+            return pMesh;
+        }
+
+        // Skeletal Mesh Import
+        //-------------------------------------------------------------------------
+
+        static TUniquePtr<Mesh> ReadSkeletalMesh( Source const& source, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences = 4 )
+        {
+            EE_ASSERT( source.IsValid() );
+
+            TUniquePtr<Mesh> pMesh( EE::New<gltfImportedMesh>() );
+            gltfImportedMesh* pImportedMesh = (gltfImportedMesh*) pMesh.get();
+            pImportedMesh->m_sourcePath = source.m_path;
+            pImportedMesh->m_isSkeletalMesh = true;
+
+            //-------------------------------------------------------------------------
+
+            gltf::SceneContext sceneCtx( source );
+            if ( !sceneCtx.IsValid() )
+            {
+                pImportedMesh->LogError( "Failed to read gltf file: %s -> %s", source.m_path.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                return pMesh;
+            }
+
+            TVector<SkinInstanceInfo> skins = GetSkeletalMeshDefinitions( sceneCtx );
+
+            if ( skins.size() == 0 )
+            {
+                pImportedMesh->LogError( "No skins found in file: %s", source.m_path.c_str() );
+                return pMesh;
+            }
+            else if ( skins.size() > 1 )
+            {
+                pImportedMesh->LogError( "More than one skin found in file: %s", source.m_path.c_str() );
+                return pMesh;
+            }
+
+            SkinInstanceInfo const& skinInfo = skins[0];
+
+            // Read joint names
+            //-------------------------------------------------------------------------
+
+            TVector<StringID> skinnedJoints;
+            for ( auto l = 0; l < skinInfo.m_pSkin->joints_count; l++ )
+            {
+                if ( skinInfo.m_pSkin->joints[l]->name == nullptr )
+                {
+                    pImportedMesh->LogError( "Unnamed joint (%d) encountered, this is not supported by the EE importer: %s", l, source.m_path.c_str() );
+                    return pMesh;
+                }
+
+                skinnedJoints.push_back( StringID( skinInfo.m_pSkin->joints[l]->name ) );
+            }
+
+            // Read bind pose
+            //-------------------------------------------------------------------------
+
+            TVector<Transform> bindPose;
+            for ( auto i = 0; i < skinInfo.m_pSkin->joints_count; i++ )
+            {
+                float matrixValues[16];
+                cgltf_accessor_read_float( skinInfo.m_pSkin->inverse_bind_matrices, i, matrixValues, 16 );
+                Matrix m( matrixValues );
+
+                Transform t( m.GetInverse() );
+                bindPose.emplace_back( t );
+            }
+
+            EE_ASSERT( skinInfo.m_pSkin->joints_count > 0 );
+            gltfImportedSkeleton& skeleton = (gltfImportedSkeleton&) pImportedMesh->m_skeleton;
+            skeleton.m_name = StringID( (char const*) skinInfo.m_pSkin->joints[0]->name );
+            ReadJointHierarchy( skeleton, skinnedJoints, bindPose, skinInfo.m_pSkin->joints[0], -1 );
+            if ( skeleton.GetNumBones() > 0 )
+            {
+                skeleton.CalculateParentSpaceTransforms();
+                skeleton.m_bones[0].m_parentSpaceTransform = sceneCtx.ApplyUpAxisCorrection( skeleton.m_bones[0].m_parentSpaceTransform );
+                skeleton.CalculateModelSpaceTransforms();
+            }
+
+            // Build mesh map from skin instance nodes
+            //-------------------------------------------------------------------------
+
+            THashMap<cgltf_mesh const*, MeshEntry> meshMap;
+            bool meshFilterActive = !meshesToInclude.empty();
+
+            for ( cgltf_node* pNode : skinInfo.m_nodes )
+            {
+                if ( pNode->mesh == nullptr )
+                {
+                    continue;
+                }
+
+                if ( meshFilterActive && pNode->mesh->name != nullptr )
+                {
+                    if ( !VectorContains( meshesToInclude, String( pNode->mesh->name ) ) )
+                    {
+                        continue;
+                    }
+                }
+
+                if ( meshMap.find( pNode->mesh ) != meshMap.end() )
+                {
+                    continue;
+                }
+
+                if ( !IsValidTriangleMesh( *pNode->mesh ) )
+                {
+                    pImportedMesh->LogError( "Non-triangle mesh skipped: %s", pNode->mesh->name );
+                    continue;
+                }
+
+                MeshEntry entry;
+                entry.m_pMesh = pNode->mesh;
+                entry.m_firstGeometryIdx = (uint32_t) pImportedMesh->m_geometries.size();
+                entry.m_numGeometries = (uint32_t) pNode->mesh->primitives_count;
+
+                ReadMeshGeometry( sceneCtx, *pImportedMesh, *pNode->mesh );
+                meshMap[pNode->mesh] = entry;
+            }
+
+            if ( meshMap.empty() )
+            {
+                pImportedMesh->LogError( "No valid meshes found for skin" );
+                return pMesh;
+            }
+
+            // Create instances from skin nodes
+            //-------------------------------------------------------------------------
+
+            for ( cgltf_node* pNode : skinInfo.m_nodes )
+            {
+                if ( pNode->mesh == nullptr )
+                {
+                    continue;
+                }
+
+                if ( meshFilterActive && pNode->mesh->name != nullptr )
+                {
+                    if ( !VectorContains( meshesToInclude, String( pNode->mesh->name ) ) )
+                    {
+                        continue;
+                    }
+                }
+
+                auto const foundIt = meshMap.find( pNode->mesh );
+                if ( foundIt == meshMap.end() )
+                {
+                    continue;
+                }
+
+                MeshEntry const& entry = foundIt->second;
+                Transform const nodeTransform = sceneCtx.GetNodeTransform( pNode, true );
+
+                for ( uint32_t geoIdx = 0; geoIdx < entry.m_numGeometries; ++geoIdx )
+                {
+                    Mesh::Submesh& submesh = pImportedMesh->m_submeshes.emplace_back();
+                    submesh.m_ID = StringID( pNode->name );
+                    submesh.m_transform = nodeTransform.ToMatrix();
+                    submesh.m_geometryIdx = entry.m_firstGeometryIdx + geoIdx;
+
+                    cgltf_primitive const& primitive = entry.m_pMesh->primitives[geoIdx];
+                    char const* pMaterialName = ( primitive.material != nullptr && primitive.material->name != nullptr ) ? primitive.material->name : "Default";
+                    submesh.m_materialID = StringID( pMaterialName );
+                }
             }
 
             return pMesh;
@@ -875,13 +1073,13 @@ namespace EE::Import::gltf
 
     //-------------------------------------------------------------------------
 
-    TUniquePtr<ImportedMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
+    TUniquePtr<Mesh> ReadStaticMesh( Source const& source, TVector<String> const& meshesToInclude )
     {
-        return gltfMeshFileReader::ReadStaticMesh( sourceFilePath, meshesToInclude );
+        return gltfMeshFileReader::ReadStaticMesh( source, meshesToInclude );
     }
 
-    TUniquePtr<ImportedMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences )
+    TUniquePtr<Mesh> ReadSkeletalMesh( Source const& source, TVector<String> const& meshesToInclude )
     {
-        return gltfMeshFileReader::ReadSkeletalMesh( sourceFilePath, meshesToInclude, maxBoneInfluences );
+        return gltfMeshFileReader::ReadSkeletalMesh( source, meshesToInclude );
     }
 }

@@ -1,0 +1,102 @@
+
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+struct HLSL_ALIGN_STRUCT RadianceFilteringRootConstants
+{
+    uint                        m_renderViewBuffer      : 16;
+    uint                        m_inputTexture          : 16;
+    
+    uint                        m_renderViewIndex;
+    float                       m_roughness;
+    uint                        m_cubemapResolution;
+};
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#ifndef __cplusplus
+
+#include "Engine/Render/Shaders/PBR/PBR.esh"
+#include "Engine/Render/Shaders/CommonSamplers.esh"
+
+ESF_PARAMETER string ShaderType = "Surface";
+
+EE_DECLARE_ROOT_CONSTANTS( RadianceFilteringRootConstants, b0, space0 );
+
+#define RadianceFilteringRootSignature  EE_BEGIN_ROOT_SIGNATURE \
+                                        "RootConstants( b0, num32BitConstants = 4, space = 0 )"
+
+struct VS_OUTPUT
+{
+    float4 m_position : SV_Position;
+    float2 m_uv       : TEXCOORD0;
+    float3 m_normal   : TEXCOORD1;
+};
+
+[RootSignature( RadianceFilteringRootSignature )]
+VS_OUTPUT VS_main( uint id: SV_VertexID )
+{
+    StructuredBuffer<RenderView>    renderViewBuffer    = GetBuffer( RootConstants.m_renderViewBuffer );
+    
+    VS_OUTPUT output = ( VS_OUTPUT ) 0;
+    
+    output.m_uv         = float2( ( id << 1 ) & 2, id & 2 ); 
+    output.m_position   = float4( output.m_uv * float2( 2.0, -2.0 ) + float2( -1.0, 1.0 ), 0.0, 1.0 );
+    output.m_normal     = mul( renderViewBuffer[RootConstants.m_renderViewIndex].m_inverseViewProjectionMatrix, output.m_position ).xyz;
+
+    return output;
+}
+
+[RootSignature( RadianceFilteringRootSignature )]
+float4 PS_main( VS_OUTPUT input ) : SV_Target
+{
+    TextureCube     inputTexture        = GetTexture( RootConstants.m_inputTexture );
+    SamplerState    linearWrapSampler   = GetLinearWrapSampler();
+    
+    float3 normal = normalize( input.m_normal );
+    float3 view   = normal;
+    
+    float  roughness = RootConstants.m_roughness;
+    
+    float3 result = 0.0.xxx;
+    float  weight = 0.0;
+    
+    float sourceTexelSize = ( 6.0 * float( RootConstants.m_cubemapResolution * RootConstants.m_cubemapResolution ) ) / 4.0 * PI;
+    
+    const uint SAMPLE_COUNT = 1024;
+    for ( uint sample = 0; sample < SAMPLE_COUNT; ++sample )
+    {
+        float2 Xi           = Hammersley( sample, SAMPLE_COUNT );
+        float3 H            = ImportanceSampleGGX( Xi, normal, roughness );
+        float3 L            = normalize( 2.0 * dot( view, H ) * H - view );
+
+        float dotNL         = saturate( dot( normal, L ) );
+        
+        [branch] if ( dotNL > 0.0 )
+        {
+            float roughness2 = roughness * roughness;
+            float roughness4 = roughness2 * roughness2;
+            
+            float D     = DistributionGGX( normal, H, roughness4 );
+            float dotNH = saturate( dot( normal, H ) );
+            float dotVH = saturate( dot( view, H ) );
+            float PDF   = D * dotNH / max( 4.0 * dotVH, 0.0001 );
+            
+            float sourceSample = 1.0 / max( float( SAMPLE_COUNT ) * PDF, 0.0001 );
+            
+            float sourceMipLevel = 0.0;
+            if ( roughness != 0.0 )
+            {
+                sourceMipLevel = 0.5 * log2( sourceSample * sourceTexelSize );
+            }
+            
+            result += inputTexture.SampleLevel( linearWrapSampler, L, sourceMipLevel ).rgb * dotNL;
+            weight += dotNL;
+        }        
+    }
+    
+    return float4( result * ( 1.0 / weight ), 1.0 );
+}
+
+#endif

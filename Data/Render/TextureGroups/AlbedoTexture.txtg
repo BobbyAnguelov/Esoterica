@@ -1,0 +1,13 @@
+<Type TypeID="EE::Render::TextureGroup" Version="1">
+  <Property ID="m_fileMasks">
+    <Type Index="0" TypeID="EE::Render::TextureGroupFileMask">
+      <Property ID="m_channelName" Value="Albedo" />
+    </Type>
+  </Property>
+  <Type ID="m_mipSettings" TypeID="EE::Render::TextureGroupMipSettings">
+    <Property ID="m_generateMipmaps" Value="True" />
+  </Type>
+  <Type ID="m_compressionSettings" TypeID="EE::Render::TextureGroupCompressionSettings">
+    <Property ID="m_textureType" Value="ColorSRGB" />
+  </Type>
+</Type>

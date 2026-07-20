@@ -40,7 +40,7 @@ namespace EE::TypeSystem
             {
                 auto const& pathElement = m_pathElements[i];
 
-                pathString += pathElement.m_propertyID.c_str();
+                pathString += pathElement.m_ID.c_str();
 
                 if ( pathElement.IsArrayElement() )
                 {
@@ -56,7 +56,7 @@ namespace EE::TypeSystem
             //-------------------------------------------------------------------------
 
             auto const& pathElement = m_pathElements.back();
-            pathString += pathElement.m_propertyID.c_str();
+            pathString += pathElement.m_ID.c_str();
             if ( pathElement.IsArrayElement() )
             {
                 pathString += String( String::CtorSprintf(), "/%d", pathElement.m_arrayElementIdx );

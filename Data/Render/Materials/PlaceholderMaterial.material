@@ -1,0 +1,6 @@
+<Type TypeID="EE::Render::MaterialResourceDescriptor" Version="0">
+  <Property ID="m_shader" Value="Placeholder" />
+  <Type ID="m_shaderParameters" TypeID="EE::Render::Shaders::PlaceholderParameters">
+    <Property ID="m_shaderFlags" Value="TwoSided" />
+  </Type>
+</Type>

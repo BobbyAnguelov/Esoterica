@@ -3,6 +3,7 @@
 
 //-------------------------------------------------------------------------
 
+#if EE_DEVELOPMENT_TOOLS
 namespace EE::ImGuiX
 {
     Color const Style::s_colorGray0( 0xFF5B5B5B );
@@ -21,11 +22,21 @@ namespace EE::ImGuiX
     Color const Style::s_colorAccent1( 0xFF32CD32 );
     Color const Style::s_colorAccent2( 0xFF249324 );
 
+    Color const Style::s_axisColorX = Colors::MediumRed;
+    Color const Style::s_axisColorY = Colors::Green;
+    Color const Style::s_axisColorZ = Colors::RoyalBlue;
+    Color const Style::s_axisColorW = Colors::DarkOrange;
+
+    Color const Style::s_axisColors[4] = { s_axisColorX, s_axisColorY, s_axisColorZ, s_axisColorW };
+
     //-------------------------------------------------------------------------
 
     void Style::Apply()
     {
         ImGuiStyle& style = ImGui::GetStyle();
+
+        // Reset to default
+        style = ImGuiStyle();
 
         //-------------------------------------------------------------------------
         // Colors
@@ -100,12 +111,14 @@ namespace EE::ImGuiX
 
         colors[ImGuiCol_DragDropTarget] = s_colorGray6;
 
+        colors[ImGuiCol_TextLink] = ImVec4( 0.26f, 0.59f, 0.98f, 1.00f );
+
         //-------------------------------------------------------------------------
         // Style
         //-------------------------------------------------------------------------
 
         style.FramePadding = ImVec2( 6, 6 );
-        style.WindowPadding = ImVec2( 8, 8 );
+        style.WindowPadding = ImVec2( 6, 6 );
         style.ChildBorderSize = 0.0f;
         style.TabBorderSize = 1.0f;
         style.GrabRounding = 0.0f;
@@ -113,11 +126,28 @@ namespace EE::ImGuiX
         style.WindowRounding = 0.0f;
         style.WindowBorderSize = 1.0f;
         style.FrameRounding = 3.0f;
-        style.IndentSpacing = 8;
+        style.IndentSpacing = 12;
         style.ItemSpacing = ImVec2( 4, 6 );
         style.TabRounding = 6.0f;
         style.ScrollbarSize = 20.0f;
         style.ScrollbarRounding = 0.0f;
         style.CellPadding = ImVec2( 4, 6 );
+
+        style.ScaleAllSizes( GetMaxDpiScale() );
+    }
+
+    float Style::GetMaxDpiScale()
+    {
+        ImGuiPlatformIO const &IO = ImGui::GetPlatformIO();
+
+        float scale = 1.0f;
+        for ( auto const& monitor : IO.Monitors )
+        {
+            scale = Math::Max( monitor.DpiScale, scale );
+        }
+
+        EE_ASSERT( scale >= 1.0f );
+        return scale;
     }
 }
+#endif

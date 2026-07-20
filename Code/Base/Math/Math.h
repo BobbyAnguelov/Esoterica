@@ -44,7 +44,7 @@ namespace EE
         EE_FORCE_INLINE float Exp2( float N ) { return exp2f( N ); }
 
         // Computes the base 10 log of value
-        EE_FORCE_INLINE float Log( float value ) { return logf( value ); }
+        EE_FORCE_INLINE float Log10( float value ) { return logf( value ); }
 
         // Computes the base 2 log of value
         EE_FORCE_INLINE float Log2( float value ) { return log2f( value ); }
@@ -112,6 +112,19 @@ namespace EE
             return fmodf( x, y );
         }
 
+        // Returns the fraction part of a float
+        EE_FORCE_INLINE float GetIntegerPart( float x )
+        {
+            return floorf( x );
+        }
+
+        // Returns the fraction part of a float
+        EE_FORCE_INLINE float GetFractionalPart( float x )
+        {
+            float integerPortion;
+            return ModF( x, integerPortion );
+        }
+
         EE_FORCE_INLINE float PercentageThroughRange( float value, float lowerBound, float upperBound )
         {
             EE_ASSERT( lowerBound < upperBound );
@@ -143,9 +156,19 @@ namespace EE
             return ceilf( value );
         }
 
-        EE_FORCE_INLINE int32_t CeilingToInt( float value )
+        EE_FORCE_INLINE int16_t CeilingToInt16( float value )
         {
-            return (int32_t) ceilf( value );
+            return static_cast<int16_t>( ceilf( value ) );
+        }
+
+        EE_FORCE_INLINE int32_t CeilingToInt32( float value )
+        {
+            return static_cast<int32_t>( ceilf( value ) );
+        }
+
+        EE_FORCE_INLINE int64_t CeilingToInt64( float value )
+        {
+            return static_cast<int64_t>( ceilf( value ) );
         }
 
         EE_FORCE_INLINE float Floor( float value )
@@ -153,9 +176,19 @@ namespace EE
             return floorf( value );
         }
 
-        EE_FORCE_INLINE int32_t FloorToInt( float value )
+        EE_FORCE_INLINE int16_t FloorToInt16( float value )
         {
-            return (int32_t) floorf( value );
+            return static_cast<int16_t>( floorf( value ) );
+        }
+
+        EE_FORCE_INLINE int32_t FloorToInt32( float value )
+        {
+            return static_cast<int32_t>( floorf( value ) );
+        }
+
+        EE_FORCE_INLINE int64_t FloorToInt64( float value )
+        {
+            return static_cast<int64_t>( floorf( value ) );
         }
 
         EE_FORCE_INLINE float Round( float value )
@@ -163,9 +196,19 @@ namespace EE
             return roundf( value );
         }
 
-        EE_FORCE_INLINE int32_t RoundToInt( float value )
+        EE_FORCE_INLINE int16_t RoundToInt16( float value )
         {
-            return (int32_t) roundf( value );
+            return static_cast<int16_t>( roundf( value ) );
+        }
+
+        EE_FORCE_INLINE int32_t RoundToInt32( float value )
+        {
+            return static_cast<int32_t>( roundf( value ) );
+        }
+
+        EE_FORCE_INLINE int64_t RoundToInt64( float value )
+        {
+            return static_cast<int64_t>( roundf( value ) );
         }
 
         template<typename T>
@@ -192,7 +235,30 @@ namespace EE
             return lcm;
         }
 
-        inline float RemapRange( float value, float fromRangeBegin, float fromRangeEnd, float toRangeBegin, float toRangeEnd )
+        template<typename T>
+        inline T ClosestMultiple( T v, T multiple )
+        {
+            static_assert( std::numeric_limits<T>::is_integer, "Integer type required" );
+
+            if ( multiple == 0 || multiple > v )
+            {
+                return v;
+            }
+
+            v = v + ( multiple / 2 );
+            v = v - ( v % multiple );
+            return v;
+        }
+
+        template<typename T>
+        inline T ClosestUpperBoundMultiple( T value, T multiple )
+        {
+            static_assert( std::numeric_limits<T>::is_integer, "Integer type required" );
+            return Math::CeilingToInt32( float( value ) / multiple ) * multiple;
+        }
+
+        // Remap a value from one specified range to another
+        inline float RemapRange( float value, float fromRangeBegin, float fromRangeEnd, float toRangeBegin = 0.0f, float toRangeEnd = 1.0f )
         {
             float const fromRangeLength = fromRangeEnd - fromRangeBegin;
             float const percentageThroughFromRange = Math::Clamp( ( value - fromRangeBegin ) / fromRangeLength, 0.0f, 1.0f );
@@ -200,6 +266,29 @@ namespace EE
             float const result = toRangeBegin + ( percentageThroughFromRange * toRangeLength );
 
             return result;
+        }
+
+        // Remap a value from one range to another asymmetrically around zero.
+        // Basically performs a remap from [-fromRange, 0] to [-toRange, 0] and [0, fromRange] to [0, toRange]
+        inline float RemapRangeAsymmetricAroundZero( float value, float fromRangeBegin, float fromRangeEnd, float toRangeBegin, float toRangeEnd )
+        {
+            if ( IsNearEqual( toRangeBegin, toRangeEnd ) )
+            {
+                return toRangeBegin;
+            }
+
+            // Ensure that we are using the right function, this function will remap the ranges above/below zero asymmetrically
+            EE_ASSERT( fromRangeBegin < 0 && toRangeBegin < 0.0f );
+            EE_ASSERT( fromRangeEnd > 0 && toRangeEnd > 0.0f );
+
+            if ( value < 0 )
+            {
+                return RemapRange( value, fromRangeBegin, 0.0f, toRangeBegin, 0.0f );
+            }
+            else
+            {
+                return RemapRange( value, 0.0f, fromRangeEnd, 0.0f, toRangeEnd );
+            }
         }
 
         template<typename T>
@@ -230,19 +319,49 @@ namespace EE
             return IsEven( n ) ? n : n + 1;
         }
 
+        template<typename T>
+        EE_FORCE_INLINE bool IsSameSign( T a, T b )
+        {
+            static_assert( !std::numeric_limits<T>::is_integer, "Floating point type required." );
+            return a * b >= 0;
+        }
+
+        // Is this number finite and not-NaN
+        [[nodiscard]]
+        EE_FORCE_INLINE bool IsFinite( float n )
+        {
+            return isfinite( n );
+        }
+
+        [[nodiscard]]
         EE_FORCE_INLINE bool IsNaN( float n )
         {
             return isnan( n );
         }
 
+        [[nodiscard]]
         EE_FORCE_INLINE bool IsInf( float n )
         {
             return isinf( n );
         }
 
-        EE_FORCE_INLINE bool IsNaNOrInf( float n )
+        // Is this number finite and not-NaN
+        [[nodiscard]]
+        EE_FORCE_INLINE bool IsFinite( double n )
         {
-            return isnan( n ) || isinf( n );
+            return isfinite( n );
+        }
+
+        [[nodiscard]]
+        EE_FORCE_INLINE bool IsNaN( double n )
+        {
+            return isnan( n );
+        }
+
+        [[nodiscard]]
+        EE_FORCE_INLINE bool IsInf( double n )
+        {
+            return isinf( n );
         }
 
         //-------------------------------------------------------------------------
@@ -272,12 +391,52 @@ namespace EE
             return i >> 1;
         }
 
+        template<typename T>
+        EE_FORCE_INLINE T IntegerDivideCeiling( T const n, T const d )
+        {
+            return ( n + d - 1 ) / d;
+        }
+
         EE_FORCE_INLINE uint32_t RoundUpToNearestMultiple32( uint32_t value, uint32_t multiple ) { return ( ( value + multiple - 1 ) / multiple ) * multiple; }
         EE_FORCE_INLINE uint64_t RoundUpToNearestMultiple64( uint64_t value, uint64_t multiple ) { return ( ( value + multiple - 1 ) / multiple ) * multiple; }
         EE_FORCE_INLINE uint32_t RoundDownToNearestMultiple32( uint32_t value, uint32_t multiple ) { return value - value % multiple; }
         EE_FORCE_INLINE uint64_t RoundDownToNearestMultiple64( uint64_t value, uint64_t multiple ) { return value - value % multiple; }
 
         EE_FORCE_INLINE uint32_t GetMaxNumberOfBitsForValue( uint64_t value ) { return Math::GetMostSignificantBit( value ) + 1; }
+
+        // Snap float to 0/1 directly
+        EE_FORCE_INLINE float SanitizeFloat( float value, float epsilon = Math::LargeEpsilon )
+        {
+            float f = value;
+
+            if ( Math::IsNearZero( value, epsilon ) )
+            {
+                f = 0;
+            }
+
+            if ( Math::IsNearEqual( value, 1.0f, epsilon ) )
+            {
+                f = 1.0f;
+            }
+
+            return f;
+        }
+
+        //-------------------------------------------------------------------------
+
+        EE_FORCE_INLINE int16_t FloatToSNorm16( float value )
+        {
+            return int16_t( Clamp( value, -1.0F, 1.0F ) * 32767.0F + copysignf( 0.5F, value ) );
+        }
+
+        EE_FORCE_INLINE float SNorm16ToFloat( int16_t value )
+        {
+            // -32768 and -32767 both map to the same value of -1
+            return Max( float( value ) * ( 1.0F / 32767.0F ), -1.0F );
+        }
+
+        EE_BASE_API uint16_t FloatToHalf( float const value );
+        EE_BASE_API float HalfToFloat( uint16_t const value );
     }
 
     //-------------------------------------------------------------------------
@@ -376,6 +535,55 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
+    struct EE_BASE_API Int3
+    {
+        EE_SERIALIZE( m_x, m_y, m_z );
+
+        static Int3 const Zero;
+
+    public:
+
+        inline Int3() {}
+        inline Int3( ZeroInit_t ) : m_x( 0 ), m_y( 0 ), m_z( 0 ), m_w( 0 ) {}
+        inline explicit Int3( int32_t v ) : m_x( v ), m_y( v ), m_z( v ), m_w( v ) {}
+        inline explicit Int3( int32_t ix, int32_t iy, int32_t iz ) : m_x( ix ), m_y( iy ), m_z( iz ) {}
+
+        inline bool IsZero() const { return *this == Zero; }
+
+        inline int32_t& operator[]( uint32_t i ) { EE_ASSERT( i < 4 ); return ( (int32_t*) this )[i]; }
+        inline int32_t const& operator[]( uint32_t i ) const { EE_ASSERT( i < 4 ); return ( (int32_t*) this )[i]; }
+
+        inline bool operator==( Int3 const rhs ) const { return m_x == rhs.m_x && m_y == rhs.m_y && m_z == rhs.m_z; }
+        inline bool operator!=( Int3 const rhs ) const { return m_x != rhs.m_x || m_y != rhs.m_y || m_z != rhs.m_z; }
+
+        inline Int3 operator+( int32_t const& rhs ) const { return Int3( m_x + rhs, m_y + rhs, m_z + rhs ); }
+        inline Int3 operator-( int32_t const& rhs ) const { return Int3( m_x - rhs, m_y - rhs, m_z - rhs ); }
+        inline Int3 operator*( int32_t const& rhs ) const { return Int3( m_x * rhs, m_y * rhs, m_z * rhs ); }
+        inline Int3 operator/( int32_t const& rhs ) const { return Int3( m_x / rhs, m_y / rhs, m_z / rhs ); }
+
+        inline Int3& operator+=( int32_t const& rhs ) { m_x += rhs; m_y += rhs; m_z += rhs; return *this; }
+        inline Int3& operator-=( int32_t const& rhs ) { m_x -= rhs; m_y -= rhs; m_z -= rhs; return *this; }
+        inline Int3& operator*=( int32_t const& rhs ) { m_x *= rhs; m_y *= rhs; m_z *= rhs; return *this; }
+        inline Int3& operator/=( int32_t const& rhs ) { m_x /= rhs; m_y /= rhs; m_z /= rhs; return *this; }
+
+        // Component wise operation
+        inline Int3 operator+( Int3 const& rhs ) const { return Int3( m_x + rhs.m_x, m_y + rhs.m_y, m_z + rhs.m_z ); }
+        inline Int3 operator-( Int3 const& rhs ) const { return Int3( m_x - rhs.m_x, m_y - rhs.m_y, m_z - rhs.m_z ); }
+        inline Int3 operator*( Int3 const& rhs ) const { return Int3( m_x * rhs.m_x, m_y * rhs.m_y, m_z * rhs.m_z ); }
+        inline Int3 operator/( Int3 const& rhs ) const { return Int3( m_x / rhs.m_x, m_y / rhs.m_y, m_z / rhs.m_z ); }
+
+        inline Int3& operator+=( Int3 const& rhs ) { m_x += rhs.m_x; m_y += rhs.m_y; m_z += rhs.m_z; return *this; }
+        inline Int3& operator-=( Int3 const& rhs ) { m_x -= rhs.m_x; m_y -= rhs.m_y; m_z -= rhs.m_z; return *this; }
+        inline Int3& operator*=( Int3 const& rhs ) { m_x *= rhs.m_x; m_y *= rhs.m_y; m_z *= rhs.m_z; return *this; }
+        inline Int3& operator/=( Int3 const& rhs ) { m_x /= rhs.m_x; m_y /= rhs.m_y; m_z /= rhs.m_z; return *this; }
+
+    public:
+
+        int32_t m_x, m_y, m_z, m_w;
+    };
+
+    //-------------------------------------------------------------------------
+
     struct EE_BASE_API Int4
     {
         EE_SERIALIZE( m_x, m_y, m_z, m_w );
@@ -445,8 +653,14 @@ namespace EE
         inline explicit Float2( Float3 const& v );
         inline explicit Float2( Float4 const& v );
 
+        inline bool IsValid() const { return Math::IsFinite( m_x ) && Math::IsFinite( m_y ); }
+        EE_FORCE_INLINE bool IsFinite() const { return IsValid(); }
+
         inline bool IsZero() const { return *this == Zero; }
         inline bool IsNearZero() const { return Math::IsNearZero( m_x ) && Math::IsNearZero( m_y ); }
+
+        inline float GetMin() const { return Math::Min( m_x, m_y ); }
+        inline float GetMax() const { return Math::Max( m_x, m_y ); }
 
         inline float& operator[]( uint32_t i ) { EE_ASSERT( i < 2 ); return ( (float*) this )[i]; }
         inline float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 2 ); return ( (float*) this )[i]; }
@@ -504,8 +718,13 @@ namespace EE
         inline explicit Float3( Float2 const& v, float iz = 0.0f ) : m_x( v.m_x ), m_y( v.m_y ), m_z( iz ) {}
         inline explicit Float3( Float4 const& v );
 
+        inline bool IsValid() const { return Math::IsFinite( m_x ) && Math::IsFinite( m_y ) && Math::IsFinite( m_z ); }
+        EE_FORCE_INLINE bool IsFinite() const { return IsValid(); }
         inline bool IsZero() const { return *this == Zero; }
         inline bool IsNearZero() const { return Math::IsNearZero( m_x ) && Math::IsNearZero( m_y ) && Math::IsNearZero( m_z ); }
+
+        inline float GetMin() const { return Math::Min( m_x, Math::Min( m_y, m_z ) ); }
+        inline float GetMax() const { return Math::Max( m_x, Math::Max( m_y, m_z ) ); }
 
         inline float& operator[]( uint32_t i ) { EE_ASSERT( i < 3 ); return ( (float*) this )[i]; }
         inline float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 3 ); return ( (float*) this )[i]; }
@@ -566,8 +785,13 @@ namespace EE
         explicit Float4( Float2 const& v, float iz = 0.0f, float iw = 0.0f ) : m_x( v.m_x ), m_y( v.m_y ), m_z( iz ), m_w( iw ) {}
         explicit Float4( Float3 const& v, float iw = 0.0f ) : m_x( v.m_x ), m_y( v.m_y ), m_z( v.m_z ), m_w( iw ) {}
 
+        inline bool IsValid() const { return Math::IsFinite( m_x ) && Math::IsFinite( m_y ) && Math::IsFinite( m_z ) && Math::IsFinite( m_w ); }
+        EE_FORCE_INLINE bool IsFinite() const { return IsValid(); }
         inline bool IsZero() const { return *this == Zero; }
         inline bool IsNearZero() const { return Math::IsNearZero( m_x ) && Math::IsNearZero( m_y ) && Math::IsNearZero( m_z ) && Math::IsNearZero( m_w ); }
+
+        inline float GetMin() const { return Math::Min( m_x, Math::Min( m_y, Math::Min( m_z, m_w ) ) ); }
+        inline float GetMax() const { return Math::Max( m_x, Math::Max( m_y, Math::Max( m_z, m_w ) ) ); }
 
         float& operator[]( uint32_t i ) { EE_ASSERT( i < 4 ); return ( (float*) this )[i]; }
         float const& operator[]( uint32_t i ) const { EE_ASSERT( i < 4 ); return ( (float*) this )[i]; }

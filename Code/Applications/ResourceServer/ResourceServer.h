@@ -1,15 +1,11 @@
 #pragma once
 
 #include "ResourceServerContext.h"
-#include "ResourceCompilationRequest.h"
+#include "ResourceServerWorker.h"
+#include "ResourceServerRequest.h"
 #include "EngineTools/FileSystem/FileSystemWatcher.h"
-#include "Base/Network/IPC/IPCMessageServer.h"
-#include "Base/Resource/Settings/GlobalSettings_Resource.h"
-#include "Base/TypeSystem/TypeRegistry.h"
-#include "Base/Threading/TaskSystem.h"
-#include "Base/Threading/Threading.h"
-#include "Base/Settings/SettingsRegistry.h"
 #include "EngineTools/Core/DataFileUtils.h"
+#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 // The network resource server
@@ -20,8 +16,8 @@
 
 namespace EE::Resource
 {
-    class CompilationTask;
     class PackagingTask;
+    class CompilerRegistry;
 
     //-------------------------------------------------------------------------
 
@@ -31,9 +27,21 @@ namespace EE::Resource
 
         struct BusyState
         {
-            int32_t     m_completedRequests = 0;
-            int32_t     m_totalRequests = 0;
-            bool        m_isBusy = false;
+            int32_t                                 m_completedRequests = 0;
+            int32_t                                 m_totalRequests = 0;
+            bool                                    m_isBusy = false;
+        };
+
+        struct RecompilationBlocker
+        {
+            constexpr static float const            s_defaultBlockTime = 30.0f; // 30 seconds
+
+        public:
+
+            UUID                                    m_ID;
+            DataPath                                m_path;
+            CountdownTimer<PlatformClock>           m_timer;
+            String                                  m_sourceID;
         };
 
         enum class PackagingStage
@@ -46,8 +54,7 @@ namespace EE::Resource
 
     public:
 
-        ResourceServer();
-        ~ResourceServer();
+        ResourceServer( TypeSystem::TypeRegistry const& typeRegistry );
 
         bool Initialize( FileSystem::Path const& iniFilePath );
         void Shutdown();
@@ -55,31 +62,31 @@ namespace EE::Resource
 
         bool IsBusy() const;
 
+        // Info
+        //-------------------------------------------------------------------------
+
         inline String const& GetErrorMessage() const { return m_errorMessage; }
-        inline String const& GetNetworkAddress() const { return m_pSettings->m_resourceServerNetworkAddress; }
-        inline uint16_t GetNetworkPort() const { return m_pSettings->m_resourceServerPort; }
-        inline FileSystem::Path const& GetRawResourceDir() const { return m_pSettings->m_sourceDataDirectoryPath; }
-        inline FileSystem::Path const& GetCompiledResourceDir() const { return m_pSettings->m_compiledResourceDirectoryPath; }
+        inline String const& GetNetworkAddress() const { return m_context.m_pSettings->m_resourceServerNetworkAddress; }
+        inline uint16_t GetNetworkPort() const { return m_context.m_pSettings->m_resourceServerPort; }
+        inline FileSystem::Path const& GetSourceDataDirectory() const { return m_context.m_pSettings->m_sourceDataDirectoryPath; }
+        inline FileSystem::Path const& GetCompiledResourceDirectory() const { return m_context.m_pSettings->m_compiledResourceDirectoryPath; }
+        inline int32_t GetNumConnectedClients() const { return (int32_t) m_context.m_nonWorkerClientIDs.size(); }
+        TInlineVector<Network::Server::ClientInfo const*, 32> GetConnectedClients() const;
+        TInlineVector<ResourceServerWorker const*, 32> GetWorkers() const;
 
         // Compilers and Compilation
         //-------------------------------------------------------------------------
 
-        inline CompilerRegistry const* GetCompilerRegistry() const { return m_pCompilerRegistry; }
-        inline void CompileResource( ResourceID const& resourceID, bool forceRecompile = true ) { CreateResourceRequest( resourceID, 0, forceRecompile ? CompilationRequest::Origin::ManualCompileForced : CompilationRequest::Origin::ManualCompile ); }
-        inline void PackageResource( ResourceID const& resourceID ) { CreateResourceRequest( resourceID, 0, CompilationRequest::Origin::Package ); }
+        inline CompilerRegistry const* GetCompilerRegistry() const { return m_context.m_pCompilerRegistry; }
+        inline void CompileResource( ResourceID const& resourceID, bool forceRecompile = true ) { TryAddPendingRequest( forceRecompile ? RequestOrigin::ManualCompileForced : RequestOrigin::ManualCompile, resourceID ); }
 
         // Requests
         //-------------------------------------------------------------------------
 
-        TVector<CompilationRequest const*> const& GetRequests() const { return ( TVector<CompilationRequest const*>& ) m_requests; }
+        // Event fired after the requests lists has been updated
+        inline TEventHandle<> OnRequestsUpdated() { return m_requestsUpdatedEvent; }
+        TVector<Request const*> const& GetRequests() const { return ( TVector<Request const*>& ) m_requests; }
         inline void CleanHistory() { m_cleanupRequested = true; }
-
-        // Clients
-        //-------------------------------------------------------------------------
-
-        inline int32_t GetNumConnectedClients() const { return m_networkServer.GetNumConnectedClients(); }
-        inline uint32_t GetClientID( int32_t clientIdx ) const { return m_networkServer.GetConnectedClientInfo( clientIdx ).m_ID; }
-        inline Network::AddressString const& GetConnectedClientAddress( int32_t clientIdx ) const { return m_networkServer.GetConnectedClientInfo( clientIdx ).m_address; }
 
         // Packaging
         //-------------------------------------------------------------------------
@@ -114,7 +121,29 @@ namespace EE::Resource
         // Start the packaging process
         void StartPackaging();
 
+        // Recompilation Blocking
+        //-------------------------------------------------------------------------
+
+        // Get the list of active recompilation blockers
+        TVector<RecompilationBlocker> const& GetRecompilationBlockers() const { return m_recompilationBlockers; }
+
+        TVector<ResourceID> GetBlockedRecompilationRequests() const { return m_blockedRecompilationRequests; }
+
+        // Create a recompilation blocker that will defer any recompilation requests for this path (and anything under it) till the blocker expires or is removed
+        void AddRecompilationBlocker( UUID const& blockerID, DataPath const& path, Seconds timeToBlock = RecompilationBlocker::s_defaultBlockTime, String const& optionalSourceID = String() );
+
+        // Reset a recompilation blocker's timer
+        void RefreshRecompilationBlocker( UUID const& blockerID, Seconds timeToBlock = RecompilationBlocker::s_defaultBlockTime );
+
+        // Remove a recompilation blocker, this will trigger a recompile for any modified resources under the blocked path
+        void RemoveRecompilationBlocker( UUID const& blockerID );
+
         // Tools
+        //-------------------------------------------------------------------------
+
+        bool DeleteCompiledResourceDatabase();
+
+        // Data File Resave
         //-------------------------------------------------------------------------
 
         void RequestResaveOfDataFiles();
@@ -125,48 +154,68 @@ namespace EE::Resource
 
     private:
 
+        void UpdateNetwork();
+        void UpdateFileSystemWatcher();
+
         // Requests
         //-------------------------------------------------------------------------
 
-        CompilationRequest* CreateResourceRequest( ResourceID const& resourceID, uint32_t clientID = 0, CompilationRequest::Origin origin = CompilationRequest::Origin::External, String const& extraInfo = String() );
-        void ProcessCompletedRequests();
+        Request* TryAddPendingRequest( uint64_t clientID, RequestOrigin origin, ResourceID const& resourceID, String const& extraInfo = String() );
+        inline Request* TryAddPendingRequest( RequestOrigin origin, ResourceID const& resourceID, String const& extraInfo = String() ) {  return TryAddPendingRequest( 0, origin, resourceID, extraInfo ); }
+        void ProcessPendingRequests();
+        void CleanupCompletedRequests();
 
-        void UpdateCompileDependencyTracking( ResourceID const& resourceID, TVector<DataPath> const& compileDependencies );
+        // Workers/Tasks
+        //-------------------------------------------------------------------------
+
+        void UpdateWorkers();
+        void ScheduleWorkerTask( Request* pRequest );
+
+        // Recompilation Blocking
+        //-------------------------------------------------------------------------
+
+        bool IsResourceRecompilationBlocked( ResourceID const& ID ) const;
+        void UpdateRecompilationBlockers();
+
+        // Packaging
+        //-------------------------------------------------------------------------
+
+        void UpdatePackaging();
+        void RunPackagingTask();
+        void EnqueueResourceForPackaging( ResourceID const& resourceID );
+
+        // Tools
+        //-------------------------------------------------------------------------
+
+        void UpdateResaveOfDataFiles();
 
     private:
 
-        Network::IPC::Server                                        m_networkServer;
-        TypeSystem::TypeRegistry                                    m_typeRegistry;
-        Settings::SettingsRegistry                                  m_settingsRegistry;
-        TaskSystem                                                  m_taskSystem = TaskSystem( Threading::GetProcessorInfo().m_numLogicalCores );
-        CompilerRegistry*                                           m_pCompilerRegistry = nullptr;
+        ResourceServerContext                                       m_context;
         String                                                      m_errorMessage;
         bool                                                        m_cleanupRequested = false;
 
-        // Settings
-        ResourceGlobalSettings const*                               m_pSettings = nullptr;
-
         // Compilation Requests
-        TVector<CompilationRequest*>                                m_requests;
-        TVector<CompilationTask*>                                   m_activeTasks;
-        std::atomic<int64_t>                                        m_numScheduledTasks = 0;
+        TVector<Request*>                                           m_pendingRequests;
+        TVector<Request*>                                           m_requests;
+        TEvent<>                                                    m_requestsUpdatedEvent;
 
         // Workers
-        ResourceServerContext                                       m_context;
+        TVector<ResourceServerWorker>                               m_workers;
+        int32_t                                                     m_workerEnqueueIndex = 0;
 
         // Packaging
         TVector<ResourceID>                                         m_allMaps;
         TVector<ResourceID>                                         m_mapsToBePackaged;
-        TVector<CompilationRequest const*>                          m_packagingRequests;
-        PackagingTask*                                              m_pPackagingTask = nullptr;
+        TVector<Request const*>                                     m_packagingRequests;
+        TVector<ResourceID>                                         m_packagingRuntimeDependencies;
+        PinnedLambdaTask                                            m_packagingTask = PinnedLambdaTask( 1, [this] () { RunPackagingTask(); } );
         PackagingStage                                              m_packagingStage = PackagingStage::None;
 
         // File System Watcher
         FileSystem::Watcher                                         m_fileSystemWatcher;
-
-        // Compile Dependency Tracking
-        THashMap<FileSystem::Path, TVector<ResourceID>>             m_compileDependencyToResourceIDMap;
-        THashMap<ResourceID, TVector<FileSystem::Path>>             m_resourceIDToCompileDependencyMap;
+        TVector<RecompilationBlocker>                               m_recompilationBlockers;
+        TVector<ResourceID>                                         m_blockedRecompilationRequests;
 
         // Tools
         DataFileResaver*                                            m_pDataFileResaver = nullptr;

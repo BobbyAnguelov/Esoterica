@@ -29,7 +29,7 @@ namespace EE
 
         ISystem& operator=( ISystem const& ) = default;
 
-        virtual uint32_t GetSystemID() const = 0;
+        virtual uint64_t GetSystemID() const = 0;
     };
 
     //-------------------------------------------------------------------------
@@ -70,5 +70,5 @@ namespace EE
 //-------------------------------------------------------------------------
 
 #define EE_SYSTEM( TypeName ) \
-constexpr static uint32_t const s_systemID = Hash::FNV1a::GetHash32( #TypeName ); \
-virtual uint32_t GetSystemID() const override final { return TypeName::s_systemID; }
+constexpr static uint64_t const s_systemID = Hash::FNV1a::GetHash64( #TypeName ); \
+virtual uint64_t GetSystemID() const override final { return TypeName::s_systemID; }

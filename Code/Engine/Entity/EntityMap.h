@@ -46,8 +46,8 @@ namespace EE
             {
                 RemovalRequest( Entity* pEntity, bool shouldDestroy ) : m_pEntity( pEntity ), m_shouldDestroy( shouldDestroy ) {}
 
-                Entity*     m_pEntity = nullptr;
-                bool        m_shouldDestroy = false;
+                Entity*                 m_pEntity = nullptr;
+                bool                    m_shouldDestroy = false;
             };
 
         public:
@@ -66,6 +66,7 @@ namespace EE
 
             inline ResourceID const& GetMapResourceID() const { return m_pMapDesc.GetResourceID(); }
             inline EntityMapID GetID() const { return m_ID; }
+            inline StringID GetName() const { return m_name; }
             inline bool IsTransientMap() const { return m_isTransientMap; }
 
             // Loading
@@ -77,16 +78,29 @@ namespace EE
             // Map State
             //-------------------------------------------------------------------------
 
+            // Is the map loading - this refers to the overall map state and not to the entity state, some entities might still be loading
+            bool IsMapLoading() const { return m_status == Status::Loading; }
+
+            // Is the map loaded - this refers to the overall map state and not to the entity state, some entities might still be loading
+            inline bool IsMapLoaded() const { return m_status == Status::Loaded; }
+
+            // Is the map unloaded
+            inline bool IsMapUnloaded() const { return m_status == Status::Unloaded; }
+
+            // Has the map descriptor failed to load - this refers to the map descriptor and not to the entity state
+            inline bool HasMapLoadingFailed() const { return m_status == Status::LoadFailed; }
+
             // Updates map loading and entity state, returns true if all loading/state changes are complete, false otherwise
             bool UpdateLoadingAndStateChanges( LoadingContext const& loadingContext, InitializationContext& initializationContext );
 
+            // Do we have any entities that are currently loading
+            bool HasLoadingEntities() const { return !m_entitiesCurrentlyLoading.empty(); }
+
+            // Do we have any entities that have state changes pending (add/remove component/systems)
+            bool HasEntitiesWithPendingStateChangeActions() const;
+
             // Do we have any pending entity addition or removal requests?
             bool HasPendingAddOrRemoveRequests() const;
-
-            bool IsLoading() const { return m_status == Status::Loading; }
-            inline bool IsLoaded() const { return m_status == Status::Loaded; }
-            inline bool IsUnloaded() const { return m_status == Status::Unloaded; }
-            inline bool HasLoadingFailed() const { return m_status == Status::LoadFailed; }
 
             //-------------------------------------------------------------------------
             // Entity API
@@ -217,6 +231,7 @@ namespace EE
         private:
 
             EntityMapID                                 m_ID = EntityMapID::GenerateID(); // ID is always regenerated at creation time, do not rely on the ID being the same for a map on different runs
+            StringID                                    m_name;
             Threading::RecursiveMutex                   m_mutex;
             TResourcePtr<EntityMapDescriptor>           m_pMapDesc;
             TVector<Entity*>                            m_entities;
@@ -227,6 +242,7 @@ namespace EE
             EventBindingID                              m_entityUpdateEventBindingID;
             Status                                      m_status = Status::Unloaded;
             bool const                                  m_isTransientMap = false; // If this is set, then this is a transient map i.e.created and managed at runtime and not loaded from disk
+            bool                                        m_entityStateUpdatesAllowed = true;
 
             #if EE_DEVELOPMENT_TOOLS
             THashMap<StringID, Entity*>                 m_entityNameLookupMap; // All entities that have attempted to load

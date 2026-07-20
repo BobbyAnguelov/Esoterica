@@ -37,6 +37,9 @@ namespace EE::TypeSystem
 
         inline IReflectedType const* GetDefaultInstance() const { return m_pDefaultInstance; }
 
+        template<typename T>
+        inline T const* GetDefaultInstance() const { return Cast<T>( m_pDefaultInstance ); }
+
         // Basic Type Info
         //-------------------------------------------------------------------------
 
@@ -77,6 +80,10 @@ namespace EE::TypeSystem
 
         // Create a new instance of this type
         virtual IReflectedType* CreateType() const = 0;
+
+        // Create a new type and immediately cast it
+        template<typename T>
+        inline T* CreateType() const { return Cast<T>( CreateType() ); }
 
         // Create a new instance of this type in a pre-allocated location
         virtual void CreateTypeInPlace( IReflectedType* pAllocatedMemory ) const = 0;
@@ -127,7 +134,7 @@ namespace EE::TypeSystem
     public:
 
         TypeID                                  m_ID;
-        IReflectedType const*                   m_pDefaultInstance;
+        IReflectedType const*                   m_pDefaultInstance = nullptr;
         TypeInfo const*                         m_pParentTypeInfo = nullptr;
         TVector<PropertyInfo>                   m_properties;
         THashMap<StringID, int32_t>             m_propertyMap;

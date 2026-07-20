@@ -1,6 +1,7 @@
 #include "BinarySerialization.h"
 #include "Base/Types/String.h"
 #include "Base/Types/StringID.h"
+#include "Base/Memory/Memory.h"
 #include "Base/FileSystem/FileSystem.h"
 #include "Base/ThirdParty/mpack/mpack.h"
 
@@ -8,13 +9,6 @@
 
 namespace EE::Serialization
 {
-    int32_t GetBinarySerializationVersion()
-    {
-        return 8;
-    }
-
-    //-------------------------------------------------------------------------
-
     static void MPackReaderError( mpack_reader_t* pReader, mpack_error_t error )
     {
         EE_HALT();
@@ -114,6 +108,24 @@ namespace EE::Serialization
     }
 
     void BinaryReader::ReadValue( String& v )
+    {
+        if ( mpack_peek_tag( m_pReader ).type == mpack_type_nil )
+        {
+            mpack_expect_nil( m_pReader );
+            v.clear();
+        }
+        else
+        {
+            size_t const expectedLength = mpack_expect_str( m_pReader );
+            v.resize( expectedLength + 1 );
+            v.back() = 0;
+
+            mpack_read_bytes( m_pReader, v.data(), expectedLength );
+            mpack_done_str( m_pReader );
+        }
+    }
+
+    void BinaryReader::ReadValue( InlineString& v )
     {
         if ( mpack_peek_tag( m_pReader ).type == mpack_type_nil )
         {
@@ -275,6 +287,19 @@ namespace EE::Serialization
         }
     }
 
+    void BinaryWriter::WriteValue( InlineString const& v )
+    {
+        if ( v.empty() )
+        {
+            mpack_write_cstr_or_nil( m_pWriter, nullptr );
+        }
+        else
+        {
+            EE_ASSERT( v.c_str() != nullptr );
+            mpack_write_cstr( m_pWriter, v.c_str() );
+        }
+    }
+
     void BinaryWriter::WriteValue( StringID const& v )
     {
         if ( v.IsValid() )
@@ -379,7 +404,7 @@ namespace EE::Serialization
 
         //-------------------------------------------------------------------------
 
-        return FileSystem::WriteBinaryFile( outPath, m_serializer.GetData(), m_serializer.GetSize() );
+        return FileSystem::WriteBinaryFile( outPath, m_serializer.GetData(), m_serializer.GetSize(), true, true );
     }
 
     uint8_t* BinaryOutputArchive::GetBinaryData()

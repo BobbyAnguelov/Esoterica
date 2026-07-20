@@ -126,10 +126,8 @@ namespace EE::Animation
             return VectorFindIndex( GetDefinition<BoneMaskSelectorNode>()->m_parameterValues, m_pParameterValueNode->GetValue<StringID>( context ) );
         }
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -142,4 +140,46 @@ namespace EE::Animation
         Seconds                                             m_currentTimeInBlend = 0;
         bool                                                m_isBlending = false;
     };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API BoneMaskSwitchNode final : public BoneMaskValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Definition final : public BoneMaskValueNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( BoneMaskValueNode::Definition, m_switchValueNodeIdx, m_trueMaskNodeIdx, m_falseMaskNodeIdx, m_switchDynamically, m_blendTime );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+            int16_t                                         m_switchValueNodeIdx = InvalidIndex;
+            int16_t                                         m_trueMaskNodeIdx = InvalidIndex;
+            int16_t                                         m_falseMaskNodeIdx = InvalidIndex;
+            bool                                            m_switchDynamically = false;
+            Seconds                                         m_blendTime = 0.1f;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext & context ) override;
+        virtual void ShutdownInternal( GraphContext & context ) override;
+        virtual void GetValueInternal( GraphContext & context, void* pOutValue ) override;
+
+        virtual void RecordGraphState( RecordedGraphState & outState ) override;
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
+
+    private:
+
+        BoolValueNode*                                      m_pSwitchValueNode = nullptr;
+        BoneMaskValueNode*                                  m_pTrueMaskValueNode = nullptr;
+        BoneMaskValueNode*                                  m_pFalseMaskValueNode = nullptr;
+
+        BoneMaskTaskList                                    m_taskList;
+        Seconds                                             m_currentTimeInBlend = 0;
+        int32_t                                             m_selectedMaskIndex = InvalidIndex;
+        bool                                                m_isBlending = false;
+    };
+
 }

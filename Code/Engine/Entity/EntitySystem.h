@@ -12,6 +12,11 @@ namespace EE
     class EntityWorldUpdateContext;
     class EntityComponent;
 
+    namespace EntityModel
+    {
+        struct SystemDescriptor;
+    }
+
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API EntitySystem : public IReflectedType
@@ -19,6 +24,7 @@ namespace EE
         EE_REFLECT_TYPE( EntitySystem );
 
         friend class Entity;
+        friend EntityModel::SystemDescriptor;
 
     public:
 
@@ -47,6 +53,9 @@ namespace EE
 
         // Get the required update stages and priorities for this component
         virtual UpdatePriorityList const& GetRequiredUpdatePriorities() = 0;
+
+        // Allow entity systems to spawn additional required components
+        virtual void CreateAdditionalRequiredComponents( Entity* pEntity ) const {}
 
         // Component registration
         virtual void RegisterComponent( EntityComponent* pComponent ) = 0;

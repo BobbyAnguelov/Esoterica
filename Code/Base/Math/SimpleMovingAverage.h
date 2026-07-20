@@ -27,7 +27,7 @@ namespace EE
         inline void AddValue( float const value )
         {
             m_values[m_nextFreeIdx++] = value;
-            if ( m_nextFreeIdx == m_values.Num() )
+            if ( m_nextFreeIdx == HistorySize )
             {
                 m_nextFreeIdx = 0;
             }
@@ -37,13 +37,13 @@ namespace EE
             {
                 m_average += v;
             }
-            m_average /= m_values.Num();
+            m_average /= HistorySize;
         }
 
     private:
 
-        float                     m_values[HistorySize];
-        float                     m_average;
+        float                       m_values[HistorySize];
+        float                       m_average;
         int32_t                     m_nextFreeIdx;
     };
 }

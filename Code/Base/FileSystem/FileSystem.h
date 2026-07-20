@@ -10,6 +10,9 @@ namespace EE::FileSystem
     // General functions
     //-------------------------------------------------------------------------
 
+    EE_BASE_API Path GetCurrentProcessPath();
+    EE_BASE_API bool GetCurrentWorkingDirectoryPath( Path& outPath );
+
     // Does the path point to an existing file/directory
     EE_BASE_API bool Exists( char const* pPath );
     EE_FORCE_INLINE bool Exists( String const& filePath ) { return Exists( filePath.c_str() ); }
@@ -60,18 +63,19 @@ namespace EE::FileSystem
     EE_FORCE_INLINE bool ReadTextFile( String const& filePath, String& fileData ) { return ReadTextFile( filePath.c_str(), fileData ); }
     EE_FORCE_INLINE bool ReadTextFile( Path const& filePath, String& fileData ) { return ReadTextFile( filePath.c_str(), fileData ); }
 
-    EE_BASE_API bool WriteTextFile( char const* pFilePath, char const* pData, size_t size );
-    EE_FORCE_INLINE bool WriteTextFile( char const* pFilePath, String const& fileData ) { return WriteTextFile( pFilePath, fileData.data(), fileData.size() ); }
-    EE_FORCE_INLINE bool WriteTextFile( String const& filePath, String const& fileData ) { return WriteTextFile( filePath.c_str(), fileData ); }
+    EE_BASE_API bool WriteTextFile( char const* pFilePath, char const* pData, size_t size, bool overwrite = true, bool flushToDisk = false );
+    EE_FORCE_INLINE bool WriteTextFile( char const* pFilePath, String const& fileData, bool overwrite = true, bool flushToDisk = false ) { return WriteTextFile( pFilePath, fileData.data(), fileData.size(), overwrite, flushToDisk ); }
+    EE_FORCE_INLINE bool WriteTextFile( String const& filePath, String const& fileData, bool overwrite = true, bool flushToDisk = false ) { return WriteTextFile( filePath.c_str(), fileData, overwrite, flushToDisk ); }
 
     // This acts as a write operation but will read the file contents first and only write the data if the file needs to be updated!
-    EE_BASE_API bool UpdateTextFile( char const* pFilePath, char const* pData, size_t size );
-    EE_FORCE_INLINE bool UpdateTextFile( String const& filePath, char const* pData, size_t size ) { return UpdateTextFile( filePath.c_str(), pData, size ); }
-    EE_FORCE_INLINE bool UpdateTextFile( Path const& filePath, char const* pData, size_t size ) { return UpdateTextFile( filePath.c_str(), pData, size ); }
+    // The return value indicates whether the operation completed successfully. If you want to know if the file was actually updated, please supply the optional parameter and query it
+    EE_BASE_API bool UpdateTextFile( char const* pFilePath, char const* pData, size_t size, bool* pWasFileUpdated = nullptr );
+    EE_FORCE_INLINE bool UpdateTextFile( String const& filePath, char const* pData, size_t size, bool* pWasFileUpdated = nullptr ) { return UpdateTextFile( filePath.c_str(), pData, size, pWasFileUpdated ); }
+    EE_FORCE_INLINE bool UpdateTextFile( Path const& filePath, char const* pData, size_t size, bool* pWasFileUpdated = nullptr ) { return UpdateTextFile( filePath.c_str(), pData, size, pWasFileUpdated ); }
 
-    EE_FORCE_INLINE bool UpdateTextFile( char const* pFilePath, String const& fileData ) { return UpdateTextFile( pFilePath, fileData.data(), fileData.size() ); }
-    EE_FORCE_INLINE bool UpdateTextFile( String const& filePath, String const& fileData ) { return UpdateTextFile( filePath.c_str(), fileData.data(), fileData.size() ); }
-    EE_FORCE_INLINE bool UpdateTextFile( Path const& filePath, String const& fileData ) { return UpdateTextFile( filePath.c_str(), fileData.data(), fileData.size() ); }
+    EE_FORCE_INLINE bool UpdateTextFile( char const* pFilePath, String const& fileData, bool* pWasFileUpdated = nullptr ) { return UpdateTextFile( pFilePath, fileData.data(), fileData.size(), pWasFileUpdated ); }
+    EE_FORCE_INLINE bool UpdateTextFile( String const& filePath, String const& fileData, bool* pWasFileUpdated = nullptr ) { return UpdateTextFile( filePath.c_str(), fileData.data(), fileData.size(), pWasFileUpdated ); }
+    EE_FORCE_INLINE bool UpdateTextFile( Path const& filePath, String const& fileData, bool* pWasFileUpdated = nullptr ) { return UpdateTextFile( filePath.c_str(), fileData.data(), fileData.size(), pWasFileUpdated ); }
 
     // Binary Files
     //-------------------------------------------------------------------------
@@ -80,18 +84,19 @@ namespace EE::FileSystem
     EE_FORCE_INLINE bool ReadBinaryFile( String const& filePath, Blob& fileData ) { return ReadBinaryFile( filePath.c_str(), fileData ); }
     EE_FORCE_INLINE bool ReadBinaryFile( Path const& filePath, Blob& fileData ) { return ReadBinaryFile( filePath.c_str(), fileData ); }
 
-    EE_BASE_API bool WriteBinaryFile( char const* pFilePath, void const* pData, size_t size );
-    EE_FORCE_INLINE bool WriteBinaryFile( char const* pFilePath, Blob const& fileData ) { WriteBinaryFile( pFilePath, fileData.data(), fileData.size() ); }
-    EE_FORCE_INLINE bool WriteBinaryFile( String const& filePath, Blob const& fileData ) { return WriteBinaryFile( filePath.c_str(), fileData ); }
+    EE_BASE_API bool WriteBinaryFile( char const* pFilePath, void const* pData, size_t size, bool overwrite = true, bool flushToDisk = false );
+    EE_FORCE_INLINE bool WriteBinaryFile( char const* pFilePath, Blob const& fileData, bool overwrite = true, bool flushToDisk = false ) { WriteBinaryFile( pFilePath, fileData.data(), fileData.size(), overwrite, flushToDisk ); }
+    EE_FORCE_INLINE bool WriteBinaryFile( String const& filePath, Blob const& fileData, bool overwrite = true, bool flushToDisk = false ) { return WriteBinaryFile( filePath.c_str(), fileData, overwrite, flushToDisk ); }
 
     // This acts as a write operation but will check the file contents first and only write the data if the file needs to be updated!
-    EE_BASE_API bool UpdateBinaryFile( char const* pFilePath, void const* pData, size_t size );
-    EE_FORCE_INLINE bool UpdateBinaryFile( String const& filePath, void const* pData, size_t size ) { return UpdateBinaryFile( filePath.c_str(), pData, size ); }
-    EE_FORCE_INLINE bool UpdateBinaryFile( Path const& filePath, void const* pData, size_t size ) { return UpdateBinaryFile( filePath.c_str(), pData, size ); }
+    // The return value indicates whether the operation completed successfully. If you want to know if the file was actually updated, please supply the optional parameter and query it
+    EE_BASE_API bool UpdateBinaryFile( char const* pFilePath, void const* pData, size_t size, bool* pWasFileUpdated = nullptr );
+    EE_FORCE_INLINE bool UpdateBinaryFile( String const& filePath, void const* pData, size_t size, bool* pWasFileUpdated = nullptr ) { return UpdateBinaryFile( filePath.c_str(), pData, size, pWasFileUpdated ); }
+    EE_FORCE_INLINE bool UpdateBinaryFile( Path const& filePath, void const* pData, size_t size, bool* pWasFileUpdated = nullptr ) { return UpdateBinaryFile( filePath.c_str(), pData, size, pWasFileUpdated ); }
 
-    EE_FORCE_INLINE bool UpdateBinaryFile( char const* pFilePath, Blob const& fileData ) { UpdateBinaryFile( pFilePath, fileData.data(), fileData.size() ); }
-    EE_FORCE_INLINE bool UpdateBinaryFile( String const& filePath, Blob const& fileData ) { return UpdateBinaryFile( filePath.c_str(), fileData ); }
-    EE_FORCE_INLINE bool UpdateBinaryFile( Path const& filePath, Blob const& fileData ) { return UpdateBinaryFile( filePath.c_str(), fileData ); }
+    EE_FORCE_INLINE bool UpdateBinaryFile( char const* pFilePath, Blob const& fileData, bool* pWasFileUpdated = nullptr ) { UpdateBinaryFile( pFilePath, fileData.data(), fileData.size(), pWasFileUpdated ); }
+    EE_FORCE_INLINE bool UpdateBinaryFile( String const& filePath, Blob const& fileData, bool* pWasFileUpdated = nullptr ) { return UpdateBinaryFile( filePath.c_str(), fileData, pWasFileUpdated ); }
+    EE_FORCE_INLINE bool UpdateBinaryFile( Path const& filePath, Blob const& fileData, bool* pWasFileUpdated = nullptr ) { return UpdateBinaryFile( filePath.c_str(), fileData, pWasFileUpdated ); }
 
     // Directory Functions
     //-------------------------------------------------------------------------

@@ -27,7 +27,7 @@ namespace EE::EntityModel
         String          m_message;
         String          m_filename;
         uint32_t        m_lineNumber;
-        Severity   m_severity;
+        Severity        m_severity;
     };
 
     //-------------------------------------------------------------------------

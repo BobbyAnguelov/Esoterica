@@ -90,6 +90,16 @@ namespace EE
             inline bool IsUnloaded() const { return GetLoadingStatus() == LoadingStatus::Unloaded; }
             inline bool HasLoadingFailed() const { return GetLoadingStatus() == LoadingStatus::Failed; }
 
+            //-------------------------------------------------------------------------
+
+            #if EE_DEVELOPMENT_TOOLS
+            inline String const& GetResourceCompilationLog() const
+            {
+                EE_ASSERT( IsSet() && WasRequested() && m_pResourceRecord != nullptr );
+                return m_pResourceRecord->GetCompilationLog();
+            }
+            #endif
+
         protected:
 
             ResourceID                  m_resourceID;
@@ -133,7 +143,8 @@ namespace EE
         inline T const* operator->() const { EE_ASSERT( m_pResourceRecord != nullptr ); return reinterpret_cast<T const*>( m_pResourceRecord->GetResourceData() ); }
         inline T const* GetPtr() const { EE_ASSERT( m_pResourceRecord != nullptr ); return reinterpret_cast<T const*>( m_pResourceRecord->GetResourceData() ); }
 
-        inline ResourceTypeID GetSpecializedResourceTypeID() const { return T::GetStaticResourceTypeID(); }
+        inline bool IsSetAndIsValidResourceTypeID() const { return IsSet() && m_resourceID.GetResourceTypeID() == T::GetStaticResourceTypeID(); }
+        inline ResourceTypeID GetRequiredResourceTypeID() const { return T::GetStaticResourceTypeID(); }
 
         inline TResourcePtr<T>& operator=( ResourcePtr const& rhs )
         {

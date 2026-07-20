@@ -6,15 +6,16 @@
 
 namespace EE::Animation
 {
-    constexpr static char const* g_phaseNames[4] =
+    constexpr static char const* g_phaseNames[5] =
     {
         "Left Foot Down",
         "Right Foot Passing",
         "Right Foot Down",
         "Left Foot Passing",
+        "None"
     };
 
-    constexpr static char const* g_phaseConditionNames[6] =
+    constexpr static char const* g_phaseConditionNames[7] =
     {
         "Left Foot Down",
         "Left Foot Passing",
@@ -23,22 +24,25 @@ namespace EE::Animation
         "Right Foot Passing",
 
         "Left Phase",
-        "Right Phase"
+        "Right Phase",
+
+        "None"
     };
 
     //-------------------------------------------------------------------------
 
     StringID FootEvent::GetSyncEventID() const
     {
-        static StringID const phaseIDs[4] =
+        static StringID const phaseIDs[5] =
         {
             StringID( g_phaseNames[0] ),
             StringID( g_phaseNames[1] ),
             StringID( g_phaseNames[2] ),
             StringID( g_phaseNames[3] ),
+            StringID( g_phaseNames[4] ),
         };
 
-        return StringID( phaseIDs[(int32_t) m_phase] );
+        return phaseIDs[(int32_t) m_phase];
     }
 
     #if EE_DEVELOPMENT_TOOLS
@@ -54,12 +58,13 @@ namespace EE::Animation
 
     Color FootEvent::GetPhaseColor( Phase phase )
     {
-        static Color const phaseColors[4] =
+        static Color const phaseColors[5] =
         {
             Colors::LightSkyBlue,
             Colors::LightPink,
             Colors::HotPink,
             Colors::DeepSkyBlue,
+            Colors::Gray,
         };
 
         return phaseColors[(int32_t) phase];

@@ -1,57 +1,18 @@
 #pragma once
 
 #include "ResourceDescriptor.h"
+#include "ResourceCompilationDatabase.h"
+#include "ResourceCompilerContext.h"
 #include "Base/Resource/ResourceHeader.h"
 #include "Base/Resource/IResource.h"
 #include "Base/TypeSystem/ReflectedType.h"
-#include "Base/Types/Function.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Resource
 {
-    enum class CompilationResult : int32_t
-    {
-        Failure = -1,
-        SuccessUpToDate = 0,
-        Success = 1,
-        SuccessWithWarnings = 2,
-    };
-
-    // Log Delimiter
-    //-------------------------------------------------------------------------
-
-    struct EE_ENGINETOOLS_API CompilationLog
-    {
-        constexpr static char const* const s_delimiter = "Esoterica Resource Compiler\n-------------------------------------------------------------------------\n\n";
-    };
-
-    // Context for a single compilation operation
-    //-------------------------------------------------------------------------
-
-    struct EE_ENGINETOOLS_API CompileContext
-    {
-        CompileContext( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& compiledResourceDirectoryPath, ResourceID const& resourceToCompile, bool isCompilingForPackagedBuild );
-
-        bool IsValid() const;
-
-        inline bool IsCompilingForDevelopmentBuild() const { return !m_isCompilingForPackagedBuild; }
-        inline bool IsCompilingForPackagedBuild() const { return m_isCompilingForPackagedBuild; }
-
-    public:
-
-        Platform::Target const                          m_platform = Platform::Target::PC;
-        FileSystem::Path const                          m_sourceDataDirectoryPath;
-        FileSystem::Path const                          m_compiledResourceDirectoryPath;
-        bool                                            m_isCompilingForPackagedBuild = false;
-
-        ResourceID const                                m_resourceID;
-        FileSystem::Path const                          m_inputFilePath;
-        FileSystem::Path const                          m_outputFilePath;
-
-        uint64_t                                        m_sourceResourceHash = 0; // The combined hash of the source resource and its dependencies
-        uint64_t                                        m_advancedUpToDateHash = 0; // The optional advanced hash of the source source
-    };
+    class CompilerRegistry;
+    struct CompileDependencyResourceInfo;
 
     // Resource Compiler
     //-------------------------------------------------------------------------
@@ -62,195 +23,87 @@ namespace EE::Resource
 
     public:
 
-        struct OutputType
+        constexpr static char const * const s_compileArg = "-compile";
+        constexpr static char const * const s_forceArg = "-force";
+        constexpr static char const * const s_packageArg = "-package";
+        constexpr static char const* const s_logDelimiter = "Esoterica Resource Compiler\n-------------------------------------------------------------------------\n\n";
+        constexpr static uint64_t const s_binarySerializationVersion = 14;
+
+        struct Output final
         {
-            ResourceTypeID  m_typeID;
-            int32_t         m_version;
-            bool            m_requiresAdditionalDataFile;
+            ResourceTypeID                                  m_typeID;
+            uint64_t                                        m_version;
+            bool                                            m_requiresAdditionalDataFile;
         };
 
     public:
 
         Compiler( String const& name ) : m_name( name ) {}
-        virtual ~Compiler() {}
 
         // Get the friendly name for this compiler
         String const& GetName() const { return m_name; }
 
         // Get the version for the resource
-        int32_t GetVersion( ResourceTypeID resourceTypeID ) const;
+        uint64_t GetVersionForResourceType( ResourceTypeID resourceTypeID ) const;
 
-        void Initialize( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& rawResourceDirectoryPath );
-        void Shutdown();
-
-        // The list of resource type we can compile
-        virtual TVector<OutputType> const& GetOutputTypes() const { return m_outputTypes; }
+        // Get the list of resource types that we can compile
+        virtual TVector<Output> const& GetCompilableResourceTypes() const { return m_outputs; }
 
         // Will this compiler generate an additional data file for this resource type?
         bool WillGenerateAdditionalDataFile( ResourceTypeID resourceTypeID ) const;
 
-        // Does this compiler actually require the input file or is it optional.
-        virtual bool IsInputFileRequired() const { return true; }
-
-        // Get all referenced resources needed at runtime
-        virtual bool GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const { return true; }
-
-        // Does this resource require an additional advanced up-to-date check
-        virtual bool RequiresAdvancedUpToDateCheck( ResourceTypeID resourceTypeID ) const { return false; }
-
-        // Calculate the advanced up to date check hash
-        virtual uint64_t CalculateAdvancedUpToDateHash( ResourceID resourceID ) const { return 0; }
+        // Override this function to provide additional dependencies that cannot be trivially found via the descriptor
+        // Generally needed for things like navmesh generation where the map descriptor doesnt have the necessary information to extract exact dependencies
+        virtual void GetAdditionalCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, ResourceID const& resourceID, ResourceDescriptor const* pDescriptor, TVector<CompileDependency>& outDependencies ) const {}
 
         // Compile a resource
-        virtual CompilationResult Compile( CompileContext const& ctx ) const = 0;
+        void PerformUpToDateCheck( CompileContext& ctx ) const;
+
+        // Compile a resource
+        void CompileResource( CompileContext& ctx ) const;
 
     protected:
 
-        Compiler& operator=( Compiler const& ) = delete;
+        virtual CompilationResult Compile( CompileContext const& ctx ) const = 0;
 
-        CompilationResult Error( char const* pFormat, ... ) const;
-        CompilationResult Warning( char const* pFormat, ... ) const;
-        CompilationResult Message( char const* pFormat, ... ) const;
+        // Override this function to generate custom compile dependency hashes to provide more info to the up-to-date check
+        // This is useful in scenarios where you only dependent on some subset of data in a data file and want to avoid recompiling when irrelevant data changes
+        virtual void GenerateCustomDependencyHashes( CompileContext const& ctx, CompileDependencyResourceInfo* pResourceToCompile ) const {}
 
-        CompilationResult CompilationSucceeded( CompileContext const& ctx ) const;
-        CompilationResult CompilationSucceededWithWarnings( CompileContext const& ctx ) const;
-        CompilationResult CompilationFailed( CompileContext const& ctx ) const;
-
-        // Initialization
-        //-------------------------------------------------------------------------
-
+        // Register a type that this compiler creates
         template<typename T>
-        void AddOutputType()
+        void RegisterOutput()
         {
             static_assert( std::is_base_of<EE::Resource::IResource, T>::value, "T is not derived from IResource" );
-            m_outputTypes.emplace_back( T::GetStaticResourceTypeID(), T::s_version, T::s_requiresAdditionalDataFile );
+            m_outputs.emplace_back( T::GetStaticResourceTypeID(), T::s_version, T::s_requiresAdditionalDataFile );
         }
 
-        // Utilities
+        // Override this to check any third-party versions for a given resource type
+        virtual uint64_t GetAdditionalVersionForResourceType( ResourceTypeID resourceTypeID ) const { return 0; }
+
+        // Logging
         //-------------------------------------------------------------------------
 
-        // Converts a resource path to a file path
-        inline bool GetFilePathForResourceID( ResourceID const& resourceID, FileSystem::Path& filePath ) const
-        {
-            if ( resourceID.IsValid() )
-            {
-                filePath = resourceID.GetFileSystemPath( m_sourceDataDirectoryPath );
-                return true;
-            }
-            else
-            {
-                Error( "ResourceCompiler", "Failed to convert resource path to file system path: '%s'", resourceID.c_str() );
-                return false;
-            }
-        }
-
-
-        // Converts a resource path to a file path
-        inline bool ConvertDataPathToFilePath( DataPath const& resourcePath, FileSystem::Path& filePath ) const
-        {
-            if ( resourcePath.IsValid() )
-            {
-                filePath = resourcePath.GetFileSystemPath( m_sourceDataDirectoryPath );
-                return true;
-            }
-            else
-            {
-                Error( "ResourceCompiler", "Failed to convert resource path to file system path: '%s'", resourcePath.c_str() );
-                return false;
-            }
-        }
-
-        // Converts a file path to a resource path
-        inline bool ConvertFilePathToDataPath( FileSystem::Path const& filePath, DataPath& resourcePath ) const
-        {
-            if ( resourcePath.IsValid() )
-            {
-                resourcePath = DataPath::FromFileSystemPath( m_sourceDataDirectoryPath, filePath );
-                return true;
-            }
-            else
-            {
-                Error( "ResourceCompiler", "Failed to convert file system path to resource path: '%s'", filePath.c_str() );
-                return false;
-            }
-        }
-
-        // Try to load a resource descriptor from a resource path
-        // Optional: returns the json document read for the descriptor if you need to read additional data from it
-        template<typename T>
-        bool TryLoadResourceDescriptor( FileSystem::Path const& descriptorFilePath, T& outDescriptor ) const
-        {
-            if ( !descriptorFilePath.IsValid() )
-            {
-                Error( "Invalid descriptor file path provided!" );
-                return false;
-            }
-
-            if ( !descriptorFilePath.Exists() )
-            {
-                Error( "Descriptor file doesnt exist: %s", descriptorFilePath.c_str() );
-                return false;
-            }
-
-            if ( !ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, descriptorFilePath, outDescriptor ) )
-            {
-                EE_LOG_ERROR( "ResourceCompiler", "Load Descriptor", "Failed to read data file: %s", descriptorFilePath.c_str() );
-                return false;
-            }
-
-            return true;
-        }
-
-        // Try to load a resource descriptor from a resource path
-        // Optional: returns the json document read for the descriptor if you need to read additional data from it
-        template<typename T>
-        bool TryLoadResourceDescriptor( DataPath const& descriptorResourcePath, T& outDescriptor ) const
-        {
-            if ( !descriptorResourcePath.IsValid() )
-            {
-                Error( "Invalid descriptor resource path provided!" );
-                return false;
-            }
-
-            FileSystem::Path descriptorFilePath;
-            if ( !ConvertDataPathToFilePath( descriptorResourcePath, descriptorFilePath ) )
-            {
-                Error( "Invalid descriptor resource path: %s", descriptorResourcePath.c_str() );
-                return false;
-            }
-
-            return TryLoadResourceDescriptor( descriptorFilePath, outDescriptor );
-        }
+        CompilationResult Error( CompileContext const& ctx, char const* pFormat, ... ) const;
+        CompilationResult Warning( CompileContext const& ctx, char const* pFormat, ... ) const;
+        CompilationResult Message( CompileContext const& ctx, char const* pFormat, ... ) const;
 
         // Combines two results together and keeps the most severe one
-        EE_FORCE_INLINE CompilationResult CombineResultCode( CompilationResult a, CompilationResult b ) const
+        EE_FORCE_INLINE CompilationResult KeepHighestSeverityCompilationResult( CompilationResult a, CompilationResult b ) const
         {
-            if ( a == Resource::CompilationResult::Failure || b == Resource::CompilationResult::Failure )
-            {
-                return Resource::CompilationResult::Failure;
-            }
-
-            if ( a == Resource::CompilationResult::SuccessWithWarnings || b == Resource::CompilationResult::SuccessWithWarnings )
-            {
-                return Resource::CompilationResult::SuccessWithWarnings;
-            }
-
-            if ( a == Resource::CompilationResult::SuccessUpToDate || b == Resource::CompilationResult::SuccessUpToDate )
-            {
-                return Resource::CompilationResult::SuccessUpToDate;
-            }
-
+            if ( a == Resource::CompilationResult::Failure || b == Resource::CompilationResult::Failure ) { return Resource::CompilationResult::Failure; }
+            if ( a == Resource::CompilationResult::SuccessWithWarnings || b == Resource::CompilationResult::SuccessWithWarnings ) { return Resource::CompilationResult::SuccessWithWarnings; }
+            if ( a == Resource::CompilationResult::SuccessUpToDate || b == Resource::CompilationResult::SuccessUpToDate ) { return Resource::CompilationResult::SuccessUpToDate; }
             return Resource::CompilationResult::Success;
         }
 
-    protected:
+    private:
 
-        TypeSystem::TypeRegistry const*                 m_pTypeRegistry = nullptr;
-        FileSystem::Path                                m_sourceDataDirectoryPath;
-        String const                                    m_name;
+        Compiler& operator=( Compiler const& ) = delete;
 
     private:
 
-        TVector<OutputType>                             m_outputTypes;
+        String const                                m_name;
+        TVector<Output>                             m_outputs;
     };
 }

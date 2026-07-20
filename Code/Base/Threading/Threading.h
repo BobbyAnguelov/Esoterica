@@ -8,130 +8,129 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE
+namespace EE::Threading
 {
-    namespace Threading
+    using ThreadID = uint32_t;
+
+    //-------------------------------------------------------------------------
+    // Processor Info
+    //-------------------------------------------------------------------------
+
+    struct ProcessorInfo
     {
-        using ThreadID = uint32_t;
+        uint16_t m_numPhysicalCores = 0;
+        uint16_t m_numLogicalCores = 0;
+    };
 
-        //-------------------------------------------------------------------------
-        // Processor Info
-        //-------------------------------------------------------------------------
+    EE_BASE_API ProcessorInfo GetProcessorInfo();
+    EE_FORCE_INLINE uint16_t GetNumPhysicalCores() { return GetProcessorInfo().m_numPhysicalCores; }
+    EE_FORCE_INLINE uint16_t GetNumLogicalCores() { return GetProcessorInfo().m_numLogicalCores; }
 
-        struct ProcessorInfo
-        {
-            uint16_t m_numPhysicalCores = 0;
-            uint16_t m_numLogicalCores = 0;
-        };
+    //-------------------------------------------------------------------------
+    // Mutexes and Locks
+    //-------------------------------------------------------------------------
 
-        EE_BASE_API ProcessorInfo GetProcessorInfo();
+    typedef std::thread Thread;
+    typedef std::mutex Mutex;
+    typedef std::recursive_mutex RecursiveMutex;
+    typedef std::condition_variable ConditionVariable;
 
-        //-------------------------------------------------------------------------
-        // Mutexes and Locks
-        //-------------------------------------------------------------------------
+    using Lock = std::unique_lock<Mutex>;
+    using RecursiveLock = std::unique_lock<RecursiveMutex>;
 
-        typedef std::thread Thread;
-        typedef std::mutex Mutex;
-        typedef std::recursive_mutex RecursiveMutex;
-        typedef std::condition_variable ConditionVariable;
+    using ScopeLock = std::lock_guard<Mutex>;
+    using RecursiveScopeLock = std::lock_guard<RecursiveMutex>;
 
-        using Lock = std::unique_lock<Mutex>;
-        using RecursiveLock = std::unique_lock<RecursiveMutex>;
+    //-------------------------------------------------------------------------
+    // Read/Write lock
+    //-------------------------------------------------------------------------
 
-        using ScopeLock = std::lock_guard<Mutex>;
-        using RecursiveScopeLock = std::lock_guard<RecursiveMutex>;
+    class ReadWriteMutex
+    {
+    public:
 
-        //-------------------------------------------------------------------------
-        // Read/Write lock
-        //-------------------------------------------------------------------------
+        EE_FORCE_INLINE void LockWrite() { m_mutex.lock(); }
+        EE_FORCE_INLINE bool TryLockWrite() { return m_mutex.try_lock(); }
+        EE_FORCE_INLINE void UnlockWrite() { m_mutex.unlock(); }
 
-        class ReadWriteMutex
-        {
-        public:
+        EE_FORCE_INLINE void LockRead() { m_mutex.lock_shared(); }
+        EE_FORCE_INLINE bool TryLockRead() { return m_mutex.try_lock_shared(); }
+        EE_FORCE_INLINE void UnlockRead() { m_mutex.unlock_shared(); }
 
-            EE_FORCE_INLINE void LockWrite() { m_mutex.lock(); }
-            EE_FORCE_INLINE bool TryLockWrite() { return m_mutex.try_lock(); }
-            EE_FORCE_INLINE void UnlockWrite() { m_mutex.unlock(); }
+    private:
 
-            EE_FORCE_INLINE void LockRead() { m_mutex.lock_shared(); }
-            EE_FORCE_INLINE bool TryLockRead() { return m_mutex.try_lock_shared(); }
-            EE_FORCE_INLINE void UnlockRead() { m_mutex.unlock_shared(); }
+        std::shared_mutex m_mutex;
+    };
 
-        private:
+    class [[nodiscard]] ScopeLockRead
+    {
+    public:
 
-            std::shared_mutex m_mutex;
-        };
+        ScopeLockRead( ReadWriteMutex& mutex ) : m_mutex( mutex ) { m_mutex.LockRead(); }
+        ~ScopeLockRead() { m_mutex.UnlockRead(); }
 
-        class [[nodiscard]] ScopeLockRead
-        {
-        public:
+    private:
 
-            ScopeLockRead( ReadWriteMutex& mutex ) : m_mutex( mutex ) { m_mutex.LockRead(); }
-            ~ScopeLockRead() { m_mutex.UnlockRead(); }
+        ReadWriteMutex& m_mutex;
+    };
 
-        private:
+    class [[nodiscard]] ScopeLockWrite
+    {
+    public:
 
-            ReadWriteMutex& m_mutex;
-        };
+        ScopeLockWrite( ReadWriteMutex& mutex ) : m_mutex( mutex ) { m_mutex.LockWrite(); }
+        ~ScopeLockWrite() { m_mutex.UnlockWrite(); }
 
-        class [[nodiscard]] ScopeLockWrite
-        {
-        public:
+    private:
 
-            ScopeLockWrite( ReadWriteMutex& mutex ) : m_mutex( mutex ) { m_mutex.LockWrite(); }
-            ~ScopeLockWrite() { m_mutex.UnlockWrite(); }
+        ReadWriteMutex& m_mutex;
+    };
 
-        private:
+    //-------------------------------------------------------------------------
+    // Synchronization Event Semaphore
+    //-------------------------------------------------------------------------
 
-            ReadWriteMutex& m_mutex;
-        };
+    class EE_BASE_API SyncEvent
+    {
+    public:
 
-        //-------------------------------------------------------------------------
-        // Synchronization Event Semaphore
-        //-------------------------------------------------------------------------
+        SyncEvent();
+        ~SyncEvent();
 
-        class EE_BASE_API SyncEvent
-        {
-        public:
+        void Signal();
+        void Reset();
 
-            SyncEvent();
-            ~SyncEvent();
+        void Wait() const;
+        void Wait( Milliseconds maxWaitTime ) const;
 
-            void Signal();
-            void Reset();
+    private:
 
-            void Wait() const;
-            void Wait( Milliseconds maxWaitTime ) const;
+        void* m_pNativeHandle;
+    };
 
-        private:
+    //-------------------------------------------------------------------------
+    // Data structures
+    //-------------------------------------------------------------------------
 
-            void* m_pNativeHandle;
-        };
+    template<typename T, typename Traits = moodycamel::ConcurrentQueueDefaultTraits> using TLockFreeQueue = moodycamel::ConcurrentQueue<T, Traits>;
 
-        //-------------------------------------------------------------------------
-        // Data structures
-        //-------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
+    // Utility Functions
+    //-------------------------------------------------------------------------
 
-        template<typename T, typename Traits = moodycamel::ConcurrentQueueDefaultTraits> using LockFreeQueue = moodycamel::ConcurrentQueue<T, Traits>;
-
-        //-------------------------------------------------------------------------
-        // Utility Functions
-        //-------------------------------------------------------------------------
-
-        inline void Sleep( Milliseconds time )
-        {
-            std::this_thread::sleep_for( std::chrono::milliseconds( time ) );
-        }
-
-        EE_BASE_API bool IsMainThread();
-
-        //-------------------------------------------------------------------------
-        // Global State
-        //-------------------------------------------------------------------------
-
-        EE_BASE_API void Initialize( char const* pMainThreadName );
-        EE_BASE_API void Shutdown();
-        EE_BASE_API ThreadID GetCurrentThreadID();
-        EE_BASE_API void SetCurrentThreadName( char const* pName );
+    inline void Sleep( Milliseconds time )
+    {
+        std::this_thread::sleep_for( std::chrono::milliseconds( time ) );
     }
+
+    EE_BASE_API bool IsMainThread();
+
+    //-------------------------------------------------------------------------
+    // Global State
+    //-------------------------------------------------------------------------
+
+    EE_BASE_API void Initialize( char const* pMainThreadName );
+    EE_BASE_API void Shutdown();
+    EE_BASE_API ThreadID GetCurrentThreadID();
+    EE_BASE_API void SetCurrentThreadName( char const* pName );
 }

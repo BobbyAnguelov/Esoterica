@@ -4,9 +4,9 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
-    class AnimationController final : public Animation::GraphController
+    class PlayerAnimationController final : public Animation::GraphController
     {
 
     public:
@@ -67,7 +67,7 @@ namespace EE::Player
 
     public:
 
-        AnimationController( Animation::GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent );
+        PlayerAnimationController( Animation::GraphComponent* pGraphComponent, Render::SkeletalMeshComponent* pMeshComponent );
 
         virtual void PostGraphUpdate( Seconds deltaTime ) override;
 

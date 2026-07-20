@@ -11,14 +11,14 @@ namespace EE
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void BoxVolumeComponent::Draw( Drawing::DrawContext& drawingCtx ) const
+    void BoxVolumeComponent::Draw( DebugDrawContext& drawingCtx ) const
     {
         Color const volumeBorderColor = GetVolumeColor();
         Color const volumeColor = volumeBorderColor.GetAlphaVersion( 0.35f );
         auto const& worldBounds = GetWorldBounds();
 
-        drawingCtx.DrawBox( worldBounds, volumeColor, Drawing::DepthTest::Enable );
-        drawingCtx.DrawWireBox( worldBounds, volumeBorderColor, 2.0f, Drawing::DepthTest::Enable );
+        drawingCtx.DrawBox( worldBounds, volumeColor );
+        drawingCtx.DrawWireBox( worldBounds, volumeBorderColor, 2.0f );
     }
     #endif
 }

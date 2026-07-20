@@ -1,0 +1,23 @@
+[default.extend-identifiers]
+
+# Offset Translation
+OT = "OT"
+
+# Typos in the FBX fileformat
+PreferedAngleX = "PreferedAngleX"
+PreferedAngleY = "PreferedAngleY"
+PreferedAngleZ = "PreferedAngleZ"
+
+[default.extend-words]
+
+# Level of Detail
+lod = "lod"
+
+# False positive as 'was', used as identifier in ufbx.c
+ws = "ws"
+
+# Metalness: Common PBR term, even if it sounds wonky.
+metalness = "metalness"
+
+# Typo found in some FBX files
+Vertice = "Vertice"

@@ -23,18 +23,18 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="Configuration">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -43,39 +43,45 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
-    <Import Project="..\PropertySheets\FBXSDK.props" />
     <Import Project="..\PropertySheets\MeshOptimizer.props" />
-    <Import Project="..\PropertySheets\ISPCTextureCompressor.props" />
+    <Import Project="..\PropertySheets\CTT.props" />
+    <Import Project="..\PropertySheets\SQLite.props" />
+    <Import Project="..\PropertySheets\Box3D.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
-    <Import Project="..\PropertySheets\FBXSDK.props" />
     <Import Project="..\PropertySheets\MeshOptimizer.props" />
-    <Import Project="..\PropertySheets\ISPCTextureCompressor.props" />
+    <Import Project="..\PropertySheets\CTT.props" />
+    <Import Project="..\PropertySheets\SQLite.props" />
+    <Import Project="..\PropertySheets\Box3D.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\PropertySheets\Esoterica.props" />
-    <Import Project="..\PropertySheets\FBXSDK.props" />
     <Import Project="..\PropertySheets\MeshOptimizer.props" />
-    <Import Project="..\PropertySheets\ISPCTextureCompressor.props" />
+    <Import Project="..\PropertySheets\CTT.props" />
+    <Import Project="..\PropertySheets\SQLite.props" />
+    <Import Project="..\PropertySheets\Box3D.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ItemGroup>
     <ClCompile Include="Animation\Events\AnimationEventTracks.cpp" />
     <ClCompile Include="Animation\Events\AnimationEventTimeline.cpp" />
-    <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_IKRig.cpp" />
     <ClCompile Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationClip.cpp" />
     <ClCompile Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationGraph.cpp" />
     <ClCompile Include="Animation\ResourceDescriptors\ResourceDescriptor_AnimationSkeleton.cpp" />
-    <ClCompile Include="Animation\ResourceEditors\ResourceEditor_IKRig.cpp" />
     <ClCompile Include="Animation\ResourceOptionProviders\ResourcePickerOptionProvider_AnimationGraphDefinition.cpp" />
-    <ClCompile Include="Animation\Shared\AnimationClipBrowser.cpp" />
+    <ClCompile Include="Animation\AnimationClipBrowser.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TimeControlledAnimationClip.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_FootIK.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TargetWarp.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalPose.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TargetSelector.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Scale.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TwoBoneIK.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.cpp" />
-    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_IK.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Blend2D.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_State.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_GlobalTransitions.cpp" />
@@ -86,7 +92,7 @@
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Result.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Parameters.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_VariationData.cpp" />
-    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ReferencedGraph.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_InternalGraph.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalGraph.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_Compilation.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Animation_ToolsGraph_Definition.cpp" />
@@ -111,7 +117,7 @@
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_StateConditions.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Targets.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Vectors.cpp" />
-    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Warping.cpp" />
+    <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_OrientationWarp.cpp" />
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationClip.cpp" />
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationGraph.cpp" />
     <ClCompile Include="Animation\ResourceCompilers\ResourceCompiler_AnimationSkeleton.cpp" />
@@ -121,44 +127,72 @@
     <ClCompile Include="Core\DataFileUtils.cpp" />
     <ClCompile Include="Core\DialogManager.cpp" />
     <ClCompile Include="Core\Test\Component_SerializationTest.cpp" />
+    <ClCompile Include="Core\Tools\EditorTool_SystemSettings.cpp" />
     <ClCompile Include="Core\Test\UITest.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_Dialogs.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_Context.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_EntityInspector.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_EntityItem.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_Outliner.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_UndoableAction.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_Utils.cpp" />
     <ClCompile Include="Entity\EntitySerializationTools.cpp" />
+    <ClCompile Include="Game\ResourceCompilers\ResourceCompiler_Hitbox.cpp" />
+    <ClCompile Include="Game\ResourceDescriptors\ResourceDescriptor_Hitbox.cpp" />
+    <ClCompile Include="Game\ResourceEditors\ResourceEditor_Hitbox.cpp" />
+    <ClCompile Include="Import\Formats\FBX.cpp" />
+    <ClCompile Include="Core\Tools\EditorTool_MemoryTracker.cpp" />
+    <ClCompile Include="MapEditor\EditModes\MapEditorMode_Navigation.cpp" />
+    <ClCompile Include="Entity\ResourceDescriptors\ResourceDescriptor_EntityCollection.cpp" />
+    <ClCompile Include="Entity\ResourceDescriptors\ResourceDescriptor_EntityMap.cpp" />
+    <ClCompile Include="Import\Formats\DDS.cpp" />
+    <ClCompile Include="MapEditor\MapEditorMode.cpp" />
+    <ClCompile Include="MapEditor\EditModes\MapEditorMode_DevTools.cpp" />
+    <ClCompile Include="MapEditor\EditModes\MapEditorMode_Physics.cpp" />
+    <ClCompile Include="Navmesh\NavmeshBuildData.cpp" />
     <ClCompile Include="NodeGraph\NodeGraph_Comment.cpp" />
     <ClCompile Include="Import\RawFileInspector.cpp" />
-    <ClCompile Include="Logging\Tools\EditorTool_SystemLog.cpp" />
+    <ClCompile Include="Core\Tools\EditorTool_SystemLog.cpp" />
+    <ClCompile Include="Render\BulkUpdateOperations\BulkUpdateOperation_Render.cpp" />
+    <ClCompile Include="Render\PropertyGrid\PropertyGrid_Mesh.cpp" />
+    <ClCompile Include="Render\ResourceDescriptors\ResourceDescriptor_RenderMaterial.cpp" />
+    <ClCompile Include="Render\ResourceDescriptors\ResourceDescriptor_RenderMesh.cpp" />
+    <ClCompile Include="Render\ResourceDescriptors\ResourceDescriptor_RenderTexture.cpp" />
     <ClCompile Include="PropertyGrid\PropertyGridEditor.cpp" />
     <ClCompile Include="PropertyGrid\PropertyGridTypeEditingRules.cpp" />
     <ClCompile Include="NodeGraph\NodeGraph_UserContext.cpp" />
     <ClCompile Include="Core\ToolsContext.cpp" />
-    <ClCompile Include="Entity\ResourceEditors\ResourceEditor_EntityEditor.cpp" />
     <ClCompile Include="Entity\ResourceCompilers\ResourceCompiler_EntityCollection.cpp" />
     <ClCompile Include="Entity\ResourceCompilers\ResourceCompiler_Map.cpp" />
     <ClCompile Include="Entity\ResourceEditors\ResourceEditor_EntityCollectionEditor.cpp" />
-    <ClCompile Include="Entity\Tools\EditorTool_GamePreviewer.cpp" />
-    <ClCompile Include="Entity\ResourceEditors\ResourceEditor_MapEditor.cpp" />
+    <ClCompile Include="MapEditor\MapEditor.cpp" />
     <ClCompile Include="FileSystem\FileSystemWatcher.cpp" />
-    <ClCompile Include="Core\Dialogs.cpp" />
+    <ClCompile Include="Core\SystemDialogs.cpp" />
     <ClCompile Include="Import\ImportedImage.cpp" />
-    <ClCompile Include="Navmesh\NavmeshGenerator.cpp" />
-    <ClCompile Include="Navmesh\NavmeshGeneratorDialog.cpp" />
+    <ClCompile Include="Navmesh\NavmeshBuilder.cpp" />
     <ClCompile Include="Navmesh\ResourceCompilers\ResourceCompiler_Navmesh.cpp" />
-    <ClCompile Include="Physics\PropertyGrid\PropertyGrid_PhysicsBodySettings.cpp" />
+    <ClCompile Include="Physics\PropertyGrid\PropertyGrid_CollisionSettings.cpp" />
     <ClCompile Include="Physics\PropertyGrid\PropertyGrid_Component_PhysicsCollision.cpp" />
     <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsCollisionMesh.cpp" />
     <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.cpp" />
     <ClCompile Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsRagdoll.cpp" />
-    <ClCompile Include="Physics\ResourceEditors\ResourceEditor_CollisionMesh.cpp" />
+    <ClCompile Include="Physics\ResourceEditors\ResourceEditor_PhysicsCollisionMesh.cpp" />
     <ClCompile Include="Physics\ResourceEditors\ResourceEditor_Ragdoll.cpp" />
     <ClCompile Include="PropertyGrid\PropertyGrid.cpp" />
-    <ClCompile Include="Import\Formats\FBX.cpp" />
     <ClCompile Include="Import\Formats\GLTF.cpp" />
     <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_RenderMaterial.cpp" />
     <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_RenderMesh.cpp" />
-    <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_RenderShader.cpp" />
     <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_RenderTexture.cpp" />
     <ClCompile Include="Render\ResourceEditors\ResourceEditor_Material.cpp" />
     <ClCompile Include="Render\ResourceEditors\ResourceEditor_Mesh.cpp" />
     <ClCompile Include="Render\ResourceEditors\ResourceEditor_Texture.cpp" />
+    <ClCompile Include="Resource\Dialogs\EditorDialog_DataFileCreator.cpp" />
+    <ClCompile Include="Resource\Dialogs\EditorDialog_FileSystemAction.cpp" />
+    <ClCompile Include="Resource\Dialogs\EditorDialog_OpenResource.cpp" />
+    <ClCompile Include="Resource\Tools\EditorTool_ResourceBulkUpdate.cpp" />
+    <ClCompile Include="Resource\Tools\EditorTool_ResourceDependencyViewer.cpp" />
+    <ClCompile Include="Resource\ResourceCompilationDatabase.cpp" />
+    <ClCompile Include="Resource\ResourceCompilerContext.cpp" />
     <ClCompile Include="Resource\ResourceImportSettings.cpp" />
     <ClCompile Include="Resource\Tools\EditorTool_ResourceBrowser.cpp" />
     <ClCompile Include="Resource\Tools\EditorTool_ResourceImporter.cpp" />
@@ -169,8 +203,9 @@
     <ClCompile Include="Import\Importer.cpp" />
     <ClCompile Include="Import\ImportedMesh.cpp" />
     <ClCompile Include="Import\ImportedSkeleton.cpp" />
-    <ClCompile Include="Resource\ResourceDescriptorCreator.cpp" />
     <ClCompile Include="FileSystem\FileRegistry.cpp" />
+    <ClCompile Include="ThirdParty\tinyexr\tinyexr_Esoterica.cpp" />
+    <ClCompile Include="ThirdParty\ufbx\ufbx.c" />
     <ClCompile Include="Widgets\Pickers\ResourcePickers.cpp" />
     <ClCompile Include="Timeline\Timeline.cpp" />
     <ClCompile Include="Timeline\TimelineEditor.cpp" />
@@ -179,7 +214,6 @@
     <ClCompile Include="NodeGraph\NodeGraph_FlowGraph.cpp" />
     <ClCompile Include="NodeGraph\NodeGraph_StateMachineGraph.cpp" />
     <ClCompile Include="NodeGraph\NodeGraph_View.cpp" />
-    <ClCompile Include="Widgets\CurveEditor.cpp" />
     <ClCompile Include="Widgets\Pickers\DataPathPicker.cpp" />
     <ClCompile Include="Widgets\TreeListView.cpp" />
     <ClCompile Include="Core\EditorTool.cpp" />
@@ -190,13 +224,15 @@
   <ItemGroup>
     <ClInclude Include="Animation\Events\AnimationEventTracks.h" />
     <ClInclude Include="Animation\Events\AnimationEventTimeline.h" />
-    <ClInclude Include="Animation\ResourceCompilers\ResourceCompiler_IKRig.h" />
-    <ClInclude Include="Animation\ResourceDescriptors\ResourceDescriptor_IKRig.h" />
-    <ClInclude Include="Animation\ResourceEditors\ResourceEditor_IKRig.h" />
-    <ClInclude Include="Animation\Shared\AnimationClipBrowser.h" />
+    <ClInclude Include="Animation\AnimationClipBrowser.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TimeControlledAnimationClip.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_FootIK.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TargetWarp.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalPose.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TargetSelector.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Scale.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TwoBoneIK.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_UserContext.h" />
-    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_IK.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Blend2D.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_State.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_GlobalTransitions.h" />
@@ -207,7 +243,7 @@
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Result.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Parameters.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_VariationData.h" />
-    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ReferencedGraph.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_InternalGraph.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_ExternalGraph.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_Compilation.h" />
     <ClInclude Include="Animation\ToolsGraph\Animation_ToolsGraph_Definition.h" />
@@ -232,7 +268,7 @@
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_StateConditions.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Targets.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Vectors.h" />
-    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_Warping.h" />
+    <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_OrientationWarp.h" />
     <ClInclude Include="Animation\ResourceCompilers\ResourceCompiler_AnimationClip.h" />
     <ClInclude Include="Animation\ResourceCompilers\ResourceCompiler_AnimationGraph.h" />
     <ClInclude Include="Animation\ResourceCompilers\ResourceCompiler_AnimationSkeleton.h" />
@@ -246,27 +282,47 @@
     <ClInclude Include="Core\DataFileUtils.h" />
     <ClInclude Include="Core\DialogManager.h" />
     <ClInclude Include="Core\Test\Component_SerializationTest.h" />
+    <ClInclude Include="Core\Tools\EditorTool_SystemSettings.h" />
     <ClInclude Include="Core\Test\UITest.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_Dialogs.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_Context.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_EntityInspector.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_EntityItem.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_Outliner.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_UndoableAction.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_Utils.h" />
     <ClInclude Include="Entity\EntitySerializationTools.h" />
+    <ClInclude Include="Entity\EntityToolTypes.h" />
+    <ClInclude Include="Game\ResourceCompilers\ResourceCompiler_Hitbox.h" />
+    <ClInclude Include="Game\ResourceDescriptors\ResourceDescriptor_Hitbox.h" />
+    <ClInclude Include="Game\ResourceEditors\ResourceEditor_Hitbox.h" />
+    <ClInclude Include="Import\Formats\FBX.h" />
+    <ClInclude Include="Core\Tools\EditorTool_MemoryTracker.h" />
+    <ClInclude Include="MapEditor\MapEditorMode.h" />
+    <ClInclude Include="MapEditor\EditModes\MapEditorMode_Navigation.h" />
+    <ClInclude Include="Entity\ResourceDescriptors\ResourceDescriptor_EntityCollection.h" />
+    <ClInclude Include="Entity\ResourceDescriptors\ResourceDescriptor_EntityMap.h" />
+    <ClInclude Include="Import\Formats\DDS.h" />
+    <ClInclude Include="Import\ImporterSource.h" />
+    <ClInclude Include="MapEditor\EditModes\MapEditorMode_DevTools.h" />
+    <ClInclude Include="MapEditor\EditModes\MapEditorMode_Physics.h" />
+    <ClInclude Include="Navmesh\NavmeshBuildData.h" />
     <ClInclude Include="NodeGraph\NodeGraph_Comment.h" />
     <ClInclude Include="Import\RawFileInspector.h" />
-    <ClInclude Include="Logging\Tools\EditorTool_SystemLog.h" />
+    <ClInclude Include="Core\Tools\EditorTool_SystemLog.h" />
     <ClInclude Include="NodeGraph\NodeGraph_Style.h" />
+    <ClCompile Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsRagdoll.cpp" />
     <ClInclude Include="PropertyGrid\PropertyGridEditor.h" />
     <ClInclude Include="PropertyGrid\PropertyGridTypeEditingRules.h" />
     <ClInclude Include="NodeGraph\NodeGraph_UserContext.h" />
-    <ClInclude Include="Entity\ResourceEditors\ResourceEditor_EntityEditor.h" />
     <ClInclude Include="Entity\ResourceCompilers\ResourceCompiler_EntityCollection.h" />
     <ClInclude Include="Entity\ResourceCompilers\ResourceCompiler_Map.h" />
     <ClInclude Include="Entity\ResourceEditors\ResourceEditor_EntityCollectionEditor.h" />
-    <ClInclude Include="Entity\Tools\EditorTool_GamePreviewer.h" />
-    <ClInclude Include="Entity\ResourceEditors\ResourceEditor_MapEditor.h" />
+    <ClInclude Include="MapEditor\MapEditor.h" />
     <ClInclude Include="FileSystem\FileSystemWatcher.h" />
-    <ClInclude Include="Core\CategoryTree.h" />
-    <ClInclude Include="Core\Dialogs.h" />
+    <ClInclude Include="Core\SystemDialogs.h" />
     <ClInclude Include="Import\ImportedImage.h" />
-    <ClInclude Include="Navmesh\NavmeshGenerator.h" />
-    <ClInclude Include="Navmesh\NavmeshGeneratorDialog.h" />
+    <ClInclude Include="Navmesh\NavmeshBuilder.h" />
     <ClInclude Include="Navmesh\ResourceCompilers\ResourceCompiler_Navmesh.h" />
     <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsCollisionMesh.h" />
     <ClInclude Include="Physics\ResourceCompilers\ResourceCompiler_PhysicsMaterialDatabase.h" />
@@ -274,22 +330,29 @@
     <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsCollisionMesh.h" />
     <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsMaterialDatabase.h" />
     <ClInclude Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsRagdoll.h" />
-    <ClInclude Include="Physics\ResourceEditors\ResourceEditor_CollisionMesh.h" />
+    <ClInclude Include="Physics\ResourceEditors\ResourceEditor_PhysicsCollisionMesh.h" />
     <ClInclude Include="Physics\ResourceEditors\ResourceEditor_Ragdoll.h" />
     <ClInclude Include="PropertyGrid\PropertyGrid.h" />
-    <ClInclude Include="Import\Formats\FBX.h" />
     <ClInclude Include="Import\Formats\GLTF.h" />
+    <ClInclude Include="Render\BulkUpdateOperations\BulkUpdateOperation_Render.h" />
     <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_RenderMaterial.h" />
     <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_RenderMesh.h" />
-    <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_RenderShader.h" />
     <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_RenderTexture.h" />
     <ClInclude Include="Render\ResourceDescriptors\ResourceDescriptor_RenderMaterial.h" />
     <ClInclude Include="Render\ResourceDescriptors\ResourceDescriptor_RenderMesh.h" />
-    <ClInclude Include="Render\ResourceDescriptors\ResourceDescriptor_RenderShader.h" />
     <ClInclude Include="Render\ResourceDescriptors\ResourceDescriptor_RenderTexture.h" />
-    <ClInclude Include="Render\ResourceEditors\ResourceEditor_Material.h" />
     <ClInclude Include="Render\ResourceEditors\ResourceEditor_Mesh.h" />
+    <ClInclude Include="Render\ResourceEditors\ResourceEditor_Material.h" />
     <ClInclude Include="Render\ResourceEditors\ResourceEditor_Texture.h" />
+    <ClInclude Include="Resource\Dialogs\EditorDialog_DataFileCreator.h" />
+    <ClInclude Include="Resource\Dialogs\EditorDialog_FileSystemAction.h" />
+    <ClInclude Include="Resource\Dialogs\EditorDialog_OpenResource.h" />
+    <ClInclude Include="Resource\ResourceBulkUpdateOperation.h" />
+    <ClInclude Include="Resource\ResourceCompilerNetworkMessages.h" />
+    <ClInclude Include="Resource\Tools\EditorTool_ResourceBulkUpdate.h" />
+    <ClInclude Include="Resource\Tools\EditorTool_ResourceDependencyViewer.h" />
+    <ClInclude Include="Resource\ResourceCompilationDatabase.h" />
+    <ClInclude Include="Resource\ResourceCompilerContext.h" />
     <ClInclude Include="Resource\ResourceImportSettings.h" />
     <ClInclude Include="Resource\Tools\EditorTool_ResourceBrowser.h" />
     <ClInclude Include="Resource\Tools\EditorTool_ResourceImporter.h" />
@@ -302,8 +365,9 @@
     <ClInclude Include="Import\Importer.h" />
     <ClInclude Include="Import\ImportedMesh.h" />
     <ClInclude Include="Import\ImportedSkeleton.h" />
-    <ClInclude Include="Resource\ResourceDescriptorCreator.h" />
     <ClInclude Include="FileSystem\FileRegistry.h" />
+    <ClInclude Include="ThirdParty\tinyexr\tinyexr.h" />
+    <ClInclude Include="ThirdParty\ufbx\ufbx.h" />
     <ClInclude Include="Widgets\Pickers\ResourcePickers.h" />
     <ClInclude Include="ThirdParty\cgltf\cgltf.h" />
     <ClInclude Include="ThirdParty\cgltf\cgltf_write.h" />
@@ -319,7 +383,6 @@
     <ClInclude Include="NodeGraph\NodeGraph_FlowGraph.h" />
     <ClInclude Include="NodeGraph\NodeGraph_StateMachineGraph.h" />
     <ClInclude Include="NodeGraph\NodeGraph_View.h" />
-    <ClInclude Include="Widgets\CurveEditor.h" />
     <ClInclude Include="Widgets\Pickers\DataPathPicker.h" />
     <ClInclude Include="Widgets\TreeListView.h" />
     <ClInclude Include="Core\EditorTool.h" />

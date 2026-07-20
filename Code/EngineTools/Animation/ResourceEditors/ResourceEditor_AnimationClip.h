@@ -3,9 +3,9 @@
 #include "EngineTools/Animation/Events/AnimationEventTimeline.h"
 #include "EngineTools/PropertyGrid/PropertyGrid.h"
 #include "EngineTools/Core/EditorTool.h"
+#include "EngineTools/Animation/AnimationClipBrowser.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Base/Time/Timers.h"
-#include "EngineTools/Animation/Shared/AnimationClipBrowser.h"
 
 //-------------------------------------------------------------------------
 
@@ -59,7 +59,7 @@ namespace EE::Animation
 
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void Shutdown( UpdateContext const& context ) override;
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
+        virtual void SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
 
         virtual void WorldUpdate( EntityWorldUpdateContext const& updateContext ) override;
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
@@ -67,26 +67,36 @@ namespace EE::Animation
         virtual void DrawMenu( UpdateContext const& context ) override;
         virtual void DrawHelpMenu() const override;
 
-        virtual bool HasViewportToolbarTimeControls() const override { return true; }
-        virtual void DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport ) override;
+        virtual bool SupportsToolbar() const override { return false; }
+
+        virtual bool SupportsWorldTimeControls() const override { return true; }
+        virtual void ExtendViewportToolBar( UpdateContext const& context, Viewport* pViewport ) override;
+        virtual bool ExtendViewportToolBar_VisualizationControls( UpdateContext const& context, Viewport* pViewport ) override;
 
         virtual bool SaveData() override;
 
-        virtual void PreUndoRedo( UndoStack::Operation operation ) override;
+        virtual void PreUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
 
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_RUN_FAST; }
         void DrawTimelineWindow( UpdateContext const& context, bool isFocused );
-        void DrawHierarchyWindow( UpdateContext const& context, bool isFocused );
         void DrawDetailsWindow( UpdateContext const& context, bool isFocused );
         void DrawClipBrowser( UpdateContext const& context, bool isFocused );
+        void DrawFloatCurvesWindow( UpdateContext const& context, bool isFocused );
 
         void CreatePreviewEntity();
         void DestroyPreviewEntity();
 
+        //-------------------------------------------------------------------------
+
+        void DrawSkeletonOutlineWindow( UpdateContext const& context, bool isFocused );
         void CreateSkeletonTree();
         void DestroySkeletonTree();
         void DrawSkeletonTreeRow( BoneInfo* pBoneInfo );
+
+        void DrawBoneInfoWindow( UpdateContext const& context, bool isFocused );
+
+        //-------------------------------------------------------------------------
 
         virtual void OnDataFileUnload() override;
         virtual void OnDataFileLoadCompleted() override;
@@ -110,7 +120,6 @@ namespace EE::Animation
         BoneInfo*                       m_pSkeletonTreeRoot = nullptr;
         TVector<StringID>               m_selectedBoneIDs;
         bool                            m_isolateSelectedBones = true;
-        bool                            m_showHierarchyTransforms = true;
 
         Transform                       m_characterTransform = Transform::Identity;
         ResourceID                      m_previewMeshOverride;

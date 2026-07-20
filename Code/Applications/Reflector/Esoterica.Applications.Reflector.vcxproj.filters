@@ -1,91 +1,120 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="TypeReflection\TypeReflector.cpp" />
+    <ClCompile Include="TypeReflection\TypeReflection_ReflectedProperty.cpp">
+      <Filter>TypeReflection</Filter>
+    </ClCompile>
+    <ClCompile Include="TypeReflection\TypeReflection_ReflectedDataFileType.cpp">
+      <Filter>TypeReflection</Filter>
+    </ClCompile>
+    <ClCompile Include="TypeReflection\TypeReflection_ReflectedType.cpp">
+      <Filter>TypeReflection</Filter>
+    </ClCompile>
+    <ClCompile Include="TypeReflection\TypeReflection_CodeGenerator.cpp">
+      <Filter>TypeReflection</Filter>
+    </ClCompile>
+    <ClCompile Include="ReflectorApplication.cpp" />
+    <ClCompile Include="TypeReflection\TypeReflection_ReflectedResourceType.cpp">
+      <Filter>TypeReflection</Filter>
+    </ClCompile>
     <ClCompile Include="TypeReflection\Clang\ClangParserContext.cpp">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClCompile>
     <ClCompile Include="TypeReflection\Clang\ClangParser.cpp">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClCompile>
     <ClCompile Include="TypeReflection\Clang\ClangUtils.cpp">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClCompile>
     <ClCompile Include="TypeReflection\Clang\ClangVisitors_Enum.cpp">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClCompile>
     <ClCompile Include="TypeReflection\Clang\ClangVisitors_Macro.cpp">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClCompile>
     <ClCompile Include="TypeReflection\Clang\ClangVisitors_Structure.cpp">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClCompile>
     <ClCompile Include="TypeReflection\Clang\ClangVisitors_TranslationUnit.cpp">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClCompile>
-    <ClCompile Include="TypeReflection\ReflectionDatabase.cpp">
-      <Filter>Database</Filter>
-    </ClCompile>
-    <ClCompile Include="TypeReflection\CodeGenerator.cpp" />
-    <ClCompile Include="ReflectorApplication.cpp" />
-    <ClCompile Include="TypeReflection\ReflectionSettings.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedHeader.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedProject.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedProperty.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedSolution.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedType.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedResourceType.cpp" />
-    <ClCompile Include="TypeReflection\ReflectedDataFileType.cpp" />
+    <ClCompile Include="ShaderReflection\ShaderReflection_CodeGenerator.cpp" />
+    <ClCompile Include="TypeReflection\TypeReflection_ReflectionDatabase.cpp" />
+    <ClCompile Include="ShaderReflection\ShaderReflection_ShaderCompiler.cpp" />
+    <ClCompile Include="Reflector.cpp" />
+    <ClCompile Include="ReflectedProject.cpp" />
+    <ClCompile Include="ReflectedHeader.cpp" />
+    <ClCompile Include="ReflectedMacro.cpp" />
+    <ClCompile Include="ReflectedShader.cpp" />
+    <ClCompile Include="ReflectorSettings.cpp" />
+    <ClCompile Include="ShaderReflection\ShaderReflection_ShaderParser.cpp" />
+    <ClCompile Include="ShaderReflection\ShaderReflection_ShaderInputReflector.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="TypeReflection\TypeReflector.h" />
     <ClInclude Include="Resources\Resource.h">
       <Filter>Resources</Filter>
     </ClInclude>
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectedDataFileType.h">
+      <Filter>TypeReflection</Filter>
+    </ClInclude>
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectedEnumConstant.h">
+      <Filter>TypeReflection</Filter>
+    </ClInclude>
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectedProperty.h">
+      <Filter>TypeReflection</Filter>
+    </ClInclude>
+    <ClInclude Include="TypeReflection\TypeReflection_CodeGenerator.h">
+      <Filter>TypeReflection</Filter>
+    </ClInclude>
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectedType.h">
+      <Filter>TypeReflection</Filter>
+    </ClInclude>
     <ClInclude Include="TypeReflection\Clang\ClangParserContext.h">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClInclude>
     <ClInclude Include="TypeReflection\Clang\ClangParser.h">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClInclude>
     <ClInclude Include="TypeReflection\Clang\ClangUtils.h">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClInclude>
     <ClInclude Include="TypeReflection\Clang\ClangVisitors_Enum.h">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClInclude>
     <ClInclude Include="TypeReflection\Clang\ClangVisitors_Macro.h">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClInclude>
     <ClInclude Include="TypeReflection\Clang\ClangVisitors_Structure.h">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClInclude>
     <ClInclude Include="TypeReflection\Clang\ClangVisitors_TranslationUnit.h">
-      <Filter>Clang</Filter>
+      <Filter>TypeReflection\Clang</Filter>
     </ClInclude>
-    <ClInclude Include="TypeReflection\ReflectionDatabase.h">
-      <Filter>Database</Filter>
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectionDatabase.h">
+      <Filter>TypeReflection</Filter>
     </ClInclude>
-    <ClInclude Include="TypeReflection\CodeGenerator.h" />
-    <ClInclude Include="TypeReflection\ReflectionSettings.h" />
-    <ClInclude Include="TypeReflection\ReflectedDataFileType.h" />
-    <ClInclude Include="TypeReflection\ReflectedHeader.h" />
-    <ClInclude Include="TypeReflection\ReflectedProject.h" />
-    <ClInclude Include="TypeReflection\ReflectedProperty.h" />
-    <ClInclude Include="TypeReflection\ReflectedResourceType.h" />
-    <ClInclude Include="TypeReflection\ReflectedSolution.h" />
-    <ClInclude Include="TypeReflection\ReflectedType.h" />
-    <ClInclude Include="TypeReflection\ReflectedEnumConstant.h" />
+    <ClInclude Include="ShaderReflection\ShaderReflection_CodeGenerator.h" />
+    <ClInclude Include="TypeReflection\TypeReflection_ReflectedResourceType.h" />
+    <ClInclude Include="ShaderReflection\ShaderReflection_ShaderCompiler.h" />
+    <ClInclude Include="Reflector.h" />
+    <ClInclude Include="ReflectedProject.h" />
+    <ClInclude Include="ReflectedHeader.h" />
+    <ClInclude Include="ReflectedMacro.h" />
+    <ClInclude Include="ReflectorSettings.h" />
+    <ClInclude Include="ReflectedShader.h" />
+    <ClInclude Include="ShaderReflection\ShaderReflection_ShaderParser.h" />
+    <ClInclude Include="ReflectedCodeGenerator.h" />
+    <ClInclude Include="ShaderReflection\ShaderReflection_ShaderInputReflector.h" />
   </ItemGroup>
   <ItemGroup>
+    <Filter Include="TypeReflection">
+      <UniqueIdentifier>{7ad89912-4ff9-403d-a573-c519b9441bbd}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Resources">
-      <UniqueIdentifier>{a7e94abf-f07c-4c97-8c51-df44fb3d16ef}</UniqueIdentifier>
+      <UniqueIdentifier>{e8a27cb1-b1d2-47ae-8a5d-e468566dce40}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Clang">
-      <UniqueIdentifier>{6638ab7f-1c6b-4079-a1c7-e3577d3e6f20}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Database">
-      <UniqueIdentifier>{282c0b75-2ea6-4f31-a337-5dbf14c15e6b}</UniqueIdentifier>
+    <Filter Include="TypeReflection\Clang">
+      <UniqueIdentifier>{937f712b-b063-4f85-9bc2-266ddff47341}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

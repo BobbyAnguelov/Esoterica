@@ -1,9 +1,0 @@
-<Type TypeID="EE::Render::MaterialResourceDescriptor" Version="0">
-  <Property ID="m_albedoTexture" Value="data://demo/renderdemo/materials/copper/albedo.txtr" />
-  <Property ID="m_roughnessTexture" Value="data://demo/renderdemo/materials/copper/roughness.txtr" />
-  <Property ID="m_normalMapTexture" Value="data://demo/renderdemo/materials/copper/normal.txtr" />
-  <Property ID="m_albedo" Value="000000FF" />
-  <Property ID="m_metalness" Value="1" />
-  <Property ID="m_roughness" Value="1" />
-  <Property ID="m_normalScaler" Value="4" />
-</Type>

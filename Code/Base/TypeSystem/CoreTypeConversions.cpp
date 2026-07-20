@@ -93,7 +93,7 @@ namespace EE::TypeSystem::Conversion
 
         for ( int32_t i = 0; i < numInts; i++ )
         {
-            strValue += eastl::to_string( pInts[i] );
+            strValue += String( String::CtorSprintf(), "%d", pInts[i] );
 
             if ( i != ( numInts - 1 ) )
             {
@@ -260,11 +260,11 @@ namespace EE::TypeSystem::Conversion
     bool ConvertStringToNativeType( TypeRegistry const& typeRegistry, TypeID typeID, TypeID templateArgumentTypeID, String const& str, void* pValue )
     {
         // Enums
-        if( !IsCoreType( typeID ) ) 
+        if ( !IsCoreType( typeID ) )
         {
             EnumInfo const* pEnumInfo = typeRegistry.GetEnumInfo( typeID );
             EE_ASSERT( pEnumInfo != nullptr );
-            
+
             StringID const enumID( str );
             int64_t const enumValue = pEnumInfo->GetConstantValue( enumID );
 
@@ -324,7 +324,7 @@ namespace EE::TypeSystem::Conversion
             CoreTypeID const typeToConvert = GetCoreType( typeID );
             switch ( typeToConvert )
             {
-                case CoreTypeID::Bool :
+                case CoreTypeID::Bool:
                 {
                     String lowerString = str;
                     lowerString.make_lower();
@@ -332,43 +332,43 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::Uint8 :
+                case CoreTypeID::Uint8:
                 {
                     *reinterpret_cast<uint8_t*>( pValue ) = (uint8_t) std::strtoul( str.c_str(), nullptr, 0 );
                 }
                 break;
 
-                case CoreTypeID::Int8 :
+                case CoreTypeID::Int8:
                 {
                     *reinterpret_cast<int8_t*>( pValue ) = (int8_t) std::strtol( str.c_str(), nullptr, 0 );
                 }
                 break;
 
-                case CoreTypeID::Uint16 :
+                case CoreTypeID::Uint16:
                 {
                     *reinterpret_cast<uint16_t*>( pValue ) = (uint16_t) std::strtoul( str.c_str(), nullptr, 0 );
                 }
                 break;
 
-                case CoreTypeID::Int16 :
+                case CoreTypeID::Int16:
                 {
                     *reinterpret_cast<int16_t*>( pValue ) = (int16_t) std::strtol( str.c_str(), nullptr, 0 );
                 }
                 break;
 
-                case CoreTypeID::Uint32 :
+                case CoreTypeID::Uint32:
                 {
                     *reinterpret_cast<uint32_t*>( pValue ) = std::strtoul( str.c_str(), nullptr, 0 );
                 }
                 break;
 
-                case CoreTypeID::Int32 :
+                case CoreTypeID::Int32:
                 {
                     *reinterpret_cast<int32_t*>( pValue ) = std::strtol( str.c_str(), nullptr, 0 );
                 }
                 break;
 
-                case CoreTypeID::Uint64 :
+                case CoreTypeID::Uint64:
                 {
                     *reinterpret_cast<uint64_t*>( pValue ) = std::strtoull( str.c_str(), nullptr, 0 );
                 }
@@ -380,25 +380,25 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::Float :
+                case CoreTypeID::Float:
                 {
                     *reinterpret_cast<float*>( pValue ) = std::strtof( str.c_str(), nullptr );
                 }
                 break;
 
-                case CoreTypeID::Double :
+                case CoreTypeID::Double:
                 {
                     *reinterpret_cast<double*>( pValue ) = std::strtod( str.c_str(), nullptr );
                 }
                 break;
 
-                case CoreTypeID::String :
+                case CoreTypeID::String:
                 {
                     *reinterpret_cast<String*>( pValue ) = str;
                 }
                 break;
 
-                case CoreTypeID::StringID :
+                case CoreTypeID::StringID:
                 {
                     *reinterpret_cast<StringID*>( pValue ) = StringID( str.c_str() );
                 }
@@ -422,20 +422,20 @@ namespace EE::TypeSystem::Conversion
                 }
                 break;
 
-                case CoreTypeID::UUID :
+                case CoreTypeID::UUID:
                 {
                     *reinterpret_cast<UUID*>( pValue ) = UUID( str );
                 }
                 break;
 
-                case CoreTypeID::Color :
+                case CoreTypeID::Color:
                 {
                     uint32_t const colorType = std::strtoul( str.c_str(), nullptr, 16 );
                     *reinterpret_cast<Color*>( pValue ) = Color( colorType );
                 }
                 break;
 
-                case CoreTypeID::Float2 :
+                case CoreTypeID::Float2:
                 {
                     StringToFloatArray( str, 2, &reinterpret_cast<Float2*>( pValue )->m_x );
                 }
@@ -538,10 +538,11 @@ namespace EE::TypeSystem::Conversion
                 case CoreTypeID::DataPath:
                 case CoreTypeID::TDataFilePath:
                 {
-                    DataPath* pDataPath = reinterpret_cast<DataPath*>( pValue );
-                    if ( !pDataPath->TrySetFromString( str ) )
+                    DataPath& dataPath = *reinterpret_cast<DataPath*>( pValue );
+                    dataPath = DataPath( str, DataPath::AllowInvalidPath );
+                    if ( !dataPath.IsValid() )
                     {
-                        EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Invalid data path string encountered: %s", str.c_str() );
+                        EE_LOG_WARNING( LogCategory::TypeSystem, "Core Type Conversions", "Invalid data path string encountered: %s", str.c_str() );
                         return false;
                     }
                 }
@@ -585,7 +586,7 @@ namespace EE::TypeSystem::Conversion
                 case CoreTypeID::FloatCurve:
                 {
                     FloatCurve& outCurve = *reinterpret_cast<FloatCurve*>( pValue );
-                    if ( !FloatCurve::FromString( str, outCurve ) )
+                    if ( !outCurve.FromString( str ) )
                     {
                         return false;
                     }
@@ -610,7 +611,7 @@ namespace EE::TypeSystem::Conversion
                     {
                         if ( !ResourceID::IsValidResourceIDString( str ) )
                         {
-                            EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Invalid resource ID string encountered: %s", str.c_str());
+                            EE_LOG_WARNING( LogCategory::TypeSystem, "Core Type Conversions", "Invalid resource ID string encountered: %s", str.c_str() );
                             return false;
                         }
                         ResourceID const ID( str );
@@ -629,7 +630,7 @@ namespace EE::TypeSystem::Conversion
                     {
                         if ( !ResourceID::IsValidResourceIDString( str ) )
                         {
-                            EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Invalid resource ID string encountered: %s", str.c_str() );
+                            EE_LOG_WARNING( LogCategory::TypeSystem, "Core Type Conversions", "Invalid resource ID string encountered: %s", str.c_str() );
                             return false;
                         }
                         *reinterpret_cast<ResourceID*>( pValue ) = ResourceID( str );
@@ -648,13 +649,13 @@ namespace EE::TypeSystem::Conversion
                     EnumInfo const* pEnumInfo = typeRegistry.GetEnumInfo( templateArgumentTypeID );
                     if ( pEnumInfo == nullptr )
                     {
-                        EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Unknown enum class (%s) for TBitFlags", templateArgumentTypeID.ToStringID().c_str() );
+                        EE_LOG_WARNING( LogCategory::TypeSystem, "Core Type Conversions", "Unknown enum class (%s) for TBitFlags", templateArgumentTypeID.ToStringID().c_str() );
                         return false;
                     }
 
                     if ( !ConvertStringToBitFlags( *pEnumInfo, str, *reinterpret_cast<BitFlags*>( pValue ) ) )
                     {
-                        EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Failed to convert string (%s) into valid TBitFlags<%s>", str.c_str(), templateArgumentTypeID.ToStringID().c_str() );
+                        EE_LOG_WARNING( LogCategory::TypeSystem, "Core Type Conversions", "Failed to convert string (%s) into valid TBitFlags<%s>", str.c_str(), templateArgumentTypeID.ToStringID().c_str() );
                         return false;
                     }
                 }
@@ -745,7 +746,7 @@ namespace EE::TypeSystem::Conversion
             }
             else
             {
-                EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Failed to find enum label matching value (%d) for enum (%s)", enumValue, pEnumInfo->m_ID.c_str() );
+                EE_LOG_WARNING( LogCategory::TypeSystem, "Core Type Conversions", "Failed to find enum label matching value (%d) for enum (%s)", enumValue, pEnumInfo->m_ID.c_str() );
                 strValue = pEnumInfo->m_constants[0].m_ID.c_str();
             }
         }
@@ -855,7 +856,7 @@ namespace EE::TypeSystem::Conversion
                 case CoreTypeID::TypeID:
                 {
                     char const* pStr = reinterpret_cast<TypeID const*>( pValue )->ToStringID().c_str();
-                    if (pStr != nullptr)
+                    if ( pStr != nullptr )
                     {
                         strValue = pStr;
                     }
@@ -1004,7 +1005,7 @@ namespace EE::TypeSystem::Conversion
                 case CoreTypeID::DataPath:
                 case CoreTypeID::TDataFilePath:
                 {
-                    strValue = reinterpret_cast<DataPath const*>( pValue )->c_str();
+                    strValue = reinterpret_cast<DataPath const*>( pValue )->GetString();
                 }
                 break;
 
@@ -1038,13 +1039,13 @@ namespace EE::TypeSystem::Conversion
                 case CoreTypeID::ResourcePtr:
                 case CoreTypeID::TResourcePtr:
                 {
-                    strValue = reinterpret_cast<Resource::ResourcePtr const*>( pValue )->GetResourceID().ToString();
+                    strValue = reinterpret_cast<Resource::ResourcePtr const*>( pValue )->GetResourceID().GetString();
                 }
                 break;
 
                 case CoreTypeID::ResourceID:
                 {
-                    strValue = reinterpret_cast<ResourceID const*>( pValue )->ToString();
+                    strValue = reinterpret_cast<ResourceID const*>( pValue )->GetString();
                 }
                 break;
 
@@ -1059,13 +1060,13 @@ namespace EE::TypeSystem::Conversion
                     EnumInfo const* pEnumInfo = typeRegistry.GetEnumInfo( templateArgumentTypeID );
                     if ( pEnumInfo == nullptr )
                     {
-                        EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Unknown enum class (%s) for TBitFlags", templateArgumentTypeID.ToStringID().c_str() );
+                        EE_LOG_WARNING( LogCategory::TypeSystem, "Core Type Conversions", "Unknown enum class (%s) for TBitFlags", templateArgumentTypeID.ToStringID().c_str() );
                         return false;
                     }
 
                     if ( !ConvertBitFlagsToString( *pEnumInfo, *reinterpret_cast<BitFlags const*>( pValue ), strValue ) )
                     {
-                        EE_LOG_WARNING( "TypeSystem", "Core Type Conversions", "Failed to convert string (%s) into valid TBitFlags<%s>", strValue.c_str(), templateArgumentTypeID.ToStringID().c_str() );
+                        EE_LOG_WARNING( LogCategory::TypeSystem, "Core Type Conversions", "Failed to convert string (%s) into valid TBitFlags<%s>", strValue.c_str(), templateArgumentTypeID.ToStringID().c_str() );
                         return false;
                     }
                 }
@@ -1561,7 +1562,7 @@ namespace EE::TypeSystem::Conversion
 
                 case CoreTypeID::Tag2:
                 {
-                   archive << *reinterpret_cast<Tag2*>( pValue );
+                    archive << *reinterpret_cast<Tag2*>( pValue );
                 }
                 break;
 

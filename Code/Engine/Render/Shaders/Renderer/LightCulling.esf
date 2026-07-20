@@ -1,0 +1,199 @@
+
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Debug/DebugDraw.esh"
+#include "Engine/Render/Shaders/MeshInstance.esh"
+
+ESF_PARAMETER string ShaderType = "Compute";
+
+EE_DECLARE_ROOT_CONSTANTS( LightCullingRootConstants, b0, space0 );
+EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
+
+groupshared uint gsPointMask0;
+groupshared uint gsPointMask1;
+groupshared uint gsSpotMask0;
+groupshared uint gsSpotMask1;
+
+bool IsFrustumVisible( float3 clusterCenter, float clusterRadius, float4 viewPlanes[6] )
+{
+    [unroll( 6 )]
+    for ( uint planeIndex = 0; planeIndex < 6; ++planeIndex )
+    {
+        if ( dot( float4( clusterCenter, 1.0 ), viewPlanes[planeIndex] ) < -clusterRadius )
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool TilesOverlap( float2 tileCenter0, float2 tileExtent0, float2 tileCenter1, float2 tileExtent1 )
+{
+    float2 d = abs( tileCenter0 - tileCenter1 );
+    float2 s = tileExtent0 + tileExtent1;
+    return all( d <= s );
+}
+
+[RootSignature( LightCullingRootSignature )]
+[numthreads( 64, 1, 1 )]
+void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex, uint3 dispatchThreadID : SV_DispatchThreadID )
+{
+    if ( groupThreadID == 0 )
+    {
+        gsPointMask0 = 0;
+        gsPointMask1 = 0;
+        gsSpotMask0 = 0;
+        gsSpotMask1 = 0;
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    //-------------------------------------------------------------------------------------------------------
+    
+    StructuredBuffer<RenderView>                    renderViewBuffer            = GetBuffer( RootCBV.m_renderViewBuffer );
+    StructuredBuffer<LightInstance_PointLight>      pointLightBuffer            = GetBuffer( RootCBV.m_pointLightBuffer );
+    StructuredBuffer<LightInstance_SpotLight>       spotLightBuffer             = GetBuffer( RootCBV.m_spotLightBuffer );
+    
+    Buffer<uint64_t>                                pointLightPageBuffer        = GetBuffer( RootCBV.m_pointLightPageBuffer );
+    Buffer<uint64_t>                                spotLightPageBuffer         = GetBuffer( RootCBV.m_spotLightPageBuffer );
+    
+    RWTexture2DArray<uint4>                         lightCullingBucketTexture   = GetRWTexture( RootConstants.m_LightCulling_BucketTexture );
+    
+    //ShaderDebugDraw                                 debugDraw                   = InitializeShaderDebugDraw( BufferHandle( RootCBV.m_shaderDebugDrawBuffer ) );
+    
+    //-------------------------------------------------------------------------------------------------------
+    
+    RenderView                                      renderView                  = renderViewBuffer[RootConstants.m_mainCameraRenderView];
+    
+    float4 viewPlanes[6];
+    renderView.ComputeViewPlanes(viewPlanes);
+    
+    float2 screenTileCenter = ( float2( groupID.xy ) + 0.5.xx ) * RootCBV.m_lightCullingTextureSize.zw;
+    float2 screenTileExtent = RootCBV.m_lightCullingTextureSize.zw * 0.5;
+    
+    uint pageIndex        = groupID.z;
+    uint numPointPages    = RootCBV.m_numPointLightPages;
+    uint numSpotPages     = RootCBV.m_numSpotLightPages;
+    uint64_t pageMask     = ( 1ULL << groupThreadID );
+    uint bucketBase       = pageIndex * 2;
+    
+    // Point light culling
+    //-------------------------------------------------------------------------------------------
+    if ( pageIndex < numPointPages )
+    {
+        uint64_t pointPage = pointLightPageBuffer[pageIndex];
+        if ( pointPage & pageMask )
+        {
+            uint pointIndex = pageIndex * 64 + groupThreadID;
+            LightInstance_PointLight pointLight = pointLightBuffer[pointIndex];
+
+            float cullRadius = pointLight.m_maxRadius;
+
+            bool lightVisible = IsFrustumVisible( pointLight.m_lightPosition, cullRadius, viewPlanes );
+            
+            if ( lightVisible )
+            {
+                float4 projectedAABB = 0.0.xxxx;
+                if ( renderView.ProjectBox( pointLight.m_lightPosition - cullRadius.xxx, pointLight.m_lightPosition + cullRadius.xxx, projectedAABB ) )
+                {
+                    float width = ( projectedAABB.z - projectedAABB.x ) * renderView.m_renderTargetSize.x;
+                    float height = ( projectedAABB.w - projectedAABB.y ) * renderView.m_renderTargetSize.y;
+                
+                    if ( width < 2.0 || height < 2.0 )
+                    {
+                        lightVisible = false;
+                    }
+                    
+                    float2 lightTileExtent = ( projectedAABB.zw - projectedAABB.xy ) * 0.5;
+                    float2 lightTileCenter = projectedAABB.xy + lightTileExtent;
+                    
+                    if ( !TilesOverlap( screenTileCenter, screenTileExtent, lightTileCenter, lightTileExtent ) )
+                    {
+                        lightVisible = false;
+                    }
+                }
+            }
+            
+            if ( lightVisible )
+            {                    
+                if ( groupThreadID < 32 )
+                {
+                    const uint lightMaskLocal = 1U << groupThreadID;
+                    InterlockedOr( gsPointMask0, lightMaskLocal );
+                }
+                else
+                {
+                    const uint lightMaskLocal = 1U << ( groupThreadID - 32 );
+                    InterlockedOr( gsPointMask1, lightMaskLocal );
+                }
+            }
+        }
+    }
+    
+    // Spot light culling
+    //-------------------------------------------------------------------------------------------
+    if ( pageIndex < numSpotPages )
+    {
+        uint64_t spotPage = spotLightPageBuffer[pageIndex];
+        if ( spotPage & pageMask )
+        {
+            uint spotIndex = pageIndex * 64 + groupThreadID;
+            LightInstance_SpotLight spotLight = spotLightBuffer[spotIndex];
+
+            float cullRadius = spotLight.m_maxRadius;
+
+            // TODO: Conservative light culling, this is woefully suboptimal
+            bool lightVisible = IsFrustumVisible( spotLight.m_lightPosition, cullRadius, viewPlanes );
+            
+            if ( lightVisible )
+            {
+                float4 projectedAABB = 0.0.xxxx;
+                if ( renderView.ProjectBox( spotLight.m_lightPosition - cullRadius.xxx, spotLight.m_lightPosition + cullRadius.xxx, projectedAABB ) )
+                {
+                    float width = ( projectedAABB.z - projectedAABB.x ) * renderView.m_renderTargetSize.x;
+                    float height = ( projectedAABB.w - projectedAABB.y ) * renderView.m_renderTargetSize.y;
+                
+                    if ( width < 2.0 || height < 2.0 )
+                    {
+                        lightVisible = false;
+                    }
+                    
+                    float2 lightTileExtent = ( projectedAABB.zw - projectedAABB.xy ) * 0.5;
+                    float2 lightTileCenter = projectedAABB.xy + lightTileExtent;
+                    
+                    if ( !TilesOverlap( screenTileCenter, screenTileExtent, lightTileCenter, lightTileExtent ) )
+                    {
+                        lightVisible = false;
+                    }
+                }
+            }
+            
+            if ( lightVisible )
+            {                    
+                if ( groupThreadID < 32 )
+                {
+                    const uint lightMaskLocal = 1U << groupThreadID;
+                    InterlockedOr( gsSpotMask0, lightMaskLocal );
+                }
+                else
+                {
+                    const uint lightMaskLocal = 1U << ( groupThreadID - 32 );
+                    InterlockedOr( gsSpotMask1, lightMaskLocal );
+                }
+            }
+        }
+    }
+    
+    GroupMemoryBarrierWithGroupSync();
+    
+    if ( groupThreadID == 0 )
+    {
+        lightCullingBucketTexture[uint3( groupID.xy, bucketBase )]     = uint4( gsPointMask0, gsSpotMask0, 0, 0 );
+        lightCullingBucketTexture[uint3( groupID.xy, bucketBase + 1 )] = uint4( gsPointMask1, gsSpotMask1, 0, 0 );
+        
+        gsPointMask0 = 0;
+        gsPointMask1 = 0;
+
+        gsSpotMask0  = 0;
+        gsSpotMask1  = 0;
+    }
+}

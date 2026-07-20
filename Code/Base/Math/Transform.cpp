@@ -5,56 +5,34 @@
 namespace EE
 {
     Transform const Transform::Identity = Transform( Quaternion( 0, 0, 0, 1 ), Vector( 0, 0, 0, 1 ), 1.0f );
+    Transform const Transform::Zero = Transform( Quaternion( 0, 0, 0, 1 ), Vector( 0, 0, 0, 0 ), 0.0f );
 
     //-------------------------------------------------------------------------
 
-    Vector Transform::GetAxis( Axis axis ) const
+    void Transform::Sanitize()
     {
-        switch ( axis )
-        {
-            case EE::Axis::X:
-            {
-                return GetAxisX();
-            }
-            break;
+        // Rotation
+        //-------------------------------------------------------------------------
 
-            case EE::Axis::Y:
-            {
-                return GetAxisY();
-            }
-            break;
+        Float4 F4 = m_rotation.ToFloat4();
+        F4.m_x = Math::SanitizeFloat( F4.m_x );
+        F4.m_y = Math::SanitizeFloat( F4.m_y );
+        F4.m_z = Math::SanitizeFloat( F4.m_z );
+        F4.m_w = Math::SanitizeFloat( F4.m_w );
 
-            case EE::Axis::Z:
-            {
-                return GetAxisZ();
-            }
-            break;
+        m_rotation = Quaternion( F4 );
+        m_rotation.Normalize();
 
-            case EE::Axis::NegX:
-            {
-                return GetAxisX().GetNegated();
-            }
-            break;
+        // Translation/Scale
+        //-------------------------------------------------------------------------
 
-            case EE::Axis::NegY:
-            {
-                return GetAxisY().GetNegated();
-            }
-            break;
+        F4 = m_translationScale.ToFloat4();
+        F4.m_x = Math::SanitizeFloat( F4.m_x );
+        F4.m_y = Math::SanitizeFloat( F4.m_y );
+        F4.m_z = Math::SanitizeFloat( F4.m_z );
+        F4.m_w = Math::SanitizeFloat( F4.m_w );
 
-            case EE::Axis::NegZ:
-            {
-                return GetAxisZ().GetNegated();
-            }
-            break;
-
-            default:
-            {
-                EE_UNREACHABLE_CODE();
-                return Vector::Zero;
-            }
-            break;
-        }
+        m_translationScale = Vector( F4 );
     }
 
     void Transform::SanitizeScaleValue()

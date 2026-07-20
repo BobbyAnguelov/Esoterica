@@ -1,5 +1,6 @@
 #pragma once
 #include "Animation_ToolsGraphNode.h"
+#include "Animation_ToolsGraphNode_VariationData.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,13 +16,14 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Bool"; }
         virtual char const* GetCategory() const override { return "Values/Bool"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
     private:
 
-        EE_REFLECT() bool m_value = false;
+        EE_REFLECT();
+        bool m_value = false;
     };
 
     //-------------------------------------------------------------------------
@@ -36,7 +38,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "ID"; }
         virtual char const* GetCategory() const override { return "Values/ID"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
         virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_value ); }
@@ -60,13 +62,45 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Float"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
     private:
 
-        EE_REFLECT() float m_value = 0.0f;
+        EE_REFLECT();
+        float m_value = 0.0f;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class VariationFloatToolsNode final : public VariationDataToolsNode
+    {
+        EE_REFLECT_TYPE( VariationFloatToolsNode );
+
+    public:
+
+        struct Data final : public VariationDataToolsNode::Data
+        {
+            EE_REFLECT_TYPE( Data );
+
+        public:
+
+            EE_REFLECT();
+            float m_value = 0.0f;
+        };
+
+
+    public:
+
+        VariationFloatToolsNode();
+
+        virtual char const* GetTypeName() const override { return "Variation Float"; }
+        virtual char const* GetCategory() const override { return "Values/Float"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
+        virtual TypeSystem::TypeInfo const* GetVariationDataTypeInfo() const override { return VariationFloatToolsNode::Data::s_pTypeInfo; }
     };
 
     //-------------------------------------------------------------------------
@@ -81,7 +115,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Vector"; }
         virtual char const* GetCategory() const override { return "Values/Vector"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
@@ -102,7 +136,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Transform Target"; }
         virtual char const* GetCategory() const override { return "Values/Target"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
@@ -123,7 +157,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Bone Target"; }
         virtual char const* GetCategory() const override { return "Values/BoneTarget"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 

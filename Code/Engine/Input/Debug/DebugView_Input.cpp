@@ -1,8 +1,6 @@
 #include "DebugView_Input.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
-#include "Engine/Player/Components/Component_Player.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Input/InputSystem.h"
@@ -135,16 +133,10 @@ namespace EE::Input
     {
         DebugView::Initialize( systemRegistry, pWorld );
         m_pInputSystem = systemRegistry.GetSystem<InputSystem>();
-        m_pPlayerManager = pWorld->GetWorldSystem<PlayerManager>();
-
-        //-------------------------------------------------------------------------
-
-        m_windows.emplace_back( "Draw Virtual Inputs", [this] ( EntityWorldUpdateContext const& context, bool isFocused, uint64_t ) { DrawVirtualInputState( context ); } );
     }
 
     void InputDebugView::Shutdown()
     {
-        m_pPlayerManager = nullptr;
         m_pInputSystem = nullptr;
         DebugView::Shutdown();
     }
@@ -152,13 +144,6 @@ namespace EE::Input
     void InputDebugView::DrawMenu( EntityWorldUpdateContext const& context )
     {
         EE_ASSERT( m_pInputSystem != nullptr );
-
-        //-------------------------------------------------------------------------
-
-        if ( context.IsGameWorld() && m_pPlayerManager->HasPlayer() )
-        {
-            ImGui::MenuItem( "Virtual Inputs", nullptr, &m_windows[0].m_isOpen );
-        }
 
         //-------------------------------------------------------------------------
 
@@ -200,14 +185,6 @@ namespace EE::Input
 
     void InputDebugView::Update( EntityWorldUpdateContext const& context )
     {
-        // Close the virtual input state if there is no player
-        //-------------------------------------------------------------------------
-
-        if ( !m_pPlayerManager->HasPlayer() )
-        {
-            m_windows[0].m_isOpen = false;
-        }
-
         // Update controller window state
         //-------------------------------------------------------------------------
 
@@ -240,30 +217,6 @@ namespace EE::Input
                 m_windows.back().m_typeID = s_controllerWindowTypeID;
                 m_windows.back().m_userData = i;
             }
-        }
-    }
-
-    void InputDebugView::DrawVirtualInputState( EntityWorldUpdateContext const& context )
-    {
-        EntityID const playerID = m_pPlayerManager->GetPlayerEntityID();
-        Entity* pPlayerEntity = m_pWorld->FindEntity( playerID );
-        EE_ASSERT( pPlayerEntity != nullptr );
-
-        //-------------------------------------------------------------------------
-
-        Player::PlayerComponent const* pPlayerComponent = nullptr;
-        for ( auto pComponent : pPlayerEntity->GetComponents() )
-        {
-            pPlayerComponent = TryCast<Player::PlayerComponent>( pComponent );
-            if ( pPlayerComponent != nullptr )
-            {
-                break;
-            }
-        }
-        
-        if ( pPlayerComponent == nullptr )
-        {
-            return;
         }
     }
 

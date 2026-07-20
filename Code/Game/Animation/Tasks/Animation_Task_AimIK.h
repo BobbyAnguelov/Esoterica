@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Engine/Animation/TaskSystem/Animation_Task.h"
+#include "Engine/Animation/TaskSystem/Animation_PoseTask.h"
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
-    class AimIKTask : public Task
+    class AimIKTask : public PoseTask
     {
         EE_REFLECT_TYPE( AimIKTask );
 
@@ -14,18 +14,18 @@ namespace EE::Animation::Tasks
         AimIKTask( int8_t sourceTaskIdx, Vector const& worldSpaceTarget );
         virtual void Execute( TaskContext const& context ) override;
 
-        virtual bool AllowsSerialization() const override { return true; }
+        virtual int32_t GetNumDependencies() const override { return 1; }
         virtual void Serialize( TaskSerializer& serializer ) const override;
         virtual void Deserialize( TaskSerializer& serializer ) override;
 
     private:
 
-        AimIKTask() : Task() {}
+        AimIKTask() : PoseTask() {}
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetDebugName() const override { return "AIM IK"; }
         virtual Color GetDebugColor() const override { return Colors::Cyan; }
-        virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const override;
+        virtual void DrawDebug( DebugDrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const override;
         #endif
 
     private:

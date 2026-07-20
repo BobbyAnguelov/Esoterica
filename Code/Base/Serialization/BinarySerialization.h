@@ -17,13 +17,6 @@ namespace EE::FileSystem { class Path; }
 namespace EE::Serialization
 {
     //-------------------------------------------------------------------------
-    // Version
-    //-------------------------------------------------------------------------
-    // Update this value to cause all resources to recompile
-
-    EE_BASE_API int32_t GetBinarySerializationVersion();
-
-    //-------------------------------------------------------------------------
     // Binary Reader/Writer
     //-------------------------------------------------------------------------
     // These classes actually perform the serialization of the data
@@ -60,6 +53,7 @@ namespace EE::Serialization
         void ReadValue( double& v );
         void ReadValue( Blob& blob );
         void ReadValue( String& v );
+        void ReadValue( InlineString& v );
         void ReadValue( StringID& v);
 
         void ReadBinaryData( void* pData, size_t size );
@@ -105,6 +99,7 @@ namespace EE::Serialization
         void WriteValue( double v );
         void WriteValue( Blob const& blob );
         void WriteValue( String const& v );
+        void WriteValue( InlineString const& v );
         void WriteValue( StringID const& v );
 
         void WriteBinaryData( void const* pData, size_t size );
@@ -160,7 +155,7 @@ namespace EE::Serialization
                     }
                 }
                 // If this is a structure and not a string, try to call the explicit serialize method on it
-                else if constexpr ( std::is_class<T>::value && !std::is_same<T, EE::String>::value && !std::is_same<T, EE::StringID>::value )
+                else if constexpr ( std::is_class<T>::value && !std::is_same<T, EE::String>::value && !std::is_same<T, EE::InlineString>::value && !std::is_same<T, EE::StringID>::value )
                 {
                     value.Serialize( *this );
                 }
@@ -260,6 +255,34 @@ namespace EE::Serialization
             Archive& operator<<( TVector<T> const& arr )
             {
                 return operator<<( const_cast<TVector<T>&>( arr ) );
+            }
+
+            template<typename T>
+            Archive& operator<<( TAlignedVector<T>& arr )
+            {
+                uint64_t numElements = 0;
+
+                // Serialize size
+                if constexpr ( std::is_same<Serializer, BinaryReader>::value )
+                {
+                    m_serializer.ReadValue( numElements );
+                    arr.resize( numElements );
+                }
+                else
+                {
+                    numElements = arr.size();
+                    m_serializer.WriteValue( numElements );
+                }
+
+                SerializeArrayElements( arr.data(), numElements );
+
+                return *this;
+            }
+
+            template<typename T>
+            Archive& operator<<( TAlignedVector<T> const& arr )
+            {
+                return operator<<( const_cast<TAlignedVector<T>&>( arr ) );
             }
 
             // Serialize inline arrays

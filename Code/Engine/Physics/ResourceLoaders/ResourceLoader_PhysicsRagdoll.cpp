@@ -1,5 +1,5 @@
 #include "ResourceLoader_PhysicsRagdoll.h"
-#include "Engine/Physics/PhysicsRagdoll.h"
+#include "Engine/Physics/Ragdoll/PhysicsRagdoll_Definition.h"
 #include "Base/Serialization/BinarySerialization.h"
 
 //-------------------------------------------------------------------------
@@ -11,20 +11,19 @@ namespace EE::Physics
         m_loadableTypes.push_back( RagdollDefinition::GetStaticResourceTypeID() );
     }
 
-    Resource::ResourceLoader::LoadResult RagdollLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive& archive ) const
+    Resource::LoadResult RagdollLoader::Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive* pArchive ) const
     {
         RagdollDefinition* pRagdoll = EE::New<RagdollDefinition>();
-        archive << *pRagdoll;
-
+        ( *pArchive ) << *pRagdoll;
         pResourceRecord->SetResourceData( pRagdoll );
-        return pRagdoll->IsValid() ? Resource::ResourceLoader::LoadResult::Succeeded : Resource::ResourceLoader::LoadResult::Failed;
+        return Resource::LoadResult::Complete;
     }
 
-    Resource::ResourceLoader::LoadResult RagdollLoader::Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
+    Resource::LoadResult RagdollLoader::Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const
     {
         RagdollDefinition* pRagdoll = pResourceRecord->GetResourceData<RagdollDefinition>();
         pRagdoll->m_skeleton = GetInstallDependency( installDependencies, pRagdoll->m_skeleton.GetResourceID() );
-        pRagdoll->CreateRuntimeData();
-        return ResourceLoader::LoadResult::Succeeded;
+        pRagdoll->Finalize();
+        return pRagdoll->IsValid() ? Resource::LoadResult::Complete : Resource::LoadResult::Failed;
     }
 }

@@ -2,6 +2,7 @@
 #include "TypeID.h"
 #include "Base/Resource/ResourceTypeID.h"
 #include "Base/Types/Arrays.h"
+#include "Base/Types/Color.h"
 
 //-------------------------------------------------------------------------
 
@@ -19,6 +20,7 @@ namespace EE::TypeSystem
 
         #if EE_DEVELOPMENT_TOOLS
         String                      m_friendlyName;
+        Color                       m_color = Colors::White;
         #endif
     };
 }

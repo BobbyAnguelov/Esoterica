@@ -7,18 +7,21 @@
 #include "Base/Resource/ResourceSystem.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Profiling.h"
+#include "Base/Types/ScopedValue.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::EntityModel
 {
     EntityMap::EntityMap()
-        : m_entityUpdateEventBindingID( Entity::OnEntityInternalStateUpdated().Bind( [this] ( Entity* pEntity ) { OnEntityStateUpdated( pEntity ); } ) )
+        : m_name( "Transient Map" )
+        , m_entityUpdateEventBindingID( Entity::OnEntityInternalStateUpdated().Bind( [this] ( Entity* pEntity ) { OnEntityStateUpdated( pEntity ); } ) )
         , m_isTransientMap( true )
     {}
 
     EntityMap::EntityMap( ResourceID mapResourceID )
-        : m_pMapDesc( mapResourceID )
+        : m_name( mapResourceID.GetFilenameWithoutExtension() )
+        , m_pMapDesc( mapResourceID )
         , m_entityUpdateEventBindingID( Entity::OnEntityInternalStateUpdated().Bind( [this] ( Entity* pEntity ) { OnEntityStateUpdated( pEntity ); } ) )
     {}
 
@@ -36,7 +39,7 @@ namespace EE::EntityModel
 
     EntityMap::~EntityMap()
     {
-        EE_ASSERT( IsUnloaded() );
+        EE_ASSERT( IsMapUnloaded() );
         EE_ASSERT( m_entities.empty() && m_entityIDLookupMap.empty() );
         EE_ASSERT( m_entitiesToLoad.empty() && m_entitiesToRemove.empty() );
 
@@ -59,6 +62,7 @@ namespace EE::EntityModel
         EE_ASSERT( map.m_entitiesToHotReload.empty() );
         #endif
 
+        m_name = map.m_name;
         m_pMapDesc = map.m_pMapDesc;
         const_cast<bool&>( m_isTransientMap ) = map.m_isTransientMap;
         return *this;
@@ -71,6 +75,7 @@ namespace EE::EntityModel
         #endif
 
         m_ID = map.m_ID;
+        m_name = map.m_name;
         m_entities.swap( map.m_entities );
         m_entityIDLookupMap.swap( map.m_entityIDLookupMap );
         m_pMapDesc = eastl::move( map.m_pMapDesc );
@@ -90,6 +95,7 @@ namespace EE::EntityModel
 
     void EntityMap::AddEntities( TVector<Entity*> const& entities, Transform const& offsetTransform )
     {
+        EE_ASSERT( m_entityStateUpdatesAllowed );
         Threading::RecursiveScopeLock lock( m_mutex );
 
         m_entityIDLookupMap.reserve( m_entityIDLookupMap.size() + entities.size() );
@@ -115,6 +121,8 @@ namespace EE::EntityModel
 
     void EntityMap::AddEntity( Entity* pEntity )
     {
+        EE_ASSERT( m_entityStateUpdatesAllowed );
+
         // Ensure that the entity to add, is not already part of a collection and that it is not initialized
         EE_ASSERT( pEntity != nullptr && !pEntity->IsAddedToMap() && !pEntity->HasRequestedComponentLoad() );
         EE_ASSERT( !VectorContains( m_entitiesToLoad, pEntity ) );
@@ -145,6 +153,7 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         m_entityIDLookupMap.insert( TPair<EntityID, Entity*>( pEntity->m_ID, pEntity ) );
+
         #if EE_DEVELOPMENT_TOOLS
         m_entityNameLookupMap.insert( TPair<StringID, Entity*>( pEntity->m_name, pEntity ) );
         #endif
@@ -164,6 +173,8 @@ namespace EE::EntityModel
 
     Entity* EntityMap::RemoveEntityInternal( EntityID entityID, bool destroyEntityOnceRemoved )
     {
+        EE_ASSERT( m_entityStateUpdatesAllowed );
+
         Threading::RecursiveScopeLock lock( m_mutex );
 
         // Handle spatial hierarchy
@@ -254,6 +265,8 @@ namespace EE::EntityModel
 
     void EntityMap::OnEntityStateUpdated( Entity* pEntity )
     {
+        EE_ASSERT( m_entityStateUpdatesAllowed );
+
         if ( pEntity->GetMapID() == m_ID )
         {
             EE_ASSERT( FindEntity( pEntity->GetID() ) );
@@ -273,6 +286,7 @@ namespace EE::EntityModel
     {
         EE_ASSERT( Threading::IsMainThread() && loadingContext.IsValid() );
         EE_ASSERT( m_status == Status::Unloaded );
+        EE_ASSERT( m_entityStateUpdatesAllowed );
 
         Threading::RecursiveScopeLock lock( m_mutex );
 
@@ -349,6 +363,7 @@ namespace EE::EntityModel
     void EntityMap::Unload( LoadingContext const& loadingContext, InitializationContext& initializationContext )
     {
         EE_ASSERT( m_status != Status::Unloaded );
+        EE_ASSERT( m_entityStateUpdatesAllowed );
         Threading::RecursiveScopeLock lock( m_mutex );
         m_status = Status::Unloading;
     }
@@ -506,6 +521,9 @@ namespace EE::EntityModel
             // Ensure that the entity to add, is not already part of a collection and that it's shutdown
             EE_ASSERT( pEntityToAdd != nullptr && pEntityToAdd->m_mapID == m_ID && !pEntityToAdd->IsInitialized() );
 
+            // Spawn any additional components required by entity systems
+            pEntityToAdd->CreateAdditionalRequiredComponents();
+
             // Request component load
             pEntityToAdd->LoadComponents( loadingContext );
             EE_ASSERT( !VectorContains( m_entitiesCurrentlyLoading, pEntityToAdd ) );
@@ -535,7 +553,7 @@ namespace EE::EntityModel
                     if ( pEntity->UpdateEntityState( m_loadingContext, m_initializationContext ) )
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        for ( auto pComponent : pEntity->GetComponents() )
+                        for ( EntityComponent* pComponent : pEntity->GetComponents() )
                         {
                             EE_ASSERT( pComponent->IsInitialized() || pComponent->HasLoadingFailed() );
                         }
@@ -547,9 +565,11 @@ namespace EE::EntityModel
                             // Prevent us from initializing entities whose parents are not yet initialized, this ensures that our attachment chains have a consistent initialized state
                             if ( pEntity->HasSpatialParent() )
                             {
+                                auto pSpatialParentEntity = pEntity->GetSpatialParent();
+
                                 // We need to recheck the initialization state of this entity since while waiting for the lock, it could have been initialized by the parent
-                                Threading::RecursiveScopeLock parentLock( pEntity->GetSpatialParent()->m_internalStateMutex );
-                                if ( !pEntity->IsInitialized() && pEntity->GetSpatialParent()->IsInitialized() )
+                                Threading::RecursiveScopeLock parentLock( pSpatialParentEntity->m_internalStateMutex );
+                                if ( !pEntity->IsInitialized() && pSpatialParentEntity->IsInitialized() )
                                 {
                                     pEntity->Initialize( m_initializationContext );
                                 }
@@ -570,7 +590,7 @@ namespace EE::EntityModel
 
         public:
 
-            Threading::LockFreeQueue<Entity*>       m_stillLoadingEntities;
+            Threading::TLockFreeQueue<Entity*>       m_stillLoadingEntities;
 
         private:
 
@@ -602,6 +622,8 @@ namespace EE::EntityModel
     void EntityMap::ProcessEntityRegistrationRequests( InitializationContext& initializationContext )
     {
         EE_ASSERT( Threading::IsMainThread() );
+
+        TScopedGuardValue<bool> const sgv( m_entityStateUpdatesAllowed, false );
 
         //-------------------------------------------------------------------------
         // Entity Registrations
@@ -687,7 +709,7 @@ namespace EE::EntityModel
 
         private:
 
-            TVector<EntityWorldSystem*> const&                         m_worldSystems;
+            TVector<EntityWorldSystem*> const&                          m_worldSystems;
             TVector<EntityModel::EntityComponentPair> const&            m_componentsToRegister;
             TVector<EntityModel::EntityComponentPair> const&            m_componentsToUnregister;
         };
@@ -821,6 +843,19 @@ namespace EE::EntityModel
         return true;
     }
 
+    bool EntityMap::HasEntitiesWithPendingStateChangeActions() const
+    {
+        for ( auto pEntity : m_entitiesCurrentlyLoading )
+        {
+            if ( pEntity->HasStateChangeActionsPending() )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     bool EntityMap::HasPendingAddOrRemoveRequests() const
     {
         size_t numPendingRequests = ( m_entitiesToLoad.size() + m_entitiesToRemove.size() );
@@ -840,6 +875,7 @@ namespace EE::EntityModel
     void EntityMap::RenameEntity( Entity* pEntity, StringID newNameID )
     {
         EE_ASSERT( pEntity != nullptr && pEntity->m_mapID == m_ID );
+        EE_ASSERT( m_entityStateUpdatesAllowed );
 
         // Lock the map
         Threading::RecursiveScopeLock lock( m_mutex );
@@ -946,6 +982,7 @@ namespace EE::EntityModel
         EE_ASSERT( Threading::IsMainThread() );
         EE_ASSERT( !usersToReload.empty() );
         EE_ASSERT( m_entitiesToHotReload.empty() );
+        EE_ASSERT( m_entityStateUpdatesAllowed );
 
         Threading::RecursiveScopeLock lock( m_mutex );
 
@@ -1000,6 +1037,7 @@ namespace EE::EntityModel
     void EntityMap::HotReload_ReloadEntities( LoadingContext const& loadingContext, TInlineVector<Resource::ResourceRequesterID, 20> const& usersToReload )
     {
         EE_ASSERT( Threading::IsMainThread() );
+        EE_ASSERT( m_entityStateUpdatesAllowed );
 
         Threading::RecursiveScopeLock lock( m_mutex );
 

@@ -1,14 +1,9 @@
 #pragma once
 
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
-#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Layers.h"
-#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Transition.h"
 #include "EngineTools/NodeGraph/NodeGraph_UserContext.h"
-#include "EngineTools/Core/CategoryTree.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_Instance.h"
 #include "Base/Types/HashMap.h"
-#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Blend2D.h"
-#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Blend1D.h"
-
+#include "Base/Utils/CategoryTree.h"
 
 //-------------------------------------------------------------------------
 
@@ -37,7 +32,7 @@ namespace EE::Animation
 
         inline bool HasDebugData() const
         {
-            return m_pGraphInstance != nullptr && m_pGraphInstance->WasInitialized();
+            return m_pGraphInstance != nullptr && m_pGraphInstance->IsInitialized();
         }
 
         inline int16_t GetRuntimeGraphNodeIndex( UUID const& nodeID ) const

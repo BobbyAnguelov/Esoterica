@@ -17,12 +17,15 @@ namespace EE
         inline void Clear() { m_ID = 0; }
         inline bool operator==( PointerID const& rhs ) const { return m_ID == rhs.m_ID; }
         inline bool operator!=( PointerID const& rhs ) const { return m_ID != rhs.m_ID; }
+        inline bool operator==( void* pPtr ) const { return m_ID == reinterpret_cast<uint64_t>( pPtr ); }
+        inline bool operator!=( void* pPtr ) const { return m_ID != reinterpret_cast<uint64_t>( pPtr ); }
 
         inline uint64_t ToUint64() const { return m_ID; }
+        inline void* ToVoidPtr() const { return reinterpret_cast<void*>( m_ID ); }
 
     public:
 
-        uint64_t m_ID = 0;
+        uintptr_t m_ID = 0;
     };
 }
 

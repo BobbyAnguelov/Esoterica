@@ -1,0 +1,129 @@
+
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/RendererSurfaceShaderLayout.esh"
+#include "Engine/Render/Shaders/EngineShader.esh"
+#include "Engine/Render/Shaders/MeshInstance.esh"
+
+ESF_PARAMETER string ShaderType = "Compute";
+
+EE_DECLARE_ROOT_CONSTANTS( ClusterCullingRootConstants, b0, space0 );
+EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
+
+bool IsConeBackface( float3 clusterCenter, float3 coneAxis, float coneCutoff, float3 cameraPosition, float radius )
+{
+    return dot( clusterCenter - cameraPosition, coneAxis ) >= coneCutoff * length( clusterCenter - cameraPosition ) + radius;
+}
+
+[RootSignature( ClusterCullingRootSignature )]
+[numthreads( 64, 1, 1 )]
+void CS_main( uint groupID : SV_GroupID, uint groupThreadID :  SV_GroupThreadID, uint3 dispatchThreadID : SV_DispatchThreadID )
+{
+    StructuredBuffer<RenderView>                    renderViewBuffer                = GetBuffer( RootCBV.m_renderViewBuffer );
+    StructuredBuffer<MeshInstance>                  meshInstanceBuffer              = GetBuffer( RootCBV.m_meshInstanceBuffer );
+    ByteAddressBuffer                               meshInstanceRootBuffer          = GetBuffer( RootCBV.m_meshInstanceRootBuffer );
+    StructuredBuffer<MeshCluster>                   clusterBuffer                   = GetBuffer( RootCBV.m_clusterBuffer );
+    Buffer<uint2>                                   clusterCulling_ClusterBuffer    = GetBuffer( RWBufferToBuffer( RootCBV.m_ClusterCulling_ClusterBuffer ) );
+    StructuredBuffer<RenderBucket>                  renderBucketBuffer              = GetBuffer( RootCBV.m_renderBucketBuffer );
+    ByteAddressBuffer                               shaderDataBuffer                = GetBuffer( RootCBV.m_shaderDataBuffer );
+
+    const uint                                      clusterCullingIndex             = RootConstants.m_clusterRangeStart + dispatchThreadID.x;
+    const uint2                                     clusterCullingCluster           = clusterCulling_ClusterBuffer[clusterCullingIndex].xy;
+
+    //const ShaderDebugDraw                           debugDraw                       = InitializeShaderDebugDraw( RootCBV.GetShaderDebugDrawBuffer() );
+
+    if ( clusterCullingIndex < RootConstants.m_clusterRangeEnd )
+    {
+        const uint              instanceIndex                           = clusterCullingCluster.x;
+        const uint              clusterIndex                            = clusterCullingCluster.y;
+
+        const MeshCluster       cluster                                 = clusterBuffer[clusterIndex];
+        const MeshInstance      meshInstance                            = meshInstanceBuffer[instanceIndex];
+
+        uint                    meshInstanceDataAddress;
+        MeshInstanceRoot        meshInstanceRoot                        = meshInstance.LoadRoot( meshInstanceRootBuffer, meshInstanceDataAddress );
+
+        ShaderParameters        shaderParameters                        = shaderDataBuffer.Load<ShaderParameters>( meshInstance.m_shaderParametersOffsetIn32ByteBlocks * 32 );
+        bool                    isDoubleSided                           = ( shaderParameters.m_shaderFlags & EE_SHADER_FLAG_TWO_SIDED ) != 0;
+
+        //---------------------------------------------------------------------------------------------------
+
+        float3x4                meshInstanceTransform                   = meshInstance.ComputeWorldTransform( meshInstanceRoot );
+        float4                  boundingSphere                          = cluster.GetBoundingSphere();
+        
+        float3 clusterCenterGlobal;
+        float3 clusterExtentGlobal;
+        TransformAABB( meshInstanceTransform, boundingSphere.xyz, boundingSphere.www, clusterCenterGlobal, clusterExtentGlobal );
+
+        // Cull clusters in all views
+        //-----------------------------------------------------------------------------------------------
+
+        for ( uint renderViewIndex = 0; renderViewIndex < RootConstants.m_commonRootConstants.m_numRenderViews; ++renderViewIndex )
+        {
+            const RenderView renderView = renderViewBuffer[renderViewIndex];
+            
+            if ( ( renderView.m_renderViewLayerFlags & meshInstanceRoot.m_renderViewLayerFlags ) == 0 )
+            {
+                continue;
+            }
+
+            float4 viewPlanes[6];
+            renderView.ComputeViewPlanes( viewPlanes );
+
+            const bool renderViewDepthOnly = renderView.m_renderViewFlags & RENDER_VIEW_FLAG_DEPTH_ONLY;
+            
+            // Special case - global environment map view shouldn't compute lighting
+            float3 worldPositionOffset = 0.0.xxx;
+            if ( meshInstanceRoot.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP )
+            {
+                // Envmap geometry is rendered in other views as well, but in that case it is always relative to camera
+                if ( ( renderView.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP ) == 0 )
+                {
+                    worldPositionOffset = RootCBV.m_cameraPosition.xyz;
+                }
+            }
+            
+            float3 clusterCenter = clusterCenterGlobal + worldPositionOffset;
+            
+            // Compute render bucket index
+            const uint renderBucketIndex = ComputeRenderBucketIndex( shaderParameters, renderViewIndex, renderViewDepthOnly, RootConstants.m_commonRootConstants.m_numRenderViewBucketsPerView );
+
+            const RenderBucket          renderBucket                = renderBucketBuffer[renderBucketIndex];
+            RWBuffer<uint>              clusterVisibleCounterBuffer = GetRWBuffer( NonUniformResourceIndex( renderBucket.m_clusterVisibleCounterBuffer ) );
+            RWBuffer<uint2>             clusterVisibleBuffer        = GetRWBuffer( NonUniformResourceIndex( renderBucket.m_clusterVisibleBuffer ) );
+            
+            // Cull cluster
+            //-----------------------------------------------------------------------------------------------
+            
+            bool visibleInThisView = true;
+
+            visibleInThisView = visibleInThisView && IsFrustumVisible( clusterCenterGlobal, clusterExtentGlobal, viewPlanes );
+
+            if ( visibleInThisView )
+            {
+                //const float3 clusterCenterViewSpace = mul( renderView.m_viewMatrix, float4( clusterCenter, 1.0 ) ).xyz;
+                //if ( renderView.ProjectSphere( clusterCenterViewSpace, clusterRadius, projectedAABB ) )
+                
+                float4 projectedAABB = 0.0.xxxx;
+                if ( renderView.ProjectBox( clusterCenterGlobal, clusterExtentGlobal, projectedAABB ) )
+                {
+                    float width = ( projectedAABB.z - projectedAABB.x ) * renderView.m_renderTargetSize.x;
+                    float height = ( projectedAABB.w - projectedAABB.y ) * renderView.m_renderTargetSize.y;
+                        
+                    // Size is less than 2 pixels -> cull
+                    if ( width < 2.0 && height < 2.0 )
+                    {
+                        visibleInThisView = false;
+                    }
+                }
+            }
+            
+            if ( visibleInThisView )
+            {
+                uint clusterWriteIndex = 0;
+                InterlockedAdd( clusterVisibleCounterBuffer[0], 1, clusterWriteIndex );
+            
+                clusterVisibleBuffer[clusterWriteIndex] = uint2( instanceIndex, clusterIndex );
+            }
+        }
+    }
+}

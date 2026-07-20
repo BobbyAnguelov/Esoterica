@@ -38,7 +38,7 @@ namespace EE
         inline static Matrix FromScale( Vector const& scale );
         inline static Matrix FromUniformScale( float uniformScale );
         inline static Matrix FromTranslationAndScale( Vector const& translation, Vector const& scale );
-        inline static Matrix FromRotationBetweenVectors( Vector const sourceVector, Vector const targetVector ) { return Matrix( Quaternion::FromRotationBetweenNormalizedVectors( sourceVector, targetVector ) ); }
+        inline static Matrix FromRotationBetweenVectors( Vector const sourceVector, Vector const targetVector ) { return Matrix( Quaternion::FromRotationBetweenUnitVectors( sourceVector, targetVector ) ); }
 
     public:
 
@@ -91,10 +91,10 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        inline Matrix& Transpose();
+        inline void Transpose();
         inline Matrix GetTransposed() const;
 
-        inline Matrix& Invert();
+        inline void Invert();
         inline Matrix GetInverse() const;
 
         inline Vector GetDeterminant() const;
@@ -225,7 +225,7 @@ namespace EE
         return *this;
     }
 
-    inline Matrix& Matrix::Transpose()
+    inline void Matrix::Transpose()
     {
         __m128 vTemp1 = _mm_shuffle_ps( m_rows[0], m_rows[1], _MM_SHUFFLE( 1, 0, 1, 0 ) );
         __m128 vTemp3 = _mm_shuffle_ps( m_rows[0], m_rows[1], _MM_SHUFFLE( 3, 2, 3, 2 ) );
@@ -235,7 +235,6 @@ namespace EE
         m_rows[1] = _mm_shuffle_ps( vTemp1, vTemp2, _MM_SHUFFLE( 3, 1, 3, 1 ) );
         m_rows[2] = _mm_shuffle_ps( vTemp3, vTemp4, _MM_SHUFFLE( 2, 0, 2, 0 ) );
         m_rows[3] = _mm_shuffle_ps( vTemp3, vTemp4, _MM_SHUFFLE( 3, 1, 3, 1 ) );
-        return *this;
     }
 
     inline Matrix Matrix::GetTransposed() const
@@ -245,7 +244,7 @@ namespace EE
         return m;
     }
 
-    inline Matrix& Matrix::Invert()
+    inline void Matrix::Invert()
     {
         Matrix MT = GetTransposed();
         __m128 V00 = _mm_shuffle_ps( MT.m_rows[2], MT.m_rows[2], _MM_SHUFFLE( 1, 1, 0, 0 ) );
@@ -357,7 +356,6 @@ namespace EE
         m_rows[1] = _mm_mul_ps( C2, vTemp );
         m_rows[2] = _mm_mul_ps( C4, vTemp );
         m_rows[3] = _mm_mul_ps( C6, vTemp );
-        return *this;
     }
 
     inline Matrix Matrix::GetInverse() const

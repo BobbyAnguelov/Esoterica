@@ -2,6 +2,7 @@
 #include "Base/Memory/Memory.h"
 #include "Base/Encoding/Hash.h"
 #include "Base/Threading/Threading.h"
+#include "Base/ThirdParty/EA/eastl_Esoterica_TrackedAllocator.h"
 #include "String.h"
 #include "EASTL/hash_map.h"
 
@@ -9,10 +10,19 @@
 
 namespace EE
 {
-    class StringIDHashMap : public eastl::hash_map<uint64_t, String>
+    namespace Memory::Allocators
+    {
+        MemoryAllocator g_stringID( "StringID" );
+    }
+
+    //-------------------------------------------------------------------------
+
+    class StringIDHashMap : public THashMap<uint64_t, String>
     {
     public:
-      
+
+        StringIDHashMap() : THashMap<uint64_t, String>( eastl::TrackedAllocator( Memory::Allocators::g_stringID ) ) {}
+
         eastl::hash_node<value_type, false> const* const* GetBuckets() const { return mpBucketArray; }
     };
 
@@ -43,7 +53,7 @@ namespace EE
         EE::Delete( s_pDebuggerInfo );
         #endif
 
-        EE::Delete( g_pStringCache);
+        EE::Delete( g_pStringCache );
         EE::Delete( g_pStringCacheMutex );
     }
 
@@ -52,7 +62,7 @@ namespace EE
     StringID::StringID( char const* pStr )
     {
         // If this is nullptr then you are likely trying to statically allocate a stringID, this is not allowed and you need to use the "StaticStringID" type instead!
-        EE_ASSERT( g_pStringCacheMutex != nullptr ); 
+        EE_ASSERT( g_pStringCacheMutex != nullptr );
 
         if ( pStr != nullptr && strlen( pStr ) > 0 )
         {
@@ -63,7 +73,7 @@ namespace EE
             auto iter = g_pStringCache->find( m_ID );
             if ( iter == g_pStringCache->end() )
             {
-                ( *g_pStringCache )[m_ID] = String( pStr );
+                ( *g_pStringCache )[m_ID] = String( pStr, Memory::Allocators::g_stringID );
 
                 #if EE_DEVELOPMENT_TOOLS
                 s_pDebuggerInfo->m_pBuckets = g_pStringCache->GetBuckets();
@@ -80,10 +90,6 @@ namespace EE
     }
 
     StringID::StringID( String const& str )
-        : StringID( str.c_str() )
-    {}
-
-    StringID::StringID( InlineString const& str )
         : StringID( str.c_str() )
     {}
 
@@ -115,6 +121,13 @@ namespace EE
         EE_ASSERT( pStr != nullptr );
         size_t const length = strlen( pStr );
         EE_ASSERT( length < 64 );
-        memcpy( m_buffer, pStr, length);
+        memcpy( m_buffer, pStr, length );
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool SortComparison_StringID( StringID const& a, StringID const& b )
+    {
+        return StringUtils::CompareInsensitive( a.IsValid() ? a.c_str() : "", b.IsValid() ? b.c_str() : "" ) < 0;
     }
 }

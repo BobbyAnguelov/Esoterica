@@ -1,0 +1,85 @@
+/*
+Box2D accents on top of doxygen's built-in dark theme (HTML_COLORSTYLE DARK).
+Doxygen 1.17 bakes a complete dark palette, so this only restores the Box2D
+cyan accent and backs the transparent SVG diagrams. Loaded after doxygen.css,
+so plain overrides win by order.
+*/
+
+/* Box2D cyan for links, symbol cross references, and section headings */
+a, a:link, a:visited,
+.contents a:visited,
+a.el, a.el:visited, a.code, a.code:visited, a.line, a.line:visited,
+a.codeRef, a.codeRef:visited, a.lineRef, a.lineRef:visited {
+	color: #67d8ef;
+}
+
+h2.groupheader,
+.memtitle {
+	color: #67d8ef;
+}
+
+h1.glow, h2.glow, h3.glow, h4.glow, h5.glow, h6.glow {
+	text-shadow: 0 0 15px #67d8ef;
+}
+
+/* SVG diagrams are transparent, so back them with a light plate to stay legible on a dark page */
+.image {
+	background-color: #CCCCCC;
+	border: 10px solid #CCCCCC;
+}
+
+img.inline {
+	background-color: #CCCCCC;
+	border: 10px solid #CCCCCC;
+	margin: 0px;
+}
+
+/* Caption sits on the light plate */
+.caption {
+	padding-top: 10px;
+	color: black;
+}
+
+/* Cap line length for readability */
+div.contents {
+	max-width: 1000px;
+}
+
+/* Soften contrast. doxygen 1.17's dark is near black, restore the Box2D grays */
+body {
+	background-color: #292a2d;
+	color: #D8D8D8;
+}
+
+#titlearea,
+div.header,
+#side-nav,
+#nav-tree {
+	background-color: #292a2d;
+}
+
+/* Panels and selection sit one step lighter than the page */
+#nav-tree .selected,
+div.fragment, pre.fragment, span.tt,
+.memItemLeft, .memItemRight, .memTemplParams,
+.memtitle, .memname, .memname td,
+.memproto, dl.reflist dt,
+div.toc,
+table.doxtable th, .fieldtable th,
+th.markdownTableHeadLeft, th.markdownTableHeadRight, th.markdownTableHeadCenter, th.markdownTableHeadNone,
+table.doxtable tr:nth-child(even) td,
+.directory tr.even {
+	background-color: #32363d;
+}
+
+.directory tr.odd {
+	background-color: #292a2d;
+}
+
+/* Caution callouts, filled olive box with a full border and real padding */
+blockquote.doxtable {
+	background-color: #456114;
+	border: 1px solid #000000;
+	padding: 12px 16px;
+	margin: 10px 24px 10px 4px;
+}

@@ -1,3 +1,0 @@
-<Type TypeID="EE::Physics::PhysicsCollisionMeshResourceDescriptor" Version="0">
-  <Property ID="m_sourcePath" Value="data://demo/renderdemo/floor/floor.fbx" />
-</Type>

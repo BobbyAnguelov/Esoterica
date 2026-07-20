@@ -30,8 +30,8 @@ namespace EE
         size_t const lastCharIdx = length - 1;
         size_t const resourceExtensionStartIdx = pFoundExtensionStart - pStr;
 
-        // Only fourCC extensions allowed
-        if( lastCharIdx - resourceExtensionStartIdx > 4 )
+        // Only eightCC extensions allowed
+        if( lastCharIdx - resourceExtensionStartIdx > 8 )
         {
             return false;
         }
@@ -43,42 +43,58 @@ namespace EE
 
     void ResourceID::OnPathChanged()
     {
-        // Try to set the typeID
+        m_type = ResourceTypeID();
         if ( m_path.IsValid() )
         {
-            auto const pExtension = m_path.GetExtension();
-            if ( pExtension != nullptr && ResourceTypeID::IsValidResourceFourCC( pExtension ) )
+            FileSystem::Extension const extension = m_path.HasSubFilename() ? m_path.GetSubFilenameExtension() : m_path.GetExtension();
+            if ( !extension.empty() && ResourceTypeID::IsValidResourceTypeIdentifierString( extension ) )
             {
-                m_type = ResourceTypeID( pExtension );
-                return;
+                m_type = ResourceTypeID( extension );
             }
         }
+    }
 
-        // Invalidate this resource ID
-        m_type = ResourceTypeID();
+    FileSystem::Path ResourceID::GetCompiledFileSystemPath( FileSystem::Path const& compiledDataDirectoryPath ) const
+    {
+        if ( IsSubResourceID() )
+        {
+            return m_path.GetFlattenedFileSystemPath( compiledDataDirectoryPath );
+        }
+        else
+        {
+            return m_path.GetFileSystemPath( compiledDataDirectoryPath );
+        }
     }
 
     //-------------------------------------------------------------------------
 
     ResourceID ResourceID::GetParentResourceID() const
     {
-        ResourceID parentResourceID;
-
-        DataPath const parentDataFilePath = m_path.GetIntraFilePathParent();
-        if ( parentDataFilePath.IsValid() )
-        {
-            parentResourceID = parentDataFilePath;
-        }
-        else
-        {
-            parentResourceID = *this;
-        }
-
-        return parentResourceID;
+        EE_ASSERT( IsValid() && IsSubResourceID() );
+        return ResourceID( m_path.GetPathWithoutSubFilename() );
     }
 
     ResourceTypeID ResourceID::GetParentResourceTypeID() const
     {
-        return GetParentResourceID().GetResourceTypeID();
+        EE_ASSERT( IsValid() && IsSubResourceID() );
+        return ResourceTypeID( m_path.GetExtension() );
+    }
+
+    String ResourceID::GetSubResourceName() const
+    {
+        EE_ASSERT( IsValid() && IsSubResourceID() );
+        return m_path.GetSubFilename();
+    }
+
+    String ResourceID::GetSubResourceNameWithoutExtension() const
+    {
+        EE_ASSERT( IsValid() && IsSubResourceID() );
+        return m_path.GetSubFilenameWithoutExtension();
+    }
+
+    void ResourceID::SetSubResourceName( char const* pResourceName )
+    {
+        m_path.SetSubFilename( pResourceName );
+        OnPathChanged();
     }
 }

@@ -2,6 +2,7 @@
 
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/ThirdParty/cgltf/cgltf.h"
+#include "EngineTools/Import/ImporterSource.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/Math/Transform.h"
 #include "Base/Memory/UniquePtr.h"
@@ -10,9 +11,9 @@
 
 namespace EE::Import
 {
-    class ImportedMesh;
-    class ImportedAnimation;
-    class ImportedSkeleton;
+    class Mesh;
+    class Animation;
+    class Skeleton;
 }
 
 //-------------------------------------------------------------------------
@@ -34,10 +35,10 @@ namespace EE::Import::gltf
     public:
 
         SceneContext() = default;
-        SceneContext( FileSystem::Path const& filePath, float additionalScalingFactor = 1.0f );
+        SceneContext( Source const& source, float additionalScalingFactor = 1.0f );
         ~SceneContext();
 
-        void LoadFile( FileSystem::Path const& filePath, float additionalScalingFactor = 1.0f );
+        void LoadFile( Source const& source, float additionalScalingFactor = 1.0f );
 
         inline bool IsValid() const { return m_pSceneData != nullptr; }
 
@@ -132,7 +133,7 @@ namespace EE::Import::gltf
 
     private:
 
-        void Initialize( FileSystem::Path const& filePath, float additionalScalingFactor );
+        void Initialize( Source const& source, float additionalScalingFactor );
         void Shutdown();
 
     private:
@@ -148,8 +149,8 @@ namespace EE::Import::gltf
     // Import Functions
     //-------------------------------------------------------------------------
 
-    EE_ENGINETOOLS_API TUniquePtr<ImportedSkeleton> ReadSkeleton( FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName );
-    EE_ENGINETOOLS_API TUniquePtr<ImportedAnimation> ReadAnimation( FileSystem::Path const& animationFilePath, ImportedSkeleton const& ImportedSkeleton, String const& animationName = String() );
-    EE_ENGINETOOLS_API TUniquePtr<ImportedMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude );
-    EE_ENGINETOOLS_API TUniquePtr<ImportedMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences );
+    EE_ENGINETOOLS_API TUniquePtr<Skeleton> ReadSkeleton( Source const& source, String const& skeletonRootBoneName );
+    EE_ENGINETOOLS_API TUniquePtr<Animation> ReadAnimation( Source const& source, Skeleton const* pPrimarySkeleton, TVector<Import::Skeleton const*> const& secondarySkeletons, String const& animationName = String() );
+    EE_ENGINETOOLS_API TUniquePtr<Mesh> ReadStaticMesh( Source const& source, TVector<String> const& meshesToInclude );
+    EE_ENGINETOOLS_API TUniquePtr<Mesh> ReadSkeletalMesh( Source const& source, TVector<String> const& meshesToInclude );
 }

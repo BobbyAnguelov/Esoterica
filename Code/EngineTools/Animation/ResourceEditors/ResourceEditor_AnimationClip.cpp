@@ -2,7 +2,7 @@
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
 #include "EngineTools/Timeline/TimelineEditor.h"
-#include "EngineTools/Core/Dialogs.h"
+#include "EngineTools/Core/SystemDialogs.h"
 #include "Engine/Animation/Components/Component_AnimationClipPlayer.h"
 #include "Engine/Animation/Systems/EntitySystem_Animation.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
@@ -11,6 +11,7 @@
 #include "Engine/UpdateContext.h"
 #include "Engine/Animation/AnimationPose.h"
 #include "Base/Math/MathUtils.h"
+#include "Base/Types/Color.h"
 
 //-------------------------------------------------------------------------
 
@@ -51,20 +52,40 @@ namespace EE::Animation
         m_propertyGrid.OnPostEdit().Unbind( m_propertyGridPostEditEventBindingID );
     }
 
-    void AnimationClipEditor::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
+    void AnimationClipEditor::SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
-        ImGuiID topLeftDockID = 0, topRightDockID = 0, bottomDockID = 0, bottomLeftDockID = 0, bottomRightDockID = 0;
-        ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Down, 0.33f, &bottomDockID, &topLeftDockID );
-        ImGui::DockBuilderSplitNode( topLeftDockID, ImGuiDir_Right, 0.33f, &topRightDockID, &topLeftDockID );
-        ImGui::DockBuilderSplitNode( bottomDockID, ImGuiDir_Right, 0.25f, &bottomRightDockID, &bottomLeftDockID );
+        // Split
+        //-------------------------------------------------------------------------
+
+        ImGuiID leftDockID0 = 0;
+        ImGuiID leftDockID1 = 0;
+        ImGuiID centerDockID0 = 0;
+        ImGuiID centerDockID1 = 0;
+        ImGuiID rightDockID0 = 0;
+        ImGuiID rightDockID1 = 0;
+        ImGuiID rightDockID2 = 0;
+
+        ImGui::DockBuilderSplitNode( dockspaceID, ImGuiDir_Left, 0.25f, &leftDockID0, &centerDockID0 );
+        ImGui::DockBuilderSplitNode( centerDockID0, ImGuiDir_Right, 0.33f, &rightDockID0, &centerDockID0 );
+
+        ImGui::DockBuilderSplitNode( leftDockID0, ImGuiDir_Up, 0.7f, &leftDockID0, &leftDockID1 );
+        ImGui::DockBuilderSplitNode( centerDockID0, ImGuiDir_Down, 0.5f, &centerDockID0, &centerDockID1 );
+
+        ImGui::DockBuilderSplitNode( rightDockID0, ImGuiDir_Up, 0.7f, &rightDockID0, &rightDockID2 );
+        ImGui::DockBuilderSplitNode( rightDockID0, ImGuiDir_Up, 0.7f, &rightDockID0, &rightDockID1 );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), topLeftDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Timeline" ).c_str(), bottomLeftDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Hierarchy" ).c_str(), bottomRightDockID);
-        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), bottomRightDockID);
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Details" ).c_str(), bottomRightDockID );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Clip Browser" ).c_str(), topRightDockID);
+        //-------------------------------------------------------------------------
+
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Skeleton Outline" ).c_str(), leftDockID0 );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Float Curves" ).c_str(), leftDockID1 );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Bone Info" ).c_str(), leftDockID1 );
+        
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Timeline" ).c_str(), centerDockID0 );
+
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Clip Browser" ).c_str(), rightDockID0 );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), rightDockID1 );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Event Details" ).c_str(), rightDockID2 );
     }
 
     //-------------------------------------------------------------------------
@@ -80,9 +101,11 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         CreateToolWindow( "Timeline", [this] ( UpdateContext const& context, bool isFocused ) { DrawTimelineWindow( context, isFocused ); }, ImVec2( 0, 0 ), true );
-        CreateToolWindow( "Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDetailsWindow( context, isFocused ); } );
+        CreateToolWindow( "Event Details", [this] ( UpdateContext const& context, bool isFocused ) { DrawDetailsWindow( context, isFocused ); } );
         CreateToolWindow( "Clip Browser", [this] ( UpdateContext const& context, bool isFocused ) { DrawClipBrowser( context, isFocused ); } );
-        CreateToolWindow( "Bone Hierarchy", [this] ( UpdateContext const& context, bool isFocused ) { DrawHierarchyWindow( context, isFocused ); } );
+        CreateToolWindow( "Skeleton Outline", [this] ( UpdateContext const& context, bool isFocused ) { DrawSkeletonOutlineWindow( context, isFocused ); } );
+        CreateToolWindow( "Bone Info", [this] ( UpdateContext const& context, bool isFocused ) { DrawBoneInfoWindow( context, isFocused ); } );
+        CreateToolWindow( "Float Curves", [this] ( UpdateContext const& context, bool isFocused ) { DrawFloatCurvesWindow( context, isFocused ); } );
     }
 
     void AnimationClipEditor::Shutdown( UpdateContext const& context )
@@ -135,7 +158,7 @@ namespace EE::Animation
 
                     // Set attachment info and add to the entity
                     pSecondaryMeshComponent->SetWorldTransform( Transform::Identity );
-                    pSecondaryMeshComponent->SetAttachmentSocketID( pSecondarySkeleton->GetPreviewAttachmentSocketID() );
+                    pSecondaryMeshComponent->SetAttachmentSocketID( pPrimarySkeleton->GetPreviewAttachmentBoneIDForSecondarySkeleton( pSecondarySkeleton ) );
                     m_pPreviewEntity->AddComponent( pSecondaryMeshComponent, m_pMeshComponent->GetID() );
                 }
             }
@@ -146,7 +169,7 @@ namespace EE::Animation
         for ( auto pSecondaryAnimation : m_editedResource->GetSecondaryAnimations() )
         {
             Skeleton const* pSecondarySkeleton = pSecondaryAnimation->GetSkeleton();
-            m_secondarySkeletonAttachmentSocketIDs.emplace_back( pSecondarySkeleton->GetPreviewAttachmentSocketID() );
+            m_secondarySkeletonAttachmentSocketIDs.emplace_back( pPrimarySkeleton->GetPreviewAttachmentBoneIDForSecondarySkeleton( pSecondarySkeleton ) );
         }
 
         //-------------------------------------------------------------------------
@@ -228,18 +251,21 @@ namespace EE::Animation
             // Draw root motion in viewport
             //-------------------------------------------------------------------------
 
-            auto drawingCtx = GetDrawingContext();
+            auto drawingCtx = GetDebugDrawContext();
             m_editedResource->GetRootMotion().DrawDebug( drawingCtx, Transform::Identity );
 
             if ( m_isPoseDrawingEnabled && m_pAnimationComponent != nullptr )
             {
+                DrawOptions options;
+                options.m_drawBoneNames = m_shouldDrawBoneNames;
+
                 // Draw the main pose
                 Pose const* pPose = m_pAnimationComponent->GetPrimaryPose();
                 if ( pPose != nullptr )
                 {
                     if ( !m_isolateSelectedBones || m_selectedBoneIDs.empty() )
                     {
-                        pPose->DrawDebug( drawingCtx, m_characterTransform, m_skeletonLOD, Colors::HotPink, 3.0f, m_shouldDrawBoneNames, nullptr );
+                        pPose->DrawDebug( drawingCtx, m_characterTransform, m_skeletonLOD, options );
                     }
                     else
                     {
@@ -249,7 +275,7 @@ namespace EE::Animation
                             boneFilter.emplace_back( pPose->GetSkeleton()->GetBoneIndex( selectedBoneID ) );
                         }
 
-                        pPose->DrawDebug( drawingCtx, m_characterTransform, m_skeletonLOD, Colors::HotPink, 3.0f, m_shouldDrawBoneNames, nullptr, boneFilter );
+                        pPose->DrawDebug( drawingCtx, m_characterTransform, m_skeletonLOD, options );
                     }
                 }
 
@@ -277,7 +303,8 @@ namespace EE::Animation
                         }
                     }
 
-                    pSecondaryPose->DrawDebug( drawingCtx, secondaryPoseTransform, m_skeletonLOD, Colors::Cyan, 3.0f, m_shouldDrawBoneNames, nullptr );
+                    options.m_boneColor = Colors::Cyan;
+                    pSecondaryPose->DrawDebug( drawingCtx, secondaryPoseTransform, m_skeletonLOD, options );
                 }
             }
 
@@ -288,7 +315,7 @@ namespace EE::Animation
             {
                 Transform capsuleTransform = m_characterTransform;
                 capsuleTransform.AddTranslation( capsuleTransform.GetAxisZ() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
-                drawingCtx.DrawCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
+                drawingCtx.DrawWireCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
             }
         }
     }
@@ -324,75 +351,26 @@ namespace EE::Animation
         }
     }
 
-    void AnimationClipEditor::DrawMenu( UpdateContext const& context )
-    {
-        TResourceEditor<AnimationClip>::DrawMenu( context );
-
-        // Options
-        //-------------------------------------------------------------------------
-
-        if ( ImGui::BeginMenu( EE_ICON_TUNE" Options" ) )
-        {
-            ImGui::BeginDisabled( m_pMeshComponent == nullptr );
-            if ( ImGui::Checkbox( "Show Mesh", &m_showMesh ) )
-            {
-                m_pMeshComponent->SetVisible( m_showMesh );
-            }
-            ImGui::EndDisabled();
-
-            if ( ImGui::Checkbox( "Show Floor", &m_showFloor ) )
-            {
-                SetFloorVisibility( m_showFloor );
-            }
-
-            ImGui::Checkbox( "Root Motion Enabled", &m_isRootMotionEnabled );
-
-            ImGui::Checkbox( "Draw Bone Pose", &m_isPoseDrawingEnabled );
-
-            ImGui::Checkbox( "Draw Bone Names", &m_shouldDrawBoneNames );
-
-            bool isUsingLowLOD = m_skeletonLOD == Skeleton::LOD::Low;
-            if ( ImGui::Checkbox( "Use Low Skeleton LOD", &isUsingLowLOD ) )
-            {
-                m_skeletonLOD = isUsingLowLOD ? Skeleton::LOD::Low : Skeleton::LOD::High;
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::SeparatorText( "Capsule Debug" );
-
-            ImGui::Checkbox( "Show Preview Capsule", &m_isPreviewCapsuleDrawingEnabled );
-
-            ImGui::Text( "Half-Height" );
-            ImGui::SameLine( 90 );
-            if ( ImGui::InputFloat( "##HH", &m_previewCapsuleHalfHeight, 0.05f ) )
-            {
-                m_previewCapsuleHalfHeight = Math::Clamp( m_previewCapsuleHalfHeight, 0.05f, 10.0f );
-            }
-
-            ImGui::Text( "Radius" );
-            ImGui::SameLine( 90 );
-            if ( ImGui::InputFloat( "##R", &m_previewCapsuleRadius, 0.01f ) )
-            {
-                m_previewCapsuleRadius = Math::Clamp( m_previewCapsuleRadius, 0.01f, 5.0f );
-            }
-
-            ImGui::EndMenu();
-        }
-    }
-
     void AnimationClipEditor::DrawHelpMenu() const
     {
         DrawHelpTextRow( "Navigate Timeline", "Left/Right arrows" );
         DrawHelpTextRow( "Create Event", "Enter (with track selected)" );
     }
 
-    void AnimationClipEditor::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
+    void AnimationClipEditor::DrawMenu( UpdateContext const& context )
     {
-        TResourceEditor<AnimationClip>::DrawViewportToolbar( context, pViewport );
+        TResourceEditor<AnimationClip>::DrawMenu( context );
 
-        //-------------------------------------------------------------------------
+        if ( ImGui::BeginMenu( EE_ICON_TUNE" Options" ) )
+        {
+            ImGui::Checkbox( "Enable Root Motion", &m_isRootMotionEnabled );
 
+            ImGui::EndMenu();
+        }
+    }
+
+    void AnimationClipEditor::ExtendViewportToolBar( UpdateContext const& context, Viewport* pViewport )
+    {
         if ( !IsResourceLoaded() )
         {
             return;
@@ -400,8 +378,6 @@ namespace EE::Animation
 
         // Clip Info
         //-------------------------------------------------------------------------
-
-        ImGui::Indent();
 
         auto PrintAnimDetails = [this] ( Color color )
         {
@@ -413,6 +389,11 @@ namespace EE::Animation
             ImGui::Text( "Avg Linear Velocity: %.2f m/s", m_editedResource->GetAverageLinearVelocity() );
             ImGui::Text( "Avg Angular Velocity: %.2f r/s", m_editedResource->GetAverageAngularVelocity().ToFloat() );
             ImGui::Text( "Distance Covered: %.2fm", m_editedResource->GetTotalRootMotionDelta().GetTranslation().GetLength3() );
+
+            ImGui::Text( "Num Bones: %d", m_editedResource->GetSkeleton()->GetNumBones() );
+
+            ImGui::NewLine();
+
             ImGui::Text( "Frame: %.2f/%d", frameTime.ToFloat(), numFrames - 1 );
             ImGui::Text( "Time: %.2fs/%0.2fs", m_pTimelineEditor->GetPlayheadTimeAsPercentage().ToFloat() * m_editedResource->GetDuration(), m_editedResource->GetDuration().ToFloat() );
             ImGui::Text( "Percentage: %.2f%%", m_pTimelineEditor->GetPlayheadTimeAsPercentage().ToFloat() * 100 );
@@ -423,15 +404,56 @@ namespace EE::Animation
             }
         };
 
-        ImVec2 const cursorPos = ImGui::GetCursorPos();
-        ImGui::SetCursorPos( cursorPos + ImVec2( 0, 1 ) );
-        ImGui::Indent( 1 );
-        PrintAnimDetails( Colors::Black );
-        ImGui::Unindent( 1 );
-        ImGui::SetCursorPos( cursorPos );
-        PrintAnimDetails( Colors::Yellow );
+        ImGui::NewLine();
 
-        ImGui::Unindent();
+        ImGuiX::DrawShadowedText( Colors::Yellow, PrintAnimDetails );
+    }
+
+    bool AnimationClipEditor::ExtendViewportToolBar_VisualizationControls( UpdateContext const& context, Viewport* pViewport )
+    {
+        if ( ImGui::Checkbox( "Show Floor", &m_showFloor ) )
+        {
+            SetFloorVisibility( m_showFloor );
+        }
+
+        ImGui::BeginDisabled( m_pMeshComponent == nullptr );
+        if ( ImGui::Checkbox( "Show Mesh", &m_showMesh ) )
+        {
+            m_pMeshComponent->SetVisible( m_showMesh );
+        }
+        ImGui::EndDisabled();
+
+        ImGui::Checkbox( "Draw Bone Pose", &m_isPoseDrawingEnabled );
+
+        ImGui::Checkbox( "Draw Bone Names", &m_shouldDrawBoneNames );
+
+        ImGuiX::Checkbox( "Isolate Selected Bones", &m_isolateSelectedBones );
+
+        ImGui::SeparatorText( "Capsule Debug" );
+
+        ImGui::Checkbox( "Show Preview Capsule", &m_isPreviewCapsuleDrawingEnabled );
+
+        constexpr static char const * const pHalfHeightStr = "Half-Height";
+        constexpr static char const * const pRadiusStr = "Radius";
+        float const offset = ImGui::GetCursorPos().x + Math::Max( ImGui::CalcTextSize( pHalfHeightStr ).x, ImGui::CalcTextSize( pRadiusStr ).x ) + ImGui::GetStyle().ItemSpacing.x;
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( pHalfHeightStr );
+        ImGui::SameLine( offset );
+        if ( ImGui::InputFloat( "##HH", &m_previewCapsuleHalfHeight, 0.05f ) )
+        {
+            m_previewCapsuleHalfHeight = Math::Clamp( m_previewCapsuleHalfHeight, 0.05f, 10.0f );
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( pRadiusStr );
+        ImGui::SameLine( offset );
+        if ( ImGui::InputFloat( "##R", &m_previewCapsuleRadius, 0.01f ) )
+        {
+            m_previewCapsuleRadius = Math::Clamp( m_previewCapsuleRadius, 0.01f, 5.0f );
+        }
+
+        return true;
     }
 
     void AnimationClipEditor::DrawTimelineWindow( UpdateContext const& context, bool isFocused )
@@ -475,7 +497,7 @@ namespace EE::Animation
         }
     }
 
-    void AnimationClipEditor::DrawHierarchyWindow( UpdateContext const& context, bool isFocused )
+    void AnimationClipEditor::DrawSkeletonOutlineWindow( UpdateContext const& context, bool isFocused )
     {
         if ( !IsResourceLoaded() )
         {
@@ -485,46 +507,90 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::Button( EE_ICON_SKULL" Open Skeleton", ImVec2( -1, 0 ) ) )
+        bool isUsingLowLOD = m_skeletonLOD == Skeleton::LOD::Low;
+        if ( ImGui::Checkbox( "Use Low Skeleton LOD", &isUsingLowLOD ) )
+        {
+            m_skeletonLOD = isUsingLowLOD ? Skeleton::LOD::Low : Skeleton::LOD::High;
+        }
+
+        float const openSkeletonButtonWidth = ImGuiX::CalculateButtonWidth( EE_ICON_SKULL" Open Skeleton" );
+        ImGui::SameLine( ImGui::GetContentRegionAvail().x - openSkeletonButtonWidth + ImGui::GetStyle().ItemSpacing.x, 0 );
+
+        if ( ImGui::Button( EE_ICON_SKULL" Open Skeleton", ImVec2( openSkeletonButtonWidth, 0 ) ) )
         {
             Skeleton const* pSkeleton = m_editedResource.GetPtr()->GetSkeleton();
             m_pToolsContext->TryOpenResource( pSkeleton->GetResourceID() );
         }
 
+        // Draw Tree
         //-------------------------------------------------------------------------
 
-        ImGuiX::Checkbox( "Draw Bone Names", &m_shouldDrawBoneNames );
-        ImGui::SameLine();
-        ImGuiX::Checkbox( "Isolate Selected Bones", &m_isolateSelectedBones );
-        ImGui::SameLine();
-        ImGuiX::Checkbox( "Show Transforms", &m_showHierarchyTransforms );
+        AnimationClip const* pAnimation = m_editedResource.GetPtr();
+        Skeleton const* pSkeleton = pAnimation->GetSkeleton();
+        int32_t const numBones = pAnimation->GetNumBones();
 
         //-------------------------------------------------------------------------
 
-        if ( ImGui::BeginChild( "Table", ImVec2( ImGui::GetContentRegionAvail().x, -1 ), ImGuiChildFlags_AutoResizeY ) )
+        auto ApplySelectionRequests = [this, pSkeleton, numBones] ( ImGuiMultiSelectIO* pMSIO )
         {
-            static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
-            if ( ImGui::BeginTable( "BoneTreeTable", m_showHierarchyTransforms ? 3 : 1, flags ) )
+            for ( ImGuiSelectionRequest const& req : pMSIO->Requests )
             {
-                // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
-                ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
-
-                if ( m_showHierarchyTransforms )
+                if ( req.Type == ImGuiSelectionRequestType_SetAll )
                 {
-                    ImGui::TableSetupColumn( "Bone Space", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
-                    ImGui::TableSetupColumn( "World Space", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+                    m_selectedBoneIDs.clear();
+
+                    if ( req.Selected )
+                    {
+                        for ( int32_t i = 0; i < numBones; i++ )
+                        {
+                            m_selectedBoneIDs.emplace_back( pSkeleton->GetBoneID( i ) );
+                        }
+                    }
                 }
-
-                ImGui::TableHeadersRow();
-
-                //-------------------------------------------------------------------------
-
-                DrawSkeletonTreeRow( m_pSkeletonTreeRoot );
-
-                ImGui::EndTable();
+                else if ( req.Type == ImGuiSelectionRequestType_SetRange )
+                {
+                    if ( req.Selected )
+                    {
+                        for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
+                        {
+                            StringID const boneID = pSkeleton->GetBoneID( (int32_t) i );
+                            VectorEmplaceBackUnique( m_selectedBoneIDs, boneID );
+                        }
+                    }
+                    else
+                    {
+                        for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
+                        {
+                            StringID const boneID = pSkeleton->GetBoneID( (int32_t) i );
+                            m_selectedBoneIDs.erase_first_unsorted( boneID );
+                        }
+                    }
+                }
             }
+        };
+
+        ImGuiMultiSelectFlags const selectionFlags = ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_BoxSelect1d | ImGuiMultiSelectFlags_ClearOnClickVoid;
+        ImGuiMultiSelectIO* pMSIO = ImGui::BeginMultiSelect( selectionFlags, -1, pAnimation->GetNumBones() );
+        ApplySelectionRequests( pMSIO );
+
+        static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
+        if ( ImGui::BeginTable( "BoneTreeTable", 2, flags ) )
+        {
+            // The first column will use the default _WidthStretch when ScrollX is Off and _WidthFixed when ScrollX is On
+            ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "LOD", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 40.0f );
+
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            DrawSkeletonTreeRow( m_pSkeletonTreeRoot );
+
+            ImGui::EndTable();
         }
-        ImGui::EndChild();
+
+        pMSIO = ImGui::EndMultiSelect();
+        ApplySelectionRequests( pMSIO );
     }
 
     void AnimationClipEditor::DrawDetailsWindow( UpdateContext const& context, bool isFocused )
@@ -535,6 +601,104 @@ namespace EE::Animation
     void AnimationClipEditor::DrawClipBrowser( UpdateContext const& context, bool isFocused )
     {
         m_animationClipBrowser.Draw( context, isFocused );
+    }
+
+    void AnimationClipEditor::DrawFloatCurvesWindow( UpdateContext const& context, bool isFocused )
+    {
+        if ( !IsResourceLoaded() )
+        {
+            return;
+        }
+
+        //AnimationClip const* pAnimation = m_editedResource.GetPtr();
+        //int32_t const numFloatCurves = pAnimation->GetNumFloatCurves();
+
+        //if ( numFloatCurves == 0 )
+        //{
+        //    ImGui::Text( "No Float Curves" );
+        //}
+
+        ////-------------------------------------------------------------------------
+
+        //if ( ImGui::BeginTable( "FloatCurveTable", 2, ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY, ImGui::GetContentRegionAvail() ) )
+        //{
+        //    ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+        //    ImGui::TableSetupColumn( "Value", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 100.0f );
+        //    ImGui::TableSetupScrollFreeze( 0, 1 );
+
+        //    ImGui::TableHeadersRow();
+
+        //    //-------------------------------------------------------------------------
+
+        //    TInlineVector<float, 300> floatCurveValues;
+        //    pAnimation->GetFloatCurveValues( m_currentAnimTime, floatCurveValues );
+
+        //    //-------------------------------------------------------------------------
+
+        //    for ( int32_t i = 0; i < numFloatCurves; i++ )
+        //    {
+        //        StringID const curveID = pAnimation->GetFloatCurveID( i );
+
+        //        ImGui::TableNextRow();
+
+        //        ImGui::TableNextColumn();
+        //        ImGui::Text( curveID.IsValid() ? curveID.c_str() : "Invalid ID");
+
+        //        ImGui::TableNextColumn();
+        //        ImGui::TextColored( Color::EvaluateRedGreenGradient( floatCurveValues[i] ).ToFloat4(), "%.5f", floatCurveValues[i] );
+        //    }
+
+        //    ImGui::EndTable();
+        //}
+    }
+
+    void AnimationClipEditor::DrawBoneInfoWindow( UpdateContext const& context, bool isFocused )
+    {
+        if ( !IsResourceLoaded() )
+        {
+            return;
+        }
+
+        AnimationClip const* pAnimation = m_editedResource.GetPtr();
+        Skeleton const* pSkeleton = pAnimation->GetSkeleton();
+        Pose const* pPose = m_pAnimationComponent->GetPrimaryPose();
+
+        if ( ImGui::BeginTable( "BoneTreeTable", 3, ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY, ImGui::GetContentRegionAvail() ) )
+        {
+            ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "Parent Space", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "Model Space", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupScrollFreeze( 0, 1 );
+
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            for ( StringID const& boneID : m_selectedBoneIDs )
+            {
+                int32_t const selectedBoneIdx = pSkeleton->GetBoneIndex( boneID );
+                EE_ASSERT( selectedBoneIdx != InvalidIndex );
+                Transform const parentSpaceBoneTransform = ( selectedBoneIdx == 0 ) ? m_editedResource->GetRootTransform( m_pAnimationComponent->GetAnimTime() ) : pPose->GetTransform( selectedBoneIdx );
+                Transform const modelSpaceBoneTransform = pPose->GetModelSpaceTransform( selectedBoneIdx );
+
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextRow();
+
+                ImGui::TableNextColumn();
+                ImGui::Text( "%d. %s", selectedBoneIdx, pSkeleton->GetBoneID( selectedBoneIdx ).c_str() );
+
+                ImGui::TableNextColumn();
+                ImGuiX::DrawTransform( parentSpaceBoneTransform );
+
+                ImGui::TableNextColumn();
+                ImGuiX::DrawTransform( modelSpaceBoneTransform );
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::EndTable();
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -582,13 +746,6 @@ namespace EE::Animation
         StringID const currentBoneID = pSkeleton->GetBoneID( boneIdx );
         bool const isSelected = VectorContains( m_selectedBoneIDs, currentBoneID );
 
-        Color rowColor = ImGuiX::Style::s_colorText;
-
-        if ( isSelected )
-        {
-            rowColor = ImGuiX::Style::s_colorAccent0;
-        }
-
         //-------------------------------------------------------------------------
 
         ImGui::TableNextRow();
@@ -602,7 +759,7 @@ namespace EE::Animation
 
         ImGui::TableNextColumn();
 
-        int32_t treeNodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnDoubleClick;
+        int32_t treeNodeFlags = ImGuiTreeNodeFlags_SpanFullWidth | ImGuiTreeNodeFlags_OpenOnArrow;
         if ( pBone->m_children.empty() )
         {
             treeNodeFlags |= ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet;
@@ -615,57 +772,11 @@ namespace EE::Animation
 
         ImGui::SetNextItemOpen( pBone->m_isExpanded );
         ImGui::AlignTextToFramePadding();
-        ImGui::PushStyleColor( ImGuiCol_Text, rowColor );
-        pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
 
-        // Handle bone selection
-        if ( ImGui::IsItemClicked() )
+        ImGui::SetNextItemSelectionUserData( boneIdx );
         {
-            // Multi-select
-            if ( ImGui::IsKeyDown( ImGuiMod_Ctrl ) )
-            {
-                // Remove from selection
-                if ( VectorContains( m_selectedBoneIDs, currentBoneID ) )
-                {
-                    m_selectedBoneIDs.erase_first( currentBoneID );
-                }
-                else // Add to selection
-                {
-                    m_selectedBoneIDs.emplace_back( currentBoneID );
-                }
-            }
-            else // Single selection
-            {
-                m_selectedBoneIDs.clear();
-                m_selectedBoneIDs.emplace_back( currentBoneID );
-            }
-        }
-
-        ImGui::PopStyleColor();
-
-        //-------------------------------------------------------------------------
-        // Draw Transforms
-        //-------------------------------------------------------------------------
-
-        if ( m_showHierarchyTransforms )
-        {
-            Pose const* pPose = m_pAnimationComponent->GetPrimaryPose();
-
-            ImGui::TableNextColumn();
-
-            if ( pPose != nullptr )
-            {
-                Transform boneTransform = ( boneIdx == 0 ) ? m_editedResource->GetRootTransform( m_pAnimationComponent->GetAnimTime() ) : pPose->GetTransform( boneIdx );
-                ImGuiX::DrawTransform( boneTransform );
-            }
-
-            ImGui::TableNextColumn();
-
-            if ( pPose != nullptr && boneIdx != 0 )
-            {
-                Transform boneTransform = pPose->GetModelSpaceTransform( boneIdx );
-                ImGuiX::DrawTransform( boneTransform );
-            }
+            ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Font::MediumBold : ImGuiX::Font::Default, ImGuiX::Style::s_colorText );
+            pBone->m_isExpanded = ImGui::TreeNodeEx( boneLabel.c_str(), treeNodeFlags );
         }
 
         //-------------------------------------------------------------------------
@@ -681,6 +792,21 @@ namespace EE::Animation
             }
 
             ImGui::EndPopup();
+        }
+
+        //-------------------------------------------------------------------------
+        // Draw LOD
+        //-------------------------------------------------------------------------
+
+        ImGui::TableNextColumn();
+
+        if ( isHighLOD )
+        {
+            ImGui::TextColored( Colors::Lime.ToFloat4(), "High" );
+        }
+        else
+        {
+            ImGui::TextColored( Colors::Orange.ToFloat4(), "Low" );
         }
 
         //-------------------------------------------------------------------------
@@ -717,9 +843,9 @@ namespace EE::Animation
         return true;
     }
 
-    void AnimationClipEditor::PreUndoRedo( UndoStack::Operation operation )
+    void AnimationClipEditor::PreUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
     {
-        TResourceEditor<AnimationClip>::PreUndoRedo( operation );
+        TResourceEditor<AnimationClip>::PreUndoRedo( operation, pAction );
         m_propertyGrid.SetTypeToEdit( nullptr );
     }
 }

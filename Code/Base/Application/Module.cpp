@@ -6,14 +6,14 @@
 
 namespace EE
 {
-    TInlineVector<EE::Resource::ResourcePtr*, 4> Module::GetModuleResources() const
+    TInlineVector<EE::Resource::ResourcePtr*, 10> Module::GetModuleResources() const
     {
-        return TInlineVector<EE::Resource::ResourcePtr*, 4>();
+        return TInlineVector<EE::Resource::ResourcePtr*, 10>();
     }
 
     void Module::LoadModuleResources( Resource::ResourceSystem& resourceSystem )
     {
-        TInlineVector<Resource::ResourcePtr*, 4> const moduleResources = GetModuleResources();
+        TInlineVector<Resource::ResourcePtr*, 10> const moduleResources = GetModuleResources();
         for ( auto pResourcePtr : moduleResources )
         {
             resourceSystem.LoadResource( *pResourcePtr );
@@ -62,7 +62,7 @@ namespace EE
     {
         EE_ASSERT( m_currentlyLoadingResources.empty() );
 
-        TInlineVector<Resource::ResourcePtr*, 4> const moduleResources = GetModuleResources();
+        TInlineVector<Resource::ResourcePtr*, 10> const moduleResources = GetModuleResources();
         for ( auto pResourcePtr : moduleResources )
         {
             OnModuleResourceUnload( pResourcePtr );
@@ -77,11 +77,12 @@ namespace EE
     #if EE_DEVELOPMENT_TOOLS
     void Module::HotReload_UnloadResources( Resource::ResourceSystem& resourceSystem, TInlineVector<ResourceID, 20> const& resourcesToUnload )
     {
-        TInlineVector<Resource::ResourcePtr*, 4> const moduleResources = GetModuleResources();
+        TInlineVector<Resource::ResourcePtr*, 10> const moduleResources = GetModuleResources();
         for ( auto pResourcePtr : moduleResources )
         {
             if ( VectorContains( resourcesToUnload, pResourcePtr->GetResourceID() ) )
             {
+                OnModuleResourceUnload( pResourcePtr );
                 resourceSystem.UnloadResource( *pResourcePtr );
             }
         }
@@ -89,7 +90,7 @@ namespace EE
 
     void Module::HotReload_ReloadResources( Resource::ResourceSystem& resourceSystem, TInlineVector<ResourceID, 20> const& resourcesToReload )
     {
-        TInlineVector<Resource::ResourcePtr*, 4> const moduleResources = GetModuleResources();
+        TInlineVector<Resource::ResourcePtr*, 10> const moduleResources = GetModuleResources();
         for ( auto pResourcePtr : moduleResources )
         {
             if ( VectorContains( resourcesToReload, pResourcePtr->GetResourceID() ) )

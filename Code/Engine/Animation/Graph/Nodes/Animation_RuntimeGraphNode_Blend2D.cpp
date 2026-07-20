@@ -82,8 +82,7 @@ namespace EE::Animation
 
                 void Evaluate( Float2 const &point )
                 {
-                    LineSegment ls( m_segmentStart, m_segmentEnd );
-                    Vector const cp = ls.VectorProjectionOnSegment( point, m_T );
+                    Vector const cp = Math::CalculateClosestPointOnLineSegment( m_segmentStart, m_segmentEnd, point, &m_T );
                     m_closestPointOnEdge = cp.ToFloat2();
                 }
 
@@ -92,11 +91,11 @@ namespace EE::Animation
                     return ( m_segmentEnd - m_segmentStart ).GetLength2();
                 }
 
-                int32_t			m_nStartHullIdx = InvalidIndex;
-                Vector			m_segmentStart = Vector::Zero;
-                Vector			m_segmentEnd = Vector::One;
-                Float2		    m_closestPointOnEdge;
-                float			m_T = 0.0f; // Parameter representing the closest point between the start and the end
+                int32_t     m_nStartHullIdx = InvalidIndex;
+                Vector      m_segmentStart = Vector::Zero;
+                Vector      m_segmentEnd = Vector::One;
+                Float2      m_closestPointOnEdge;
+                float       m_T = 0.0f; // Parameter representing the closest point between the start and the end
             };
 
             float closestDistance = FLT_MAX;
@@ -290,8 +289,9 @@ namespace EE::Animation
         {
             PoseNode *pSource = m_sourceNodes[m_bsr.m_sourceIndices[0]];
 
-            // We need to create a blended sync track to remove any offsets
-            m_blendedSyncTrack = SyncTrack( pSource->GetSyncTrack(), pSource->GetSyncTrack(), 0.0f );
+            // We need to remove any offsets from the "blended" track
+            m_blendedSyncTrack = pSource->GetSyncTrack();
+            m_blendedSyncTrack.ClearStartOffset();
             m_duration = pSource->GetDuration();
         }
         else // 2-way blend
@@ -367,9 +367,16 @@ namespace EE::Animation
         if ( m_bsr.m_sourceIndices[1] == InvalidIndex )
         {
             PoseNode *pSource = m_sourceNodes[m_bsr.m_sourceIndices[0]];
-            result = pSource->Update( context, &updateRange );
-            m_previousTime = GetSyncTrack().GetPercentageThrough( updateRange.m_startTime );
-            m_currentTime = GetSyncTrack().GetPercentageThrough( updateRange.m_endTime );
+            if ( pSource->IsValid() )
+            {
+                result = pSource->Update( context, &updateRange );
+                m_previousTime = GetSyncTrack().GetPercentageThrough( updateRange.m_startTime );
+                m_currentTime = GetSyncTrack().GetPercentageThrough( updateRange.m_endTime );
+            }
+            else
+            {
+                result.m_sampledEventRange = context.GetEmptySampledEventRange();
+            }
         }
 
         // 2-Way Blend
@@ -381,13 +388,27 @@ namespace EE::Animation
             PoseNode *pSource1 = m_sourceNodes[m_bsr.m_sourceIndices[1]];
 
             // Update Source 0
-            GraphPoseNodeResult const sourceResult0 = pSource0->Update( context, &updateRange );
+            GraphPoseNodeResult sourceResult0;
+            sourceResult0.m_sampledEventRange = context.GetEmptySampledEventRange();
+
+            if ( pSource0->IsValid() )
+            {
+                sourceResult0 = pSource0->Update( context, &updateRange );
+            }
+
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource0 = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
 
             // Update Source 1
-            GraphPoseNodeResult const sourceResult1 = pSource1->Update( context, &updateRange );
+            GraphPoseNodeResult sourceResult1;
+            sourceResult1.m_sampledEventRange = context.GetEmptySampledEventRange();
+
+            if ( pSource1->IsValid() )
+            {
+                sourceResult1 = pSource1->Update( context, &updateRange );
+            }
+
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource1 = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
@@ -397,11 +418,11 @@ namespace EE::Animation
 
             if ( sourceResult0.HasRegisteredTasks() && sourceResult1.HasRegisteredTasks() )
             {
-                result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult0.m_taskIdx, sourceResult1.m_taskIdx, m_bsr.m_blendWeightBetween0And1 );
+                result.m_taskIdx = context.GetTaskSystem()->RegisterTask<BlendTask>( GetNodePath( context ), sourceResult0.m_taskIdx, sourceResult1.m_taskIdx, m_bsr.m_blendWeightBetween0And1 );
                 result.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult0.m_rootMotionDelta, sourceResult1.m_rootMotionDelta, m_bsr.m_blendWeightBetween0And1 );
 
                 #if EE_DEVELOPMENT_TOOLS
-                baseMotionActionIdx = context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
+                baseMotionActionIdx = context.GetRootMotionDebugger()->RecordBlend( GetNodePath( context ), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
                 #endif
             }
             else
@@ -409,7 +430,7 @@ namespace EE::Animation
                 result = ( sourceResult0.HasRegisteredTasks() ) ? sourceResult0 : sourceResult1;
             }
 
-            result.m_sampledEventRange = context.m_pSampledEventsBuffer->BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_bsr.m_blendWeightBetween0And1 );
+            result.m_sampledEventRange = context.GetSampledEventsBuffer()->BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_bsr.m_blendWeightBetween0And1 );
 
             // Update internal time and events
             //-------------------------------------------------------------------------
@@ -428,7 +449,13 @@ namespace EE::Animation
             PoseNode *pSource2 = m_sourceNodes[m_bsr.m_sourceIndices[2]];
 
             // Update Source 2
-            GraphPoseNodeResult const sourceResult2 = pSource2->Update( context, &updateRange );
+            GraphPoseNodeResult sourceResult2;
+            sourceResult2.m_sampledEventRange = context.GetEmptySampledEventRange();
+
+            if ( pSource2->IsValid() )
+            {
+                 sourceResult2 = pSource2->Update( context, &updateRange );
+            }
 
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource2 = context.GetRootMotionDebugger()->GetLastActionIndex();
@@ -439,11 +466,11 @@ namespace EE::Animation
 
             if ( baseResult.HasRegisteredTasks() && sourceResult2.HasRegisteredTasks() )
             {
-                result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), baseResult.m_taskIdx, sourceResult2.m_taskIdx, m_bsr.m_blendWeightBetween1And2 );
+                result.m_taskIdx = context.GetTaskSystem()->RegisterTask<BlendTask>( GetNodePath( context ), baseResult.m_taskIdx, sourceResult2.m_taskIdx, m_bsr.m_blendWeightBetween1And2 );
                 result.m_rootMotionDelta = Blender::BlendRootMotionDeltas( baseResult.m_rootMotionDelta, sourceResult2.m_rootMotionDelta, m_bsr.m_blendWeightBetween1And2 );
 
                 #if EE_DEVELOPMENT_TOOLS
-                context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), baseMotionActionIdx, rootMotionActionIdxSource2, result.m_rootMotionDelta );
+                context.GetRootMotionDebugger()->RecordBlend( GetNodePath( context ), baseMotionActionIdx, rootMotionActionIdxSource2, result.m_rootMotionDelta );
                 #endif
             }
             else
@@ -451,7 +478,7 @@ namespace EE::Animation
                 result = ( baseResult.HasRegisteredTasks() ) ? baseResult : sourceResult2;
             }
 
-            result.m_sampledEventRange = context.m_pSampledEventsBuffer->BlendEventRanges( baseResult.m_sampledEventRange, sourceResult2.m_sampledEventRange, m_bsr.m_blendWeightBetween1And2 );
+            result.m_sampledEventRange = context.GetSampledEventsBuffer()->BlendEventRanges( baseResult.m_sampledEventRange, sourceResult2.m_sampledEventRange, m_bsr.m_blendWeightBetween1And2 );
 
             // Update internal time and events
             //-------------------------------------------------------------------------
@@ -464,7 +491,6 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    #if EE_DEVELOPMENT_TOOLS
     void Blend2DNode::RecordGraphState( RecordedGraphState& outState )
     {
         PoseNode::RecordGraphState( outState );
@@ -477,9 +503,12 @@ namespace EE::Animation
         outState.WriteValue( m_blendedSyncTrack );
     }
 
-    void Blend2DNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool Blend2DNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( inState );
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
 
         inState.ReadValue( m_bsr.m_sourceIndices[0] );
         inState.ReadValue( m_bsr.m_sourceIndices[1] );
@@ -487,6 +516,7 @@ namespace EE::Animation
         inState.ReadValue( m_bsr.m_blendWeightBetween0And1 );
         inState.ReadValue( m_bsr.m_blendWeightBetween1And2 );
         inState.ReadValue( m_blendedSyncTrack );
+
+        return true;
     }
-    #endif
 }

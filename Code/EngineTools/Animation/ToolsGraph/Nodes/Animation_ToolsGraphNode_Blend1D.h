@@ -52,6 +52,7 @@ namespace EE::Animation
 
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
+        virtual UUID RegenerateIDs( THashMap<UUID, UUID>& IDMapping ) override;
 
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
         virtual void OnDynamicPinCreation( UUID const& pinID ) override;

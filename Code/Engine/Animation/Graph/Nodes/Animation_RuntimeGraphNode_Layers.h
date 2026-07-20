@@ -75,10 +75,8 @@ namespace EE::Animation
         virtual SyncTrack const& GetSyncTrack() const override { EE_ASSERT( IsValid() ); return m_pBaseLayerNode->GetSyncTrack(); }
         virtual bool IsValid() const override { return PoseNode::IsValid() && m_pBaseLayerNode->IsValid(); }
 
-        #if EE_DEVELOPMENT_TOOLS
         inline float GetLayerWeight( int32_t layerIdx ) const { return m_layers[layerIdx].m_weight; }
         void GetSyncUpdateRangesForUnsynchronizedLayers( TInlineVector<GraphLayerSyncInfo, 5>& outLayerSyncInfos ) const;
-        #endif
 
     private:
 
@@ -89,19 +87,10 @@ namespace EE::Animation
 
         void UpdateLayers( GraphContext& context, GraphPoseNodeResult& NodeResult );
 
-        // Debugging
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
-
     private:
 
         PoseNode*                                           m_pBaseLayerNode = nullptr;
         TInlineVector<Layer, 3>                             m_layers;
-        GraphLayerContext*                                  m_pPreviousContext = nullptr;
 
         #if EE_DEVELOPMENT_TOOLS
         int16_t                                             m_rootMotionActionIdxBase = InvalidIndex;

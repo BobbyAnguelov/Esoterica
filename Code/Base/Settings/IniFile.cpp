@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Settings
+namespace EE
 {
     IniFile::IniFile( FileSystem::Path const& filePath )
     {

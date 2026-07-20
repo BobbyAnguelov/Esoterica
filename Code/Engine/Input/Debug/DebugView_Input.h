@@ -1,11 +1,11 @@
 #pragma once
 
-#include "Engine/DebugViews/DebugView.h"
+#include "Engine/Debug/DebugView.h"
 #include "Base/Input/InputDevices/InputDevice_Controller.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE { class PlayerManager; }
+namespace EE { class ActorManager; }
 
 //-------------------------------------------------------------------------
 
@@ -25,7 +25,8 @@ namespace EE::Input
 
     public:
 
-        InputDebugView() : DebugView( "Engine/Input" ) {}
+        virtual Category GetCategory() const override { return Category::Engine; }
+        virtual char const* GetMenuPath() const override { return "Input"; }
 
     private:
 
@@ -34,13 +35,11 @@ namespace EE::Input
         virtual void DrawMenu( EntityWorldUpdateContext const& context ) override;
         virtual void Update( EntityWorldUpdateContext const& context ) override;
 
-        void DrawVirtualInputState( EntityWorldUpdateContext const& context );
         void DrawControllerState( EntityWorldUpdateContext const& context, ControllerDevice const& controllerState );
 
     private:
 
         InputSystem*                                    m_pInputSystem = nullptr;
-        PlayerManager*                                  m_pPlayerManager = nullptr;
         int32_t                                         m_numControllers = 0;
     };
 }

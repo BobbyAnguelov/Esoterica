@@ -86,20 +86,19 @@ namespace EE::Animation
 
         StateIndex SelectDefaultState( GraphContext& context ) const;
 
-        void InitializeTransitionConditions( GraphContext& context );
-        void ShutdownTransitionConditions( GraphContext& context );
+        void InitializeTransitionConditions( GraphContext& context, StateIndex stateIdx );
+        void ShutdownTransitionConditions( GraphContext& context, StateIndex stateIdx );
 
         void EvaluateTransitions( GraphContext& context, SyncTrackTimeRange const* pUpdateRange, GraphPoseNodeResult& NodeResult, int8_t sourceTasksStartMarker );
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
         TInlineVector<StateInfo, 10>                                m_states;
         TransitionNode*                                             m_pActiveTransition = nullptr;
         StateIndex                                                  m_activeStateIndex = InvalidIndex;
+        StateIndex                                                  m_requestShutdownConditionsStateIndex = InvalidIndex;
     };
 }

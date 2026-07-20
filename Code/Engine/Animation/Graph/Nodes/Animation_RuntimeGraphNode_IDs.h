@@ -71,4 +71,69 @@ namespace EE::Animation
         float                                       m_value = 0.0f;
     };
 
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API IDSwitchNode final : public IDValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Definition final : public IDValueNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( IDValueNode::Definition, m_switchValueNodeIdx, m_trueValueNodeIdx, m_falseValueNodeIdx, m_trueValue, m_falseValue );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+            int16_t                    m_switchValueNodeIdx = InvalidIndex;
+            int16_t                    m_trueValueNodeIdx = InvalidIndex;
+            int16_t                    m_falseValueNodeIdx = InvalidIndex;
+            StringID                   m_trueValue;
+            StringID                   m_falseValue;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+
+    private:
+
+        BoolValueNode*                  m_pSwitchValueNode = nullptr;
+        IDValueNode*                    m_pTrueValueNode = nullptr;
+        IDValueNode*                    m_pFalseValueNode = nullptr;
+        StringID                        m_value;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API IDSelectorNode final : public IDValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Definition final : public IDValueNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( IDValueNode::Definition, m_conditionNodeIndices, m_values, m_defaultValue );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+            TInlineVector<int16_t, 5>   m_conditionNodeIndices;
+            TInlineVector<StringID, 5>  m_values;
+            StringID                    m_defaultValue;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext &context ) override;
+        virtual void ShutdownInternal( GraphContext &context ) override;
+        virtual void GetValueInternal( GraphContext &context, void *pOutValue ) override;
+        virtual void RecordGraphState( RecordedGraphState &outState ) override;
+        virtual bool RestoreGraphState( RecordedGraphState const &inState ) override;
+
+    private:
+
+        TInlineVector<BoolValueNode*, 5>    m_conditionNodes;
+        StringID                            m_value;
+    };
 }

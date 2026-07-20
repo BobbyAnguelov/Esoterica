@@ -3,6 +3,7 @@
 #include "EngineTools/_Module/API.h"
 #include "Base/TypeSystem/TypeID.h"
 #include "Base/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiTextBuffer.h"
 
 //-------------------------------------------------------------------------
 
@@ -59,6 +60,8 @@ namespace EE
         // Create a human readable typeinfo name
         String ConstructFriendlyTypeInfoName( TypeSystem::TypeInfo const* pTypeInfo );
 
+        void UpdateTypeInfoLabel();
+
     private:
 
         ToolsContext const&                                         m_toolsContext;
@@ -67,6 +70,7 @@ namespace EE
         ImGuiX::FilterWidget                                        m_filterWidget;
         TVector<Option>                                             m_generatedOptions;
         TVector<Option>                                             m_filteredOptions;
+        ImGuiX::TextBuffer                                          m_typeInfoLabel;
         bool                                                        m_isComboOpen = false;
         bool                                                        m_isPickerDisabled = false;
     };

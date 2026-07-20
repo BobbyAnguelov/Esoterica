@@ -4,21 +4,27 @@
 #include "Base/Serialization/TypeSerialization.h"
 #include "Base/FileSystem/FileSystemUtils.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
-#include "Base/FileSystem/DataPath.h"
 #include "Base/TypeSystem/TypeInstance.h"
 #include "EngineTools/Core/Test/Component_SerializationTest.h"
 #include "EngineTools/Entity/EntitySerializationTools.h"
+#include "Base/Math/MathRandom.h"
+#include "Base/Utils/CommandLineParser.h"
+#include "Base/Time/Timers.h"
 
 #include <iostream>
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode.h"
+#include "Base/Math/Matrix43.h"
+#include "Base/Math/Matrix.h"
 
 //-------------------------------------------------------------------------
 
 using namespace EE;
-
-//-------------------------------------------------------------------------
+using namespace EE::Physics;
 
 int main( int argc, char *argv[] )
 {
+    int numTestFailures = 0;
+
     {
         EE::ApplicationGlobalState State;
         TypeSystem::TypeRegistry typeRegistry;
@@ -26,10 +32,71 @@ int main( int argc, char *argv[] )
 
         //-------------------------------------------------------------------------
 
+    /*    String a( "TestStringA" );
+        StringUtils::InsertSpacesAccordingToCapitalization( a );
+        std::cout << a.c_str() << std::endl;
+
+        String b( "TesTStringA" );
+        StringUtils::InsertSpacesAccordingToCapitalization( b );
+        std::cout << b.c_str() << std::endl;
+
+        String c( "NPCTestStringA" );
+        StringUtils::InsertSpacesAccordingToCapitalization( c );
+        std::cout << c.c_str() << std::endl;
+
+        String d( "TestStringABCD" );
+        StringUtils::InsertSpacesAccordingToCapitalization( d );
+        std::cout << d.c_str() << std::endl;
+
+        Matrix mat;
+        Matrix43 m( mat );
+
+        auto res = typeRegistry.GetAllDerivedLeafTypes( Animation::FlowToolsNode::GetStaticTypeID() );*/
+
+        //DataPath dp( "data://blah/foo.tar.bar" );
+        FileSystem::Path dp( "d:/esoterica/flag" );
+
+        //if ( dp.HasSubFilename() )
+        {
+            std::cout << dp.GetExtension();
+        }
+
+        /*CommandLineParser cl;
+        cl.AddRequiredStringArg( "mAp", "DASDASDAS" );
+        cl.AddOptionalBoolArg( "packaged" );
+        cl.AddOptionalIntArg( "int" );
+        cl.AddRequiredFloatArg( "float" );
+        cl.AddRequiredFloatArg( "int2" );
+
+        cl.PrintHelp();
+
+        if ( cl.Parse( argc, argv ) )
+        {
+            bool isPackaged = cl.GetBoolArg( "packaged" );
+            String map = cl.GetStringArg( "map" );
+            float f = cl.GetFloatArg( "floAT" );
+        }
+        else
+        {
+            std::cout << cl.GetErrorMessage();
+        }*/
+
+        /*cli::Parser cmdParser( argc, argv );
+        cmdParser.set_optional<std::string>( "map", "map", "", "The startup map." );
+
+        #if EE_DEVELOPMENT_TOOLS
+        cmdParser.set_optional<bool>( "packaged", "packaged", false, "Should we use packaged data instead of the networked resource server" );
+        #endif
+
+        if ( !cmdParser.run() )
+        {
+            return m_fatalErrorHandler( "Invalid command line arguments!" );
+        }*/
+
         //-------------------------------------------------------------------------
 
         TypeSystem::Reflection::UnregisterTypes( typeRegistry );
     }
 
-    return 0;
+    return numTestFailures;
 }

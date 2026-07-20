@@ -33,10 +33,4 @@ namespace EE::FileSystem
     // All paths will be matched against the supplied regex expression
     // WARNING!!! THIS IS VERY SLOW
     EE_BASE_API bool GetDirectoryContents( Path const& directoryPath, char const* const pRegexExpression, TVector<Path>& contents, DirectoryReaderOutput output = DirectoryReaderOutput::All, DirectoryReaderMode mode = DirectoryReaderMode::Recursive );
-
-    //-------------------------------------------------------------------------
-    // Miscellaneous functions
-    //-------------------------------------------------------------------------
-
-    EE_BASE_API Path GetCurrentProcessPath();
 }

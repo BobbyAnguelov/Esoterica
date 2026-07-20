@@ -1,28 +1,30 @@
 #include "EditorUI.h"
-#include "Engine/Render/RenderingSystem.h"
-#include "EngineTools/Entity/ResourceEditors/ResourceEditor_MapEditor.h"
-#include "EngineTools/Entity/Tools/EditorTool_GamePreviewer.h"
+#include "EditorTool_GamePreviewer.h"
+#include "Game/ToolsUI/GameDebugUI.h"
+#include "EngineTools/MapEditor/MapEditor.h"
 #include "EngineTools/Resource/Tools/EditorTool_ResourceBrowser.h"
 #include "EngineTools/Resource/Tools/EditorTool_ResourceSystem.h"
 #include "EngineTools/Resource/Tools/EditorTool_ResourceImporter.h"
-#include "EngineTools/Logging/Tools/EditorTool_SystemLog.h"
+#include "EngineTools/Resource/Tools/EditorTool_ResourceDependencyViewer.h"
+#include "EngineTools/Resource/Tools/EditorTool_ResourceBulkUpdate.h"
+#include "EngineTools/Resource/Dialogs/EditorDialog_DataFileCreator.h"
+#include "EngineTools/Core/Tools/EditorTool_SystemLog.h"
+#include "EngineTools/Core/Tools/EditorTool_SystemSettings.h"
+#include "EngineTools/Core/Tools/EditorTool_MemoryTracker.h"
 #include "EngineTools/Core/ToolsEmbeddedResources.inl"
 #include "EngineTools/Core/Test/UITest.h"
-#include "EngineTools/Core/Dialogs.h"
-#include "Engine/Console/Console.h"
+#include "EngineTools/Core/SystemDialogs.h"
+#include "Engine/Camera/Components/Component_ToolsCamera.h"
+#include "Engine/Camera/Systems/WorldSystem_Camera.h"
 #include "Engine/ToolsUI/EngineDebugUI.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "Engine/Render/DebugViews/DebugView_Render.h"
-#include "Base/Imgui/ImguiImageCache.h"
+#include "Engine/Render/Imgui/ImguiImageCache.h"
 #include "Base/Resource/ResourceSystem.h"
-#include "Base/Resource/Settings/GlobalSettings_Resource.h"
+#include "Base/Resource/Settings/Settings_Resource.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/ThirdParty/implot/implot.h"
-#include "Base/Logging/SystemLog.h"
-#include "Base/Profiling.h"
-#include "EngineTools/Resource/ResourceDescriptorCreator.h"
 
 //-------------------------------------------------------------------------
 
@@ -30,13 +32,10 @@ namespace EE
 {
     EditorUI::~EditorUI()
     {
-        EE::Delete( m_pResourceDescriptorCreator );
-
         EE_ASSERT( m_editorTools.empty() );
         EE_ASSERT( m_pMapEditor == nullptr );
         EE_ASSERT( m_pGamePreviewer == nullptr );
 
-        EE_ASSERT( m_pRenderingSystem == nullptr );
         EE_ASSERT( m_pWorldManager == nullptr );
     }
 
@@ -50,12 +49,14 @@ namespace EE
         }
         else
         {
-            EE_LOG_ERROR( "Editor", "Invalid startup map resource supplied: %s", m_startupMapResourceID.c_str() );
+            EE_LOG_ERROR( LogCategory::Tools, "Editor - Invalid startup map resource supplied: %s", m_startupMapResourceID.c_str() );
         }
     }
 
     void EditorUI::Initialize( UpdateContext const& context, ImGuiX::ImageCache* pImageCache )
     {
+        m_pDialogManager = &m_dialogManager;
+
         // ImGui
         //-------------------------------------------------------------------------
 
@@ -73,7 +74,6 @@ namespace EE
         m_pTypeRegistry = context.GetSystem<TypeSystem::TypeRegistry>();
         m_pSystemRegistry = context.GetSystemRegistry();
         m_pWorldManager = context.GetSystem<EntityWorldManager>();
-        m_pRenderingSystem = context.GetSystem<Render::RenderingSystem>();
         auto pTaskSystem = context.GetSystem<TaskSystem>();
 
         // Resources
@@ -148,13 +148,36 @@ namespace EE
         //-------------------------------------------------------------------------
 
         m_pWorldManager = nullptr;
-        m_pRenderingSystem = nullptr;
         m_pTypeRegistry = nullptr;
     }
+
+    //-------------------------------------------------------------------------
+    // Tools Context
+    //-------------------------------------------------------------------------
 
     bool EditorUI::TryOpenDataFile( DataPath const& path ) const
     {
         EE_ASSERT( path.IsValid() && path.IsFilePath() );
+
+        // Handle maps explicitly
+        //-------------------------------------------------------------------------
+
+        ResourceID const resourceID( path );
+        ResourceTypeID const resourceTypeID = resourceID.GetResourceTypeID();
+        if ( resourceTypeID == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() )
+        {
+            // Map is already open, so nothing to do
+            if ( m_pMapEditor->GetLoadedMap() == resourceID )
+            {
+                return true;
+            }
+
+            // Stop preview when switching map
+            if ( m_pGamePreviewer != nullptr && !IsToolQueuedForDestruction( m_pGamePreviewer ) )
+            {
+                m_toolOperations.emplace_back( ToolOperation( m_pGamePreviewer, ToolOperation::DestroyTool ) );
+            }
+        }
 
         ToolOperation& request = m_toolOperations.emplace_back();
         request.m_type = ToolOperation::OpenFile;
@@ -176,11 +199,29 @@ namespace EE
         return true;
     }
 
-    void EditorUI::TryCreateNewResourceDescriptor( TypeSystem::TypeID descriptorTypeID, FileSystem::Path const& startingDir ) const
+    void EditorUI::TryCreateNewResourceDescriptorOrDataFile( TypeSystem::TypeID typeID, FileSystem::Path const& startingDir ) const
     {
-        Resource::ResourceDescriptorCreator*& pDescCreator = const_cast<Resource::ResourceDescriptorCreator*&>( m_pResourceDescriptorCreator );
-        EE::Delete( pDescCreator );
-        pDescCreator = EE::New<Resource::ResourceDescriptorCreator>( this, descriptorTypeID, startingDir.IsValid() ? startingDir : m_fileRegistry.GetSourceDataDirectoryPath() );
+        const_cast<DialogManager&>( m_dialogManager ).StartModalDialog<Resource::ResourceDataFileCreatorDialog>( this, typeID, startingDir.IsValid() ? startingDir : m_fileRegistry.GetSourceDataDirectoryPath() );
+
+        /*Resource::ResourceDataFileCreator*& pDataFileCreator = const_cast<Resource::ResourceDataFileCreator*&>( m_pResourceDataFileCreator );
+        EE::Delete( pDataFileCreator );
+        pDataFileCreator = EE::New<Resource::ResourceDataFileCreator>( this, typeID, startingDir.IsValid() ? startingDir : m_fileRegistry.GetSourceDataDirectoryPath() );*/
+    }
+
+    void EditorUI::OpenResourceImporter() const
+    {
+        const_cast<EditorUI*>( this )->CreateTool<Resource::ResourceImporterEditorTool>( this );
+    }
+
+    void EditorUI::ShowResourceDependencies( ResourceID const& resourceID ) const
+    {
+        Resource::ResourceDependencyViewerEditorTool* pDependencyViewer = GetTool<Resource::ResourceDependencyViewerEditorTool>();
+        if ( pDependencyViewer == nullptr )
+        {
+            pDependencyViewer = const_cast<EditorUI*>( this )->CreateTool<Resource::ResourceDependencyViewerEditorTool>( this );
+        }
+
+        pDependencyViewer->ShowDependenciesForResourceID( resourceID );
     }
 
     //-------------------------------------------------------------------------
@@ -195,11 +236,15 @@ namespace EE
 
     void EditorUI::DrawTitleBarMenu( UpdateContext const& context )
     {
-        ImGuiX::Image( m_editorIcon.m_ID, m_editorIcon.m_size );
+        ImGui::Image( m_editorIcon.m_ID, m_editorIcon.m_size );
+        ImGuiX::TextTooltip( "Esoterica Editor" );
 
         //-------------------------------------------------------------------------
 
+        constexpr float const verticalOffset = -4;
+
         ImGui::SameLine();
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + verticalOffset );
 
         if ( ImGui::BeginMenu( "Editor" ) )
         {
@@ -213,28 +258,43 @@ namespace EE
             ImGui::EndMenu();
         }
 
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + verticalOffset );
+
         if ( ImGui::BeginMenu( "Resources" ) )
         {
-            bool isResourceBrowserOpen = GetTool<Resource::ResourceBrowserEditorTool>() != nullptr;
-            if ( ImGui::MenuItem( "Resource Browser", nullptr, &isResourceBrowserOpen, !isResourceBrowserOpen ) )
-            {
-                CreateTool<Resource::ResourceBrowserEditorTool>( this );
-            }
             bool isResourceImporterOpen = GetTool<Resource::ResourceImporterEditorTool>() != nullptr;
             if ( ImGui::MenuItem( "Resource Importer", nullptr, &isResourceImporterOpen, !isResourceImporterOpen ) )
             {
                 CreateTool<Resource::ResourceImporterEditorTool>( this );
             }
 
-            //-------------------------------------------------------------------------
+            bool isResourceBrowserOpen = GetTool<Resource::ResourceBrowserEditorTool>() != nullptr;
+            if ( ImGui::MenuItem( "Resource Browser", nullptr, &isResourceBrowserOpen, !isResourceBrowserOpen ) )
+            {
+                CreateTool<Resource::ResourceBrowserEditorTool>( this );
+            }
 
-            ImGui::Separator();
+            bool isResourceDependencyViewOpen = GetTool<Resource::ResourceDependencyViewerEditorTool>() != nullptr;
+            if ( ImGui::MenuItem( "Resource Dependency Viewer", nullptr, &isResourceDependencyViewOpen, !isResourceDependencyViewOpen ) )
+            {
+                CreateTool<Resource::ResourceDependencyViewerEditorTool>( this );
+            }
 
             bool isResourceSystemOpen = GetTool<Resource::ResourceSystemEditorTool>() != nullptr;
             if ( ImGui::MenuItem( "Resource System Info", nullptr, &isResourceSystemOpen, !isResourceSystemOpen ) )
             {
                 CreateTool<Resource::ResourceSystemEditorTool>( this );
             }
+
+            bool isResourceBulkUpdateOpen = GetTool<Resource::ResourceBulkUpdateEditorTool>() != nullptr;
+            if ( ImGui::MenuItem( "Resource Bulk Update", nullptr, &isResourceBulkUpdateOpen, !isResourceBulkUpdateOpen ) )
+            {
+                CreateTool<Resource::ResourceBulkUpdateEditorTool>( this );
+            }
+
+            //-------------------------------------------------------------------------
+
+            ImGui::Separator();
 
             if ( ImGui::MenuItem( "Rebuild File Registry" ) )
             {
@@ -244,13 +304,14 @@ namespace EE
             ImGui::EndMenu();
         }
 
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + verticalOffset );
+
         if ( ImGui::BeginMenu( "System" ) )
         {
-            auto pConsole = m_pSystemRegistry->GetSystem<Console>();
-            bool isConsoleOpen = pConsole->IsVisible();
-            if ( ImGui::MenuItem( "Console", nullptr, &isConsoleOpen, !isConsoleOpen ) )
+            bool isMemoryTrackerOpen = GetTool<MemoryTrackerEditorTool>() != nullptr;
+            if ( ImGui::MenuItem( "Memory Tracker", nullptr, &isMemoryTrackerOpen, !isMemoryTrackerOpen ) )
             {
-                pConsole->SetVisible( isConsoleOpen );
+                CreateTool<MemoryTrackerEditorTool>( this );
             }
 
             bool isLogOpen = GetTool<SystemLogEditorTool>() != nullptr;
@@ -259,9 +320,10 @@ namespace EE
                 CreateTool<SystemLogEditorTool>( this );
             }
 
-            if ( ImGui::MenuItem( "Open Profiler" ) )
+            bool isSettingsOpen = GetTool<SystemSettingsEditorTool>() != nullptr;
+            if ( ImGui::MenuItem( "System Settings", nullptr, &isSettingsOpen, !isSettingsOpen ) )
             {
-                Profiling::OpenProfiler();
+                CreateTool<SystemSettingsEditorTool>( this );
             }
 
             ImGui::EndMenu();
@@ -270,38 +332,50 @@ namespace EE
 
     void EditorUI::DrawTitleBarInfoStats( UpdateContext const& context )
     {
+        FrameLimiterWidget frameLimiter;
+        PerformanceStatsWidget performanceStats( context );
+        SystemLogSummaryWidget logSummary;
+
+        float const availableSpace = ImGui::GetContentRegionAvail().x;
+        float const requiredOffset = availableSpace - logSummary.m_size.x - frameLimiter.m_width - performanceStats.m_totalSize.x - ImGui::GetFrameHeight() - ( 4 * ImGui::GetStyle().ItemSpacing.x );
+        if ( requiredOffset > 0 )
+        {
+            ImGui::Dummy( ImVec2( requiredOffset, 0 ) );
+            ImGui::SameLine();
+        }
+
+        constexpr float const verticalOffset = 4;
+        ImGui::SetCursorPosY( ImGui::GetCursorPosY() + verticalOffset );
+
+        if ( logSummary.Draw() )
+        {
+            CreateTool<SystemLogEditorTool>( this );
+        }
+        ImGui::SameLine();
+
         auto pResourceSystem = m_pSystemRegistry->GetSystem<Resource::ResourceSystem>();
         if ( pResourceSystem->IsBusy() )
         {
-            ImGui::SameLine();
             if ( ImGuiX::DrawSpinner( "##RS", Colors::LimeGreen ) )
             {
                 CreateTool<Resource::ResourceSystemEditorTool>( this );
             }
-            ImGuiX::TextTooltip( "Resource System Busy" );
+            ImGuiX::TextTooltip( "Resource System: Busy" );
         }
         else
         {
-            if ( ImGuiX::FlatButton( EE_ICON_SLEEP ) )
+            if ( ImGuiX::FlatButton( EE_ICON_SLEEP, ImVec2( ImGui::GetFrameHeight(), ImGui::GetFrameHeight() ) ) )
             {
                 CreateTool<Resource::ResourceSystemEditorTool>( this );
             }
-            ImGuiX::TextTooltip( "Resource System Idle" );
+            ImGuiX::TextTooltip( "Resource System: Idle" );
         }
 
         ImGui::SameLine();
-        SystemDebugView::DrawFrameLimiterCombo( const_cast<UpdateContext&>( context ) );
-        ImGuiX::ItemTooltip( "Frame Limiter" );
+        frameLimiter.Draw( const_cast<UpdateContext&>( context ) );
 
         ImGui::SameLine();
-        float const currentFPS = 1.0f / context.GetDeltaTime();
-        TInlineString<100> const perfStats( TInlineString<100>::CtorSprintf(), "FPS: %3.0f", currentFPS );
-        ImGui::Text( perfStats.c_str() );
-
-        ImGui::SameLine();
-        float const allocatedMemory = Memory::GetTotalAllocatedMemory() / 1024.0f / 1024.0f;
-        TInlineString<100> const memStats( TInlineString<100>::CtorSprintf(), "MEM: %.2fMB", allocatedMemory );
-        ImGui::Text( memStats.c_str() );
+        performanceStats.Draw();
     }
 
     //-------------------------------------------------------------------------
@@ -318,16 +392,6 @@ namespace EE
         //-------------------------------------------------------------------------
 
         m_fileRegistry.Update();
-
-        //-------------------------------------------------------------------------
-        // Handle Warnings/Errors
-        //-------------------------------------------------------------------------
-
-        auto const unhandledWarningsAndErrors = SystemLog::GetUnhandledWarningsAndErrors();
-        if ( !unhandledWarningsAndErrors.empty() )
-        {
-            CreateTool<SystemLogEditorTool>( this );
-        }
 
         //-------------------------------------------------------------------------
         // Editor Tool Management
@@ -370,7 +434,7 @@ namespace EE
             DrawTitleBarInfoStats( context );
         };
 
-        m_titleBar.Draw( TitleBarLeftContents, 300, TitleBarRightContents, 250 );
+        m_titleBar.Draw( TitleBarLeftContents, 400, TitleBarRightContents, 800 );
 
         //-------------------------------------------------------------------------
         // Create main dock window
@@ -417,6 +481,10 @@ namespace EE
             ImGui::PushStyleVar( ImGuiStyleVar_TabRounding, 0 );
             ImGui::DockSpace( dockspaceID, viewport->WorkSize, 0, &m_editorWindowClass );
             ImGui::PopStyleVar( 1 );
+
+            //-------------------------------------------------------------------------
+
+            m_dialogManager.DrawDialog();
         }
         ImGui::End();
 
@@ -436,7 +504,7 @@ namespace EE
 
         if ( m_isUITestWindowOpen )
         {
-           DrawUITestWindow( this, &m_isUITestWindowOpen );
+            DrawUITestWindow( this, &m_isUITestWindowOpen );
         }
 
         //-------------------------------------------------------------------------
@@ -444,9 +512,6 @@ namespace EE
         //-------------------------------------------------------------------------
 
         EditorTool* pEditorToolToClose = nullptr;
-
-        // Clear the modal dialog flag - this is done to ensure we only get one modal dialog at a time
-        m_hasOpenModalDialog = false;
 
         // Switch focus
         if ( !m_focusTargetWindowName.empty() )
@@ -517,15 +582,6 @@ namespace EE
             // We need to defer this to the start of the update since we may have references resources that we might unload (i.e. textures)
             QueueDestroyTool( pEditorToolToClose );
         }
-
-        // Resource descriptor creator
-        if ( m_pResourceDescriptorCreator != nullptr )
-        {
-            if ( !m_pResourceDescriptorCreator->Draw() )
-            {
-                EE::Delete( m_pResourceDescriptorCreator );
-            }
-        }
     }
 
     void EditorUI::EndFrame( UpdateContext const& context )
@@ -594,12 +650,12 @@ namespace EE
     {
         EE_ASSERT( dataPath.IsValid() );
 
-        DataPath const dataPathParent = dataPath.GetIntraFilePathParent();
+        DataPath const dataPathParent = dataPath.GetPathWithoutSubFilename();
 
         for ( auto pEditorTool : m_editorTools )
         {
             // Destroy any open tool windows for the resource
-            if( pEditorTool->IsEditingFile( dataPathParent ) )
+            if ( pEditorTool->IsEditingFile( dataPathParent ) )
             {
                 QueueDestroyTool( pEditorTool );
             }
@@ -621,6 +677,22 @@ namespace EE
     //-------------------------------------------------------------------------
     // EditorTool Management
     //-------------------------------------------------------------------------
+
+    InlineString EditorUI::GetEditorToolName( uint64_t toolID ) const
+    {
+        InlineString name;
+
+        for ( EditorTool const* pTool : m_editorTools )
+        {
+            if ( pTool->GetID() == toolID )
+            {
+                name = pTool->GetName();
+                break;
+            }
+        }
+
+        return name;
+    }
 
     bool EditorUI::ExecuteToolOperation( UpdateContext const& context, ToolOperation& request )
     {
@@ -646,17 +718,16 @@ namespace EE
         // Map editor
         //-------------------------------------------------------------------------
 
-        else if( request.m_type == ToolOperation::CreateMapEditor )
+        else if ( request.m_type == ToolOperation::CreateMapEditor )
         {
             // Destroy the default created game world
             m_pWorldManager->DestroyWorld( m_pWorldManager->GetWorlds()[0] );
 
             // Create a new editor world for the map editor editor tool
             auto pMapEditorWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
-            m_pRenderingSystem->CreateCustomRenderTargetForViewport( pMapEditorWorld->GetViewport(), true );
 
             // Create the map editor editor tool
-            m_pMapEditor = EE::New<EntityModel::EntityMapEditor>( this, pMapEditorWorld );
+            m_pMapEditor = EE::New<EntityModel::MapEditor>( this, pMapEditorWorld );
             m_pMapEditor->Initialize( context );
             m_editorTools.emplace_back( m_pMapEditor );
 
@@ -679,7 +750,6 @@ namespace EE
         else if ( request.m_type == ToolOperation::CreateGamePreview )
         {
             auto pPreviewWorld = m_pWorldManager->CreateWorld( EntityWorldType::Game );
-            m_pRenderingSystem->CreateCustomRenderTargetForViewport( pPreviewWorld->GetViewport() );
             m_pGamePreviewer = EE::New<GamePreviewer>( this, pPreviewWorld );
             m_pGamePreviewer->Initialize( context );
             m_pGamePreviewer->LoadMapToPreview( m_pMapEditor->GetLoadedMap() );
@@ -732,7 +802,6 @@ namespace EE
             auto CreateToolWorld = [this] ()
             {
                 EntityWorld* pEditorToolWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
-                m_pRenderingSystem->CreateCustomRenderTargetForViewport( pEditorToolWorld->GetViewport(), true );
                 return pEditorToolWorld;
             };
 
@@ -783,6 +852,30 @@ namespace EE
         }
 
         return false;
+    }
+
+    bool EditorUI::HasOpenAndDirtyTools() const
+    {
+        for ( auto pEditorTool : m_editorTools )
+        {
+            if ( pEditorTool->IsDirty() )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void EditorUI::SaveAllDirtyTools()
+    {
+        for ( auto pEditorTool : m_editorTools )
+        {
+            if ( pEditorTool->IsDirty() )
+            {
+                pEditorTool->Save();
+            }
+        }
     }
 
     void EditorUI::DestroyTool( UpdateContext const& context, EditorTool* pEditorTool, bool isEditorShutdown )
@@ -853,7 +946,6 @@ namespace EE
         // Destroy preview world and render target
         if ( pEditorToolWorld )
         {
-            m_pRenderingSystem->DestroyCustomRenderTargetForViewport( pEditorToolWorld->GetViewport() );
             m_pWorldManager->DestroyWorld( pEditorToolWorld );
         }
     }
@@ -931,16 +1023,19 @@ namespace EE
         bool isToolStillOpen = true;
         bool* pIsToolOpen = ( pEditorTool == m_pMapEditor ) ? nullptr : &isToolStillOpen; // Prevent closing the map-editor editor tool
 
-        // Top level editors can only be docked with each others
-        ImGui::SetNextWindowClass( &m_editorWindowClass );
-        if ( pEditorTool->m_desiredDockID != 0 )
+        // Top level editors can only be docked with each others (we dont allow docking the game preview window)
+        if ( pEditorTool != m_pGamePreviewer )
         {
-            ImGui::SetNextWindowDockID( pEditorTool->m_desiredDockID );
-            pEditorTool->m_desiredDockID = 0;
-        }
-        else
-        {
-            ImGui::SetNextWindowDockID( editorDockspaceID, ImGuiCond_FirstUseEver );
+            ImGui::SetNextWindowClass( &m_editorWindowClass );
+            if ( pEditorTool->m_desiredDockID != 0 )
+            {
+                ImGui::SetNextWindowDockID( pEditorTool->m_desiredDockID );
+                pEditorTool->m_desiredDockID = 0;
+            }
+            else
+            {
+                ImGui::SetNextWindowDockID( editorDockspaceID, ImGuiCond_FirstUseEver );
+            }
         }
 
         // Window flags
@@ -962,13 +1057,23 @@ namespace EE
         bool const isVisible = pCurrentWindow != nullptr && !pCurrentWindow->Hidden;
 
         // Create top level editor tab/window
-        ImGui::PushStyleColor( ImGuiCol_Text, isVisible ? ImGuiX::Style::s_colorAccent0 : ImGuiX::Style::s_colorText );
         ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
-        ImGui::SetNextWindowSize( ImVec2( 1024, 768 ), ImGuiCond_FirstUseEver );
+
+        if ( pEditorTool == m_pGamePreviewer )
+        {
+            ImGui::SetNextWindowSize( Float2( m_pGamePreviewer->GetRequiredWindowSize() ), ImGuiCond_Always );
+            windowFlags |= ImGuiWindowFlags_NoResize;
+            windowFlags |= ImGuiWindowFlags_AlwaysAutoResize;
+            windowFlags |= ImGuiWindowFlags_NoDocking;
+        }
+        else
+        {
+            ImGui::SetNextWindowSize( ImVec2( 1024, 768 ), ImGuiCond_FirstUseEver );
+        }
+
         ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 1.0f );
         ImGui::Begin( pEditorTool->m_windowName.c_str(), pIsToolOpen, windowFlags );
         ImGui::PopStyleVar();
-        ImGui::PopStyleColor();
 
         //-------------------------------------------------------------------------
 
@@ -976,7 +1081,7 @@ namespace EE
         bool const isFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
         if ( isFocused )
         {
-           m_pLastActiveTool = pEditorTool;
+            m_pLastActiveTool = pEditorTool;
         }
 
         // Set WindowClass based on per-document ID, so tabs from Document A are not dockable in Document B etc. We could be using any ID suiting us, e.g. &pEditorTool
@@ -1020,8 +1125,6 @@ namespace EE
         int32_t const beginCount = ImGui::GetCurrentWindow()->BeginCount;
         IM_ASSERT( beginCount == 2 );
 
-        ImGuiID const dockspaceID = pEditorTool->m_currentDockspaceID;
-
         // Fork settings when extracting to a new location, or Overwrite settings when docking back into an existing location
         if ( pEditorTool->m_previousLocationID != 0 && pEditorTool->m_previousLocationID != pEditorTool->m_currentLocationID )
         {
@@ -1064,7 +1167,7 @@ namespace EE
                     {
                         continue;
                     }
-                    
+
                     char const* pWindowName = settings->GetName();
                     size_t windowNameLength = strlen( pWindowName );
                     if ( windowNameLength >= windowSuffixLength )
@@ -1077,7 +1180,7 @@ namespace EE
                 }
             }
         }
-        else if ( ImGui::DockBuilderGetNode( pEditorTool->m_currentDockspaceID ) == nullptr )
+        else if ( pEditorTool->m_requiresLayoutReset || ImGui::DockBuilderGetNode( pEditorTool->m_currentDockspaceID ) == nullptr )
         {
             ImVec2 dockspaceSize = ImGui::GetContentRegionAvail();
             dockspaceSize.x = Math::Max( dockspaceSize.x, 1.0f );
@@ -1085,11 +1188,24 @@ namespace EE
 
             ImGui::DockBuilderAddNode( pEditorTool->m_currentDockspaceID, ImGuiDockNodeFlags_DockSpace );
             ImGui::DockBuilderSetNodeSize( pEditorTool->m_currentDockspaceID, dockspaceSize );
+            ImGui::DockBuilderRemoveNodeChildNodes( pEditorTool->m_currentDockspaceID );
             if ( !pEditorTool->IsSingleWindowTool() )
             {
-                pEditorTool->InitializeDockingLayout( dockspaceID, dockspaceSize );
+                // Always dock viewport into central window
+                if ( pEditorTool->SupportsViewport() )
+                {
+                    ImGui::DockBuilderDockWindow( pEditorTool->GetToolWindowName( EditorTool::s_viewportWindowName ).c_str(), pEditorTool->m_currentDockspaceID );
+                }
+
+                pEditorTool->SetupDockingLayout( pEditorTool->m_currentDockspaceID, dockspaceSize );
             }
-            ImGui::DockBuilderFinish( dockspaceID );
+            else
+            {
+                ImGui::DockBuilderDockWindow( pEditorTool->GetToolWindowName( pEditorTool->m_toolWindows[0]->m_name ).c_str(), pEditorTool->m_currentDockspaceID );
+            }
+            ImGui::DockBuilderFinish( pEditorTool->m_currentDockspaceID );
+
+            pEditorTool->m_requiresLayoutReset = false;
         }
 
         // FIXME-DOCK: This is a little tricky to explain but we currently need this to use the pattern of sharing a same dockspace between tabs of a same tab bar
@@ -1103,22 +1219,20 @@ namespace EE
         //-------------------------------------------------------------------------
 
         bool const isLastFocusedTool = ( m_pLastActiveTool == pEditorTool );
-        pEditorTool->SharedUpdate( context, isVisible, isLastFocusedTool );
+        pEditorTool->PreDrawUpdate( context, isVisible, isLastFocusedTool );
         pEditorTool->Update( context, isVisible, isLastFocusedTool );
         pEditorTool->m_isViewportFocused = false;
         pEditorTool->m_isViewportHovered = false;
+
+        bool const isGamePreviewerTool = pEditorTool == m_pGamePreviewer;
 
         // Check Visibility
         //-------------------------------------------------------------------------
 
         if ( !isVisible )
         {
-            if ( !pEditorTool->IsSingleWindowTool() )
-            {
-                // Keep alive document dockspace so windows that are docked into it but which visibility are not linked to the dockspace visibility won't get undocked.
-                ImGui::DockSpace( dockspaceID, ImVec2( 0, 0 ), ImGuiDockNodeFlags_KeepAliveOnly, &pEditorTool->m_toolWindowClass);
-            }
-
+            // Keep alive document dockspace so windows that are docked into it but which visibility are not linked to the dockspace visibility won't get undocked.
+            ImGui::DockSpace( pEditorTool->m_currentDockspaceID, ImVec2( 0, 0 ), ImGuiDockNodeFlags_KeepAliveOnly, &pEditorTool->m_toolWindowClass );
             ImGui::End();
 
             // Suspend world updates for hidden windows
@@ -1144,18 +1258,30 @@ namespace EE
             ImGui::PopStyleVar( 1 );
         }
 
+        // Draw EditorTool Toolbar
+        //-------------------------------------------------------------------------
+
+        if ( pEditorTool->SupportsToolbar() )
+        {
+            ImGui::SetCursorPosY( ImGui::GetCursorPosY() - ImGui::GetStyle().WindowPadding.y );
+            if ( ImGui::BeginChild( "Toolbar", ImVec2( ImGui::GetContentRegionAvail().x, 0 ), ImGuiChildFlags_AutoResizeY ) )
+            {
+                pEditorTool->DrawToolbar( context );
+            }
+            ImGui::EndChild();
+        }
+
         // Submit the dockspace node and end window
         //-------------------------------------------------------------------------
 
+        ImGuiDockNodeFlags dockingFlags = ImGuiDockNodeFlags_None;
+
         if ( pEditorTool->IsSingleWindowTool() )
         {
-            EE_ASSERT( pEditorTool->m_toolWindows.size() == 1 );
-            pEditorTool->m_toolWindows[0]->m_drawFunction( context, isLastFocusedTool );
+            dockingFlags |= ImGuiDockNodeFlags_AutoHideTabBar | ImGuiDockNodeFlags_NoUndocking | ImGuiDockNodeFlags_NoDockingSplit;
         }
-        else
-        {
-            ImGui::DockSpace( dockspaceID, ImVec2( 0, 0 ), ImGuiDockNodeFlags_None, &pEditorTool->m_toolWindowClass );
-        }
+
+        ImGui::DockSpace( pEditorTool->m_currentDockspaceID, ImVec2( 0, 0 ), dockingFlags, &pEditorTool->m_toolWindowClass );
         ImGui::End();
 
         // Manage World state
@@ -1166,107 +1292,135 @@ namespace EE
             pWorld->ResumeUpdates();
         }
 
-        // Draw editor tool tool windows
+        // Draw editor tool windows
         //-------------------------------------------------------------------------
+        // Note: viewports will always be drawn before other windows
 
-        if ( !pEditorTool->IsSingleWindowTool() )
+        for ( auto& pToolWindow : pEditorTool->m_toolWindows )
         {
-            for ( auto& pToolWindow : pEditorTool->m_toolWindows )
+            if ( !pToolWindow->m_isOpen )
             {
-                if ( !pToolWindow->m_isOpen )
-                {
-                    continue;
-                }
+                continue;
+            }
 
-                InlineString const toolWindowName = EditorTool::GetToolWindowName( pToolWindow->m_name.c_str(), pEditorTool->m_currentDockspaceID );
+            if ( pToolWindow->IsHidden() )
+            {
+                continue;
+            }
 
-                // When multiple documents are open, floating tools only appear for focused one
-                if ( !isLastFocusedTool )
+            InlineString const toolWindowName = EditorTool::GetToolWindowName( pToolWindow->m_name.c_str(), pEditorTool->m_currentDockspaceID );
+
+            // When multiple documents are open, floating tools only appear for focused one
+            if ( !isLastFocusedTool )
+            {
+                if ( ImGuiWindow* pWindow = ImGui::FindWindowByName( toolWindowName.c_str() ) )
                 {
-                    if ( ImGuiWindow* pWindow = ImGui::FindWindowByName( toolWindowName.c_str() ) )
+                    ImGuiDockNode* pWindowDockNode = pWindow->DockNode;
+                    if ( pWindowDockNode == nullptr && pWindow->DockId != 0 )
                     {
-                        ImGuiDockNode* pWindowDockNode = pWindow->DockNode;
-                        if ( pWindowDockNode == nullptr && pWindow->DockId != 0 )
-                        {
-                            pWindowDockNode = ImGui::DockContextFindNodeByID( ImGui::GetCurrentContext(), pWindow->DockId );
-                        }
-                       
-                        if ( pWindowDockNode == nullptr || ImGui::DockNodeGetRootNode( pWindowDockNode )->ID != dockspaceID )
-                        {
-                            continue;
-                        }
+                        pWindowDockNode = ImGui::DockContextFindNodeByID( ImGui::GetCurrentContext(), pWindow->DockId );
+                    }
+
+                    if ( pWindowDockNode == nullptr || ImGui::DockNodeGetRootNode( pWindowDockNode )->ID != pEditorTool->m_currentDockspaceID )
+                    {
+                        continue;
                     }
                 }
+            }
 
+            //-------------------------------------------------------------------------
+
+            if ( pToolWindow->m_pViewport != nullptr )
+            {
+                EE_ASSERT( pEditorTool->SupportsViewport() );
+                EE_ASSERT( pEditorTool->m_pCamera != nullptr );
+                EE_ASSERT( pEditorTool->HasEntityWorld() && pWorld != nullptr );
+
+                // Update camera
                 //-------------------------------------------------------------------------
 
-                if ( pToolWindow->m_isViewport )
+                auto pCameraSystem = pEditorTool->GetEntityWorld()->GetWorldSystem<CameraSystem>();
+                if ( pCameraSystem != nullptr && pCameraSystem->GetActiveCamera() == pEditorTool->m_pCamera )
                 {
-                    EE_ASSERT( pEditorTool->SupportsViewport() );
-                    EE_ASSERT( pEditorTool->HasEntityWorld() && pWorld != nullptr );
-
-                    EditorTool::ViewportInfo viewportInfo;
-                    viewportInfo.m_viewportRenderTargetTextureID = (intptr_t) &m_pRenderingSystem->GetRenderTargetTextureForViewport( pWorld->GetViewport() );
-                    viewportInfo.m_retrievePickingID = [this, pWorld] ( Int2 const& pixelCoords ) { return m_pRenderingSystem->GetViewportPickingID( pWorld->GetViewport(), pixelCoords ); };
-
-                    ImGuiWindowFlags const viewportWindowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
-                    ImGui::SetNextWindowClass( &pEditorTool->m_toolWindowClass );
-
-                    ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
-                    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0, 0 ) );
-                    bool const drawViewportWindow = ImGui::Begin( toolWindowName.c_str(), nullptr, viewportWindowFlags );
-                    ImGui::PopStyleVar();
-
-                    if ( drawViewportWindow )
-                    {
-                        pEditorTool->m_isViewportFocused = ImGui::IsWindowFocused();
-                        pEditorTool->m_isViewportHovered = ImGui::IsWindowHovered();
-                        pEditorTool->DrawViewport( context, viewportInfo );
-                    }
-
-                    ImGui::End();
+                    EntityWorldUpdateContext updateContext( context, pEditorTool->GetEntityWorld() );
+                    pCameraSystem->UpdateToolsCamera( updateContext );
+                    pEditorTool->GetEntityWorld()->UpdateViewportViewVolumes();
                 }
-                else // Draw the tool window
+
+                // Draw viewport window
+                //-------------------------------------------------------------------------
+
+                ImGuiWindowFlags viewportWindowFlags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoNavInputs | ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
+                ImGui::SetNextWindowClass( &pEditorTool->m_toolWindowClass );
+                ImGui::SetNextWindowSizeConstraints( ImVec2( 128, 128 ), ImVec2( FLT_MAX, FLT_MAX ) );
+
+                if ( isGamePreviewerTool )
                 {
-                    ImGuiWindowFlags toolWindowFlags = ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
-                    if ( pToolWindow->m_disableScrolling )
-                    {
-                        toolWindowFlags |= ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
-                    }
-
-                    ImGui::SetNextWindowClass( &pEditorTool->m_toolWindowClass );
-
-                    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, pToolWindow->HasUserSpecifiedWindowPadding() ? pToolWindow->m_windowPadding : ImGui::GetStyle().WindowPadding );
-                    bool const drawToolWindow = ImGui::Begin( toolWindowName.c_str(), &pToolWindow->m_isOpen, toolWindowFlags );
-                    ImGui::PopStyleVar();
-
-                    if ( drawToolWindow )
-                    {
-                        bool const isToolWindowFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
-                        pToolWindow->m_drawFunction( context, isToolWindowFocused );
-                    }
-
-                    ImGui::End();
+                    viewportWindowFlags |= ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoDecoration;
                 }
+
+                if ( ImGui::Begin( toolWindowName.c_str(), nullptr, viewportWindowFlags ) )
+                {
+                    // Ensure viewport is the correct desired size
+                    if ( isGamePreviewerTool )
+                    {
+                        Int2 const actualSize = Float2( ImGui::GetContentRegionAvail() );
+                        Int2 const delta = m_pGamePreviewer->GetDesiredViewportSize() - actualSize;
+                        m_pGamePreviewer->SetRequiredWindowSize( m_pGamePreviewer->GetRequiredWindowSize() + delta );
+                    }
+
+                    pEditorTool->m_isViewportFocused = ImGui::IsWindowFocused();
+                    pEditorTool->m_isViewportHovered = ImGui::IsWindowHovered();
+                    pEditorTool->DrawViewportWindow( context, pToolWindow->m_pViewport );
+                }
+                ImGui::End();
+            }
+            else // Draw the tool window
+            {
+                ImGuiWindowFlags toolWindowFlags = ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNavFocus;
+                if ( pToolWindow->m_disableScrolling )
+                {
+                    toolWindowFlags |= ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse;
+                }
+
+                ImGui::SetNextWindowClass( &pEditorTool->m_toolWindowClass );
+
+                ImVec2 windowPadding = ImGui::GetStyle().WindowPadding;
+                if ( pEditorTool->IsSingleWindowTool() )
+                {
+                    windowPadding = ImVec2( 0, 0 );
+                }
+                else if ( pToolWindow->HasUserSpecifiedWindowPadding() )
+                {
+                    windowPadding = pToolWindow->m_windowPadding;
+                }
+
+                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, windowPadding );
+                bool const drawToolWindow = ImGui::Begin( toolWindowName.c_str(), &pToolWindow->m_isOpen, toolWindowFlags );
+                ImGui::PopStyleVar();
+
+                if ( drawToolWindow )
+                {
+                    bool const isToolWindowFocused = ImGui::IsWindowFocused( ImGuiFocusedFlags_ChildWindows | ImGuiFocusedFlags_DockHierarchy );
+                    pToolWindow->m_drawFunction( context, isToolWindowFocused );
+
+                    // Hide docking UI
+                    if ( pEditorTool->IsSingleWindowTool() )
+                    {
+                        if ( auto pDockNode = ImGui::GetWindowDockNode() )
+                        {
+                            pDockNode->LocalFlags |= ImGuiDockNodeFlags_NoTabBar;
+                            pDockNode->LocalFlags |= ImGuiDockNodeFlags_NoDockingOverMe;
+                            pDockNode->LocalFlags |= ImGuiDockNodeFlags_NoDockingOverOther;
+                        }
+                    }
+                }
+
+                ImGui::End();
             }
         }
 
-        // Camera
-        //-------------------------------------------------------------------------
-
-        if ( pEditorTool->HasEntityWorld() )
-        {
-            pEditorTool->SetCameraUpdateEnabled( pEditorTool->m_isViewportFocused && pEditorTool->m_isViewportHovered );
-        }
-
-        // Draw any open dialogs
-        //-------------------------------------------------------------------------
-
-        // If we dont already have an open modal dialog, draw any dialogs required
-        if ( !m_hasOpenModalDialog )
-        {
-            m_hasOpenModalDialog = pEditorTool->m_dialogManager.DrawDialog( context );
-        }
+        pEditorTool->PostDrawUpdate( context, isVisible, pEditorTool->m_isViewportFocused );
     }
 
     void EditorUI::CreateGamePreviewTool( UpdateContext const& context )

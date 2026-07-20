@@ -1,10 +1,11 @@
 #include "ImportedImage.h"
+#include "Base/Memory/Memory.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Import
 {
-    ImportedImage::~ImportedImage()
+    Image::~Image()
     {
         EE::Free( m_pImageData );
     }

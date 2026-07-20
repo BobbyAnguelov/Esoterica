@@ -1,6 +1,8 @@
 #pragma once
 #include "EngineTools/NodeGraph/NodeGraph_BaseGraph.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
+#include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
+#include "Base/TypeSystem/TypeRegistry.h"
 
 //-------------------------------------------------------------------------
 
@@ -22,6 +24,12 @@ namespace EE::Animation
     {
         NodeCompilationLogEntry( Severity severity, UUID const& nodeID, String const& message )
             : m_message( message )
+            , m_nodeID( nodeID )
+            , m_severity( severity )
+        {}
+
+        NodeCompilationLogEntry( Severity severity, UUID const& nodeID, InlineString const& message )
+            : m_message( message.c_str() )
             , m_nodeID( nodeID )
             , m_severity( severity )
         {}
@@ -54,57 +62,82 @@ namespace EE::Animation
         
         VariationHierarchy const& GetVariationHierarchy() const { EE_ASSERT( m_pVariationHierarchy != nullptr ); return *m_pVariationHierarchy; }
         StringID GetVariationID() const { return m_variationID; }
-
+        ResourceID GetVariationSkeletonID() const;
+        SkeletonResourceDescriptor const* GetVariationSkeletonDesc() const { return &m_variationSkeletonDescriptor; }
 
         // Logging
         //-------------------------------------------------------------------------
 
         void LogMessage( NodeGraph::BaseNode const* pNode, char const* pFormat, ... )
         { 
+            InlineString str;
+
             va_list args;
             va_start( args, pFormat );
-            AddToLog( Severity::Info, pNode->GetID(), String( String::CtorSprintf(), pFormat, args ) );
+            str.sprintf_va_list( pFormat, args );
             va_end( args );
+
+            AddToLog( Severity::Info, pNode->GetID(), str );
         }
 
         void LogWarning( NodeGraph::BaseNode const* pNode, char const* pFormat, ... )
         {
+            InlineString str;
+
             va_list args;
             va_start( args, pFormat );
-            AddToLog( Severity::Warning, pNode->GetID(), String( String::CtorSprintf(), pFormat, args ) );
+            str.sprintf_va_list( pFormat, args );
             va_end( args );
+
+            AddToLog( Severity::Warning, pNode->GetID(), str );
         }
 
         void LogError( NodeGraph::BaseNode const* pNode, char const* pFormat, ... )
         {
+            InlineString str;
+
             va_list args;
             va_start( args, pFormat );
-            AddToLog( Severity::Error, pNode->GetID(), String( String::CtorSprintf(), pFormat, args ) );
+            str.sprintf_va_list( pFormat, args );
             va_end( args );
+
+            AddToLog( Severity::Error, pNode->GetID(), str );
         }
 
         void LogMessage( char const* pFormat, ... )
         {
+            InlineString str;
+
             va_list args;
             va_start( args, pFormat );
-            AddToLog( Severity::Info, UUID(), String( String::CtorSprintf(), pFormat, args ) );
+            str.sprintf_va_list( pFormat, args );
             va_end( args );
+
+            AddToLog( Severity::Info, UUID(), str );
         }
 
         void LogWarning( char const* pFormat, ... )
         {
+            InlineString str;
+
             va_list args;
             va_start( args, pFormat );
-            AddToLog( Severity::Warning, UUID(), String( String::CtorSprintf(), pFormat, args ) );
+            str.sprintf_va_list( pFormat, args );
             va_end( args );
+
+            AddToLog( Severity::Warning, UUID(), str );
         }
 
         void LogError( char const* pFormat, ... )
         {
+            InlineString str;
+
             va_list args;
             va_start( args, pFormat );
-            AddToLog( Severity::Error, UUID(), String(String::CtorSprintf(), pFormat, args));
+            str.sprintf_va_list( pFormat, args );
             va_end( args );
+
+            AddToLog( Severity::Error, UUID(), str );
         }
 
         // General Compilation
@@ -139,9 +172,6 @@ namespace EE::Animation
             m_nodeIDToIndexMap.insert( TPair<UUID, int16_t>( pNode->GetID(), pOutDefinition->m_nodeIdx ) );
             m_nodeIndexToIDMap.insert( TPair<int16_t, UUID >( pOutDefinition->m_nodeIdx, pNode->GetID() ) );
 
-            // Add to persistent nodes list
-            TryAddPersistentNode( pNode, pOutDefinition );
-
             // Update instance requirements
             m_graphInstanceRequiredAlignment = Math::Max( m_graphInstanceRequiredAlignment, (uint32_t) alignof( T ) );
             uint32_t const requiredNodePadding = (uint32_t) Memory::CalculatePaddingForAlignment( m_currentNodeMemoryOffset, alignof( T ) );
@@ -153,6 +183,15 @@ namespace EE::Animation
             m_currentNodeMemoryOffset += uint32_t( sizeof( T ) + requiredNodePadding );
 
             return NodeCompilationState::NeedCompilation;
+        }
+
+        // Register a node as being persistent
+        void RegisterPersistentNode( int16_t compiledNodeIdx )
+        {
+            if ( compiledNodeIdx != InvalidIndex && !VectorContains( m_persistentNodeIndices, compiledNodeIdx ) )
+            {
+                m_persistentNodeIndices.emplace_back( compiledNodeIdx );
+            }
         }
 
         // This will return an index that can be used to look up the resource at runtime
@@ -191,14 +230,32 @@ namespace EE::Animation
             return slotIdx;
         }
 
+        // Record all compiled external pose nodes
+        inline int16_t RegisterExternalPoseSlotNode( int16_t nodeIdx, StringID slotID )
+        {
+            GraphDefinition::ExternalPoseSlot const newSlot( nodeIdx, slotID );
+
+            EE_ASSERT( nodeIdx != InvalidIndex && slotID.IsValid() );
+
+            for ( auto const &existingSlot : m_registeredExternalPoseSlots )
+            {
+                EE_ASSERT( existingSlot.m_nodeIdx != nodeIdx && existingSlot.m_slotID != slotID );
+            }
+
+            // Add slot
+            int16_t slotIdx = (int16_t) m_registeredExternalPoseSlots.size();
+            m_registeredExternalPoseSlots.emplace_back( newSlot );
+            return slotIdx;
+        }
+
         // Record all referenced graph node indices
         inline int16_t RegisterReferencedGraphNode( int16_t nodeIdx, UUID const& nodeID, ResourceID const& graphDefinitionResourceID )
         {
             int16_t const resourceSlotIdx = RegisterResource( graphDefinitionResourceID );
 
-            GraphDefinition::ReferencedGraphSlot const newSlot( nodeIdx, resourceSlotIdx );
-            m_registeredReferencedGraphSlots.emplace_back( newSlot );
-            return (int16_t) m_registeredReferencedGraphSlots.size() - 1;
+            GraphDefinition::InternalGraphSlot const newSlot( nodeIdx, resourceSlotIdx );
+            m_registeredInternalGraphSlots.emplace_back( newSlot );
+            return (int16_t) m_registeredInternalGraphSlots.size() - 1;
         }
 
         // State Machine Compilation
@@ -261,14 +318,14 @@ namespace EE::Animation
 
     private:
 
-        void TryAddPersistentNode( NodeGraph::BaseNode const* pNode, GraphNode::Definition* pDefinition );
-
         inline void AddToLog( Severity severity, UUID nodeID, String const& message ) { m_log.emplace_back( NodeCompilationLogEntry( severity, nodeID, message ) ); }
+        inline void AddToLog( Severity severity, UUID nodeID, InlineString const& message ) { m_log.emplace_back( NodeCompilationLogEntry( severity, nodeID, message ) ); }
 
     private:
 
         StringID                                        m_variationID;
         VariationHierarchy const*                       m_pVariationHierarchy = nullptr;
+        SkeletonResourceDescriptor                      m_variationSkeletonDescriptor;
 
         TVector<NodeCompilationLogEntry>                m_log;
 
@@ -281,8 +338,9 @@ namespace EE::Animation
         uint32_t                                        m_currentNodeMemoryOffset = 0;
         uint32_t                                        m_graphInstanceRequiredAlignment = alignof( bool );
 
-        TVector<GraphDefinition::ReferencedGraphSlot>   m_registeredReferencedGraphSlots;
+        TVector<GraphDefinition::InternalGraphSlot>     m_registeredInternalGraphSlots;
         TVector<GraphDefinition::ExternalGraphSlot>     m_registeredExternalGraphSlots;
+        TVector<GraphDefinition::ExternalPoseSlot>      m_registeredExternalPoseSlots;
         int16_t                                         m_conduitSourceStateCompiledNodeIdx = InvalidIndex;
         Seconds                                         m_transitionDuration = 0;
         int16_t                                         m_transitionDurationOverrideIdx = InvalidIndex;
@@ -305,6 +363,8 @@ namespace EE::Animation
 
     public:
 
+        GraphDefinitionCompiler( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceDataPath );
+
         bool CompileGraph( ToolsGraphDefinition const& editorGraph, StringID variationID );
 
         inline GraphDefinition const* GetCompiledGraph() const { return &m_runtimeGraph; }
@@ -314,7 +374,9 @@ namespace EE::Animation
 
     private:
 
-        GraphDefinition             m_runtimeGraph;
-        GraphCompilationContext     m_context;
+        TypeSystem::TypeRegistry const&     m_typeRegistry;
+        FileSystem::Path const&             m_sourceDataPath;
+        GraphDefinition                     m_runtimeGraph;
+        GraphCompilationContext             m_context;
     };
 }

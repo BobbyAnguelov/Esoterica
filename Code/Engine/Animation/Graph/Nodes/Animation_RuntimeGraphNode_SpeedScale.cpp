@@ -12,7 +12,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         float const speedScale = CalculateSpeedScaleMultiplier( context );
-        EE_ASSERT( speedScale >= 0.0f );
+        EE_ASSERT( Math::IsFinite( speedScale ) && speedScale >= 0.0f );
 
         //-------------------------------------------------------------------------
 
@@ -31,12 +31,10 @@ namespace EE::Animation
             {
                 if ( Math::IsNearZero( speedScale ) )
                 {
-                    context.m_deltaTime = 0.0f;
                     m_duration = 0.0f;
                 }
                 else
                 {
-                    context.m_deltaTime *= speedScale;
                     m_duration = m_pChildNode->GetDuration() / speedScale;
                 }
             }
@@ -44,7 +42,7 @@ namespace EE::Animation
         else // Unsynchronized Update
         {
             // Record old delta time
-            auto const deltaTime = context.m_deltaTime;
+            auto const oldDeltaTime = context.m_deltaTime;
 
             // Adjust the delta time for the child node
             //-------------------------------------------------------------------------
@@ -81,7 +79,7 @@ namespace EE::Animation
             // Reset the delta time
             //-------------------------------------------------------------------------
 
-            context.m_deltaTime = deltaTime;
+            context.m_deltaTime = oldDeltaTime;
         }
 
         return result;
@@ -127,6 +125,8 @@ namespace EE::Animation
         if ( m_pScaleValueNode != nullptr )
         {
             speedScaleMultiplier = m_pScaleValueNode->GetValue<float>( context );
+            EE_ASSERT( Math::IsFinite( speedScaleMultiplier ) );
+
             if ( speedScaleMultiplier < 0.0f )
             {
                 speedScaleMultiplier = 0.0f;
@@ -209,7 +209,7 @@ namespace EE::Animation
         float const childDuration = m_pChildNode->IsValid() ? m_pChildNode->GetDuration().ToFloat() : -1.0f;
         if ( childDuration > 0.0f )
         {
-            speedScaleMultiplier = childDuration / desiredDuration;
+            speedScaleMultiplier = Math::IsNearZero( desiredDuration ) ? 0.0f : childDuration / desiredDuration;
         }
 
         return speedScaleMultiplier;
@@ -282,7 +282,7 @@ namespace EE::Animation
         else
         {
             float const averageVelocity = static_cast<AnimationClipReferenceNode*>( m_pChildNode )->GetAnimation()->GetAverageLinearVelocity();
-            speedScaleMultiplier = desiredVelocity / averageVelocity;
+            speedScaleMultiplier = Math::IsNearZero( averageVelocity ) ? 0.0f : desiredVelocity / averageVelocity;
             EE_ASSERT( speedScaleMultiplier >= 0.0f );
         }
 

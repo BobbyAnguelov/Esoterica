@@ -39,10 +39,11 @@ namespace EE::Animation
 
         void PerformWarp( GraphContext& context );
 
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx ) override;
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void DrawDebug( GraphContext& graphContext, DebugDrawContext& drawCtx ) override;
         #endif
 
     private:
@@ -52,12 +53,14 @@ namespace EE::Animation
         RootMotionData                      m_warpedRootMotion;
         bool                                m_shouldUpdateWarp = false;
 
-        #if EE_DEVELOPMENT_TOOLS
+        //-------------------------------------------------------------------------
+
         Transform                           m_warpStartWorldTransform = Transform::Identity;
         Seconds                             m_warpStartTime = 0.0f;
+
+        #if EE_DEVELOPMENT_TOOLS
         Vector                              m_debugCharacterOffsetPosWS = Vector::Zero;
         Vector                              m_debugTargetDirWS = Vector::Zero;
-        bool                                m_useRecordedStartData = false;
         #endif
     };
 }

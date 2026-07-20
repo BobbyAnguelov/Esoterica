@@ -6,6 +6,7 @@
 
 //-------------------------------------------------------------------------
 
+#if EE_DEVELOPMENT_TOOLS
 namespace EE::ImGuiX
 {
     struct EE_BASE_API Style
@@ -31,12 +32,27 @@ namespace EE::ImGuiX
         static Color const s_colorText;
         static Color const s_colorTextDisabled;
 
+        static Color const s_axisColorX;
+        static Color const s_axisColorY;
+        static Color const s_axisColorZ;
+        static Color const s_axisColorW;
+
+        static Color const s_axisColors[4];
+
         // Accents
         //-------------------------------------------------------------------------
 
         static Color const s_colorAccent0;  // Brightest
         static Color const s_colorAccent1;
         static Color const s_colorAccent2;  // Darkest
+
+        // Generic Widths
+        //-------------------------------------------------------------------------
+
+        constexpr static float const s_iconButtonWidthTiny = 31.0f;     // The width for a button with just an icon at the tiny font size
+        constexpr static float const s_iconButtonWidthSmall = 32.0f;    // The width for a button with just an icon at the small font size
+        constexpr static float const s_iconButtonWidth = 34.0f;         // The width for a button with just an icon at the regular font size
+        constexpr static float const s_iconButtonWidthLarge = 36.0f;    // The width for a button with just an icon at the large font size
 
         // Misc settings
         //-------------------------------------------------------------------------
@@ -46,5 +62,8 @@ namespace EE::ImGuiX
     public:
 
         static void Apply();
+
+        static float GetMaxDpiScale();
     };
 }
+#endif

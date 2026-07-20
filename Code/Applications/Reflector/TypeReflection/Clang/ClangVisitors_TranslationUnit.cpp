@@ -2,10 +2,11 @@
 #include "ClangVisitors_Macro.h"
 #include "ClangVisitors_Enum.h"
 #include "Clangvisitors_Structure.h"
+#include "Base/Types/ScopedValue.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::TypeSystem::Reflection
+namespace EE::Reflection
 {
     CXChildVisitResult VisitTranslationUnit( CXCursor cr, CXCursor parent, CXClientData pClientData )
     {
@@ -37,6 +38,9 @@ namespace EE::TypeSystem::Reflection
 
         //-------------------------------------------------------------------------
 
+        TScopedGuardValue<StringID> const hid( pContext->m_currentHeaderID, headerID );
+        TScopedGuardValue<FileSystem::Path> const hpath( pContext->m_currentHeaderFilePath, headerFilePath );
+
         // Process Cursor
         CXCursorKind const kind = clang_getCursorKind( cr );
         String const cursorName = ClangUtils::GetCursorDisplayName( cr );
@@ -45,7 +49,7 @@ namespace EE::TypeSystem::Reflection
             // Classes / Structs
             case CXCursor_ClassTemplate:
             {
-                ReflectionMacro macro;
+                ParsedMacro macro;
                 if ( pContext->GetReflectionMacroForType( headerID, cr, macro ) )
                 {
                     pContext->LogError( "Cannot register template class (%s)", cursorName.c_str() );
@@ -71,14 +75,14 @@ namespace EE::TypeSystem::Reflection
                     return CXChildVisit_Break;
                 }
 
-                return VisitStructure( pContext, cr, headerFilePath, headerID );
+                return VisitStructure( pContext, cr );
             }
             break;
 
             // Enums
             case CXCursor_EnumDecl:
             {
-                return VisitEnum( pContext, cr, headerID );
+                return VisitEnum( pContext, cr );
             }
             break;
 

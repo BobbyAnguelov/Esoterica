@@ -1,19 +1,218 @@
 #include "AnimationBoneMask.h"
-#include "Engine/Animation/AnimationSkeleton.h"
+#include "AnimationSkeleton.h"
 #include "Base/Math/Lerp.h"
-#include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
+    void BoneWeightList::Clear()
+    {
+        m_skeletonID.Clear();
+        m_boneIDs.clear();
+        m_weights.clear();
+    }
+
+    bool BoneWeightList::IsValid() const
+    {
+        if ( !m_skeletonID.IsValid() )
+        {
+            return false;
+        }
+
+        if ( m_boneIDs.size() != m_weights.size() )
+        {
+            return false;
+        }
+
+        for ( auto& boneID : m_boneIDs )
+        {
+            if ( !boneID.IsValid() )
+            {
+                return false;
+            }
+        }
+
+        for ( auto& boneWeight : m_weights )
+        {
+            if ( boneWeight < 0.0f || boneWeight > 1.0f )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    bool BoneWeightList::RemoveDuplicateWeights()
+    {
+        bool fixupPerformed = false;
+
+        for ( int32_t i = 0; i < m_boneIDs.size(); i++ )
+        {
+            for ( int32_t j = i + 1; j < m_boneIDs.size(); j++ )
+            {
+                if ( m_boneIDs[i] == m_boneIDs[j] )
+                {
+                    m_boneIDs.erase_unsorted( m_boneIDs.begin() + j );
+                    j--;
+                    fixupPerformed = true;
+                }
+            }
+        }
+
+        return fixupPerformed;
+    }
+
+    bool BoneWeightList::RemoveWeightsForMissingBones( Skeleton const* pSkeleton )
+    {
+        bool fixupPerformed = false;
+
+        if ( m_boneIDs.size() != m_weights.size() )
+        {
+            size_t newSize = Math::Min( m_boneIDs.size(), m_weights.size() );
+            m_boneIDs.resize( newSize );
+            m_weights.resize( newSize, 0.0f );
+            fixupPerformed = true;
+        }
+
+        //-------------------------------------------------------------------------
+
+        for ( int32_t i = 0; i < m_boneIDs.size(); i++ )
+        {
+            bool isInvalidWeight = false;
+            if ( !m_boneIDs[i].IsValid() )
+            {
+                isInvalidWeight = true;
+            }
+
+            if ( pSkeleton->GetBoneIndex( m_boneIDs[i] ) == InvalidIndex )
+            {
+                isInvalidWeight = true;
+            }
+
+            if ( m_weights[i] < 0.0f || m_weights[i] > 1.0f )
+            {
+                isInvalidWeight = true;
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( isInvalidWeight )
+            {
+                m_boneIDs.erase( m_boneIDs.begin() + i );
+                m_weights.erase( m_weights.begin() + i );
+                i--;
+
+                fixupPerformed = true;
+            }
+        }
+
+        return fixupPerformed;
+    }
+
+    void BoneWeightList::SetWeightForBone( StringID boneID, float weight )
+    {
+        EE_ASSERT( m_boneIDs.size() == m_weights.size() );
+        EE_ASSERT( weight >= 0.0f && weight <= 1.0f );
+
+        int32_t numWeights = (int32_t) m_weights.size();
+        for ( int32_t i = 0; i < numWeights; i++ )
+        {
+            if ( m_boneIDs[i] == boneID )
+            {
+                m_weights[i] = weight;
+                return;
+            }
+        }
+
+        m_boneIDs.emplace_back( boneID );
+        m_weights.emplace_back( weight );
+    }
+
+    void BoneWeightList::UnsetWeightForBone( StringID boneID )
+    {
+        EE_ASSERT( m_boneIDs.size() == m_weights.size() );
+
+        int32_t numWeights = (int32_t) m_weights.size();
+        for ( int32_t i = 0; i < numWeights; i++ )
+        {
+            if ( m_boneIDs[i] == boneID )
+            {
+                VectorEraseUnordered( m_boneIDs, i );
+                VectorEraseUnordered( m_weights, i );
+                return;
+            }
+        }
+    }
+
+    float BoneWeightList::GetWeightForBone( StringID boneID ) const
+    {
+        EE_ASSERT( m_boneIDs.size() == m_weights.size() );
+
+        int32_t numWeights = (int32_t) m_weights.size();
+        for ( int32_t i = 0; i < numWeights; i++ )
+        {
+            if ( m_boneIDs[i] == boneID )
+            {
+                return m_weights[i];
+            }
+        }
+
+        return 0.0f;
+    }
+
+    bool BoneWeightList::HasWeightForBone( StringID boneID ) const
+    {
+        EE_ASSERT( m_boneIDs.size() == m_weights.size() );
+
+        int32_t numWeights = (int32_t) m_weights.size();
+        for ( int32_t i = 0; i < numWeights; i++ )
+        {
+            if ( m_boneIDs[i] == boneID )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    //-------------------------------------------------------------------------
+
+    BoneMask const* BoneMaskSet::TryGetBoneMask( Skeleton const* pSkeleton ) const
+    {
+        BoneMask const* pMask = nullptr;
+
+        if ( m_primaryMask.GetSkeleton() == pSkeleton )
+        {
+            pMask = &m_primaryMask;
+            return pMask;
+        }
+
+        //-------------------------------------------------------------------------
+
+        for ( auto const& secondaryBoneMask : m_secondaryMasks )
+        {
+            if ( secondaryBoneMask.GetSkeleton() == pSkeleton )
+            {
+                pMask = &secondaryBoneMask;
+                break;
+            }
+        }
+
+        return pMask;
+    }
+
+    //-------------------------------------------------------------------------
+
     BoneMask::BoneMask( Skeleton const* pSkeleton )
         : m_pSkeleton( pSkeleton )
     {
         EE_ASSERT( m_pSkeleton != nullptr );
         EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
 
-        int32_t const numWeightsToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        int32_t const numWeightsToAllocate = GetNumRequiredWeights();
         m_weights.resize( numWeightsToAllocate, 0.0f );
         m_weightInfo = WeightInfo::Zero;
     }
@@ -41,23 +240,83 @@ namespace EE::Animation
         m_weightInfo = rhs.m_weightInfo;
     }
 
-    BoneMask::BoneMask( Skeleton const* pSkeleton, SerializedData const& serializedMask )
-        : m_ID( serializedMask.m_ID )
-        , m_pSkeleton( pSkeleton )
+    BoneMask::BoneMask( Skeleton const* pSkeleton, TVector<float> const& weights )
+        : m_pSkeleton( pSkeleton )
     {
         EE_ASSERT( m_pSkeleton != nullptr );
         EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
 
-        int32_t const numWeightsToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        int32_t const numWeightsToAllocate = GetNumRequiredWeights();
         m_weights.resize( numWeightsToAllocate );
-        ResetWeights( serializedMask );
+        ResetWeights( weights );
     }
 
-    //-------------------------------------------------------------------------
+    BoneMask::BoneMask( Skeleton const* pSkeleton, BoneWeightList const& weightList, TInlineVector<StringID, 10>* pOutMissingBones )
+        : m_pSkeleton( pSkeleton )
+    {
+        EE_ASSERT( m_pSkeleton != nullptr );
+        EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
+        EE_ASSERT( weightList.IsValid() );
+
+        if ( pOutMissingBones != nullptr )
+        {
+            pOutMissingBones->clear();
+        }
+
+        // Create weight storage
+        //-------------------------------------------------------------------------
+
+        int32_t const numWeightsToAllocate = GetNumRequiredWeights();
+        m_weights.resize( numWeightsToAllocate, 0 );
+        m_weightInfo = WeightInfo::Zero;
+
+        // Handle empty bone weight list
+        //-------------------------------------------------------------------------
+
+        if ( weightList.GetNumWeights() == 0 )
+        {
+            ResetWeights( 1.0f );
+        }
+
+        // Create intermediate weights
+        //-------------------------------------------------------------------------
+
+        int32_t const numWeights = BoneMask::GetNumRequiredWeights();
+        TInlineVector<float, 300> weights;
+        weights.resize( numWeights, -1.0f );
+
+        int32_t const numWeightsInList = weightList.GetNumWeights();
+        for ( int32_t i = 0; i < numWeightsInList; i++ )
+        {
+            EE_ASSERT( weightList.m_weights[i] >= 0.0f && weightList.m_weights[i] <= 1.0f );
+            EE_ASSERT( weightList.m_boneIDs[i].IsValid() );
+
+            int32_t const boneIdx = pSkeleton->GetBoneIndex( weightList.m_boneIDs[i] );
+            if ( boneIdx != InvalidIndex )
+            {
+                weights[boneIdx] = weightList.m_weights[i];
+            }
+            else // If we should return the list of missing bone, add the missing bone to the list
+            {
+                if ( pOutMissingBones != nullptr )
+                {
+                    pOutMissingBones->emplace_back( weightList.m_boneIDs[i] );
+                }
+            }
+        }
+
+        ResetWeights( weights );
+    }
 
     bool BoneMask::IsValid() const
     {
-        return m_pSkeleton != nullptr && !m_weights.empty() && m_weights.size() == CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
+        return m_pSkeleton != nullptr && !m_weights.empty() && m_weights.size() == GetNumRequiredWeights();
+    }
+
+    int32_t BoneMask::GetNumRequiredWeights() const
+    {
+        int32_t const numBones = m_pSkeleton->GetNumBones();
+        return Math::CeilingToInt32( float( numBones ) / 4.0f ) * 4;
     }
 
     BoneMask& BoneMask::operator=( BoneMask const& rhs )
@@ -82,7 +341,31 @@ namespace EE::Animation
         return *this;
     }
 
-    //-------------------------------------------------------------------------
+    void BoneMask::ResetWeightsToZero()
+    {
+        EE_ASSERT( IsValid() );
+
+        if ( m_weightInfo != WeightInfo::Zero )
+        {
+            Memory::MemsetZero( m_weights.data(), m_weights.size() );
+            m_weightInfo = WeightInfo::Zero;
+        }
+    }
+
+    void BoneMask::ResetWeightsToOne()
+    {
+        EE_ASSERT( IsValid() );
+
+        if ( m_weightInfo != WeightInfo::One )
+        {
+            for ( auto& weight : m_weights )
+            {
+                weight = 1.0f;
+            }
+
+            m_weightInfo = WeightInfo::One;
+        }
+    }
 
     void BoneMask::ResetWeights( float fixedWeight )
     {
@@ -90,55 +373,42 @@ namespace EE::Animation
         EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
         EE_ASSERT( fixedWeight >= 0.0f && fixedWeight <= 1.0f );
 
-        int32_t const numWeightsToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
-        m_weights.resize( numWeightsToAllocate, fixedWeight );
-        SetWeightInfo( fixedWeight );
-    }
-
-    void BoneMask::ResetWeights( TVector<float> const& boneWeights )
-    {
-        EE_ASSERT( m_pSkeleton != nullptr );
-        EE_ASSERT( m_pSkeleton->GetNumBones() > 0 );
-        EE_ASSERT( boneWeights.size() == m_pSkeleton->GetNumBones() );
-        
-        int32_t const numWeightsToAllocate = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
-        m_weights.resize( numWeightsToAllocate, 0.0f );
-        EE_ASSERT( m_weights.size() >= boneWeights.size() );
-
-        memcpy( m_weights.data(), boneWeights.data(), sizeof( float ) * boneWeights.size() );
+        int32_t const numWeightsToAllocate = GetNumRequiredWeights();
+        m_weights.resize( numWeightsToAllocate );
 
         //-------------------------------------------------------------------------
 
-        m_weightInfo = WeightInfo::Zero;
-
-        float fixedWeight = m_weights[0];
-        for ( float weight : boneWeights )
+        if ( fixedWeight == 0.0f )
         {
-            if ( weight != fixedWeight )
-            {
-                m_weightInfo = WeightInfo::Mixed;
-                return;
-            }
+            return ResetWeightsToZero();
         }
+        else if ( fixedWeight == 1.0f )
+        {
+            return ResetWeightsToOne();
+        }
+        else
+        {
+            for ( auto& weight : m_weights )
+            {
+                weight = fixedWeight;
+            }
 
-        // If we get here then all weights are equal
-        SetWeightInfo( fixedWeight );
+            SetWeightInfo( fixedWeight );
+        }
     }
 
-    void BoneMask::ResetWeights( SerializedData const& serializedMask )
+    void BoneMask::ResetWeights( float const* pWeights )
     {
-        int32_t const numWeights = CalculateNumWeightsToSet( m_pSkeleton->GetNumBones() );
-        int32_t const numSerializedWeights = (int32_t) serializedMask.m_weights.size();
-
         EE_ASSERT( m_pSkeleton != nullptr );
-        EE_ASSERT( m_weights.size() == numWeights );
-        EE_ASSERT( numSerializedWeights == numWeights );
+
+        int32_t const numWeights = GetNumRequiredWeights();
+        m_weights.resize( numWeights );
 
         TInlineVector<float, 255> originalWeights;
         originalWeights.resize( numWeights );
 
-        memcpy( m_weights.data(), serializedMask.m_weights.data(), sizeof( float ) * numWeights );
-        memcpy( originalWeights.data(), serializedMask.m_weights.data(), sizeof( float ) * numWeights );
+        memcpy( m_weights.data(), pWeights, sizeof( float ) * numWeights );
+        memcpy( originalWeights.data(), pWeights, sizeof( float ) * numWeights );
 
         //-------------------------------------------------------------------------
 
@@ -233,7 +503,7 @@ namespace EE::Animation
 
         m_weightInfo = WeightInfo::Zero;
         float fixedWeight = m_weights[0];
-        for ( int32_t i = 1; i < m_weights.size(); i++ )
+        for ( int32_t i = 1; i < m_pSkeleton->GetNumBones(); i++ )
         {
             if ( m_weights[i] != fixedWeight )
             {
@@ -382,494 +652,27 @@ namespace EE::Animation
     }
 
     //-------------------------------------------------------------------------
-    // Bone Mask Pool
-    //-------------------------------------------------------------------------
 
-    BoneMaskPool::BoneMaskPool( Skeleton const* pSkeleton )
-        : m_pSkeleton( pSkeleton )
-        , m_firstFreePoolIdx( InvalidIndex )
+    bool BoneMaskSetDefinition::IsValid() const
     {
-        EE_ASSERT( m_pool.empty() && m_pSkeleton != nullptr );
-
-        m_pool.reserve( s_initialPoolSize * 2 );
-
-        for ( auto i = 0; i < s_initialPoolSize; i++ )
+        if ( !m_ID.IsValid() )
         {
-            m_pool.emplace_back( pSkeleton );
+            return false;
         }
 
-        m_firstFreePoolIdx = 0;
-    }
-
-    BoneMaskPool::~BoneMaskPool()
-    {
-        m_pool.clear();
-        m_firstFreePoolIdx = InvalidIndex;
-    }
-
-    #if EE_DEVELOPMENT_TOOLS
-    void BoneMaskPool::PerformValidation() const
-    {
-        // Validate that all buffers have been released!
-        for ( auto const& slot : m_pool )
+        if ( !m_primaryWeightList.IsValid() )
         {
-            EE_ASSERT( !slot.m_isUsed );
+            return false;
         }
 
-        EE_ASSERT( m_firstFreePoolIdx == 0 );
-    }
-    #endif
-
-    int8_t BoneMaskPool::AcquireMask( bool resetMask )
-    {
-        int32_t const currentPoolSize = (int32_t) m_pool.size();
-        EE_ASSERT( m_firstFreePoolIdx < currentPoolSize );
-        
-        // Set the mask as used
-        int8_t maskIdx = m_firstFreePoolIdx;
-        EE_ASSERT( !m_pool[maskIdx].m_isUsed );
-        m_pool[maskIdx].m_isUsed = true;
-
-        if ( resetMask )
+        for ( auto& weightList : m_secondaryWeightLists )
         {
-            m_pool[maskIdx].m_mask.ResetWeights();
-        }
-
-        // Update free idx
-        int8_t const searchStartIdx = m_firstFreePoolIdx + 1;
-        m_firstFreePoolIdx = InvalidIndex;
-        for ( int8_t i = searchStartIdx; i < currentPoolSize; i++ )
-        {
-            if ( !m_pool[i].m_isUsed )
+            if ( !weightList.IsValid() )
             {
-                m_firstFreePoolIdx = i;
-                break;
+                return false;
             }
         }
 
-        // Grow the pool if needed
-        if ( m_firstFreePoolIdx == InvalidIndex )
-        {
-            size_t const newPoolSize = Math::Max( 127, currentPoolSize * 2 );
-            size_t const numMasksToAdd = newPoolSize - currentPoolSize;
-
-            for ( auto i = 0; i < numMasksToAdd; i++ )
-            {
-                m_pool.emplace_back( m_pSkeleton );
-            }
-
-            m_firstFreePoolIdx = (int8_t) currentPoolSize + 1;
-            EE_ASSERT( m_firstFreePoolIdx < 127 );
-        }
-
-        // Return the allocate mask pool index
-        EE_ASSERT( maskIdx >= 0 && maskIdx < m_pool.size() );
-        return maskIdx;
-    }
-
-    void BoneMaskPool::ReleaseMask( int8_t maskIdx )
-    {
-        EE_ASSERT( maskIdx < m_pool.size() );
-        EE_ASSERT( m_pool[maskIdx].m_isUsed );
-
-        // Clear the flag
-        m_pool[maskIdx].m_isUsed = false;
-
-        // Update the free index
-        if ( maskIdx < m_firstFreePoolIdx )
-        {
-            m_firstFreePoolIdx = maskIdx;
-        }
-    }
-
-    //-------------------------------------------------------------------------
-    // Task List
-    //-------------------------------------------------------------------------
-
-    BoneMaskTaskList const BoneMaskTaskList::s_defaultMaskList( BoneMaskTask( 1.0f ) );
-
-    //-------------------------------------------------------------------------
-
-    BoneMaskTaskList::BoneMaskTaskList( BoneMaskTaskList const& sourceTaskList, BoneMaskTaskList const& targetTaskList, float blendWeight )
-    {
-        EE_ASSERT( &sourceTaskList != this && &targetTaskList != this );
-
-        if ( blendWeight == 0 )
-        {
-            m_tasks = sourceTaskList.m_tasks;
-        }
-        else if ( blendWeight == 1 )
-        {
-            m_tasks = targetTaskList.m_tasks;
-        }
-        else // Blend
-        {
-            m_tasks = sourceTaskList.m_tasks;
-            BlendTo( targetTaskList, blendWeight );
-        }
-    }
-
-    int8_t BoneMaskTaskList::SetToBlendBetweenTaskLists( BoneMaskTaskList const& sourceTaskList, BoneMaskTaskList const& targetTaskList, float blendWeight )
-    {
-        EE_ASSERT( &sourceTaskList != this && &targetTaskList != this );
-
-        if ( blendWeight == 0 )
-        {
-            m_tasks = sourceTaskList.m_tasks;
-        }
-        else if ( blendWeight == 1 )
-        {
-            m_tasks = targetTaskList.m_tasks;
-        }
-        else // Blend
-        {
-            m_tasks = sourceTaskList.m_tasks;
-            BlendTo( targetTaskList, blendWeight );
-        }
-
-        return GetLastTaskIdx();
-    }
-
-    int8_t BoneMaskTaskList::AppendTaskListAndFixDependencies( BoneMaskTaskList const& taskList )
-    {
-        int8_t const dependencyOffset = GetLastTaskIdx() + 1;
-
-        m_tasks.reserve( m_tasks.size() + taskList.m_tasks.size() );
-        for ( BoneMaskTask const& task : taskList.m_tasks )
-        {
-            BoneMaskTask& addedTask = m_tasks.emplace_back( task );
-            if ( addedTask.m_type == BoneMaskTask::Type::Blend || addedTask.m_type == BoneMaskTask::Type::Combine )
-            {
-                addedTask.m_sourceTaskIdx += dependencyOffset;
-                addedTask.m_targetTaskIdx += dependencyOffset;
-            }
-        }
-
-        EE_ASSERT( m_tasks.size() < 128 );
-        return GetLastTaskIdx();
-    }
-
-    int8_t BoneMaskTaskList::BlendToGeneratedMask( float maskWeight, float blendWeight )
-    {
-        EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
-
-        // If no weight, do nothing
-        if ( blendWeight == 0 )
-        {
-            // Do Nothing
-        }
-        // If full weight, replace the task with the generated mask
-        else if ( blendWeight == 1 )
-        {
-            m_tasks.clear();
-            m_tasks.emplace_back( maskWeight );
-        }
-        else // Blend
-        {
-            int8_t const sourceTaskIdx = GetLastTaskIdx();
-            m_tasks.emplace_back( maskWeight );
-            int8_t const targetTaskIdx = GetLastTaskIdx();
-
-            //-------------------------------------------------------------------------
-
-            m_tasks.emplace_back( sourceTaskIdx, targetTaskIdx, blendWeight );
-            EE_ASSERT( m_tasks.size() < s_maxTasks );
-        }
-
-        return GetLastTaskIdx();
-    }
-
-    BoneMaskTaskList::Result BoneMaskTaskList::GenerateBoneMask( BoneMaskPool& pool ) const
-    {
-        EE_PROFILE_FUNCTION_ANIMATION();
-
-        Skeleton const* pSkeleton = pool.GetSkeleton();
-
-        // If we only have a single task, just get the mask from it
-        int32_t const numTasks = (int32_t) m_tasks.size();
-        EE_ASSERT( numTasks < s_maxTasks );
-        if ( numTasks == 1 )
-        {
-            switch ( m_tasks[0].m_type )
-            {
-                case BoneMaskTask::Type::GenerateMask:
-                {
-                    auto pMaskIdx = pool.AcquireMask();
-                    pool[pMaskIdx]->ResetWeights( m_tasks[0].m_weight );
-                    return { pool[pMaskIdx], pMaskIdx };
-                }
-                break;
-
-                case BoneMaskTask::Type::Mask:
-                {
-                    auto pMask = pSkeleton->GetBoneMask( m_tasks[0].m_maskIdx );
-                    return { pMask, InvalidIndex };
-                }
-                break;
-
-                default:
-                {
-                    EE_UNREACHABLE_CODE();
-                    return { nullptr, InvalidIndex };
-                }
-                break;
-            }
-        }
-        else // Execute task list
-        {
-            TInlineVector<int8_t, 128> maskIndices; // Temp array to avoid writing into the constant tasks
-
-            //-------------------------------------------------------------------------
-
-            for ( auto i = 0; i < numTasks; i++ )
-            {
-                EE_ASSERT( m_tasks[i].IsValid() );
-
-                // Skip reference tasks
-                //-------------------------------------------------------------------------
-
-                if ( m_tasks[i].IsMask() )
-                {
-                    maskIndices.emplace_back( (int8_t) InvalidIndex );
-                    continue;
-                }
-
-                // Generate tasks
-                //-------------------------------------------------------------------------
-
-                if ( m_tasks[i].m_type == BoneMaskTask::Type::GenerateMask )
-                {
-                    maskIndices.emplace_back( pool.AcquireMask() );
-                    pool[maskIndices[i]]->ResetWeights( m_tasks[i].m_weight );
-                }
-
-                // Scale
-                //-------------------------------------------------------------------------
-
-                else if ( m_tasks[i].m_type == BoneMaskTask::Type::Scale )
-                {
-                    BoneMaskTask const& sourceTask = m_tasks[m_tasks[i].m_sourceTaskIdx];
-                    int8_t const sourceMaskIdx = maskIndices[m_tasks[i].m_sourceTaskIdx];
-                    bool const isSourceAPtr = sourceTask.IsMask();
-
-                    BoneMask* pMaskToScale = nullptr;
-                    if ( isSourceAPtr )
-                    {
-                        maskIndices.emplace_back( pool.AcquireMask() );
-                        pool[maskIndices[i]]->CopyFrom( *pSkeleton->GetBoneMask( sourceTask.m_maskIdx ) );
-                        pMaskToScale = pool[maskIndices[i]];
-                    }
-                    else
-                    {
-                        maskIndices.emplace_back( sourceMaskIdx );
-                        pMaskToScale = pool[sourceMaskIdx];
-                    }
-
-                    EE_ASSERT( pMaskToScale != nullptr );
-                    pMaskToScale->ScaleWeights( m_tasks[i].m_weight );
-                }
-
-                // Combine/Blend tasks
-                //-------------------------------------------------------------------------
-
-                else
-                {
-                    BoneMaskTask const& sourceTask = m_tasks[m_tasks[i].m_sourceTaskIdx];
-                    int8_t const sourceMaskIdx = maskIndices[m_tasks[i].m_sourceTaskIdx];
-                    bool const isSourceAPtr = sourceTask.IsMask();
-                    BoneMask const* pSourceMask = isSourceAPtr ? pSkeleton->GetBoneMask( sourceTask.m_maskIdx ) : pool[sourceMaskIdx];
-                    EE_ASSERT( pSourceMask != nullptr );
-
-                    BoneMaskTask const& targetTask = m_tasks[m_tasks[i].m_targetTaskIdx];
-                    int8_t const targetMaskIdx = maskIndices[m_tasks[i].m_targetTaskIdx];
-                    bool const isTargetAPtr = targetTask.IsMask();
-                    BoneMask const* pTargetMask = isTargetAPtr ? pSkeleton->GetBoneMask( targetTask.m_maskIdx ) : pool[targetMaskIdx];
-                    EE_ASSERT( pTargetMask != nullptr );
-
-                    // If both are masks, acquire a result buffer
-                    if ( isSourceAPtr && isTargetAPtr )
-                    {
-                        maskIndices.emplace_back( pool.AcquireMask() );
-                        BoneMask* pResultMask = pool[maskIndices[i]];
-                        *pResultMask = *pSourceMask;
-
-                        if ( m_tasks[i].m_type == BoneMaskTask::Type::Combine )
-                        {
-                            pResultMask->CombineWith( *pTargetMask );
-                        }
-                        // Blend - only if different ptrs
-                        else if ( pSourceMask != pTargetMask )
-                        {
-                            pResultMask->BlendTo( *pTargetMask, m_tasks[i].m_weight );
-                        }
-                    }
-                    // If only one is a operation, reuse the result mask
-                    else if ( isSourceAPtr || isTargetAPtr )
-                    {
-                        // Use the result of the target operation
-                        if ( isSourceAPtr )
-                        {
-                            EE_ASSERT( targetMaskIdx != InvalidIndex );
-                            maskIndices.emplace_back( targetMaskIdx );
-
-                            if ( m_tasks[i].m_type == BoneMaskTask::Type::Combine )
-                            {
-                                pool[targetMaskIdx]->CombineWith( *pSourceMask );
-                            }
-                            else
-                            {
-                                pool[targetMaskIdx]->BlendFrom( *pSourceMask, m_tasks[i].m_weight );
-                            }
-                        }
-                        else // Use the result of the source operation
-                        {
-                            EE_ASSERT( sourceMaskIdx != InvalidIndex );
-                            maskIndices.emplace_back( sourceMaskIdx );
-
-                            if ( m_tasks[i].m_type == BoneMaskTask::Type::Combine )
-                            {
-                                pool[sourceMaskIdx]->CombineWith( *pTargetMask );
-                            }
-                            else
-                            {
-                                pool[sourceMaskIdx]->BlendTo( *pTargetMask, m_tasks[i].m_weight );
-                            }
-                        }
-                    }
-                    else // Both are pool buffers, so release the source and use the target as the result
-                    {
-                        EE_ASSERT( targetMaskIdx != InvalidIndex );
-                        maskIndices.emplace_back( targetMaskIdx );
-
-                        if ( m_tasks[i].m_type == BoneMaskTask::Type::Combine )
-                        {
-                            pool[targetMaskIdx]->CombineWith( *pSourceMask );
-                        }
-                        else
-                        {
-                            pool[targetMaskIdx]->BlendFrom( *pSourceMask, m_tasks[i].m_weight );
-                        }
-
-                        EE_ASSERT( sourceMaskIdx != InvalidIndex );
-                        pool.ReleaseMask( sourceMaskIdx );
-                    }
-                }
-            }
-
-            // Return the pose and optional pool mask index
-            // The user is expected to release the return pool mask idx
-            int8_t const lastTaskIdx = (int8_t) numTasks - 1;
-            return { pool[maskIndices[lastTaskIdx]], maskIndices[lastTaskIdx] };
-        }
-    }
-
-    void BoneMaskTaskList::Serialize( Serialization::BitArchive<1280>& archive, uint32_t maxBitsForMaskIndex ) const
-    {
-        uint8_t const numTasks = (uint8_t) m_tasks.size();
-        uint32_t const numBitsToUseForTaskIndices = Math::GetMaxNumberOfBitsForValue( numTasks );
-
-        archive.WriteUInt( numTasks, 5 );
-
-        for ( uint8_t i = 0; i < numTasks; i++ )
-        {
-            auto const& task = m_tasks[i];
-
-            archive.WriteUInt( (uint8_t) task.m_type, 3 );
-
-            switch ( task.m_type )
-            {
-                case BoneMaskTask::Type::Mask:
-                {
-                    archive.WriteUInt( task.m_maskIdx, maxBitsForMaskIndex );
-                }
-                break;
-
-                case BoneMaskTask::Type::GenerateMask:
-                {
-                    archive.WriteNormalizedFloat8Bit( task.m_weight );
-                }
-                break;
-
-                case BoneMaskTask::Type::Blend:
-                {
-                    archive.WriteUInt( task.m_sourceTaskIdx, numBitsToUseForTaskIndices );
-                    archive.WriteUInt( task.m_targetTaskIdx, numBitsToUseForTaskIndices );
-                    archive.WriteNormalizedFloat8Bit( task.m_weight );
-                }
-                break;
-
-                case BoneMaskTask::Type::Scale:
-                {
-                    archive.WriteUInt( task.m_sourceTaskIdx, numBitsToUseForTaskIndices );
-                    archive.WriteNormalizedFloat8Bit( task.m_weight );
-                }
-                break;
-
-                case BoneMaskTask::Type::Combine:
-                {
-                    archive.WriteUInt( task.m_sourceTaskIdx, numBitsToUseForTaskIndices );
-                    archive.WriteUInt( task.m_targetTaskIdx, numBitsToUseForTaskIndices );
-                }
-                break;
-            }
-        }
-    }
-
-    void BoneMaskTaskList::Deserialize( Serialization::BitArchive<1280>& archive, uint32_t maxBitsForMaskIndex )
-    {
-        uint8_t const numTasks = (uint8_t) archive.ReadUInt( 5 );
-        uint32_t const numBitsToUseForTaskIndices = Math::GetMaxNumberOfBitsForValue( numTasks );
-
-        for ( uint8_t i = 0; i < numTasks; i++ )
-        {
-            auto type = (BoneMaskTask::Type) archive.ReadUInt( 3 );
-
-            switch ( type )
-            {
-                case BoneMaskTask::Type::Mask:
-                {
-                    uint8_t const maskIdx = (uint8_t) archive.ReadUInt( maxBitsForMaskIndex );
-                    m_tasks.emplace_back( maskIdx );
-                }
-                break;
-
-                case BoneMaskTask::Type::GenerateMask:
-                {
-                    float const weight = archive.ReadNormalizedFloat8Bit();
-                    m_tasks.emplace_back( weight );
-                }
-                break;
-
-                case BoneMaskTask::Type::Blend:
-                {
-                    auto& task = m_tasks.emplace_back();
-                    task.m_type = type;
-                    task.m_sourceTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
-                    task.m_targetTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
-                    task.m_weight = archive.ReadNormalizedFloat8Bit();
-                }
-                break;
-
-                case BoneMaskTask::Type::Scale:
-                {
-                    auto& task = m_tasks.emplace_back();
-                    task.m_type = type;
-                    task.m_sourceTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
-                    task.m_targetTaskIdx = InvalidIndex;
-                    task.m_weight = archive.ReadNormalizedFloat8Bit();
-                }
-                break;
-
-                case BoneMaskTask::Type::Combine:
-                {
-                    auto& task = m_tasks.emplace_back();
-                    task.m_type = type;
-                    task.m_sourceTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
-                    task.m_targetTaskIdx = (int8_t) archive.ReadUInt( numBitsToUseForTaskIndices );
-                    task.m_weight = -1.0f;
-                }
-                break;
-            }
-        }
+        return true;
     }
 }

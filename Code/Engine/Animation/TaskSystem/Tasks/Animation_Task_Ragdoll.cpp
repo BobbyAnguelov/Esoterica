@@ -1,14 +1,14 @@
 #include "Animation_Task_Ragdoll.h"
 #include "Engine/Animation/AnimationBlender.h"
-#include "Engine/Physics/PhysicsRagdoll.h"
+#include "Engine/Physics/Ragdoll/PhysicsRagdoll_Instance.h"
 #include "Base/Profiling.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
     RagdollSetPoseTask::RagdollSetPoseTask( Physics::Ragdoll* pRagdoll, int8_t sourceTaskIdx, InitOption initOption )
-        : Task( TaskUpdateStage::PrePhysics, { sourceTaskIdx } )
+        : PoseTask( TaskUpdateStage::PrePhysics, { sourceTaskIdx } )
         , m_pRagdoll( pRagdoll )
         , m_initOption( initOption )
     {
@@ -29,7 +29,7 @@ namespace EE::Animation::Tasks
     //-------------------------------------------------------------------------
 
     RagdollGetPoseTask::RagdollGetPoseTask( Physics::Ragdoll* pRagdoll, int8_t sourceTaskIdx, float const physicsBlendWeight )
-        : Task( TaskUpdateStage::PostPhysics, { sourceTaskIdx } )
+        : PoseTask( TaskUpdateStage::PostPhysics, { sourceTaskIdx } )
         , m_pRagdoll( pRagdoll )
         , m_physicsBlendWeight( physicsBlendWeight )
     {
@@ -38,7 +38,7 @@ namespace EE::Animation::Tasks
     }
 
     RagdollGetPoseTask::RagdollGetPoseTask( Physics::Ragdoll* pRagdoll )
-        : Task( TaskUpdateStage::PostPhysics, {} )
+        : PoseTask( TaskUpdateStage::PostPhysics, {} )
         , m_pRagdoll( pRagdoll )
     {
         EE_ASSERT( pRagdoll != nullptr );
@@ -86,4 +86,17 @@ namespace EE::Animation::Tasks
 
         MarkTaskComplete( context );
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void RagdollGetPoseTask::DrawDebug( DebugDrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
+    {
+        PoseTask::DrawDebug( drawingContext, worldTransform, lod, pRecordedPoseBuffer, isDetailedViewEnabled );
+
+        if ( isDetailedViewEnabled )
+        {
+            m_pRagdoll->DrawDebug( drawingContext, worldTransform );
+        }
+    }
+    #endif
+
 }

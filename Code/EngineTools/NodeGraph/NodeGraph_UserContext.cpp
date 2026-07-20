@@ -57,9 +57,9 @@ namespace EE::NodeGraph
         m_selectionChangedEvent.Execute( oldSelection, newSelection );
     }
 
-    void UserContext::NotifyNodesPasted( TInlineVector<BaseNode*, 20> const& pastedNodes )
+    void UserContext::NotifyNodesPasted( TInlineVector<BaseNode*, 20> const& pastedNodes, THashMap<UUID, UUID> const& IDMapping )
     {
-        m_postPasteEvent.Execute( pastedNodes );
+        m_postPasteEvent.Execute( pastedNodes, IDMapping );
     }
 
     void UserContext::ResetExtraTitleInfoTextColor()

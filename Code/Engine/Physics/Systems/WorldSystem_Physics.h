@@ -2,18 +2,17 @@
 
 #include "Engine/Entity/EntityWorldSystem.h"
 #include "Engine/UpdateContext.h"
+#include "Engine/Entity/EntityWorldSystemSignal.h"
 #include "Base/Threading/Threading.h"
 #include "Base/Systems.h"
-#include "Base/Math/Transform.h"
 #include "Base/Types/IDVector.h"
-#include "Base/Types/ScopedValue.h"
 #include "Base/Types/Event.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
-    struct AABB;
+    class ActorComponent;
 }
 
 //-------------------------------------------------------------------------
@@ -21,10 +20,8 @@ namespace EE
 namespace EE::Physics
 {
     class PhysicsShapeComponent;
-    class CharacterComponent;
     class PhysicsTestComponent;
     class PhysicsWorld;
-    enum class DynamicMotionType;
 
     //-------------------------------------------------------------------------
 
@@ -41,42 +38,47 @@ namespace EE::Physics
 
     public:
 
-        EE_ENTITY_WORLD_SYSTEM( PhysicsWorldSystem, RequiresUpdate( UpdateStage::Physics ), RequiresUpdate( UpdateStage::PostPhysics ), RequiresUpdate( UpdateStage::Paused ) );
+        EE_ENTITY_WORLD_SYSTEM( PhysicsWorldSystem, RequiresUpdate( UpdateStage::Physics ), RequiresUpdate( UpdateStage::PostPhysics ) );
 
     public:
 
         PhysicsWorldSystem() = default;
 
-        PhysicsWorld const* GetWorld() const { return m_pWorld; }
-        PhysicsWorld* GetWorld() { return m_pWorld; }
+        PhysicsWorld const* GetPhysicsWorld() const { return m_pPhysicsWorld; }
+        PhysicsWorld* GetPhysicsWorld() { return m_pPhysicsWorld; }
 
     private:
 
         virtual void InitializeSystem( SystemRegistry const& systemRegistry ) override;
         virtual void ShutdownSystem() override final;
-        virtual void RegisterComponent( Entity const* pEntity, EntityComponent* pComponent ) override final;
-        virtual void UnregisterComponent( Entity const* pEntity, EntityComponent* pComponent ) override final;
+        virtual void RegisterComponent( Entity* pEntity, EntityComponent* pComponent ) override final;
+        virtual void UnregisterComponent( Entity* pEntity, EntityComponent* pComponent ) override final;
         virtual void UpdateSystem( EntityWorldUpdateContext const& ctx ) override final;
 
-        void RegisterDynamicComponent( PhysicsShapeComponent* pComponent );
-        void UnregisterDynamicComponent( PhysicsShapeComponent* pComponent );
+        void RegisterShapeComponent( PhysicsShapeComponent* pComponent );
+        void UnregisterShapeComponent( PhysicsShapeComponent* pComponent );
 
-        void ProcessActorRebuildRequests( EntityWorldUpdateContext const& ctx );
+        void ProcessBodyRebuildRequests( EntityWorldUpdateContext const& ctx );
 
         void PhysicsUpdate( EntityWorldUpdateContext const& ctx );
         void PostPhysicsUpdate( EntityWorldUpdateContext const& ctx );
 
+        #if EE_DEVELOPMENT_TOOLS
+        bool IsRecording() const;
+        void StartRecording();
+        void StopRecording();
+        virtual void DebugDraw( EntityWorldUpdateContext const& ctx ) override;
+        #endif
+
     private:
 
-        PhysicsWorld*                                           m_pWorld = nullptr;
+        PhysicsWorld*                                           m_pPhysicsWorld = nullptr;
 
-        TIDVector<ComponentID, CharacterComponent*>             m_characterComponents;
         TIDVector<ComponentID, PhysicsShapeComponent*>          m_physicsShapeComponents;
-        TIDVector<ComponentID, PhysicsShapeComponent*>          m_dynamicShapeComponents; // TODO: profile and see if we need to use a dynamic pool
+        TIDVector<ComponentID, PhysicsShapeComponent*>          m_dynamicShapeComponents;
+        TIDVector<ComponentID, PhysicsShapeComponent*>          m_kinematicShapeComponents;
 
-        EventBindingID                                          m_actorRebuildBindingID;
-        Threading::Mutex                                        m_mutex;
-        TVector<PhysicsShapeComponent*>                         m_actorRebuildRequests;
+        TEntityMessageQueue<PhysicsShapeComponent>              m_bodyRebuildRequests;
 
         TVector<PhysicsTestComponent*>                          m_testComponents;
     };

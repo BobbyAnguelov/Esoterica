@@ -1,10 +1,14 @@
 #pragma once
-#include "Base/Math/Rectangle.h"
+#include "EngineTools/Core/DialogManager.h"
+#include "Engine/Render/Imgui/ImguiImageCache.h"
 #include "Base/Imgui/ImguiX.h"
-#include "Base/Imgui/ImguiImageCache.h"
+#include "Base/Imgui/ImguiTextBuffer.h"
+#include "Base/Math/Rectangle.h"
+#include "Base/Types/Event.h"
 
 //-------------------------------------------------------------------------
 
+namespace EE { class DataPathPicker; }
 namespace EE::ImGuiX { class ImageCache; }
 
 //-------------------------------------------------------------------------
@@ -12,19 +16,18 @@ namespace EE::ImGuiX { class ImageCache; }
 namespace EE::Resource
 {
     class ResourceServer;
-    class CompilationRequest;
+    struct Request;
 
     //-------------------------------------------------------------------------
 
     class ResourceServerUI final
     {
-
     public:
 
-        ResourceServerUI( ResourceServer& resourceServer, ImGuiX::ImageCache* pImageCache );
+        ResourceServerUI( ResourceServer& resourceServer );
         ~ResourceServerUI();
 
-        void Initialize();
+        void Initialize( ImGuiX::ImageCache* pImageCache );
         void Shutdown();
         void Draw();
 
@@ -32,24 +35,49 @@ namespace EE::Resource
 
     private:
 
-        void DrawRequestWindow();
+        void SetupDockingLayout( ImGuiID dockspaceID );
+
+        void DrawTitleBarMenu();
+
         void DrawServerInfoWindow();
-        void DrawConnectionInfoWindow();
+        void DrawClientInfoWindow();
+        void DrawCompilerInfoWindow();
+        void DrawCompilationRequestsWindow();
         void DrawPackagingWindow();
-        void DrawDataToolsWindow();
+        void DrawRecompilationBlockersWindow();
+
+        bool DrawResaveProgressDialog();
+
+        void SetSelectedRequest( Request const* pRequest );
+        void UpdateRequestsList( int32_t sortColumnIdx, bool sortAscending );
 
     private:
 
         ImGuiX::ApplicationTitleBar                     m_titleBar;
         ResourceServer&                                 m_resourceServer;
-        CompilationRequest const*                       m_pSelectedRequest = nullptr;
-        CompilationRequest const*                       m_pContextMenuRequest = nullptr;
+        EventBindingID                                  m_requestsUpdatedEventBindingID;
+        Request const*                                  m_pSelectedRequest = nullptr;
+        Request const*                                  m_pContextMenuRequest = nullptr;
+        bool                                            m_requiresLayoutReset = false;
 
-        char                                            m_resourcePathbuffer[255] = { 0 };
+        TVector<Request const*>                         m_requests;
+        bool                                            m_requestsUpdated = false;
+
+        mutable ImGuiX::TextBuffer                      m_resourcePathBuffer;
+        DataPathPicker*                                 m_pCompileResourcePathPicker = nullptr;
         bool                                            m_forceRecompilation = false;
 
         ImGuiX::ImageCache*                             m_pImageCache = nullptr;
         ImGuiX::ImageInfo                               m_resourceServerIcon;
         ImGuiX::FilterWidget                            m_requestsFilter;
+
+        mutable ImGuiX::TextBuffer                      m_compilationLogBuffer;
+        bool                                            m_compilationLogBufferFilled = false;
+
+        DataPathPicker*                                 m_pRecompilationBlockerPathPicker = nullptr;
+        bool                                            m_allowSelectionChange = true;
+
+        bool                                            m_isProfiling = false;
+        DialogManager                                   m_dialogManager;
     };
 }

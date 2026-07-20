@@ -2,6 +2,7 @@
 
 #include "ResourceID.h"
 #include "Base/FileSystem/FileSystemPath.h"
+#include "Base/Types/Color.h"
 
 //-------------------------------------------------------------------------
 // Base for all EE resources
@@ -45,7 +46,9 @@ namespace EE::Resource
         // Get the path for this resource (from the ID)
         inline DataPath const& GetDataPath() const { return m_resourceID.GetDataPath(); }
 
-        // Does this resource require an additional set of binary data
+        // Does this resource require an additional set of binary data 
+        // This is useful to separate shared resource data and platform specific binary data for a single resource.
+        // Another use-case is to have memory ready data in the additional file that can be directly deserialized into an allocated buffer avoiding an extra copy
         virtual bool RequiresAdditionalDataFile() const { return false; }
 
         IResource& operator=( IResource const& ) = default;
@@ -55,6 +58,9 @@ namespace EE::Resource
         #if EE_DEVELOPMENT_TOOLS
         // Get the friendly name for this resource type
         virtual char const* GetFriendlyName() const = 0;
+
+        // Get a color to show in the tools
+        virtual Color GetColor() const { return Colors::White; }
 
         // Get the recorded hash of all compile dependencies (sources)
         uint64_t GetSourceResourceHash() const { return m_sourceResourceHash; }
@@ -77,14 +83,18 @@ namespace EE::Resource
 //-------------------------------------------------------------------------
 
 // Define a resource
-// Note: The expected fourCC can only contain lowercase letters and digits
-#define EE_RESOURCE( typeFourCC, friendlyName, version, requiresAdditionalDataFile ) \
+// Note: The expected extension can only contain up to 8 lowercase letters and digits
+#define EE_RESOURCE( extension, friendlyName, color, version, requiresAdditionalDataFile ) \
     public: \
+        static_assert( StringUtils::IsLowercaseAlphaNumeric_ConstEval( extension ), "Only lowercase alphanumeric characters allowed in resource type IDs" );\
+        static_assert( StringUtils::GetStringLiteralLength_ConstEval( extension ) > 0 && StringUtils::GetStringLiteralLength_ConstEval( extension ) <= 9, "Resource type ID must be 8 or less characters" );\
         constexpr static int32_t const s_version = version;\
         constexpr static bool const s_requiresAdditionalDataFile = requiresAdditionalDataFile;\
-        static ResourceTypeID const& GetStaticResourceTypeID() { static ResourceTypeID const typeID( typeFourCC ); return typeID; } \
-        virtual ResourceTypeID const& GetResourceTypeID() const override { static ResourceTypeID const typeID( typeFourCC ); return typeID; } \
+        static ResourceTypeID const& GetStaticResourceTypeID() { static ResourceTypeID const typeID( extension ); return typeID; } \
+        virtual ResourceTypeID const& GetResourceTypeID() const override { static ResourceTypeID const typeID( extension ); return typeID; } \
         virtual bool RequiresAdditionalDataFile() const override { return requiresAdditionalDataFile; }\
-        EE_DEVELOPMENT_TOOLS_LINE_IN_MACRO( constexpr static char const* const s_friendlyName = #friendlyName; )\
+        EE_DEVELOPMENT_TOOLS_LINE_IN_MACRO( constexpr static char const* const s_friendlyName = friendlyName; )\
         EE_DEVELOPMENT_TOOLS_LINE_IN_MACRO( virtual char const* GetFriendlyName() const override { return friendlyName; } )\
+        EE_DEVELOPMENT_TOOLS_LINE_IN_MACRO( inline static Color const s_color = color; )\
+        EE_DEVELOPMENT_TOOLS_LINE_IN_MACRO( virtual Color GetColor() const override { return color; } )\
     private:

@@ -55,8 +55,7 @@ namespace EE::Animation
 
             PercentageThroughState,
             PercentageThroughSyncEvent,
-            ElapsedTime,
-            LoopCount
+            CurrentTime,
         };
 
         enum class Operator : uint8_t
@@ -81,7 +80,7 @@ namespace EE::Animation
             int16_t                             m_sourceStateNodeIdx = InvalidIndex;
             int16_t                             m_inputValueNodeIdx = InvalidIndex;
             float                               m_comparand = 0.0f;
-            ComparisonType                      m_type = ComparisonType::ElapsedTime;
+            ComparisonType                      m_type = ComparisonType::CurrentTime;
             Operator                            m_operator = Operator::LessThan;
         };
 

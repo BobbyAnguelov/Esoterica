@@ -1,8 +1,8 @@
 #include "Animation_ToolsGraphNode_Transition.h"
-#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_FlowGraph.h"
 #include "EngineTools/PropertyGrid/PropertyGridTypeEditingRules.h"
 #include "EngineTools/NodeGraph/NodeGraph_Style.h"
+#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Transition.h"
 
 //-------------------------------------------------------------------------
 
@@ -13,7 +13,7 @@ namespace EE::Animation
     {
         CreateInputPin( "Condition", GraphValueType::Bool );
         CreateInputPin( "Duration Override", GraphValueType::Float );
-        CreateInputPin( "Sync Event Override", GraphValueType::Float );
+        CreateInputPin( "Time Offset Override", GraphValueType::Float );
         CreateInputPin( "Start Bone Mask", GraphValueType::BoneMask );
         CreateInputPin( "Target Sync ID", GraphValueType::ID );
     }
@@ -108,9 +108,28 @@ namespace EE::Animation
                 ImGui::Text( "Match Sync %% Only" );
             }
             break;
+
+            case TimeMatchMode::MatchTimeInSeconds:
+            {
+                ImGui::Text( "Match Time In Seconds" );
+            }
+            break;
+
+            case TimeMatchMode::OffsetTimeInSeconds:
+            {
+                ImGui::Text( "Offset Time In Seconds" );
+            }
+            break;
         }
 
-        ImGui::Text( "Sync Offset: %.2f", m_syncEventOffset );
+        if ( m_timeMatchMode == TimeMatchMode::MatchTimeInSeconds || m_timeMatchMode == TimeMatchMode::OffsetTimeInSeconds )
+        {
+            ImGui::Text( "Time Offset: %.2fs", m_timeOffset );
+        }
+        else
+        {
+            ImGui::Text( "Sync Offset: %.2f", m_timeOffset );
+        }
 
         //-------------------------------------------------------------------------
 
@@ -125,6 +144,48 @@ namespace EE::Animation
     Color TransitionToolsNode::GetTitleBarColor() const
     {
         return m_canBeForced ? Colors::Salmon : FlowToolsNode::GetTitleBarColor();
+    }
+
+    Color TransitionToolsNode::GetHighlightOutlineColor( NodeGraph::UserContext* pUserContext ) const
+    {
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        if ( pGraphNodeContext->HasDebugData() )
+        {
+            if ( !m_canBeForced )
+            {
+                auto const endStateRuntimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetEndStateID() );
+                if ( endStateRuntimeNodeIdx != InvalidIndex )
+                {
+                    // If the target state is currently active and we're not allowed to be forced
+                    if ( pGraphNodeContext->IsNodeActive( endStateRuntimeNodeIdx ) )
+                    {
+                        return NodeGraph::Style::s_invalidBorderColor;
+                    }
+                }
+            }
+
+            // Some nodes dont have runtime representations
+            auto const runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
+            if ( runtimeNodeIdx != InvalidIndex )
+            {
+                auto pDebugNode = pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx );
+                if ( pDebugNode->IsInitialized() && !pDebugNode->IsValid() )
+                {
+                    return NodeGraph::Style::s_invalidBorderColor;
+                }
+                else if ( pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
+                {
+                    return NodeGraph::Style::s_activeBorderColor;
+                }
+            }
+        }
+
+        return ResultToolsNode::GetHighlightOutlineColor( pUserContext );
+    }
+
+    UUID TransitionToolsNode::GetEndStateID() const
+    {
+        return Cast<TransitionConduitToolsNode>( GetParentNode() )->GetEndStateID();
     }
 
     //-------------------------------------------------------------------------
@@ -159,7 +220,7 @@ namespace EE::Animation
         }
     };
 
-    EE_PROPERTY_GRID_EDITING_RULES( TransitionEditingRulesFactory, TransitionToolsNode, TransitionEditingRules );
+    EE_PROPERTY_GRID_EDITING_RULES( TransitionToolsNode, TransitionEditingRules );
 
     //-------------------------------------------------------------------------
 
@@ -180,10 +241,10 @@ namespace EE::Animation
         return !GetSecondaryGraph()->FindAllNodesOfType<TransitionToolsNode>().empty();
     }
 
-    Color TransitionConduitToolsNode::GetConduitColor( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, TBitFlags<NodeGraph::NodeVisualState> visualState ) const
+    Color TransitionConduitToolsNode::GetConduitColor( NodeGraph::UserContext* pUserContext ) const
     {
-        // Is this an blocked transition
-        if ( visualState.HasNoFlagsSet() && !HasTransitions() )
+        // No Transitions
+        if ( !HasTransitions() )
         {
             return NodeGraph::Style::s_connectionColorInvalid;
         }
@@ -197,7 +258,7 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        return NodeGraph::TransitionConduitNode::GetConduitColor( ctx, pUserContext, visualState );
+        return Colors::Transparent;
     }
 
     void TransitionConduitToolsNode::PreDrawUpdate( NodeGraph::UserContext* pUserContext )

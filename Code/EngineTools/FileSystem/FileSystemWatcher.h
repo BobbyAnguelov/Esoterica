@@ -42,9 +42,9 @@ namespace EE::FileSystem
 
         public:
 
-            Type                    m_type = Unknown;
-            FileSystem::Path        m_path;
-            FileSystem::Path        m_oldPath; // Only set for rename events
+            Type                                        m_type = Unknown;
+            FileSystem::Path                            m_path;
+            FileSystem::Path                            m_oldPath; // Only set for rename events
         };
 
     public:

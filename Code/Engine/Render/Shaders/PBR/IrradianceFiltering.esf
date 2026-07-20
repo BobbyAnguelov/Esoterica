@@ -1,0 +1,83 @@
+
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+struct HLSL_ALIGN_STRUCT IrradianceFilteringRootConstants
+{
+    uint                        m_renderViewBuffer      : 16;
+    uint                        m_inputTexture          : 16;
+    uint                        m_renderViewIndex;
+};
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#ifndef __cplusplus
+
+#include "Engine/Render/Shaders/PBR/PBR.esh"
+#include "Engine/Render/Shaders/CommonSamplers.esh"
+
+ESF_PARAMETER string ShaderType = "Surface";
+
+EE_DECLARE_ROOT_CONSTANTS( IrradianceFilteringRootConstants, b0, space0 );
+
+#define IrradianceFilteringRootSignature    EE_BEGIN_ROOT_SIGNATURE \
+                                            "RootConstants( b0, num32BitConstants = 2, space = 0 )"
+
+struct VS_OUTPUT
+{
+    float4 m_position : SV_Position;
+    float2 m_uv       : TEXCOORD0;
+    float3 m_normal   : TEXCOORD1;
+};
+
+[RootSignature( IrradianceFilteringRootSignature )]
+VS_OUTPUT VS_main( uint id: SV_VertexID )
+{
+    StructuredBuffer<RenderView>        renderViewBuffer    = GetBuffer( RootConstants.m_renderViewBuffer );
+    
+    VS_OUTPUT output = ( VS_OUTPUT ) 0;
+    
+    output.m_uv         = float2( ( id << 1 ) & 2, id & 2 ); 
+    output.m_position   = float4( output.m_uv * float2( 2.0, -2.0 ) + float2( -1.0, 1.0 ), 0.0, 1.0 );
+    output.m_normal     = mul( renderViewBuffer[RootConstants.m_renderViewIndex].m_inverseViewProjectionMatrix, output.m_position ).xyz;
+
+    return output;
+}
+
+[RootSignature( IrradianceFilteringRootSignature )]
+float4 PS_main( VS_OUTPUT input ) : SV_Target
+{
+    TextureCube     inputTexture        = GetTexture( RootConstants.m_inputTexture );
+    SamplerState    linearWrapSampler   = GetLinearWrapSampler();
+    
+    float3 normal   = normalize( input.m_normal );
+    float3 right    = normalize( cross( float3( 0.0, 1.0, 0.0 ), normal ) );
+    float3 up       = normalize( cross( normal, right ) );
+      
+    float sampleStep = 0.025;
+    float numSamples = 0.0;
+    
+    float3 irradiance = 0.0.xxx;
+    
+    for ( float phi = 0.0; phi < 2.0 * PI; phi += sampleStep )
+    {
+        for ( float theta = 0.0; theta < 0.5 * PI; theta += sampleStep )
+        {
+            float sinTheta = sin( theta );
+            float sinPhi   = sin( phi );
+            float cosTheta = cos( theta );
+            float cosPhi   = cos( phi );
+            
+            float3 tangentSample = float3( sinTheta * cosPhi, sinTheta * sinPhi, cosTheta );
+            float3 uv = tangentSample.x * right + tangentSample.y * up + tangentSample.z * normal;
+            
+            irradiance += inputTexture.SampleLevel( linearWrapSampler, uv, 0.0 ).rgb * cosTheta * sinTheta;
+            numSamples += 1.0;
+        }
+    }
+    
+    return float4( PI * irradiance * ( 1.0 / numSamples ), 1.0 );
+}
+
+#endif

@@ -37,7 +37,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         // Called whenever we finish deserializing a type
-        virtual void PostDeserialize() {}
+        virtual void PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry ) {}
 
         //-------------------------------------------------------------------------
 
@@ -141,12 +141,14 @@ namespace EE
         public: \
         inline static EE::TypeSystem::TypeInfo const* s_pTypeInfo = nullptr; \
         static EE::TypeSystem::TypeID GetStaticTypeID() { ValidateStaticTypeInfoPtr( s_pTypeInfo ); return TypeName::s_pTypeInfo->m_ID; }\
+        static EE::TypeSystem::TypeInfo const* GetStaticTypeInfo() { ValidateStaticTypeInfoPtr( s_pTypeInfo ); return TypeName::s_pTypeInfo; }\
         virtual EE::TypeSystem::TypeInfo const* GetTypeInfo() const override { ValidateStaticTypeInfoPtr( TypeName::s_pTypeInfo ); return TypeName::s_pTypeInfo; }\
         virtual EE::TypeSystem::TypeID GetTypeID() const override { ValidateStaticTypeInfoPtr( TypeName::s_pTypeInfo ); return TypeName::s_pTypeInfo->m_ID; }\
 
 // Flag this member variable (i.e. class property) for reflection and expose it to the tools/serializers
 // Note: look at "PropertyMetadata.h" for all the supported metadata
 // Example: EE_REFLECT( Category = "Foo", Description = "Bar", ReadOnly, ShowAsStaticArray )
+// This macro applies in a limited fashion to enum constant values too
 #define EE_REFLECT( ... )
 
 // Flag a class as the module class for that project

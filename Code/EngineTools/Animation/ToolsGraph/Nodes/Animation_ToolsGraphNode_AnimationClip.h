@@ -17,6 +17,7 @@ namespace EE::Animation
             EE_REFLECT_TYPE( Data );
 
             virtual void GetReferencedResources( TInlineVector<ResourceID, 2>& outReferencedResources ) const override { outReferencedResources.emplace_back( m_animClip.GetResourceID() ); }
+            virtual VisualState GetVisualState() const override { return m_animClip.IsSet() ? VisualState::None : VisualState::HasUnsetData; }
 
         public:
 
@@ -43,10 +44,17 @@ namespace EE::Animation
     private:
 
         virtual TypeSystem::TypeInfo const* GetVariationDataTypeInfo() const override { return AnimationClipToolsNode::Data::s_pTypeInfo; }
+        virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
     private:
 
-        EE_REFLECT() bool                               m_sampleRootMotion = true;
-        EE_REFLECT() bool                               m_allowLooping = false;
+        EE_REFLECT();
+        bool                               m_sampleRootMotion = true;
+
+        EE_REFLECT();
+        bool                               m_allowLooping = false;
+
+        EE_REFLECT( Category = "Advanced" );
+        TVector<StringID>                  m_graphEvents;
     };
 }

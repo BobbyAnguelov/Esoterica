@@ -11,6 +11,8 @@
 
 namespace EE::Resource
 {
+    enum class ResourceLoadStage : int8_t;
+
     //-------------------------------------------------------------------------
     // A unique record for each requested resource
     //-------------------------------------------------------------------------
@@ -21,7 +23,6 @@ namespace EE::Resource
         friend class ResourceSystem;
         friend class ResourceRequest;
         friend class ResourceLoader;
-        friend class ResourceDebugView;
 
     public:
 
@@ -43,6 +44,8 @@ namespace EE::Resource
         inline T* GetResourceData() { return reinterpret_cast<T*>( m_pResource ); }
 
         //-------------------------------------------------------------------------
+
+        inline TVector<ResourceRequesterID> const& GetReferences() const { return m_references; }
 
         inline bool HasReferences() const { return !m_references.empty(); }
 
@@ -71,14 +74,16 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        inline Milliseconds GetFileReadTime() const { return m_fileReadTime; }
-        inline Milliseconds GetLoadTime() const { return m_loadTime; }
-        inline Milliseconds GetDependenciesWaitTime() const { return m_waitForDependenciesTime; }
-        inline Milliseconds GetInstallTime() const { return m_installTime; }
+        inline ResourceLoadStage GetLoadStage() const;
 
-        inline void SetCompilationLog( String const& log ) { m_compilationLog = log; }
-        inline void ClearCompilationLog() { m_compilationLog.clear(); }
-        String const& GetCompilationLog() const { return m_compilationLog; }
+        inline Milliseconds GetFileReadTime() const { return m_fileReadTime; }
+        Milliseconds GetLoadStageTime( ResourceLoadStage stage ) const;
+        Milliseconds GetLoadTime() const;
+        Milliseconds GetInstallTime() const;
+        Milliseconds GetTotalLoadTime() const;
+
+        inline String const& GetCompilationLog() const { return m_compilationLog; }
+        inline String const& GetErrorLog() const { return m_errorLog; }
         #endif
 
     protected:
@@ -91,11 +96,11 @@ namespace EE::Resource
 
         #if EE_DEVELOPMENT_TOOLS
         uint64_t                                m_sourceResourceHash = 0;
+        ResourceLoadStage                       m_loadStage = (ResourceLoadStage) -1;
+        Milliseconds                            m_stageDurations[7] = { 0, 0, 0, 0, 0, 0, 0 };
         Milliseconds                            m_fileReadTime = 0;
-        Milliseconds                            m_loadTime = 0;
-        Milliseconds                            m_waitForDependenciesTime = 0;
-        Milliseconds                            m_installTime = 0;
         String                                  m_compilationLog;
+        String                                  m_errorLog;
         #endif
     };
 }

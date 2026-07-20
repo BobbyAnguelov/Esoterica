@@ -1,0 +1,40 @@
+
+#ifndef _COMMON_PACKING_ESH_
+#define _COMMON_PACKING_ESH_
+
+#ifndef __cplusplus
+
+    uint3 UnpackTriangle( uint packedTriangle )
+    {
+        return uint3( ( packedTriangle >> 20 ) & 0x3FF, ( packedTriangle >> 10 ) & 0x3FF, packedTriangle & 0x3FF );
+    }
+
+    uint2 Unpack8x8( uint16_t packedValue )
+    {
+        return uint2( packedValue & 0xFF, ( packedValue >> 8 ) & 0xFF );
+    }
+
+    float4 UnpackColor( uint packedColor )
+    {
+        return float4(
+            ( ( packedColor & 0xFF ) ),
+            ( ( packedColor & 0xFF00 ) >> 8 ),
+            ( ( packedColor & 0xFF0000 ) >> 16 ),
+            ( ( packedColor & 0xFF000000 ) >> 24 )
+        ) * ( 1.0 / 255.0 );
+    }
+
+    uint PackColor( float4 color )
+    {
+        int4 colorInt = int4(
+            int( saturate( color.x ) * 255.0F ),
+            int( saturate( color.y ) * 255.0F ),
+            int( saturate( color.z ) * 255.0F ),
+            int( saturate( color.w ) * 255.0F ) );
+
+        return ( colorInt.w << 24 ) | ( colorInt.z << 16 ) | ( colorInt.y << 8 ) | colorInt.x;
+    }
+
+#endif
+
+#endif

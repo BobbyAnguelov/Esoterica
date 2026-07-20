@@ -72,6 +72,9 @@ namespace EE::TypeSystem
         // Return all types that derived from a specified type
         TVector<TypeInfo const*> GetAllDerivedTypes( TypeID parentTypeID, bool includeParentTypeInResults = false, bool includeAbstractTypes = true, bool sortAlphabetically = false ) const;
 
+        // Return all types that derived from a specified type, only returns the leaf types in the derivation hierarchy
+        TVector<TypeInfo const*> GetAllDerivedLeafTypes( TypeID parentTypeID, bool includeParentTypeInResults = false, bool includeAbstractTypes = true, bool sortAlphabetically = false ) const;
+
         // Get all the types that this type is allowed to be cast to
         TInlineVector<TypeID, 5> GetAllCastableTypes( IReflectedType const* pType ) const;
 
@@ -125,7 +128,7 @@ namespace EE::TypeSystem
 
         inline THashMap<TypeID, DataFileInfo*> const& GetRegisteredDataFileTypes() const { return m_registeredDataFileTypes; }
         bool IsRegisteredDataFileType( TypeID typeID ) const;
-        bool IsRegisteredDataFileType( uint32_t extFourCC ) const;
+        bool IsRegisteredDataFileType( DataFileExtension extension ) const;
         DataFileInfo const* GetDataFileInfo( TypeID typeID ) const;
         #endif
 

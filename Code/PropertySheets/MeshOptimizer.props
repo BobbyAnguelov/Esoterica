@@ -3,7 +3,7 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros">
     <MESHOPT_DIR>$(SolutionDir)External\MeshOptimizer\</MESHOPT_DIR>
-    <MESHOPT_BIN_DIR>$(MESHOPT_DIR)out\build\x64-Release\</MESHOPT_BIN_DIR>
+    <MESHOPT_BIN_DIR>$(MESHOPT_DIR)lib\</MESHOPT_BIN_DIR>
   </PropertyGroup>
   <PropertyGroup />
   <ItemDefinitionGroup>

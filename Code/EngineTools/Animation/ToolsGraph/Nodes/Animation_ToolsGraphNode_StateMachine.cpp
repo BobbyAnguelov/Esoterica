@@ -6,6 +6,7 @@
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_StateMachineGraph.h"
 #include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_StateMachine.h"
+#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_Transition.h"
 
 //-------------------------------------------------------------------------
 
@@ -168,8 +169,8 @@ namespace EE::Animation
                     //-------------------------------------------------------------------------
 
                     TransitionNode::Definition* pCompiledTransitionDefinition = nullptr;
-                    NodeCompilationState const state = context.GetDefinition<TransitionNode>( pTransitionNode, pCompiledTransitionDefinition );
-                    EE_ASSERT( state == NodeCompilationState::AlreadyCompiled );
+                    NodeCompilationState const transitionNodeCompilationState = context.GetDefinition<TransitionNode>( pTransitionNode, pCompiledTransitionDefinition );
+                    EE_ASSERT( transitionNodeCompilationState == NodeCompilationState::AlreadyCompiled );
 
                     context.BeginTransitionConditionsCompilation( pCompiledTransitionDefinition->m_duration, pCompiledTransitionDefinition->m_durationOverrideNodeIdx );
                     transitionDefinition.m_conditionNodeIdx = pConditionNode->Compile( context );
@@ -247,16 +248,13 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto ReflectStateEvents = [&] ( TVector<StringID> const& IDs, TInlineVector<StringID, 3>& outEvents )
+        auto ReflectStateEvents = [&] ( TInlineVector<StringID, 5> const& IDs, TInlineVector<StringID, 3>& outEvents )
         {
             for ( auto const& ID : IDs )
             {
                 if ( ID.IsValid() )
                 {
-                    if ( !VectorContains( outEvents, ID ) )
-                    {
-                        outEvents.emplace_back( ID );
-                    }
+                    outEvents.emplace_back( ID );
                 }
                 else
                 {
@@ -265,14 +263,9 @@ namespace EE::Animation
             }
         };
 
-        ReflectStateEvents( pStateNode->m_events, pDefinition->m_entryEvents );
-        ReflectStateEvents( pStateNode->m_entryEvents, pDefinition->m_entryEvents );
-
-        ReflectStateEvents( pStateNode->m_events, pDefinition->m_executeEvents );
-        ReflectStateEvents( pStateNode->m_executeEvents, pDefinition->m_executeEvents );
-
-        ReflectStateEvents( pStateNode->m_events, pDefinition->m_exitEvents );
-        ReflectStateEvents( pStateNode->m_exitEvents, pDefinition->m_exitEvents );
+        ReflectStateEvents( pStateNode->GetUniqueEntryEvents(), pDefinition->m_entryEvents );
+        ReflectStateEvents( pStateNode->GetUniqueFullyInStateEvents(), pDefinition->m_fullyInStateEvents );
+        ReflectStateEvents( pStateNode->GetUniqueExitEvents(), pDefinition->m_exitEvents );
 
         //-------------------------------------------------------------------------
 
@@ -283,6 +276,15 @@ namespace EE::Animation
         }
         else
         {
+            // Validate Clone states
+            //-------------------------------------------------------------------------
+
+            if ( pStateNode->IsClonedState() && pStateNode->GetCloneStateSourceNode() == nullptr )
+            {
+                context.LogWarning( pStateNode, "Cloned State has an invalid source state node!" );
+                return InvalidIndex;
+            }
+
             // Compile Blend Tree
             //-------------------------------------------------------------------------
 
@@ -342,13 +344,13 @@ namespace EE::Animation
             // Transfer additional state events
             //-------------------------------------------------------------------------
 
-            auto ReflectTimedStateEvents = [&] ( TVector<StateToolsNode::TimedStateEvent> const& timedEvents, TInlineVector<StateNode::TimedEvent, 1>& outEvents )
+            auto ReflectTimedStateEvents = [&] ( TInlineVector<StateToolsNode::TimedStateEvent, 5> const& timedEvents, TInlineVector<StateNode::TimedEvent, 1>& outEvents )
             {
                 for ( auto const& evt : timedEvents )
                 {
-                    if ( evt.m_ID.IsValid() )
+                    if ( evt.IsValid() )
                     {
-                        outEvents.emplace_back( StateNode::TimedEvent( evt.m_ID, evt.m_timeValue ) );
+                        outEvents.emplace_back( StateNode::TimedEvent( evt.m_ID, evt.m_timeValue, evt.m_comparisonOperator ) );
                     }
                     else
                     {
@@ -357,8 +359,8 @@ namespace EE::Animation
                 }
             };
 
-            ReflectTimedStateEvents( pStateNode->m_timeRemainingEvents, pDefinition->m_timedRemainingEvents );
-            ReflectTimedStateEvents( pStateNode->m_timeElapsedEvents, pDefinition->m_timedElapsedEvents );
+            ReflectTimedStateEvents( pStateNode->GetUniqueTimeRemainingEvents(), pDefinition->m_timedRemainingEvents );
+            ReflectTimedStateEvents( pStateNode->GetUniqueTimeElapsedEvents(), pDefinition->m_timedElapsedEvents );
         }
 
         //-------------------------------------------------------------------------
@@ -388,11 +390,11 @@ namespace EE::Animation
             }
         }
 
-        auto pSyncEventOffsetOverrideNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 2 );
-        if ( pSyncEventOffsetOverrideNode != nullptr )
+        auto pTimeOffsetOverrideNode = pTransitionNode->GetConnectedInputNode<FlowToolsNode>( 2 );
+        if ( pTimeOffsetOverrideNode != nullptr )
         {
-            pDefinition->m_syncEventOffsetOverrideNodeIdx = pSyncEventOffsetOverrideNode->Compile( context );
-            if ( pDefinition->m_syncEventOffsetOverrideNodeIdx == InvalidIndex )
+            pDefinition->m_timeOffsetOverrideNodeIdx = pTimeOffsetOverrideNode->Compile( context );
+            if ( pDefinition->m_timeOffsetOverrideNodeIdx == InvalidIndex )
             {
                 return InvalidIndex;
             }
@@ -437,7 +439,7 @@ namespace EE::Animation
         pDefinition->m_blendWeightEasingOp = pTransitionNode->m_blendWeightEasing;
         pDefinition->m_rootMotionBlend = pTransitionNode->m_rootMotionBlend;
         pDefinition->m_duration = Math::Max( pTransitionNode->m_duration.ToFloat(), 0.0f );
-        pDefinition->m_syncEventOffset = pTransitionNode->m_syncEventOffset;
+        pDefinition->m_timeOffset = pTransitionNode->m_timeOffset;
         pDefinition->m_boneMaskBlendInTimePercentage = pTransitionNode->m_boneMaskBlendInTimePercentage.GetClamped( false );
 
         //-------------------------------------------------------------------------
@@ -509,6 +511,19 @@ namespace EE::Animation
                 pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::PreferClosestSyncEventID, true );
             }
             break;
+
+            case TransitionToolsNode::TimeMatchMode::MatchTimeInSeconds:
+            {
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchSourceTime, true );
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::MatchTimeInSeconds, true );
+            }
+            break;
+
+            case TransitionToolsNode::TimeMatchMode::OffsetTimeInSeconds:
+            {
+                pDefinition->m_transitionOptions.SetFlag( TransitionNode::TransitionOptions::OffsetTimeInSeconds, true );
+            }
+            break;
         }
 
         //-------------------------------------------------------------------------
@@ -516,10 +531,27 @@ namespace EE::Animation
         return pDefinition->m_nodeIdx;
     }
 
-    void StateMachineToolsNode::PostDeserialize()
+    void StateMachineToolsNode::PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry )
     {
-        FlowToolsNode::PostDeserialize();
+        FlowToolsNode::PostDeserialize( typeRegistry );
         GetEntryStateOverrideConduit()->UpdateConditionsNode();
         GetGlobalTransitionConduit()->UpdateTransitionNodes();
+    }
+
+    UUID StateMachineToolsNode::RegenerateIDs( THashMap<UUID, UUID>& IDMapping )
+    {
+        UUID const originalID = FlowToolsNode::RegenerateIDs( IDMapping );
+
+        // Fix up clone state IDs
+        auto stateNodes = GetChildGraph()->FindAllNodesOfType<StateToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        for ( StateToolsNode *pStateNode : stateNodes )
+        {
+            if ( pStateNode->IsClonedState() )
+            {
+                pStateNode->m_cloneSourceStateID = IDMapping.at( pStateNode->m_cloneSourceStateID );
+            }
+        }
+
+        return originalID;
     }
 }

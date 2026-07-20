@@ -78,11 +78,33 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    Win32Application::Win32Application( HINSTANCE hInstance, char const* applicationName, int32_t iconResourceID, TBitFlags<InitOptions> options )
+    HDC g_splashScreenDeviceContext = nullptr;
+    HDC g_splashScreenMemoryDeviceContext = nullptr;
+    LONG g_splashScreenWidth = 0, g_splashScreenHeight = 0;
+
+    LRESULT CALLBACK SplashWndProc( HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam )
+    {
+        switch ( msg )
+        {
+            case WM_ERASEBKGND:
+            BitBlt( (HDC) wParam, 0, 0, g_splashScreenWidth, g_splashScreenHeight, g_splashScreenMemoryDeviceContext, 0, 0, SRCCOPY );
+            break;
+
+            default:
+            return ( DefWindowProc( hWnd, msg, wParam, lParam ) );
+        }
+
+        return 0;
+    }
+
+    //-------------------------------------------------------------------------
+
+    Win32Application::Win32Application( HINSTANCE hInstance, char const* applicationName, int32_t iconResourceID, int32_t splashScreenResourceID, TBitFlags<InitOptions> options )
         : m_applicationName( applicationName )
         , m_applicationNameNoWhitespace( StringUtils::StripAllWhitespace( String( applicationName ) ) )
         , m_applicationIconResourceID( iconResourceID )
         , m_pInstance( hInstance )
+        , m_splashScreenBitmapResourceID( splashScreenResourceID )
         , m_startMinimized( options.IsFlagSet( InitOptions::StartMinimized ) )
         , m_isBorderLess( options.IsFlagSet( InitOptions::Borderless ) )
     {}
@@ -94,7 +116,7 @@ namespace EE
         ::UnregisterClass( m_windowClass.lpszClassName, m_windowClass.hInstance );
     }
 
-    bool Win32Application::FatalError( String const& error )
+    bool Win32Application::FatalError( String const& error ) const
     {
         MessageBox( m_windowHandle, error.c_str(), "Fatal Error Occurred!", MB_OK | MB_ICONERROR );
         return false;
@@ -102,7 +124,51 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    bool Win32Application::TryCreateWindow()
+    #if EE_ENABLE_LPP
+    bool Win32Application::LivePP_CreateAgent()
+    {
+        lpp::LppLocalPreferences localPreferences = lpp::LppCreateDefaultLocalPreferences();
+
+        lpp::LppProjectPreferences projectPreferences = lpp::LppCreateDefaultProjectPreferences();
+        projectPreferences.unitySplitting.isEnabled = false;
+        projectPreferences.exceptionHandler.isEnabled = false;
+
+        m_agent = lpp::LppCreateSynchronizedAgentWithPreferences( &localPreferences, L"../../External/LivePP", &projectPreferences );
+        return lpp::LppIsValidSynchronizedAgent( &m_agent );
+    }
+
+    void Win32Application::LivePP_DestroyAgent()
+    {
+        if ( lpp::LppIsValidSynchronizedAgent( &m_agent ) )
+        {
+            lpp::LppDestroySynchronizedAgent( &m_agent );
+        }
+    }
+
+    void Win32Application::LivePP_UpdateAgent()
+    {
+        if ( !lpp::LppIsValidSynchronizedAgent( &m_agent ) )
+        {
+            return;
+        }
+
+        if ( m_agent.WantsReload( lpp::LPP_RELOAD_OPTION_SYNCHRONIZE_WITH_RELOAD ) )
+        {
+            LivePP_PreReload();
+            m_agent.Reload( lpp::LPP_RELOAD_BEHAVIOUR_WAIT_UNTIL_CHANGES_ARE_APPLIED );
+            LivePP_PostReload();
+        }
+
+        if ( m_agent.WantsRestart() )
+        {
+            m_agent.Restart( lpp::LPP_RESTART_BEHAVIOUR_INSTANT_TERMINATION, 0u, nullptr );
+        }
+    }
+    #endif
+
+    //-------------------------------------------------------------------------
+
+    bool Win32Application::TryCreateMainWindow()
     {
         EE_ASSERT( ( m_windowRect.right - m_windowRect.left ) > 0 );
         EE_ASSERT( ( m_windowRect.bottom - m_windowRect.top ) > 0 );
@@ -115,7 +181,10 @@ namespace EE
         // Get window icon
         //-------------------------------------------------------------------------
 
-        m_windowIcon = LoadIcon( m_pInstance, MAKEINTRESOURCE( m_applicationIconResourceID ) );
+        if ( m_windowIcon == nullptr )
+        {
+            m_windowIcon = LoadIcon( m_pInstance, MAKEINTRESOURCE( m_applicationIconResourceID ) );
+        }
 
         // Create the window
         //-------------------------------------------------------------------------
@@ -186,12 +255,11 @@ namespace EE
 
         // Redraw frame
         ::SetWindowPos( m_windowHandle, nullptr, 0, 0, 0, 0, SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE );
-        ::ShowWindow( m_windowHandle, SW_SHOW );
 
         //-------------------------------------------------------------------------
 
         // Disable shadow (causes white border around window in Win10)
-        if ( IsCompositionEnabled() ) 
+        if ( IsCompositionEnabled() )
         {
             static MARGINS const shadowOffset = { 0 };
             ::DwmExtendFrameIntoClientArea( m_windowHandle, &shadowOffset );
@@ -205,9 +273,87 @@ namespace EE
             GetClientRect( m_windowHandle, &m_windowRect );
         }
 
+        return true;
+    }
+
+    void Win32Application::ShowMainWindow()
+    {
+        ::ShowWindow( m_windowHandle, SW_SHOW );
+    }
+
+    bool Win32Application::TryCreateSplashScreen()
+    {
+        if ( m_splashScreenBitmapResourceID == -1 )
+        {
+            return true;
+        }
+
+        m_splashScreenBitmapHandle = LoadBitmap( m_pInstance, MAKEINTRESOURCE( m_splashScreenBitmapResourceID ) );
+        if ( !m_splashScreenBitmapHandle )
+        {
+            return false;
+        }
+
+        BITMAP splashScreenBitmap = { 0 };
+        GetObject( m_splashScreenBitmapHandle, sizeof( BITMAP ), &splashScreenBitmap );
+        g_splashScreenWidth = splashScreenBitmap.bmWidth;
+        g_splashScreenHeight = splashScreenBitmap.bmHeight;
+
+        // Calculate splash screen position
         //-------------------------------------------------------------------------
 
+        HMONITOR hmonPrimary = MonitorFromPoint( m_splashScreenStartPoint, MONITOR_DEFAULTTOPRIMARY );
+        MONITORINFO monitorinfo = { 0 };
+        monitorinfo.cbSize = sizeof( monitorinfo );
+        GetMonitorInfo( hmonPrimary, &monitorinfo );
+
+        int32_t ssX = monitorinfo.rcWork.left + ( monitorinfo.rcWork.right - monitorinfo.rcWork.left - g_splashScreenWidth ) / 2;
+        int32_t ssY = monitorinfo.rcWork.top + ( monitorinfo.rcWork.bottom - monitorinfo.rcWork.top - g_splashScreenHeight ) / 2;
+
+        // Create splash screen window
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( m_windowIcon != nullptr );
+
+        m_splashScreenWindowClass.cbSize = sizeof( WNDCLASSEX );
+        m_splashScreenWindowClass.lpfnWndProc = (WNDPROC) SplashWndProc;
+        m_splashScreenWindowClass.hInstance = m_pInstance;
+        m_splashScreenWindowClass.hIcon = m_windowIcon;
+        m_splashScreenWindowClass.hCursor = LoadCursor( NULL, IDC_ARROW );
+        m_splashScreenWindowClass.lpszClassName = "SplashWindowClass";
+
+        if ( !RegisterClassEx( &m_splashScreenWindowClass ) )
+        {
+            return 0;
+        }
+
+        m_splashScreenHandle = CreateWindowEx( 0, m_splashScreenWindowClass.lpszClassName, m_splashScreenWindowClass.lpszClassName, WS_POPUP, ssX, ssY, g_splashScreenWidth, g_splashScreenHeight, NULL, NULL, m_pInstance, NULL );
+        if ( !m_splashScreenHandle )
+        {
+            return false;
+        }
+
+        m_splashScreenDeviceContext = GetDC( m_splashScreenHandle );
+        g_splashScreenDeviceContext = m_splashScreenDeviceContext;
+
+        m_splashScreenMemoryDeviceContext = CreateCompatibleDC( m_splashScreenDeviceContext );
+        g_splashScreenMemoryDeviceContext = m_splashScreenMemoryDeviceContext;
+
+        SelectObject( g_splashScreenMemoryDeviceContext, (HGDIOBJ) m_splashScreenBitmapHandle );
+
+        ShowWindow( m_splashScreenHandle, SW_SHOW );
+        UpdateWindow( m_splashScreenHandle );
+
         return true;
+    }
+
+    void Win32Application::DestroySplashScreen()
+    {
+        DeleteObject( m_splashScreenBitmapHandle );
+        ReleaseDC( m_splashScreenHandle, m_splashScreenDeviceContext );
+        ReleaseDC( m_splashScreenHandle, m_splashScreenMemoryDeviceContext );
+        DestroyWindow( m_splashScreenHandle );
+        ::UnregisterClass( m_splashScreenWindowClass.lpszClassName, m_splashScreenWindowClass.hInstance );
     }
 
     LRESULT Win32Application::WindowMessageProcessor( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam )
@@ -305,7 +451,7 @@ namespace EE
                     Int2 const newWindowSize( LOWORD( lParam ), HIWORD( lParam ) );
                     if ( newWindowSize.m_x > 0 && newWindowSize.m_y > 0 )
                     {
-                        ProcessWindowResizeMessage( newWindowSize );
+                        ResizeMainWindow( newWindowSize );
                     }
                 }
             }
@@ -362,15 +508,15 @@ namespace EE
 
     void Win32Application::ProcessWindowDestructionMessage()
     {
-        WriteLayoutSettings();
+        WriteWindowSettings();
     }
 
     //-------------------------------------------------------------------------
 
-    void Win32Application::ReadLayoutSettings()
+    void Win32Application::ReadWindowSettings()
     {
         FileSystem::Path const layoutIniFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + ".layout.ini";
-        Settings::IniFile layoutIni( layoutIniFilePath );
+        IniFile layoutIni( layoutIniFilePath );
         if ( !layoutIni.IsValid() )
         {
             return;
@@ -402,12 +548,14 @@ namespace EE
         EE_ASSERT( ( m_windowRect.right - m_windowRect.left ) > 0 );
         EE_ASSERT( ( m_windowRect.bottom - m_windowRect.top ) > 0 );
 
+        m_splashScreenStartPoint = { m_windowRect.left, m_windowRect.top };
+
         layoutIni.TryGetBool( "WindowSettings:WasMaximized", m_wasMaximized );
     }
 
-    void Win32Application::WriteLayoutSettings()
+    void Win32Application::WriteWindowSettings()
     {
-        Settings::IniFile layoutIni;
+        IniFile layoutIni;
         if ( layoutIni.IsValid() )
         {
             WINDOWPLACEMENT wndPlacement;
@@ -445,7 +593,7 @@ namespace EE
 
         // Get the window dimensions
         RECT window;
-        if ( !::GetWindowRect( m_windowHandle, &window ) ) 
+        if ( !::GetWindowRect( m_windowHandle, &window ) )
         {
             return HTNOWHERE;
         }
@@ -512,31 +660,25 @@ namespace EE
 
     int32_t Win32Application::Run( int32_t argc, char** argv )
     {
-        FileSystem::Path const logFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + "Log.txt";
-        SystemLog::SetLogFilePath( logFilePath );
-
-        // Read Settings
-        //-------------------------------------------------------------------------
-
-        if ( !ProcessCommandline( argc, argv ) )
-        {
-            return FatalError( "Application failed to read settings correctly!" );
-        }
-
-        ReadLayoutSettings();
-
         // Window
         //-------------------------------------------------------------------------
 
-        if ( !TryCreateWindow() )
+        ReadWindowSettings();
+
+        if ( !TryCreateMainWindow() )
         {
             return FatalError( "Application failed to create window!" );
+        }
+
+        if ( !TryCreateSplashScreen() )
+        {
+            return FatalError( "Application failed to create splash screen!" );
         }
 
         // Initialization
         //-------------------------------------------------------------------------
 
-        if ( !Initialize() )
+        if ( !Initialize( argc, argv ) )
         {
             Shutdown();
             return FatalError( "Application failed to initialize correctly!" );
@@ -545,6 +687,13 @@ namespace EE
         {
             m_initialized = true;
         }
+
+        // Window Size
+        //-------------------------------------------------------------------------
+
+        ShowMainWindow();
+        DestroySplashScreen();
+        OnFirstShowMainWindow();
 
         // Application loop
         //-------------------------------------------------------------------------
@@ -582,7 +731,8 @@ namespace EE
         bool const shutdownResult = Shutdown();
         m_initialized = false;
 
-        SystemLog::SaveToFile();
+        FileSystem::Path const logFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + "Log.txt";
+        SystemLog::SaveToFile( logFilePath );
 
         //-------------------------------------------------------------------------
 

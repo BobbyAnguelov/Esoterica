@@ -1,0 +1,7 @@
+<Type TypeID="EE::Render::TextureGroup" Version="1">
+  <Property ID="m_fileMasks">
+    <Type Index="0" TypeID="EE::Render::TextureGroupFileMask">
+      <Property ID="m_channelName" Value="LUT" />
+    </Type>
+  </Property>
+</Type>

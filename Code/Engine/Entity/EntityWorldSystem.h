@@ -8,7 +8,6 @@
 #include "Base/Types/Arrays.h"
 #include "Base/Encoding/Hash.h"
 
-
 //-------------------------------------------------------------------------
 // World Entity System
 //-------------------------------------------------------------------------
@@ -20,6 +19,7 @@ namespace EE
     class EntityWorldUpdateContext;
     class Entity;
     class EntityComponent;
+    class Viewport;
     namespace EntityModel { class EntityMap; }
 
     //-------------------------------------------------------------------------
@@ -33,13 +33,11 @@ namespace EE
 
     public:
 
-        virtual uint32_t GetSystemID() const = 0;
-
         // Is this world system in a game world
-        bool IsInAGameWorld() const;
+        bool IsInAGameWorld() const { return m_parentWorldType == EntityWorldType::Game; }
 
         // Is this world system in a tools-only world
-        bool IsInAToolsWorld() const;
+        bool IsInAToolsWorld() const { return m_parentWorldType == EntityWorldType::Tools; }
 
     protected:
 
@@ -56,14 +54,35 @@ namespace EE
         virtual void UpdateSystem( EntityWorldUpdateContext const& ctx ) {};
 
         // Called whenever a new component is activated (i.e. added to the world)
-        virtual void RegisterComponent( Entity const* pEntity, EntityComponent* pComponent ) = 0;
+        virtual void RegisterComponent( Entity* pEntity, EntityComponent* pComponent ) = 0;
 
         // Called immediately before an component is deactivated
-        virtual void UnregisterComponent( Entity const* pEntity, EntityComponent* pComponent ) = 0;
+        virtual void UnregisterComponent( Entity* pEntity, EntityComponent* pComponent ) = 0;
+
+        #if EE_DEVELOPMENT_TOOLS
+        // Debug draw update - called after all update stages complete for a world system (and will be called when a world is paused)
+        virtual void DebugDraw( EntityWorldUpdateContext const& ctx ) {}
+        #endif
 
     private:
 
-        EntityWorld*     m_pWorld = nullptr;
+        EntityWorldType m_parentWorldType = EntityWorldType::Game;
+    };
+
+    // Used for storing components and entities in ID Vectors
+    //-------------------------------------------------------------------------
+
+    template<typename T>
+    struct TEntityComponentPair
+    {
+        TEntityComponentPair() = default;
+        TEntityComponentPair( Entity* pEntity, T* pComponent ) : m_pEntity( pEntity ), m_pComponent( pComponent ) { EE_ASSERT( m_pEntity != nullptr && m_pComponent != nullptr ); }
+        inline ComponentID GetID() const { return m_pComponent->GetID(); }
+
+    public:
+
+        Entity*     m_pEntity = nullptr;
+        T*          m_pComponent = nullptr;
     };
 }
 
@@ -71,7 +90,5 @@ namespace EE
 
 #define EE_ENTITY_WORLD_SYSTEM( Type, ... )\
     EE_REFLECT_TYPE( Type );\
-    constexpr static uint32_t const s_entitySystemID = Hash::FNV1a::GetHash32( #Type );\
-    virtual uint32_t GetSystemID() const override final { return Type::s_entitySystemID; }\
     static UpdatePriorityList const PriorityList;\
     virtual UpdatePriorityList const& GetRequiredUpdatePriorities() override { static UpdatePriorityList const priorityList = UpdatePriorityList( __VA_ARGS__ ); return priorityList; };\

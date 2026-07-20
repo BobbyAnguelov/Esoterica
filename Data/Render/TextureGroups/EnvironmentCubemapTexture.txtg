@@ -1,0 +1,17 @@
+<Type TypeID="EE::Render::TextureGroup" Version="1">
+  <Property ID="m_fileMasks">
+    <Type Index="0" TypeID="EE::Render::TextureGroupFileMask">
+      <Property ID="m_channelName" Value="Emissive" />
+      <Property ID="m_sourceMask" Value="R|G|B" />
+      <Property ID="m_destinationMask" Value="R|G|B" />
+    </Type>
+  </Property>
+  <Type ID="m_mipSettings" TypeID="EE::Render::TextureGroupMipSettings">
+    <Property ID="m_generateMipmaps" Value="True" />
+    <Property ID="m_mipmapFilter" Value="EnvironmentMapConvolution" />
+  </Type>
+  <Type ID="m_compressionSettings" TypeID="EE::Render::TextureGroupCompressionSettings">
+    <Property ID="m_textureType" Value="FloatingPoint3Channel" />
+    <Property ID="m_isCubemap" Value="True" />
+  </Type>
+</Type>

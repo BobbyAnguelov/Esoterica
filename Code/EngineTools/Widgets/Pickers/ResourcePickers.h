@@ -21,6 +21,8 @@ namespace EE
 
     class EE_ENGINETOOLS_API DataPickerBase
     {
+        constexpr static float const s_controlsRowGapY = 2;
+
     public:
 
         DataPickerBase( ToolsContext const& toolsContext );
@@ -38,10 +40,16 @@ namespace EE
         // Clear the set path
         virtual void Clear() { SetDataPath( DataPath() ); }
 
+        // Get the height of the widget
+        inline float GetHeight() const { return m_height; }
+
     protected:
 
         // Get the required extension/type to display in the preview
         virtual TInlineString<7> GetPreviewLabel() const;
+
+        // Get the color for the preview label
+        virtual Color GetPreviewColor() const { return ImGuiX::Style::s_colorText; }
 
         // Check if the supplied data path is a valid option for the current picker
         virtual bool ValidateDataPath( DataPath const& path ) = 0;
@@ -50,7 +58,7 @@ namespace EE
         virtual bool ValidateCurrentlySetPath() { return ValidateDataPath( GetDataPath() ); }
 
         // Generate the set of valid resource options
-        virtual void GenerateResourceOptionsList() = 0;
+        virtual void GenerateOptionsList() = 0;
 
         // Generate the set of filtered options
         virtual void GenerateFilteredOptionList();
@@ -67,7 +75,11 @@ namespace EE
         ImGuiX::FilterWidget                                    m_filterWidget;
         TVector<DataPath>                                       m_generatedOptions;
         TVector<DataPath>                                       m_filteredOptions;
-        bool                                                    m_isComboOpen = false;
+        TVector<char>                                           m_tempBuffer;
+        float                                                   m_height = 0;
+        bool                                                    m_isPopupOpen = false;
+        bool                                                    m_shouldOpenDropDown = false;
+        bool                                                    m_showDependenciesButton = false;
     };
 
     //-------------------------------------------------------------------------
@@ -89,11 +101,12 @@ namespace EE
     private:
 
         virtual bool ValidateDataPath( DataPath const& path ) override;
-        virtual void GenerateResourceOptionsList() override;
+        virtual void GenerateOptionsList() override;
 
     private:
 
         TypeSystem::TypeID                                      m_fileTypeID; // The type of file we should pick from
+        TypeSystem::DataFileInfo const*                         m_pDataFileInfo = nullptr; // Only set when we have a valid resource type ID
         FileSystem::Extension                                   m_requiredExtension;
         DataPath                                                m_path;
     };
@@ -146,20 +159,16 @@ namespace EE
     private:
 
         virtual TInlineString<7> GetPreviewLabel() const override;
+        virtual Color GetPreviewColor() const override;
         virtual bool ValidateDataPath( DataPath const& path ) override;
-        virtual void GenerateResourceOptionsList() override;
+        virtual void GenerateOptionsList() override;
 
     private:
 
         ResourceTypeID                                              m_resourceTypeID; // The type of resource we should pick from
+        TypeSystem::ResourceInfo const*                             m_pResourceTypeInfo = nullptr; // Only set when we have a valid resource type ID
         ResourceID                                                  m_resourceID;
         TFunction<bool( Resource::ResourceDescriptor const* )>      m_customResourceFilter;
         OptionProvider*                                             m_pCustomOptionProvider = nullptr;
     };
-
-    //-------------------------------------------------------------------------
-    // Type Info Picker
-    //-------------------------------------------------------------------------
-
-    
 }

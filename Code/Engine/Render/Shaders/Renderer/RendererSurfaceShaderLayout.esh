@@ -1,0 +1,32 @@
+
+#ifndef __RENDERER_SURFACE_SHADER_LAYOUT_ESH__
+#define __RENDERER_SURFACE_SHADER_LAYOUT_ESH__
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/EngineShader.esh"
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+uint ShaderIndexToBucketIndex( uint shaderIndex )
+{
+    // TODO: This needs to be cleaned-up and properly defined somewhere, we have 3 buckets per shader per view.
+    return shaderIndex * 3;
+}
+
+uint ComputeRenderBucketIndex( ShaderParameters shaderParameters, uint renderViewIndex, bool renderViewDepthOnly, uint numRenderViewBucketsPerView )
+{
+    uint renderBucketIndex = renderViewIndex * numRenderViewBucketsPerView + ShaderIndexToBucketIndex( shaderParameters.m_shaderIndex );
+    if ( shaderParameters.m_shaderFlags & EE_SHADER_FLAG_ALPHA_TEST )
+    {
+        renderBucketIndex += 1;
+    }
+    else if ( shaderParameters.m_shaderFlags & EE_SHADER_FLAG_ALPHA_BLEND && !renderViewDepthOnly )
+    {
+        renderBucketIndex += 2;
+    }
+    return renderBucketIndex;
+}
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

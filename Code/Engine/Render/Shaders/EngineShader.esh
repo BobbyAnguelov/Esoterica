@@ -1,0 +1,33 @@
+
+#ifndef ENGINE_SHADER_ESH
+#define ENGINE_SHADER_ESH
+
+#include "Base/Render/RHI.esh"
+
+// Shader flags that go into ShaderParameters, these has to match EE::Render::MaterialShaderFlags
+#define EE_SHADER_FLAG_NONE           0U
+#define EE_SHADER_FLAG_ALPHA_TEST   ( 1U << 0U )
+#define EE_SHADER_FLAG_ALPHA_BLEND  ( 1U << 1U )
+#define EE_SHADER_FLAG_TWO_SIDED    ( 1U << 2U )
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    // Make sure the function "Render::Reflection::Settings::GetCommonShaderParameters" in "ShaderReflection_Settings.h" matches this struct
+    struct HLSL_ALIGN_STRUCT ShaderParameters
+    {
+        uint                            m_shaderIndex;
+        uint                            m_shaderFlags;
+        float                           m_opacity;
+        uint                            m_reservedESF0;
+    };
+
+    // This is used by the shader reflection system, make sure it matches ShaderParameters struct
+    #define ESF_COMMON_SHADER_PARAMETERS  \
+        { "uint",                                   "m_shaderIndex",  4, 0, false, {}, {} }, \
+        { "TBitFlags<MaterialShaderFlags>",         "m_shaderFlags",  4, 4, false, {}, {} }, \
+        { "float",                                  "m_opacity",      4, 8, false, {}, { { "ESF_DEFAULT_VALUE", "1.0F" } } }, \
+        { "esf_padding_t",                          "m_reservedESF0", 4, 12, false, {}, {} }
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

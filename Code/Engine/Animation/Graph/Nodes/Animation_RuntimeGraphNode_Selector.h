@@ -39,10 +39,8 @@ namespace EE::Animation
 
         int32_t SelectOption( GraphContext& context ) const;
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -61,10 +59,10 @@ namespace EE::Animation
     {
     public:
 
-        struct EE_ENGINE_API Definition final : public PoseNode::Definition
+        struct EE_ENGINE_API Definition final : public AnimationClipReferenceNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_optionNodeIndices, m_conditionNodeIndices );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( AnimationClipReferenceNode::Definition, m_optionNodeIndices, m_conditionNodeIndices );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -74,7 +72,7 @@ namespace EE::Animation
 
     public:
 
-        virtual bool IsValid() const override { return PoseNode::IsValid() && m_pSelectedNode != nullptr; }
+        virtual bool IsValid() const override { return AnimationClipReferenceNode::IsValid() && m_pSelectedNode != nullptr; }
         virtual SyncTrack const& GetSyncTrack() const override { return IsValid() ? m_pSelectedNode->GetSyncTrack() : SyncTrack::s_defaultTrack; }
 
     private:
@@ -83,16 +81,15 @@ namespace EE::Animation
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
+        virtual bool HasAnimation() const final override;
         virtual AnimationClip const* GetAnimation() const override;
         virtual void DisableRootMotionSampling() override;
         virtual bool IsLooping() const override;
 
         int32_t SelectOption( GraphContext& context ) const;
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -114,13 +111,15 @@ namespace EE::Animation
         struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_optionNodeIndices, m_optionWeights, m_parameterNodeIdx );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_optionNodeIndices, m_optionWeights, m_parameterNodeIdx, m_ignoreInvalidOptions, m_hasWeightsSet );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             TInlineVector<int16_t, 5>                       m_optionNodeIndices;
             TInlineVector<uint8_t, 5>                       m_optionWeights;
-            int16_t                                         m_parameterNodeIdx;
+            int16_t                                         m_parameterNodeIdx = InvalidIndex;
+            bool                                            m_ignoreInvalidOptions = false;
+            bool                                            m_hasWeightsSet = false;
         };
 
     public:
@@ -136,10 +135,8 @@ namespace EE::Animation
 
         int32_t SelectOption( GraphContext& context ) const;
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -158,21 +155,23 @@ namespace EE::Animation
     {
     public:
 
-        struct EE_ENGINE_API Definition final : public PoseNode::Definition
+        struct EE_ENGINE_API Definition final : public AnimationClipReferenceNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_optionNodeIndices, m_optionWeights, m_parameterNodeIdx );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( AnimationClipReferenceNode::Definition, m_optionNodeIndices, m_optionWeights, m_parameterNodeIdx, m_ignoreInvalidOptions, m_hasWeightsSet );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             TInlineVector<int16_t, 5>                       m_optionNodeIndices;
             TInlineVector<uint8_t, 5>                       m_optionWeights;
-            int16_t                                         m_parameterNodeIdx;
+            int16_t                                         m_parameterNodeIdx = InvalidIndex;
+            bool                                            m_ignoreInvalidOptions = false;
+            bool                                            m_hasWeightsSet = false;
         };
 
     public:
 
-        virtual bool IsValid() const override { return PoseNode::IsValid() && m_pSelectedNode != nullptr; }
+        virtual bool IsValid() const override { return AnimationClipReferenceNode::IsValid() && m_pSelectedNode != nullptr; }
         virtual SyncTrack const& GetSyncTrack() const override { return IsValid() ? m_pSelectedNode->GetSyncTrack() : SyncTrack::s_defaultTrack; }
 
     private:
@@ -181,21 +180,124 @@ namespace EE::Animation
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
+        virtual bool HasAnimation() const override;
         virtual AnimationClip const* GetAnimation() const override;
         virtual void DisableRootMotionSampling() override;
         virtual bool IsLooping() const override;
 
         int32_t SelectOption( GraphContext& context ) const;
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
         TInlineVector<AnimationClipReferenceNode*, 5>       m_optionNodes;
         FloatValueNode*                                     m_pParameterNode = nullptr;
+        AnimationClipReferenceNode*                         m_pSelectedNode = nullptr;
+        int32_t                                             m_selectedOptionIdx = InvalidIndex;
+    };
+
+
+    //-------------------------------------------------------------------------
+    // ID Based Selector
+    //-------------------------------------------------------------------------
+    // Selection is determined via an input parameter
+
+    class IDBasedSelectorNode final : public PoseNode
+    {
+
+    public:
+
+        struct EE_ENGINE_API Definition final : public PoseNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_optionNodeIndices, m_optionIDs, m_parameterNodeIdx, m_fallbackNodeIdx, m_ignoreInvalidOptions );
+
+            virtual void InstantiateNode( InstantiationContext const &context, InstantiationOptions options ) const override;
+
+            TInlineVector<int16_t, 5>                       m_optionNodeIndices;
+            TInlineVector<StringID, 5>                      m_optionIDs;
+            int16_t                                         m_parameterNodeIdx = InvalidIndex;
+            int16_t                                         m_fallbackNodeIdx = InvalidIndex;
+            bool                                            m_ignoreInvalidOptions = false;
+        };
+
+    public:
+
+        virtual bool IsValid() const override { return PoseNode::IsValid() && m_pSelectedNode != nullptr; }
+        virtual SyncTrack const &GetSyncTrack() const override { return IsValid() ? m_pSelectedNode->GetSyncTrack() : SyncTrack::s_defaultTrack; }
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
+
+        int32_t SelectOption( GraphContext& context ) const;
+
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
+
+    private:
+
+        TInlineVector<PoseNode*, 5>                         m_optionNodes;
+        IDValueNode*                                        m_pParameterNode = nullptr;
+        PoseNode*                                           m_pFallbackNode = nullptr;
+        PoseNode*                                           m_pSelectedNode = nullptr;
+        int32_t                                             m_selectedOptionIdx = InvalidIndex;
+    };
+
+    //-------------------------------------------------------------------------
+    // ID Based Animation Clip Selector Node
+    //-------------------------------------------------------------------------
+    // Selection is determined via an input parameter - options are restricted to clip references
+
+    class IDBasedAnimationClipSelectorNode final : public AnimationClipReferenceNode
+    {
+
+    public:
+
+        struct EE_ENGINE_API Definition final : public PoseNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( AnimationClipReferenceNode::Definition, m_optionNodeIndices, m_optionIDs, m_parameterNodeIdx, m_fallbackNodeIdx, m_ignoreInvalidOptions );
+
+            virtual void InstantiateNode( InstantiationContext const &context, InstantiationOptions options ) const override;
+
+            TInlineVector<int16_t, 5>                       m_optionNodeIndices;
+            TInlineVector<StringID, 5>                      m_optionIDs;
+            int16_t                                         m_parameterNodeIdx = InvalidIndex;
+            int16_t                                         m_fallbackNodeIdx = InvalidIndex;
+            bool                                            m_ignoreInvalidOptions = false;
+        };
+
+    public:
+
+        virtual bool IsValid() const override { return PoseNode::IsValid() && m_pSelectedNode != nullptr; }
+        virtual SyncTrack const &GetSyncTrack() const override { return IsValid() ? m_pSelectedNode->GetSyncTrack() : SyncTrack::s_defaultTrack; }
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
+
+        virtual bool HasAnimation() const override;
+        virtual AnimationClip const *GetAnimation() const override;
+        virtual void DisableRootMotionSampling() override;
+        virtual bool IsLooping() const override;
+
+        int32_t SelectOption( GraphContext& context ) const;
+
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
+
+    private:
+
+        TInlineVector<AnimationClipReferenceNode*, 5>       m_optionNodes;
+        IDValueNode*                                        m_pParameterNode = nullptr;
+        AnimationClipReferenceNode*                         m_pFallbackNode = nullptr;
         AnimationClipReferenceNode*                         m_pSelectedNode = nullptr;
         int32_t                                             m_selectedOptionIdx = InvalidIndex;
     };

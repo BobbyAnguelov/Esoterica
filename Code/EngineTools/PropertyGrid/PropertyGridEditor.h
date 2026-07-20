@@ -107,8 +107,8 @@ namespace EE::PG
     //-------------------------------------------------------------------------
     // Use in a CPP to define a factory e.g., EE_PROPERTY_GRID_EDITOR( ObjectSettingsEditorFactory, ObjectSettings, ObjectSettingsEditor );
 
-    #define EE_PROPERTY_GRID_TYPE_EDITOR( factoryName, editedType, propertyGridEditorClass )\
-    class factoryName final : public PG::PropertyGridEditorFactory\
+    #define EE_PROPERTY_GRID_TYPE_EDITOR( propertyGridEditorClass, editedType )\
+    class propertyGridEditorClass##PropertyGridEditorFactory final : public PG::PropertyGridEditorFactory\
     {\
         virtual bool SupportsTypeID( TypeSystem::TypeID typeID ) const override { return editedType::GetStaticTypeID() == typeID; }\
         virtual bool SupportsCustomEditorID( StringID customEditorID ) const override { return false; }\
@@ -119,10 +119,10 @@ namespace EE::PG
             return EE::New<propertyGridEditorClass>( context, propertyInfo, pTypeInstance, pPropertyInstance );\
         }\
     };\
-    static factoryName g_##factoryName;
+    static propertyGridEditorClass##PropertyGridEditorFactory g_##propertyGridEditorClass##PropertyGridEditorFactory;
 
-    #define EE_PROPERTY_GRID_CUSTOM_EDITOR( factoryName, customEditorID, propertyGridEditorClass )\
-    class factoryName final : public PG::PropertyGridEditorFactory\
+    #define EE_PROPERTY_GRID_CUSTOM_EDITOR( propertyGridEditorClass, customEditorID )\
+    class propertyGridEditorClass##PropertyGridEditorFactory final : public PG::PropertyGridEditorFactory\
     {\
         virtual bool SupportsTypeID( TypeSystem::TypeID typeID ) const override { return false; }\
         virtual bool SupportsCustomEditorID( StringID editorID ) const override { static StringID const supportedEditorID( customEditorID ); return editorID == supportedEditorID; }\
@@ -133,5 +133,5 @@ namespace EE::PG
             return EE::New<propertyGridEditorClass>( context, propertyInfo, pTypeInstance, pPropertyInstance );\
         }\
     };\
-    static factoryName g_##factoryName;
+    static propertyGridEditorClass##PropertyGridEditorFactory g_##propertyGridEditorClass##PropertyGridEditorFactory;
 }

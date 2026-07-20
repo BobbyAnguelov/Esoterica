@@ -5,14 +5,14 @@
 #include "Base/Logging/SystemLog.h"
 
 #include <windows.h>
-#include <dbghelp.h>
+// #include <dbghelp.h>
 #include <shellapi.h>
 #include <shlobj.h>
 #include <strsafe.h>
 #include <Psapi.h>
 #include <stdio.h>
 
-#pragma comment( lib, "Dbghelp.lib" )
+// #pragma comment( lib, "Dbghelp.lib" )
 
 //-------------------------------------------------------------------------
 
@@ -22,6 +22,7 @@ namespace EE::Platform
     // Stack Walking
     //-------------------------------------------------------------------------
 
+    #if 0
     struct Symbol
     {
         uint64_t    m_address;
@@ -231,19 +232,19 @@ namespace EE::Platform
     }
 
     static PVOID g_pExceptionHandler = nullptr;
-
+#endif
     //-------------------------------------------------------------------------
     // Platform
     //-------------------------------------------------------------------------
 
     void Initialize()
     {
-        g_pExceptionHandler = AddVectoredExceptionHandler( 1, VectoredExceptionHandler );
+        // g_pExceptionHandler = AddVectoredExceptionHandler( 1, VectoredExceptionHandler );
     }
 
     void Shutdown()
     {
-        RemoveVectoredExceptionHandler( g_pExceptionHandler );
+        // RemoveVectoredExceptionHandler( g_pExceptionHandler );
     }
 }
 #endif

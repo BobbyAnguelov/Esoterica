@@ -1,15 +1,14 @@
 #include "PlayerAction_Ghost.h"
-#include "Game/Player/Camera/PlayerCameraController.h"
+#include "Game/Player/Components/Component_PlayerCamera.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Base/Input/InputSystem.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
-namespace EE::Player
+namespace EE
 {
-    bool GhostModeAction::TryStartInternal( ActionContext const& ctx )
+    bool PlayerAction_GhostMode::TryStartInternal( PlayerActionContext const& ctx )
     {
         bool isOnCooldown = false;
         if ( m_CooldownTimer.IsRunning() )
@@ -19,20 +18,20 @@ namespace EE::Player
 
         if ( !isOnCooldown && ctx.m_pInput->m_ghostMode.WasPressed() )
         {
-            ctx.m_pCharacterComponent->EnableGhostMode( true );
+            ctx.m_pPlayer->EnableGhostMode( true );
             return true;
         }
 
         return false;
     }
 
-    Action::Status GhostModeAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
+    PlayerAction::Status PlayerAction_GhostMode::UpdateInternal( PlayerActionContext const& ctx, bool isFirstUpdate )
     {
         // Calculate desired player displacement
         //-------------------------------------------------------------------------
         
-        auto const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector();
-        auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector();
+        auto const& camFwd = ctx.m_pCamera->GetCameraRelativeForwardVector();
+        auto const& camRight = ctx.m_pCamera->GetCameraRelativeRightVector();
         Vector const movementInputs = ctx.m_pInput->m_move.GetValue();
         Vector const forward = camFwd * movementInputs.GetSplatY();
         Vector const right = camRight * movementInputs.GetSplatX();
@@ -67,7 +66,7 @@ namespace EE::Player
         // Update animation controller
         //-------------------------------------------------------------------------
 
-        ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::GhostMode );
+        ctx.m_pAnimationController->SetCharacterState( PlayerAnimationController::CharacterState::GhostMode );
         ctx.m_pAnimationController->SetAbilityDesiredMovement( ctx.GetDeltaTime(), desiredVelocity, camFwd.GetNormalized2() );
 
         if( !isFirstUpdate && ctx.m_pInput->m_ghostMode.WasPressed() )
@@ -78,9 +77,9 @@ namespace EE::Player
         return Status::Uninterruptible;
     }
 
-    void GhostModeAction::StopInternal( ActionContext const& ctx, StopReason reason )
+    void PlayerAction_GhostMode::StopInternal( PlayerActionContext const& ctx, StopReason reason )
     {
-        ctx.m_pCharacterComponent->EnableGhostMode( false );
+        ctx.m_pPlayer->EnableGhostMode( false );
         m_CooldownTimer.Start( 0.5f );
     }
 }

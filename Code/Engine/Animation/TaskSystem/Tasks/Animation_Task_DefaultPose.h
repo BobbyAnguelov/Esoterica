@@ -1,20 +1,19 @@
 #pragma once
 
-#include "Engine/Animation/TaskSystem/Animation_Task.h"
+#include "Engine/Animation/TaskSystem/Animation_PoseTask.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
-    class ReferencePoseTask : public Task
+    class ReferencePoseTask : public PoseTask
     {
         EE_REFLECT_TYPE( ReferencePoseTask );
 
     public:
 
-        ReferencePoseTask() : Task() {}
+        ReferencePoseTask() : PoseTask() {}
         virtual void Execute( TaskContext const& context ) override;
-        virtual bool AllowsSerialization() const override { return true; }
         virtual void Serialize( TaskSerializer& serializer ) const override {}
         virtual void Deserialize( TaskSerializer& serializer ) override {}
 
@@ -26,15 +25,14 @@ namespace EE::Animation::Tasks
 
     //-------------------------------------------------------------------------
 
-    class ZeroPoseTask : public Task
+    class ZeroPoseTask : public PoseTask
     {
         EE_REFLECT_TYPE( ZeroPoseTask );
 
     public:
 
-        ZeroPoseTask() : Task() {}
+        ZeroPoseTask() : PoseTask() {}
         virtual void Execute( TaskContext const& context ) override;
-        virtual bool AllowsSerialization() const override { return true; }
         virtual void Serialize( TaskSerializer& serializer ) const override {}
         virtual void Deserialize( TaskSerializer& serializer ) override {}
 

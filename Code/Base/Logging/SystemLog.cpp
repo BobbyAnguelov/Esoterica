@@ -1,6 +1,6 @@
 #include "SystemLog.h"
+#include "Base/Memory/Memory.h"
 #include "Base/Threading/Threading.h"
-#include "Base/FileSystem/FileSystem.h"
 #include "Base/FileSystem/FileStreams.h"
 #include "Base/FileSystem/FileSystemPath.h"
 #include <ctime>
@@ -13,13 +13,12 @@ namespace EE::SystemLog
     {
         struct LogData
         {
-            TVector<Log::Entry>             m_logEntries;
-            TVector<Log::Entry>             m_unhandledWarningsAndErrors;
-            FileSystem::Path                m_logPath;
-            Threading::Mutex                m_mutex;
-            int32_t                         m_fatalErrorIndex = InvalidIndex;
-            int32_t                         m_numWarnings = 0;
-            int32_t                         m_numErrors = 0;
+            TVector<Entry*>                 m_logEntries;
+            Threading::ReadWriteMutex       m_mutex;
+            std::atomic<int32_t>            m_fatalErrorIndex = InvalidIndex;
+            std::atomic<int32_t>            m_numEntries;
+            std::atomic<int32_t>            m_numWarnings = 0;
+            std::atomic<int32_t>            m_numErrors = 0;
         };
 
         static LogData*                     g_pLog = nullptr;
@@ -36,6 +35,12 @@ namespace EE::SystemLog
     void Shutdown()
     {
         EE_ASSERT( g_pLog != nullptr );
+
+        for ( auto pEntry : g_pLog->m_logEntries )
+        {
+            EE::Delete( pEntry );
+        }
+
         EE::Delete( g_pLog );
     }
 
@@ -46,50 +51,40 @@ namespace EE::SystemLog
 
     //-------------------------------------------------------------------------
 
-    TVector<Log::Entry> const& GetLogEntries()
-    {
-        EE_ASSERT( WasInitialized() );
-        return g_pLog->m_logEntries;
-    }
-
-    //-------------------------------------------------------------------------
-
-    void SetLogFilePath( FileSystem::Path const& logFilePath )
-    {
-        EE_ASSERT( WasInitialized() );
-        g_pLog->m_logPath = logFilePath;
-    }
-
-    void SaveToFile()
+    void SaveToFile( FileSystem::Path const& logFilePath )
     {
         EE_ASSERT( WasInitialized() );
 
-        if ( !g_pLog->m_logPath.IsValid() || !g_pLog->m_logPath.IsFilePath() )
+        if ( !logFilePath.IsValid() || !logFilePath.IsFilePath() )
         {
             return;
         }
 
-        g_pLog->m_logPath.EnsureDirectoryExists();
-
-        String logData;
-        InlineString logLine;
-
-        std::lock_guard<std::mutex> lock( g_pLog->m_mutex );
-        for ( auto const& entry : g_pLog->m_logEntries )
+        if ( !logFilePath.EnsureDirectoryExists() )
         {
-            if ( entry.m_sourceInfo.empty() )
-            {
-                logLine.sprintf( "[%s] %s >>> %s: %s, File: %s, %d\r\n", entry.m_timestamp.c_str(), entry.m_category.c_str(), GetSeverityAsString( entry.m_severity ), entry.m_message.c_str(), entry.m_filename.c_str(), entry.m_lineNumber );
-            }
-            else
-            {
-                logLine.sprintf( "[%s] %s >>> %s: %s, Source: %s, File: %s, %d\r\n", entry.m_timestamp.c_str(), entry.m_category.c_str(), GetSeverityAsString( entry.m_severity ), entry.m_message.c_str(), entry.m_sourceInfo.c_str(), entry.m_filename.c_str(), entry.m_lineNumber );
-            }
-
-            logData.append( logLine.c_str() );
+            return;
         }
 
-        FileSystem::OutputFileStream logFile( g_pLog->m_logPath );
+        String logData;
+
+        {
+            Threading::ScopeLockRead lock( g_pLog->m_mutex );
+            for ( auto const& pEntry : g_pLog->m_logEntries )
+            {
+                if ( pEntry->m_sourceInfo.empty() )
+                {
+                    logData.append_sprintf( "[%s] %s >>> %s: %s, File: %s, %d\r\n", pEntry->m_timestamp.c_str(), pEntry->m_category.c_str(), GetSeverityAsString( pEntry->m_severity ), pEntry->m_message.c_str(), pEntry->m_filename.c_str(), pEntry->m_lineNumber );
+                }
+                else
+                {
+                    InlineString sourceInfo;
+
+                    logData.append_sprintf( "[%s] %s >>> %s: %s, Source: %s, File: %s, %d\r\n", pEntry->m_timestamp.c_str(), pEntry->m_category.c_str(), GetSeverityAsString( pEntry->m_severity ), pEntry->m_message.c_str(), pEntry->m_sourceInfoStr.c_str(), pEntry->m_filename.c_str(), pEntry->m_lineNumber );
+                }
+            }
+        }
+
+        FileSystem::OutputFileStream logFile( logFilePath );
         logFile.Write( (void*) logData.data(), logData.size() );
     }
 
@@ -101,22 +96,19 @@ namespace EE::SystemLog
         return g_pLog->m_fatalErrorIndex != InvalidIndex;
     }
 
-    Log::Entry const& GetFatalError()
+    Entry const& GetFatalError()
     {
         EE_ASSERT( WasInitialized() && g_pLog->m_fatalErrorIndex != InvalidIndex );
-        return g_pLog->m_logEntries[g_pLog->m_fatalErrorIndex];
+        Threading::ScopeLockRead lock( g_pLog->m_mutex );
+        return *g_pLog->m_logEntries[g_pLog->m_fatalErrorIndex];
     }
 
     //-------------------------------------------------------------------------
 
-    TVector<Log::Entry> GetUnhandledWarningsAndErrors()
+    int32_t GetNumEntries()
     {
         EE_ASSERT( WasInitialized() );
-        std::lock_guard<std::mutex> lock( g_pLog->m_mutex );
-
-        TVector<Log::Entry> outEntries = g_pLog->m_unhandledWarningsAndErrors;
-        g_pLog->m_unhandledWarningsAndErrors.clear();
-        return outEntries;
+        return (int32_t) g_pLog->m_logEntries.size();
     }
 
     int32_t GetNumWarnings()
@@ -130,6 +122,32 @@ namespace EE::SystemLog
         EE_ASSERT( WasInitialized() );
         return g_pLog->m_numErrors;
     }
+
+    int32_t GetNumMessages()
+    {
+        EE_ASSERT( WasInitialized() );
+        Threading::ScopeLockRead lock( g_pLog->m_mutex );
+        return Math::Max( ( (int32_t) g_pLog->m_logEntries.size() ) - g_pLog->m_numErrors - g_pLog->m_numWarnings, 0 );
+    }
+
+    void GetLogEntries( int32_t startIdx, int32_t numEntries, TVector<Entry const*>& outEntries )
+    {
+        EE_ASSERT( WasInitialized() );
+        EE_ASSERT( startIdx >= 0 );
+        EE_ASSERT( startIdx < g_pLog->m_numEntries );
+
+        outEntries.clear();
+        outEntries.reserve( numEntries );
+
+        {
+            Threading::ScopeLockRead lock( g_pLog->m_mutex );
+            int32_t const endIdx = Math::Min( startIdx + numEntries, (int32_t) g_pLog->m_numEntries );
+            for ( int32_t i = startIdx; i < endIdx; i++ )
+            {
+                outEntries.emplace_back( g_pLog->m_logEntries[i] );
+            }
+        }
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -139,6 +157,7 @@ namespace EE::SystemLog
     void AddEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... )
     {
         EE_ASSERT( WasInitialized() );
+
         va_list args;
         va_start( args, pMessageFormat );
         AddEntryVarArgs( severity, pCategory, pSourceInfo, pFilename, pLineNumber, pMessageFormat, args );
@@ -151,45 +170,47 @@ namespace EE::SystemLog
         EE_ASSERT( pCategory != nullptr && pFilename != nullptr && pMessageFormat != nullptr );
 
         {
-            std::lock_guard<std::mutex> lock( g_pLog->m_mutex );
-
-            if ( severity == Severity::FatalError )
-            {
-                g_pLog->m_fatalErrorIndex = (int32_t) g_pLog->m_logEntries.size();
-            }
-
-            auto& entry = g_pLog->m_logEntries.emplace_back( Log::Entry() );
-
+            // Create entry
             //-------------------------------------------------------------------------
 
-            entry.m_category = pCategory;
-            entry.m_sourceInfo = ( pSourceInfo != nullptr ) ? pSourceInfo : String();
-            entry.m_filename = pFilename;
-            entry.m_lineNumber = pLineNumber;
-            entry.m_severity = severity;
-            entry.m_timestamp.resize( 9 );
+            Entry* pEntry = EE::New<Entry>();
+            pEntry->m_category = StringID( pCategory );
+            pEntry->m_filename = pFilename;
+            pEntry->m_lineNumber = pLineNumber;
+            pEntry->m_severity = severity;
+
+            if ( pSourceInfo != nullptr )
+            {
+                pEntry->m_sourceInfoStr = pSourceInfo;
+
+                TInlineVector<InlineString, 5> splitSource;
+                StringUtils::Split( pEntry->m_sourceInfoStr, splitSource, "/", true );
+                for ( auto const& str : splitSource )
+                {
+                    pEntry->m_sourceInfo.emplace_back( StringID( str.c_str() ) );
+                }
+            }
 
             // Message
-            entry.m_message.sprintf_va_list( pMessageFormat, args );
-            va_end( args );
+            pEntry->m_message.sprintf_va_list( pMessageFormat, args );
 
             // Timestamp
-            entry.m_timestamp.resize( 9 );
+            pEntry->m_timestamp.resize( 9 );
             time_t const t = std::time( nullptr );
-            strftime( entry.m_timestamp.data(), 9, "%H:%M:%S", std::localtime( &t ) );
+            strftime( pEntry->m_timestamp.data(), 9, "%H:%M:%S", std::localtime( &t ) );
 
             // Immediate display of log
             //-------------------------------------------------------------------------
             // This uses a less verbose format, if you want more info look at the saved log
 
             InlineString traceMessage;
-            if ( entry.m_sourceInfo.empty() )
+            if ( pEntry->m_sourceInfo.empty() )
             {
-                traceMessage.sprintf( "[%s][%s][%s] %s", entry.m_timestamp.c_str(), GetSeverityAsString( entry.m_severity ), entry.m_category.c_str(), entry.m_message.c_str() );
+                traceMessage.sprintf( "[%s][%s][%s] %s", pEntry->m_timestamp.c_str(), GetSeverityAsString( pEntry->m_severity ), pEntry->m_category.c_str(), pEntry->m_message.c_str() );
             }
             else
             {
-                traceMessage.sprintf( "[%s][%s][%s][%s] %s", entry.m_timestamp.c_str(), GetSeverityAsString( entry.m_severity ), entry.m_category.c_str(), entry.m_sourceInfo.c_str(), entry.m_message.c_str() );
+                traceMessage.sprintf( "[%s][%s][%s][%s] %s", pEntry->m_timestamp.c_str(), GetSeverityAsString( pEntry->m_severity ), pEntry->m_category.c_str(), pEntry->m_sourceInfoStr.c_str(), pEntry->m_message.c_str() );
             }
 
             // Print to debug trace
@@ -198,16 +219,40 @@ namespace EE::SystemLog
             // Print to std out
             printf( "%s\n", traceMessage.c_str() );
 
-            // Track unhandled warnings and errors
+            // Add to log
             //-------------------------------------------------------------------------
 
-            if ( entry.m_severity > Severity::Info )
             {
-                g_pLog->m_numWarnings += ( entry.m_severity == Severity::Warning ) ? 1 : 0;
-                g_pLog->m_numErrors += ( entry.m_severity == Severity::Error ) ? 1 : 0;
-                g_pLog->m_unhandledWarningsAndErrors.emplace_back( entry );
+                Threading::ScopeLockWrite lock( g_pLog->m_mutex );
+                g_pLog->m_logEntries.emplace_back( pEntry );
+            }
+
+            if ( severity == Severity::FatalError )
+            {
+                g_pLog->m_fatalErrorIndex = (int32_t) g_pLog->m_numEntries;
+            }
+
+            g_pLog->m_numEntries++;
+
+            if ( pEntry->m_severity > Severity::Info )
+            {
+                g_pLog->m_numWarnings += ( pEntry->m_severity == Severity::Warning ) ? 1 : 0;
+                g_pLog->m_numErrors += ( pEntry->m_severity == Severity::Error ) ? 1 : 0;
             }
         }
+    }
+
+    void AddEntry( Severity severity, LogCategory category, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... )
+    {
+        va_list args;
+        va_start( args, pMessageFormat );
+        AddEntryVarArgs( severity, GetLogCategoryString( category ), pSourceInfo, pFilename, pLineNumber, pMessageFormat, args );
+        va_end( args );
+    }
+
+    void AddEntryVarArgs( Severity severity, LogCategory category, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args )
+    {
+        AddEntryVarArgs( severity, GetLogCategoryString( category ), pSourceInfo, pFilename, pLineNumber, pMessageFormat, args );
     }
 
     //-------------------------------------------------------------------------

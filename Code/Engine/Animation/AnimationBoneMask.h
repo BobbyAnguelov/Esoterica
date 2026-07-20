@@ -2,20 +2,64 @@
 
 #include "Engine/_Module/API.h"
 #include "Base/Types/Arrays.h"
-#include "Base/Types/StringID.h"
-#include "Base/Serialization/BinarySerialization.h"
+#include "Base/Memory/Memory.h"
+#include "Base/Math/Math.h"
 #include "Base/TypeSystem/ReflectedType.h"
-#include "Base/Serialization/BitSerialization.h"
-#include "Base/Types/Color.h"
+#include "Base/Resource/ResourceID.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
     class Skeleton;
+    using SecondarySkeletonList = TInlineVector<Skeleton const*, 3>;
 
+    // Weight List
     //-------------------------------------------------------------------------
-    // Bone Mask
+
+    struct EE_ENGINE_API BoneWeightList final : public IReflectedType
+    {
+        EE_REFLECT_TYPE( BoneWeightList );
+        EE_SERIALIZE( m_skeletonID, m_boneIDs, m_weights );
+
+    public:
+
+        bool IsValid() const;
+
+        void Clear();
+
+        inline int32_t GetNumWeights() const { return (int32_t) m_boneIDs.size(); }
+
+        void SetWeightForBone( StringID boneID, float weight );
+
+        void UnsetWeightForBone( StringID boneID );
+
+        float GetWeightForBone( StringID boneID ) const;
+
+        bool HasWeightForBone( StringID boneID ) const;
+
+        // Fixups
+        //-------------------------------------------------------------------------
+
+        // Returns true if any modification was performed
+        bool RemoveDuplicateWeights();
+
+        // Returns true if any modification was performed
+        bool RemoveWeightsForMissingBones( Skeleton const* pSkeleton );
+
+    public:
+
+        EE_REFLECT( ReadOnly );
+        ResourceID                      m_skeletonID;
+
+        EE_REFLECT( ReadOnly );
+        TVector<StringID>               m_boneIDs;
+
+        EE_REFLECT( ReadOnly );
+        TVector<float>                  m_weights;
+    };
+
+    // Runtime bone mask
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API BoneMask
@@ -29,25 +73,13 @@ namespace EE::Animation
             One, // All weights are set to 1.0f
         };
 
-        struct SerializedData
-        {
-            EE_SERIALIZE( m_ID, m_weights );
-
-            StringID            m_ID;
-            TVector<float>      m_weights;
-        };
-
-        EE_FORCE_INLINE static int32_t CalculateNumWeightsToSet( int32_t numBones )
-        {
-            return Math::CeilingToInt( float( numBones ) / 4.0f ) * 4;
-        }
-
     public:
 
         BoneMask() : m_pSkeleton( nullptr ) {}
         BoneMask( Skeleton const* pSkeleton );
         BoneMask( Skeleton const* pSkeleton, float fixedWeight );
-        BoneMask( Skeleton const* pSkeleton, SerializedData const& serializedMask );
+        BoneMask( Skeleton const* pSkeleton, BoneWeightList const& weightList, TInlineVector<StringID, 10>* pOutMissingBones = nullptr );
+        BoneMask( Skeleton const* pSkeleton, TVector<float> const& weights );
 
         BoneMask( BoneMask const& rhs );
         BoneMask( BoneMask&& rhs );
@@ -60,11 +92,11 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        inline StringID GetID() const { return m_ID; }
         bool IsValid() const;
         inline Skeleton const* GetSkeleton() const { return m_pSkeleton; }
         inline int32_t GetNumWeights() const { return (int32_t) m_weights.size(); }
         inline float GetWeight( uint32_t i ) const { EE_ASSERT( i < (uint32_t) m_weights.size() ); return m_weights[i]; }
+        inline TVector<float> const& GetWeights() const { return m_weights; }
         inline float operator[]( uint32_t i ) const { return GetWeight( i ); }
         BoneMask& operator*=( BoneMask const& rhs );
 
@@ -82,17 +114,32 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Set all weights to zero
-        void ResetWeights() { Memory::MemsetZero( m_weights.data(), m_weights.size() ); m_weightInfo = WeightInfo::Zero; }
+        void ResetWeights() { ResetWeightsToZero(); }
+
+        // Set all weights to zero
+        void ResetWeightsToZero();
+
+        // Set all weights to one
+        void ResetWeightsToOne();
 
         // Set all weights to a fixed weight
         void ResetWeights( float fixedWeight );
 
         // Set all weights to the supplied weights, note that the number of supplied weights MUST match the expected num of weights!!
-        void ResetWeights( TVector<float> const& weights );
-
-        // Calculate bone weights based on a set of supplied bone IDs and weights
         // i.e. This will also feather bones so if head is set to 1.0f, pelvis is set to 0.2f, and intermediate bones are set to -1.0f then the intermediate spine bone weights will be gradually increased till they match the head weight
-        void ResetWeights( SerializedData const& serializedMask );
+        inline void ResetWeights( TVector<float> const& weights )
+        {
+            EE_ASSERT( weights.size() == GetNumRequiredWeights() );
+            ResetWeights( weights.data() );
+        }
+
+        // Set all weights to the supplied weights, note that the number of supplied weights MUST match the expected num of weights!!
+        // i.e. This will also feather bones so if head is set to 1.0f, pelvis is set to 0.2f, and intermediate bones are set to -1.0f then the intermediate spine bone weights will be gradually increased till they match the head weight
+        template<size_t S> void ResetWeights( TInlineVector<float, S> const& weights )
+        {
+            EE_ASSERT( weights.size() == GetNumRequiredWeights() );
+            ResetWeights( weights.data() );
+        }
 
         // Apply this scaling factor to all weights
         void ScaleWeights( float scale );
@@ -124,264 +171,57 @@ namespace EE::Animation
             }
         }
 
+        int32_t GetNumRequiredWeights() const;
+
+        // Set all weights to the supplied weights, note that the number of supplied weights MUST match the expected num of weights!!
+        // i.e. This will also feather bones so if head is set to 1.0f, pelvis is set to 0.2f, and intermediate bones are set to -1.0f then the intermediate spine bone weights will be gradually increased till they match the head weight
+        void ResetWeights( float const* pWeights );
+
     private:
 
-        StringID                    m_ID;
         WeightInfo                  m_weightInfo = WeightInfo::Zero;
         Skeleton const*             m_pSkeleton = nullptr;
         TVector<float>              m_weights;
     };
 
-    // Bone Mask Task System
+    // Bone mask set
     //-------------------------------------------------------------------------
 
-    class BoneMaskPool
+    struct BoneMaskSet
     {
-        constexpr static int32_t const s_initialPoolSize = 5;
-
-        struct Slot
-        {
-            Slot( Skeleton const* pSkeleton ) : m_mask( pSkeleton ) {}
-
-            BoneMask    m_mask;
-            bool        m_isUsed = false;
-        };
+        BoneMask const* TryGetBoneMask( Skeleton const* pSkeleton ) const;
 
     public:
 
-        BoneMaskPool( Skeleton const* pSkeleton );
-        BoneMaskPool( BoneMaskPool const& ) = delete;
-        ~BoneMaskPool();
-
-        BoneMaskPool& operator=( BoneMaskPool const& rhs ) = delete;
-
-        #if EE_DEVELOPMENT_TOOLS
-        void PerformValidation() const;
-        #endif
-
-        inline Skeleton const* GetSkeleton() const { return m_pSkeleton; }
-
-        // Get a mask from the pool - pool has a max size of 127
-        // By default mask are not reset so be careful what you do with the mask
-        int8_t AcquireMask( bool resetMask = false );
-
-        // Release a mask back into the pool
-        void ReleaseMask( int8_t maskIdx );
-
-        // Get a used bone mask
-        inline BoneMask* operator[]( size_t maskIdx )
-        {
-            EE_ASSERT( m_pool[maskIdx].m_isUsed );
-            return &m_pool[maskIdx].m_mask;
-        }
-
-    private:
-
-        Skeleton const*             m_pSkeleton = nullptr;
-        TVector<Slot>               m_pool;
-        int8_t                      m_firstFreePoolIdx = InvalidIndex;
+        StringID                        m_ID;
+        BoneMask                        m_primaryMask;
+        TInlineVector<BoneMask, 3>      m_secondaryMasks;
     };
 
+    // Serialized bone mask definition
     //-------------------------------------------------------------------------
 
-    struct BoneMaskTask
+    struct EE_ENGINE_API BoneMaskSetDefinition final : public IReflectedType
     {
-        enum class Type : uint8_t
-        {
-            Mask = 0,
-            GenerateMask,
-            Blend,
-            Scale,
-            Combine
-        };
+        EE_REFLECT_TYPE( BoneMaskSetDefinition );
+        EE_SERIALIZE( m_ID, m_primaryWeightList, m_secondaryWeightLists );
 
     public:
 
-        BoneMaskTask() = default;
+        BoneMaskSetDefinition() = default;
+        BoneMaskSetDefinition( StringID ID ) : m_ID( ID ) {}
 
-        // Create a mask generate task!
-        explicit BoneMaskTask( float weight )
-            : m_type( Type::GenerateMask )
-        {
-            m_weight = weight;
-            EE_ASSERT( IsValid() );
-        }
-
-        // Create a bone mask ptr task
-        explicit BoneMaskTask( uint8_t maskIdx )
-            : m_type( Type::Mask )
-        {
-            EE_ASSERT( maskIdx != 0xFF );
-            m_maskIdx = maskIdx;
-            EE_ASSERT( IsValid() );
-        }
-
-        // Create a bone mask ptr task
-        explicit BoneMaskTask( int8_t sourceIdx, float scale )
-            : m_type( Type::Scale )
-        {
-            m_sourceTaskIdx = sourceIdx;
-            m_targetTaskIdx = InvalidIndex;
-            m_weight = scale;
-            EE_ASSERT( IsValid() );
-        }
-
-        // Create a combine task
-        explicit BoneMaskTask( int8_t sourceIdx, int8_t targetIdx )
-            : m_type( Type::Combine )
-        {
-            m_sourceTaskIdx = sourceIdx;
-            m_targetTaskIdx = targetIdx;
-            m_weight = -1.0f;
-            EE_ASSERT( IsValid() );
-        }
-
-        // Create a blend task
-        explicit BoneMaskTask( int8_t sourceIdx, int8_t targetIdx, float blendWeight )
-            : m_type( Type::Blend )
-        {
-            m_sourceTaskIdx = sourceIdx;
-            m_targetTaskIdx = targetIdx;
-            m_weight = blendWeight;
-            EE_ASSERT( IsValid() );
-        }
-
-        EE_FORCE_INLINE bool IsValid() const 
-        {
-            if ( m_type == Type::Combine )
-            {
-                return m_sourceTaskIdx != InvalidIndex && m_targetTaskIdx != InvalidIndex && m_weight == -1.0f;
-            }
-            else if ( m_type == Type::Scale )
-            {
-                return m_sourceTaskIdx != InvalidIndex && m_targetTaskIdx == InvalidIndex && m_weight >= 0.0f && m_weight <= 1.0f;
-            }
-            else if ( m_type == Type::GenerateMask )
-            {
-                return m_sourceTaskIdx == InvalidIndex && m_targetTaskIdx == InvalidIndex;
-            }
-            else if ( m_type == Type::Blend )
-            {
-                return m_sourceTaskIdx != InvalidIndex && m_targetTaskIdx != InvalidIndex && m_weight >= 0.0f && m_weight <= 1.0f;
-            }
-            else // Mask Idx
-            {
-                return m_maskIdx != 0xFF;
-            }
-        }
-
-        EE_FORCE_INLINE bool IsMask() const { return m_type == Type::Mask; }
-        EE_FORCE_INLINE bool IsOperation() const { return m_type != Type::Mask; }
+        bool IsValid() const;
 
     public:
 
-        float       m_weight = 0;
-        int8_t      m_sourceTaskIdx = InvalidIndex;
-        int8_t      m_targetTaskIdx = InvalidIndex;
-        uint8_t     m_maskIdx = 0xFF;
-        Type        m_type = Type::Mask;
-    };
+        EE_REFLECT( ReadOnly );
+        StringID                            m_ID;
 
-    //-------------------------------------------------------------------------
+        EE_REFLECT( ReadOnly );
+        BoneWeightList                      m_primaryWeightList;
 
-    struct BoneMaskTaskList
-    {
-        struct Result
-        {
-            Result( BoneMask const* pBoneMask, int8_t maskPoolIdx )
-                : m_pBoneMask( pBoneMask )
-                , m_maskPoolIdx( maskPoolIdx )
-            {}
-
-            BoneMask const*     m_pBoneMask = nullptr;
-            int8_t              m_maskPoolIdx = InvalidIndex; // If this is set, you need to manually release the result buffer
-        };
-
-        constexpr static int32_t s_maxTasks = 32;
-
-        // A default mask list with a single zero mask task (generate task with weights set to 1.0f)
-        static BoneMaskTaskList const s_defaultMaskList;
-
-    public:
-
-        BoneMaskTaskList() = default;
-
-        // Create with an initial task
-        BoneMaskTaskList( BoneMaskTask const& task ) { m_tasks.emplace_back( task ); }
-
-        // Create from a blend between task lists
-        BoneMaskTaskList( BoneMaskTaskList const& sourceTaskList, BoneMaskTaskList const& targetTaskList, float blendWeight );
-
-        // Do we have any tasks
-        inline bool HasTasks() const { return !m_tasks.empty(); }
-
-        // Clear all registered tasks
-        inline void Reset() { m_tasks.clear(); }
-
-        // Get the index of the last registered task
-        inline int8_t GetLastTaskIdx() const { return (int8_t) m_tasks.size() - 1; }
-
-        // Copy the tasks from another list
-        inline int8_t CopyFrom( BoneMaskTaskList const& taskList )
-        {
-            m_tasks = taskList.m_tasks;
-            EE_ASSERT( m_tasks.size() < s_maxTasks );
-            return GetLastTaskIdx();
-        }
-
-        // Emplace a task onto the task list
-        template<class... Args>
-        BoneMaskTask& EmplaceTask( Args&&... args )
-        {
-            auto& task = m_tasks.emplace_back( eastl::forward<Args>( args )... );
-            EE_ASSERT( m_tasks.size() < s_maxTasks );
-            return task;
-        }
-
-        // Blend this task list to the result of a supplied task list
-        inline int8_t BlendTo( BoneMaskTaskList const& taskList, float blendWeight )
-        {
-            int8_t const sourceTaskIdx = GetLastTaskIdx();
-            int8_t const targetTaskIdx = AppendTaskListAndFixDependencies( taskList );
-            m_tasks.emplace_back( sourceTaskIdx, targetTaskIdx, blendWeight );
-            return GetLastTaskIdx();
-        }
-
-        // Combine the result of this task list with the result of a supplied task list (i.e. this * supplied)
-        inline int8_t CombineWith( BoneMaskTaskList const& taskList )
-        {
-            int8_t const sourceTaskIdx = GetLastTaskIdx();
-            int8_t const targetTaskIdx = AppendTaskListAndFixDependencies( taskList );
-            m_tasks.emplace_back( sourceTaskIdx, targetTaskIdx );
-            return GetLastTaskIdx();
-        }
-
-        // Set this task list to a blend between two task lists - returns the last task idx
-        int8_t SetToBlendBetweenTaskLists( BoneMaskTaskList const& sourceTaskList, BoneMaskTaskList const& targetTaskList, float blendWeight );
-
-        // Create a blend from the current registered tasks to a generated mask - returns the last task idx
-        int8_t BlendToGeneratedMask( float generatedMaskWeight, float blendWeight );
-
-        // Create a blend from a generated mask to our current registered tasks - returns the last task idx
-        int8_t BlendFromGeneratedMask( float generatedMaskWeight, float blendWeight ) { return BlendToGeneratedMask( generatedMaskWeight, 1.0f - blendWeight ); }
-
-        //-------------------------------------------------------------------------
-
-        // Execute the task list to generate a body mask
-        Result GenerateBoneMask( BoneMaskPool& pool ) const;
-
-        //-------------------------------------------------------------------------
-
-        void Serialize( Serialization::BitArchive<1280>& archive, uint32_t maxBitsForMaskIndex ) const;
-        void Deserialize( Serialization::BitArchive<1280>& archive, uint32_t maxBitsForMaskIndex );
-
-    private:
-
-        // Returns the index of the last task added
-        int8_t AppendTaskListAndFixDependencies( BoneMaskTaskList const& taskList );
-
-    private:
-
-        TInlineVector<BoneMaskTask, 10> m_tasks;
+        EE_REFLECT( ReadOnly );
+        TVector<BoneWeightList>             m_secondaryWeightLists;
     };
 }

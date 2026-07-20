@@ -9,143 +9,144 @@ namespace EE::Import
 {
     static bool InspectFBX( InspectorContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<ImportableItem*>& outFileInfo )
     {
-        DataPath const resourcePath = DataPath::FromFileSystemPath( ctx.m_sourceDataDirectoryPath, sourceFilePath );
+        DataPath const resourcePath = DataPath( sourceFilePath, ctx.m_sourceDataDirectoryPath );
 
         //-------------------------------------------------------------------------
 
-        Fbx::SceneContext sceneContext;
-        sceneContext.LoadFile( sourceFilePath );
+        //Fbx::SceneContext sceneContext;
+        //Import::Source source( sourceFilePath );
+        //sceneContext.LoadFile( source );
 
-        if ( !sceneContext.IsValid() )
-        {
-            ctx.LogError( sceneContext.GetErrorMessage().c_str() );
-            return false;
-        }
+        //if ( !sceneContext.IsValid() )
+        //{
+        //    ctx.LogError( sceneContext.GetErrorMessage().c_str() );
+        //    return false;
+        //}
 
-        //-------------------------------------------------------------------------
-        // Meshes
-        //-------------------------------------------------------------------------
+        ////-------------------------------------------------------------------------
+        //// Meshes
+        ////-------------------------------------------------------------------------
 
-        TInlineVector<FbxMesh*, 20> meshes;
-        int32_t numGeometries = sceneContext.m_pScene->GetGeometryCount();
-        for ( int32_t i = 0; i < numGeometries; i++ )
-        {
-            FbxGeometry* pGeometry = sceneContext.m_pScene->GetGeometry( i );
-            if ( pGeometry->Is<FbxMesh>() )
-            {
-                FbxMesh* pMesh = reinterpret_cast<FbxMesh*>( pGeometry );
+        //TInlineVector<FbxMesh*, 20> meshes;
+        //int32_t numGeometries = sceneContext.m_pScene->GetGeometryCount();
+        //for ( int32_t i = 0; i < numGeometries; i++ )
+        //{
+        //    FbxGeometry* pGeometry = sceneContext.m_pScene->GetGeometry( i );
+        //    if ( pGeometry->Is<FbxMesh>() )
+        //    {
+        //        FbxMesh* pMesh = reinterpret_cast<FbxMesh*>( pGeometry );
 
-                auto pImportableItem = EE::New<ImportableMesh>();
-                pImportableItem->m_sourceFile = resourcePath;
-                pImportableItem->m_nameID = StringID( Import::Fbx::GetNameWithoutNamespace( pMesh->GetNode() ) );
-                pImportableItem->m_isSkeletalMesh = pMesh->GetDeformerCount( FbxDeformer::eSkin ) > 0;
+        //        auto pImportableItem = EE::New<ImportableMesh>();
+        //        pImportableItem->m_sourceFile = resourcePath;
+        //        pImportableItem->m_nameID = StringID( Import::Fbx::GetNameWithoutNamespace( pMesh->GetNode() ) );
+        //        pImportableItem->m_isSkeletalMesh = pMesh->GetDeformerCount( FbxDeformer::eSkin ) > 0;
 
-                // Get material name
-                int32_t const numMaterials = pMesh->GetElementMaterialCount();
-                if ( numMaterials == 1 )
-                {
-                    FbxGeometryElementMaterial* pMaterialElement = pMesh->GetElementMaterial( 0 );
-                    FbxSurfaceMaterial* pMaterial = pMesh->GetNode()->GetMaterial( pMaterialElement->GetIndexArray().GetAt( 0 ) );
-                    pImportableItem->m_materialID = StringID( pMaterial->GetName() );
-                }
-                else if ( numMaterials > 1 )
-                {
-                    pImportableItem->m_extraInfo = "More than one material detected - This is not supported.";
-                }
-                else
-                {
-                    pImportableItem->m_extraInfo = "No material assigned.";
-                }
+        //        // Get material name
+        //        int32_t const numMaterials = pMesh->GetElementMaterialCount();
+        //        if ( numMaterials == 1 )
+        //        {
+        //            FbxGeometryElementMaterial* pMaterialElement = pMesh->GetElementMaterial( 0 );
+        //            FbxSurfaceMaterial* pMaterial = pMesh->GetNode()->GetMaterial( pMaterialElement->GetIndexArray().GetAt( 0 ) );
+        //            pImportableItem->m_materialID = StringID( pMaterial->GetName() );
+        //        }
+        //        else if ( numMaterials > 1 )
+        //        {
+        //            pImportableItem->m_extraInfo = "More than one material detected - This is not supported.";
+        //        }
+        //        else
+        //        {
+        //            pImportableItem->m_extraInfo = "No material assigned.";
+        //        }
 
-                outFileInfo.emplace_back( pImportableItem );
-            }
-        }
+        //        outFileInfo.emplace_back( pImportableItem );
+        //    }
+        //}
 
-        //-------------------------------------------------------------------------
-        // Skeletons
-        //-------------------------------------------------------------------------
+        ////-------------------------------------------------------------------------
+        //// Skeletons
+        ////-------------------------------------------------------------------------
 
-        TVector<ImportableSkeleton*> foundSkeletons;
-        TVector<FbxNode*> skeletonRootNodes;
-        sceneContext.FindAllNodesOfType( FbxNodeAttribute::eSkeleton, skeletonRootNodes );
+        //TVector<ImportableSkeleton*> foundSkeletons;
+        //TVector<FbxNode*> skeletonRootNodes;
+        //sceneContext.FindAllNodesOfType( FbxNodeAttribute::eSkeleton, skeletonRootNodes );
 
-        for ( auto& pSkeletonNode : skeletonRootNodes )
-        {
-            bool hasNullOrLocatorParent = false;
-            auto pParentNode = pSkeletonNode->GetParent();
-            if ( pParentNode != nullptr )
-            {
-                if ( auto pNodeAttribute = pParentNode->GetNodeAttribute() )
-                {
-                    hasNullOrLocatorParent = pNodeAttribute->GetAttributeType() == FbxNodeAttribute::eNull;
-                }
-            }
+        //for ( auto& pSkeletonNode : skeletonRootNodes )
+        //{
+        //    bool hasNullOrLocatorParent = false;
+        //    auto pParentNode = pSkeletonNode->GetParent();
+        //    if ( pParentNode != nullptr )
+        //    {
+        //        if ( auto pNodeAttribute = pParentNode->GetNodeAttribute() )
+        //        {
+        //            hasNullOrLocatorParent = pNodeAttribute->GetAttributeType() == FbxNodeAttribute::eNull;
+        //        }
+        //    }
 
-            //-------------------------------------------------------------------------
+        //    //-------------------------------------------------------------------------
 
-            StringID const skeletonID = StringID( pSkeletonNode->GetName() );
+        //    StringID const skeletonID = StringID( pSkeletonNode->GetName() );
 
-            if ( hasNullOrLocatorParent )
-            {
-                StringID const parentRootID( pParentNode->GetName() );
+        //    if ( hasNullOrLocatorParent )
+        //    {
+        //        StringID const parentRootID( pParentNode->GetName() );
 
-                // Try to find existing null root
-                ImportableSkeleton* pExistingSkeleton = nullptr;
-                for ( auto& pSkeleton : foundSkeletons )
-                {
-                    if ( pSkeleton->m_nameID == parentRootID )
-                    {
-                        EE_ASSERT( pSkeleton->IsNullOrLocatorNode() );
-                        pExistingSkeleton = pSkeleton;
-                        break;
-                    }
-                }
+        //        // Try to find existing null root
+        //        ImportableSkeleton* pExistingSkeleton = nullptr;
+        //        for ( auto& pSkeleton : foundSkeletons )
+        //        {
+        //            if ( pSkeleton->m_nameID == parentRootID )
+        //            {
+        //                EE_ASSERT( pSkeleton->IsNullOrLocatorNode() );
+        //                pExistingSkeleton = pSkeleton;
+        //                break;
+        //            }
+        //        }
 
-                // Add root if it doesnt exist
-                if ( pExistingSkeleton == nullptr )
-                {
-                    auto pImportableItem = EE::New<ImportableSkeleton>();
-                    pImportableItem->m_sourceFile = resourcePath;
-                    pImportableItem->m_nameID = skeletonID;
-                    outFileInfo.emplace_back( pImportableItem );
+        //        // Add root if it doesnt exist
+        //        if ( pExistingSkeleton == nullptr )
+        //        {
+        //            auto pImportableItem = EE::New<ImportableSkeleton>();
+        //            pImportableItem->m_sourceFile = resourcePath;
+        //            pImportableItem->m_nameID = skeletonID;
+        //            outFileInfo.emplace_back( pImportableItem );
 
-                    pExistingSkeleton = foundSkeletons.emplace_back( pImportableItem );
-                }
+        //            pExistingSkeleton = foundSkeletons.emplace_back( pImportableItem );
+        //        }
 
-                pExistingSkeleton->m_childSkeletonRoots.emplace_back( skeletonID );
-            }
-            else // No parent so just add it
-            {
-                auto pImportableItem = EE::New<ImportableSkeleton>();
-                pImportableItem->m_sourceFile = resourcePath;
-                pImportableItem->m_nameID = skeletonID;
-                outFileInfo.emplace_back( pImportableItem );
-            }
-        }
+        //        pExistingSkeleton->m_childSkeletonRoots.emplace_back( skeletonID );
+        //    }
+        //    else // No parent so just add it
+        //    {
+        //        auto pImportableItem = EE::New<ImportableSkeleton>();
+        //        pImportableItem->m_sourceFile = resourcePath;
+        //        pImportableItem->m_nameID = skeletonID;
+        //        outFileInfo.emplace_back( pImportableItem );
+        //    }
+        //}
 
-        //-------------------------------------------------------------------------
-        // Animations
-        //-------------------------------------------------------------------------
+        ////-------------------------------------------------------------------------
+        //// Animations
+        ////-------------------------------------------------------------------------
 
-        TVector<FbxAnimStack*> stacks;
-        sceneContext.FindAllAnimStacks( stacks );
-        for ( auto pAnimStack : stacks )
-        {
-            auto pTakeInfo = sceneContext.m_pScene->GetTakeInfo( Import::Fbx::GetNameWithoutNamespace( pAnimStack ) );
-            if ( pTakeInfo != nullptr )
-            {
-                auto pImportableItem = EE::New<ImportableAnimation>();
-                pImportableItem->m_sourceFile = resourcePath;
-                pImportableItem->m_nameID = StringID( pAnimStack->GetName() );
-                pImportableItem->m_duration = Seconds( (float) pTakeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble() );
+        //TVector<FbxAnimStack*> stacks;
+        //sceneContext.FindAllAnimStacks( stacks );
+        //for ( auto pAnimStack : stacks )
+        //{
+        //    auto pTakeInfo = sceneContext.m_pScene->GetTakeInfo( Import::Fbx::GetNameWithoutNamespace( pAnimStack ) );
+        //    if ( pTakeInfo != nullptr )
+        //    {
+        //        auto pImportableItem = EE::New<ImportableAnimation>();
+        //        pImportableItem->m_sourceFile = resourcePath;
+        //        pImportableItem->m_nameID = StringID( pAnimStack->GetName() );
+        //        pImportableItem->m_duration = Seconds( (float) pTakeInfo->mLocalTimeSpan.GetDuration().GetSecondDouble() );
 
-                FbxTime const duration = pTakeInfo->mLocalTimeSpan.GetDuration();
-                FbxTime::EMode mode = duration.GetGlobalTimeMode();
-                pImportableItem->m_frameRate = (float) duration.GetFrameRate( mode );
+        //        FbxTime const duration = pTakeInfo->mLocalTimeSpan.GetDuration();
+        //        FbxTime::EMode mode = duration.GetGlobalTimeMode();
+        //        pImportableItem->m_frameRate = (float) duration.GetFrameRate( mode );
 
-                outFileInfo.emplace_back( pImportableItem );
-            }
-        }
+        //        outFileInfo.emplace_back( pImportableItem );
+        //    }
+        //}
 
         //-------------------------------------------------------------------------
 
@@ -154,7 +155,7 @@ namespace EE::Import
 
     static bool InspectGLTF( InspectorContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<ImportableItem*>& outFileInfo )
     {
-        DataPath const resourcePath = DataPath::FromFileSystemPath( ctx.m_sourceDataDirectoryPath, sourceFilePath );
+        DataPath const resourcePath = DataPath( sourceFilePath, ctx.m_sourceDataDirectoryPath );
 
         //-------------------------------------------------------------------------
 
@@ -246,7 +247,7 @@ namespace EE::Import
     static bool InspectImage( InspectorContext const& ctx, FileSystem::Path const& sourceFilePath, TVector<ImportableItem*>& outFileInfo )
     {
         ImportableImage* pImg = EE::New<ImportableImage>();
-        pImg->m_sourceFile = DataPath::FromFileSystemPath( ctx.m_sourceDataDirectoryPath, sourceFilePath );
+        pImg->m_sourceFile = DataPath( sourceFilePath, ctx.m_sourceDataDirectoryPath );
         pImg->m_nameID = StringID( sourceFilePath.GetFilenameWithoutExtension() );
 
         if ( stbi_info( sourceFilePath.c_str(), &pImg->m_dimensions.m_x, &pImg->m_dimensions.m_y, &pImg->m_numChannels ) )

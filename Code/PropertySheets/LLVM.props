@@ -13,7 +13,7 @@
     </ClCompile>
     <Link>
       <AdditionalLibraryDirectories>$(LLVM_DIR)lib;$(LLVM_DIR)bin;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>clangAST.lib;clangBasic.lib;clangLex.lib;libclang.lib;LLVMAnalysis.lib;LLVMBinaryFormat.lib;LLVMBitReader.lib;LLVMBitstreamReader.lib;LLVMCore.lib;LLVMDemangle.lib;LLVMFrontendOffloading.lib;LLVMFrontendOpenMP.lib;LLVMMC.lib;LLVMProfileData.lib;LLVMRemarks.lib;LLVMScalarOpts.lib;LLVMSupport.lib;LLVMTargetParser.lib;LLVMTransformUtils.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ntdll.lib;clangAST.lib;clangBasic.lib;clangLex.lib;libclang.lib;LLVMAnalysis.lib;LLVMObject.lib;LLVMObjectYAML.lib;LLVMBinaryFormat.lib;LLVMBitReader.lib;LLVMBitstreamReader.lib;LLVMDebugInfoDWARFLowLevel.lib;LLVMCore.lib;LLVMDemangle.lib;LLVMFrontendAtomic.lib;LLVMFrontendDirective.lib;LLVMFrontendHLSL.lib;LLVMFrontendOffloading.lib;LLVMFrontendOpenMP.lib;LLVMMC.lib;LLVMProfileData.lib;LLVMRemarks.lib;LLVMScalarOpts.lib;LLVMSupport.lib;LLVMTargetParser.lib;LLVMTransformUtils.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Target Name="LLVM_CopyDLL" BeforeTargets="Build">

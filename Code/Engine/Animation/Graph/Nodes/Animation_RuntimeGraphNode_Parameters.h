@@ -35,10 +35,8 @@ namespace EE::Animation
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override { m_value = *(bool*) pInValue; }
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -65,10 +63,8 @@ namespace EE::Animation
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override { m_value = *(StringID*) pInValue; }
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -95,10 +91,8 @@ namespace EE::Animation
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override { m_value = *(float*) pInValue; }
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -125,10 +119,8 @@ namespace EE::Animation
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override { m_value = *(Float3*) pInValue; }
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -155,10 +147,8 @@ namespace EE::Animation
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
         virtual void SetValueInternal( void const* pInValue ) override { m_value = *(Target*) pInValue; }
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 

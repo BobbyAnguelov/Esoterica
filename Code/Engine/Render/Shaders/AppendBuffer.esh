@@ -1,0 +1,94 @@
+
+#include "Base/Render/RHI.esh"
+
+#ifndef _APPEND_BUFFER_SHADER_ESH_
+#define _APPEND_BUFFER_SHADER_ESH_
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    typedef uint64_t AppendBufferHandle;
+
+#ifndef __cplusplus
+    template <typename T>
+    struct AppendBuffer
+    {
+        RWBuffer<uint>                  m_counterBuffer;
+        RWStructuredBuffer<T>           m_buffer;
+        uint                            m_capacity;
+    
+        bool TryAppend( T data )
+        {
+            uint writeIndex = 0;
+            InterlockedAdd( m_counterBuffer[0],  1, writeIndex );
+        
+            if ( writeIndex < m_capacity )
+            {
+                m_buffer[writeIndex] = data;
+                return true;
+            }
+        
+            return false;
+        }
+    };
+
+    struct RawAppendBuffer
+    {
+        RWBuffer<uint>                  m_counterBuffer;
+        RWByteAddressBuffer             m_buffer;
+    
+        uint                            m_capacity;
+    
+        template <typename T>
+        bool TryAppend( T data )
+        {
+            uint writeIndex = 0;
+            InterlockedAdd( m_counterBuffer[0], 1, writeIndex );
+        
+            if ( writeIndex < m_capacity )
+            {
+                m_buffer.Store( writeIndex * sizeof( T ), data );
+                return true;
+            }
+
+            return false;
+        }
+    };
+
+    BufferHandle GetAppendBufferCounterHandle( AppendBufferHandle handle )
+    {
+        return BufferHandle( handle & ~( 1ULL << 48 ) );
+    }
+
+    BufferHandle GetAppendBufferDataHandle( AppendBufferHandle handle )
+    {
+        return BufferHandle( ( handle >> 16 ) & ~( 1ULL << 48 ) );
+    }
+
+    uint GetAppendBufferCapacity( AppendBufferHandle handle )
+    {
+        return uint( ( handle >> 32 ) & ~(1ULL << 32 ) );
+    }
+
+    RawAppendBuffer CreateRawAppendBuffer( AppendBufferHandle handle )
+    {
+        RawAppendBuffer result;
+        result.m_counterBuffer = GetRWBuffer( GetAppendBufferCounterHandle( handle ) );
+        result.m_buffer = GetRWBuffer( GetAppendBufferDataHandle( handle ) );
+        result.m_capacity = GetAppendBufferCapacity( handle );
+        return result;
+    }
+
+    template <typename T>
+    AppendBuffer<T> CreateAppendBuffer( AppendBufferHandle handle )
+    {
+        AppendBuffer<T> result;
+        result.m_counterBuffer = GetRWBuffer( GetAppendBufferCounterHandle( handle ) );
+        result.m_buffer = GetRWBuffer( GetAppendBufferDataHandle( handle ) );
+        result.m_capacity = GetAppendBufferCapacity( handle );
+        return result;
+    }
+#endif
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

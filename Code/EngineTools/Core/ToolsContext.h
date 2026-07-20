@@ -15,6 +15,7 @@ namespace EE
     class SystemRegistry;
     class DataPath;
     class FileRegistry;
+    class DialogManager;
     namespace Resource { class ResourceSystem; }
     namespace TypeSystem { class TypeRegistry; }
     namespace FileSystem { class Path; }
@@ -24,6 +25,18 @@ namespace EE
 
     class EE_ENGINETOOLS_API ToolsContext
     {
+    public:
+
+        struct EntityLookupResult
+        {
+            inline bool IsValid() const { return m_pEntity != nullptr && m_pWorld != nullptr; }
+
+        public:
+
+            Entity*         m_pEntity = nullptr;
+            EntityWorld*    m_pWorld = nullptr;
+        };
+
     public:
 
         virtual ~ToolsContext() = default;
@@ -49,13 +62,22 @@ namespace EE
             return TryFindInResourceBrowser( finalResourceID.GetDataPath() );
         }
 
-        virtual void TryCreateNewResourceDescriptor( TypeSystem::TypeID descriptorTypeID, FileSystem::Path const& startingDir = FileSystem::Path() ) const = 0;
+        virtual void TryCreateNewResourceDescriptorOrDataFile( TypeSystem::TypeID typeID, FileSystem::Path const& startingDir = FileSystem::Path() ) const = 0;
+
+        virtual void OpenResourceImporter() const = 0;
+
+        virtual void ShowResourceDependencies( ResourceID const& resourceID ) const = 0;
+
+        // Tools
+        //-------------------------------------------------------------------------
+
+        virtual InlineString GetEditorToolName( uint64_t toolID ) const = 0;
 
         // Debugging
         //-------------------------------------------------------------------------
 
         // Try to find a created entity
-        Entity* TryFindEntityInAllWorlds( EntityID ID ) const;
+        EntityLookupResult TryFindEntityInAllWorlds( EntityID ID ) const;
 
         // Get all currently created worlds
         TVector<EntityWorld const*> GetAllWorlds() const;
@@ -69,6 +91,7 @@ namespace EE
         TypeSystem::TypeRegistry const*                     m_pTypeRegistry = nullptr;
         SystemRegistry const*                               m_pSystemRegistry = nullptr;
         FileRegistry const*                                 m_pFileRegistry = nullptr;
+        DialogManager*                                      m_pDialogManager = nullptr;
         ImGuiX::ImageCache*                                 m_pImageCache = nullptr;
     };
 }

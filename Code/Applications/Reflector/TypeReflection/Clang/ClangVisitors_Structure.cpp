@@ -1,12 +1,12 @@
 #include "ClangVisitors_Structure.h"
 #include "ClangVisitors_Enum.h"
-#include "Applications/Reflector/TypeReflection/ReflectionDatabase.h"
+#include "Applications/Reflector/TypeReflection/TypeReflection_ReflectionDatabase.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "ClangVisitors_Macro.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::TypeSystem::Reflection
+namespace EE::Reflection
 {
     struct FieldTypeInfo
     {
@@ -135,7 +135,7 @@ namespace EE::TypeSystem::Reflection
                 {
                     for ( int32_t j = i + 1; j < (int32_t) pClass->m_properties.size(); j++ )
                     {
-                        if ( pClass->m_properties[i].m_propertyID == pClass->m_properties[j].m_propertyID )
+                        if ( pClass->m_properties[i].m_ID == pClass->m_properties[j].m_ID )
                         {
                             pClass->m_properties.erase( pClass->m_properties.begin() + j );
                             j--;
@@ -168,7 +168,7 @@ namespace EE::TypeSystem::Reflection
             // Extract property info
             case CXCursor_FieldDecl:
             {
-                ReflectionMacro propertyReflectionMacro;
+                ParsedMacro propertyReflectionMacro;
                 if ( pContext->FindReflectionMacroForProperty( pClass->m_headerID, lineNumber, propertyReflectionMacro ) )
                 {
                     pClass->m_properties.push_back( ReflectedProperty( ClangUtils::GetCursorDisplayName( cr ), lineNumber ) );
@@ -214,7 +214,7 @@ namespace EE::TypeSystem::Reflection
                         }
 
                         auto const pArrayType = (clang::ConstantArrayType*) fieldQualType.getTypePtr();
-                        propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsArray );
+                        propertyDesc.m_flags.SetFlag( TypeSystem::PropertyInfo::Flags::IsArray );
                         propertyDesc.m_arraySize = (int32_t) pArrayType->getSize().getSExtValue();
 
                         // Set property type to array type
@@ -226,16 +226,21 @@ namespace EE::TypeSystem::Reflection
 
                     FieldTypeInfo fieldTypeInfo;
                     GetFieldTypeInfo( pContext, pClass, type, fieldTypeInfo );
-                    EE_ASSERT( !fieldTypeInfo.m_name.empty() );
+                    if( fieldTypeInfo.m_name.empty() )
+                    {
+                        pContext->LogError( "Cannot resolve property typename (%s) for property (%s) in class (%s)", typeSpelling.c_str(), propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
+                        return CXChildVisit_Break;
+                    }
+
                     StringID fieldTypeID( fieldTypeInfo.m_name );
 
                     // Additional processing for special types
                     //-------------------------------------------------------------------------
 
-                    if ( GetCoreTypeID( CoreTypeID::TVector ) == fieldTypeID || GetCoreTypeID( CoreTypeID::TInlineVector ) == fieldTypeID )
+                    if ( GetCoreTypeID( TypeSystem::CoreTypeID::TVector ) == fieldTypeID || GetCoreTypeID( TypeSystem::CoreTypeID::TInlineVector ) == fieldTypeID )
                     {
                         // We need to flag this in advance as we are about to change the field type ID
-                        propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsDynamicArray );
+                        propertyDesc.m_flags.SetFlag( TypeSystem::PropertyInfo::Flags::IsDynamicArray );
 
                         // We need to remove the TVector type from the property info as we allow for templated types to be contained within arrays
                         FieldTypeInfo const& templateTypeInfo = fieldTypeInfo.m_templateArgs.front();
@@ -248,7 +253,7 @@ namespace EE::TypeSystem::Reflection
                             return CXChildVisit_Break;
                         }
                     }
-                    else if ( GetCoreTypeID( CoreTypeID::String ) == fieldTypeID )
+                    else if ( GetCoreTypeID( TypeSystem::CoreTypeID::String ) == fieldTypeID )
                     {
                         // We need to clear the template args since we have a type alias and clang is detected the template args for eastl::basic_string
                         fieldTypeInfo.m_templateArgs.clear();
@@ -276,16 +281,16 @@ namespace EE::TypeSystem::Reflection
                     if ( IsCoreType( propertyDesc.m_typeID ) )
                     {
                         // Check if this field is a generic resource ptr
-                        if ( propertyDesc.m_typeID == CoreTypeID::ResourcePtr )
+                        if ( propertyDesc.m_typeID == TypeSystem::CoreTypeID::ResourcePtr )
                         {
                             pContext->LogError( "Generic resource pointers are not allowed to be exposed, please use a TResourcePtr instead! ( property: %s in class: %s )", propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
                             return CXChildVisit_Break;
                         }
 
                         // Specific resource ptr
-                        if ( propertyDesc.m_typeID == CoreTypeID::TResourcePtr )
+                        if ( propertyDesc.m_typeID == TypeSystem::CoreTypeID::TResourcePtr )
                         {
-                            propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsResourcePtr );
+                            propertyDesc.m_flags.SetFlag( TypeSystem::PropertyInfo::Flags::IsResourcePtr );
 
                             if ( propertyDesc.m_templateArgTypeName == "EE::Resource::IResource" )
                             {
@@ -295,11 +300,11 @@ namespace EE::TypeSystem::Reflection
                         }
 
                         // Type Instance
-                        if ( propertyDesc.m_typeID == CoreTypeID::TypeInstance || propertyDesc.m_typeID == CoreTypeID::TTypeInstance )
+                        if ( propertyDesc.m_typeID == TypeSystem::CoreTypeID::TypeInstance || propertyDesc.m_typeID == TypeSystem::CoreTypeID::TTypeInstance )
                         {
-                            propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsTypeInstance );
+                            propertyDesc.m_flags.SetFlag( TypeSystem::PropertyInfo::Flags::IsTypeInstance );
 
-                            if ( propertyDesc.m_typeID == CoreTypeID::TTypeInstance )
+                            if ( propertyDesc.m_typeID == TypeSystem::CoreTypeID::TTypeInstance )
                             {
                                 // Perform validation on the type for the instance
                                 ReflectedType const* pInstanceTypeDesc = pContext->m_pDatabase->GetType( propertyDesc.m_templateArgTypeName );
@@ -312,13 +317,13 @@ namespace EE::TypeSystem::Reflection
                         }
 
                         // Bit flags
-                        if ( propertyDesc.m_typeID == CoreTypeID::BitFlags )
+                        if ( propertyDesc.m_typeID == TypeSystem::CoreTypeID::BitFlags )
                         {
-                            propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsBitFlags );
+                            propertyDesc.m_flags.SetFlag( TypeSystem::PropertyInfo::Flags::IsBitFlags );
                         }
-                        else if ( propertyDesc.m_typeID == CoreTypeID::TBitFlags )
+                        else if ( propertyDesc.m_typeID == TypeSystem::CoreTypeID::TBitFlags )
                         {
-                            propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsBitFlags );
+                            propertyDesc.m_flags.SetFlag( TypeSystem::PropertyInfo::Flags::IsBitFlags );
 
                             // Perform validation on the enum type for the bit-flags
                             ReflectedType const* pFlagTypeDesc = pContext->m_pDatabase->GetType( propertyDesc.m_templateArgTypeName );
@@ -330,7 +335,7 @@ namespace EE::TypeSystem::Reflection
                         }
 
                         // Arrays
-                        if ( propertyDesc.m_typeID == CoreTypeID::TVector || propertyDesc.m_typeID == CoreTypeID::TInlineVector )
+                        if ( propertyDesc.m_typeID == TypeSystem::CoreTypeID::TVector || propertyDesc.m_typeID == TypeSystem::CoreTypeID::TInlineVector )
                         {
                             pContext->LogError( "We dont support arrays of arrays. Property: %s in class: %s", propertyDesc.m_name.c_str(), pClass->m_name.c_str() );
                             return CXChildVisit_Break;
@@ -349,11 +354,11 @@ namespace EE::TypeSystem::Reflection
                         // Check for enum types - bitflags are a special case and are not an enum
                         if ( pPropertyTypeDesc->IsEnum() )
                         {
-                            propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsEnum );
+                            propertyDesc.m_flags.SetFlag( TypeSystem::PropertyInfo::Flags::IsEnum );
                         }
                         else
                         {
-                            propertyDesc.m_flags.SetFlag( PropertyInfo::Flags::IsStructure );
+                            propertyDesc.m_flags.SetFlag( TypeSystem::PropertyInfo::Flags::IsStructure );
                         }
 
                         // Check if this field is a entity type
@@ -384,7 +389,7 @@ namespace EE::TypeSystem::Reflection
             case CXCursor_CXXBaseSpecifier:
             {
                 clang::CXXBaseSpecifier* pBaseSpecifier = (clang::CXXBaseSpecifier*) cr.data[0];
-                if ( !ClangUtils::GetAllBaseClasses( pResource->m_parents, *pBaseSpecifier ) )
+                if ( !ClangUtils::GetAllBaseClasses( pResource->m_parentTypes, *pBaseSpecifier ) )
                 {
                     pContext->LogError( "Failed to get all base classes type for resource type: %s", pResource->m_className.c_str() );
                     return CXChildVisit_Break;
@@ -398,7 +403,7 @@ namespace EE::TypeSystem::Reflection
         return CXChildVisit_Continue;
     }
 
-    CXChildVisitResult VisitStructure( ClangParserContext* pContext, CXCursor& cr, FileSystem::Path const& headerFilePath, StringID const headerID )
+    CXChildVisitResult VisitStructure( ClangParserContext* pContext, CXCursor& cr )
     {
         auto cursorName = ClangUtils::GetCursorDisplayName( cr );
 
@@ -411,12 +416,12 @@ namespace EE::TypeSystem::Reflection
 
         //-------------------------------------------------------------------------
 
-        ReflectionMacro macro;
-        if ( pContext->GetReflectionMacroForType( headerID, cr, macro ) )
+        ParsedMacro macro;
+        if ( pContext->GetReflectionMacroForType( pContext->m_currentHeaderID, cr, macro ) )
         {
             if ( !pContext->IsInEngineNamespace() )
             {
-                pContext->LogError( "You cannot register types for reflection that are outside the engine namespace (%s). Type: %s, File: %s", Reflection::Settings::g_engineNamespace, fullyQualifiedCursorName.c_str(), headerFilePath.c_str() );
+                pContext->LogError( "You cannot register types for reflection that are outside the engine namespace (%s). Type: %s, File: %s", Settings::g_engineNamespace, fullyQualifiedCursorName.c_str(), pContext->m_currentHeaderFilePath.c_str() );
                 return CXChildVisit_Break;
             }
 
@@ -427,10 +432,10 @@ namespace EE::TypeSystem::Reflection
             {
                 String const moduleName = pContext->GetCurrentNamespace() + cursorName;
 
-                if ( !pContext->SetModuleClassName( headerFilePath, moduleName ) )
+                if ( !pContext->SetModuleClassName( pContext->m_currentHeaderFilePath, moduleName ) )
                 {
                     // Could not find originating project for detected registered module class
-                    pContext->LogError( "Cant find the source project for this module class: %s", headerFilePath.c_str() );
+                    pContext->LogError( "Cant find the source project for this module class: %s", pContext->m_currentHeaderFilePath.c_str() );
                     return CXChildVisit_Break;
                 }
             }
@@ -442,7 +447,7 @@ namespace EE::TypeSystem::Reflection
                 // Fill out the resource type data
                 ReflectedResourceType resource;
                 resource.m_typeID = pContext->GenerateTypeID( fullyQualifiedCursorName );
-                resource.m_headerID = headerID;
+                resource.m_headerID = pContext->m_currentHeaderID;
                 resource.m_className = cursorName;
                 resource.m_namespace = pContext->GetCurrentNamespace();
 
@@ -462,7 +467,7 @@ namespace EE::TypeSystem::Reflection
 
                 // Verify the resource hierarchy
                 static TypeSystem::TypeID const resourceTypeID( ReflectedResourceType::s_baseResourceFullTypeName );
-                if ( !VectorContains( resource.m_parents, resourceTypeID ) )
+                if ( !VectorContains( resource.m_parentTypes, resourceTypeID ) )
                 {
                     pContext->LogError( "Resource %s doesnt derive from %s", resource.m_className.c_str(), ReflectedResourceType::s_baseResourceFullTypeName );
                     return CXChildVisit_Break;
@@ -479,7 +484,7 @@ namespace EE::TypeSystem::Reflection
                     }
                     else
                     {
-                        pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", resource.m_resourceTypeID.ToString().c_str(), headerFilePath.c_str() );
+                        pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", resource.m_resourceTypeID.ToString().c_str(), pContext->m_currentHeaderFilePath.c_str() );
                         return CXChildVisit_Break;
                     }
                 }
@@ -491,7 +496,7 @@ namespace EE::TypeSystem::Reflection
                     }
                     else // We do not allow multiple resources registered with the same ID
                     {
-                        pContext->LogError( "Duplicate resource type ID encountered: %s in file: %s", resource.m_resourceTypeID.ToString().c_str(), headerFilePath.c_str() );
+                        pContext->LogError( "Duplicate resource type ID encountered: %s in file: %s", resource.m_resourceTypeID.ToString().c_str(), pContext->m_currentHeaderFilePath.c_str() );
                         return CXChildVisit_Break;
                     }
                 }
@@ -504,7 +509,7 @@ namespace EE::TypeSystem::Reflection
                 // Fill out the resource type data
                 ReflectedDataFileType dataFile;
                 dataFile.m_typeID = pContext->GenerateTypeID( fullyQualifiedCursorName );
-                dataFile.m_headerID = headerID;
+                dataFile.m_headerID = pContext->m_currentHeaderID;
                 dataFile.m_className = cursorName;
                 dataFile.m_namespace = pContext->GetCurrentNamespace();
 
@@ -525,7 +530,7 @@ namespace EE::TypeSystem::Reflection
                     }
                     else
                     {
-                        pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", dataFile.m_typeID.c_str(), headerFilePath.c_str() );
+                        pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", dataFile.m_typeID.c_str(), pContext->m_currentHeaderFilePath.c_str() );
                         return CXChildVisit_Break;
                     }
                 }
@@ -537,7 +542,7 @@ namespace EE::TypeSystem::Reflection
                     }
                     else // We do not allow multiple resources registered with the same ID
                     {
-                        pContext->LogError( "Duplicate data file ID encountered: %s in file: %s", dataFile.m_typeID.c_str(), headerFilePath.c_str() );
+                        pContext->LogError( "Duplicate data file ID encountered: %s in file: %s", dataFile.m_typeID.c_str(), pContext->m_currentHeaderFilePath.c_str() );
                         return CXChildVisit_Break;
                     }
                 }
@@ -567,9 +572,9 @@ namespace EE::TypeSystem::Reflection
 
                 //-------------------------------------------------------------------------
 
-                TypeID typeID = pContext->GenerateTypeID( fullyQualifiedCursorName );
+                TypeSystem::TypeID typeID = pContext->GenerateTypeID( fullyQualifiedCursorName );
                 ReflectedType classDescriptor( typeID, cursorName );
-                classDescriptor.m_headerID = headerID;
+                classDescriptor.m_headerID = pContext->m_currentHeaderID;
                 classDescriptor.m_namespace = pContext->GetCurrentNamespace();
                 classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntity, ( cursorName == ReflectedType::s_baseEntityClassName ) );
                 classDescriptor.m_flags.SetFlag( ReflectedType::Flags::IsEntityComponent, ( macro.IsEntityComponentMacro() || cursorName == ReflectedType::s_baseEntityComponentClassName ) );
@@ -602,7 +607,7 @@ namespace EE::TypeSystem::Reflection
                     }
                     else
                     {
-                        pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", classDescriptor.m_ID.c_str(), headerID.c_str() );
+                        pContext->LogError( "Trying to flag unknown type as a runtime type: %s in file: %s", classDescriptor.m_ID.c_str(), pContext->m_currentHeaderID.c_str() );
                         return CXChildVisit_Break;
                     }
                 }
@@ -614,7 +619,7 @@ namespace EE::TypeSystem::Reflection
                     }
                     else // We do not allow multiple resources registered with the same ID
                     {
-                        pContext->LogError( "Duplicate type ID encountered: %s in file: %s", classDescriptor.m_ID.c_str(), headerID.c_str() );
+                        pContext->LogError( "Duplicate type ID encountered: %s in file: %s", classDescriptor.m_ID.c_str(), pContext->m_currentHeaderID.c_str() );
                         return CXChildVisit_Break;
                     }
                 }

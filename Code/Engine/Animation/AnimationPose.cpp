@@ -5,12 +5,20 @@
 
 namespace EE::Animation
 {
-    Pose::Pose( Skeleton const* pSkeleton, Type initialState )
+    Pose::Pose( Skeleton const* pSkeleton, Init initialState )
         : m_pSkeleton( pSkeleton )
         , m_parentSpaceTransforms( pSkeleton->GetNumBones() )
     {
         EE_ASSERT( pSkeleton != nullptr );
         Reset( initialState );
+
+        //-------------------------------------------------------------------------
+
+        m_floatChannelSetValues.reserve( pSkeleton->GetNumFloatChannelSets() );
+        for ( auto const &set : pSkeleton->GetFloatChannelSets() )
+        {
+            m_floatChannelSetValues.emplace_back( &set );
+        }
     }
 
     Pose::Pose( Pose&& rhs )
@@ -30,6 +38,7 @@ namespace EE::Animation
         m_pSkeleton = rhs.m_pSkeleton;
         m_parentSpaceTransforms.swap( rhs.m_parentSpaceTransforms );
         m_modelSpaceTransforms.swap( rhs.m_modelSpaceTransforms );
+        m_floatChannelSetValues.swap( rhs.m_floatChannelSetValues );
         m_state = rhs.m_state;
 
         return *this;
@@ -37,11 +46,7 @@ namespace EE::Animation
 
     Pose& Pose::operator=( Pose const& rhs )
     {
-        m_pSkeleton = rhs.m_pSkeleton;
-        m_parentSpaceTransforms = rhs.m_parentSpaceTransforms;
-        m_modelSpaceTransforms = rhs.m_modelSpaceTransforms;
-        m_state = rhs.m_state;
-
+        CopyFrom( rhs );
         return *this;
     }
 
@@ -50,6 +55,7 @@ namespace EE::Animation
         m_pSkeleton = rhs.m_pSkeleton;
         m_parentSpaceTransforms = rhs.m_parentSpaceTransforms;
         m_modelSpaceTransforms = rhs.m_modelSpaceTransforms;
+        m_floatChannelSetValues = rhs.m_floatChannelSetValues;
         m_state = rhs.m_state;
     }
 
@@ -65,6 +71,7 @@ namespace EE::Animation
 
         m_parentSpaceTransforms.swap( rhs.m_parentSpaceTransforms );
         m_modelSpaceTransforms.swap( rhs.m_modelSpaceTransforms );
+        m_floatChannelSetValues.swap( rhs.m_floatChannelSetValues );
     }
 
     void Pose::ChangeSkeleton( Skeleton const* pSkeleton )
@@ -80,21 +87,30 @@ namespace EE::Animation
         m_parentSpaceTransforms.resize( pSkeleton->GetNumBones() );
         m_modelSpaceTransforms.clear();
         m_state = State::Unset;
+
+        //-------------------------------------------------------------------------
+
+        m_floatChannelSetValues.clear();
+        m_floatChannelSetValues.reserve( pSkeleton->GetNumFloatChannelSets() );
+        for ( auto const &set : pSkeleton->GetFloatChannelSets() )
+        {
+            m_floatChannelSetValues.emplace_back( &set );
+        }
     }
 
     //-------------------------------------------------------------------------
 
-    void Pose::Reset( Type initialState, bool calculateModelSpacePose )
+    void Pose::Reset( Init initialState, bool calculateModelSpacePose )
     {
         switch ( initialState )
         {
-            case Type::ReferencePose:
+            case Init::ReferencePose:
             {
                 SetToReferencePose( calculateModelSpacePose );
             }
             break;
 
-            case Type::ZeroPose:
+            case Init::ZeroPose:
             {
                 SetToZeroPose( calculateModelSpacePose );
             }
@@ -104,6 +120,12 @@ namespace EE::Animation
             {
                 // Leave memory intact, just change state
                 m_state = State::Unset;
+
+                // Reset all float channels
+                for ( auto& v : m_floatChannelSetValues )
+                {
+                    v.Reset();
+                }
             }
             break;
         }
@@ -122,14 +144,20 @@ namespace EE::Animation
             m_modelSpaceTransforms.clear();
         }
 
+        // Reset all float channels
+        for ( auto& v : m_floatChannelSetValues )
+        {
+            v.Reset();
+        }
+
         m_state = State::ReferencePose;
     }
 
-    void Pose::SetToZeroPose( bool setGlobalPose )
+    void Pose::SetToZeroPose( bool setGlobalPose, bool setZeroScale )
     {
         auto const numBones = m_pSkeleton->GetNumBones();
         m_parentSpaceTransforms.clear();
-        m_parentSpaceTransforms.resize( numBones, Transform::Identity );
+        m_parentSpaceTransforms.resize( numBones, setZeroScale ? Transform::Zero : Transform::Identity );
 
         if ( setGlobalPose )
         {
@@ -138,6 +166,12 @@ namespace EE::Animation
         else
         {
             m_modelSpaceTransforms.clear();
+        }
+
+        // Reset all float channels
+        for ( auto& v : m_floatChannelSetValues )
+        {
+            v.Reset();
         }
 
         m_state = State::ZeroPose;
@@ -162,7 +196,7 @@ namespace EE::Animation
 
     Transform Pose::GetModelSpaceTransform( int32_t boneIdx ) const
     {
-        EE_ASSERT( boneIdx < m_pSkeleton->GetNumBones() );
+        EE_ASSERT( boneIdx != InvalidIndex && boneIdx < m_pSkeleton->GetNumBones() );
 
         Transform boneModelSpaceTransform;
         if ( !m_modelSpaceTransforms.empty() )
@@ -205,14 +239,67 @@ namespace EE::Animation
         return boneModelSpaceTransform;
     }
 
+    TInlineVector<BoneChainElement, 20> Pose::CalculateModelSpaceTransformsForChain( int32_t chainEndBoneIdx ) const
+    {
+        EE_ASSERT( chainEndBoneIdx >= 0 && chainEndBoneIdx < GetNumBones() );
+
+        // Get the entire chain
+        TInlineVector<int32_t, 100> boneChainIndices;
+        int32_t boneIdx = chainEndBoneIdx;
+        while ( boneIdx != InvalidIndex )
+        {
+            boneChainIndices.emplace_back( boneIdx );
+            boneIdx = m_pSkeleton->GetParentBoneIndex( boneIdx );
+        }
+        EE_ASSERT( boneChainIndices.back() == 0 );
+
+        // Fill out chain
+        TInlineVector<BoneChainElement, 20> chain;
+        int32_t const numBonesInChain = int32_t( boneChainIndices.size() );
+        for ( int32_t i = numBonesInChain - 1; i >= 0; i-- )
+        {
+            boneIdx = boneChainIndices[i];
+            chain.emplace_back( boneIdx, m_pSkeleton->GetBoneID( boneIdx ), m_parentSpaceTransforms[boneIdx], m_parentSpaceTransforms[boneIdx] );
+        }
+
+        // Calculate model space transforms
+        for ( int32_t i = 1; i < numBonesInChain; i++ )
+        {
+            chain[i].m_modelSpaceTransform = chain[i].m_parentSpaceTransform * chain[i-1].m_modelSpaceTransform;
+        }
+
+        return chain;
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool Pose::HasFloatChannelValues() const
+    {
+        for ( auto const& v : m_floatChannelSetValues )
+        {
+            if ( v.IsSet() )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void Pose::DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Skeleton::LOD lod, Color color, float lineThickness, bool bDrawBoneNames, BoneMask const* pBoneMask, TVector<int32_t> const& boneIdxFilter ) const
+    void Pose::DrawDebug( DebugDrawContext& ctx, Transform const& worldTransform, Skeleton::LOD lod, DrawOptions const& options ) const
     {
         auto const& parentIndices = m_pSkeleton->GetParentBoneIndices();
 
         //-------------------------------------------------------------------------
+
+        if ( !IsPoseSet() )
+        {
+            m_pSkeleton->DrawDebug( ctx, worldTransform, lod, options );
+            return;
+        }
 
         auto const numBones = m_parentSpaceTransforms.size();
         if ( numBones > 0 )
@@ -240,26 +327,33 @@ namespace EE::Animation
             {
                 auto const& parentIdx = parentIndices[boneIdx];
 
-                if ( !boneIdxFilter.empty() && !VectorContains( boneIdxFilter, boneIdx ) )
-                {
-                    continue;
-                }
-
                 //-------------------------------------------------------------------------
 
-                Color const boneColor = ( pBoneMask != nullptr ) ? Color::EvaluateRedGreenGradient( pBoneMask->GetWeight( boneIdx ) ) : color;
+                bool const hasWeights = options.m_pBoneWeights != nullptr;
+                float const boneWeight = hasWeights ? ( *options.m_pBoneWeights )[boneIdx] : 1.0f;
+                Color boneColor = hasWeights ? Color::EvaluateRedGreenGradient( boneWeight ) : options.m_boneColor;
+
+                bool bIsFilteredOut = options.IsBoneFilteredOut( boneIdx );
+                if ( bIsFilteredOut )
+                {
+                    boneColor.m_byteColor.m_a = 25;
+                }
 
                 auto const& parentTransform = worldTransforms[parentIdx];
                 auto const& boneTransform = worldTransforms[boneIdx];
 
-                ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), boneColor, lineThickness );
-                ctx.DrawAxis( boneTransform, 0.01f, 3.0f );
+                ctx.DrawLine( boneTransform.GetTranslation().ToFloat3(), parentTransform.GetTranslation().ToFloat3(), boneColor, options.m_lineThickness );
 
-                if ( bDrawBoneNames )
+                if ( !bIsFilteredOut && options.m_drawAxes )
                 {
-                    if ( pBoneMask != nullptr )
+                    ctx.DrawAxis( boneTransform, options.m_axisLength, options.m_axisThickness );
+                }
+
+                if ( !bIsFilteredOut && options.m_drawBoneNames )
+                {
+                    if ( hasWeights )
                     {
-                        detailsStr.sprintf( "%s (%.2f)", m_pSkeleton->GetBoneID( boneIdx ).c_str(), pBoneMask->GetWeight( boneIdx ) );
+                        detailsStr.sprintf( "%s (%.2f)", m_pSkeleton->GetBoneID( boneIdx ).c_str(), boneWeight );
                     }
                     else
                     {
@@ -268,15 +362,15 @@ namespace EE::Animation
                 }
                 else
                 {
-                    if ( pBoneMask != nullptr )
+                    if ( hasWeights )
                     {
-                        detailsStr.sprintf( "%.2f", pBoneMask->GetWeight( boneIdx ) );
+                        detailsStr.sprintf( "%.2f", boneWeight );
                     }
                 }
 
                 if ( !detailsStr.empty() )
                 {
-                    ctx.DrawText3D( boneTransform.GetTranslation(), detailsStr.c_str(), boneColor );
+                    ctx.DrawText3D( boneTransform.GetTranslation(), detailsStr.c_str(), boneColor, DebugFont::Small );
                 }
             }
 

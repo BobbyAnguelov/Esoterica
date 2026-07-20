@@ -1,16 +1,17 @@
 #include "EngineDebugUI.h"
-#include "Engine/Console/Console.h"
-#include "Engine/DebugViews/DebugView.h"
+#include "Engine/Debug/DebugView.h"
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
-#include "Engine/Player/Systems/WorldSystem_PlayerManager.h"
-#include "Engine/Camera/Systems/WorldSystem_CameraManager.h"
-#include "Engine/Camera/Components/Component_DebugCamera.h"
-#include "Base/Logging/SystemLog.h"
+#include "Engine/Entity/Debug/DebugView_EntityWorld.h"
+#include "Engine/Input/Systems/WorldSystem_GameInput.h"
+#include "Engine/Imgui/ImguiOrientationGuide.h"
+#include "Engine/Camera/Systems/WorldSystem_Camera.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Input/InputSystem.h"
 #include "EASTL/sort.h"
+#include "Engine/Debug/Widgets/FrameLimiterWidget.h"
+#include "Engine/Debug/Widgets/PerformanceStatsWidget.h"
 
 //-------------------------------------------------------------------------
 
@@ -60,27 +61,39 @@ namespace EE
     void EngineDebugUI::Menu::AddChildMenu( DebugView* pDebugView )
     {
         EE_ASSERT( !TryFindMenu( pDebugView ) );
+        EE_ASSERT( pDebugView->HasMenuOptions() );
 
-        MenuPath const menuPath = CreatePathFromString( pDebugView->m_menuPath );
-        auto& subMenu = FindOrAddMenu( menuPath );
+        Menu* pSubMenu = nullptr;
+        String const pathString = pDebugView->GetMenuPath();
+        if ( pathString.empty() )
+        {
+            pSubMenu = this;
+        }
+        else
+        {
+            MenuPath const menuPath = CreatePathFromString( pathString );
+            pSubMenu = &FindOrAddMenu( menuPath );
+        }
+
+        EE_ASSERT( pSubMenu != nullptr );
 
         // Add new callback and sort callback list
         //-------------------------------------------------------------------------
 
-        subMenu.m_debugViews.emplace_back( pDebugView );
+        pSubMenu->m_debugViews.emplace_back( pDebugView );
 
         auto callbackSortPredicate = [] ( DebugView* const& pA, DebugView* const& pB )
         {
-            return pA->m_menuPath < pB->m_menuPath;
+            return StringUtils::Stricmp( pA->GetMenuPath(), pB->GetMenuPath() ) < 0;
         };
 
-        eastl::sort( subMenu.m_debugViews.begin(), subMenu.m_debugViews.end(), callbackSortPredicate );
+        eastl::sort( pSubMenu->m_debugViews.begin(), pSubMenu->m_debugViews.end(), callbackSortPredicate );
     }
 
     void EngineDebugUI::Menu::RemoveChildMenu( DebugView* pDebugView )
     {
         EE_ASSERT( pDebugView != nullptr );
-        EE_ASSERT( pDebugView->HasMenu() );
+        EE_ASSERT( pDebugView->HasMenuOptions() );
         bool const result = TryFindAndRemoveMenu( pDebugView );
         EE_ASSERT( result );
     }
@@ -146,7 +159,7 @@ namespace EE
     bool EngineDebugUI::Menu::TryFindMenu( DebugView* pDebugView )
     {
         EE_ASSERT( pDebugView != nullptr );
-        EE_ASSERT( pDebugView->HasMenu() );
+        EE_ASSERT( pDebugView->HasMenuOptions() );
 
         auto iter = VectorFind( m_debugViews, pDebugView );
         if ( iter != m_debugViews.end() )
@@ -170,7 +183,7 @@ namespace EE
     bool EngineDebugUI::Menu::TryFindAndRemoveMenu( DebugView* pDebugView )
     {
         EE_ASSERT( pDebugView != nullptr );
-        EE_ASSERT( pDebugView->HasMenu() );
+        EE_ASSERT( pDebugView->HasMenuOptions() );
 
         auto iter = VectorFind( m_debugViews, pDebugView );
         if ( iter != m_debugViews.end() )
@@ -212,16 +225,7 @@ namespace EE
 
     void EngineDebugUI::Menu::Draw( EntityWorldUpdateContext const& context )
     {
-        auto pConsole = context.GetSystem<Console>();
-        bool isConsoleOpen = pConsole->IsVisible();
-        if ( ImGui::MenuItem( "Console", nullptr, &isConsoleOpen, !isConsoleOpen ) )
-        {
-            pConsole->SetVisible( isConsoleOpen );
-        }
-
-        //-------------------------------------------------------------------------
-
-        for ( auto& childMenu : m_childMenus )
+        for ( Menu& childMenu : m_childMenus )
         {
             EE_ASSERT( !childMenu.IsEmpty() );
 
@@ -238,13 +242,6 @@ namespace EE
         {
             pDebugView->DrawMenu( context );
         }
-    }
-
-    void EngineDebugUI::EditorPreviewUpdate( UpdateContext const& context, ImGuiWindowClass* pWindowClass )
-    {
-        m_isInEditorPreviewMode = true;
-        m_pWindowClass = pWindowClass;
-        EndFrame( context );
     }
 
     //-------------------------------------------------------------------------
@@ -274,9 +271,16 @@ namespace EE
                 pDebugView->Initialize( *context.GetSystemRegistry(), m_pGameWorld );
                 m_debugViews.push_back( pDebugView );
 
-                if ( pDebugView->HasMenu() )
+                if ( pDebugView->HasMenuOptions() )
                 {
-                    m_mainMenu.AddChildMenu( pDebugView );
+                    if ( pDebugView->GetCategory() == DebugView::Category::Engine )
+                    {
+                        m_engineMenu.AddChildMenu( pDebugView );
+                    }
+                    else if ( pDebugView->GetCategory() == DebugView::Category::Game )
+                    {
+                        m_gameMenu.AddChildMenu( pDebugView );
+                    }
                 }
             }
         }
@@ -284,7 +288,8 @@ namespace EE
 
     void EngineDebugUI::Shutdown( UpdateContext const& context )
     {
-        m_mainMenu.Clear();
+        m_engineMenu.Clear();
+        m_gameMenu.Clear();
 
         for ( auto pDebugView : m_debugViews )
         {
@@ -296,6 +301,25 @@ namespace EE
     }
 
     //-------------------------------------------------------------------------
+
+    void EngineDebugUI::StartFrame( UpdateContext const& context )
+    {
+        EE_ASSERT( !m_isInEditorMode );
+
+        // Update tool camera
+        //-------------------------------------------------------------------------
+        // If we are in editor mode, the editor will update the tool camera
+
+        if ( !m_isInEditorMode )
+        {
+            auto pCameraSystem = m_pGameWorld->GetWorldSystem<CameraSystem>();
+            if ( pCameraSystem != nullptr && pCameraSystem->IsToolsCameraEnabled() )
+            {
+                EntityWorldUpdateContext updateContext( context, m_pGameWorld );
+                pCameraSystem->UpdateToolsCamera( updateContext );
+            }
+        }
+    }
 
     void EngineDebugUI::EndFrame( UpdateContext const& context )
     {
@@ -316,21 +340,6 @@ namespace EE
             return;
         }
 
-        // Always show the log if any errors/warnings occurred
-        //-------------------------------------------------------------------------
-
-        auto const unhandledWarningsAndErrors = SystemLog::GetUnhandledWarningsAndErrors();
-        if ( !unhandledWarningsAndErrors.empty() )
-        {
-            if ( auto pSystemDebugView = FindDebugView<SystemDebugView>() )
-            {
-                pSystemDebugView->m_windows[0].m_isOpen = true;
-                pSystemDebugView->m_logView.m_showLogMessages = true;
-                pSystemDebugView->m_logView.m_showLogWarnings = true;
-                pSystemDebugView->m_logView.m_showLogErrors = true;
-            }
-        }
-
         // Process user input
         //-------------------------------------------------------------------------
 
@@ -348,10 +357,8 @@ namespace EE
         // Draw overlay window and menu
         //-------------------------------------------------------------------------
 
-        if ( !m_isInEditorPreviewMode )
+        if ( !m_isInEditorMode )
         {
-            Render::Viewport const* pViewport = m_pGameWorld->GetViewport();
-
             ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoScrollWithMouse | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoBringToFrontOnFocus;
             if ( m_debugOverlayEnabled )
             {
@@ -375,9 +382,7 @@ namespace EE
 
             if ( shouldDrawOverlayWindow )
             {
-                // The overlay elements should always be drawn
-                DrawOverlayElements( context, pViewport );
-
+                // Menu
                 //-------------------------------------------------------------------------
 
                 if ( m_debugOverlayEnabled )
@@ -388,7 +393,15 @@ namespace EE
                         ImGui::EndMenuBar();
                     }
                 }
+
+                // Overlay
+                //-------------------------------------------------------------------------
+
+                EE_ASSERT( m_pGameWorld->HasViewports() );
+                DrawOverlayUI( context, m_pGameWorld->GetMainViewport() );
             }
+
+            //-------------------------------------------------------------------------
 
             ImGui::End();
         }
@@ -420,10 +433,17 @@ namespace EE
             }
         }
 
+        // System Log
         //-------------------------------------------------------------------------
 
-        m_isInEditorPreviewMode = false;
-        m_pWindowClass = nullptr;
+        if ( !m_isInEditorMode && m_showSystemLog )
+        {
+            if ( ImGui::Begin( "System Log", &m_showSystemLog ) )
+            {
+                m_systemLogWidget.UpdateAndDraw( context );
+            }
+            ImGui::End();
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -432,189 +452,93 @@ namespace EE
 
     void EngineDebugUI::DrawMenu( UpdateContext const& context )
     {
-        ImVec2 const totalAvailableSpace = ImGui::GetContentRegionAvail();
-
-        float const currentFPS = 1.0f / context.GetDeltaTime();
-        float const allocatedMemory = Memory::GetTotalAllocatedMemory() / 1024.0f / 1024.0f;
-
-        TInlineString<10> const warningsStr( TInlineString<10>::CtorSprintf(), EE_ICON_ALERT" %d", SystemLog::GetNumWarnings() );
-        TInlineString<10> const errorsStr( TInlineString<10>::CtorSprintf(), EE_ICON_CLOSE_CIRCLE" %d", SystemLog::GetNumErrors() );
-        TInlineString<40> const perfStatsStr( TInlineString<40>::CtorSprintf(), "FPS: %3.0f", currentFPS );
-        TInlineString<40> const memStatsStr( TInlineString<40>::CtorSprintf(), "MEM: %.2fMB", allocatedMemory );
-
-        ImVec2 const warningsTextSize = ImGui::CalcTextSize( warningsStr.c_str() );
-        ImVec2 const errorTextSize = ImGui::CalcTextSize( errorsStr.c_str() );
-        ImVec2 const memStatsTextSize = ImGui::CalcTextSize( memStatsStr.c_str() );
-        ImVec2 const perfStatsTextSize = ImVec2( 64, 0 ) ;
-
-        float const itemSpacing = ImGui::GetStyle().ItemSpacing.x;
-        float const framePadding = ImGui::GetStyle().FramePadding.x;
-        float const memStatsOffset = totalAvailableSpace.x - memStatsTextSize.x - ( itemSpacing );
-        float const perfStatsOffset = memStatsOffset - perfStatsTextSize.x;
-        float const warningsAndErrorsOffset = perfStatsOffset - warningsTextSize.x - errorTextSize.x - ( itemSpacing * 6 ) - ( framePadding * 4 );
-
-        constexpr static float const gapSize = 13;
-        constexpr static float const menuButtonSize = 35;
-
-        float const frameLimiterOffset = warningsAndErrorsOffset - menuButtonSize;
-        float const debugCameraOffset = frameLimiterOffset - menuButtonSize;
-        float const timeControlsCameraOffset = debugCameraOffset - menuButtonSize;
-
-        // Draw Debug Views
+        // Draw Debug View Menus
         //-------------------------------------------------------------------------
 
-        if ( m_mainMenu.IsEmpty() )
+        if ( ImGui::BeginMenu( EE_ICON_BUG" Preview" ) )
         {
-            ImGui::Text( "No Menu Options" );
-        }
-        else
-        {
-            EntityWorldUpdateContext worldUpdateContext( context, m_pGameWorld );
-            m_mainMenu.Draw( worldUpdateContext );
-        }
-
-        // Time Controls
-        //-------------------------------------------------------------------------
-
-        ImGui::SameLine( timeControlsCameraOffset, 0 );
-
-        ImGui::PushStyleColor( ImGuiCol_Text, Colors::LimeGreen.ToFloat4() );
-        bool const drawDebugMenu = ImGui::BeginMenu( EE_ICON_CLOCK_FAST );
-        ImGui::PopStyleColor();
-        if ( drawDebugMenu )
-        {
-            ImGui::SeparatorText( EE_ICON_CLOCK" Time Controls" );
-            {
-                ImVec2 const buttonSize( 24, 0 );
-
-                // Play/Pause
-                if ( m_pGameWorld->IsPaused() )
-                {
-                    if ( ImGui::Button( EE_ICON_PLAY"##ResumeWorld", buttonSize ) )
-                    {
-                        ToggleWorldPause();
-                    }
-                    ImGuiX::ItemTooltip( "Resume" );
-                }
-                else
-                {
-                    if ( ImGui::Button( EE_ICON_PAUSE"##PauseWorld", buttonSize ) )
-                    {
-                        ToggleWorldPause();
-                    }
-                    ImGuiX::ItemTooltip( "Pause" );
-                }
-
-                // Step
-                ImGui::SameLine();
-                ImGui::BeginDisabled( !m_pGameWorld->IsPaused() );
-                if ( ImGui::Button( EE_ICON_ARROW_RIGHT_BOLD"##StepFrame", buttonSize ) )
-                {
-                    RequestWorldTimeStep();
-                }
-                ImGuiX::ItemTooltip( "Step Frame" );
-                ImGui::EndDisabled();
-
-                // Slider
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth( 100 );
-                float currentTimeScale = m_timeScale;
-                if ( ImGui::SliderFloat( "##TimeScale", &currentTimeScale, g_minTimeScaleValue, g_maxTimeScaleValue, "%.2f", ImGuiSliderFlags_NoInput ) )
-                {
-                    SetWorldTimeScale( currentTimeScale );
-                }
-                ImGuiX::ItemTooltip( "Time Scale" );
-
-                // Reset
-                ImGui::SameLine();
-                if ( ImGui::Button( EE_ICON_UNDO"##ResetTimeScale", buttonSize ) )
-                {
-                    ResetWorldTimeScale();
-                }
-                ImGuiX::ItemTooltip( "Reset TimeScale" );
-            }
-
+            DrawWorldDebugOptionsMenu( context );
             ImGui::EndMenu();
         }
-        ImGuiX::ItemTooltip( "World Time Controls" );
 
-        // Player Debug Options
-        //-------------------------------------------------------------------------
-
-        ImGuiX::SameLineSeparator( gapSize );
-
-        if ( ImGui::BeginMenu( EE_ICON_CONTROLLER_CLASSIC "##PlayerDebugOptions") )
+        if ( !m_engineMenu.IsEmpty() )
         {
-            DrawPlayerDebugOptionsMenu( context );
-            ImGui::EndMenu();
-        }
-        ImGuiX::ItemTooltip( "Player Debug Options" );
-
-        ImGuiX::SameLineSeparator( gapSize );
-
-        SystemDebugView::DrawFrameLimiterCombo( const_cast<UpdateContext&>( context ) );
-        ImGuiX::ItemTooltip( "Frame Rate Limiter" );
-
-        // Log
-        //-------------------------------------------------------------------------
-
-        ImGuiX::SameLineSeparator( gapSize );
-
-        ImGui::PushStyleColor( ImGuiCol_Text, Colors::Yellow );
-        if ( ImGuiX::FlatButton( warningsStr.c_str() ) )
-        {
-            if ( auto pSystemDebugView = FindDebugView<SystemDebugView>() )
+            if ( ImGui::BeginMenu( m_engineMenu.m_title.c_str() ) )
             {
-                pSystemDebugView->m_windows[0].m_isOpen = true;
-                pSystemDebugView->m_logView.m_showLogMessages = false;
-                pSystemDebugView->m_logView.m_showLogWarnings = true;
-                pSystemDebugView->m_logView.m_showLogErrors = false;
+                EntityWorldUpdateContext worldUpdateContext( context, m_pGameWorld );
+                m_engineMenu.Draw( worldUpdateContext );
+                ImGui::EndMenu();
             }
         }
-        ImGui::PopStyleColor();
-        ImGuiX::ItemTooltip( "Warnings" );
 
-        ImGuiX::SameLineSeparator( gapSize );
-
-        ImGui::PushStyleColor( ImGuiCol_Text, Colors::Red );
-        if ( ImGuiX::FlatButton( errorsStr.c_str() ) )
+        if ( !m_gameMenu.IsEmpty() )
         {
-            if ( auto pSystemDebugView = FindDebugView<SystemDebugView>() )
+            if ( ImGui::BeginMenu( m_gameMenu.m_title.c_str() ) )
             {
-                pSystemDebugView->m_windows[0].m_isOpen = true;
-                pSystemDebugView->m_logView.m_showLogMessages = false;
-                pSystemDebugView->m_logView.m_showLogWarnings = false;
-                pSystemDebugView->m_logView.m_showLogErrors = true;
+                EntityWorldUpdateContext worldUpdateContext( context, m_pGameWorld );
+                m_gameMenu.Draw( worldUpdateContext );
+                ImGui::EndMenu();
             }
         }
-        ImGui::PopStyleColor();
-        ImGuiX::ItemTooltip( "Errors" );
 
-        ImGuiX::SameLineSeparator( gapSize );
-
-        // Draw Performance Stats
+        // System Info
         //-------------------------------------------------------------------------
 
-        ImGui::Text( perfStatsStr.c_str() );
+        if ( !m_isInEditorMode )
+        {
+            constexpr static float const gapSize = 1;
+            constexpr static float const menuButtonSize = 35;
 
-        ImGui::SameLine();
-        ImGui::Text( memStatsStr.c_str() );
+            auto MenuSeparator = [] ()
+            {
+                ImVec2 const startPos = ImGui::GetCursorScreenPos();
+                ImGui::Dummy( ImVec2( gapSize, 0 ) );
+                ImVec2 min = startPos + ImVec2( ( gapSize / 2 ) - 1, 0 );
+                ImVec2 max = ImVec2( min.x + 2.0f, min.y + ImGui::GetFrameHeight() ); // Adjust thickness (2.0f) and height as needed
+                ImGui::GetWindowDrawList()->AddRectFilled( min, max, ImGui::GetColorU32( ImGuiCol_Separator ) );
+            };
+
+            FrameLimiterWidget const frameLimiter( menuButtonSize );
+            SystemLogSummaryWidget const logSummary;
+            PerformanceStatsWidget const perfStats( context );
+
+            ImVec2 const totalAvailableSpace = ImGui::GetContentRegionAvail();
+            float const totalWidthNeeded = frameLimiter.m_width + perfStats.m_totalSize.x + logSummary.m_size.x + ( 4 * ImGui::GetStyle().ItemSpacing.x );
+            float const startOffset = totalAvailableSpace.x - totalWidthNeeded;
+
+            ImGui::SameLine( 0, startOffset );
+            if ( logSummary.Draw() )
+            {
+                m_systemLogWidget.m_showLogWarnings = true;
+                m_systemLogWidget.m_showLogErrors = true;
+                m_showSystemLog = true;
+            }
+
+            MenuSeparator();
+            frameLimiter.Draw( const_cast<UpdateContext&>( context ) );
+
+            MenuSeparator();
+            perfStats.Draw();
+        }
     }
 
-    void EngineDebugUI::DrawOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
+    void EngineDebugUI::DrawOverlayUI( UpdateContext const& context, Viewport const* pViewport )
     {
         EE_ASSERT( context.GetUpdateStage() == UpdateStage::FrameEnd );
+
+        ImVec2 const startCursorPos = ImGui::GetCursorPos();
 
         EntityWorldUpdateContext worldUpdateContext( context, m_pGameWorld );
         for ( auto pDebugView : m_debugViews )
         {
-            pDebugView->DrawOverlayElements( worldUpdateContext );
+            ImGui::SetCursorPos( startCursorPos );
+            pDebugView->DrawOverlayUI( worldUpdateContext );
         }
 
         if ( m_debugOverlayEnabled )
         {
-            ImVec2 const guidePosition = ImGui::GetContentRegionAvail() - ( ImGuiX::OrientationGuide::GetSize() / 2 );
-            ImGuiX::OrientationGuide::Draw( guidePosition, *pViewport );
+            ImVec2 const guidePosition = startCursorPos + ImGui::GetContentRegionAvail() - ( ImGuiX::OrientationGuide::GetSize() / 2 );
+            ImGuiX::OrientationGuide::Draw( ImGui::GetWindowPos() + guidePosition, *pViewport );
         }
     }
 
@@ -634,40 +558,40 @@ namespace EE
         }
     }
 
-    void EngineDebugUI::DrawPlayerDebugOptionsMenu( UpdateContext const& context )
+    void EngineDebugUI::DrawWorldDebugOptionsMenu( UpdateContext const& context )
     {
-        auto pPlayerManager = m_pGameWorld->GetWorldSystem<PlayerManager>();
-        auto pCameraManager = m_pGameWorld->GetWorldSystem<CameraManager>();
+        auto pGameInputSystem = m_pGameWorld->GetWorldSystem<Input::GameInputSystem>();
+        auto pCameraSystem = m_pGameWorld->GetWorldSystem<CameraSystem>();
 
-        bool const hasValidPlayer = pPlayerManager->HasPlayer();
+        ImGui::SeparatorText( "Time Controls" );
+
+        EntityWorldTimeControlsWidget timeControlsWidget( m_pGameWorld );
+        timeControlsWidget.Draw();
 
         //-------------------------------------------------------------------------
 
-        ImGui::BeginDisabled( !hasValidPlayer );
+        ImGui::SeparatorText( "Input" );
 
-        bool isControllerEnabled = hasValidPlayer ? pPlayerManager->IsPlayerEnabled() : false;
-        if ( ImGui::Checkbox( EE_ICON_MICROSOFT_XBOX_CONTROLLER " Enable Player Controller", &isControllerEnabled ) )
+        bool isGameInputEnabled = pGameInputSystem->IsGameInputEnabled();
+        if ( ImGui::Checkbox( EE_ICON_MICROSOFT_XBOX_CONTROLLER " Enable Game Input", &isGameInputEnabled ) )
         {
-            pPlayerManager->SetPlayerControllerState( isControllerEnabled );
+            pGameInputSystem->SetGameInputEnabled( isGameInputEnabled );
         }
 
-        //-------------------------------------------------------------------------
+        ImGui::SeparatorText( "Camera" );
 
-        bool isDebugCameraEnabled = pCameraManager->IsDebugCameraEnabled();
-        if ( ImGui::Checkbox( EE_ICON_CCTV " Enable Debug Camera", &isDebugCameraEnabled ) )
+        bool isDebugCameraEnabled = pCameraSystem->IsToolsCameraEnabled();
+        if ( ImGui::Checkbox( EE_ICON_VIDEO_BOX" Enable Debug Camera", &isDebugCameraEnabled ) )
         {
             if ( isDebugCameraEnabled )
             {
-                CameraComponent const* pPlayerCamera = pPlayerManager->GetPlayerCamera();
-                pCameraManager->EnableDebugCamera( pPlayerCamera->GetPosition(), pPlayerCamera->GetForwardVector() );
+                pCameraSystem->EnableToolsCamera();
             }
             else
             {
-                pCameraManager->DisableDebugCamera();
+                pCameraSystem->DisableToolsCamera();
             }
         }
-
-        ImGui::EndDisabled();
     }
 
     //-------------------------------------------------------------------------
@@ -681,7 +605,7 @@ namespace EE
         // Enable/disable debug overlay
         //-------------------------------------------------------------------------
 
-        if ( !m_isInEditorPreviewMode )
+        if ( !m_isInEditorMode )
         {
             if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_Tilde ) )
             {
@@ -694,63 +618,25 @@ namespace EE
 
         if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_Pause ) )
         {
-            ToggleWorldPause();
+            m_pGameWorld->IsPaused() ? m_pGameWorld->Unpause() : m_pGameWorld->Pause();
         }
 
         if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_PageUp ) )
         {
-            SetWorldTimeScale( m_timeScale + 0.1f );
+            m_pGameWorld->SetTimeScale( m_pGameWorld->GetTimeScale() + 0.1f );
         }
 
         if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_PageDown ) )
         {
-            SetWorldTimeScale( m_timeScale - 0.1f );
+            m_pGameWorld->SetTimeScale( Math::Max( 0.1f, m_pGameWorld->GetTimeScale() - 0.1f ) );
         }
 
         if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_Home ) )
         {
-            ResetWorldTimeScale();
+            m_pGameWorld->SetTimeScale( 0.0f );
         }
 
         if ( pKeyboardMouse->WasReleased( Input::InputID::Keyboard_End ) )
-        {
-            RequestWorldTimeStep();
-        }
-    }
-
-    void EngineDebugUI::ToggleWorldPause()
-    {
-        // Unpause
-        if ( m_pGameWorld->IsPaused() )
-        {
-            m_pGameWorld->SetTimeScale( m_timeScale );
-        }
-        else // Pause
-        {
-            m_timeScale = m_pGameWorld->GetTimeScale();
-            m_pGameWorld->SetTimeScale( -1.0f );
-        }
-    }
-
-    void EngineDebugUI::SetWorldTimeScale( float newTimeScale )
-    {
-        m_timeScale = Math::Clamp( newTimeScale, g_minTimeScaleValue, g_maxTimeScaleValue );
-        m_pGameWorld->SetTimeScale( m_timeScale );
-    }
-
-    void EngineDebugUI::ResetWorldTimeScale()
-    {
-        m_timeScale = 1.0f;
-
-        if ( !m_pGameWorld->IsPaused() )
-        {
-            m_pGameWorld->SetTimeScale( m_timeScale );
-        }
-    }
-
-    void EngineDebugUI::RequestWorldTimeStep()
-    {
-        if ( m_pGameWorld->IsPaused() )
         {
             m_pGameWorld->RequestTimeStep();
         }

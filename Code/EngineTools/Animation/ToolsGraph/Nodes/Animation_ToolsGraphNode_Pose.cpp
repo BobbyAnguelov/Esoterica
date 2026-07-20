@@ -39,10 +39,10 @@ namespace EE::Animation
     AnimationPoseToolsNode::AnimationPoseToolsNode()
         : VariationDataToolsNode()
     {
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
+
         CreateOutputPin( "Pose", GraphValueType::Pose );
         CreateInputPin( "Time", GraphValueType::Float );
-
-        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
     }
 
     int16_t AnimationPoseToolsNode::Compile( GraphCompilationContext& context ) const
@@ -70,7 +70,7 @@ namespace EE::Animation
             auto pData = GetResolvedVariationDataAs<Data>( context.GetVariationHierarchy(), context.GetVariationID() );
             pDefinition->m_dataSlotIdx = context.RegisterResource( pData->m_animClip.GetResourceID() );
             pDefinition->m_inputTimeRemapRange = m_inputTimeRemapRange;
-            pDefinition->m_userSpecifiedTime = m_fixedTimeValue;
+            pDefinition->m_userSpecifiedTime = ( pData->m_variationTimeValue >= 0 ) ? pData->m_variationTimeValue : m_fixedTimeValue;
             pDefinition->m_useFramesAsInput = m_useFramesAsInput;
         }
         return pDefinition->m_nodeIdx;
@@ -80,15 +80,28 @@ namespace EE::Animation
     {
         if ( GetConnectedInputNode( 0 ) == nullptr )
         {
+            auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+            auto pVariationData = GetResolvedVariationDataAs<Data>( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
+            float const userSpecifiedTime = ( pVariationData->m_variationTimeValue >= 0 ) ? pVariationData->m_variationTimeValue : m_fixedTimeValue;
+
             BeginDrawInternalRegion( ctx );
             if ( m_useFramesAsInput )
             {
-                ImGui::Text( "Frame: %2.f", m_fixedTimeValue );
+                ImGui::Text( "Frame: %2.f", userSpecifiedTime );
             }
             else
             {
-                ImGui::Text( "Time: %2.f", m_fixedTimeValue );
+                ImGui::Text( "Time: %2.f", userSpecifiedTime );
             }
+
+            //-------------------------------------------------------------------------
+
+            bool bIsTimeOverridenByVariation = ( pVariationData->m_variationTimeValue >= 0 );
+            if ( bIsTimeOverridenByVariation )
+            {
+                ImGui::TextColored( Colors::Orange.ToFloat4(), "Overridden by Variation" );
+            }
+
             EndDrawInternalRegion( ctx );
         }
 

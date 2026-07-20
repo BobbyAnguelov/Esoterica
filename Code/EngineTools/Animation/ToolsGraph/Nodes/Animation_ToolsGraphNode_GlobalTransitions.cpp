@@ -9,7 +9,7 @@ namespace EE::Animation
     GlobalTransitionConduitToolsNode::GlobalTransitionConduitToolsNode()
         : NodeGraph::StateMachineNode()
     {
-        CreateSecondaryGraph<FlowGraph>( GraphType::ValueTree );
+        CreateSecondaryGraph<FlowGraph>( GraphType::GlobalTransitionConduit );
         UpdateTransitionNodes();
     }
 
@@ -87,7 +87,7 @@ namespace EE::Animation
         // Add new transitions
         //-------------------------------------------------------------------------
 
-        ImVec2 offsetStep( 20, 20 );
+        ImVec2 offsetStep( 0, 100 );
         ImVec2 offset = offsetStep;
 
         for ( auto pState : transitionsToCreate )

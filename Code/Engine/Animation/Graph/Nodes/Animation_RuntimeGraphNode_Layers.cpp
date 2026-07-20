@@ -1,6 +1,5 @@
 #include "Animation_RuntimeGraphNode_Layers.h"
 #include "Animation_RuntimeGraphNode_StateMachine.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_LayerData.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
@@ -51,9 +50,9 @@ namespace EE::Animation
 
         // Check if we have layer initialization data for this node
         GraphLayerUpdateState const* pLayerInitializationData = nullptr;
-        if ( context.m_pLayerInitializationInfo != nullptr )
+        if ( context.m_pInitializationTimeInfo != nullptr )
         {
-            for ( auto const& li : *context.m_pLayerInitializationInfo )
+            for ( auto const& li : context.m_pInitializationTimeInfo->m_layerTimes )
             {
                 if ( li.m_nodeIdx == GetNodeIndex() )
                 {
@@ -174,7 +173,15 @@ namespace EE::Animation
             // We need to register a task at the base layer in all cases - since we blend the layers tasks on top of it
             if ( !result.HasRegisteredTasks() )
             {
-                result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::ReferencePoseTask>( GetNodeIndex() );
+                bool const isInAdditiveLayer = ( context.m_pLayerContext != nullptr ) && context.m_pLayerContext->m_isAdditive;
+                if ( isInAdditiveLayer )
+                {
+                    result.m_taskIdx = context.GetTaskSystem()->RegisterTask<ZeroPoseTask>( GetNodePath( context ) );
+                }
+                else
+                {
+                    result.m_taskIdx = context.GetTaskSystem()->RegisterTask<ReferencePoseTask>( GetNodePath( context ) );
+                }
             }
 
             UpdateLayers( context, result );
@@ -202,9 +209,10 @@ namespace EE::Animation
         // If we are currently in a higher-level layer then cache it so that we can safely overwrite it
         //-------------------------------------------------------------------------
 
+        GraphLayerContext* pPreviousContext = nullptr;
         if ( context.IsInLayer() )
         {
-            m_pPreviousContext = context.m_pLayerContext;
+            pPreviousContext = context.m_pLayerContext;
         }
 
         // Handle layers
@@ -217,13 +225,15 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             GraphLayerContext layerContext;
+            layerContext.m_isAdditive = ( pDefinition->m_layerDefinition[i].m_blendMode == PoseBlendMode::Additive );
+
             context.m_pLayerContext = &layerContext;
 
             // Update layer
             //-------------------------------------------------------------------------
 
             // Record the current state of the registered tasks
-            auto const taskMarker = context.m_pTaskSystem->GetCurrentTaskIndexMarker();
+            auto const taskMarker = context.GetTaskSystem()->GetCurrentTaskIndexMarker();
 
             // Record the current state of the root motion debugger
             #if EE_DEVELOPMENT_TOOLS
@@ -237,7 +247,7 @@ namespace EE::Animation
                 // Layer Weight
                 if ( m_layers[i].m_pWeightValueNode != nullptr )
                 {
-                    context.m_pLayerContext->m_layerWeight = m_layers[i].m_pWeightValueNode->GetValue<float>( context );
+                    context.m_pLayerContext->m_layerWeight = Math::Clamp( m_layers[i].m_pWeightValueNode->GetValue<float>( context ), 0.0f, 1.0f );
                 }
 
                 // Root Motion
@@ -281,7 +291,7 @@ namespace EE::Animation
             if ( layerResult.HasRegisteredTasks() )
             {
                 // Create a blend task if the layer is enabled
-                if ( m_layers[i].m_weight > 0 )
+                if ( m_layers[i].m_weight > Math::LargeEpsilon )
                 {
                     PoseBlendMode poseBlendMode = pDefinition->m_layerDefinition[i].m_blendMode;
 
@@ -300,19 +310,19 @@ namespace EE::Animation
                     {
                         case PoseBlendMode::Overlay:
                         {
-                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::OverlayBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_pLayerContext->m_layerMaskTaskList );
+                            nodeResult.m_taskIdx = context.GetTaskSystem()->RegisterTask<OverlayBlendTask>( GetNodePath( context ), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_pLayerContext->m_layerMaskTaskList );
                         }
                         break;
 
                         case PoseBlendMode::Additive:
                         {
-                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::AdditiveBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_pLayerContext->m_layerMaskTaskList );
+                            nodeResult.m_taskIdx = context.GetTaskSystem()->RegisterTask<AdditiveBlendTask>( GetNodePath( context ), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, &context.m_pLayerContext->m_layerMaskTaskList );
                         }
                         break;
 
                         case PoseBlendMode::ModelSpace:
                         {
-                            nodeResult.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::GlobalBlendTask>( GetNodeIndex(), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, context.m_pLayerContext->m_layerMaskTaskList );
+                            nodeResult.m_taskIdx = context.GetTaskSystem()->RegisterTask<ModelSpaceBlendTask>( GetNodePath( context ), nodeResult.m_taskIdx, layerResult.m_taskIdx, m_layers[i].m_weight, context.m_pLayerContext->m_layerMaskTaskList );
                         }
                         break;
                     }
@@ -326,7 +336,7 @@ namespace EE::Animation
 
                         #if EE_DEVELOPMENT_TOOLS
                         rootMotionActionIdxLayer = pRootMotionDebugger->GetLastActionIndex();
-                        pRootMotionDebugger->RecordBlend( GetNodeIndex(), rootMotionActionIdxCurrentBase, rootMotionActionIdxLayer, nodeResult.m_rootMotionDelta );
+                        pRootMotionDebugger->RecordBlend( GetNodePath( context ), rootMotionActionIdxCurrentBase, rootMotionActionIdxLayer, nodeResult.m_rootMotionDelta );
                         rootMotionActionIdxCurrentBase = pRootMotionDebugger->GetLastActionIndex();
                         #endif
                     }
@@ -341,11 +351,10 @@ namespace EE::Animation
                 else // Layer is off
                 {
                     // Flag all events as ignored
-                    context.m_pSampledEventsBuffer->MarkEventsAsIgnored( layerResult.m_sampledEventRange );
+                    context.GetSampledEventsBuffer()->MarkEventsAsIgnored( layerResult.m_sampledEventRange );
 
                     // Remove any registered pose tasks
-                    EE_ASSERT( pDefinition->m_layerDefinition[i].m_isStateMachineLayer ); // Cannot occur for local layers
-                    context.m_pTaskSystem->RollbackToTaskIndexMarker( taskMarker );
+                    context.GetTaskSystem()->RollbackToTaskIndexMarker( taskMarker );
 
                     // Remove any root motion debug records
                     #if EE_DEVELOPMENT_TOOLS
@@ -362,12 +371,12 @@ namespace EE::Animation
             if ( numLayerEvents > 0 )
             {
                 // Update events
-                context.m_pSampledEventsBuffer->UpdateWeights( layerEventRange, m_layers[i].m_weight );
+                context.GetSampledEventsBuffer()->UpdateWeights( layerEventRange, m_layers[i].m_weight );
 
                 // Mark events as ignored if requested
                 if ( pDefinition->m_layerDefinition[i].m_ignoreEvents )
                 {
-                    context.m_pSampledEventsBuffer->MarkEventsAsIgnored( layerEventRange );
+                    context.GetSampledEventsBuffer()->MarkEventsAsIgnored( layerEventRange );
                 }
 
                 // Merge layer sampled event into the layer's nodes range
@@ -393,24 +402,13 @@ namespace EE::Animation
         // Restore previous context if it existed
         //-------------------------------------------------------------------------
 
-        if ( m_pPreviousContext )
+        if ( pPreviousContext != nullptr )
         {
-            context.m_pLayerContext = m_pPreviousContext;
+            context.m_pLayerContext = pPreviousContext;
         }
     }
 
     //-------------------------------------------------------------------------
-
-    #if EE_DEVELOPMENT_TOOLS
-    void LayerBlendNode::RecordGraphState( RecordedGraphState& outState )
-    {
-        PoseNode::RecordGraphState( outState );
-    }
-
-    void LayerBlendNode::RestoreGraphState( RecordedGraphState const& inState )
-    {
-        PoseNode::RestoreGraphState( inState );
-    }
 
     void LayerBlendNode::GetSyncUpdateRangesForUnsynchronizedLayers( TInlineVector<GraphLayerSyncInfo, 5>& outLayerSyncInfos ) const
     {
@@ -418,6 +416,11 @@ namespace EE::Animation
         int8_t const numLayers = (int8_t) m_layers.size();
         for ( int8_t i = 0; i < numLayers; i++ )
         {
+            if ( !m_layers[i].m_pInputNode->IsValid() )
+            {
+                continue;
+            }
+
             if ( m_layers[i].m_weight > 0.0f && !pDefinition->m_layerDefinition[i].m_isSynchronized )
             {
                 auto const& layerSyncTrack = m_layers[i].m_pInputNode->GetSyncTrack();
@@ -430,5 +433,4 @@ namespace EE::Animation
             }
         }
     }
-    #endif
 }

@@ -5,20 +5,21 @@
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_VariationData.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_StateMachine.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_State.h"
-#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_ReferencedGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_BoneMasks.h"
+#include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_InternalGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode_ExternalGraph.h"
 #include "EngineTools/Animation/ToolsGraph/Graphs/Animation_ToolsGraph_StateMachineGraph.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationSkeleton.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
 #include "EngineTools/PropertyGrid/PropertyGridEditor.h"
 #include "EngineTools/PropertyGrid/PropertyGridTypeEditingRules.h"
-#include "EngineTools/Core/Dialogs.h"
-#include "Engine/Camera/Components/Component_DebugCamera.h"
-#include "Engine/Animation/DebugViews/DebugView_Animation.h"
+#include "EngineTools/Core/SystemDialogs.h"
+#include "EngineTools/Core/DialogManager.h"
+#include "Engine/Animation/Debug/DebugView_Animation.h"
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
 #include "Engine/Animation/Systems/EntitySystem_Animation.h"
 #include "Engine/Animation/Systems/WorldSystem_Animation.h"
+#include "Engine/Animation/AnimationClip.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
@@ -338,10 +339,8 @@ namespace EE::Animation
             // Basic Editor
             //-------------------------------------------------------------------------
 
-            constexpr static float const buttonWidth = 28;
-
             ImGui::BeginDisabled( m_showAdvancedEditor );
-            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - buttonWidth - ImGui::GetStyle().ItemSpacing.x );
+            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ImGuiX::Style::s_iconButtonWidth - ImGui::GetStyle().ItemSpacing.x );
             if ( ImGui::InputFloat3( "##vp", &parameterValue.m_x ) )
             {
                 GetGraphInstance()->SetControlParameterValue( parameterIdx, Vector( parameterValue ) );
@@ -352,7 +351,7 @@ namespace EE::Animation
 
             ImGui::BeginDisabled( isLiveDebug );
             Color const buttonColor = m_showAdvancedEditor ? Colors::Green : ImGuiX::Style::s_colorGray1;
-            if ( ImGuiX::ButtonColored( EE_ICON_COG, buttonColor, Colors::White, ImVec2( buttonWidth, 0 ) ) )
+            if ( ImGuiX::ButtonColored( EE_ICON_COG, buttonColor, Colors::White, ImVec2( ImGuiX::Style::s_iconButtonWidth, 0 ) ) )
             {
                 m_showAdvancedEditor = !m_showAdvancedEditor;
                 m_maxLength = 1.0f;
@@ -624,7 +623,7 @@ namespace EE::Animation
         ControlMode     m_controlMode = ControlMode::Mouse;
         bool            m_isEditingValueWithMouse = false;
         bool            m_invertAxisX = true;
-        bool            m_invertAxisY = true;
+        bool            m_invertAxisY = false;
     };
 
     //-------------------------------------------------------------------------
@@ -893,13 +892,13 @@ namespace EE::Animation
 
             case DebugTargetType::ReferencedGraph:
             {
-                return m_pComponentToDebug != nullptr && m_referencedGraphID.IsValid();
+                return m_pComponentToDebug != nullptr && m_graphInstanceID.IsValid();
             }
             break;
 
             case DebugTargetType::ExternalGraph:
             {
-                return m_pComponentToDebug != nullptr && m_externalSlotID.IsValid();
+                return m_pComponentToDebug != nullptr && m_graphInstanceID.IsValid() && m_externalSlotID.IsValid();
             }
             break;
 
@@ -975,7 +974,7 @@ namespace EE::Animation
         m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
         m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
         m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowCoordinateSpaceSwitching, false );
-        m_gizmo.SetMode( ImGuiX::Gizmo::GizmoMode::Translation );
+        m_gizmo.SetMode( ImGuiX::Gizmo::Mode::Translation );
 
         // Create main graph data storage
         //-------------------------------------------------------------------------
@@ -1009,7 +1008,7 @@ namespace EE::Animation
 
         m_nodeDoubleClickedEventBindingID = m_userContext.OnNodeDoubleClicked().Bind( [this] ( NodeGraph::BaseNode* pNode ) { NodeDoubleClicked( pNode ); } );
         m_graphDoubleClickedEventBindingID = m_userContext.OnGraphDoubleClicked().Bind( [this] ( NodeGraph::BaseGraph* pGraph ) { GraphDoubleClicked( pGraph ); } );
-        m_postPasteNodesEventBindingID = m_userContext.OnPostPasteNodes().Bind( [this] ( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes ) { PostPasteNodes( pastedNodes ); } );
+        m_postPasteNodesEventBindingID = m_userContext.OnPostPasteNodes().Bind( [this] ( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes, THashMap<UUID, UUID> const& IDMapping ) { PostPasteNodes( pastedNodes, IDMapping ); } );
         m_resourceOpenRequestEventBindingID = m_userContext.OnRequestOpenResource().Bind( [this] ( ResourceID const& resourceID ) { m_pToolsContext->TryOpenResource( resourceID ); } );
         m_navigateToNodeEventBindingID = m_userContext.OnNavigateToNode().Bind( [this] ( NodeGraph::BaseNode* pNode ) { NavigateTo( pNode ); } );
         m_navigateToGraphEventBindingID = m_userContext.OnNavigateToGraph().Bind( [this] ( NodeGraph::BaseGraph* pGraph ) { NavigateTo( pGraph ); } );
@@ -1081,14 +1080,14 @@ namespace EE::Animation
 
         auto OnGlobalGraphEdited = [this]( ResourceID const& editedGraph )
         {
-            if ( m_graphRecorder.HasRecordedDataForGraph( editedGraph ) )
+            if ( m_graphRecording.HasRecordedDataForGraph( editedGraph ) )
             {
                 if ( m_debugMode == DebugMode::ReviewRecording )
                 {
-                    StopDebugging();
+                    StopPreview();
                 }
 
-                m_graphRecorder.Reset();
+                m_graphRecording.Reset();
             }
         };
 
@@ -1108,7 +1107,7 @@ namespace EE::Animation
         HideDataFileWindow();
     }
 
-    void AnimationGraphEditor::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
+    void AnimationGraphEditor::SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
         ImGuiID topLeftDockID = 0, bottomLeftDockID = 0, centerDockID = 0, rightDockID = 0, bottomRightDockID;
 
@@ -1118,7 +1117,6 @@ namespace EE::Animation
         ImGui::DockBuilderSplitNode( rightDockID, ImGuiDir_Down, 0.66f, &bottomRightDockID, &rightDockID );
 
         // Dock windows
-        ImGui::DockBuilderDockWindow( GetToolWindowName( s_viewportWindowName ).c_str(), rightDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Debugger" ).c_str(), bottomRightDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Outliner" ).c_str(), topLeftDockID );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Control Parameters" ).c_str(), topLeftDockID );
@@ -1133,7 +1131,7 @@ namespace EE::Animation
     {
         if ( IsDebugging() )
         {
-            StopDebugging();
+            StopPreview();
         }
 
         if ( !m_previewParameterStates.empty() )
@@ -1196,7 +1194,7 @@ namespace EE::Animation
             // Reflect debug options
             if ( m_pDebugGraphComponent->IsInitialized() )
             {
-                auto drawingContext = updateContext.GetDrawingContext();
+                auto drawingContext = updateContext.GetDebugDrawContext();
                 m_pDebugGraphComponent->SetGraphDebugMode( m_graphDebugMode );
                 m_pDebugGraphComponent->SetRootMotionDebugMode( m_rootMotionDebugMode );
                 m_pDebugGraphComponent->SetTaskSystemDebugMode( m_taskSystemDebugMode );
@@ -1214,10 +1212,10 @@ namespace EE::Animation
             {
                 if ( m_pDebugGraphComponent->HasGraphInstance() )
                 {
-                    auto drawContext = GetDrawingContext();
+                    auto drawContext = GetDebugDrawContext();
                     Transform capsuleTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
                     capsuleTransform.AddTranslation( capsuleTransform.GetAxisZ() * ( m_previewCapsuleHalfHeight + m_previewCapsuleRadius ) );
-                    drawContext.DrawCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
+                    drawContext.DrawWireCapsule( capsuleTransform, m_previewCapsuleRadius, m_previewCapsuleHalfHeight, Colors::LimeGreen, 3.0f );
                 }
             }
         }
@@ -1261,7 +1259,7 @@ namespace EE::Animation
 
         if ( isFocused )
         {
-            if ( !m_dialogManager.HasActiveModalDialog() )
+            if ( !m_pToolsContext->m_pDialogManager->HasActiveModalDialog() )
             {
                 if ( ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_G ) ) || ( ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed( ImGuiKey_F ) ) )
                 {
@@ -1291,31 +1289,6 @@ namespace EE::Animation
             }
         }
 
-        // Debug Request
-        //-------------------------------------------------------------------------
-
-        if ( m_requestedDebugTarget.IsValid() )
-        {
-            if ( !IsHotReloading() && !IsLoadingResources() )
-            {
-                if ( m_requestedDebugTarget.m_pComponentToDebug != nullptr )
-                {
-                    if ( m_requestedDebugTarget.m_pComponentToDebug->HasGraphInstance() )
-                    {
-                        StartDebugging( context );
-                    }
-                }
-                else
-                {
-                    StartDebugging( context );
-                }
-            }
-            else
-            {
-                EE_TRACE_MSG( "Waiting to start debug!" );
-            }
-        }
-
         // Debugging
         //-------------------------------------------------------------------------
 
@@ -1323,12 +1296,7 @@ namespace EE::Animation
         {
             if ( m_previewGraphDefinitionPtr.HasLoadingFailed() )
             {
-                StopDebugging();
-                return;
-            }
-
-            if ( !m_pDebugGraphComponent->IsInitialized() )
-            {
+                StopPreview();
                 return;
             }
 
@@ -1336,6 +1304,11 @@ namespace EE::Animation
 
             if ( IsPreviewOrReview() )
             {
+                if ( !m_pDebugGraphComponent->IsInitialized() )
+                {
+                    return;
+                }
+
                 if ( m_isFirstPreviewFrame )
                 {
                     // We need to set the graph instance here since it was not available when we started the debug session
@@ -1343,15 +1316,31 @@ namespace EE::Animation
                     m_pDebugGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
                     if ( !GenerateGraphStackDebugData() )
                     {
-                        StopDebugging();
+                        StopPreview();
                     }
 
                     UpdateUserContext();
 
                     if ( IsReviewingRecording() )
                     {
+                        TInlineVector<GraphDefinition const*, 2> externalGraphDefs;
+                        TInlineVector<AnimationClip const*, 2> externalClips;
+                        for ( auto const& previewResourcePtr : GetPreviewResources() )
+                        {
+                            if ( previewResourcePtr.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() )
+                            {
+                                externalGraphDefs.emplace_back( previewResourcePtr.GetPtr<GraphDefinition>() );
+                            }
+
+                            if ( previewResourcePtr.GetResourceTypeID() == AnimationClip::GetStaticResourceTypeID() )
+                            {
+                                externalClips.emplace_back( previewResourcePtr.GetPtr<AnimationClip>() );
+                            }
+                        }
+
+                        m_graphRecordingPlayer.StartPlayback( m_pDebugGraphInstance, externalGraphDefs, externalClips, &m_graphRecording );
                         m_reviewStarted = true;
-                        SetFrameToReview( 0 );
+                        SetUpdateToReview( 0 );
                     }
                     else if ( IsPreviewing() )
                     {
@@ -1373,24 +1362,24 @@ namespace EE::Animation
             else if ( IsLiveDebugging() )
             {
                 // Check if the entity we are debugging still exists
-                auto pDebuggedEntity = m_pToolsContext->TryFindEntityInAllWorlds( m_debuggedEntityID );
-                if ( pDebuggedEntity == nullptr )
+                auto const lookupResult = m_pToolsContext->TryFindEntityInAllWorlds( m_debuggedEntityID );
+                if ( !lookupResult.IsValid() )
                 {
-                    StopDebugging();
+                    StopPreview();
                     return;
                 }
 
                 // Check that the component still exists on the entity
-                if ( pDebuggedEntity->FindComponent( m_debuggedComponentID ) == nullptr )
+                if ( lookupResult.m_pEntity->FindComponent( m_debuggedComponentID ) == nullptr )
                 {
-                    StopDebugging();
+                    StopPreview();
                     return;
                 }
 
                 // Ensure we still have a valid graph instance
                 if ( !m_pDebugGraphComponent->HasGraphInstance() )
                 {
-                    StopDebugging();
+                    StopPreview();
                     return;
                 }
 
@@ -1400,7 +1389,7 @@ namespace EE::Animation
                     EE_ASSERT( m_pDebugGraphInstance != nullptr );
                     if ( !GenerateGraphStackDebugData() )
                     {
-                        StopDebugging();
+                        StopPreview();
                     }
 
                     UpdateUserContext();
@@ -1412,7 +1401,7 @@ namespace EE::Animation
                 {
                     if ( !m_pDebugGraphComponent->GetDebugGraphInstance()->IsExternalGraphSlotFilled( m_debugExternalGraphSlotID ) )
                     {
-                        StopDebugging();
+                        StopPreview();
                         return;
                     }
                 }
@@ -1425,13 +1414,6 @@ namespace EE::Animation
         DataFileEditor::DrawMenu( context );
 
         ImGui::Separator();
-
-        // Variation Selector
-        //-------------------------------------------------------------------------
-
-        ImGui::Text( "Variation: " );
-        ImGui::SameLine();
-        DrawVariationSelector( 150 );
 
         // Editing Tools
         //-------------------------------------------------------------------------
@@ -1467,209 +1449,157 @@ namespace EE::Animation
         if ( ImGui::BeginMenu( EE_ICON_TUNE" Options" ) )
         {
             bool isUsingLowLOD = m_skeletonLOD == Skeleton::LOD::Low;
-            if ( ImGui::Checkbox( "Use Low Skeleton LOD (for preview)", &isUsingLowLOD ) )
+            if ( ImGui::MenuItem( "Use Low Skeleton LOD (for preview)", nullptr, &isUsingLowLOD ) )
             {
                 m_skeletonLOD = isUsingLowLOD ? Skeleton::LOD::Low : Skeleton::LOD::High;
             }
 
-            if ( ImGui::Checkbox( "Show Runtime Node Indices", &m_userContext.m_showRuntimeIndices ) )
+            if ( ImGui::MenuItem( "Show Runtime Node Indices", nullptr, &m_userContext.m_showRuntimeIndices ) )
             {
                 m_skeletonLOD = isUsingLowLOD ? Skeleton::LOD::Low : Skeleton::LOD::High;
             }
 
             ImGui::EndMenu();
         }
+    }
+
+    void AnimationGraphEditor::DrawToolbar( UpdateContext const& context )
+    {
+        float availableWidth = ImGui::GetContentRegionAvail().x;
+
+        // Variations
+        //-------------------------------------------------------------------------
+
+        static float const variationSelectorWidth = 250;
+        ImGui::AlignTextToFramePadding();
+        DrawVariationSelector( variationSelectorWidth );
+
+        // Preview 
+        //-------------------------------------------------------------------------
+
+        DrawDebugMenuControls( context, availableWidth );
 
         // Live Debug
         //-------------------------------------------------------------------------
 
-        if ( IsLiveDebugging() )
+        float const liveDebugButtonWidth = 250;
+        ImGui::SameLine( availableWidth - liveDebugButtonWidth, 0.0f );
+
+        ImGui::SetNextItemWidth( liveDebugButtonWidth );
+        ImGui::BeginDisabled( IsDebugging() );
+        if ( ImGui::BeginCombo( "##LiveDebug", EE_ICON_POWER_PLUG_OUTLINE" Live Debug" ) )
         {
-            if ( ImGuiX::FlatIconButton( EE_ICON_POWER_PLUG_OFF_OUTLINE, "Stop Live Debug", Colors::Red, ImVec2( 0, 0 ) ) )
-            {
-                StopDebugging();
-            }
+            DrawLiveDebugTargetsMenu( context );
+            ImGui::EndCombo();
         }
-        else
-        {
-            ImGui::BeginDisabled( IsDebugging() );
-            if ( ImGui::BeginMenu( EE_ICON_POWER_PLUG_OUTLINE" Live Debug" ) )
-            {
-                DrawLiveDebugTargetsMenu( context );
-                ImGui::EndMenu();
-            }
-            ImGui::EndDisabled();
-        }
+        ImGui::EndDisabled();
     }
 
-    void AnimationGraphEditor::DrawViewportToolbar( UpdateContext const& context, Render::Viewport const* pViewport )
+    bool AnimationGraphEditor::ExtendViewportToolBar_VisualizationControls( UpdateContext const& context, Viewport* pViewport )
     {
-        DataFileEditor::DrawViewportToolbar( context, pViewport );
+        ImGui::SeparatorText( "Graph Debug" );
 
-        // Debug Options
-        //-------------------------------------------------------------------------
-
-        auto DrawDebugOptions = [this] ()
+        bool isGraphDebugEnabled = ( m_graphDebugMode == GraphDebugMode::On );
+        if ( ImGui::Checkbox( "Enable Graph Debug", &isGraphDebugEnabled ) )
         {
-            ImGui::SeparatorText( "Graph Debug" );
-
-            bool isGraphDebugEnabled = ( m_graphDebugMode == GraphDebugMode::On );
-            if ( ImGui::Checkbox( "Enable Graph Debug", &isGraphDebugEnabled ) )
-            {
-                m_graphDebugMode = isGraphDebugEnabled ? GraphDebugMode::On : GraphDebugMode::Off;
-            }
-
-            ImGui::SeparatorText( "Root Motion Debug" );
-
-            bool const isRootVisualizationOff = m_rootMotionDebugMode == RootMotionDebugMode::Off;
-            if ( ImGui::RadioButton( "No Visualization##Root", isRootVisualizationOff ) )
-            {
-                m_rootMotionDebugMode = RootMotionDebugMode::Off;
-            }
-
-            bool const isRootVisualizationOn = m_rootMotionDebugMode == RootMotionDebugMode::DrawRoot;
-            if ( ImGui::RadioButton( "Draw Root", isRootVisualizationOn ) )
-            {
-                m_rootMotionDebugMode = RootMotionDebugMode::DrawRoot;
-            }
-
-            bool const isRootMotionRecordingEnabled = m_rootMotionDebugMode == RootMotionDebugMode::DrawRecordedRootMotion;
-            if ( ImGui::RadioButton( "Draw Recorded Root Motion", isRootMotionRecordingEnabled ) )
-            {
-                m_rootMotionDebugMode = RootMotionDebugMode::DrawRecordedRootMotion;
-            }
-
-            bool const isAdvancedRootMotionRecordingEnabled = m_rootMotionDebugMode == RootMotionDebugMode::DrawRecordedRootMotionAdvanced;
-            if ( ImGui::RadioButton( "Draw Advanced Recorded Root Motion", isAdvancedRootMotionRecordingEnabled ) )
-            {
-                m_rootMotionDebugMode = RootMotionDebugMode::DrawRecordedRootMotionAdvanced;
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::SeparatorText( "Pose Debug" );
-
-            bool const isVisualizationOff = m_taskSystemDebugMode == TaskSystemDebugMode::Off;
-            if ( ImGui::RadioButton( "No Visualization##Tasks", isVisualizationOff ) )
-            {
-                m_taskSystemDebugMode = TaskSystemDebugMode::Off;
-            }
-
-            bool const isFinalPoseEnabled = m_taskSystemDebugMode == TaskSystemDebugMode::FinalPose;
-            if ( ImGui::RadioButton( "Final Pose", isFinalPoseEnabled ) )
-            {
-                m_taskSystemDebugMode = TaskSystemDebugMode::FinalPose;
-            }
-
-            bool const isPoseTreeEnabled = m_taskSystemDebugMode == TaskSystemDebugMode::PoseTree;
-            if ( ImGui::RadioButton( "Pose Tree", isPoseTreeEnabled ) )
-            {
-                m_taskSystemDebugMode = TaskSystemDebugMode::PoseTree;
-            }
-
-            bool const isDetailedPoseTreeEnabled = m_taskSystemDebugMode == TaskSystemDebugMode::DetailedPoseTree;
-            if ( ImGui::RadioButton( "Detailed Pose Tree", isDetailedPoseTreeEnabled ) )
-            {
-                m_taskSystemDebugMode = TaskSystemDebugMode::DetailedPoseTree;
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::SeparatorText( "Capsule Debug" );
-
-            ImGui::Checkbox( "Show Preview Capsule", &m_showPreviewCapsule );
-
-            ImGui::Text( "Half-Height" );
-            ImGui::SameLine( 90 );
-            if ( ImGui::InputFloat( "##HH", &m_previewCapsuleHalfHeight, 0.05f ) )
-            {
-                m_previewCapsuleHalfHeight = Math::Clamp( m_previewCapsuleHalfHeight, 0.05f, 10.0f );
-            }
-
-            ImGui::Text( "Radius" );
-            ImGui::SameLine( 90 );
-            if ( ImGui::InputFloat( "##R", &m_previewCapsuleRadius, 0.01f ) )
-            {
-                m_previewCapsuleRadius = Math::Clamp( m_previewCapsuleRadius, 0.01f, 5.0f );
-            }
-        };
-
-        ImGui::SameLine();
-        DrawViewportToolbarComboIcon( "##DebugOptions", EE_ICON_BUG_CHECK, "Debug Options", DrawDebugOptions );
-
-        // Preview Controls
-        //-------------------------------------------------------------------------
-
-        ImGuiX::ScopedFont const sf( ImGuiX::Font::MediumBold );
-        ImGui::SameLine();
-
-        auto DrawPreviewOptions = [this]()
-        {
-            ImGui::SeparatorText( "Preview Settings" );
-            ImGui::Checkbox( "Start Paused", &m_startPaused );
-
-            if ( ImGui::Checkbox( "Camera Follows Character", &m_isCameraTrackingEnabled ) )
-            {
-                if ( m_isCameraTrackingEnabled && IsDebugging() )
-                {
-                    CalculateCameraOffset();
-                }
-            }
-
-            ImGui::SeparatorText( "Start Transform" );
-            ImGuiX::InputTransform( "StartTransform", m_previewStartTransform, 250.0f );
-
-            if ( ImGui::Button( "Reset Start Transform", ImVec2( -1, 0 ) ) )
-            {
-                m_previewStartTransform = Transform::Identity;
-            }
-
-            ImGui::SeparatorText( "Start Sync Time" );
-            
-            ImGui::Checkbox( "Init Graph", &m_initializeGraphToSpecifiedSyncTime );
-
-            if ( m_initializeGraphToSpecifiedSyncTime )
-            {
-                ImGui::InputInt( "Event Idx", &m_previewStartSyncTime.m_eventIdx );
-
-                float percentageThrough = m_previewStartSyncTime.m_percentageThrough.ToFloat();
-                if ( ImGui::InputFloat( "Normalized %", &percentageThrough ) )
-                {
-                    m_previewStartSyncTime.m_percentageThrough = Percentage( percentageThrough ).GetClamped();
-                }
-
-                if ( ImGui::Button( "Reset Sync Time", ImVec2( -1, 0 ) ) )
-                {
-                    m_previewStartSyncTime = SyncTrackTime();
-                }
-            }
-        };
-
-        //-------------------------------------------------------------------------
-
-        constexpr float const buttonWidth = 180;
-
-        if ( IsDebugging() )
-        {
-            if ( ImGuiX::ComboIconButton( EE_ICON_STOP, "Stop Debugging", DrawPreviewOptions, Colors::Red, ImVec2( buttonWidth, 0 ) ) )
-            {
-                StopDebugging();
-            }
+            m_graphDebugMode = isGraphDebugEnabled ? GraphDebugMode::On : GraphDebugMode::Off;
         }
-        else
+
+        ImGui::SeparatorText( "Root Motion Debug" );
+
+        bool const isRootVisualizationOff = m_rootMotionDebugMode == RootMotionDebugMode::Off;
+        if ( ImGui::RadioButton( "No Visualization##Root", isRootVisualizationOff ) )
         {
-            if ( ImGuiX::ComboIconButton( EE_ICON_PLAY, "Preview Graph", DrawPreviewOptions, Colors::Lime, ImVec2( buttonWidth, 0 ) ) )
+            m_rootMotionDebugMode = RootMotionDebugMode::Off;
+        }
+
+        bool const isRootVisualizationOn = m_rootMotionDebugMode == RootMotionDebugMode::DrawRoot;
+        if ( ImGui::RadioButton( "Draw Root", isRootVisualizationOn ) )
+        {
+            m_rootMotionDebugMode = RootMotionDebugMode::DrawRoot;
+        }
+
+        bool const isRootMotionRecordingEnabled = m_rootMotionDebugMode == RootMotionDebugMode::DrawRecordedRootMotion;
+        if ( ImGui::RadioButton( "Draw Recorded Root Motion", isRootMotionRecordingEnabled ) )
+        {
+            m_rootMotionDebugMode = RootMotionDebugMode::DrawRecordedRootMotion;
+        }
+
+        bool const isAdvancedRootMotionRecordingEnabled = m_rootMotionDebugMode == RootMotionDebugMode::DrawRecordedRootMotionAdvanced;
+        if ( ImGui::RadioButton( "Draw Advanced Recorded Root Motion", isAdvancedRootMotionRecordingEnabled ) )
+        {
+            m_rootMotionDebugMode = RootMotionDebugMode::DrawRecordedRootMotionAdvanced;
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SeparatorText( "Pose Debug" );
+
+        bool const isVisualizationOff = m_taskSystemDebugMode == TaskSystemDebugMode::Off;
+        if ( ImGui::RadioButton( "No Visualization##Tasks", isVisualizationOff ) )
+        {
+            m_taskSystemDebugMode = TaskSystemDebugMode::Off;
+        }
+
+        bool const isFinalPoseEnabled = m_taskSystemDebugMode == TaskSystemDebugMode::FinalPose;
+        if ( ImGui::RadioButton( "Final Pose", isFinalPoseEnabled ) )
+        {
+            m_taskSystemDebugMode = TaskSystemDebugMode::FinalPose;
+        }
+
+        bool const isPoseTreeEnabled = m_taskSystemDebugMode == TaskSystemDebugMode::PoseTree;
+        if ( ImGui::RadioButton( "Pose Tree", isPoseTreeEnabled ) )
+        {
+            m_taskSystemDebugMode = TaskSystemDebugMode::PoseTree;
+        }
+
+        bool const isDetailedPoseTreeEnabled = m_taskSystemDebugMode == TaskSystemDebugMode::DetailedPoseTree;
+        if ( ImGui::RadioButton( "Detailed Pose Tree", isDetailedPoseTreeEnabled ) )
+        {
+            m_taskSystemDebugMode = TaskSystemDebugMode::DetailedPoseTree;
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SeparatorText( "Capsule Debug" );
+
+        ImGui::Checkbox( "Show Preview Capsule", &m_showPreviewCapsule );
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "Half-Height" );
+        ImGui::SameLine( 90 );
+        if ( ImGui::InputFloat( "##HH", &m_previewCapsuleHalfHeight, 0.05f ) )
+        {
+            m_previewCapsuleHalfHeight = Math::Clamp( m_previewCapsuleHalfHeight, 0.05f, 10.0f );
+        }
+
+        ImGui::AlignTextToFramePadding();
+        ImGui::Text( "Radius" );
+        ImGui::SameLine( 90 );
+        if ( ImGui::InputFloat( "##R", &m_previewCapsuleRadius, 0.01f ) )
+        {
+            m_previewCapsuleRadius = Math::Clamp( m_previewCapsuleRadius, 0.01f, 5.0f );
+        }
+
+        return true;
+    }
+
+    void AnimationGraphEditor::ExtendViewportToolBar_CameraControls( UpdateContext const& context, Viewport* pViewport )
+    {
+        ImGui::SeparatorText( "Graph Camera" );
+
+        if ( ImGui::Checkbox( "Camera Follows Character", &m_isCameraTrackingEnabled ) )
+        {
+            if ( m_isCameraTrackingEnabled && IsDebugging() )
             {
-                DebugTarget target;
-                target.m_type = DebugTargetType::DirectPreview;
-                RequestDebugSession( context, target );
+                CalculateCameraOffset();
             }
         }
     }
 
-    void AnimationGraphEditor::DrawViewportOverlayElements( UpdateContext const& context, Render::Viewport const* pViewport )
+    void AnimationGraphEditor::DrawViewportUI( UpdateContext const& context, Viewport const* pViewport, bool isFocused )
     {
-        DataFileEditor::DrawViewportOverlayElements( context, pViewport );
+        DataFileEditor::DrawViewportUI( context, pViewport, isFocused );
 
         // Allow for in-viewport manipulation of the parameter preview value
         if ( m_pSelectedTargetControlParameter != nullptr )
@@ -1704,7 +1634,7 @@ namespace EE::Animation
 
             if ( drawGizmo )
             {
-                auto drawingCtx = GetDrawingContext();
+                auto drawingCtx = GetDebugDrawContext();
 
                 // Draw scene origin to provide a reference point
                 drawingCtx.DrawArrow( Vector( 0, 0, 0.25f ), Vector::Zero, Colors::HotPink, 5.0f );
@@ -1739,7 +1669,7 @@ namespace EE::Animation
                 auto const gizmoResult = m_gizmo.Draw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport );
                 switch ( gizmoResult.m_state )
                 {
-                    case ImGuiX::Gizmo::State::StartedManipulating:
+                    case ImGuiX::GizmoState::StartedManipulating:
                     {
                         if ( !IsDebugging() )
                         {
@@ -1752,14 +1682,14 @@ namespace EE::Animation
                     }
                     break;
 
-                    case ImGuiX::Gizmo::State::Manipulating:
+                    case ImGuiX::GizmoState::Manipulating:
                     {
                         gizmoResult.ApplyResult( gizmoTransform );
                         SetParameterValue( gizmoTransform );
                     }
                     break;
 
-                    case ImGuiX::Gizmo::State::StoppedManipulating:
+                    case ImGuiX::GizmoState::StoppedManipulating:
                     {
                         gizmoResult.ApplyResult( gizmoTransform );
                         SetParameterValue( gizmoTransform );
@@ -1777,13 +1707,19 @@ namespace EE::Animation
         }
     }
 
+    bool AnimationGraphEditor::SaveData()
+    {
+        m_loadedGraphStack[0]->m_pGraphDefinition->UpdateInternalReferencesAndClones( *m_pToolsContext->m_pTypeRegistry );
+        return DataFileEditor::SaveData();
+    }
+
     //-------------------------------------------------------------------------
 
     void AnimationGraphEditor::ShowNotifyDialog( String const& title, String const& message )
     {
         EE_ASSERT( !title.empty() && !message.empty() );
 
-        auto DrawDialog = [message] ( UpdateContext const& context )
+        auto DrawDialog = [message] ()
         {
             ImGui::Text( message.c_str() );
 
@@ -1798,7 +1734,7 @@ namespace EE::Animation
             return true;
         };
 
-        m_dialogManager.CreateModalDialog( title, DrawDialog, ImVec2( -1, -1 ), false );
+        m_pToolsContext->m_pDialogManager->StartModalDialog( title, DrawDialog, ImVec2( -1, -1 ), false );
     }
 
     void AnimationGraphEditor::ShowNotifyDialog( String const& title, char const* pMessageFormat, ... )
@@ -1814,14 +1750,6 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void AnimationGraphEditor::OnResourceUnload( Resource::ResourcePtr* pResourcePtr )
-    {
-        if ( IsPreviewOrReview() )
-        {
-            StopDebugging();
-        }
-    }
-
     void AnimationGraphEditor::OnDataFileLoadCompleted()
     {
         if ( IsDataFileLoaded() )
@@ -1833,6 +1761,7 @@ namespace EE::Animation
             }
 
             m_loadedGraphStack[0]->m_pGraphDefinition = &pGraphDesc->m_graphDefinition;
+            m_loadedGraphStack[0]->m_pGraphDefinition->UpdateInternalReferencesAndClones( *m_pToolsContext->m_pTypeRegistry );
         }
         else
         {
@@ -1868,12 +1797,7 @@ namespace EE::Animation
 
     void AnimationGraphEditor::OnDataFileUnload()
     {
-        if ( IsPreviewOrReview() )
-        {
-            StopDebugging();
-            m_graphRecorder.Reset();
-        }
-
+        m_graphRecording.Reset();
         RecordViewAndSelectionState();
     }
 
@@ -1883,7 +1807,7 @@ namespace EE::Animation
 
     void AnimationGraphEditor::NodeDoubleClicked( NodeGraph::BaseNode* pNode )
     {
-        if ( auto pReferencedGraphNode = TryCast<ReferencedGraphToolsNode>( pNode ) )
+        if ( auto pReferencedGraphNode = TryCast<InternalReferencedGraphToolsNode>( pNode ) )
         {
             ResourceID const resourceID = pReferencedGraphNode->GetReferencedGraphResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
             if ( resourceID.IsValid() )
@@ -1918,7 +1842,7 @@ namespace EE::Animation
                 m_userContext.RequestOpenResource( pSelectedVariation->m_skeleton.GetResourceID() );
             }
         }
-        else if ( auto pExternalGraphNode = TryCast<ExternalGraphToolsNode>( pNode ) )
+        else if ( auto pExternalGraphNode = TryCast<ExternalReferencedGraphToolsNode>( pNode ) )
         {
             if ( m_userContext.HasDebugData() )
             {
@@ -1926,10 +1850,17 @@ namespace EE::Animation
                 if ( runtimeNodeIdx != InvalidIndex )
                 {
                     StringID const SlotID( pNode->GetName() );
-                    GraphInstance const* pConnectedGraphInstance = m_userContext.m_pGraphInstance->GetExternalGraphDebugInstance( SlotID );
+                    GraphInstance const* pConnectedGraphInstance = m_userContext.m_pGraphInstance->GetDebuggableGraphInstance( SlotID );
                     if ( pConnectedGraphInstance != nullptr )
                     {
-                        m_userContext.RequestOpenResource( pConnectedGraphInstance->GetDefinitionResourceID() );
+                        if ( m_userContext.m_isCtrlDown )
+                        {
+                            m_userContext.RequestOpenResource( pConnectedGraphInstance->GetDefinitionResourceID() );
+                        }
+                        else
+                        {
+                            PushOnGraphStack( pReferencedGraphNode, pConnectedGraphInstance->GetDefinitionResourceID() );
+                        }
                     }
                 }
             }
@@ -1946,20 +1877,346 @@ namespace EE::Animation
         }
     }
 
-    void AnimationGraphEditor::PostPasteNodes( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes )
+    void AnimationGraphEditor::PostPasteNodes( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes, THashMap<UUID, UUID> const& IDMapping )
     {
+        for ( auto pPastedNode : pastedNodes )
+        {
+            if ( auto pState = dynamic_cast<StateToolsNode *>( pPastedNode ) )
+            {
+                if ( pState->IsClonedState() )
+                {
+                    pState->UpdateCloneStateID( *m_pToolsContext->m_pTypeRegistry, IDMapping );
+                }
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
         NodeGraph::ScopedGraphModification gm( GetEditedRootGraph() );
-        GetEditedGraphData()->m_pGraphDefinition->RefreshParameterReferences();
+        m_loadedGraphStack[0]->m_pGraphDefinition->UpdateInternalReferencesAndClones( *m_pToolsContext->m_pTypeRegistry );
         OnGraphStateModified();
     }
 
     void AnimationGraphEditor::OnGraphStateModified()
     {
-        m_graphRecorder.Reset();
+        m_graphRecording.Reset();
         RefreshControlParameterCache();
         RefreshVariationEditor();
         RefreshOutliner();
         s_graphModifiedEvent.Execute( GetDataFilePath() );
+    }
+
+    //-------------------------------------------------------------------------
+    // Preview
+    //-------------------------------------------------------------------------
+
+    TInlineVector<ResourceID, 2> AnimationGraphEditor::GetPreviewResourceIDs() const
+    {
+        TInlineVector<ResourceID, 2> graphResourceIDs;
+
+        // Main Graph
+        //-------------------------------------------------------------------------
+
+        ResourceID graphVariationResourceID;
+
+        if ( m_requestedDebugTarget.m_pComponentToDebug == nullptr )
+        {
+            graphVariationResourceID = Variation::GenerateResourceDataPath( m_pToolsContext->GetSourceDataDirectory(), GetDataFileSystemPath(), GetEditedGraphData()->m_activeVariationID );
+        }
+        else
+        {
+            auto pHostInstance = m_requestedDebugTarget.m_pComponentToDebug->GetDebugGraphInstance();
+            EE_ASSERT( pHostInstance != nullptr );
+
+            if ( m_requestedDebugTarget.m_graphInstanceID.IsValid() )
+            {
+                auto pGraphInstance = pHostInstance->GetDebuggableGraphInstance( m_requestedDebugTarget.m_graphInstanceID );
+                EE_ASSERT( pGraphInstance != nullptr );
+                graphVariationResourceID = pGraphInstance->GetGraphDefinition()->GetResourceID();
+            }
+            else
+            {
+                graphVariationResourceID = m_requestedDebugTarget.m_pComponentToDebug->GetDebugGraphInstance()->GetGraphDefinition()->GetResourceID();
+            }
+        }
+
+        // Any external graphs/clips we will need for the recording
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( m_requestedDebugTarget.IsValid() );
+        if ( m_requestedDebugTarget.m_type == DebugTargetType::Recording )
+        {
+            EE_ASSERT( m_graphRecording.HasRecordedData() );
+
+            for ( ResourceID const& resourceID : m_graphRecording.GetAllRecordedGraphResourceIDs() )
+            {
+                VectorEmplaceBackUnique( graphResourceIDs, resourceID );
+            }
+
+            for ( ResourceID const& resourceID : m_graphRecording.GetAllRecordedExternalClipResourceIDs() )
+            {
+                VectorEmplaceBackUnique( graphResourceIDs, resourceID );
+            }
+
+            for ( ResourceID const& resourceID : m_graphRecording.GetAllRecordedSkeletonResourceIDs() )
+            {
+                VectorEmplaceBackUnique( graphResourceIDs, resourceID );
+            }
+        }
+
+        return graphResourceIDs;
+    }
+
+    void AnimationGraphEditor::OnPreviewStarted()
+    {
+        EE_ASSERT( !IsDirty() );
+        EE_ASSERT( !IsDebugging() );
+        EE_ASSERT( m_pPreviewEntity == nullptr );
+        EE_ASSERT( m_pDebugGraphComponent == nullptr && m_pDebugGraphInstance == nullptr );
+        EE_ASSERT( !IsHotReloading() );
+        EE_ASSERT( m_requestedDebugTarget.IsValid() );
+
+        // Create preview entity
+        //-------------------------------------------------------------------------
+
+        m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
+
+        // Set debug component data
+        //-------------------------------------------------------------------------
+
+        // If previewing, create the component
+        if ( m_requestedDebugTarget.m_type == DebugTargetType::DirectPreview || m_requestedDebugTarget.m_type == DebugTargetType::Recording )
+        {
+            // Create resource ID for the graph variation
+            StringID const selectedVariationID = GetEditedGraphData()->m_activeVariationID;
+            ResourceID const graphDefinitionResourceID = Variation::GenerateResourceDataPath( m_pToolsContext->GetSourceDataDirectory(), GetDataFileSystemPath(), selectedVariationID );
+
+            // Create Preview Graph Component
+            EE_ASSERT( !m_previewGraphDefinitionPtr.IsSet() );
+            m_previewGraphDefinitionPtr = TResourcePtr<GraphDefinition>( graphDefinitionResourceID );
+            LoadResource( &m_previewGraphDefinitionPtr );
+
+            m_pDebugGraphComponent = EE::New<GraphComponent>( StringID( "Animation Component" ) );
+            m_pDebugGraphComponent->ShouldApplyRootMotionToEntity( true );
+            m_pDebugGraphComponent->SetGraphDefinition( graphDefinitionResourceID );
+            m_pDebugGraphComponent->SetSkeletonLOD( m_skeletonLOD );
+
+            if ( m_requestedDebugTarget.m_type == DebugTargetType::Recording )
+            {
+                m_pDebugGraphComponent->SwitchToRecordingPlaybackMode();
+            }
+
+            m_pDebugGraphInstance = nullptr; // This will be set later when the component initializes
+            m_pHostGraphInstance = nullptr;
+
+            m_pPreviewEntity->AddComponent( m_pDebugGraphComponent );
+            m_pPreviewEntity->CreateSystem<AnimationSystem>();
+
+            m_debuggedEntityID = m_pPreviewEntity->GetID();
+            m_debuggedComponentID = m_pDebugGraphComponent->GetID();
+        }
+        else // Use the supplied target
+        {
+            m_pDebugGraphComponent = m_requestedDebugTarget.m_pComponentToDebug;
+            m_debuggedEntityID = m_pDebugGraphComponent->GetEntityID();
+            m_debuggedComponentID = m_pDebugGraphComponent->GetID();
+
+            switch ( m_requestedDebugTarget.m_type )
+            {
+                case DebugTargetType::MainGraph:
+                {
+                    m_pDebugGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
+                }
+                break;
+
+                case DebugTargetType::ReferencedGraph:
+                case DebugTargetType::ExternalGraph:
+                {
+                    m_pHostGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
+                    m_pDebugGraphInstance = const_cast<GraphInstance*>( m_pHostGraphInstance->GetDebuggableGraphInstance( m_requestedDebugTarget.m_graphInstanceID ) );
+                    EE_ASSERT( m_pDebugGraphInstance != nullptr );
+                }
+                break;
+
+                default:
+                {
+                    EE_UNREACHABLE_CODE();
+                }
+                break;
+            }
+
+            // Switch to the correct variation
+            StringID const debuggedInstanceVariationID = m_pDebugGraphInstance->GetVariationID();
+            if ( GetEditedGraphData()->m_activeVariationID != debuggedInstanceVariationID )
+            {
+                SetActiveVariation( debuggedInstanceVariationID );
+            }
+        }
+
+        // Try Create Preview Mesh Component
+        //-------------------------------------------------------------------------
+
+        auto pVariation = GetEditedGraphData()->m_pGraphDefinition->GetVariation( GetEditedGraphData()->m_activeVariationID );
+        EE_ASSERT( pVariation != nullptr );
+        if ( pVariation->m_skeleton.IsSet() )
+        {
+            // Load resource descriptor for skeleton to get the preview mesh
+            Log log;
+            FileSystem::Path const resourceDescPath = GetFileSystemPath( pVariation->m_skeleton.GetDataPath() );
+            SkeletonResourceDescriptor skeletonResourceDesc;
+            if ( Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, log, resourceDescPath, skeletonResourceDesc ) )
+            {
+                if ( skeletonResourceDesc.m_previewMesh.GetResourceID().IsValid() )
+                {
+                    // Create a preview mesh component
+                    m_pDebugMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
+                    m_pDebugMeshComponent->SetSkeleton( pVariation->m_skeleton.GetResourceID() );
+                    m_pDebugMeshComponent->SetMesh( skeletonResourceDesc.m_previewMesh.GetResourceID() );
+                    m_pPreviewEntity->AddComponent( m_pDebugMeshComponent );
+                }
+            }
+        }
+
+        // Add preview entity to the World
+        //-------------------------------------------------------------------------
+
+        AddEntityToWorld( m_pPreviewEntity );
+
+        // Set up preview data
+        //-------------------------------------------------------------------------
+
+        m_isFirstPreviewFrame = true;
+
+        // Preview
+        if ( m_requestedDebugTarget.m_type == DebugTargetType::DirectPreview )
+        {
+            SetWorldPaused( m_startPaused );
+            m_characterTransform = m_previewStartTransform;
+            m_debugMode = DebugMode::Preview;
+        }
+        // Review
+        else if ( m_requestedDebugTarget.m_type == DebugTargetType::Recording )
+        {
+            SetWorldPaused( false );
+            m_characterTransform = Transform::Identity;
+            m_debugMode = DebugMode::ReviewRecording;
+            m_currentlyReviewedUpdateIdx = InvalidIndex;
+            m_reviewStarted = false;
+        }
+        else // Live Debug
+        {
+            SetWorldPaused( false );
+            m_debugMode = DebugMode::LiveDebug;
+            m_characterTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
+        }
+
+        // Mesh Transform
+        //-------------------------------------------------------------------------
+
+        if ( m_pDebugMeshComponent != nullptr )
+        {
+            m_pDebugMeshComponent->SetWorldTransform( m_characterTransform );
+        }
+
+        // Adjust Camera
+        //-------------------------------------------------------------------------
+
+        if ( m_debugMode == DebugMode::LiveDebug || m_debugMode == DebugMode::ReviewRecording )
+        {
+            AABB const bounds( m_characterTransform.GetTranslation(), Vector::One );
+            FocusCameraView( bounds );
+        }
+
+        if ( m_isCameraTrackingEnabled )
+        {
+            CalculateCameraOffset();
+        }
+
+        // Clear debug request
+        //-------------------------------------------------------------------------
+
+        m_requestedDebugTarget.Clear();
+    }
+
+    void AnimationGraphEditor::OnPreviewStopped()
+    {
+        EE_ASSERT( m_debugMode != DebugMode::None );
+
+        // Stop active recordings
+        //-------------------------------------------------------------------------
+
+        if ( m_isRecording )
+        {
+            StopRecording();
+        }
+
+        // Clear debug mode
+        //-------------------------------------------------------------------------
+
+        bool const isPreviewOrReview = IsPreviewOrReview();
+        bool const isReviewingARecording = IsReviewingRecording();
+        bool const isLiveDebug = IsLiveDebugging();
+
+        // We need to clear the debug mode before we do anything else since the unload of a resource below might trigger a stop debug!
+        m_debugMode = DebugMode::None;
+
+        // Recording Review
+        //-------------------------------------------------------------------------
+
+        if ( isReviewingARecording )
+        {
+            m_graphRecordingPlayer.StopPlayback();
+            m_currentlyReviewedUpdateIdx = InvalidIndex;
+            m_reviewStarted = false;
+        }
+
+        // Destroy entity and clear debug state
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( m_pPreviewEntity != nullptr );
+        DestroyEntityInWorld( m_pPreviewEntity );
+        m_pPreviewEntity = nullptr;
+        m_pDebugGraphComponent = nullptr;
+        m_pDebugMeshComponent = nullptr;
+        m_pDebugGraphInstance = nullptr;
+        m_pHostGraphInstance = nullptr;
+        m_debugExternalGraphSlotID.Clear();
+
+        // Release variation reference
+        //-------------------------------------------------------------------------
+
+        if ( isPreviewOrReview )
+        {
+            EE_ASSERT( m_previewGraphDefinitionPtr.IsSet() );
+
+            // Need to check this explicitly since it may have already been unloaded via a hot-reload request
+            if ( m_previewGraphDefinitionPtr.WasRequested() )
+            {
+                UnloadResource( &m_previewGraphDefinitionPtr );
+            }
+            m_previewGraphDefinitionPtr.Clear();
+        }
+
+        // Reset camera
+        //-------------------------------------------------------------------------
+
+        if ( isLiveDebug || m_isCameraTrackingEnabled )
+        {
+            m_previousCameraTransform = m_cameraOffsetTransform;
+            SetCameraTransform( m_cameraOffsetTransform );
+        }
+
+        // Update graph views
+        //-------------------------------------------------------------------------
+
+        m_primaryGraphView.RefreshNodeSizes();
+        m_secondaryGraphView.RefreshNodeSizes();
+
+        // Clear debug mode
+        //-------------------------------------------------------------------------
+
+        ClearGraphStackDebugData();
+        UpdateUserContext();
     }
 
     //-------------------------------------------------------------------------
@@ -1968,33 +2225,29 @@ namespace EE::Animation
 
     void AnimationGraphEditor::DrawDebuggerWindow( UpdateContext const& context, bool isFocused )
     {
-        DrawRecorderUI( context );
-
-        //-------------------------------------------------------------------------
-
-        auto NavigateToSourceNode = [this] ( DebugPath const& path )
+        auto NavigateToSourceNode = [this] ( SourcePath const& path )
         {
             ClearGraphStack();
 
             // If this is a referenced/external graph then we need to remove the parent path
             //-------------------------------------------------------------------------
 
-            DebugPath finalPath = path;
+            SourcePath finalPath = path;
 
             if ( !m_pDebugGraphInstance->IsStandaloneInstance() )
             {
                 EE_ASSERT( m_pHostGraphInstance != nullptr );
-                DebugPath const pathToInstance = m_pHostGraphInstance->GetDebugPathForReferencedOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
-                finalPath.PopFront( pathToInstance.size() );
+                SourcePath const pathToInstance = m_pHostGraphInstance->GetSourcePathForDebuggableGraphInstance( PointerID( m_pDebugGraphInstance ) );
+                finalPath.PopFront( pathToInstance.Size() );
             }
 
             // Try to find node at path
             //-------------------------------------------------------------------------
 
-            int32_t const numElements = (int32_t) finalPath.GetNumElements();
+            int32_t const numElements = (int32_t) finalPath.Size();
             for ( int32_t i = 0; i < numElements; i++ )
             {
-                UUID const nodeID = m_userContext.GetGraphNodeUUID( (int16_t) finalPath[i].m_itemID );
+                UUID const nodeID = m_userContext.GetGraphNodeUUID( finalPath[i] );
                 auto pVisualNode = m_loadedGraphStack.back()->GetRootGraph()->FindNode( nodeID, true );
                 EE_ASSERT( pVisualNode != nullptr );
 
@@ -2004,7 +2257,7 @@ namespace EE::Animation
                 }
                 else // Referenced Graph
                 {
-                    auto pReferencedGraphNode = Cast<ReferencedGraphToolsNode>( pVisualNode );
+                    auto pReferencedGraphNode = Cast<InternalReferencedGraphToolsNode>( pVisualNode );
                     ResourceID const referencedGraphResourceID = pReferencedGraphNode->GetReferencedGraphResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
                     EE_ASSERT( referencedGraphResourceID.IsValid() && referencedGraphResourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() );
                     PushOnGraphStack( pReferencedGraphNode, referencedGraphResourceID );
@@ -2015,15 +2268,27 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         GraphInstance* pDebuggerInstance = m_pDebugGraphInstance;
-        DebugPath pathToInstance;
+        SourcePath pathToInstance;
 
         if ( m_pHostGraphInstance != nullptr )
         {
             pDebuggerInstance = m_pHostGraphInstance;
-            pathToInstance = m_pHostGraphInstance->GetDebugPathForReferencedOrExternalGraphDebugInstance( PointerID( m_pDebugGraphInstance ) );
+            pathToInstance = m_pHostGraphInstance->GetSourcePathForDebuggableGraphInstance( PointerID( m_pDebugGraphInstance ) );
         }
 
-        bool const showDebugData = IsDebugging() && pDebuggerInstance != nullptr && pDebuggerInstance->WasInitialized();
+        bool const showDebugData = IsDebugging() && pDebuggerInstance != nullptr && pDebuggerInstance->IsInitialized();
+
+        if ( showDebugData )
+        {
+            ImGui::Text( "Graph: %.2fus, Pose Tasks: %.2fus", pDebuggerInstance->GetGraphExecutionTime().ToFloat(), pDebuggerInstance->GetTasksExecutionTime().ToFloat() );
+        }
+
+        //-------------------------------------------------------------------------
+
+        DrawRecorderUI( context );
+
+        //-------------------------------------------------------------------------
+
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Pose Tasks" ) )
         {
@@ -2075,6 +2340,19 @@ namespace EE::Animation
                 ImGui::Text( "-" );
             }
         }
+
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Float Curves" ) )
+        {
+            if ( showDebugData )
+            {
+                AnimationDebugView::DrawFloatCurvesDebugView( pDebuggerInstance );
+            }
+            else
+            {
+                ImGui::Text( "-" );
+            }
+        }
     }
 
     void AnimationGraphEditor::RequestDebugSession( UpdateContext const& context, DebugTarget target )
@@ -2086,7 +2364,7 @@ namespace EE::Animation
 
         ToolsGraphDefinition* pToolsGraphDefinition = GetEditedGraphData()->m_pGraphDefinition;
 
-        GraphDefinitionCompiler definitionCompiler;
+        GraphDefinitionCompiler definitionCompiler( *m_pToolsContext->m_pTypeRegistry, m_pToolsContext->GetSourceDataDirectory() );
         bool const graphCompiledSuccessfully = definitionCompiler.CompileGraph( *pToolsGraphDefinition, GetActiveVariation() );
         m_compilationLog = definitionCompiler.GetLog();
 
@@ -2098,285 +2376,8 @@ namespace EE::Animation
             return;
         }
 
-        // Save the graph and compile it
-        //-------------------------------------------------------------------------
-
-        // Save the graph if needed
-        if ( IsDirty() )
-        {
-            // Ensure that we save the graph and re-generate the dataset on preview
-            Save();
-
-            // Only force recompile, if we are not playing back a recording
-            bool const requestImmediateCompilation = target.m_type != DebugTargetType::Recording;
-            if ( requestImmediateCompilation )
-            {
-                ResourceID const graphVariationResourceID = Variation::GenerateResourceDataPath( m_pToolsContext->GetSourceDataDirectory(), GetDataFileSystemPath() , GetEditedGraphData()->m_activeVariationID );
-                if ( !RequestImmediateResourceCompilation( graphVariationResourceID ) )
-                {
-                    return;
-                }
-            }
-        }
-
-        // Create the request
-        //-------------------------------------------------------------------------
-
         m_requestedDebugTarget = target;
-    }
-
-    void AnimationGraphEditor::StartDebugging( UpdateContext const& context )
-    {
-        EE_ASSERT( !IsDirty() );
-        EE_ASSERT( !IsDebugging() );
-        EE_ASSERT( m_pPreviewEntity == nullptr );
-        EE_ASSERT( m_pDebugGraphComponent == nullptr && m_pDebugGraphInstance == nullptr );
-        EE_ASSERT( !IsHotReloading() );
-        EE_ASSERT( m_requestedDebugTarget.IsValid() );
-
-        // Create preview entity
-        //-------------------------------------------------------------------------
-
-        m_pPreviewEntity = EE::New<Entity>( StringID( "Preview" ) );
-
-        // Set debug component data
-        //-------------------------------------------------------------------------
-
-        // If previewing, create the component
-        if ( m_requestedDebugTarget.m_type == DebugTargetType::DirectPreview || m_requestedDebugTarget.m_type == DebugTargetType::Recording )
-        {
-            // Create resource ID for the graph variation
-            StringID const selectedVariationID = GetEditedGraphData()->m_activeVariationID;
-            ResourceID const graphDefinitionResourceID = Variation::GenerateResourceDataPath( m_pToolsContext->GetSourceDataDirectory(), GetDataFileSystemPath() , selectedVariationID );
-
-            // Create Preview Graph Component
-            EE_ASSERT( !m_previewGraphDefinitionPtr.IsSet() );
-            m_previewGraphDefinitionPtr = TResourcePtr<GraphDefinition>( graphDefinitionResourceID );
-            LoadResource( &m_previewGraphDefinitionPtr );
-
-            m_pDebugGraphComponent = EE::New<GraphComponent>( StringID( "Animation Component" ) );
-            m_pDebugGraphComponent->ShouldApplyRootMotionToEntity( true );
-            m_pDebugGraphComponent->SetGraphDefinition( graphDefinitionResourceID );
-            m_pDebugGraphComponent->SetSkeletonLOD( m_skeletonLOD );
-
-            if ( m_requestedDebugTarget.m_type == DebugTargetType::Recording )
-            {
-                m_pDebugGraphComponent->SwitchToRecordingPlaybackMode();
-            }
-
-            m_pDebugGraphInstance = nullptr; // This will be set later when the component initializes
-            m_pHostGraphInstance = nullptr;
-
-            m_pPreviewEntity->AddComponent( m_pDebugGraphComponent );
-            m_pPreviewEntity->CreateSystem<AnimationSystem>();
-
-            m_debuggedEntityID = m_pPreviewEntity->GetID();
-            m_debuggedComponentID = m_pDebugGraphComponent->GetID();
-        }
-        else // Use the supplied target
-        {
-            m_pDebugGraphComponent = m_requestedDebugTarget.m_pComponentToDebug;
-            m_debuggedEntityID = m_pDebugGraphComponent->GetEntityID();
-            m_debuggedComponentID = m_pDebugGraphComponent->GetID();
-
-            switch ( m_requestedDebugTarget.m_type )
-            {
-                case DebugTargetType::MainGraph:
-                {
-                    m_pDebugGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
-                }
-                break;
-
-                case DebugTargetType::ReferencedGraph:
-                {
-                    m_pHostGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
-                    m_pDebugGraphInstance = const_cast<GraphInstance*>( m_pHostGraphInstance->GetReferencedGraphDebugInstance( m_requestedDebugTarget.m_referencedGraphID ) );
-                    EE_ASSERT( m_pDebugGraphInstance != nullptr );
-                }
-                break;
-
-                case DebugTargetType::ExternalGraph:
-                {
-                    m_debugExternalGraphSlotID = m_requestedDebugTarget.m_externalSlotID;
-                    m_pHostGraphInstance = m_pDebugGraphComponent->GetDebugGraphInstance();
-                    m_pDebugGraphInstance = const_cast<GraphInstance*>( m_pHostGraphInstance->GetExternalGraphDebugInstance( m_debugExternalGraphSlotID ) );
-                    EE_ASSERT( m_pDebugGraphInstance != nullptr );
-                }
-                break;
-
-                default:
-                {
-                    EE_UNREACHABLE_CODE();
-                }
-                break;
-            }
-
-            // Switch to the correct variation
-            StringID const debuggedInstanceVariationID = m_pDebugGraphInstance->GetVariationID();
-            if ( GetEditedGraphData()->m_activeVariationID != debuggedInstanceVariationID )
-            {
-                SetActiveVariation( debuggedInstanceVariationID );
-            }
-        }
-
-        // Try Create Preview Mesh Component
-        //-------------------------------------------------------------------------
-
-        auto pVariation = GetEditedGraphData()->m_pGraphDefinition->GetVariation( GetEditedGraphData()->m_activeVariationID );
-        EE_ASSERT( pVariation != nullptr );
-        if ( pVariation->m_skeleton.IsSet() )
-        {
-            // Load resource descriptor for skeleton to get the preview mesh
-            FileSystem::Path const resourceDescPath = GetFileSystemPath( pVariation->m_skeleton.GetDataPath() );
-            SkeletonResourceDescriptor resourceDesc;
-            if ( Resource::ResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, resourceDescPath, resourceDesc ) )
-            {
-                // Create a preview mesh component
-                m_pDebugMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
-                m_pDebugMeshComponent->SetSkeleton( pVariation->m_skeleton.GetResourceID() );
-                m_pDebugMeshComponent->SetMesh( resourceDesc.m_previewMesh.GetResourceID() );
-                m_pPreviewEntity->AddComponent( m_pDebugMeshComponent );
-            }
-        }
-
-        // Add preview entity to the World
-        //-------------------------------------------------------------------------
-
-        AddEntityToWorld( m_pPreviewEntity );
-
-        // Set up preview data
-        //-------------------------------------------------------------------------
-
-        m_isFirstPreviewFrame = true;
-
-        // Preview
-        if ( m_requestedDebugTarget.m_type == DebugTargetType::DirectPreview )
-        {
-            SetWorldPaused( m_startPaused );
-            m_characterTransform = m_previewStartTransform;
-            m_debugMode = DebugMode::Preview;
-        }
-        // Review
-        else if ( m_requestedDebugTarget.m_type == DebugTargetType::Recording )
-        {
-            SetWorldPaused( false );
-            m_characterTransform = m_graphRecorder.m_recordedData.front().m_characterWorldTransform;
-            m_debugMode = DebugMode::ReviewRecording;
-            m_currentReviewFrameIdx = InvalidIndex;
-            m_reviewStarted = false;
-        }
-        else // Live Debug
-        {
-            SetWorldPaused( false );
-            m_debugMode = DebugMode::LiveDebug;
-            m_characterTransform = m_pDebugGraphComponent->GetDebugWorldTransform();
-        }
-
-        // Mesh Transform
-        //-------------------------------------------------------------------------
-
-        if ( m_pDebugMeshComponent != nullptr )
-        {
-            m_pDebugMeshComponent->SetWorldTransform( m_characterTransform );
-        }
-
-        // Adjust Camera
-        //-------------------------------------------------------------------------
-
-        if ( m_debugMode == DebugMode::LiveDebug || m_debugMode == DebugMode::ReviewRecording )
-        {
-            AABB const bounds( m_characterTransform.GetTranslation(), Vector::One );
-            m_pCamera->FocusOn( bounds );
-        }
-
-        if ( m_isCameraTrackingEnabled )
-        {
-            CalculateCameraOffset();
-        }
-
-        // Clear debug request
-        //-------------------------------------------------------------------------
-
-        m_requestedDebugTarget.Clear();
-    }
-
-    void AnimationGraphEditor::StopDebugging()
-    {
-        EE_ASSERT( m_debugMode != DebugMode::None );
-
-        // Stop active recordings
-        //-------------------------------------------------------------------------
-
-        if ( m_isRecording )
-        {
-            StopRecording();
-        }
-
-        // Clear debug mode
-        //-------------------------------------------------------------------------
-
-        bool const isPreviewOrReview = IsPreviewOrReview();
-        bool const isReviewingARecording = IsReviewingRecording();
-        bool const isLiveDebug = IsLiveDebugging();
-
-        // We need to clear the debug mode before we do anything else since the unload of a resource below might trigger a stop debug!
-        m_debugMode = DebugMode::None;
-
-        // Recording Review
-        //-------------------------------------------------------------------------
-
-        if ( isReviewingARecording )
-        {
-            m_currentReviewFrameIdx = InvalidIndex;
-            m_reviewStarted = false;
-        }
-
-        // Destroy entity and clear debug state
-        //-------------------------------------------------------------------------
-
-        EE_ASSERT( m_pPreviewEntity != nullptr );
-        DestroyEntityInWorld( m_pPreviewEntity );
-        m_pPreviewEntity = nullptr;
-        m_pDebugGraphComponent = nullptr;
-        m_pDebugMeshComponent = nullptr;
-        m_pDebugGraphInstance = nullptr;
-        m_pHostGraphInstance = nullptr;
-        m_debugExternalGraphSlotID.Clear();
-
-        // Release variation reference
-        //-------------------------------------------------------------------------
-
-        if ( isPreviewOrReview )
-        {
-            EE_ASSERT( m_previewGraphDefinitionPtr.IsSet() );
-            // Need to check this explicitly since it may have already been unloaded via a hot-reload request
-            if( m_previewGraphDefinitionPtr.WasRequested() )
-            {
-                UnloadResource( &m_previewGraphDefinitionPtr );
-            }
-            m_previewGraphDefinitionPtr.Clear();
-        }
-
-        // Reset camera
-        //-------------------------------------------------------------------------
-
-        if ( isLiveDebug || m_isCameraTrackingEnabled )
-        {
-            m_previousCameraTransform = m_cameraOffsetTransform;
-            SetCameraTransform( m_cameraOffsetTransform );
-        }
-
-        // Update graph views
-        //-------------------------------------------------------------------------
-
-        m_primaryGraphView.RefreshNodeSizes();
-        m_secondaryGraphView.RefreshNodeSizes();
-
-        // Clear debug mode
-        //-------------------------------------------------------------------------
-
-        ClearGraphStackDebugData();
-        UpdateUserContext();
+        RequestPreview();
     }
 
     void AnimationGraphEditor::ReflectInitialPreviewParameterValues( UpdateContext const& context )
@@ -2489,45 +2490,31 @@ namespace EE::Animation
                     hasTargets = true;
                 }
 
-                // Check referenced graph instances
-                TVector<GraphInstance::DebuggableReferencedGraph> referencedGraphs;
-                pGraphInstance->GetReferencedGraphsForDebug( referencedGraphs );
-                for ( auto const& referencedGraph : referencedGraphs )
-                {
-                    if ( referencedGraph.m_pInstance->GetDefinitionResourceID() == GetDataFilePath() )
-                    {
-                        InlineString const targetName( InlineString::CtorSprintf(), "%s (%s) - %s", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), referencedGraph.m_path.GetFlattenedPath().c_str() );
-                        if ( ImGui::MenuItem( targetName.c_str() ) )
-                        {
-                            DebugTarget target;
-                            target.m_type = DebugTargetType::ReferencedGraph;
-                            target.m_pComponentToDebug = pGraphComponent;
-                            target.m_referencedGraphID = referencedGraph.GetID();
-                            RequestDebugSession( context, target );
-                        }
-
-                        hasTargets = true;
-                    }
-                }
-
                 // Check external graph instances
-                auto const& externalGraphs = pGraphInstance->GetExternalGraphsForDebug();
-                for ( auto const& externalGraph : externalGraphs )
+                TVector<GraphInstance::DebuggableGraphInstance> debuggableInstances;
+                pGraphInstance->GetDebuggableGraphInstances( debuggableInstances );
+                for ( auto const& debuggableInstance : debuggableInstances )
                 {
-                    if ( externalGraph.m_pInstance->GetDefinitionResourceID() == GetDataFilePath() )
+                    if ( debuggableInstance.m_pInstance->GetDefinitionResourceID() != GetDataFilePath() )
                     {
-                        InlineString const targetName( InlineString::CtorSprintf(), "%s (%s) - %s", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), externalGraph.m_slotID.c_str() );
-                        if ( ImGui::MenuItem( targetName.c_str() ) )
-                        {
-                            DebugTarget target;
-                            target.m_type = DebugTargetType::ExternalGraph;
-                            target.m_pComponentToDebug = pGraphComponent;
-                            target.m_externalSlotID = externalGraph.m_slotID;
-                            RequestDebugSession( context, target );
-                        }
-
-                        hasTargets = true;
+                        continue;
                     }
+
+
+                    char const* const pPathStr = debuggableInstance.IsExternalGraph() ? debuggableInstance.m_externalSlotID.c_str() : debuggableInstance.m_pInstance->ResolveSourcePath( debuggableInstance.m_path ).c_str();
+                    InlineString const targetName( InlineString::CtorSprintf(), "%s (%s) - %s", pEntity->GetNameID().c_str(), pGraphComponent->GetNameID().c_str(), pPathStr );
+                    if ( ImGui::MenuItem( targetName.c_str() ) )
+                    {
+                        DebugTarget target;
+                        target.m_type = debuggableInstance.IsExternalGraph() ? DebugTargetType::ExternalGraph : DebugTargetType::ReferencedGraph;
+                        target.m_pComponentToDebug = pGraphComponent;
+                        target.m_graphInstanceID = debuggableInstance.GetID();
+                        target.m_externalSlotID = debuggableInstance.m_externalSlotID;
+
+                        RequestDebugSession( context, target );
+                    }
+
+                    hasTargets = true;
                 }
             }
         }
@@ -2544,6 +2531,116 @@ namespace EE::Animation
         m_cameraOffsetTransform = Transform::Delta( m_characterTransform, m_previousCameraTransform );
     }
 
+    void AnimationGraphEditor::DrawDebugMenuControls( UpdateContext const& context, float availableWidth )
+    {
+        {
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::MediumBold );
+
+            float const previewButtonWidth = 300;
+            ImGui::SameLine( ( availableWidth - previewButtonWidth ) / 2.0f, 0.0f );
+
+            if ( IsDebugging() )
+            {
+                if ( IsReviewingRecording() || IsLiveDebugging() )
+                {
+                    if ( ImGuiX::IconButton( EE_ICON_STOP, "##Stop", Colors::Red ) )
+                    {
+                        StopPreview();
+                    }
+                }
+                else
+                {
+                    bool const isPaused = m_pWorld->IsPaused();
+                    if ( ImGuiX::IconButton( isPaused ? EE_ICON_PLAY : EE_ICON_PAUSE, "##ResumeWorld", isPaused ? Colors::Lime : ImGuiX::Style::s_colorText ) )
+                    {
+                        SetWorldPaused( !isPaused );
+                    }
+                    ImGuiX::ItemTooltip( isPaused ? "Resume" : "Pause" );
+
+                    ImGui::SameLine();
+
+                    if ( ImGuiX::IconButton( EE_ICON_STOP, "##Stop", Colors::Red ) )
+                    {
+                        StopPreview();
+                    }
+
+                    ImGui::SameLine();
+
+                    ImGui::BeginDisabled( !isPaused );
+                    if ( ImGuiX::IconButton( EE_ICON_STEP_FORWARD, "##StepFrame" ) )
+                    {
+                        m_pWorld->RequestTimeStep();
+                    }
+                    ImGuiX::ItemTooltip( "Step Frame" );
+                    ImGui::EndDisabled();
+                }
+            }
+            else
+            {
+                if ( ImGuiX::IconButton( EE_ICON_PLAY, "Preview Graph", Colors::Lime ) )
+                {
+                    DebugTarget target;
+                    target.m_type = DebugTargetType::DirectPreview;
+                    RequestDebugSession( context, target );
+                }
+            }
+        }
+
+        ImGui::SameLine();
+
+        ImGuiX::DropDownButton( EE_ICON_COG"##DebugOptions", [this] () { DrawDebugOptions(); } );
+    }
+
+    void AnimationGraphEditor::DrawDebugOptions()
+    {
+        constexpr static float const maxWidth = 300;
+
+        ImGui::Checkbox( "Start Paused", &m_startPaused );
+
+        ImGui::SeparatorText( "Start Transform" );
+        ImGuiX::InputTransform( "StartTransform", m_previewStartTransform, maxWidth );
+
+        if ( ImGui::Button( "Reset Start Transform", ImVec2( maxWidth, 0 ) ) )
+        {
+            m_previewStartTransform = Transform::Identity;
+        }
+
+        ImGui::SeparatorText( "Start Sync Time" );
+
+        ImGui::Checkbox( "Init Graph", &m_initializeGraphToSpecifiedSyncTime );
+
+        if ( m_initializeGraphToSpecifiedSyncTime )
+        {
+            float const maxLabelWidth = Math::Max( ImGui::CalcTextSize( "Event Idx:" ).x, ImGui::CalcTextSize( "Percent:" ).x );
+            float const itemWidth = maxWidth - maxLabelWidth - ImGui::GetStyle().ItemSpacing.x;
+
+            ImGui::BeginGroup();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text( "Event Idx:" );
+            ImGui::SetCursorPosY( ImGui::GetCursorPosY() + ImGui::GetStyle().ItemSpacing.y );
+            ImGui::Text( "Percent:" );
+            ImGui::EndGroup();
+
+            ImGui::SameLine();
+            ImGui::BeginGroup();
+            ImGui::SetNextItemWidth( itemWidth );
+            ImGui::InputInt( "##EventIdx", &m_previewStartSyncTime.m_eventIdx );
+
+            float percentageThrough = m_previewStartSyncTime.m_percentageThrough.ToFloat();
+            ImGui::SetNextItemWidth( itemWidth );
+            if ( ImGui::InputFloat( "##Percent", &percentageThrough ) )
+            {
+                m_previewStartSyncTime.m_percentageThrough = Percentage( percentageThrough ).GetClamped();
+            }
+            ImGui::EndGroup();
+
+            if ( ImGui::Button( "Reset Sync Time", ImVec2( maxWidth, 0 ) ) )
+            {
+                m_previewStartSyncTime = SyncTrackTime();
+            }
+        }
+    }
+
     //-------------------------------------------------------------------------
     // Selection
     //-------------------------------------------------------------------------
@@ -2555,7 +2652,7 @@ namespace EE::Animation
         {
             if ( IsDebugging() )
             {
-                StopDebugging();
+                StopPreview();
             }
 
             GetEditedGraphData()->m_activeVariationID = variationID;
@@ -2618,9 +2715,41 @@ namespace EE::Animation
     // Graph View
     //-------------------------------------------------------------------------
 
+    bool AnimationGraphEditor::IsViewingAClonedGraph() const
+    {
+        auto pGraph = m_primaryGraphView.GetViewedGraph();
+        if ( pGraph == nullptr )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
+        auto pParentNode = pGraph->GetParentNode();
+        while ( pParentNode != nullptr )
+        {
+            if ( auto pParentStateNode = TryCast<StateToolsNode>( pParentNode ) )
+            {
+                if ( pParentStateNode->IsClonedState() )
+                {
+                    return true;
+                }
+            }
+
+            pParentNode = pParentNode->GetParentNode();
+        }
+
+        return false;
+    }
+
     bool AnimationGraphEditor::IsInReadOnlyState() const
     {
         if ( IsDebugging() )
+        {
+            return true;
+        }
+
+        if ( IsViewingAClonedGraph() )
         {
             return true;
         }
@@ -2741,7 +2870,7 @@ namespace EE::Animation
                 NodeGraph::BaseGraph* pChildGraphToCheck = nullptr;
 
                 // Check external referenced graph for state machines
-                if ( IsOfType<ReferencedGraphToolsNode>( pathFromChildToRoot[i].m_pNode ) )
+                if ( IsOfType<InternalReferencedGraphToolsNode>( pathFromChildToRoot[i].m_pNode ) )
                 {
                     EE_ASSERT( ( pathFromChildToRoot[i].m_stackIdx + 1 ) < m_loadedGraphStack.size() );
                     pChildGraphToCheck = m_loadedGraphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_pGraphDefinition->GetRootGraph();
@@ -2790,7 +2919,7 @@ namespace EE::Animation
                     else
                     {
                         // Go to the external child graph's root graph
-                        if ( auto pCG = TryCast<ReferencedGraphToolsNode>( pathFromChildToRoot[i].m_pNode ) )
+                        if ( auto pCG = TryCast<InternalReferencedGraphToolsNode>( pathFromChildToRoot[i].m_pNode ) )
                         {
                             EE_ASSERT( m_loadedGraphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_pParentNode == pCG );
                             pGraphToNavigateTo = m_loadedGraphStack[pathFromChildToRoot[i].m_stackIdx + 1]->m_pGraphDefinition->GetRootGraph();
@@ -2877,7 +3006,7 @@ namespace EE::Animation
                 {
                     pGraphToSearch = pRootGraph;
                 }
-                else if ( auto pCG = TryCast<ReferencedGraphToolsNode>( m_pBreadcrumbPopupContext ) )
+                else if ( auto pCG = TryCast<InternalReferencedGraphToolsNode>( m_pBreadcrumbPopupContext ) )
                 {
                     int32_t const nodeStackIdx = GetStackIndexForNode( pCG );
                     int32_t const referencedGraphStackIdx = nodeStackIdx + 1;
@@ -2966,7 +3095,7 @@ namespace EE::Animation
             ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 2 ) );
             ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 1, 1 ) );
             ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 4, 1 ) );
-            if ( ImGui::BeginChild( "NavBar", ImVec2( ImGui::GetContentRegionAvail().x, 24 ), ImGuiChildFlags_AlwaysUseWindowPadding ) )
+            if ( ImGui::BeginChild( "NavBar", ImVec2( ImGui::GetContentRegionAvail().x, 32 ), ImGuiChildFlags_AlwaysUseWindowPadding ) )
             {
                 DrawGraphViewNavigationBar();
             }
@@ -3124,7 +3253,8 @@ namespace EE::Animation
             auto pReferencedGraphStackData = m_loadedGraphStack.emplace_back( EE::New<LoadedGraphData>() );
 
             // Load child graph
-            if ( GraphResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, referencedGraphFilePath, pReferencedGraphStackData->m_descriptor ) )
+            Log log;
+            if ( GraphResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, log, referencedGraphFilePath, pReferencedGraphStackData->m_descriptor ) )
             {
                 // Set ptr
                 pReferencedGraphStackData->m_pGraphDefinition = &pReferencedGraphStackData->m_descriptor.m_graphDefinition;
@@ -3139,7 +3269,7 @@ namespace EE::Animation
                 {
                     if ( !GenerateGraphStackDebugData() )
                     {
-                        StopDebugging();
+                        StopPreview();
                     }
                 }
                 UpdateUserContext();
@@ -3203,7 +3333,7 @@ namespace EE::Animation
 
         if ( IsDebugging() )
         {
-            GraphDefinitionCompiler definitionCompiler;
+            GraphDefinitionCompiler definitionCompiler( *m_pToolsContext->m_pTypeRegistry, m_pToolsContext->GetSourceDataDirectory() );
 
             TVector<int16_t> referencedGraphPathNodeIndices;
             for ( auto i = 0; i < m_loadedGraphStack.size(); i++ )
@@ -3229,7 +3359,7 @@ namespace EE::Animation
                     LoadedGraphData* pParentStack = m_loadedGraphStack[i - 1];
                     auto const foundIter = pParentStack->m_nodeIDtoIndexMap.find( m_loadedGraphStack[i]->m_pParentNode->GetID() );
                     EE_ASSERT( foundIter != pParentStack->m_nodeIDtoIndexMap.end() );
-                    m_loadedGraphStack[i]->m_pGraphInstance = const_cast<GraphInstance*>( pParentStack->m_pGraphInstance->GetReferencedGraphDebugInstance( foundIter->second ) );
+                    m_loadedGraphStack[i]->m_pGraphInstance = const_cast<GraphInstance*>( pParentStack->m_pGraphInstance->GetDebuggableGraphInstance( foundIter->second ) );
                 }
             }
         }
@@ -3388,13 +3518,62 @@ namespace EE::Animation
         }
     }
 
+    void AnimationGraphEditor::NavigateTo( SourcePath const& sourcePath )
+    {
+        auto pStartGraph = GetEditedRootGraph();
+
+        for ( int32_t i = 0; i < sourcePath.Size(); i++ )
+        {
+            UUID const nodeID = m_loadedGraphStack[i]->GetGraphNodeUUID( sourcePath[i] );
+            auto pFoundNode = m_loadedGraphStack[1]->GetRootGraph()->FindNode( nodeID, true );
+            if ( pFoundNode == nullptr )
+            {
+                return;
+            }
+
+            // If this is the last element in the path, then this is a node
+            if ( i == sourcePath.Size() - 1 )
+            {
+                NavigateTo( pFoundNode );
+                return;
+            }
+            else // Switch to referenced graph
+            {
+                if ( auto pReferencedGraphNode = TryCast<InternalReferencedGraphToolsNode>( pFoundNode ) )
+                {
+                    ResourceID const resourceID = pReferencedGraphNode->GetReferencedGraphResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
+                    if ( resourceID.IsValid() )
+                    {
+                        PushOnGraphStack( pReferencedGraphNode, resourceID );
+                    }
+                }
+                else if ( auto pExternalGraphNode = TryCast<ExternalReferencedGraphToolsNode>( pFoundNode ) )
+                {
+                    if ( m_userContext.HasDebugData() )
+                    {
+                        int16_t runtimeNodeIdx = m_userContext.GetRuntimeGraphNodeIndex( pFoundNode->GetID() );
+                        if ( runtimeNodeIdx != InvalidIndex )
+                        {
+                            StringID const SlotID( pFoundNode->GetName() );
+                            GraphInstance const* pConnectedGraphInstance = m_userContext.m_pGraphInstance->GetDebuggableGraphInstance( SlotID );
+                            PushOnGraphStack( pReferencedGraphNode, pConnectedGraphInstance->GetDefinitionResourceID() );
+                        }
+                    }
+                }
+                else // Malformed path
+                {
+                    return;
+                }
+            }
+        }
+    }
+
     void AnimationGraphEditor::StartNavigationOperation()
     {
         m_navigationTargetNodes.clear();
         m_navigationActiveTargetNodes.clear();
         GenerateNavigationTargetList();
-        m_dialogManager.CreateModalDialog( "Navigate", [this] ( UpdateContext const& context ) { return DrawNavigationDialogWindow( context ); }, ImVec2( 800, 600 ) );
-        
+        m_pToolsContext->m_pDialogManager->StartModalDialog( "Navigate", [this] () { return DrawNavigationDialogWindow(); }, ImVec2( 800, 600 ) );
     }
 
     void AnimationGraphEditor::GenerateNavigationTargetList()
@@ -3443,7 +3622,7 @@ namespace EE::Animation
         }
     }
 
-    bool AnimationGraphEditor::DrawNavigationDialogWindow( UpdateContext const& context )
+    bool AnimationGraphEditor::DrawNavigationDialogWindow()
     {
         // Filter
         //-------------------------------------------------------------------------
@@ -3537,6 +3716,7 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
+                ImGui::PushID( pTarget );
                 ImGui::TableNextRow();
 
                 Color const colors[] = { Colors::Plum, ImGuiX::Style::s_colorText, Colors::LightSteelBlue, Colors::GoldenRod };
@@ -3571,6 +3751,8 @@ namespace EE::Animation
 
                 ImGui::TableNextColumn();
                 ImGui::Text( pTarget->m_path.c_str() );
+
+                ImGui::PopID();
             }
 
             //-------------------------------------------------------------------------
@@ -3610,32 +3792,32 @@ namespace EE::Animation
         }
 
         virtual uint64_t GetUniqueID() const override { return (uint64_t) m_pNode; }
-        virtual StringID GetNameID() const override { return m_nameID; }
-        virtual InlineString GetDisplayName() const
-        {
-            InlineString displayName;
 
+        virtual char const* GetDisplayName() const { return m_pNode->GetName(); }
+
+        virtual Color GetDisplayColor( ItemState state ) const override { return m_displayColor; }
+
+        virtual bool HasIcon() const override { return true; }
+
+        virtual char const* GetIcon() const override
+        {
             if ( IsOfType<StateMachineToolsNode>( m_pNode ) )
             {
-                displayName.sprintf( EE_ICON_STATE_MACHINE" %s", m_pNode->GetName() );
+                return EE_ICON_STATE_MACHINE;
             }
-            else if ( IsOfType<ReferencedGraphToolsNode>( m_pNode ) )
+            else if ( IsOfType<InternalReferencedGraphToolsNode>( m_pNode ) )
             {
-                displayName.sprintf( EE_ICON_GRAPH" %s", m_pNode->GetName() );
+                return EE_ICON_GRAPH;
             }
             else if ( IsOfType<VariationDataToolsNode>( m_pNode ) )
             {
-                displayName.sprintf( EE_ICON_ARROW_BOTTOM_RIGHT" %s", m_pNode->GetName() );
+                return EE_ICON_ARROW_BOTTOM_RIGHT;
             }
             else
             {
-                displayName.sprintf( m_pNode->GetName() );
+                return "";
             }
-
-            return displayName;
         }
-
-        virtual Color GetDisplayColor( ItemState state ) const override { return m_displayColor; }
 
         virtual bool OnDoubleClick() override { m_pGraphEditor->NavigateTo( m_pNode ); return false; }
 
@@ -3649,9 +3831,8 @@ namespace EE::Animation
 
     void AnimationGraphEditor::DrawOutliner( UpdateContext const& context, bool isFocused )
     {
-        constexpr static float const buttonWidth = 30;
         float const availableWidth = ImGui::GetContentRegionAvail().x;
-        float const filterWidth = availableWidth - ( 2 * ( buttonWidth + ImGui::GetStyle().ItemSpacing.x ) );
+        float const filterWidth = availableWidth - ( 2 * ( ImGuiX::Style::s_iconButtonWidth + ImGui::GetStyle().ItemSpacing.x ) );
 
         if ( m_outlinerFilterWidget.UpdateAndDraw( filterWidth ) )
         {
@@ -3662,14 +3843,14 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         ImGui::SameLine();
-        if ( ImGui::Button( EE_ICON_EXPAND_ALL "##Expand All", ImVec2( buttonWidth, 0 ) ) )
+        if ( ImGui::Button( EE_ICON_EXPAND_ALL "##Expand All", ImVec2( ImGuiX::Style::s_iconButtonWidth, 0 ) ) )
         {
             m_outlinerTreeView.ForEachItem( [] ( TreeListViewItem* pItem ) { pItem->SetExpanded( true ); } );
         }
         ImGuiX::ItemTooltip( "Expand All" );
 
         ImGui::SameLine();
-        if ( ImGui::Button( EE_ICON_COLLAPSE_ALL "##Collapse ALL", ImVec2( buttonWidth, 0 ) ) )
+        if ( ImGui::Button( EE_ICON_COLLAPSE_ALL "##Collapse ALL", ImVec2( ImGuiX::Style::s_iconButtonWidth, 0 ) ) )
         {
             m_outlinerTreeView.ForEachItem( [] ( TreeListViewItem* pItem ) { pItem->SetExpanded( false ); } );
         }
@@ -3837,18 +4018,7 @@ namespace EE::Animation
         ImGui::SeparatorText( separatorLabel.c_str() );
 
         // Draw property grid
-        if ( shouldDrawVariationPropertyGrid )
-        {
-            if ( ImGui::BeginChild( "ResizableChild", ImVec2( -FLT_MIN, m_nodeEditorPropertyGrid.GetMinimumHeight() ), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeY ) )
-            {
-                m_nodeEditorPropertyGrid.UpdateAndDraw();
-            }
-            ImGui::EndChild();
-        }
-        else
-        {
-            m_nodeEditorPropertyGrid.UpdateAndDraw();
-        }
+        m_nodeEditorPropertyGrid.UpdateAndDraw( ImVec2( -1, 0 ) );
 
         if ( shouldDrawVariationPropertyGrid )
         {
@@ -3922,23 +4092,7 @@ namespace EE::Animation
                         //-------------------------------------------------------------------------
 
                         ImGui::TableSetColumnIndex( 0 );
-                        switch ( entry.m_severity )
-                        {
-                            case Severity::Warning:
-                            ImGui::TextColored( Colors::Yellow.ToFloat4(), EE_ICON_ALERT_OCTAGON );
-                            break;
-
-                            case Severity::Error:
-                            ImGui::TextColored( Colors::Red.ToFloat4(), EE_ICON_ALERT );
-                            break;
-
-                            case Severity::Info:
-                            ImGui::Text( EE_ICON_INFORMATION );
-                            break;
-
-                            default:
-                            break;
-                        }
+                        ImGuiX::DrawSeverityIcon( entry.m_severity );
 
                         //-------------------------------------------------------------------------
 
@@ -3984,7 +4138,7 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                auto const& runtimeLog = m_pDebugGraphInstance->GetLog();
+                auto const& runtimeLog = *m_pDebugGraphInstance->GetLog();
 
                 //-------------------------------------------------------------------------
 
@@ -4026,17 +4180,8 @@ namespace EE::Animation
                         {
                             if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
                             {
-                                UUID const nodeID = m_userContext.GetGraphNodeUUID( entry.m_nodeIdx );
-                                if ( nodeID.IsValid() )
-                                {
-                                    auto pFoundNode = GetEditedRootGraph()->FindNode( nodeID, true );
-                                    if ( pFoundNode != nullptr )
-                                    {
-                                        NavigateTo( pFoundNode );
-                                    }
-
-                                    break;
-                                }
+                                // TODO: Fix this to follow the full source path
+                                NavigateTo( entry.m_sourcePath );
                             }
                         }
                     }
@@ -4119,7 +4264,7 @@ namespace EE::Animation
         }
     }
 
-    bool AnimationGraphEditor::DrawCreateOrRenameParameterDialogWindow( UpdateContext const& context, bool isRename )
+    bool AnimationGraphEditor::DrawCreateOrRenameParameterDialogWindow( bool isRename )
     {
         bool isDialogOpen = true;
 
@@ -4207,7 +4352,7 @@ namespace EE::Animation
         return isDialogOpen;
     }
 
-    bool AnimationGraphEditor::DrawDeleteParameterDialogWindow( UpdateContext const& context )
+    bool AnimationGraphEditor::DrawDeleteParameterDialogWindow()
     {
         bool isDialogOpen = true;
 
@@ -4235,7 +4380,7 @@ namespace EE::Animation
         return isDialogOpen;
     }
 
-    bool AnimationGraphEditor::DrawDeleteUnusedParameterDialogWindow( UpdateContext const& context )
+    bool AnimationGraphEditor::DrawDeleteUnusedParameterDialogWindow()
     {
         bool isDialogOpen = true;
 
@@ -4415,7 +4560,7 @@ namespace EE::Animation
 
         InlineString const buttonLabel( InlineString::CtorSprintf(), "%d##%s", iter != m_cachedUses.end() ? (int32_t) iter->second.size() : 0, parameterName.c_str() );
         ImGui::BeginDisabled( iter == m_cachedUses.end() );
-        ImGuiX::DropDownButton( buttonLabel.c_str(), ParameterUsesContextMenu, ImVec2( 30, 0 ) );
+        ImGuiX::DropDownButton( buttonLabel.c_str(), ParameterUsesContextMenu, ImVec2( 30, 0 ), true );
         ImGui::EndDisabled();
         ImGuiX::ItemTooltip( "Number of uses" );
 
@@ -4427,8 +4572,12 @@ namespace EE::Animation
         // Draw Control Bar
         //-------------------------------------------------------------------------
 
-        constexpr static float const eraseButtonWidth = 30.0f;
-        constexpr static float const virtualParameterButtonWidth = 80.0f;
+        constexpr static float const endButtonWidth = ImGuiX::Style::s_iconButtonWidth;
+        constexpr static float const virtualParameterButtonWidth = 100.0f;
+        float const addButtonWidth = ImGui::GetContentRegionAvail().x - ( endButtonWidth * 2 ) - virtualParameterButtonWidth - ( ImGui::GetStyle().ItemSpacing.x * 3 );
+
+        // Add new parameters
+        //-------------------------------------------------------------------------
 
         auto DrawNewParameterOptions = [this] ()
         {
@@ -4473,7 +4622,10 @@ namespace EE::Animation
             }
         };
 
-        ImGuiX::DropDownIconButtonColored( EE_ICON_PLUS_THICK, "Add New Parameter", DrawNewParameterOptions, Colors::Green, Colors::White, Colors::White, ImVec2( ImGui::GetContentRegionAvail().x - eraseButtonWidth - virtualParameterButtonWidth - ( ImGui::GetStyle().ItemSpacing.x * 2 ), 0 ) );
+        ImGuiX::DropDownIconButtonColored( EE_ICON_PLUS_THICK, "Add New Parameter", DrawNewParameterOptions, Colors::Green, Colors::White, Colors::White, ImVec2( addButtonWidth, 0 ) );
+
+        // Add virtual parameters
+        //-------------------------------------------------------------------------
 
         ImGui::SameLine();
 
@@ -4530,13 +4682,51 @@ namespace EE::Animation
 
         ImGuiX::DropDownIconButtonColored( EE_ICON_PLUS_CIRCLE, "Virtual", DrawNewVirtualParameterOptions, Colors::DarkOrange, Colors::White, Colors::White, ImVec2( virtualParameterButtonWidth, 0 ) );
 
+        // Import Parameters
+        //-------------------------------------------------------------------------
+
         ImGui::SameLine();
 
-        ImGui::BeginDisabled( m_dialogManager.HasActiveModalDialog() );
-        if ( ImGui::Button( EE_ICON_TRASH_CAN"##EraseUnused", ImVec2( eraseButtonWidth, 0 ) ) )
+        ImGui::BeginDisabled( m_pToolsContext->m_pDialogManager->HasActiveModalDialog() );
+        if ( ImGui::Button( EE_ICON_IMPORT"##Import", ImVec2( endButtonWidth, 0 ) ) )
+        {
+            FileDialog::Result result = FileDialog::LoadResourceOrDataFile( m_pToolsContext, GraphResourceDescriptor::GetStaticTypeID(), m_pToolsContext->GetSourceDataDirectory() );
+            if ( result )
+            {
+                GraphResourceDescriptor importGraphDesc;
+                Log log;
+                if ( GraphResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, log, result.m_filePaths[0], importGraphDesc ) )
+                {
+                    EE_ASSERT( importGraphDesc.IsValid() );
+
+                    TVector<String> resultLog;
+                    NodeGraph::ScopedGraphModification gm( GetEditedRootGraph() );
+                    GetEditedGraphData()->m_pGraphDefinition->ReflectParameters( importGraphDesc.m_graphDefinition, false, &resultLog );
+                    OnGraphStateModified();
+
+                    String message;
+                    for ( auto const& logEntry : resultLog )
+                    {
+                        message.append_sprintf( "%s\n", logEntry.c_str() );
+                    }
+
+                    ShowNotifyDialog( EE_ICON_CHECK" Completed", message.c_str() );
+                }
+            }
+        }
+        ImGui::EndDisabled();
+        ImGuiX::ItemTooltip( "Import parameters from another graph" );
+
+        // Delete Parameters
+        //-------------------------------------------------------------------------
+
+        ImGui::SameLine();
+
+        ImGui::BeginDisabled( m_pToolsContext->m_pDialogManager->HasActiveModalDialog() );
+        if ( ImGui::Button( EE_ICON_TRASH_CAN"##EraseUnused", ImVec2( endButtonWidth, 0 ) ) )
         {
             m_currentOperationParameterID = UUID();
-            m_dialogManager.CreateModalDialog( "Rename IDs", [this] ( UpdateContext const& context ) { return DrawDeleteUnusedParameterDialogWindow( context ); }, ImVec2( 500, -1 ) );
+            m_pToolsContext->m_pDialogManager->StartModalDialog( "Rename IDs", [this] () { return DrawDeleteUnusedParameterDialogWindow(); }, ImVec2( 500, -1 ) );
         }
         ImGui::EndDisabled();
         ImGuiX::ItemTooltip( "Delete all unused parameters" );
@@ -4972,7 +5162,7 @@ namespace EE::Animation
         Memory::MemsetZero( m_parameterGroupBuffer, 255 );
         strncpy_s( m_parameterNameBuffer, "Parameter", 9 );
 
-        m_dialogManager.CreateModalDialog( "Create Parameter", [this] ( UpdateContext const& context ) { return DrawCreateOrRenameParameterDialogWindow( context, false ); }, ImVec2( 300, -1 ) );
+        m_pToolsContext->m_pDialogManager->StartModalDialog( "Create Parameter", [this] () { return DrawCreateOrRenameParameterDialogWindow( false ); }, ImVec2( 300, -1 ) );
     }
 
     void AnimationGraphEditor::StartParameterRename( UUID const& parameterID )
@@ -4990,13 +5180,13 @@ namespace EE::Animation
             EE_UNREACHABLE_CODE();
         }
 
-        m_dialogManager.CreateModalDialog( "Rename Parameter", [this] ( UpdateContext const& context ) { return DrawCreateOrRenameParameterDialogWindow( context, true ); }, ImVec2( 300, -1 ) );
+        m_pToolsContext->m_pDialogManager->StartModalDialog( "Rename Parameter", [this] () { return DrawCreateOrRenameParameterDialogWindow( true ); }, ImVec2( 300, -1 ) );
     }
 
     void AnimationGraphEditor::StartParameterDelete( UUID const& parameterID )
     {
         m_currentOperationParameterID = parameterID;
-        m_dialogManager.CreateModalDialog( "Delete Parameter", [this] ( UpdateContext const& context ) { return DrawDeleteParameterDialogWindow( context ); }, ImVec2( 300, -1 ) );
+        m_pToolsContext->m_pDialogManager->StartModalDialog( "Delete Parameter", [this] () { return DrawDeleteParameterDialogWindow(); }, ImVec2( 300, -1 ) );
     }
 
     //-------------------------------------------------------------------------
@@ -5011,7 +5201,7 @@ namespace EE::Animation
             : TreeListViewItem( pParent )
             , m_pGraphEditor( pGraphEditor )
             , m_path( path )
-            , m_nameID( path )
+            , m_sortingKey( path )
         {
             EE_ASSERT( m_pGraphEditor != nullptr );
             m_displayColor = ImGuiX::Style::s_colorText;
@@ -5021,7 +5211,7 @@ namespace EE::Animation
             : TreeListViewItem( pParent )
             , m_pGraphEditor( pGraphEditor )
             , m_pNode( pVariationDataNode )
-            , m_nameID( pVariationDataNode->GetName() )
+            , m_sortingKey( pVariationDataNode->GetName() )
         {
             EE_ASSERT( m_pGraphEditor != nullptr );
             m_displayColor = pVariationDataNode->GetTitleBarColor();
@@ -5029,22 +5219,18 @@ namespace EE::Animation
 
         virtual uint64_t GetUniqueID() const override { return m_ID.GetValueU64( 0 ); }
 
-        virtual StringID GetNameID() const override { return m_nameID; }
+        virtual char const* GetSortingKey() const { return m_sortingKey.c_str(); }
 
-        virtual InlineString GetDisplayName() const
+        virtual char const* GetDisplayName() const
         {
-            InlineString displayName;
-
             if ( m_pNode != nullptr )
             {
-                displayName = m_pNode->GetName();
+               return m_pNode->GetName();
             }
             else
             {
-                displayName = m_path.c_str();
+               return m_path.c_str();
             }
-
-            return displayName;
         }
 
         virtual Color GetDisplayColor( ItemState state ) const override 
@@ -5081,7 +5267,7 @@ namespace EE::Animation
         AnimationGraphEditor*               m_pGraphEditor = nullptr;
         String                              m_path;
         VariationDataToolsNode*             m_pNode = nullptr;
-        StringID                            m_nameID;
+        String                              m_sortingKey;
         UUID                                m_ID = UUID::GenerateID();
         Color                               m_displayColor;
     };
@@ -5104,8 +5290,7 @@ namespace EE::Animation
 
         if ( columnIdx == 0 )
         {
-            constexpr static float const overrideButtonSize = 30;
-            ImVec2 const buttonSize( overrideButtonSize, overrideButtonSize );
+            ImVec2 const buttonSize( ImGuiX::Style::s_iconButtonWidth, ImGuiX::Style::s_iconButtonWidth );
 
             StringID const currentVariationID = GetEditedGraphData()->m_activeVariationID;
             if ( currentVariationID == Variation::s_defaultVariationID )
@@ -5182,8 +5367,7 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             // Name/Path filter
-            constexpr float const buttonWidth = 30.0f;
-            float const textFilterWidth = ImGui::GetContentRegionAvail().x - buttonWidth - ImGui::GetStyle().ItemSpacing.x;
+            float const textFilterWidth = ImGui::GetContentRegionAvail().x - ImGuiX::Style::s_iconButtonWidth - ImGui::GetStyle().ItemSpacing.x;
             bool filterUpdated = m_variationEditorFilter.UpdateAndDraw( textFilterWidth );
 
             ImGui::SameLine();
@@ -5214,7 +5398,7 @@ namespace EE::Animation
                 }
             };
 
-            ImGuiX::DropDownIconButton( EE_ICON_FILTER, "##Resource Filters", DrawFiltersMenu, ImGuiX::Style::s_colorText, ImVec2( buttonWidth, 0 ) );
+            ImGuiX::DropDownIconButton( EE_ICON_FILTER, "##Resource Filters", DrawFiltersMenu, ImGuiX::Style::s_colorText, ImVec2( ImGuiX::Style::s_iconButtonWidth, 0 ) );
 
             // Apply filter
             if ( filterUpdated )
@@ -5304,7 +5488,7 @@ namespace EE::Animation
         EE_ASSERT( variationID.IsValid() );
         m_activeOperationVariationID = variationID;
         strncpy_s( m_nameBuffer, "NewChildVariation", 255 );
-        m_dialogManager.CreateModalDialog( "Create Variation", [this] ( UpdateContext const& context ) { return DrawCreateVariationDialogWindow( context ); }, ImVec2( 300, -1 ) );
+        m_pToolsContext->m_pDialogManager->StartModalDialog( "Create Variation", [this] () { return DrawCreateVariationDialogWindow(); }, ImVec2( 300, -1 ) );
     }
 
     void AnimationGraphEditor::StartRenameVariation( StringID variationID )
@@ -5312,14 +5496,14 @@ namespace EE::Animation
         EE_ASSERT( variationID.IsValid() );
         m_activeOperationVariationID = variationID;
         strncpy_s( m_nameBuffer, variationID.c_str(), 255 );
-        m_dialogManager.CreateModalDialog( "Rename Variation", [this] ( UpdateContext const& context ) { return DrawRenameVariationDialogWindow( context ); }, ImVec2( 300, -1 ) );
+        m_pToolsContext->m_pDialogManager->StartModalDialog( "Rename Variation", [this] () { return DrawRenameVariationDialogWindow(); }, ImVec2( 300, -1 ) );
     }
 
     void AnimationGraphEditor::StartDeleteVariation( StringID variationID )
     {
         EE_ASSERT( variationID.IsValid() );
         m_activeOperationVariationID = variationID;
-        m_dialogManager.CreateModalDialog( "Delete Variation", [this] ( UpdateContext const& context ) { return DrawDeleteVariationDialogWindow( context ); }, ImVec2( 300, -1 ) );
+        m_pToolsContext->m_pDialogManager->StartModalDialog( "Delete Variation", [this] () { return DrawDeleteVariationDialogWindow(); }, ImVec2( 300, -1 ) );
     }
 
     void AnimationGraphEditor::CreateVariation( StringID newVariationID, StringID parentVariationID )
@@ -5453,9 +5637,11 @@ namespace EE::Animation
 
     void AnimationGraphEditor::DrawVariationSelector( float width )
     {
+        InlineString previewValue( InlineString::CtorSprintf(), "Variation: %s", GetEditedGraphData()->m_activeVariationID.c_str() );
+
         ImGui::BeginDisabled( IsInReadOnlyState() );
         ImGui::SetNextItemWidth( width );
-        if ( ImGui::BeginCombo( "##VariationSelector", GetEditedGraphData()->m_activeVariationID.c_str() ) )
+        if ( ImGui::BeginCombo( "##VariationSelector", previewValue.c_str() ) )
         {
             auto& variationHierarchy = GetEditedGraphData()->m_pGraphDefinition->GetVariationHierarchy();
             DrawVariationTreeNode( variationHierarchy, Variation::s_defaultVariationID );
@@ -5557,7 +5743,7 @@ namespace EE::Animation
         return nameChangeConfirmed;
     }
 
-    bool AnimationGraphEditor::DrawCreateVariationDialogWindow( UpdateContext const& context )
+    bool AnimationGraphEditor::DrawCreateVariationDialogWindow()
     {
         bool isDialogOpen = true;
         if ( DrawVariationNameEditor( isDialogOpen, false ) )
@@ -5571,7 +5757,7 @@ namespace EE::Animation
         return isDialogOpen;
     }
 
-    bool AnimationGraphEditor::DrawRenameVariationDialogWindow( UpdateContext const& context )
+    bool AnimationGraphEditor::DrawRenameVariationDialogWindow()
     {
         bool isDialogOpen = true;
         if ( DrawVariationNameEditor( isDialogOpen, true ) )
@@ -5584,7 +5770,7 @@ namespace EE::Animation
         return isDialogOpen;
     }
 
-    bool AnimationGraphEditor::DrawDeleteVariationDialogWindow( UpdateContext const& context )
+    bool AnimationGraphEditor::DrawDeleteVariationDialogWindow()
     {
         bool isDialogOpen = true;
 
@@ -5645,12 +5831,39 @@ namespace EE::Animation
 
     void AnimationGraphEditor::RebuildVariationDataTree( TreeListViewItem* pRootItem )
     {
+        auto IsUnderClonedState = [] ( VariationDataToolsNode *pVariationDataNode )
+        {
+            auto pParentNode = pVariationDataNode->GetParentNode();
+            while ( pParentNode != nullptr )
+            {
+                if ( auto pParentStateNode = TryCast<StateToolsNode>( pParentNode ) )
+                {
+                    if ( pParentStateNode->IsClonedState() )
+                    {
+                        return true;
+                    }
+                }
+
+                pParentNode = pParentNode->GetParentNode();
+            }
+
+            return false;
+        };
+
+        //-------------------------------------------------------------------------
+
         auto pRootGraph = GetEditedRootGraph();
         auto variationDataNodes = pRootGraph->FindAllNodesOfType<VariationDataToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
 
         CategoryTree<VariationDataToolsNode*> variationDataTree;
         for ( auto pVariationDataNode : variationDataNodes )
         {
+            // Hide any nodes that are a clone of another state
+            if ( IsUnderClonedState( pVariationDataNode ) )
+            {
+                continue;
+            }
+
             String path = pVariationDataNode->GetParentGraph()->GetStringPathFromRoot();
             variationDataTree.AddItem( path, pVariationDataNode->GetName(), pVariationDataNode );
         }
@@ -5669,7 +5882,7 @@ namespace EE::Animation
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Recorder" ) )
         {
-            ImVec2 const buttonSize( 30, 0 );
+            ImVec2 const buttonSize( ImGuiX::Style::s_iconButtonWidth, 0 );
 
             // Review / Stop
             //-------------------------------------------------------------------------
@@ -5679,18 +5892,18 @@ namespace EE::Animation
             {
                 if ( ImGuiX::IconButton( EE_ICON_STOP, "##StopReview", Colors::Red, buttonSize ) )
                 {
-                    StopDebugging();
+                    StopPreview();
                 }
                 ImGuiX::ItemTooltip( "Stop Review" );
             }
             else // Show the start/join button
             {
-                ImGui::BeginDisabled( !m_graphRecorder.HasRecordedData() );
+                ImGui::BeginDisabled( !m_graphRecording.HasRecordedData() );
                 if ( ImGuiX::IconButton( EE_ICON_PLAY, "##StartReview", Colors::Lime, buttonSize ) )
                 {
                     if ( IsDebugging() )
                     {
-                        StopDebugging();
+                        StopPreview();
                     }
 
                     DebugTarget debugTarget;
@@ -5739,12 +5952,12 @@ namespace EE::Animation
 
             ImGui::SameLine();
 
-            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ( buttonSize.x + ImGui::GetStyle().ItemSpacing.x ) * 2 );
-            int32_t const numFramesRecorded = IsReviewingRecording() ? m_graphRecorder.GetNumRecordedFrames() : 1;
-            int32_t frameIdx = IsReviewingRecording() ? m_currentReviewFrameIdx : 0;
+            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - ( buttonSize.x + ImGui::GetStyle().ItemSpacing.x ) );
+            int32_t const numFramesRecorded = IsReviewingRecording() ? m_graphRecording.GetNumRecordedUpdates() : 1;
+            int32_t frameIdx = IsReviewingRecording() ? m_currentlyReviewedUpdateIdx : 0;
             if ( ImGui::SliderInt( "##timeline", &frameIdx, 0, numFramesRecorded - 1 ) )
             {
-                SetFrameToReview( frameIdx );
+                SetUpdateToReview( frameIdx );
             }
 
             ImGui::SameLine();
@@ -5756,28 +5969,50 @@ namespace EE::Animation
 
             ImGui::EndDisabled();
 
-            ImGui::SameLine();
-
-            ImGuiX::ToggleButton( EE_ICON_INFORMATION_OUTLINE"##DrawExtraInfo", EE_ICON_INFORMATION_OFF_OUTLINE"##DrawExtraInfo", m_drawExtraRecordingInfo, buttonSize );
-            ImGuiX::ItemTooltip( m_drawExtraRecordingInfo ? "Hide extra recording information" : "Show extra recording information" );
-
             // Frame Info
             //-------------------------------------------------------------------------
 
-            if ( m_drawExtraRecordingInfo )
+            if ( IsReviewingRecording() && m_currentlyReviewedUpdateIdx >= 0 )
             {
-                if ( IsReviewingRecording() && m_currentReviewFrameIdx >= 0 )
-                {
-                    ImGui::Indent();
-                    ImGui::Text( "Delta Time: %.2fms", m_graphRecorder.m_recordedData[m_currentReviewFrameIdx].m_deltaTime.ToMilliseconds().ToFloat() );
+                EE_ASSERT( m_graphRecordingPlayer.IsPlaybackActive() );
 
-                    Transform const& frameWorldTransform = m_graphRecorder.m_recordedData[m_currentReviewFrameIdx].m_characterWorldTransform;
-                    Float3 const angles = frameWorldTransform.GetRotation().ToEulerAngles().GetAsDegrees();
-                    Vector const translation = frameWorldTransform.GetTranslation();
-                    ImGui::Text( EE_ICON_ROTATE_360" X: %.3f, Y: %.3f, Z: %.3f", angles.m_x, angles.m_y, angles.m_z );
-                    ImGui::Text( EE_ICON_AXIS_ARROW" X: %.3f, Y: %.3f, Z: %.3f", translation.GetX(), translation.GetY(), translation.GetZ() );
-                    ImGui::Text( EE_ICON_ARROW_EXPAND" %.3f", frameWorldTransform.GetScale() );
-                    ImGui::Unindent();
+                int32_t const numRecordedUpdates = m_graphRecordingPlayer.GetNumRecordedUpdates();
+                RecordedUpdateType const updateType = m_graphRecordingPlayer.GetUpdateType();
+                GraphTimeInfo const& timingInfo = m_graphRecordingPlayer.GetTimingInfo();
+
+                switch ( updateType )
+                {
+                    case RecordedUpdateType::FirstRecording:
+                    {
+                         ImGui::Text(  "Recording Start" );
+                    }
+                    break;
+
+                    case RecordedUpdateType::Reset:
+                    {
+                        float const initSyncTime = timingInfo.m_baseUpdateRange.m_endTime.ToFloat();
+                        ImGui::Text( "Graph Reset: %d/%d, Init Sync Time: %.2f", m_currentlyReviewedUpdateIdx, numRecordedUpdates, initSyncTime );
+                    }
+                    break;
+
+                    case RecordedUpdateType::TimeStep:
+                    {
+                        float const initSyncTime = timingInfo.m_baseUpdateRange.m_endTime.ToFloat();
+                        ImGui::Text( "Update: %d/%d, DeltaTime: %.4fs", m_currentlyReviewedUpdateIdx, numRecordedUpdates, m_graphRecordingPlayer.GetDeltaTime().ToMilliseconds().ToFloat() );
+                    }
+                    break;
+
+                    case RecordedUpdateType::ExternalGraphChanged:
+                    {
+                         ImGui::Text( "External Graphs Changed" );
+                    }
+                    break;
+
+                    case RecordedUpdateType::Unknown:
+                    {
+                         ImGui::Text( "Unknown?!" );
+                    }
+                    break;
                 }
             }
         }
@@ -5790,7 +6025,7 @@ namespace EE::Animation
 
         ClearRecordedData();
 
-        m_pDebugGraphInstance->StartRecording( &m_graphRecorder );
+        m_pDebugGraphInstance->StartRecording( &m_graphRecording );
 
         m_isRecording = true;
     }
@@ -5808,89 +6043,30 @@ namespace EE::Animation
     void AnimationGraphEditor::ClearRecordedData()
     {
         EE_ASSERT( !m_isRecording && !IsReviewingRecording() );
-        m_graphRecorder.Reset();
+        m_graphRecording.Reset();
     }
 
-    void AnimationGraphEditor::SetFrameToReview( int32_t newFrameIdx )
+    void AnimationGraphEditor::SetUpdateToReview( int32_t newUpdateIdx )
     {
         EE_ASSERT( IsReviewingRecording() && m_reviewStarted );
-        EE_ASSERT( m_graphRecorder.IsValidRecordedFrameIndex( newFrameIdx ) );
-        EE_ASSERT( m_pDebugGraphComponent != nullptr && m_pDebugGraphComponent->IsInitialized() );
-        EE_ASSERT( m_pDebugMeshComponent != nullptr );
-
-        if ( m_currentReviewFrameIdx == newFrameIdx )
-        {
-            return;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( newFrameIdx == ( m_currentReviewFrameIdx + 1 ) )
-        {
-            auto const& frameData = m_graphRecorder.m_recordedData[newFrameIdx];
-
-            // Set parameters
-            m_pDebugGraphInstance->SetRecordedFrameUpdateData( frameData );
-
-            // Evaluate graph
-            m_pDebugGraphComponent->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr );
-        }
-        else // Re-evaluate the entire graph to the new index point
-        {
-            // Set initial state
-            m_graphRecorder.m_initialState.PrepareForReading();
-            m_pDebugGraphInstance->SetToRecordedState( m_graphRecorder.m_initialState );
-
-            // Update graph instance till we get to the specified frame
-            for ( auto i = 0; i <= newFrameIdx; i++ )
-            {
-                auto const& frameData = m_graphRecorder.m_recordedData[i];
-
-                // Set parameters
-                m_pDebugGraphInstance->SetRecordedFrameUpdateData( frameData );
-
-                // Evaluate graph
-                m_pDebugGraphComponent->EvaluateGraph( frameData.m_deltaTime, frameData.m_characterWorldTransform, nullptr );
-
-                // Explicitly end root motion debug update for intermediate steps
-                if ( i < ( newFrameIdx - 1 ) )
-                {
-                    auto const& nextFrameData = m_graphRecorder.m_recordedData[i + 1];
-                    m_pDebugGraphInstance->EndRootMotionDebuggerUpdate( nextFrameData.m_characterWorldTransform );
-                }
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
-        // Use the transform from the next frame as the end transform of the character used to evaluate the pose tasks
-        int32_t const nextFrameIdx = ( newFrameIdx < m_graphRecorder.GetNumRecordedFrames() - 1 ) ? newFrameIdx + 1 : newFrameIdx;
-        auto const& nextRecordedFrameData = m_graphRecorder.m_recordedData[nextFrameIdx];
-
-        // Do we need to evaluate the the pose tasks for this client
-        if ( m_pDebugGraphInstance->DoesTaskSystemNeedUpdate() )
-        {
-            m_pDebugGraphInstance->ExecutePrePhysicsPoseTasks( nextRecordedFrameData.m_characterWorldTransform );
-            m_pDebugGraphInstance->ExecutePostPhysicsPoseTasks();
-        }
-
-        // Set mesh world Transform and update frame idx
-        m_pDebugMeshComponent->SetWorldTransform( nextRecordedFrameData.m_characterWorldTransform );
-        m_currentReviewFrameIdx = newFrameIdx;
+        EE_ASSERT( m_graphRecordingPlayer.IsPlaybackActive() );
+        m_graphRecordingPlayer.GoToRecordedUpdate( newUpdateIdx );
+        m_pDebugMeshComponent->SetWorldTransform( m_graphRecordingPlayer.GetRecordedCharacterTransform() );
+        m_currentlyReviewedUpdateIdx = newUpdateIdx;
     }
 
     void AnimationGraphEditor::StepReviewForward()
     {
         EE_ASSERT( IsReviewingRecording() );
-        int32_t const newFrameIdx = Math::Min( m_graphRecorder.GetNumRecordedFrames() - 1, m_currentReviewFrameIdx + 1 );
-        SetFrameToReview( newFrameIdx );
+        int32_t const newFrameIdx = Math::Min( m_graphRecordingPlayer.GetNumRecordedUpdates() - 1, m_currentlyReviewedUpdateIdx + 1 );
+        SetUpdateToReview( newFrameIdx );
     }
 
     void AnimationGraphEditor::StepReviewBackward()
     {
         EE_ASSERT( IsReviewingRecording() );
-        int32_t const newFrameIdx = Math::Max( 0, m_currentReviewFrameIdx - 1 );
-        SetFrameToReview( newFrameIdx );
+        int32_t const newFrameIdx = Math::Max( 0, m_currentlyReviewedUpdateIdx - 1 );
+        SetUpdateToReview( newFrameIdx );
     }
 
     //-------------------------------------------------------------------------
@@ -5902,7 +6078,7 @@ namespace EE::Animation
         if ( auto pOpenReferencedGraphCommand = TryCast<OpenReferencedGraphCommand>( pCommand ) )
         {
             EE_ASSERT( pOpenReferencedGraphCommand->m_pCommandSourceNode != nullptr );
-            auto pReferencedGraphNode = Cast<ReferencedGraphToolsNode>( pOpenReferencedGraphCommand->m_pCommandSourceNode );
+            auto pReferencedGraphNode = Cast<InternalReferencedGraphToolsNode>( pOpenReferencedGraphCommand->m_pCommandSourceNode );
 
             ResourceID const referencedGraphResourceID = pReferencedGraphNode->GetReferencedGraphResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
             EE_ASSERT( referencedGraphResourceID.IsValid() && referencedGraphResourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() );
@@ -5922,7 +6098,7 @@ namespace EE::Animation
         if ( auto pReflectParametersCommand = TryCast<ReflectParametersCommand>( pCommand ) )
         {
             EE_ASSERT( pReflectParametersCommand->m_pCommandSourceNode != nullptr );
-            auto pReferencedGraphNode = Cast<ReferencedGraphToolsNode>( pReflectParametersCommand->m_pCommandSourceNode );
+            auto pReferencedGraphNode = Cast<InternalReferencedGraphToolsNode>( pReflectParametersCommand->m_pCommandSourceNode );
 
             ResourceID const referencedGraphResourceID = pReferencedGraphNode->GetReferencedGraphResourceID( *m_userContext.m_pVariationHierarchy, m_userContext.m_selectedVariationID );
             EE_ASSERT( referencedGraphResourceID.IsValid() && referencedGraphResourceID.GetResourceTypeID() == GraphDefinition::GetStaticResourceTypeID() );
@@ -5939,7 +6115,8 @@ namespace EE::Animation
 
             // Load referenced graph
             GraphResourceDescriptor referencedGraphDescriptor;
-            if ( !GraphResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, referencedGraphFilePath, referencedGraphDescriptor ) )
+            Log log;
+            if ( !GraphResourceDescriptor::TryReadFromFile( *m_pToolsContext->m_pTypeRegistry, log, referencedGraphFilePath, referencedGraphDescriptor ) )
             {
                 ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid Referenced Graph ID!" );
             }
@@ -5954,7 +6131,7 @@ namespace EE::Animation
                 referencedGraphDescriptor.m_graphDefinition.ReflectParameters( *GetEditedGraphData()->m_pGraphDefinition, true, &resultLog );
 
                 // Save referenced graph
-                if ( !GraphResourceDescriptor::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, referencedGraphFilePath, &referencedGraphDescriptor ) )
+                if ( !GraphResourceDescriptor::TryWriteToFile( *m_pToolsContext->m_pTypeRegistry, log, referencedGraphFilePath, &referencedGraphDescriptor ) )
                 {
                     ShowNotifyDialog( EE_ICON_EXCLAMATION" Error", "Reflect Parameters Failed: Invalid Referenced Graph ID!" );
                     return;
@@ -5987,10 +6164,10 @@ namespace EE::Animation
     {
         memset( m_oldIDBuffer, 0, 255 );
         memset( m_newIDBuffer, 0, 255 );
-        m_dialogManager.CreateModalDialog( "Rename IDs", [this] ( UpdateContext const& context ) { return DrawRenameIDsDialog( context ); }, ImVec2( 400, 0 ), true );
+        m_pToolsContext->m_pDialogManager->StartModalDialog( "Rename IDs", [this] () { return DrawRenameIDsDialog(); }, ImVec2( 400, 0 ), true );
     }
 
-    bool AnimationGraphEditor::DrawRenameIDsDialog( UpdateContext const& context )
+    bool AnimationGraphEditor::DrawRenameIDsDialog()
     {
         bool isDialogOpen = true;
 
@@ -6251,7 +6428,7 @@ namespace EE::Animation
 
         // Try to restore the view to the graph we were viewing before the undo/redo
         // This is necessary since undo/redo will change all graph ptrs
-        if ( !m_recordedViewAndSelectionState.m_viewedGraphPath.empty() )
+        if ( !m_recordedViewAndSelectionState.m_viewedGraphPath.Empty() )
         {
             NodeGraph::BaseNode* pFoundParentNode = nullptr;
             for ( auto iter = m_recordedViewAndSelectionState.m_viewedGraphPath.rbegin(); iter != m_recordedViewAndSelectionState.m_viewedGraphPath.rend(); ++iter )
@@ -6328,13 +6505,13 @@ namespace EE::Animation
         }
 
         // Clear saved state and refresh variation editor data
-        m_recordedViewAndSelectionState.m_viewedGraphPath.clear();
+        m_recordedViewAndSelectionState.m_viewedGraphPath.Clear();
         m_recordedViewAndSelectionState.Clear();
     }
 
-    void AnimationGraphEditor::PreUndoRedo( UndoStack::Operation operation )
+    void AnimationGraphEditor::PreUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction )
     {
-        DataFileEditor::PreUndoRedo( operation );
+        DataFileEditor::PreUndoRedo( operation, pAction );
 
         m_pBreadcrumbPopupContext = nullptr;
 
@@ -6343,7 +6520,7 @@ namespace EE::Animation
 
         if ( IsDebugging() )
         {
-            StopDebugging();
+            StopPreview();
         }
 
         RecordViewAndSelectionState();
@@ -6356,6 +6533,8 @@ namespace EE::Animation
         DataFileEditor::PostUndoRedo( operation, pAction );
         RestoreViewAndSelectionState();
         OnGraphStateModified();
+
+        m_loadedGraphStack[0]->m_pGraphDefinition->UpdateInternalReferencesAndClones( *m_pToolsContext->m_pTypeRegistry );
     }
 
     void AnimationGraphEditor::PropertyGridPreEdit( PropertyEditInfo const& info )
@@ -6590,7 +6769,7 @@ namespace EE::Animation
             if ( pSkeletonFileEntry != nullptr )
             {
                 SkeletonResourceDescriptor const* pSkeletonDescriptor = Cast<SkeletonResourceDescriptor>( pSkeletonFileEntry->m_pDataFile );
-                for ( auto const& boneMaskID : pSkeletonDescriptor->GetBoneMaskIDs() )
+                for ( auto const& boneMaskID : pSkeletonDescriptor->GetBoneMaskSetIDs() )
                 {
                     if ( !boneMaskID.IsValid() )
                     {
@@ -6652,7 +6831,7 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    EE_PROPERTY_GRID_CUSTOM_EDITOR( BoneMaskIDEditorFactory, "AnimGraph_BoneMaskID", BoneMaskIDEditor );
-    EE_PROPERTY_GRID_CUSTOM_EDITOR( IDEditorFactory, "AnimGraph_ID", IDEditor );
-    EE_PROPERTY_GRID_EDITING_RULES( TargetControlParameterEditingRulesFactory, TargetControlParameterToolsNode, TargetControlParameterEditingRules );
+    EE_PROPERTY_GRID_CUSTOM_EDITOR( BoneMaskIDEditor, "AnimGraph_BoneMaskID" );
+    EE_PROPERTY_GRID_CUSTOM_EDITOR( IDEditor, "AnimGraph_ID" );
+    EE_PROPERTY_GRID_EDITING_RULES( TargetControlParameterToolsNode, TargetControlParameterEditingRules );
 }

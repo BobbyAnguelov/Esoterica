@@ -16,6 +16,10 @@ namespace EE::PG
 
         mutable PropertyGrid::VisualState const*            m_pRecordedVisualState = nullptr; // Only set during grid rebuild, to restore expansion and other visual state
         mutable GridRow*                                    m_pRowThatRequiresUpdateAndRebuild = nullptr; // Set whenever we get an type update request from a row that requires us to update the row and rebuild the grid
+
+        bool                                                m_showReadOnlyProperties = false;
+        bool                                                m_sortAlphabetically = false;
+        bool                                                m_isReadOnly = false;
     };
 
     // This struct wraps a property modification operation
@@ -130,15 +134,16 @@ namespace EE
         m_pGridContext->m_pUserContext = pContext;
     }
 
-    //-------------------------------------------------------------------------
+    void PropertyGrid::SetReadOnly( bool isReadOnly )
+    {
+        m_pGridContext->m_isReadOnly = isReadOnly;
+    }
 
     void PropertyGrid::SetTypeToEdit( IReflectedType* pTypeInstance, VisualState const* pVisualStateToRestore )
     {
         RebuildGrid( pTypeInstance, pVisualStateToRestore );
         m_isDirty = false;
     }
-
-    //-------------------------------------------------------------------------
 
     void PropertyGrid::RebuildGrid( IReflectedType* pTypeInstance, VisualState const* pVisualStateToRestore )
     {
@@ -200,44 +205,9 @@ namespace EE
     void PropertyGrid::ApplyFilter()
     {
         auto const& filters = m_filterWidget.GetFilterTokens();
-        auto EvaluateRowFilter = [this, &filters]( PG::GridRow* pRow )
-        {
-            // Optionally show read-only properties
-            if ( !pRow->IsDeclaredHidden() )
-            {
-                // Reset Visibility
-                pRow->SetHidden( false );
-
-                // Apply read-only visibility filter
-                if ( pRow->IsReadOnly() )
-                {
-                    pRow->SetHidden( !m_showReadOnlyProperties );
-                }
-            }
-
-            // Apply name filter
-            if ( !pRow->IsHidden() && !filters.empty() )
-            {
-                String rowNameLowercase = pRow->GetName();
-                rowNameLowercase.make_lower();
-
-                bool shouldRowBeHidden = true;
-                for ( auto const& filter : filters )
-                {
-                    if ( rowNameLowercase.find( filter ) != String::npos )
-                    {
-                        shouldRowBeHidden = false;
-                        break;
-                    }
-                }
-
-                pRow->SetHidden( shouldRowBeHidden );
-            }
-        };
-
         for ( auto& pCategory : m_categories )
         {
-            pCategory->RecursiveOperation( EvaluateRowFilter );
+            pCategory->ApplyFilter( filters );
         }
     }
 
@@ -274,11 +244,7 @@ namespace EE
         // Get expansion state
         for ( auto& pCategory : m_categories )
         {
-            if ( pCategory->IsExpanded() )
-            {
-                outVisualState.m_expandedCategories.emplace_back( pCategory->GetName() );
-            }
-
+            outVisualState.m_categories.insert_or_assign( pCategory->GetName(), pCategory->IsExpanded() );
             pCategory->FillExpansionInfo( outVisualState );
         }
 
@@ -288,32 +254,33 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    void PropertyGrid::UpdateAndDraw()
+    void PropertyGrid::UpdateAndDraw( ImVec2 size )
     {
+        ImGui::PushID( this );
+
         // Do we have a rebuild request?
         //-------------------------------------------------------------------------
 
-        if ( m_pGridContext->m_pRowThatRequiresUpdateAndRebuild != nullptr )
+        if ( m_pGridContext->m_pRowThatRequiresUpdateAndRebuild != nullptr || m_fullRebuildRequested )
         {
-            m_pGridContext->m_pRowThatRequiresUpdateAndRebuild->UpdateRow();
-            m_pGridContext->m_pRowThatRequiresUpdateAndRebuild = nullptr;
+            if ( m_pGridContext->m_pRowThatRequiresUpdateAndRebuild != nullptr )
+            {
+                m_pGridContext->m_pRowThatRequiresUpdateAndRebuild->UpdateRow();
+                m_pGridContext->m_pRowThatRequiresUpdateAndRebuild = nullptr;
+            }
 
             VisualState visualState;
             GetCurrentVisualState( visualState );
             RebuildGrid( m_pTypeInstance, &visualState );
+            m_fullRebuildRequested = false;
         }
-
-        //-------------------------------------------------------------------------
-
-        ImGui::BeginDisabled( m_isReadOnly );
 
         // Control Bar
         //-------------------------------------------------------------------------
 
         if ( m_isControlBarVisible )
         {
-            constexpr float const buttonWidth = 30;
-            float const filterWidth = ImGui::GetContentRegionAvail().x - ( 3 * ( buttonWidth + ImGui::GetStyle().ItemSpacing.x ) );
+            float const filterWidth = ImGui::GetContentRegionAvail().x - ( 4 * ( ImGuiX::Style::s_iconButtonWidth + ImGui::GetStyle().ItemSpacing.x ) );
             if ( m_filterWidget.UpdateAndDraw( filterWidth ) )
             {
                 ApplyFilter();
@@ -321,7 +288,7 @@ namespace EE
 
             ImGui::SameLine();
 
-            if ( ImGui::Button( EE_ICON_COLLAPSE_ALL"##CollapseAll", ImVec2( buttonWidth, 0 ) ) )
+            if ( ImGui::Button( EE_ICON_COLLAPSE_ALL"##CollapseAll", ImVec2( ImGuiX::Style::s_iconButtonWidth, 0 ) ) )
             {
                 CollapseAll();
             }
@@ -337,22 +304,53 @@ namespace EE
 
             ImGui::SameLine();
 
-            if ( ImGuiX::ToggleButton( EE_ICON_EYE_OUTLINE"##ToggleShowEditableProperties", EE_ICON_EYE_OFF_OUTLINE"##ToggleShowEditableProperties", m_showReadOnlyProperties ) )
+            if ( ImGuiX::ToggleButton( EE_ICON_EYE_OUTLINE"##ToggleShowEditableProperties", EE_ICON_EYE_OFF_OUTLINE"##ToggleShowEditableProperties", m_pGridContext->m_showReadOnlyProperties ) )
             {
                 ApplyFilter();
             }
-            ImGuiX::ItemTooltip( "Read-only property visibility" );
+            if ( m_pGridContext->m_showReadOnlyProperties )
+            {
+                ImGuiX::ItemTooltip( "Read-only properties are visible" );
+            }
+            else
+            {
+                ImGuiX::ItemTooltip( "Read-only properties are hidden" );
+            }
+
+            ImGui::SameLine();
+
+            if ( ImGuiX::ToggleButton( EE_ICON_SORT_ALPHABETICAL_ASCENDING"##ToggleSortByName", EE_ICON_SORT_VARIANT_OFF"##ToggleSortByName", m_pGridContext->m_sortAlphabetically ) )
+            {
+                m_fullRebuildRequested = true;
+            }
+
+            if ( m_pGridContext->m_sortAlphabetically )
+            {
+                ImGuiX::ItemTooltip( "Sorted alphabetically" );
+            }
+            else
+            {
+                ImGuiX::ItemTooltip( "Sorted by declaration order" );
+            }
         }
 
         // Grid Rows
         //-------------------------------------------------------------------------
 
-        float const tableHeight = Math::Max( 0.0f, m_fillRemainingSpace ? ImGui::GetContentRegionAvail().y - 1 : Math::Max( s_absoluteMinimumHeight, m_minimumHeight ) );
-        ImVec2 const tableSize = ImVec2( ImGui::GetContentRegionAvail().x - 1, tableHeight );
-        ImGuiTableFlags const flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_NoBordersInBodyUntilResize | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollY;
+        bool const fillRemainingSpaceX = ( size.x <= 0 );
+        bool const fillRemainingSpaceY = ( size.y < 0 );
+
+        float const tableWidth = Math::Max( 0.0f, fillRemainingSpaceX ? ImGui::GetContentRegionAvail().x - 1 : size.x );
+        float const tableHeight = Math::Max( 0.0f, fillRemainingSpaceY ? ImGui::GetContentRegionAvail().y - 1 : size.y );
+
+        ImGuiTableFlags flags = ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersInnerH | ImGuiTableFlags_NoBordersInBodyUntilResize | ImGuiTableFlags_Resizable | ImGuiTableFlags_SizingFixedFit;
+        if ( fillRemainingSpaceY )
+        {
+            flags |= ImGuiTableFlags_ScrollY;
+        }
+
         ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 4, 8 ) );
-        ImGui::PushID( this );
-        if ( ImGui::BeginTable( "GridTable", 2, flags, tableSize ) )
+        if ( ImGui::BeginTable( "GridTable", 2, flags, ImVec2( tableWidth, tableHeight ) ) )
         {
             ImGui::TableSetupColumn( "##Header", ImGuiTableColumnFlags_WidthFixed, 200 );
             ImGui::TableSetupColumn( "##Editor", ImGuiTableColumnFlags_WidthStretch );
@@ -382,12 +380,8 @@ namespace EE
 
             ImGui::EndTable();
         }
-        ImGui::PopID();
         ImGui::PopStyleVar();
-
-        //-------------------------------------------------------------------------
-
-        ImGui::EndDisabled();
+        ImGui::PopID();
     }
 }
 
@@ -447,7 +441,10 @@ namespace EE::PG
 
                 ImGui::TableNextColumn();
                 ImGui::AlignTextToFramePadding();
-                DrawHeaderSection( currentHeaderOffset );
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
+                    DrawHeaderSection( currentHeaderOffset );
+                }
 
                 ImGui::TableNextColumn();
                 {
@@ -496,17 +493,13 @@ namespace EE::PG
         // Draw Children
         //-------------------------------------------------------------------------
 
-        if ( m_isExpanded )
+        if ( m_isExpanded && !m_isHidden )
         {
-            ImGui::BeginDisabled( IsReadOnly() );
-
             float const childHeaderOffset = currentHeaderOffset + g_headerOffset;
             for ( auto& child : m_children )
             {
                 child->DrawRow( childHeaderOffset );
             }
-
-            ImGui::EndDisabled();
         }
     }
 
@@ -541,15 +534,124 @@ namespace EE::PG
 
     void GridRow::FillExpansionInfo( PropertyGrid::VisualState& visualState )
     {
-        if ( IsExpanded() )
-        {
-            visualState.m_expandedPaths.emplace_back( GetPath() );
-        }
+        visualState.m_paths.insert_or_assign( GetPath(), IsExpanded() );
 
         for ( auto pChildRow : m_children )
         {
             pChildRow->FillExpansionInfo( visualState );
         }
+    }
+
+    bool GridRow::HasVisibleChildren() const
+    {
+        for ( auto& pChild : m_children )
+        {
+            if ( !pChild->IsHidden() )
+            {
+                return true;
+            }
+
+            if ( pChild->HasVisibleChildren() )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void GridRow::ApplyFilter( TVector<String> const& filters )
+    {
+        if ( IsDeclaredHidden() )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        // Reset Visibility
+        SetHidden( false );
+
+        // Apply read-only visibility filter
+        // Do not include grid read-only state in this visibility check
+        if ( IsReadOnly( false ) && !m_context.m_showReadOnlyProperties )
+        {
+            SetHidden( true );
+            return;
+        }
+
+        // No filter - everything should be visible
+        if ( filters.empty() )
+        {
+            for ( auto pChild : m_children )
+            {
+                pChild->ApplyFilter( filters );
+            }
+        }
+        else // Apply filter
+        {
+            String rowNameLowercase = GetName();
+            rowNameLowercase.make_lower();
+
+            bool shouldRowBeHidden = true;
+            for ( auto const& filter : filters )
+            {
+                if ( rowNameLowercase.find( filter ) != String::npos )
+                {
+                    shouldRowBeHidden = false;
+                    break;
+                }
+            }
+
+            if ( shouldRowBeHidden )
+            {
+                // Apply filter to all children
+                for ( auto pChild : m_children )
+                {
+                    pChild->ApplyFilter( filters );
+                }
+
+                SetHidden( !HasVisibleChildren() );
+            }
+            else // Row is visible, so show all children
+            {
+                for ( auto pChild : m_children )
+                {
+                    pChild->ApplyFilter( TVector<String>() );
+                }
+            }
+        }
+    }
+
+    bool GridRow::IsReadOnly( bool takeGridReadOnlyStateIntoAccount ) const
+    {
+        if ( takeGridReadOnlyStateIntoAccount )
+        {
+            if ( m_context.m_isReadOnly )
+            {
+                return true;
+            }
+        }
+
+        // Check immediate read-only state
+        if ( m_isDeclaredReadOnly || m_isReadOnly )
+        {
+            return true;
+        }
+
+        // Check for read-only parent
+        GridRow* pParentRow = m_pParent;
+        while ( pParentRow != nullptr )
+        {
+            if ( pParentRow->IsReadOnly() )
+            {
+                return true;
+            }
+
+            pParentRow = pParentRow->m_pParent;
+        }
+
+        return false;
     }
 
     //-------------------------------------------------------------------------
@@ -589,7 +691,7 @@ namespace EE::PG
     {
         if ( context.m_pRecordedVisualState != nullptr )
         {
-            m_isExpanded = VectorContains( context.m_pRecordedVisualState->m_expandedCategories, m_name );
+            m_isExpanded = context.m_pRecordedVisualState->GetCategoryExpansionState( m_name );
         }
     }
 
@@ -617,16 +719,23 @@ namespace EE::PG
         // Sorted Insert
         //-------------------------------------------------------------------------
 
-        size_t insertIdx = 0;
-        for ( ; insertIdx < m_children.size(); insertIdx++ )
+        if ( m_context.m_sortAlphabetically )
         {
-            if ( m_children[insertIdx]->GetName() > pRow->GetName() )
+            size_t insertIdx = 0;
+            for ( ; insertIdx < m_children.size(); insertIdx++ )
             {
-                break;
+                if ( m_children[insertIdx]->GetName() > pRow->GetName() )
+                {
+                    break;
+                }
             }
-        }
 
-        m_children.insert( m_children.begin() + insertIdx, pRow );
+            m_children.insert( m_children.begin() + insertIdx, pRow );
+        }
+        else
+        {
+            m_children.emplace_back( pRow );
+        }
     }
 
     bool CategoryRow::ShouldDrawRow() const
@@ -653,7 +762,7 @@ namespace EE::PG
     //-------------------------------------------------------------------------
 
     ArrayRow::ArrayRow( GridRow* pParentRow, GridContext const& context, PropertyInfo const& propertyInfo, IReflectedType* pParentTypeInstance )
-        : GridRow( pParentRow, context, propertyInfo.m_metadata.GetFriendlyName(), propertyInfo.m_metadata.HasFlag( PropertyMetadata::ReadOnly ) )
+        : GridRow( pParentRow, context, propertyInfo.m_metadata.GetValue( TypeSystem::PropertyMetadata::FriendlyName ), propertyInfo.m_metadata.HasFlag( PropertyMetadata::ReadOnly ) )
         , m_pParentTypeInstance( pParentTypeInstance )
         , m_propertyInfo( propertyInfo )
     {
@@ -664,7 +773,7 @@ namespace EE::PG
 
         if ( context.m_pRecordedVisualState != nullptr )
         {
-            m_isExpanded = VectorContains( context.m_pRecordedVisualState->m_expandedPaths, m_path );
+            m_isExpanded = context.m_pRecordedVisualState->GetPathExpansionState( m_path );
         }
 
         RebuildChildren();
@@ -812,22 +921,17 @@ namespace EE::PG
         // No operation last more than a frame
         m_operationType = OperationType::None;
         m_operationElementIdx = InvalidIndex;
-
-        // Visibility
-        //-------------------------------------------------------------------------
-        // Array element visibility is tied to our visibility!
-
-        if ( !m_isHidden )
-        {
-            for ( auto pChild : m_children )
-            {
-                pChild->SetHidden( false );
-            }
-        }
     }
 
     bool ArrayRow::ShouldDrawRow() const
     {
+        if ( m_isHidden || m_isDeclaredHidden )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
         for ( auto pChildRow : m_children )
         {
             if ( pChildRow->ShouldDrawRow() )
@@ -836,7 +940,7 @@ namespace EE::PG
             }
         }
 
-        return !m_isHidden;
+        return !IsHidden();
     }
 
     void ArrayRow::DrawHeaderSection( float currentHeaderOffset )
@@ -848,12 +952,22 @@ namespace EE::PG
         ImGui::PushStyleColor( ImGuiCol_Header, 0 );
         ImGui::PushStyleColor( ImGuiCol_HeaderActive, 0 );
         ImGui::PushStyleColor( ImGuiCol_HeaderHovered, 0 );
-        m_isExpanded = ImGui::CollapsingHeader( m_name.c_str() );
+
+        auto pTypeInfo = m_pParentTypeInstance->GetTypeInfo();
+        size_t const arraySize = pTypeInfo->GetArraySize( m_pParentTypeInstance, m_propertyInfo.m_ID );
+        if ( arraySize == 0 )
+        {
+            ImGui::Text( m_name.c_str() );
+        }
+        else // Draw expanding section
+        {
+            m_isExpanded = ImGui::CollapsingHeader( m_name.c_str() );
+        }
         ImGui::PopStyleColor( 3 );
 
-        if ( !m_propertyInfo.m_metadata.GetDescription().empty() )
+        if ( !m_propertyInfo.m_metadata.GetValue( TypeSystem::PropertyMetadata::Description ).empty() )
         {
-            ImGuiX::ItemTooltip( m_propertyInfo.m_metadata.GetDescription().c_str() );
+            ImGuiX::ItemTooltip( m_propertyInfo.m_metadata.GetValue( TypeSystem::PropertyMetadata::Description ).c_str() );
         }
     }
 
@@ -939,7 +1053,7 @@ namespace EE::PG
     //-------------------------------------------------------------------------
 
     PropertyRow::PropertyRow( GridRow* pParentRow, GridContext const& context, PropertyInfo const& propertyInfo, IReflectedType* pParentTypeInstance, int32_t arrayElementIndex )
-        : GridRow( pParentRow, context, propertyInfo.m_metadata.GetFriendlyName(), propertyInfo.m_metadata.HasFlag( PropertyMetadata::ReadOnly ), propertyInfo.m_metadata.HasFlag( PropertyMetadata::Hidden ) )
+        : GridRow( pParentRow, context, propertyInfo.m_metadata.GetValue( TypeSystem::PropertyMetadata::FriendlyName ), propertyInfo.m_metadata.HasFlag( PropertyMetadata::ReadOnly ), propertyInfo.m_metadata.HasFlag( PropertyMetadata::Hidden ) )
         , m_propertyInfo( propertyInfo )
         , m_pParentTypeInstance( pParentTypeInstance )
         , m_arrayElementIdx( arrayElementIndex )
@@ -954,7 +1068,7 @@ namespace EE::PG
 
         if ( context.m_pRecordedVisualState != nullptr )
         {
-            m_isExpanded = VectorContains( context.m_pRecordedVisualState->m_expandedPaths, m_path );
+            m_isExpanded = context.m_pRecordedVisualState->GetPathExpansionState( m_path );
         }
 
         //-------------------------------------------------------------------------
@@ -988,6 +1102,13 @@ namespace EE::PG
 
     bool PropertyRow::ShouldDrawRow() const
     {
+        if ( m_isDeclaredHidden )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
         if ( m_propertyInfo.IsStructureProperty() && !HasPropertyEditor() )
         {
             for ( auto pChildRow : m_children )
@@ -997,13 +1118,9 @@ namespace EE::PG
                     return true;
                 }
             }
+        }
 
-            return false;
-        }
-        else
-        {
-            return !m_isHidden;
-        }
+        return !IsHidden();
     }
 
     void PropertyRow::Update()
@@ -1086,14 +1203,17 @@ namespace EE::PG
             if ( !nameOverride.empty() )
             {
                 m_name = nameOverride;
+                return;
             }
         }
-        else if ( m_pPropertyEditor != nullptr )
+
+        if ( m_pPropertyEditor != nullptr )
         {
             InlineString const nameOverride = m_pPropertyEditor->GetPropertyNameOverride( m_arrayElementIdx );
             if ( !nameOverride.empty() )
             {
                 m_name = nameOverride;
+                return;
             }
         }
     }
@@ -1104,6 +1224,8 @@ namespace EE::PG
         ImGui::SameLine();
 
         //-------------------------------------------------------------------------
+
+        String const desc = m_propertyInfo.m_metadata.GetValue( TypeSystem::PropertyMetadata::Description );
 
         if ( m_propertyInfo.IsTypeInstanceProperty() )
         {
@@ -1116,18 +1238,18 @@ namespace EE::PG
             m_isExpanded = ImGui::CollapsingHeader( m_name.c_str(), pTypeInstanceContainer->IsSet() ? 0 : ImGuiTreeNodeFlags_Leaf );
             ImGui::PopStyleColor( 3 );
 
-            if ( !m_propertyInfo.m_metadata.GetDescription().empty() )
+            if ( !desc.empty() )
             {
-                ImGuiX::ItemTooltip( m_propertyInfo.m_metadata.GetDescription().c_str() );
+                ImGuiX::ItemTooltip( desc.c_str() );
             }
         }
         else if ( HasPropertyEditor() )
         {
             ImGui::Text( m_name.c_str() );
 
-            if ( !m_propertyInfo.m_metadata.GetDescription().empty() )
+            if ( !desc.empty() )
             {
-                ImGuiX::TextTooltip( m_propertyInfo.m_metadata.GetDescription().c_str() );
+                ImGuiX::TextTooltip( desc.c_str() );
             }
             else
             {
@@ -1143,9 +1265,9 @@ namespace EE::PG
             m_isExpanded = ImGui::CollapsingHeader( m_name.c_str() );
             ImGui::PopStyleColor( 3 );
 
-            if ( !m_propertyInfo.m_metadata.GetDescription().empty() )
+            if ( !desc.empty() )
             {
-                ImGuiX::ItemTooltip( m_propertyInfo.m_metadata.GetDescription().c_str() );
+                ImGuiX::ItemTooltip( desc.c_str() );
             }
         }
         else

@@ -29,8 +29,8 @@ namespace EE::Animation
                 TInlineVector<EE::StringID, 10> variationIDs = pGraphDescriptor->m_graphDefinition.GetVariationIDs();
                 for ( StringID variationID : variationIDs )
                 {
-                    DataPath const variationVirtualFilePath = Variation::GenerateResourceDataPath( m_toolsContext.GetSourceDataDirectory(), fileEntry->m_filePath, variationID );
-                    outOptions.emplace_back( variationVirtualFilePath );
+                    DataPath const variationDataPath = Variation::GenerateResourceDataPath( m_toolsContext.GetSourceDataDirectory(), fileEntry->m_filePath, variationID );
+                    outOptions.emplace_back( variationDataPath );
                 }
             }
         }
@@ -44,7 +44,7 @@ namespace EE::Animation
             ResourceID const graphResourceID = Variation::GetGraphResourceID( resourceID, &variationID );
             if ( !variationID.IsValid() )
             {
-                return false;
+                variationID = Variation::s_defaultVariationID;
             }
 
             FileRegistry::FileInfo const* pGraphFileEntry = m_toolsContext.m_pFileRegistry->GetFileEntry( graphResourceID );

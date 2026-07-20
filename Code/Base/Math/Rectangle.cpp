@@ -12,10 +12,10 @@ namespace EE::Math
 
         Vector const closestPoints[4] =
         {
-            LineSegment( verts[0], verts[1] ).GetClosestPointOnSegment( point ),
-            LineSegment( verts[2], verts[3] ).GetClosestPointOnSegment( point ),
-            LineSegment( verts[0], verts[2] ).GetClosestPointOnSegment( point ),
-            LineSegment( verts[1], verts[3] ).GetClosestPointOnSegment( point )
+            LineSegment( verts[0], verts[1] ).GetClosestPoint( point ),
+            LineSegment( verts[2], verts[3] ).GetClosestPoint( point ),
+            LineSegment( verts[0], verts[2] ).GetClosestPoint( point ),
+            LineSegment( verts[1], verts[3] ).GetClosestPoint( point )
         };
 
         Vector vPoint( point );

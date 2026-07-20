@@ -1,44 +1,45 @@
 #pragma once
 
 #include "ClangUtils.h"
-#include "Applications/Reflector/TypeReflection/ReflectionDatabase.h"
+#include "Applications/Reflector/TypeReflection/TypeReflection_ReflectionDatabase.h"
+#include "Applications/Reflector//ReflectedMacro.h"
 #include "Base/Types/HashMap.h"
 #include "Base/Types/StringID.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::TypeSystem::Reflection
+namespace EE::Reflection
 {
     class ReflectionDatabase;
 
     //-------------------------------------------------------------------------
 
-    struct ReflectionMacro
+    struct ParsedMacro
     {
 
     public:
 
-        ReflectionMacro() = default;
-        ReflectionMacro( ReflectedHeader const* pReflectedHeader, CXCursor cursor, CXSourceRange sourceRange, ReflectedHeader::ReflectionMacro type );
+        ParsedMacro() = default;
+        ParsedMacro( ReflectedHeader const* pReflectedHeader, CXCursor cursor, CXSourceRange sourceRange, ReflectionMacro type );
 
-        inline bool IsValid() const { return m_type != ReflectedHeader::ReflectionMacro::Unknown; }
-        inline bool IsModuleMacro() const { return m_type == ReflectedHeader::ReflectionMacro::ReflectModule; }
-        inline bool IsEnumMacro() const { return m_type == ReflectedHeader::ReflectionMacro::ReflectEnum; }
-        inline bool IsEntitySystemMacro() const { return m_type == ReflectedHeader::ReflectionMacro::EntitySystem; }
-        inline bool IsEntityWorldSystemMacro() const { return m_type == ReflectedHeader::ReflectionMacro::EntityWorldSystem; }
-        inline bool IsEntityComponentMacro() const { return m_type == ReflectedHeader::ReflectionMacro::EntityComponent || m_type == ReflectedHeader::ReflectionMacro::SingletonEntityComponent; }
-        inline bool IsDataFileMacro() const { return m_type == ReflectedHeader::ReflectionMacro::DataFile; }
+        inline bool IsValid() const { return m_type != ReflectionMacro::Unknown; }
+        inline bool IsModuleMacro() const { return m_type == ReflectionMacro::ReflectModule; }
+        inline bool IsEnumMacro() const { return m_type == ReflectionMacro::ReflectEnum; }
+        inline bool IsEntitySystemMacro() const { return m_type == ReflectionMacro::EntitySystem; }
+        inline bool IsEntityWorldSystemMacro() const { return m_type == ReflectionMacro::EntityWorldSystem; }
+        inline bool IsEntityComponentMacro() const { return m_type >= ReflectionMacro::EntityComponent && m_type <= ReflectionMacro::TransientSingletonEntityComponent; }
+        inline bool IsDataFileMacro() const { return m_type == ReflectionMacro::DataFile; }
 
         // Should be registered as a type
         inline bool IsReflectedTypeMacro() const 
         { 
-            return m_type == ReflectedHeader::ReflectionMacro::ReflectType || IsEntitySystemMacro() || IsEntityWorldSystemMacro() || IsEntityComponentMacro() || m_type == ReflectedHeader::ReflectionMacro::DataFile;
+            return m_type == ReflectionMacro::ReflectType || IsEntitySystemMacro() || IsEntityWorldSystemMacro() || IsEntityComponentMacro() || m_type == ReflectionMacro::DataFile;
         }
         
         // Should be registered as a resource
         inline bool IsRegisteredResourceMacro() const
         { 
-            return m_type == ReflectedHeader::ReflectionMacro::Resource;
+            return m_type == ReflectionMacro::Resource;
         }
 
         String GetReflectedTypeName() const;
@@ -48,7 +49,7 @@ namespace EE::TypeSystem::Reflection
         StringID                            m_headerID;
         uint32_t                            m_lineNumber = 0;
         uint32_t                            m_position = 0xFFFFFFFF;
-        ReflectedHeader::ReflectionMacro    m_type = ReflectedHeader::ReflectionMacro::Unknown;
+        ReflectionMacro                     m_type = ReflectionMacro::Unknown;
         String                              m_macroComment;
         String                              m_macroContents;
     };
@@ -101,17 +102,17 @@ namespace EE::TypeSystem::Reflection
         bool IsInEngineNamespace() const { return m_inEngineNamespace; }
         bool IsEngineNamespace( String const& namespaceString ) const;
 
-        void AddFoundReflectionMacro( ReflectionMacro const& foundMacro );
+        void AddFoundReflectionMacro( ParsedMacro const& foundMacro );
 
         // Try to find a reflection macro for a property
         // If we found a macro we will remove it from the list of macros to reduce the cost of future searches
         // Returns true if a macro was found
-        bool GetReflectionMacroForType( StringID headerID, CXCursor const& cr, ReflectionMacro& macro );
+        bool GetReflectionMacroForType( StringID headerID, CXCursor const& cr, ParsedMacro& macro );
 
         // Try to find a reflection macro for a property
         // If we found a macro we will remove it from the list of macros to reduce the cost of future searches
         // Returns true if a macro was found
-        bool FindReflectionMacroForProperty( StringID headerID, uint32_t lineNumber, ReflectionMacro& reflectionMacro );
+        bool FindReflectionMacroForProperty( StringID headerID, uint32_t lineNumber, ParsedMacro& reflectionMacro );
 
         // Check if we have any orphaned reflection macros
         // If we have any then we will populate the error message with all the details
@@ -130,11 +131,13 @@ namespace EE::TypeSystem::Reflection
 
         // The current parent/enclosing reflected type
         void*                                                   m_pParentReflectedType;
+        StringID                                                m_currentHeaderID;
+        FileSystem::Path                                        m_currentHeaderFilePath;
 
     private:
 
-        THashMap<StringID, TVector<ReflectionMacro>>            m_typeReflectionMacros;
-        THashMap<StringID, TVector<ReflectionMacro>>            m_propertyReflectionMacros;
+        THashMap<StringID, TVector<ParsedMacro>>                m_typeReflectionMacros;
+        THashMap<StringID, TVector<ParsedMacro>>                m_propertyReflectionMacros;
 
         mutable String                                          m_errorMessage;
         TVector<String>                                         m_namespaceStack;

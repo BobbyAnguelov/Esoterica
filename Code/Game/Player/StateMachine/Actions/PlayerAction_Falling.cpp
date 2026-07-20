@@ -1,14 +1,13 @@
 #include "PlayerAction_Falling.h"
-#include "Game/Player/Camera/PlayerCameraController.h"
+#include "Game/Player/Components/Component_PlayerCamera.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
-#include "Engine/Physics/Components/Component_PhysicsCharacter.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Physics/PhysicsWorld.h"
 #include "Base/Input/InputSystem.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
     static constexpr float const g_maxAirControlAcceleration = 10.0f;          // meters/second squared
     static constexpr float const g_maxAirControlSpeed = 6.5f;                  // meters/second
@@ -16,30 +15,30 @@ namespace EE::Player
 
     //-------------------------------------------------------------------------
 
-    bool FallingAction::TryStartInternal( ActionContext const& ctx )
+    bool PlayerAction_Falling::TryStartInternal( PlayerActionContext const& ctx )
     {
-        if( ctx.m_pCharacterComponent->GetInAirTime() > 0.2f )
+        if( ctx.m_pPlayer->GetInAirTime() > 0.2f )
         {
-            Physics::QueryRules const& filter = ctx.m_pCharacterComponent->GetQueryRules();
+            Physics::CastQuery query( ctx.m_pPlayer->GetQueryRules() );
 
-            float const capsuleHalfHeight = ctx.m_pCharacterComponent->GetCapsuleHalfHeight();
-            float const capsuleRadius = ctx.m_pCharacterComponent->GetCapsuleRadius();
-            Quaternion const capsuleOrientation = ctx.m_pCharacterComponent->GetOrientation();
-            Vector const capsulePosition = ctx.m_pCharacterComponent->GetPosition();
+            float const capsuleHalfHeight = ctx.m_pPlayer->GetCapsuleHalfHeight();
+            float const capsuleRadius = ctx.m_pPlayer->GetCapsuleRadius();
+            Quaternion const capsuleOrientation = ctx.m_pPlayer->GetOrientation();
+            Vector const capsulePosition = ctx.m_pPlayer->GetPosition();
 
             // Test for environment collision right below the player
-            ctx.m_pPhysicsWorld->AcquireReadLock();
-            Physics::SweepResults sweepResults;
-            bool collided = ctx.m_pPhysicsWorld->CapsuleSweep( capsuleHalfHeight, capsuleRadius, capsuleOrientation.GetNormalized(), capsulePosition, -Vector::UnitZ, g_FallingEmptySpaceRequired, filter, sweepResults );
-            ctx.m_pPhysicsWorld->ReleaseReadLock();
+            ctx.m_pPhysicsWorld->LockRead();
+
+            bool collided = ctx.m_pPhysicsWorld->CapsuleCast( capsuleHalfHeight, capsuleRadius, capsuleOrientation.GetNormalized(), capsulePosition, -Vector::UnitZ, g_FallingEmptySpaceRequired, query );
+            ctx.m_pPhysicsWorld->UnlockRead();
 
             if( collided )
             {
                 return false;
             }
 
-            ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::InAir );
-            ctx.m_pCharacterComponent->SetGravityMode( Physics::ControllerGravityMode::Acceleration );
+            ctx.m_pAnimationController->SetCharacterState( PlayerAnimationController::CharacterState::InAir );
+            ctx.m_pPlayer->ResetGravityScale();
 
             return true;
         }
@@ -47,24 +46,24 @@ namespace EE::Player
         return false;
     }
 
-    Action::Status FallingAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
+    PlayerAction::Status PlayerAction_Falling::UpdateInternal( PlayerActionContext const& ctx, bool isFirstUpdate )
     {
         // Calculate desired player displacement
         //-------------------------------------------------------------------------
     
         Vector const movementInputs = ctx.m_pInput->m_move.GetValue();
 
-        auto const& camFwd = ctx.m_pCameraController->GetCameraRelativeForwardVector2D();
-        auto const& camRight = ctx.m_pCameraController->GetCameraRelativeRightVector2D();
+        auto const& camFwd = ctx.m_pCamera->GetCameraRelativeForwardVector2D();
+        auto const& camRight = ctx.m_pCamera->GetCameraRelativeRightVector2D();
 
         // Use last frame camera orientation
-        Vector const currentVelocity = ctx.m_pCharacterComponent->GetCharacterVelocity();
+        Vector const currentVelocity = ctx.m_pPlayer->GetVelocity();
         Vector const currentVelocity2D = currentVelocity * Vector( 1.0f, 1.0f, 0.0f );
 
         Vector const forward = camFwd * movementInputs.GetY();
         Vector const right = camRight * movementInputs.GetX();
         Vector const desiredMovementVelocity2D = ( forward + right ) * g_maxAirControlAcceleration * ctx.GetDeltaTime();
-        Vector const facing = desiredMovementVelocity2D.IsZero2() ? ctx.m_pCharacterComponent->GetForwardVector() : desiredMovementVelocity2D.GetNormalized2();
+        Vector const facing = desiredMovementVelocity2D.IsZero2() ? ctx.m_pPlayer->GetForwardVector() : desiredMovementVelocity2D.GetNormalized2();
 
         Vector resultingVelocity = currentVelocity2D + desiredMovementVelocity2D;
         float const speed2D = resultingVelocity.GetLength2();
@@ -82,7 +81,7 @@ namespace EE::Player
 
         ctx.m_pAnimationController->SetInAirDesiredMovement( ctx.GetDeltaTime(), resultingVelocity, facing );
         
-        if( ctx.m_pCharacterComponent->HasFloor() )
+        if( ctx.m_pPlayer->HasFloor() )
         {
             return Status::Completed;
         }
@@ -90,7 +89,7 @@ namespace EE::Player
         return Status::Interruptible;
     }
 
-    void FallingAction::StopInternal( ActionContext const& ctx, StopReason reason )
+    void PlayerAction_Falling::StopInternal( PlayerActionContext const& ctx, StopReason reason )
     {
 
     }

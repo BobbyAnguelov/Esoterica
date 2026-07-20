@@ -5,6 +5,7 @@
     <ClCompile Include="Win32\EditorApplication_Win32.cpp">
       <Filter>Win32</Filter>
     </ClCompile>
+    <ClCompile Include="EditorTool_GamePreviewer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EditorUI.h" />
@@ -14,10 +15,11 @@
     <ClInclude Include="Win32\EditorApplication_Win32.h">
       <Filter>Win32</Filter>
     </ClInclude>
+    <ClInclude Include="EditorTool_GamePreviewer.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Win32">
-      <UniqueIdentifier>{2f85a086-5782-419d-9cca-aca483a00439}</UniqueIdentifier>
+      <UniqueIdentifier>{78996610-c774-41fa-abda-3524b855c2bb}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -29,5 +31,6 @@
     <Image Include="Win32\Editor.ico">
       <Filter>Win32</Filter>
     </Image>
+    <Image Include="Win32\SplashScreen.bmp" />
   </ItemGroup>
 </Project>

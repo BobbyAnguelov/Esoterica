@@ -1,0 +1,6 @@
+<Type TypeID="EE::Render::TextureResourceDescriptor" Version="0">
+  <Property ID="m_sourcePaths">
+    <Property Index="0" Value="data://editor/floor/floor.png" />
+  </Property>
+  <Property ID="m_textureGroup" Value="data://render/texturegroups/albedotexture.txtg" />
+</Type>

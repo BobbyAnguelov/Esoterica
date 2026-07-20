@@ -14,6 +14,5 @@ namespace EE::EntityModel
 
         EntityCollectionCompiler();
         virtual Resource::CompilationResult Compile( Resource::CompileContext const& ctx ) const override;
-        virtual bool GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
     };
 }

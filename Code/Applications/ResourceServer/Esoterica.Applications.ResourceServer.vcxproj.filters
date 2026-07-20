@@ -4,23 +4,26 @@
     <ClCompile Include="ResourceServer.cpp" />
     <ClCompile Include="ResourceServerApplication.cpp" />
     <ClCompile Include="ResourceServerUI.cpp" />
+    <ClCompile Include="ResourceServerWorker.cpp" />
     <ClCompile Include="ResourceServerContext.cpp" />
+    <ClCompile Include="ResourceServerRequest.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ResourceServerApplication.h" />
-    <ClInclude Include="ResourceServerUI.h" />
-    <ClInclude Include="ResourceCompilationRequest.h" />
     <ClInclude Include="ResourceServer.h" />
+    <ClInclude Include="ResourceServerUI.h" />
     <ClInclude Include="Resources\Resource.h">
       <Filter>Resources</Filter>
     </ClInclude>
+    <ClInclude Include="ResourceServerRequest.h" />
+    <ClInclude Include="ResourceServerWorker.h" />
     <ClInclude Include="ResourceServerContext.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Resources\ResourceServerBusyOverlay.ico">
+    <Image Include="Resources\ResourceServer.ico">
       <Filter>Resources</Filter>
     </Image>
-    <Image Include="Resources\ResourceServer.ico">
+    <Image Include="Resources\ResourceServerBusyOverlay.ico">
       <Filter>Resources</Filter>
     </Image>
     <Image Include="Resources\TrayIconBusy.ico">
@@ -38,7 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Resources">
-      <UniqueIdentifier>{b4ecc04b-4314-4fb3-8461-5ad6e155d99a}</UniqueIdentifier>
+      <UniqueIdentifier>{012048f6-6923-47ec-8023-d938509c390e}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>

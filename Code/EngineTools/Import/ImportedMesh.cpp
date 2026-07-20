@@ -4,43 +4,7 @@
 
 namespace EE::Import
 {
-    bool ImportedMesh::VertexData::operator==( VertexData const& rhs ) const
-    {
-        if ( !Vector( m_position ).IsNearEqual3( rhs.m_position, Vector::LargeEpsilon ) )
-        {
-            return false;
-        }
-
-        if ( !Vector( m_normal ).IsNearEqual3( rhs.m_normal, Vector::LargeEpsilon ) )
-        {
-            return false;
-        }
-
-        if ( !Vector( m_tangent ).IsNearEqual3( rhs.m_tangent, Vector::LargeEpsilon ) )
-        {
-            return false;
-        }
-
-        if ( m_texCoords.size() != rhs.m_texCoords.size() )
-        {
-            return false;
-        }
-
-        int32_t const numTexCoords = (int32_t) m_texCoords.size();
-        for ( int32_t i = 0; i < numTexCoords; i++ )
-        {
-            if ( m_texCoords[i] != rhs.m_texCoords[i] )
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    //-------------------------------------------------------------------------
-
-    bool ImportedMesh::IsValid() const
+    bool Mesh::IsValid() const
     {
         if ( HasErrors() )
         {
@@ -55,7 +19,7 @@ namespace EE::Import
             }
         }
 
-        if ( m_geometrySections.empty() )
+        if ( m_geometries.empty() )
         {
             return false;
         }
@@ -63,36 +27,7 @@ namespace EE::Import
         return true;
     }
 
-    String ImportedMesh::GetUniqueGeometrySectionName( String const& desiredName ) const
-    {
-        String finalName = desiredName;
-
-        uint32_t counter = 0;
-        bool isUniqueName = false;
-        while ( !isUniqueName )
-        {
-            isUniqueName = true;
-
-            for ( auto i = 0; i < m_geometrySections.size(); i++ )
-            {
-                if ( finalName.comparei( m_geometrySections[i].m_name.c_str() ) == 0 )
-                {
-                    isUniqueName = false;
-                    break;
-                }
-            }
-
-            if ( !isUniqueName )
-            {
-                finalName.sprintf( "%s %u", desiredName.c_str(), counter );
-                counter++;
-            }
-        }
-
-        return finalName;
-    }
-
-    void ImportedMesh::ApplyScale( Float3 const& scale )
+    void Mesh::ApplyScale( Float3 const& scale )
     {
         EE_ASSERT( !IsSkeletalMesh() );
 
@@ -121,9 +56,9 @@ namespace EE::Import
         normalScalingMatrix.m_rows[2] = _mm_and_ps( vReciprocalScale, SIMD::g_mask00Z0 );
         normalScalingMatrix.m_rows[3] = Vector::UnitW;
 
-        for ( GeometrySection& GS : m_geometrySections )
+        for ( Geometry& geo : m_geometries )
         {
-            for ( VertexData& vertex : GS.m_vertices )
+            for ( VertexData& vertex : geo.m_vertices )
             {
                 vertex.m_position = scalingMatrix.TransformPoint( vertex.m_position );
                 vertex.m_normal = normalScalingMatrix.TransformNormal( vertex.m_normal ).GetNormalized3();
@@ -142,100 +77,32 @@ namespace EE::Import
         bool const flipWindingDueToScale = Math::IsOdd( numNegativelyScaledAxes );
         if ( flipWindingDueToScale )
         {
-            for ( GeometrySection& GS : m_geometrySections )
+            for ( Geometry& geo : m_geometries )
             {
-                int32_t const numIndices = (int32_t) GS.m_indices.size();
+                int32_t const numIndices = (int32_t) geo.m_indices.size();
                 EE_ASSERT( ( numIndices % 3 ) == 0 );
 
                 // Flip each triangle's winding
                 for ( int32_t i = 0; i < numIndices; i += 3 )
                 {
-                    uint32_t originalI2 = GS.m_indices[i + 2];
-                    GS.m_indices[i + 2] = GS.m_indices[i];
-                    GS.m_indices[i] = originalI2;
+                    uint32_t originalI2 = geo.m_indices[i + 2];
+                    geo.m_indices[i + 2] = geo.m_indices[i];
+                    geo.m_indices[i] = originalI2;
                 }
             }
         }
     }
 
-    void ImportedMesh::MergeGeometrySectionsByMaterial()
+    void Mesh::Finalize()
     {
-        // The set of section that can be merged together based on shared properties atm only materialID and uv channels
-        struct MergeSet
+        if ( IsSkeletalMesh() )
         {
-            inline bool CanBeMerged( GeometrySection const& section ) const
-            {
-                return m_ID == section.m_materialNameID && m_numUVChannels == section.GetNumUVChannels();
-            }
+            m_maxNumberOfBoneInfluences = 4;
 
-            StringID                    m_ID;
-            int32_t                     m_numUVChannels;
-            TInlineVector<int32_t,5>    m_sectionIndices;
-        };
-
-        TInlineVector<MergeSet, 10> mergeSets;
-        bool requiresMerging = false;
-
-        for ( auto i = 0; i < m_geometrySections.size(); i++ )
-        {
-            // Search merge sets for this ID
-            int32_t mergeSetIdx = InvalidIndex;
-            for( auto j = 0; j < mergeSets.size(); j++ )
+            for ( auto const& geo : m_geometries )
             {
-                if ( mergeSets[j].CanBeMerged( m_geometrySections[i] ) )
-                {
-                    mergeSetIdx = j;
-                    break;
-                }
-            }
-
-            // Fill merge sets
-            if ( mergeSetIdx == InvalidIndex )
-            {
-                auto& mergeSet = mergeSets.emplace_back();
-                mergeSet.m_ID = m_geometrySections[i].m_materialNameID;
-                mergeSet.m_numUVChannels = m_geometrySections[i].GetNumUVChannels();
-                mergeSet.m_sectionIndices.emplace_back( i );
-            }
-            else
-            {
-                mergeSets[mergeSetIdx].m_sectionIndices.emplace_back( i );
-                requiresMerging = true;
+                m_maxNumberOfBoneInfluences = Math::Max( m_maxNumberOfBoneInfluences, geo.m_numBoneInfluences );
             }
         }
-
-        //-------------------------------------------------------------------------
-
-        if ( !requiresMerging )
-        {
-            return;
-        }
-
-        //-------------------------------------------------------------------------
-
-        TVector<GeometrySection> mergedSections;
-
-        for( auto& mergeSet : mergeSets )
-        {
-            auto& newSection = mergedSections.emplace_back();
-            newSection.m_name = mergeSet.m_ID.c_str();
-            newSection.m_materialNameID = mergeSet.m_ID;
-            newSection.m_clockwiseWinding = m_geometrySections[mergeSet.m_sectionIndices.front()].m_clockwiseWinding;
-            newSection.m_numUVChannels = m_geometrySections[mergeSet.m_sectionIndices.front()].m_numUVChannels;
-
-            for ( int32_t sectionToMergeIdx : mergeSet.m_sectionIndices )
-            {
-                auto const& originalSection = m_geometrySections[sectionToMergeIdx];
-                uint32_t indexOffset = (uint32_t) newSection.m_vertices.size();
-                newSection.m_vertices.insert( newSection.m_vertices.end(), originalSection.m_vertices.begin(), originalSection.m_vertices.end() );
-
-                for ( uint32_t idx : originalSection.m_indices )
-                {
-                    newSection.m_indices.emplace_back( indexOffset + idx );
-                }
-            }
-        }
-
-        m_geometrySections.swap( mergedSections );
     }
 }

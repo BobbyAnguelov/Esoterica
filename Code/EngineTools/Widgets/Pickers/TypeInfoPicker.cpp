@@ -1,6 +1,7 @@
 #include "TypeInfoPicker.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/TypeSystem/TypeInfo.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,6 +19,9 @@ namespace EE
 
         m_filterWidget.SetFilterHelpText( "Filter Types" );
 
+        //-------------------------------------------------------------------------
+
+        UpdateTypeInfoLabel();
         GenerateOptionsList();
         GenerateFilteredOptionList();
     }
@@ -32,18 +36,8 @@ namespace EE
 
         if ( m_isPickerDisabled )
         {
-            InlineString typeInfoLabel;
-            if ( m_pSelectedTypeInfo != nullptr )
-            {
-                typeInfoLabel.sprintf( ConstructFriendlyTypeInfoName( m_pSelectedTypeInfo ).c_str() );
-            }
-            else
-            {
-                typeInfoLabel = "No Type selected";
-            }
-
             ImGui::SetNextItemWidth( -1 );
-            ImGui::InputText( "##typeInfoLabel", const_cast<char*>( typeInfoLabel.c_str() ), typeInfoLabel.length(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
+            ImGui::InputText( "##typeInfoLabel", m_typeInfoLabel.Data(), m_typeInfoLabel.Size(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
         }
         else
         {
@@ -56,18 +50,8 @@ namespace EE
             // Type Label
             //-------------------------------------------------------------------------
 
-            InlineString typeInfoLabel;
-            if ( m_pSelectedTypeInfo != nullptr )
-            {
-                typeInfoLabel.sprintf( ConstructFriendlyTypeInfoName( m_pSelectedTypeInfo ).c_str() );
-            }
-            else
-            {
-                typeInfoLabel = "No Type selected";
-            }
-
             ImGui::SetNextItemWidth( contentRegionAvailableX - ( buttonWidth * 2 ) - style.ItemSpacing.x );
-            ImGui::InputText( "##typeInfoLabel", const_cast<char*>( typeInfoLabel.c_str() ), typeInfoLabel.length(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
+            ImGui::InputText( "##typeInfoLabel", m_typeInfoLabel.Data(), m_typeInfoLabel.Size(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
 
             // Combo
             //-------------------------------------------------------------------------
@@ -144,6 +128,11 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        if ( valueUpdated )
+        {
+            UpdateTypeInfoLabel();
+        }
+
         return valueUpdated;
     }
 
@@ -161,6 +150,8 @@ namespace EE
             EE_ASSERT( pSelectedTypeInfo->IsDerivedFrom( m_baseClassTypeID ) );
             m_pSelectedTypeInfo = pSelectedTypeInfo;
         }
+
+        UpdateTypeInfoLabel();
     }
 
     void TypeInfoPicker::SetSelectedType( TypeSystem::TypeID typeID )
@@ -173,6 +164,8 @@ namespace EE
         {
             m_pSelectedTypeInfo = nullptr;
         }
+
+        UpdateTypeInfoLabel();
     }
 
     void TypeInfoPicker::GenerateOptionsList()
@@ -237,5 +230,19 @@ namespace EE
         }
 
         return friendlyName;
+    }
+
+    void TypeInfoPicker::UpdateTypeInfoLabel()
+    {
+        m_typeInfoLabel.Clear();
+
+        if ( m_pSelectedTypeInfo != nullptr )
+        {
+            m_typeInfoLabel.Fill( ConstructFriendlyTypeInfoName( m_pSelectedTypeInfo ).c_str() );
+        }
+        else
+        {
+            m_typeInfoLabel.Fill( "No Type selected" );
+        }
     }
 }

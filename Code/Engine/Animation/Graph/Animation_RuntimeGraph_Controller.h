@@ -47,7 +47,7 @@ namespace EE::Animation
                     if ( m_index == InvalidIndex )
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        EE_LOG_WARNING( "Animation", pController->GetName(), "Failed to bind to control parameter (%s): parameter not found. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetDefinitionResourceID().c_str() );
+                        EE_LOG_WARNING( LogCategory::Animation, pController->GetName(), "Failed to bind to control parameter (%s): parameter not found. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetDefinitionResourceID().c_str() );
                         #endif
 
                         return false;
@@ -57,7 +57,7 @@ namespace EE::Animation
                     if ( pController->m_pGraphInstance->GetControlParameterType( m_index ) != ValueTypeValidation<ParameterType>::Type )
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        EE_LOG_WARNING( "Animation", pController->GetName(), "Failed to bind to control parameter (%s): type mismatch. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetDefinitionResourceID().c_str() );
+                        EE_LOG_WARNING( LogCategory::Animation, pController->GetName(), "Failed to bind to control parameter (%s): type mismatch. Controller (%s) and graph (%s)", m_ID.c_str(), pController->GetName(), pController->m_pGraphInstance->GetDefinitionResourceID().c_str() );
                         #endif
 
                         m_index = InvalidIndex;
@@ -79,7 +79,7 @@ namespace EE::Animation
                 {
                     if ( m_index != InvalidIndex )
                     {
-                        m_pBoundGraphInstance->SetControlParameterValue<ParameterType>( m_index, value );
+                        m_pBoundGraphInstance->SetControlParameterValue( m_index, value );
                     }
                 }
 
@@ -204,7 +204,7 @@ namespace EE::Animation
                 return nullptr;
             }
 
-            GraphInstance* pExternalGraphInstance = m_pGraphInstance->ConnectExternalGraph( slotID, pGraph );
+            GraphInstance* pExternalGraphInstance = nullptr;// m_pGraphInstance->ConnectExternalGraph( slotID, pGraph );
             EE_ASSERT( pExternalGraphInstance != nullptr );
 
             T* pNewExternalController = EE::New<T>( slotID, pExternalGraphInstance, m_pAnimatedMeshComponent, autoDestroy );

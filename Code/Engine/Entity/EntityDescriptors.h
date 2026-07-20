@@ -10,6 +10,8 @@ namespace EE
 {
     namespace TypeSystem { class TypeRegistry; }
     class Entity;
+    class EntityComponent;
+    class EntitySystem;
     class TaskSystem;
 }
 
@@ -21,10 +23,6 @@ namespace EE
 
 namespace EE::EntityModel
 {
-    EE_ENGINE_API bool IsResourceAnEntityDescriptor( ResourceTypeID const& resourceTypeID );
-
-    //-------------------------------------------------------------------------
-
     struct EE_ENGINE_API ComponentDescriptor : public TypeSystem::TypeDescriptor
     {
         EE_SERIALIZE( EE_SERIALIZE_BASE( TypeSystem::TypeDescriptor ), m_spatialParentName, m_attachmentSocketID, m_name, m_isSpatialComponent );
@@ -33,10 +31,14 @@ namespace EE::EntityModel
 
         inline bool IsValid() const { return TypeSystem::TypeDescriptor::IsValid() && m_name.IsValid(); }
 
+        void Clear();
+
         // Spatial Components
         inline bool IsSpatialComponent() const { return m_isSpatialComponent; }
         inline bool IsRootComponent() const { EE_ASSERT( m_isSpatialComponent ); return !m_spatialParentName.IsValid(); }
         inline bool HasSpatialParent() const { EE_ASSERT( m_isSpatialComponent ); return m_spatialParentName.IsValid(); }
+
+        EntityComponent* CreateComponent( TypeSystem::TypeRegistry const& typeRegistry ) const;
 
     public:
 
@@ -59,6 +61,10 @@ namespace EE::EntityModel
     public:
 
         inline bool IsValid() const { return m_typeID.IsValid(); }
+
+        void Clear();
+
+        EntitySystem* CreateSystem( TypeSystem::TypeRegistry const& typeRegistry ) const;
 
     public:
 
@@ -119,7 +125,7 @@ namespace EE::EntityModel
 {
     class EE_ENGINE_API EntityCollection : public Resource::IResource
     {
-        EE_RESOURCE( 'ec', "Entity Collection", 7, false );
+        EE_RESOURCE( "ec", "Entity Collection", Colors::GreenYellow, 11, false );
         EE_SERIALIZE( m_entityDescriptors, m_entityLookupMap, m_entitySpatialAttachmentInfo );
 
         friend class EntityCollectionLoader;
@@ -129,7 +135,9 @@ namespace EE::EntityModel
         struct SearchResult
         {
             EntityDescriptor*                                       m_pEntity = nullptr;
+            int32_t                                                 m_entityDescIdx = InvalidIndex;
             ComponentDescriptor*                                    m_pComponent = nullptr;
+            int32_t                                                 m_componentDescIdx = InvalidIndex;
         };
 
     protected:
@@ -271,7 +279,7 @@ namespace EE::EntityModel
 
     class EE_ENGINE_API EntityMapDescriptor final : public EntityCollection
     {
-        EE_RESOURCE( 'map', "Map", 4, false );
+        EE_RESOURCE( "map", "Map", Colors::SpringGreen, 8, false );
         EE_SERIALIZE( EE_SERIALIZE_BASE( EntityCollection ) );
 
         friend class EntityCollectionCompiler;

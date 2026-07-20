@@ -2,12 +2,12 @@
 
 #include "ResourceServer.h"
 #include "ResourceServerUI.h"
-#include "Engine/Render/Renderers/ImguiRenderer.h"
 #include "Engine/UpdateContext.h"
+#include "Engine/Render/RenderSystem.h"
+#include "Engine/Render/Imgui/ImguiRenderer.h"
 #include "Base/Application/Platform/Application_Win32.h"
-#include "Base/Render/RenderDevice.h"
+#include "Base/Render/RenderWindow.h"
 #include "Base/Imgui/ImguiSystem.h"
-#include "Base/Render/RenderViewport.h"
 #include "Base/Types/String.h"
 #include "Base/Esoterica.h"
 #include <shellapi.h>
@@ -33,11 +33,12 @@ namespace EE
 
     private:
 
-        virtual bool Initialize() override;
+        virtual bool Initialize( int32_t argc, char** argv ) override;
         virtual bool Shutdown() override;
         virtual bool ApplicationLoop() override;
         virtual bool OnUserExitRequest() override;
-        virtual void ProcessWindowResizeMessage( Int2 const& newWindowSize ) override;
+        virtual void OnFirstShowMainWindow() override;
+        virtual void ResizeMainWindow( Int2 const& newWindowSize ) override;
         virtual void ProcessWindowDestructionMessage() override;
         virtual void GetBorderlessTitleBarInfo( Math::ScreenSpaceRectangle& outTitlebarRect, bool& isInteractibleWidgetHovered ) const override { m_resourceServerUI.GetBorderlessTitleBarInfo( outTitlebarRect, isInteractibleWidgetHovered ); }
         virtual LRESULT WindowMessageProcessor( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam ) override;
@@ -69,12 +70,13 @@ namespace EE
 
         Seconds                                 m_deltaTime = 0.0f;
 
+        TypeSystem::TypeRegistry                m_typeRegistry;
         ImGuiX::ImguiSystem                     m_imguiSystem;
 
         // Rendering
-        Render::RenderDevice*                   m_pRenderDevice = nullptr;
-        Render::Viewport                        m_viewport;
+        Render::RenderSystem                    m_renderSystem;
         Render::ImguiRenderer                   m_imguiRenderer;
+        Render::Window                          m_renderWindow;
 
         // Resource
         Resource::ResourceServer                m_resourceServer;

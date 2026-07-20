@@ -1,11 +1,10 @@
 #include "PlayerAction_Interact.h"
-#include "Game/Player/Components/Component_MainPlayer.h"
 #include "Game/Player/Animation/PlayerAnimationController.h"
 #include "Base/Input/InputSystem.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
     class ExternalController : public Animation::ExternalGraphController
     {
@@ -35,35 +34,35 @@ namespace EE::Player
 
     //-------------------------------------------------------------------------
 
-    bool InteractAction::TryStartInternal( ActionContext const& ctx )
+    bool PlayerAction_Interact::TryStartInternal( PlayerActionContext const& ctx )
     {
         m_canInteract = false;
 
-        if ( ctx.m_pPlayerComponent->m_pAvailableInteraction == nullptr )
+        /*if ( ctx.m_pCharacter->m_pAvailableInteraction == nullptr )
         {
             return false;
-        }
+        }*/
 
-        // If we have an valid interactible, show the prompt
-        // show prompt
-        m_canInteract = true;
+        //// If we have an valid interactible, show the prompt
+        //// show prompt
+        //m_canInteract = true;
 
-        // Check for input
-        if( ctx.m_pInput->m_interact.WasPressed() )
-        {
-            // Create external controller
-            m_pController = ctx.m_pAnimationController->TryCreateExternalGraphController<ExternalController>( StringID( "Interaction" ), ctx.m_pPlayerComponent->m_pAvailableInteraction, true );
-            if ( m_pController != nullptr )
-            {
-                ctx.m_pAnimationController->SetCharacterState( AnimationController::CharacterState::Interaction );
-                return true;
-            }
-        }
+        //// Check for input
+        //if( ctx.m_pInput->m_interact.WasPressed() )
+        //{
+        //    // Create external controller
+        //    m_pController = ctx.m_pAnimationController->TryCreateExternalGraphController<ExternalController>( StringID( "Interaction" ), ctx.m_pPlayerComponent->m_pAvailableInteraction, true );
+        //    if ( m_pController != nullptr )
+        //    {
+        //        ctx.m_pAnimationController->SetCharacterState( PlayerAnimationController::CharacterState::Interaction );
+        //        return true;
+        //    }
+        //}
 
         return false;
     }
 
-    Action::Status InteractAction::UpdateInternal( ActionContext const& ctx, bool isFirstUpdate )
+    PlayerAction::Status PlayerAction_Interact::UpdateInternal( PlayerActionContext const& ctx, bool isFirstUpdate )
     {
         EE_ASSERT( m_pController != nullptr );
 
@@ -78,7 +77,7 @@ namespace EE::Player
         }
     }
 
-    void InteractAction::StopInternal( ActionContext const& ctx, StopReason reason )
+    void PlayerAction_Interact::StopInternal( PlayerActionContext const& ctx, StopReason reason )
     {
         //ctx.m_pAnimationController->DestroyExternalGraphController( StringID( "Interaction" ) );
         m_pController = nullptr;

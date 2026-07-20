@@ -94,6 +94,8 @@ namespace EE::Animation
         auto& createdOverride = m_overrides.emplace_back();
         createdOverride.m_variationID = variationID;
         createdOverride.m_variationData.CreateInstance( GetVariationDataTypeInfo() );
+
+        OnVariationOverrideCreated( createdOverride.m_variationData.Get() );
     }
 
     void VariationDataToolsNode::RenameVariationOverride( StringID oldVariationID, StringID newVariationID )
@@ -146,7 +148,14 @@ namespace EE::Animation
         {
             for ( ResourceID const& ID : referencedResources )
             {
-                ImGui::Text( EE_ICON_CUBE" %s", ID.c_str() + 7 );
+                if ( ID.IsValid() )
+                {
+                    ImGui::Text( EE_ICON_CUBE" %s", ID.c_str() + 7 );
+                }
+                else
+                {
+                    ImGui::Text( EE_ICON_EXCLAMATION" INVALID RESOURCE ID" );
+                }
             }
         }
 

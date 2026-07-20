@@ -24,7 +24,7 @@ namespace EE::Animation
         inline SelectionMode GetFrameSelectionMode() const { return m_frameSelection; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDebugText() const override
+        virtual InlineString GetDebugText( Percentage percentageThroughEvent ) const override
         {
             return InlineString( InlineString::CtorSprintf(), "Snap Frame (%s)", m_frameSelection == SelectionMode::Round ? "Round" : "Floor" );
         }

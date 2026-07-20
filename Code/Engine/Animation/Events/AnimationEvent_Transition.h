@@ -57,7 +57,7 @@ namespace EE::Animation
         inline bool IsTransitionBlocked() const { return m_rule == TransitionRule::BlockTransition; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDebugText() const override { return GetTransitionRuleName( m_rule ); }
+        virtual InlineString GetDebugText( Percentage percentageThroughEvent ) const override { return GetTransitionRuleName( m_rule ); }
         #endif
 
     private:

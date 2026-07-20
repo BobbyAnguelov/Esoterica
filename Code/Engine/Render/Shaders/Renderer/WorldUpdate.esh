@@ -1,0 +1,146 @@
+
+#ifndef _WORLD_UPDATE_ESH_
+#define _WORLD_UPDATE_ESH_
+
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Transform.esh"
+
+#ifdef __cplusplus
+#include "Base/Math/Transform.h"
+#endif
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+struct HLSL_ALIGN_STRUCT MeshInstanceInitializeCommand
+{
+    uint                    m_instanceID;
+    uint                    m_instanceFlags;
+    uint16_t                m_meshIndex;
+    uint16_t                m_padding;
+    uint                    m_rootIndex;
+    uint                    m_meshVertexStride;
+    uint                    m_lodMask;
+    uint                    m_shaderParametersOffsetIn32ByteBlocks;
+    BufferHandle            m_clusterVertexBuffer;
+    BufferHandle            m_clusterTriangleBuffer;
+};
+
+HLSL_STATIC_ASSERT( sizeof( MeshInstanceInitializeCommand ) == 32, "Expected exactly 32 bytes" );
+
+struct HLSL_ALIGN_STRUCT MeshInstanceTransformUpdateCommand
+{
+    uint                    m_instanceID;
+    float3x4                m_transform;
+    
+    uint                    m_padding0;
+    uint                    m_padding1;
+    uint                    m_padding2;
+};
+
+HLSL_STATIC_ASSERT( sizeof( MeshInstanceTransformUpdateCommand ) == 64, "Expected exactly 64 bytes" );
+
+struct HLSL_ALIGN_STRUCT DirectionalLightUpdateCommand
+{
+    uint                    m_instanceID;
+    float                   m_maxIntensity;
+    float3                  m_lightDirection;
+    uint                    m_packedTintedColor;
+    uint16_t                m_cascadedShadowIndex;
+    uint16_t                m_padding;
+    uint                    m_padding0;
+};
+
+HLSL_STATIC_ASSERT( sizeof( DirectionalLightUpdateCommand ) == 32, "Expected exactly 32 bytes" );
+
+struct HLSL_ALIGN_STRUCT PointLightUpdateCommand
+{
+    uint                    m_instanceID;
+    float                   m_maxIntensity;
+    float3                  m_lightPosition;
+    float                   m_maxRadius;
+    float                   m_falloff;
+    uint                    m_packedTintedColor;
+    uint16_t                m_shadowMapHandle;
+    uint16_t                m_padding;
+    uint                    m_padding0;
+    uint                    m_padding1;
+    uint                    m_padding2;
+    uint                    m_padding3;
+    uint                    m_padding4;
+    uint                    m_padding5;
+    uint                    m_padding6; // waaaaaste
+};
+
+HLSL_STATIC_ASSERT( sizeof( PointLightUpdateCommand ) == 64, "Expected exactly 64 bytes" );
+
+struct HLSL_ALIGN_STRUCT SpotLightUpdateCommand
+{
+    uint                    m_instanceID;
+    float                   m_maxIntensity;
+    uint16_t                m_shadowMapHandle;
+    uint16_t                m_paddingFlags;
+    float3                  m_lightPosition;
+    float3                  m_lightDirection;
+    float                   m_maxRadius;
+    float                   m_falloff;
+    float                   m_innerConeAngle;
+    float                   m_outerConeAngle;
+    uint                    m_packedTintedColor;
+    uint                    m_padding0;
+    uint                    m_padding1;
+};
+
+HLSL_STATIC_ASSERT( sizeof( SpotLightUpdateCommand ) == 64, "Expected exactly 64 bytes" );
+
+struct HLSL_ALIGN_STRUCT SkinningTransformUpdateCommand
+{
+    float4                  m_compressedData0;
+    float4                  m_compressedData1;
+    
+    #ifndef __cplusplus
+    inline uint DecodeInstanceID()
+    {
+        return asuint( m_compressedData0.w );
+    }
+    
+    inline SkinningTransform DecodeSkinningTransform()
+    {
+        SkinningTransform result;
+        result.m_rotation.xyz       = m_compressedData0.xyz;
+        result.m_rotation.w         = sqrt( 1.0 - result.m_rotation.x * result.m_rotation.x - result.m_rotation.y * result.m_rotation.y - result.m_rotation.z * result.m_rotation.z );
+        result.m_translationScale   = m_compressedData1;
+        return result;
+    }
+    #else
+    inline void EncodeSkinningTransform( uint32_t instanceID, EE::Transform const& transform )
+    {
+        EE::Quaternion rotation = transform.GetRotation();
+        EE_ASSERT( rotation.IsNormalized() );
+
+        if ( rotation.GetW() < 0.0F ) { rotation.Conjugate(); }
+    
+        m_compressedData0[0] = rotation.GetX();
+        m_compressedData0[1] = rotation.GetY();
+        m_compressedData0[2] = rotation.GetZ();
+        memcpy( &m_compressedData0[3], &instanceID, sizeof( instanceID ) );
+    
+        transform.GetTranslationAndScale().Store( m_compressedData1 );
+    }
+    #endif
+};
+
+struct HLSL_ALIGN_STRUCT WorldUpdateConstants
+{
+    uint                    m_numInitializeCommands_MeshInstance;
+    uint                    m_numUpdateCommands_MeshInstanceRoot;
+    uint                    m_numUpdateCommands_MeshInstance;
+    uint                    m_numUpdateCommands_DirectionalLight;
+    uint                    m_numUpdateCommands_PointLight;
+    uint                    m_numUpdateCommands_SpotLight;
+    uint                    m_numUpdateCommands_SkinningTransform;
+    uint                    m_padding;
+};
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

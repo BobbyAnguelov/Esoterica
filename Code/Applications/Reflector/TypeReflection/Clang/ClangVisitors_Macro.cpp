@@ -4,7 +4,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::TypeSystem::Reflection
+namespace EE::Reflection
 {
     CXChildVisitResult VisitMacro( ClangParserContext * pContext, ReflectedHeader const* pReflectedHeader, CXCursor cr, String const& cursorName )
     {
@@ -12,45 +12,53 @@ namespace EE::TypeSystem::Reflection
 
         //-------------------------------------------------------------------------
 
-        if ( cursorName == ReflectedHeader::GetReflectionMacroText( ReflectedHeader::ReflectionMacro::ReflectProperty ) )
+        if ( cursorName == GetReflectionMacroText( ReflectionMacro::ReflectProperty ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pReflectedHeader, cr, range, ReflectedHeader::ReflectionMacro::ReflectProperty ) );
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::ReflectProperty ) );
         }
-        else if ( cursorName == ReflectedHeader::GetReflectionMacroText( ReflectedHeader::ReflectionMacro::ReflectEnum ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::ReflectEnum ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pReflectedHeader, cr, range, ReflectedHeader::ReflectionMacro::ReflectEnum ) );
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::ReflectEnum ) );
         }
-        else if ( cursorName == ReflectedHeader::GetReflectionMacroText( ReflectedHeader::ReflectionMacro::ReflectType ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::ReflectType ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pReflectedHeader, cr, range, ReflectedHeader::ReflectionMacro::ReflectType ) );
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::ReflectType ) );
         }
-        else if ( cursorName == ReflectedHeader::GetReflectionMacroText( ReflectedHeader::ReflectionMacro::EntityComponent ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::EntityComponent ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pReflectedHeader, cr, range, ReflectedHeader::ReflectionMacro::EntityComponent ) );
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::EntityComponent ) );
         }
-        else if ( cursorName == ReflectedHeader::GetReflectionMacroText( ReflectedHeader::ReflectionMacro::SingletonEntityComponent ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::TransientEntityComponent ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pReflectedHeader, cr, range, ReflectedHeader::ReflectionMacro::SingletonEntityComponent ) );
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::TransientEntityComponent ) );
         }
-        else if ( cursorName == ReflectedHeader::GetReflectionMacroText( ReflectedHeader::ReflectionMacro::EntitySystem ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::SingletonEntityComponent ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pReflectedHeader, cr, range, ReflectedHeader::ReflectionMacro::EntitySystem ) );
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::SingletonEntityComponent ) );
         }
-        else if ( cursorName == ReflectedHeader::GetReflectionMacroText( ReflectedHeader::ReflectionMacro::EntityWorldSystem ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::TransientSingletonEntityComponent ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pReflectedHeader, cr, range, ReflectedHeader::ReflectionMacro::EntityWorldSystem ) );
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::TransientSingletonEntityComponent ) );
         }
-        else if ( cursorName == ReflectedHeader::GetReflectionMacroText( ReflectedHeader::ReflectionMacro::ReflectModule ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::EntitySystem ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pReflectedHeader, cr, range, ReflectedHeader::ReflectionMacro::ReflectModule ) );
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::EntitySystem ) );
         }
-        else if ( cursorName == ReflectedHeader::GetReflectionMacroText( ReflectedHeader::ReflectionMacro::Resource ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::EntityWorldSystem ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pReflectedHeader, cr, range, ReflectedHeader::ReflectionMacro::Resource ) );
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::EntityWorldSystem ) );
         }
-        else if ( cursorName == ReflectedHeader::GetReflectionMacroText( ReflectedHeader::ReflectionMacro::DataFile ) )
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::ReflectModule ) )
         {
-            pContext->AddFoundReflectionMacro( ReflectionMacro( pReflectedHeader, cr, range, ReflectedHeader::ReflectionMacro::DataFile ) );
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::ReflectModule ) );
+        }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::Resource ) )
+        {
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::Resource ) );
+        }
+        else if ( cursorName == GetReflectionMacroText( ReflectionMacro::DataFile ) )
+        {
+            pContext->AddFoundReflectionMacro( ParsedMacro( pReflectedHeader, cr, range, ReflectionMacro::DataFile ) );
         }
 
         //-------------------------------------------------------------------------

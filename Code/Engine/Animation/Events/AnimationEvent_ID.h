@@ -17,7 +17,7 @@ namespace EE::Animation
         virtual bool IsValid() const override{ return m_ID.IsValid(); }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDebugText() const override { return m_ID.IsValid() ? m_ID.c_str() : "Invalid ID"; }
+        virtual InlineString GetDebugText( Percentage percentageThroughEvent ) const override { return m_ID.IsValid() ? m_ID.c_str() : "Invalid ID"; }
         #endif
 
     private:

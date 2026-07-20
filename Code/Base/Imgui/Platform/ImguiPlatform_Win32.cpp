@@ -138,6 +138,12 @@ namespace EE::ImGuiX
             imgui_monitor.WorkPos = ImVec2( (float) info.rcWork.left, (float) info.rcWork.top );
             imgui_monitor.WorkSize = ImVec2( (float) ( info.rcWork.right - info.rcWork.left ), (float) ( info.rcWork.bottom - info.rcWork.top ) );
             imgui_monitor.DpiScale = ImGui_ImplWin32_GetDpiScaleForMonitor( monitor );
+            imgui_monitor.PlatformHandle = (void*) monitor;
+
+            if ( imgui_monitor.DpiScale <= 0.0f )
+            {
+                return TRUE; // Some accessibility applications are declaring virtual monitors with a DPI of 0, see #7902.
+            }
 
             ImGuiPlatformIO& io = ImGui::GetPlatformIO();
             if ( info.dwFlags & MONITORINFOF_PRIMARY )
@@ -165,6 +171,7 @@ namespace EE::ImGuiX
         struct ImGui_ImplWin32_ViewportData
         {
             HWND                        Hwnd;
+            HWND                        HwndParent;
             bool                        HwndOwned;
             DWORD                       DwStyle;
             DWORD                       DwExStyle;
@@ -189,6 +196,18 @@ namespace EE::ImGuiX
                 *out_ex_style |= WS_EX_TOPMOST;
         }
 
+        static HWND ImGui_ImplWin32_GetHwndFromViewportID( ImGuiID viewport_id )
+        {
+            if ( viewport_id != 0 )
+            {
+                if ( ImGuiViewport* viewport = ImGui::FindViewportByID( viewport_id ) )
+                {
+                    return (HWND) viewport->PlatformHandle;
+                }
+            }
+            return nullptr;
+        }
+
         static void ImGui_ImplWin32_CreateWindow( ImGuiViewport* viewport )
         {
             ImGui_ImplWin32_ViewportData* vd = EE::New<ImGui_ImplWin32_ViewportData>();
@@ -196,10 +215,7 @@ namespace EE::ImGuiX
 
             // Select style and parent window
             ImGui_ImplWin32_GetWin32StyleFromViewportFlags( viewport->Flags, &vd->DwStyle, &vd->DwExStyle );
-            HWND parent_window = nullptr;
-            if ( viewport->ParentViewportId != 0 )
-                if ( ImGuiViewport* parent_viewport = ImGui::FindViewportByID( viewport->ParentViewportId ) )
-                    parent_window = (HWND)parent_viewport->PlatformHandle;
+            vd->HwndParent = ImGui_ImplWin32_GetHwndFromViewportID( viewport->ParentViewportId );
 
             // Create window
             RECT rect = { (LONG)viewport->Pos.x, (LONG)viewport->Pos.y, (LONG)( viewport->Pos.x + viewport->Size.x ), (LONG)( viewport->Pos.y + viewport->Size.y ) };
@@ -207,13 +223,16 @@ namespace EE::ImGuiX
             vd->Hwnd = ::CreateWindowEx(
                 vd->DwExStyle, _T( "ImGui Platform" ), _T( "Untitled" ), vd->DwStyle,       // Style, class name, window name
                 rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,        // Window area
-                parent_window, nullptr, ::GetModuleHandle( nullptr ), nullptr );            // Parent window, Menu, Instance, Param
+                vd->HwndParent, nullptr, ::GetModuleHandle( nullptr ), nullptr );           // Parent window, Menu, Instance, Param
             vd->HwndOwned = true;
             viewport->PlatformRequestResize = false;
             viewport->PlatformHandle = viewport->PlatformHandleRaw = vd->Hwnd;
 
             //auto const errorMessage = EE::Platform::Win32::GetLastErrorMessage();
             EE_ASSERT( vd->Hwnd != 0 );
+
+            // Secondary viewports store their imgui context
+            ::SetPropA( vd->Hwnd, "IMGUI_CONTEXT", ImGui::GetCurrentContext() );
         }
 
         static void ImGui_ImplWin32_DestroyWindow( ImGuiViewport* viewport )
@@ -239,18 +258,44 @@ namespace EE::ImGuiX
         {
             ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
             IM_ASSERT( vd->Hwnd != 0 );
+
+            // ShowParent() also brings parent to front, which is not always desirable,
+            // so we temporarily disable parenting. (#7354)
+            if ( vd->HwndParent != NULL )
+                ::SetWindowLongPtr( vd->Hwnd, GWLP_HWNDPARENT, ( LONG_PTR )nullptr );
+
             if ( viewport->Flags & ImGuiViewportFlags_NoFocusOnAppearing )
                 ::ShowWindow( vd->Hwnd, SW_SHOWNA );
             else
                 ::ShowWindow( vd->Hwnd, SW_SHOW );
+
+            // Restore
+            if ( vd->HwndParent != NULL )
+                ::SetWindowLongPtr( vd->Hwnd, GWLP_HWNDPARENT, (LONG_PTR) vd->HwndParent );
         }
 
         static void ImGui_ImplWin32_UpdateWindow( ImGuiViewport* viewport )
         {
+            ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*) viewport->PlatformUserData;
+            IM_ASSERT( vd->Hwnd != 0 );
+
+            // Update Win32 parent if it changed _after_ creation
+            // Unlike style settings derived from configuration flags, this is more likely to change for advanced apps that are manipulating ParentViewportID manually.
+            HWND new_parent = ImGui_ImplWin32_GetHwndFromViewportID( viewport->ParentViewportId );
+            if ( new_parent != vd->HwndParent )
+            {
+                // Win32 windows can either have a "Parent" (for WS_CHILD window) or an "Owner" (which among other thing keeps window above its owner).
+                // Our Dear Imgui-side concept of parenting only mostly care about what Win32 call "Owner".
+                // The parent parameter of CreateWindowEx() sets up Parent OR Owner depending on WS_CHILD flag. In our case an Owner as we never use WS_CHILD.
+                // Calling ::SetParent() here would be incorrect: it will create a full child relation, alter coordinate system and clipping.
+                // Calling ::SetWindowLongPtr() with GWLP_HWNDPARENT seems correct although poorly documented.
+                // https://devblogs.microsoft.com/oldnewthing/20100315-00/?p=14613
+                vd->HwndParent = new_parent;
+                ::SetWindowLongPtr( vd->Hwnd, GWLP_HWNDPARENT, (LONG_PTR) vd->HwndParent );
+            }
+
             // (Optional) Update Win32 style if it changed _after_ creation.
             // Generally they won't change unless configuration flags are changed, but advanced uses (such as manually rewriting viewport flags) make this useful.
-            ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
-            IM_ASSERT( vd->Hwnd != 0 );
             DWORD new_style;
             DWORD new_ex_style;
             ImGui_ImplWin32_GetWin32StyleFromViewportFlags( viewport->Flags, &new_style, &new_ex_style );
@@ -285,11 +330,20 @@ namespace EE::ImGuiX
             return ImVec2( (float)pos.x, (float)pos.y );
         }
 
+        static void ImGui_ImplWin32_UpdateWin32StyleFromWindow( ImGuiViewport* viewport )
+        {
+            ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*) viewport->PlatformUserData;
+            vd->DwStyle = ::GetWindowLongW( vd->Hwnd, GWL_STYLE );
+            vd->DwExStyle = ::GetWindowLongW( vd->Hwnd, GWL_EXSTYLE );
+        }
+
         static void ImGui_ImplWin32_SetWindowPos( ImGuiViewport* viewport, ImVec2 pos )
         {
             ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
             IM_ASSERT( vd->Hwnd != 0 );
             RECT rect = { (LONG)pos.x, (LONG)pos.y, (LONG)pos.x, (LONG)pos.y };
+            if ( viewport->Flags & ImGuiViewportFlags_OwnedByApp )
+                ImGui_ImplWin32_UpdateWin32StyleFromWindow( viewport ); // Not our window, poll style before using
             ::AdjustWindowRectEx( &rect, vd->DwStyle, FALSE, vd->DwExStyle );
             ::SetWindowPos( vd->Hwnd, nullptr, rect.left, rect.top, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE );
         }
@@ -308,6 +362,8 @@ namespace EE::ImGuiX
             ImGui_ImplWin32_ViewportData* vd = (ImGui_ImplWin32_ViewportData*)viewport->PlatformUserData;
             IM_ASSERT( vd->Hwnd != 0 );
             RECT rect = { 0, 0, (LONG)size.x, (LONG)size.y };
+            if ( viewport->Flags & ImGuiViewportFlags_OwnedByApp )
+                ImGui_ImplWin32_UpdateWin32StyleFromWindow( viewport ); // Not our window, poll style before using
             ::AdjustWindowRectEx( &rect, vd->DwStyle, FALSE, vd->DwExStyle ); // Client to Screen
             ::SetWindowPos( vd->Hwnd, nullptr, 0, 0, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER | SWP_NOMOVE | SWP_NOACTIVATE );
         }
@@ -349,7 +405,12 @@ namespace EE::ImGuiX
             ImVector<wchar_t> title_w;
             title_w.resize( n );
             ::MultiByteToWideChar( CP_UTF8, 0, str.c_str(), -1, title_w.Data, n );
-            ::SetWindowTextW( vd->Hwnd, title_w.Data );
+
+            // Calling SetWindowTextW() in a project where UNICODE is not set doesn't work but there's a trick
+            // which is to pass it directly to the DefWindowProcW() handler.
+            // See: https://stackoverflow.com/questions/9410681/setwindowtextw-in-an-ansi-project
+            //::SetWindowTextW(vd->Hwnd, title_w.Data);
+            ::DefWindowProcW( vd->Hwnd, WM_SETTEXT, 0, (LPARAM) title_w.Data );
         }
 
         static void ImGui_ImplWin32_SetWindowAlpha( ImGuiViewport* viewport, float alpha )
@@ -380,17 +441,10 @@ namespace EE::ImGuiX
         // FIXME-DPI: Testing DPI related ideas
         static void ImGui_ImplWin32_OnChangedViewport( ImGuiViewport* viewport )
         {
-            (void)viewport;
-            //#if 0
             ImGuiStyle default_style;
-            //default_style.WindowPadding = ImVec2(0, 0);
-            //default_style.WindowBorderSize = 0.0f;
-            //default_style.ItemSpacing.y = 3.0f;
-            //default_style.FramePadding = ImVec2(0, 0);
             default_style.ScaleAllSizes( viewport->DpiScale );
             ImGuiStyle& style = ImGui::GetStyle();
             style = default_style;
-            //#endif
         }
 
         // Input
@@ -455,8 +509,16 @@ namespace EE::ImGuiX
             return ( ::GetKeyState( vk ) & 0x8000 ) != 0;
         }
 
-        static ImGuiKey ImGui_ImplWin32_VirtualKeyToImGuiKey( WPARAM wParam )
+        static ImGuiKey ImGui_ImplWin32_VirtualKeyToImGuiKey( WPARAM wParam, LPARAM lParam )
         {
+            // There is no distinct VK_xxx for keypad enter, instead it is VK_RETURN + KF_EXTENDED.
+            if ( ( wParam == VK_RETURN ) && ( HIWORD( lParam ) & KF_EXTENDED ) )
+            {
+                return ImGuiKey_KeypadEnter;
+            }
+
+            const int scancode = (int) LOBYTE( HIWORD( lParam ) );
+
             switch ( wParam )
             {
                 case VK_TAB: return ImGuiKey_Tab;
@@ -474,17 +536,17 @@ namespace EE::ImGuiX
                 case VK_SPACE: return ImGuiKey_Space;
                 case VK_RETURN: return ImGuiKey_Enter;
                 case VK_ESCAPE: return ImGuiKey_Escape;
-                case VK_OEM_7: return ImGuiKey_Apostrophe;
+                //case VK_OEM_7: return ImGuiKey_Apostrophe;
                 case VK_OEM_COMMA: return ImGuiKey_Comma;
-                case VK_OEM_MINUS: return ImGuiKey_Minus;
+                //case VK_OEM_MINUS: return ImGuiKey_Minus;
                 case VK_OEM_PERIOD: return ImGuiKey_Period;
-                case VK_OEM_2: return ImGuiKey_Slash;
-                case VK_OEM_1: return ImGuiKey_Semicolon;
-                case VK_OEM_PLUS: return ImGuiKey_Equal;
-                case VK_OEM_4: return ImGuiKey_LeftBracket;
-                case VK_OEM_5: return ImGuiKey_Backslash;
-                case VK_OEM_6: return ImGuiKey_RightBracket;
-                case VK_OEM_3: return ImGuiKey_GraveAccent;
+                //case VK_OEM_2: return ImGuiKey_Slash;
+                //case VK_OEM_1: return ImGuiKey_Semicolon;
+                //case VK_OEM_PLUS: return ImGuiKey_Equal;
+                //case VK_OEM_4: return ImGuiKey_LeftBracket;
+                //case VK_OEM_5: return ImGuiKey_Backslash;
+                //case VK_OEM_6: return ImGuiKey_RightBracket;
+                //case VK_OEM_3: return ImGuiKey_GraveAccent;
                 case VK_CAPITAL: return ImGuiKey_CapsLock;
                 case VK_SCROLL: return ImGuiKey_ScrollLock;
                 case VK_NUMLOCK: return ImGuiKey_NumLock;
@@ -577,8 +639,29 @@ namespace EE::ImGuiX
                 case VK_F24: return ImGuiKey_F24;
                 case VK_BROWSER_BACK: return ImGuiKey_AppBack;
                 case VK_BROWSER_FORWARD: return ImGuiKey_AppForward;
-                default: return ImGuiKey_None;
+                default: break;
             }
+
+            // Fallback to scancode
+            // https://handmade.network/forums/t/2011-keyboard_inputs_-_scancodes,_raw_input,_text_input,_key_names
+            switch ( scancode )
+            {
+                case 41: return ImGuiKey_GraveAccent;  // VK_OEM_8 in EN-UK, VK_OEM_3 in EN-US, VK_OEM_7 in FR, VK_OEM_5 in DE, etc.
+                case 12: return ImGuiKey_Minus;
+                case 13: return ImGuiKey_Equal;
+                case 26: return ImGuiKey_LeftBracket;
+                case 27: return ImGuiKey_RightBracket;
+                case 86: return ImGuiKey_Oem102;
+                case 43: return ImGuiKey_Backslash;
+                case 39: return ImGuiKey_Semicolon;
+                case 40: return ImGuiKey_Apostrophe;
+                case 51: return ImGuiKey_Comma;
+                case 52: return ImGuiKey_Period;
+                case 53: return ImGuiKey_Slash;
+                default: break;
+            }
+
+            return ImGuiKey_None;
         }
 
         static void ImGui_ImplWin32_ProcessKeyEventsWorkarounds()
@@ -658,9 +741,10 @@ namespace EE::ImGuiX
             io.AddMouseViewportEvent( mouse_viewport_id );
         }
 
+        // Helper to obtain the source of mouse messages.
         // See https://learn.microsoft.com/en-us/windows/win32/tablet/system-events-and-mouse-messages
         // Prefer to call this at the top of the message handler to avoid the possibility of other Win32 calls interfering with this.
-        static ImGuiMouseSource GetMouseSourceFromMessageExtraInfo()
+        static ImGuiMouseSource ImGui_ImplWin32_GetMouseSourceFromMessageExtraInfo()
         {
             LPARAM extra_info = ::GetMessageExtraInfo();
             if ( ( extra_info & 0xFFFFFF80 ) == 0xFF515700 )
@@ -685,7 +769,7 @@ namespace EE::ImGuiX
                 case WM_NCMOUSEMOVE:
                 {
                     // We need to call TrackMouseEvent in order to receive WM_MOUSELEAVE events
-                    ImGuiMouseSource mouse_source = GetMouseSourceFromMessageExtraInfo();
+                    ImGuiMouseSource mouse_source = ImGui_ImplWin32_GetMouseSourceFromMessageExtraInfo();
                     const int area = ( msg == WM_MOUSEMOVE ) ? 1 : 2;
                     bd->MouseHwnd = hwnd;
                     if ( bd->MouseTrackedArea != area )
@@ -729,7 +813,7 @@ namespace EE::ImGuiX
                 case WM_MBUTTONDOWN: case WM_MBUTTONDBLCLK:
                 case WM_XBUTTONDOWN: case WM_XBUTTONDBLCLK:
                 {
-                    ImGuiMouseSource mouse_source = GetMouseSourceFromMessageExtraInfo();
+                    ImGuiMouseSource mouse_source = ImGui_ImplWin32_GetMouseSourceFromMessageExtraInfo();
                     int button = 0;
                     if ( msg == WM_LBUTTONDOWN || msg == WM_LBUTTONDBLCLK ) { button = 0; }
                     if ( msg == WM_RBUTTONDOWN || msg == WM_RBUTTONDBLCLK ) { button = 1; }
@@ -749,7 +833,7 @@ namespace EE::ImGuiX
                 case WM_MBUTTONUP:
                 case WM_XBUTTONUP:
                 {
-                    ImGuiMouseSource mouse_source = GetMouseSourceFromMessageExtraInfo();
+                    ImGuiMouseSource mouse_source = ImGui_ImplWin32_GetMouseSourceFromMessageExtraInfo();
                     int button = 0;
                     if ( msg == WM_LBUTTONUP ) { button = 0; }
                     if ( msg == WM_RBUTTONUP ) { button = 1; }
@@ -786,13 +870,10 @@ namespace EE::ImGuiX
                         // Submit modifiers
                         ImGui_ImplWin32_UpdateKeyModifiers();
 
-                        // Obtain virtual key code
-                        // (keypad enter doesn't have its own... VK_RETURN with KF_EXTENDED flag means keypad enter, see IM_VK_KEYPAD_ENTER definition for details, it is mapped to ImGuiKey_KeyPadEnter.)
-                        int vk = (int)wParam;
-                        if ( ( wParam == VK_RETURN ) && ( HIWORD( lParam ) & KF_EXTENDED ) )
-                            vk = IM_VK_KEYPAD_ENTER;
-                        const ImGuiKey key = ImGui_ImplWin32_VirtualKeyToImGuiKey( vk );
-                        const int scancode = (int)LOBYTE( HIWORD( lParam ) );
+                        // Obtain virtual key code and convert to ImGuiKey
+                        const ImGuiKey key = ImGui_ImplWin32_VirtualKeyToImGuiKey( wParam, lParam );
+                        const int vk = (int) wParam;
+                        const int scancode = (int) LOBYTE( HIWORD( lParam ) );
 
                         // Special behavior for VK_SNAPSHOT / ImGuiKey_PrintScreen as Windows doesn't emit the key down event.
                         if ( key == ImGuiKey_PrintScreen && !is_key_down )
@@ -1007,10 +1088,10 @@ namespace EE::ImGuiX
         // Set up platform IO bindings
         //-------------------------------------------------------------------------
 
+        Platform::ImGui_ImplWin32_UpdateMonitors();
+
         if ( io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable )
         {
-            Platform::ImGui_ImplWin32_UpdateMonitors();
-
             ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
             platform_io.Platform_CreateWindow = Platform::ImGui_ImplWin32_CreateWindow;
             platform_io.Platform_DestroyWindow = Platform::ImGui_ImplWin32_DestroyWindow;
@@ -1073,8 +1154,10 @@ namespace EE::ImGuiX
         ImGuiIO& io = ImGui::GetIO();
         io.BackendPlatformName = nullptr;
         io.BackendPlatformUserData = nullptr;
-        io.BackendRendererUserData = nullptr;
         io.BackendFlags &= ~( ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos | ImGuiBackendFlags_HasGamepad );
+
+
+        EE_ASSERT( io.BackendRendererUserData == nullptr );
 
         EE::Delete( pBackendData );
     }

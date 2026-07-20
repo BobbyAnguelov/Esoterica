@@ -16,7 +16,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Bone Mask"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionConduit, GraphType::BlendTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
@@ -24,6 +24,9 @@ namespace EE::Animation
 
         EE_REFLECT( CustomEditor = "AnimGraph_BoneMaskID" );
         StringID                               m_maskID;
+
+        EE_REFLECT();
+        bool                                   m_isOptionalMask = false;
     };
 
     //-------------------------------------------------------------------------
@@ -38,7 +41,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Fixed Weight Bone Mask"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionConduit, GraphType::BlendTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
@@ -58,7 +61,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Bone Mask Blend"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionConduit, GraphType::BlendTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
@@ -74,7 +77,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Bone Mask Selector"; }
         virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::TransitionConduit, GraphType::BlendTree ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit, GraphType::BlendTree ); }
 
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
@@ -96,6 +99,31 @@ namespace EE::Animation
 
         EE_REFLECT( ShowAsStaticArray );
         TVector<StringID>                      m_parameterValues;
+
+        EE_REFLECT();
+        Seconds                                m_blendTime = 0.1f;
+    };
+
+    //-------------------------------------------------------------------------
+
+    class BoneMaskSwitchToolsNode final : public FlowToolsNode
+    {
+        EE_REFLECT_TYPE( BoneMaskSwitchToolsNode );
+
+    public:
+
+        BoneMaskSwitchToolsNode();
+
+        virtual char const* GetTypeName() const override { return "Bone Mask Switch"; }
+        virtual char const* GetCategory() const override { return "Values/Bone Mask"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit, GraphType::BlendTree ); }
+
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+
+    private:
+
+        EE_REFLECT();
+        bool                                   m_switchDynamically = false;
 
         EE_REFLECT();
         Seconds                                m_blendTime = 0.1f;

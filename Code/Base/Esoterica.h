@@ -61,14 +61,17 @@ namespace EE::Platform
 //-------------------------------------------------------------------------
 
 #include "Types/Severity.h"
+#include "Logging/LogCategory.h"
 
 namespace EE::SystemLog
 {
     // Logging
     //-------------------------------------------------------------------------
 
+    EE_BASE_API void AddEntry( Severity severity, LogCategory category, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... );
     EE_BASE_API void AddEntry( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, ... );
     EE_BASE_API void AddEntryVarArgs( Severity severity, char const* pCategory, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args );
+    EE_BASE_API void AddEntryVarArgs( Severity severity, LogCategory category, char const* pSourceInfo, char const* pFilename, int pLineNumber, char const* pMessageFormat, va_list args );
 
     // Asserts
     //-------------------------------------------------------------------------
@@ -82,7 +85,13 @@ namespace EE::SystemLog
     EE_BASE_API void TraceMessage( const char* format, ... );
 }
 
-#define EE_LOG_INFO( category, source, ... ) EE::SystemLog::AddEntry( EE::Severity::Info, category, source, __FILE__, __LINE__, __VA_ARGS__ )
+// Generic logging methods
+// Allows you to specify a category from either a predefined list (Log::Category) or a custom string
+// You can also provide a source string to provide further information from the source, these strings can be delimited with a forward slash
+//
+// Usage: EE_LOG_WARNING( Log::Gameplay, "AI/Combat", "Target was expected to be set and valid - cancelling behavior" );
+
+#define EE_LOG_MESSAGE( category, source, ... ) EE::SystemLog::AddEntry( EE::Severity::Info, category, source, __FILE__, __LINE__, __VA_ARGS__ )
 #define EE_LOG_WARNING( category, source, ... ) EE::SystemLog::AddEntry( EE::Severity::Warning, category, source, __FILE__, __LINE__, __VA_ARGS__ )
 #define EE_LOG_ERROR( category, source, ... ) EE::SystemLog::AddEntry( EE::Severity::Error, category, source, __FILE__, __LINE__, __VA_ARGS__ )
 #define EE_LOG_FATAL_ERROR( category, source, ... ) EE::SystemLog::AddEntry( EE::Severity::FatalError, category, source, __FILE__, __LINE__, __VA_ARGS__ ); EE_HALT()
@@ -114,3 +123,12 @@ namespace EE::SystemLog
     #define EE_UNIMPLEMENTED_FUNCTION()
     #define EE_UNREACHABLE_CODE()
 #endif
+
+//-------------------------------------------------------------------------
+// Utils
+//-------------------------------------------------------------------------
+
+// Concatenates two preprocessor tokens, even when the tokens themselves are macros.
+#define EE_CONCATENATE_HELPER_HELPER( _a, _b ) _a##_b
+#define EE_CONCATENATE_HELPER( _a, _b ) EE_CONCATENATE_HELPER_HELPER( _a, _b )
+#define EE_CONCATENATE( _a, _b ) EE_CONCATENATE_HELPER( _a, _b )

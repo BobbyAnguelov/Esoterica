@@ -57,7 +57,7 @@ namespace EE
         template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
         EE_FORCE_INLINE void SetFlag( T enumValue )
         {
-            SetFlag( (uint8_t)enumValue );
+            SetFlag( (uint8_t) enumValue );
         }
 
         EE_FORCE_INLINE void SetFlag( uint8_t flag, bool value )
@@ -69,7 +69,7 @@ namespace EE
         template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
         EE_FORCE_INLINE void SetFlag( T enumValue, bool value )
         {
-            SetFlag( (uint8_t)enumValue, value );
+            SetFlag( (uint8_t) enumValue, value );
         }
 
         EE_FORCE_INLINE void SetAllFlags()
@@ -88,7 +88,7 @@ namespace EE
         template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
         EE_FORCE_INLINE bool IsFlagCleared( T enumValue )
         {
-            return IsFlagCleared( (uint8_t)enumValue );
+            return IsFlagCleared( (uint8_t) enumValue );
         }
 
         EE_FORCE_INLINE void ClearFlag( uint8_t flag )
@@ -100,12 +100,22 @@ namespace EE
         template<typename T>
         EE_FORCE_INLINE void ClearFlag( T enumValue )
         {
-            ClearFlag( (uint8_t)enumValue );
+            ClearFlag( (uint8_t) enumValue );
         }
 
         EE_FORCE_INLINE void ClearAllFlags()
         {
             m_flags = 0;
+        }
+
+        EE_FORCE_INLINE void ClearFlags( BitFlags flags )
+        {
+            m_flags &= ~flags.m_flags;
+        }
+
+        EE_FORCE_INLINE void AppendFlags( BitFlags flags )
+        {
+            m_flags |= flags.m_flags;
         }
 
         //-------------------------------------------------------------------------
@@ -119,7 +129,7 @@ namespace EE
         template<typename T, typename = std::enable_if_t<std::is_enum<T>::value>>
         EE_FORCE_INLINE void FlipFlag( T enumValue )
         {
-            FlipFlag( (uint8_t)enumValue );
+            FlipFlag( (uint8_t) enumValue );
         }
 
 
@@ -167,7 +177,7 @@ namespace EE
 
         using BitFlags::BitFlags;
 
-        inline explicit TBitFlags( T value ) 
+        inline explicit TBitFlags( T value )
             : BitFlags( GetFlagMask( (uint8_t) value ) )
         {
             EE_ASSERT( (uint32_t) value < MaxFlags );
@@ -197,6 +207,7 @@ namespace EE
         EE_FORCE_INLINE void SetFlag( T flag, bool value ) { BitFlags::SetFlag( (uint8_t) flag, value ); }
         EE_FORCE_INLINE void FlipFlag( T flag ) { BitFlags::FlipFlag( (uint8_t) flag ); }
         EE_FORCE_INLINE void ClearFlag( T flag ) { BitFlags::ClearFlag( (uint8_t) flag ); }
+        EE_FORCE_INLINE void AppendFlags( TBitFlags flags ) { BitFlags::AppendFlags( flags ); }
 
         //-------------------------------------------------------------------------
 

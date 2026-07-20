@@ -5,17 +5,17 @@
 
 //-------------------------------------------------------------------------
  
-namespace EE::Player
+namespace EE
 {
-    class JumpAction final : public Action
+    class PlayerAction_Jump final : public PlayerAction
     {
     public:
 
-        EE_PLAYER_ACTION_ID( JumpAction );
+        EE_PLAYER_ACTION_ID( PlayerAction_Jump );
 
-        virtual bool TryStartInternal( ActionContext const& ctx ) override;
-        virtual Status UpdateInternal( ActionContext const& ctx, bool isFirstUpdate ) override;
-        virtual void StopInternal( ActionContext const& ctx, StopReason reason ) override;
+        virtual bool TryStartInternal( PlayerActionContext const& ctx ) override;
+        virtual Status UpdateInternal( PlayerActionContext const& ctx, bool isFirstUpdate ) override;
+        virtual void StopInternal( PlayerActionContext const& ctx, StopReason reason ) override;
 
         inline bool IsChargedJumpReady() const { return m_isChargedJumpReady; }
 
@@ -23,8 +23,7 @@ namespace EE::Player
 
         ManualTimer             m_jumpTimer;
         bool                    m_isChargedJumpReady = false;
-
-        float                   m_maxHeight = 6.0f;
-        float                   m_previousHeight = 0.0f;
+        bool                    m_isPerformingChargedJump = false;
+        float                   m_previousProgressThroughJump = 0.0;
     };
 }

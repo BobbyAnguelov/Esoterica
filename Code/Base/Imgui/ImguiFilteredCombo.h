@@ -4,6 +4,7 @@
 
 //-------------------------------------------------------------------------
 
+#if EE_DEVELOPMENT_TOOLS
 namespace EE::ImGuiX
 {
     template<typename T>
@@ -240,3 +241,4 @@ namespace EE::ImGuiX
         }
     }
 }
+#endif

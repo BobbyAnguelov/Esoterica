@@ -12,7 +12,7 @@ namespace EE::FileSystem { class Path; }
 
 //-------------------------------------------------------------------------
 
-namespace EE::Settings
+namespace EE
 {
     class EE_BASE_API IniFile
     {

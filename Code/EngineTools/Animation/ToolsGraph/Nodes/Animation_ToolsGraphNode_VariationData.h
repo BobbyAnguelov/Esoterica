@@ -16,8 +16,21 @@ namespace EE::Animation
         {
             EE_REFLECT_TYPE( Data );
 
+        public:
+
+            enum class VisualState
+            {
+                None,
+                HasUnsetData
+            };
+
+        public:
+
             // Return any resources that we reference
             virtual void GetReferencedResources( TInlineVector<ResourceID, 2>& outReferencedResources ) const {}
+
+            // Get the visual state that we should display for this data
+            virtual VisualState GetVisualState() const { return VisualState::None; }
         };
 
         //-------------------------------------------------------------------------
@@ -80,9 +93,47 @@ namespace EE::Animation
         void RenameVariationOverride( StringID oldVariationID, StringID newVariationID );
         void RemoveVariationOverride( StringID variationID );
 
+
     protected:
 
         virtual TypeSystem::TypeInfo const* GetVariationDataTypeInfo() const = 0;
+
+        template<typename T>
+        inline void ForEachVariationData( TFunction<void( T* )> const &fn )
+        {
+            if ( m_defaultVariationData.IsSet() )
+            {
+                fn( m_defaultVariationData.GetAs<T>() );
+            }
+
+            for ( auto &o : m_overrides )
+            {
+                if ( o.m_variationData.IsSet() )
+                {
+                    fn( o.m_variationData.GetAs<T>() );
+                }
+            }
+        }
+
+        template<typename T>
+        inline void ForEachVariationData( TFunction<void( T const* )> const &fn ) const
+        {
+            if ( m_defaultVariationData.IsSet() )
+            {
+                fn( m_defaultVariationData.GetAs<T>() );
+            }
+
+            for ( auto &o : m_overrides )
+            {
+                if ( o.m_variationData.IsSet() )
+                {
+                    fn( o.m_variationData.GetAs<T>() );
+                }
+            }
+        }
+
+        // Called whenever we create a new override, allows us to pre-populate the data
+        virtual void OnVariationOverrideCreated( Data* pCreatedData ) {}
 
     protected:
 

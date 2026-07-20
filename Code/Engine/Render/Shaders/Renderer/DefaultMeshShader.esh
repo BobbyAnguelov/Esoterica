@@ -1,0 +1,192 @@
+
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/EngineShader.esh"
+#include "Engine/Render/Shaders/MeshInstance.esh"
+#include "Engine/Render/Shaders/Picking/Picking.esh"
+
+EE_DECLARE_ROOT_CONSTANTS( DrawRootConstants, b0, space0 );
+EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
+
+groupshared float4 gsClipVertices[MAX_CLUSTER_VERTICES];
+
+#if EE_DEVELOPMENT_TOOLS
+groupshared uint gsNumIntersections;
+groupshared uint gsIntersectionDistanceMin;
+#endif
+
+[RootSignature( DrawRootSignature )]
+[NumThreads( MESH_SHADER_DISPATCH_COUNT, 1, 1 )]
+[OutputTopology( "triangle" )]
+void MS_main
+( 
+    uint                            groupThreadID   : SV_GroupThreadID, 
+    uint                            groupID         : SV_GroupID,
+    out indices     uint3           outTriangles[MAX_CLUSTER_TRIANGLES],
+    out primitives  PrimitiveOutput outPrimitives[MAX_CLUSTER_TRIANGLES],
+    out vertices    VertexOutput    outVertices[MAX_CLUSTER_VERTICES] 
+)
+{
+    #if EE_DEVELOPMENT_TOOLS
+    if ( groupThreadID == 0 )
+    {
+        gsNumIntersections = 0;
+        gsIntersectionDistanceMin = asuint( 1.5E+10 );
+    }
+    #endif
+    
+    StructuredBuffer<RenderView>        renderViewBuffer            = GetBuffer( RootCBV.m_renderViewBuffer );
+    StructuredBuffer<MeshInstance>      meshInstanceBuffer          = GetBuffer( RootCBV.m_meshInstanceBuffer );
+    ByteAddressBuffer                   meshInstanceRootBuffer      = GetBuffer( RootCBV.m_meshInstanceRootBuffer );
+    StructuredBuffer<MeshCluster>       clusterBuffer               = GetBuffer( RootCBV.m_clusterBuffer );
+    StructuredBuffer<SkinningTransform> skinningTransformBuffer     = GetBuffer( RootCBV.m_skinningTransformBuffer ); 
+
+    Buffer<uint2>                       clusterVisibleBuffer        = GetBuffer( RootConstants.m_clusterVisibleBuffer );
+        
+    const uint2                         clusterVisible              = clusterVisibleBuffer[RootConstants.m_clusterOffset + groupID];
+    const uint                          instanceIndex               = clusterVisible.x;
+    const uint                          clusterIndex                = clusterVisible.y;
+    
+    const MeshCluster                   cluster                     = clusterBuffer[clusterIndex];
+    const MeshInstance                  meshInstance                = meshInstanceBuffer[instanceIndex];
+    const RenderView                    renderView                  = renderViewBuffer[RootConstants.m_renderViewIndex];
+    
+    ByteAddressBuffer                   clusterVertexBuffer         = GetBuffer( NonUniformResourceIndex( meshInstance.m_clusterVertexBuffer ) );
+    Buffer<uint>                        clusterTriangleBuffer       = GetBuffer( NonUniformResourceIndex( meshInstance.m_clusterTriangleBuffer ) );
+    
+    ByteAddressBuffer                   shaderDataBuffer            = GetBuffer( RootCBV.m_shaderDataBuffer );
+
+    //-------------------------------------------------------------------------------------------------------
+    
+    #if EE_DEVELOPMENT_TOOLS
+    RWBuffer<uint>                      instancePickingDistancesBuffer = GetBuffer( RootCBV.m_instancePickingDistancesBuffer );
+    #endif
+    
+    //-------------------------------------------------------------------------------------------------------
+
+    uint numClusterVertices = min( cluster.m_numVertices, MAX_CLUSTER_VERTICES );
+    uint numClusterTriangles = min( cluster.m_numTriangles, MAX_CLUSTER_TRIANGLES );
+        
+    SetMeshOutputCounts( numClusterVertices, numClusterTriangles );
+
+    // Unpack cluster data
+    //-------------------------------------------------------------------------------------------------------
+    
+    uint                meshInstanceDataAddress;
+    MeshInstanceRoot    meshInstanceRoot                        = meshInstance.LoadRoot( meshInstanceRootBuffer, meshInstanceDataAddress );
+
+    ShaderParameters    shaderParameters                        = shaderDataBuffer.Load<ShaderParameters>( meshInstance.m_shaderParametersOffsetIn32ByteBlocks * 32 );
+    bool                isDoubleSided                           = ( shaderParameters.m_shaderFlags & EE_SHADER_FLAG_TWO_SIDED ) != 0;
+    RendererGlobalFlags rendererGlobalFlags                     = RootCBV.m_rendererGlobalFlags;
+    
+    // Special case - global environment map view shouldn't compute lighting
+    float3 worldPositionOffset = 0.0.xxx;
+    if ( ( meshInstanceRoot.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP ) )
+    {
+        rendererGlobalFlags |= RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING;
+        
+        // Envmap geometry is rendered in other views as well, but in that case it is always relative to camera
+        if ( ( renderView.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP ) == 0 )
+        {
+            worldPositionOffset = RootCBV.m_cameraPosition.xyz;
+        }
+    }
+
+    // Shade vertices
+    //-------------------------------------------------------------------------------------------------------
+
+    float3x4    meshInstanceTransform   = meshInstance.ComputeWorldTransform( meshInstanceRoot );
+    
+    // TODO: Compute winding during culling pass
+    bool        flipWinding             = determinant( ( float3x3 )meshInstanceTransform ) < 0.0;
+    
+    if ( groupThreadID < numClusterVertices )
+    {        
+        TransformedVertex transformedVertex = TransformVertex
+        (
+            clusterVertexBuffer, skinningTransformBuffer,
+            meshInstanceRoot, meshInstance, flipWinding,
+            cluster.m_vertexOffset + groupThreadID,
+            cluster.GetAnchor(), cluster.m_sharedExponent
+        );
+        
+        transformedVertex.m_worldPosition += worldPositionOffset;
+        
+        VertexOutput output;
+        output.m_clipPosition   = mul( renderView.m_viewProjectionMatrix, float4( transformedVertex.m_worldPosition, 1.0 ) );
+        output.m_worldPosition  = transformedVertex.m_worldPosition;
+        output.m_worldNormal    = transformedVertex.m_worldNormal;
+        output.m_uv             = float4( transformedVertex.m_vertex.m_uv0, transformedVertex.m_vertex.m_uv1 );
+        output.m_color          = UnpackColor( transformedVertex.m_vertex.m_packedColor );
+        
+        //#define DEBUG_CLUSTERS
+        #ifdef DEBUG_CLUSTERS
+        output.m_color = float4(
+            float( groupID & 1 ),
+            float( groupID & 3 ) / 4,
+            float( groupID & 7 ) / 8,
+            1.0 );
+        #endif
+
+        gsClipVertices[groupThreadID]   = output.m_clipPosition;
+        outVertices[groupThreadID]      = output;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    if ( groupThreadID < numClusterTriangles )
+    {
+        uint3 triangleIndices = UnpackTriangle( clusterTriangleBuffer[cluster.m_triangleOffset + groupThreadID] );
+
+        if ( !isDoubleSided )
+        {
+            if ( renderView.m_renderViewFlags & RENDER_VIEW_FLAG_FLIP_WINDING )
+            {
+                triangleIndices = triangleIndices.zyx;
+            }
+                
+            if ( flipWinding )
+            {
+                triangleIndices = triangleIndices.zyx;
+            }
+        }
+
+        outTriangles[groupThreadID] = triangleIndices;
+
+        float4 clipVertices[3];
+        clipVertices[0] = gsClipVertices[triangleIndices.x];
+        clipVertices[1] = gsClipVertices[triangleIndices.y];
+        clipVertices[2] = gsClipVertices[triangleIndices.z];
+            
+        PrimitiveOutput output = ( PrimitiveOutput ) 0;
+        output.m_cullPrimitive      = IsTriangleCulled( clipVertices, renderView.m_renderTargetSize.xy, isDoubleSided );            
+        output.SetInstanceIndex( instanceIndex );
+        output.SetClusterIndex( clusterIndex );
+        output.SetShaderParametersOffsetIn32ByteBlocks( meshInstance.m_shaderParametersOffsetIn32ByteBlocks );
+            
+        output.m_primitiveFlags.m_rendererGlobalFlags               = rendererGlobalFlags;
+        output.m_primitiveFlags.m_rendererDebugFlags                = RootCBV.m_rendererDebugFlags;
+        output.m_primitiveFlags.m_rendererDebugVisualizationMode    = RootCBV.m_rendererDebugVisualizationMode;
+        outPrimitives[groupThreadID] = output;
+        
+        #if EE_DEVELOPMENT_TOOLS
+        if ( RootCBV.m_pickingEnabled && ( RootConstants.m_renderViewIndex == RootCBV.m_mainCameraRenderView ) )
+        {
+            float hitDistance = 0.0;
+            if ( PickTriangleClipSpace( RootCBV.m_pickingInput.xy, RootCBV.m_pickingInput.z, clipVertices[0], clipVertices[1], clipVertices[2], hitDistance ) )
+            {
+                InterlockedAdd( gsNumIntersections, 1 );
+                InterlockedMin( gsIntersectionDistanceMin, asuint( hitDistance ) );
+            }
+        }
+        #endif
+    }
+    
+    #if EE_DEVELOPMENT_TOOLS
+    GroupMemoryBarrierWithGroupSync();
+
+    if ( ( groupThreadID == 0 ) && ( gsNumIntersections > 0 ) )
+    {
+        InterlockedMin( instancePickingDistancesBuffer[instanceIndex], gsIntersectionDistanceMin );
+    }
+    #endif
+}

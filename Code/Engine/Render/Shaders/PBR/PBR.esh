@@ -1,0 +1,186 @@
+
+#ifndef _PBR_ESH_
+#define _PBR_ESH_
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/CommonSamplers.esh"
+
+static const float PI = 3.14159265358979323846;
+
+// http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
+float RadicalInverseVDC( uint bits )
+{
+    bits = ( bits << 16 ) | ( bits >> 16 );
+    bits = ( ( bits & 0x55555555 ) << 1 ) | ( ( bits & 0xAAAAAAAA ) >> 1 );
+    bits = ( ( bits & 0x33333333 ) << 2 ) | ( ( bits & 0xCCCCCCCC ) >> 2 );
+    bits = ( ( bits & 0x0F0F0F0F ) << 4 ) | ( ( bits & 0xF0F0F0F0 ) >> 4 );
+    bits = ( ( bits & 0x00FF00FF ) << 8 ) | ( ( bits & 0xFF00FF00 ) >> 8 );
+
+    return float( bits ) * 2.3283064365386963e-10; // / 0x100000000
+}
+
+float2 Hammersley( uint sample, uint sampleCount )
+{
+    return float2( float( sample ) / float( sampleCount ), RadicalInverseVDC( sample ) );
+}
+
+float3 ImportanceSampleGGX( float2 Xi, float3 normal, float roughness )
+{
+    float   a         = roughness * roughness;
+    float   phi       = 2.0 * PI * Xi.x;
+    float   cosTheta  = sqrt( ( 1.0 - Xi.y ) / ( 1.0 + ( a * a - 1.0 ) * Xi.y ) );
+    float   sinTheta  = sqrt( 1.0 - cosTheta * cosTheta );
+    float3  h         = float3( cos( phi ) * sinTheta, sin( phi ) * sinTheta, cosTheta );
+
+    float3  up;
+    if ( abs( normal.z ) < 0.999 )
+    {
+        up = float3( 0.0, 0.0, 1.0 );
+    }
+    else
+    {
+        up = float3( 1.0, 0.0, 0.0 );
+    }
+
+    float3 tangent      = normalize( cross( up, normal ) );
+    float3 bitangent    = normalize( cross( normal, tangent ) );
+
+    return normalize( tangent * h.x + bitangent * h.y + normal * h.z );
+}
+
+float GeometrySchlickBeckmann( float dp, float k )
+{
+    return dp / max( dp * ( 1.0 - k ) + k, 0.0001 );
+}
+
+float DistributionGGX( float3 normal, float3 H, float roughness4 )
+{
+    float dotNH     = saturate( dot( normal, H ) );
+    float dotNH2    = dotNH * dotNH;
+
+    float d         = dotNH2 * ( roughness4 - 1.0 ) + 1.0;
+
+    return roughness4 / ( PI * d * d );
+}
+
+float GeometrySmith( float dotNV, float dotNL, float roughness05 )
+{    
+    return GeometrySchlickBeckmann( dotNV, roughness05 ) * GeometrySchlickBeckmann( dotNL, roughness05 );
+}
+
+float Square( float x )
+{
+    return x * x;
+}
+
+// https://lisyarus.github.io/blog/posts/point-light-attenuation.html
+float AttenuationNoCusp( float distance, float radius, float maxIntensity, float faloff )
+{
+    float s = distance / radius;
+
+    if ( s >= 1.0 ) return 0.0;
+
+    float s2 = Square( s );
+
+    return maxIntensity * Square( 1.0 - s2 ) / ( 1.0 + faloff * s2 );
+}
+
+// https://lisyarus.github.io/blog/posts/point-light-attenuation.html
+float AttenuationCusp( float distance, float radius, float maxIntensity, float faloff )
+{
+    float s = distance / radius;
+
+    if ( s >= 1.0 ) return 0.0;
+
+    float s2 = Square( s );
+
+    return maxIntensity * Square( 1.0 - s2 ) / ( 1.0 + faloff * s2 );
+}
+
+struct PBR
+{
+    float3 F0;
+    
+    float3 m_view;
+    float3 m_normal;
+    float3 m_reflection;
+    
+    float  m_dotNV;
+    
+    float3 m_albedo;
+    float  m_metalness;
+    float  m_roughness;
+    float  m_occlusion;
+    
+    float  m_inverseMetalness;
+    float  m_roughness05;
+    float  m_roughness2;
+    float  m_roughness4;
+    
+    float  m_specularOcclusion;
+    
+    static PBR New( float3 albedo, float metalness, float roughness, float occlusion, float3 normal, float3 view )
+    {
+        PBR pbr;
+        pbr.m_albedo                    = albedo;
+        pbr.F0                          = lerp( 0.04.xxx, pbr.m_albedo, metalness );
+        pbr.m_view                      = view;
+        pbr.m_normal                    = normal;
+        pbr.m_dotNV                     = saturate( dot( pbr.m_normal, pbr.m_view ) );
+        pbr.m_reflection                = reflect( -pbr.m_view, pbr.m_normal );
+        pbr.m_metalness                  = metalness;
+        pbr.m_inverseMetalness           = 1.0 - pbr.m_metalness;
+        pbr.m_roughness                 = roughness;
+        pbr.m_roughness05               = roughness * 0.5;
+        pbr.m_roughness2                = roughness * roughness;
+        pbr.m_roughness4                = pbr.m_roughness2 * pbr.m_roughness2;
+        pbr.m_occlusion                 = occlusion;
+        pbr.m_specularOcclusion         = saturate( pow( pbr.m_dotNV + pbr.m_occlusion, pbr.m_roughness ) - 1.0 + pbr.m_occlusion );
+        return pbr;
+    }
+
+    float3 FresnelSchlick( float cosTheta )
+    {
+        return F0 + ( 1.0.xxx - F0 ) * pow( saturate( 1.0 - cosTheta ), 5.0 );
+    }
+
+    float3 FresnelSchlickRoughness( float cosTheta )
+    {
+        return F0 + ( max( 1.0.xxx - m_roughness.xxx, F0 ) - F0 ) * pow( saturate( 1.0 - m_dotNV ), 5.0 );
+    }
+    
+    float3 ComputeIBL( Texture2D dfgTexture, TextureCube radianceTexture, float radianceMipLevels, TextureCube irradianceTexture )
+    {
+        SamplerState linearClampSampler = GetLinearClampSampler();
+        SamplerState linearWrapSampler  = GetLinearWrapSampler();
+    
+        float2  dfg                 = dfgTexture.SampleLevel( linearClampSampler, float2( m_dotNV, m_roughness ), 0.0 ).xy;
+        float3  irradiance          = irradianceTexture.SampleLevel( linearWrapSampler, m_normal, 0.0 ).rgb;
+        float3  radiance            = radianceTexture.SampleLevel( linearWrapSampler, m_reflection, m_roughness * radianceMipLevels ).rgb;
+        float3  F                   = FresnelSchlickRoughness( m_dotNV );
+    
+        float3  diffuse             = ( 1.0.xxx - F ) * m_inverseMetalness * irradiance * m_albedo * m_occlusion;
+        float3  specular            = radiance * ( F * dfg.x + dfg.y ) * m_specularOcclusion;
+    
+        return diffuse + specular;
+    }
+
+    float3 ComputeDirectLight( float3 lightColor, float3 lightDirection )
+    {
+        float3  radiance        = lightColor;
+        float   dotNL           = saturate( dot( m_normal, lightDirection ) );
+    
+        float3  H               = normalize( m_view + lightDirection );
+        float   dotHV           = saturate( dot( H, m_view ) );
+        float   NDF             = DistributionGGX( m_normal, H, m_roughness4 );
+        float   G               = GeometrySmith( m_dotNV, dotNL, m_roughness05 );
+        float3  F               = FresnelSchlick( dotHV );
+    
+        float3 diffuse          = ( 1.0.xxx - F ) * m_inverseMetalness * m_albedo * ( 1.0 / PI );
+        float3 specular         = NDF * G * F * ( 1.0 / max( 4.0 * m_dotNV * dotNL, 0.0001 ) );
+    
+        return ( diffuse + specular ) * radiance * dotNL;
+    }
+};
+
+#endif

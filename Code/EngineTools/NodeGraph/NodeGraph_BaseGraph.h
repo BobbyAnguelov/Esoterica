@@ -8,6 +8,7 @@
 #include "Base/Types/Event.h"
 #include "Base/Types/Function.h"
 #include "Base/TypeSystem/TypeInstance.h"
+#include "Base/Types/Path.h"
 
 //-------------------------------------------------------------------------
 
@@ -23,8 +24,7 @@ namespace EE::NodeGraph
 
     enum class NodeVisualState
     {
-        Active = 0,
-        Selected,
+        Selected = 0,
         Hovered,
     };
 
@@ -56,11 +56,14 @@ namespace EE::NodeGraph
         // Undo / Redo
         //-------------------------------------------------------------------------
 
+        // Are we currently modifying this node 
+        bool IsModificationInProgress() const { return m_modificationCount > 0; }
+
         // Called whenever an operation starts that will modify the graph state - allowing clients to serialize the before state
-        virtual void BeginModification();
+        void BeginModification();
 
         // Called whenever an operation ends that has modified the graph state - allowing clients to serialize the after state
-        virtual void EndModification();
+        void EndModification();
 
         // Node
         //-------------------------------------------------------------------------
@@ -89,11 +92,11 @@ namespace EE::NodeGraph
         // Call this function to rename a node
         void Rename( String const& newName );
 
-        // Optional function that can be overridden in derived classes to draw a border around the node to signify an active state
-        virtual bool IsActive( UserContext* pUserContext ) const { return false; }
-
         // Should this node be drawn?
         virtual bool IsVisible() const { return true; }
+
+        // Optional function that can be overridden in derived classes to draw a border around the node, return transparent to not draw a highlight outline
+        virtual Color GetHighlightOutlineColor( UserContext* pUserContext ) const { return Colors::Transparent; }
 
         // Is this node currently hovered
         EE_FORCE_INLINE bool IsHovered() const { return m_isHovered; }
@@ -108,10 +111,13 @@ namespace EE::NodeGraph
         virtual String GetStringPathFromRoot() const;
 
         // Returns the ID path from the root graph (including the current node)
-        virtual TVector<UUID> GetIDPathFromRoot() const;
+        virtual TPath<UUID> GetIDPathFromRoot() const;
 
         // Returns the node path from the root graph (including the current node)
         virtual TVector<BaseNode*> GetNodePathFromRoot() const;
+
+        // Returns the depth of the path from the root
+        int32_t GetPathDepthFromRoot() const;
 
         // Regenerate UUIDs for this node and its sub-graphs, returns the original ID for the node.
         // The ID mapping will contain all the IDs changed: key = original ID, value = new ID
@@ -234,8 +240,11 @@ namespace EE::NodeGraph
         template<typename T, typename ... ConstructorParams>
         inline T* CreateSecondaryGraph( ConstructorParams&&... params );
 
+        // Update the child graph and secondary graph parent ptrs
+        void UpdateChildGraphAndSecondaryGraphParents();
+
         // Post-deserialize fixup
-        virtual void PostDeserialize() override;
+        virtual void PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry ) override;
 
         // Override this if you wish to provide a custom mechanism for determining unique node names
         virtual String CreateUniqueNodeName( String const& desiredName ) const;
@@ -254,7 +263,13 @@ namespace EE::NodeGraph
         virtual void OnShowNode() {}
 
         // Get the graph that we should navigate to when we go down a level (needed in some cases to skip a level)
-        virtual BaseGraph* GetNavigationTarget();
+        virtual BaseGraph* GetNavigationTarget( NodeGraph::UserContext* pUserContext );
+
+        // Called before we modify either this node or a child of this node
+        virtual void PreModify() {}
+
+        // Called after we modify either this node or a child of this node
+        virtual void PostModify() {}
 
         // Called before we copy this node
         virtual void PreCopy() {}
@@ -288,6 +303,8 @@ namespace EE::NodeGraph
         mutable float               m_internalRegionMargins[2] = {0, 0};
         mutable bool                m_regionStarted = false;
         bool                        m_isHovered = false;
+
+        int32_t                     m_modificationCount = 0; // The number of begin modification calls affecting this node
     };
 
     //-------------------------------------------------------------------------
@@ -354,6 +371,9 @@ namespace EE::NodeGraph
         // Undo/Redo
         //-------------------------------------------------------------------------
 
+        // Are we currently modifying this node 
+        bool IsModificationInProgress() const { return m_modificationCount > 0; }
+
         // Called whenever an operation starts that will modify the graph state - allowing clients to serialize the before state
         void BeginModification();
 
@@ -384,7 +404,7 @@ namespace EE::NodeGraph
         String GetStringPathFromRoot() const;
 
         // Returns the path from the root graph in node IDs
-        TVector<UUID> GetIDPathFromRoot() const;
+        TPath<UUID> GetIDPathFromRoot() const;
 
         // Parent Node
         inline bool HasParentNode() const { return m_pParentNode != nullptr; }
@@ -526,6 +546,8 @@ namespace EE::NodeGraph
             return nullptr;
         }
 
+        BaseGraph *FindGraph( UUID const &graphID );
+
         // Find all nodes of a specific type in this graph. Note: doesnt clear the results array so ensure you feed in an empty array
         void FindAllNodesOfType( TypeSystem::TypeID typeID, TInlineVector<BaseNode*, 20>& results, SearchMode mode = SearchMode::Localized, SearchTypeMatch typeMatch = SearchTypeMatch::Exact ) const;
 
@@ -605,10 +627,10 @@ namespace EE::NodeGraph
     protected:
 
         // Post-deserialize fixup
-        virtual void PostDeserialize() override;
+        virtual void PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry ) override;
 
         // Get the graph that we should navigate to when we go up a level (needed in some cases to skip a level)
-        virtual BaseGraph* GetNavigationTarget();
+        virtual BaseGraph* GetNavigationTarget( NodeGraph::UserContext* pUserContext );
 
         // Called whenever we add a node to this graph
         virtual void OnNodeAdded( BaseNode* pAddedNode ) {}
@@ -630,7 +652,13 @@ namespace EE::NodeGraph
         virtual bool HandleDoubleClick( UserContext* pUserContext ) { return false; }
 
         // Called after we finish pasting nodes (allows for child graphs to run further processes)
-        virtual void PostPasteNodes( TInlineVector<BaseNode*, 20> const& pastedNodes ) {}
+        virtual void PostPasteNodes( TInlineVector<BaseNode*, 20> const& pastedNodes, THashMap<UUID, UUID> const& IDMapping ) {}
+
+        // Called before we modify either this graph or a child of this graph
+        virtual void PreModify() {}
+
+        // Called after we modify either this graph or a child of this graph
+        virtual void PostModify() {}
 
         // Called just before we destroy a node, allows derived graphs to handle the event
         virtual void PreDestroyNode( BaseNode* pNodeAboutToBeDestroyed ) {};
@@ -663,7 +691,7 @@ namespace EE::NodeGraph
 
         BaseNode*                               m_pParentNode = nullptr; // Not serialized, set after serialization
 
-        int32_t                                 m_beginModificationCallCount = 0;
+        int32_t                                 m_modificationCount = 0; // The number of begin modification calls affecting this node
     };
 
     //-------------------------------------------------------------------------

@@ -55,10 +55,28 @@ namespace EE::Animation
         return originalID;
     }
 
-    void StateMachineGraph::PostPasteNodes( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes )
+    void StateMachineGraph::PostPasteNodes( TInlineVector<NodeGraph::BaseNode*, 20> const& pastedNodes, THashMap<UUID, UUID> const& IDMapping )
     {
-        NodeGraph::StateMachineGraph::PostPasteNodes( pastedNodes );
+        NodeGraph::StateMachineGraph::PostPasteNodes( pastedNodes, IDMapping );
+
+        for ( auto pPastedNode : pastedNodes )
+        {
+            if ( auto pStateNode = dynamic_cast<StateToolsNode*>( pPastedNode ) )
+            {
+                if ( !pStateNode->IsClonedState() )
+                {
+                    pStateNode->UpdateCloneVersion();
+                }
+            }
+        }
+
         UpdateDependentNodes();
+    }
+
+    void StateMachineGraph::PostModify()
+    {
+        UpdateDependentNodes();
+        NodeGraph::StateMachineGraph::PostModify();
     }
 
     void StateMachineGraph::PostDestroyNode( UUID const& nodeID )
@@ -105,7 +123,7 @@ namespace EE::Animation
         return false;
     }
 
-    NodeGraph::BaseGraph* StateMachineGraph::GetNavigationTarget()
+    NodeGraph::BaseGraph* StateMachineGraph::GetNavigationTarget( NodeGraph::UserContext* pUserContext )
     {
         auto pParentNode = GetParentNode();
         auto pGrandParentNode = pParentNode->GetParentGraph()->GetParentNode();

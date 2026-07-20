@@ -1,0 +1,59 @@
+{
+  "version": 3,
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Visual Studio 17 2022"
+    },
+    {
+      "name": "arm",
+      "inherits": "base",
+      "displayName": "arm",
+      "architecture": {
+        "value": "arm",
+        "strategy": "set"
+      },
+      "cacheVariables": {
+        "CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION_MAXIMUM": "10.0.22621.0",
+        "CMAKE_C_COMPILER_WORKS": "1"
+      }
+    },
+    {
+      "name": "x86",
+      "inherits": "base",
+      "displayName": "x86",
+      "architecture": {
+        "value": "win32",
+        "strategy": "set"
+      }
+    },
+    {
+      "name": "x64",
+      "inherits": "base",
+      "displayName": "x64",
+      "architecture": {
+        "value": "x64",
+        "strategy": "set"
+      }
+    },
+    {
+      "name": "arm64",
+      "inherits": "base",
+      "displayName": "arm64",
+      "architecture": {
+        "value": "arm64",
+        "strategy": "set"
+      }
+    },
+    {
+      "name": "arm64ec",
+      "inherits": "base",
+      "displayName": "arm64ec",
+      "architecture": {
+        "value": "arm64ec",
+        "strategy": "set"
+      }
+    }
+  ]
+}

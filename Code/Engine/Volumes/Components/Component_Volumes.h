@@ -8,7 +8,7 @@
 
 namespace EE
 {
-    namespace Drawing{ class DrawContext; }
+    class DebugDrawContext;
 
     //-------------------------------------------------------------------------
 
@@ -23,7 +23,7 @@ namespace EE
 
         #if EE_DEVELOPMENT_TOOLS
         virtual Color GetVolumeColor() const { return Colors::Gray; }
-        virtual void Draw( Drawing::DrawContext& drawingCtx ) const {}
+        virtual void Draw( DebugDrawContext& drawingCtx ) const {}
         #endif
     };
 
@@ -42,7 +42,7 @@ namespace EE
         inline Float3 GetVolumeLocalExtents() const { return m_extents; }
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual void Draw( Drawing::DrawContext& drawingCtx ) const override;
+        virtual void Draw( DebugDrawContext& drawingCtx ) const override;
         #endif
 
     protected:

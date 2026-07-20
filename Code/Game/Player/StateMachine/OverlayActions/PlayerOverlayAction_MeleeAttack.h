@@ -5,17 +5,17 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
-    class MeleeAttackAction final : public OverlayAction
+    class PlayerOverlayAction_MeleeAttack final : public OverlayPlayerAction
     {
     public:
 
-        EE_PLAYER_ACTION_ID( MeleeAttackAction );
+        EE_PLAYER_ACTION_ID( PlayerOverlayAction_MeleeAttack );
 
-        virtual bool TryStartInternal( ActionContext const& ctx ) override;
-        virtual Status UpdateInternal( ActionContext const& ctx, bool isFirstUpdate ) override;
-        virtual void StopInternal( ActionContext const& ctx, StopReason reason ) override;
+        virtual bool TryStartInternal( PlayerActionContext const& ctx ) override;
+        virtual Status UpdateInternal( PlayerActionContext const& ctx, bool isFirstUpdate ) override;
+        virtual void StopInternal( PlayerActionContext const& ctx, StopReason reason ) override;
 
     private:
 

@@ -1,6 +1,7 @@
 #include "Animation_ToolsGraph_Definition.h"
 #include "Nodes/Animation_ToolsGraphNode_Result.h"
 #include "Nodes/Animation_ToolsGraphNode_Parameters.h"
+#include "Nodes/Animation_ToolsGraphNode_State.h"
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationGraph.h"
 
 //-------------------------------------------------------------------------
@@ -17,90 +18,17 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void ToolsGraphDefinition::RefreshParameterReferences()
+    void ToolsGraphDefinition::UpdateInternalReferencesAndClones( TypeSystem::TypeRegistry const& typeRegistry )
     {
-        EE_ASSERT( m_rootGraph.IsSet() );
-        auto parameterNodes = m_rootGraph->FindAllNodesOfType<ParameterBaseToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
-
-        //-------------------------------------------------------------------------
-
-        auto SetReferencedParameter = [] ( ParameterReferenceToolsNode* pReferenceNode, ParameterBaseToolsNode* pParameter )
-        {
-            EE_ASSERT( pParameter != nullptr );
-            EE_ASSERT( IsOfType<ControlParameterToolsNode>( pParameter ) || IsOfType<VirtualParameterToolsNode>( pParameter ) );
-            EE_ASSERT( pParameter->GetOutputValueType() == pReferenceNode->GetOutputValueType() );
-            pReferenceNode->m_pParameter = pParameter;
-            pReferenceNode->UpdateCachedParameterData();
-        };
-
-        TInlineVector<ParameterReferenceToolsNode*, 10> invalidReferenceNodes; // These nodes are invalid and need to be removed
-
-        auto parameterReferenceNodes = m_rootGraph->FindAllNodesOfType<ParameterReferenceToolsNode>( NodeGraph::SearchMode::Recursive, NodeGraph::SearchTypeMatch::Derived );
-        for ( auto pReferenceNode : parameterReferenceNodes )
-        {
-            ParameterBaseToolsNode* pFoundParameterNode = nullptr;
-            ParameterBaseToolsNode* pFoundMatchingNameParameterNode = nullptr;
-
-            // Check all parameters for matching ID or matching name
-            for ( auto pParameterNode : parameterNodes )
-            {
-                if ( pParameterNode->GetID() == pReferenceNode->GetReferencedParameterID() )
-                {
-                    EE_ASSERT( pFoundParameterNode == nullptr );
-                    pFoundParameterNode = pParameterNode;
-                    break;
-                }
-
-                if ( pParameterNode->GetParameterName().comparei( pReferenceNode->GetReferencedParameterName() ) == 0 )
-                {
-                    EE_ASSERT( pFoundMatchingNameParameterNode == nullptr );
-                    pFoundMatchingNameParameterNode = pParameterNode;
-                }
-            }
-
-            GraphValueType const referencedParameterValueType = pReferenceNode->GetReferencedParameterValueType();
-
-            // If we have a matching parameter node, set the reference to point to it
-            if ( pFoundParameterNode != nullptr && ( referencedParameterValueType == pFoundParameterNode->GetOutputValueType() ) )
-            {
-                SetReferencedParameter( pReferenceNode, pFoundParameterNode );
-            }
-            // If we have a parameter that matches both name and type then link to it (this handles cross graph pasting of parameters)
-            else if ( pFoundMatchingNameParameterNode != nullptr )
-            {
-                if ( referencedParameterValueType == pFoundMatchingNameParameterNode->GetOutputValueType() )
-                {
-                    SetReferencedParameter( pReferenceNode, pFoundMatchingNameParameterNode );
-                }
-                else // Flag this reference as invalid since we cannot create a parameter with this name as one already exists
-                {
-                    invalidReferenceNodes.emplace_back( pReferenceNode );
-                }
-            }
-            else // Create missing parameter
-            {
-                auto pParameter = ControlParameterToolsNode::Create( m_rootGraph.Get(), referencedParameterValueType, pReferenceNode->GetReferencedParameterName(), pReferenceNode->GetReferencedParameterGroup() );
-
-                // Set the reference to the newly created parameter
-                SetReferencedParameter( pReferenceNode, pParameter );
-
-                // Add newly created parameter to the list of parameters to be used for references
-                parameterNodes.emplace_back( pParameter );
-            }
-        }
-
-        // Destroy any invalid reference nodes
-        //-------------------------------------------------------------------------
-
-        for ( auto pInvalidNode : invalidReferenceNodes )
-        {
-            pInvalidNode->Destroy();
-        }
+        StateToolsNode::UpdateAllClonedStates( typeRegistry, m_rootGraph.Get() );
+        ParameterBaseToolsNode::RefreshParameterReferences( m_rootGraph.Get() );
     }
 
     void ToolsGraphDefinition::ReflectParameters( ToolsGraphDefinition const& otherGraphDefinition, bool reflectVirtualParameters, TVector<String>* pOptionalOutputLog )
     {
+        EE_ASSERT( otherGraphDefinition.IsValid() );
         FlowGraph const* pOtherRootGraph = otherGraphDefinition.m_rootGraph.Get();
+        EE_ASSERT( pOtherRootGraph != nullptr );
         auto otherControlParameters = pOtherRootGraph->FindAllNodesOfType<ControlParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
         auto otherVirtualParameters = pOtherRootGraph->FindAllNodesOfType<VirtualParameterToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
 
@@ -235,13 +163,13 @@ namespace EE::Animation
         }
     }
 
-    void ToolsGraphDefinition::PostDeserialize()
+    void ToolsGraphDefinition::PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry )
     {
-        IReflectedType::PostDeserialize();
+        IReflectedType::PostDeserialize( typeRegistry );
 
         if ( m_rootGraph.IsSet() )
         {
-            RefreshParameterReferences();
+            UpdateInternalReferencesAndClones( typeRegistry );
         }
     }
 

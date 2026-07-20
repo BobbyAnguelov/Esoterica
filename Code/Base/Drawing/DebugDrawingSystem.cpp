@@ -1,58 +1,64 @@
 #include "DebugDrawingSystem.h"
+#include "Base/Memory/Memory.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
-namespace EE::Drawing
+namespace EE
 {
-    ThreadCommandBuffer& DrawingSystem::GetThreadCommandBuffer()
+    DebugDrawInternal::ThreadCommandBuffer& DebugDrawSystem::GetThreadCommandBuffer()
     {
-        Threading::ScopeLock Lock( m_commandBufferMutex );
-
-        auto const threadID = Threading::GetCurrentThreadID();
+        thread_local static Threading::ThreadID const threadID = Threading::GetCurrentThreadID();
 
         // Check for an already created buffer for this thread
-        for ( auto& pThreadBuffer : m_threadCommandBuffers )
         {
-            if ( pThreadBuffer->GetThreadID() == threadID )
+            Threading::ScopeLockRead Lock( m_threadCommandBuffersMutex );
+            for ( auto& record : m_threadCommandBuffers )
             {
-                return *pThreadBuffer;
+                if ( record.m_threadID == threadID )
+                {
+                    return *record.m_pBuffer;
+                }
             }
         }
 
         // Create a new buffer
-        auto& pThreadBuffer = m_threadCommandBuffers.emplace_back( EE::New<ThreadCommandBuffer>( threadID ) );
-        return *pThreadBuffer;
+        //-------------------------------------------------------------------------
+
+        Threading::ScopeLockWrite Lock( m_threadCommandBuffersMutex );
+        CommandBufferRecord& record = m_threadCommandBuffers.emplace_back();
+        record.m_threadID = threadID;
+        record.m_pBuffer = EE::New<DebugDrawInternal::ThreadCommandBuffer>( threadID );
+
+        return *record.m_pBuffer;
     }
 
-    DrawingSystem::~DrawingSystem()
+    DebugDrawSystem::~DebugDrawSystem()
     {
-        for ( auto& pBuffer : m_threadCommandBuffers )
+        for ( auto& record : m_threadCommandBuffers )
         {
-            EE::Delete( pBuffer );
+            EE::Delete( record.m_pBuffer );
         }
+        m_threadCommandBuffers.clear();
     }
 
-    void DrawingSystem::ReflectFrameCommandBuffer( Seconds const deltaTime, FrameCommandBuffer& reflectedFrameCommands )
+    void DebugDrawSystem::ReflectFrameCommandBuffer( DebugDrawInternal::FrameCommandBuffer& reflectedFrameCommands )
     {
-        // Reset the frame buffer for a new frame, flush old commands and only keep ones with a valid TTL
-        reflectedFrameCommands.Reset( deltaTime );
-
         // Reflect all the new commands into the frame buffer
-        Threading::ScopeLock Lock( m_commandBufferMutex );
-        for ( auto& pThreadBuffer : m_threadCommandBuffers )
+        Threading::ScopeLockRead Lock( m_threadCommandBuffersMutex );
+        for ( CommandBufferRecord& record : m_threadCommandBuffers )
         {
-            reflectedFrameCommands.AddThreadCommands( *pThreadBuffer );
-            pThreadBuffer->Clear();
+            reflectedFrameCommands.AddThreadCommands( *record.m_pBuffer );
+            record.m_pBuffer->Clear();
         }
     }
 
-    void DrawingSystem::Reset()
+    void DebugDrawSystem::Reset()
     {
-        Threading::ScopeLock Lock( m_commandBufferMutex );
-        for ( auto& pThreadBuffer : m_threadCommandBuffers )
+        Threading::ScopeLockRead Lock( m_threadCommandBuffersMutex );
+        for ( CommandBufferRecord& record : m_threadCommandBuffers )
         {
-            pThreadBuffer->Clear();
+            record.m_pBuffer->Clear();
         }
     }
 }

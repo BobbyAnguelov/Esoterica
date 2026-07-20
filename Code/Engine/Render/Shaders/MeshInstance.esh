@@ -1,0 +1,236 @@
+
+#include "Engine/Render/Shaders/Transform.esh"
+#include "Engine/Render/Shaders/MeshData.esh"
+#include "Engine/Render/Shaders/CommonFlags.esh"
+
+#ifndef _MESH_INSTANCE_ESH_
+#define _MESH_INSTANCE_ESH_
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    struct HLSL_ALIGN_STRUCT MeshInstanceRoot
+    {
+        float3x4                        m_rootTransform;
+    
+        uint                            m_instanceHidden            : 1;
+        RenderViewLayerFlags            m_renderViewLayerFlags      : 8;
+        uint                            m_numLODs                   : 16; // TODO: Can hardcode this to 8
+        uint                            m_forceMinLOD               : 3;
+        uint                            m_forceLOD                  : 3;
+        uint                            m_useForcedLOD              : 1;
+
+        uint                            m_boneOffset; // TODO: This should be part of MeshInstance but we don't have skinned geometry in PCG yet so its not urgent.
+    
+        uint                            m_firstInstance;
+        uint                            m_numInstances;
+
+        #ifdef __cplusplus
+        void WriteInstanceHidden( TArrayView<uint32_t> buffer, uint32_t instanceIndex, bool value )
+        {
+            EE_ASSERT( instanceIndex < m_numInstances );
+    
+            uint32_t dataOffset = sizeof( MeshInstanceRoot ) / 4 + instanceIndex / 32;
+            uint32_t dataBit = instanceIndex % 32;
+            if ( value )
+            {
+                buffer[dataOffset] |= ( 1U << dataBit );
+            }
+            else
+            {
+                buffer[dataOffset] &= ~( 1U << dataBit );
+            }
+        }
+    
+        void WriteLODDistance( TArrayView<uint32_t> buffer, uint32_t lodIndex, float value )
+        {
+            EE_ASSERT( lodIndex < m_numLODs );
+            
+            uint32_t dataOffset = sizeof( MeshInstanceRoot ) / 4;
+            dataOffset += ( m_numInstances + 31 ) / 32;
+            dataOffset += lodIndex;
+    
+            uint32_t valueInt = 0;
+            std::memcpy( &valueInt, &value, sizeof( valueInt ) );
+    
+            buffer[dataOffset] = valueInt;
+        }
+        #endif
+    
+        #ifndef __cplusplus
+        bool ReadInstanceHidden( ByteAddressBuffer buffer, uint baseAddress, uint instanceIndex )
+        {
+            if ( instanceIndex >= m_numInstances )
+            {
+                return false;
+            }
+
+            uint dataOffset = sizeof( MeshInstanceRoot ) / 4 + instanceIndex / 32;
+            uint dataBit = instanceIndex % 32;
+        
+            uint flag = buffer.Load( baseAddress + dataOffset * 4 );
+            return flag & ( 1U << dataBit );
+        }
+
+        float ReadLODDistance( ByteAddressBuffer buffer, uint baseAddress, uint lodIndex )
+        {
+            //if ( lodIndex >= m_numLODs )
+            //{
+            //    return 1.5E+10;
+            //}
+        
+            uint dataOffset = sizeof( MeshInstanceRoot ) / 4;
+            dataOffset += ( m_numInstances + 31 ) / 32;
+            dataOffset += lodIndex;
+        
+            return buffer.Load<float>( baseAddress + dataOffset * 4 );
+        }
+    
+        uint GetLocalInstanceIndex( uint instanceIndex )
+        {
+            // TODO: This is kinda hacky, we're exploiting mesh instance allocation pattern to get the instance index there.
+            // MeshInstanceRoot always references a contiguous range of instances. Adding/removing instances to the root at runtime is not supported.
+            // Hopefully this doesn't blow up later.
+            uint instanceLocalIndex = instanceIndex - m_firstInstance;
+            instanceLocalIndex = clamp( instanceLocalIndex, 0, m_numInstances );
+            return instanceLocalIndex;
+        }
+        #endif
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( MeshInstanceRoot ) == 64, "Don't exceed 64 bytes for this structure, it is performance critical" );
+
+    struct HLSL_ALIGN_STRUCT MeshInstance
+    {
+        float3x4                        m_localTransform;
+
+        uint                            m_meshInstanceRootIndex;
+        uint                            m_shaderParametersOffsetIn32ByteBlocks;
+    
+        uint                            m_meshVertexStride                  : 8;    // TODO: Max vertex stride is 256 bytes, put an assert somewhere about it
+        uint                            m_lodMask                           : 8;
+        uint                            m_meshIndex                         : 16;
+    
+        BufferHandle                    m_clusterVertexBuffer;                      // TODO: Pack all mesh stuff into a single buffer to free space for bone offset.
+        BufferHandle                    m_clusterTriangleBuffer;
+    
+        #ifndef __cplusplus
+        MeshInstanceRoot LoadRoot( ByteAddressBuffer buffer, out uint instanceDataAddress )
+        {
+            instanceDataAddress = m_meshInstanceRootIndex * sizeof( MeshInstanceRoot );
+            return buffer.Load<MeshInstanceRoot>( instanceDataAddress );
+        }
+
+        bool IsVisibleInLOD( uint lodIndex )
+        {
+            return ( m_lodMask & ( 1U << lodIndex ) ) != 0;
+        }
+    
+        float3x4 ComputeWorldTransform( MeshInstanceRoot meshInstanceRoot )
+        {
+            float4x4 rootTransform = float4x4
+            (
+                meshInstanceRoot.m_rootTransform[0],
+                meshInstanceRoot.m_rootTransform[1],
+                meshInstanceRoot.m_rootTransform[2],
+                float4( 0, 0, 0, 1 )
+            );
+            float4x4 localTransform = float4x4
+            (
+                m_localTransform[0],
+                m_localTransform[1],
+                m_localTransform[2],
+                float4( 0, 0, 0, 1 )
+            );
+
+            float4x4 result = mul( rootTransform, localTransform );
+            return ( float3x4 )result;
+        }
+        #endif
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( MeshInstance ) == 64, "Don't exceed 64 bytes for this structure, it is performance critical" );
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#ifndef __cplusplus
+
+    struct TransformedVertex
+    {
+        StaticMeshVertex                m_vertex;
+        float3                          m_worldPosition;
+        float3                          m_worldNormal;
+    };
+
+    TransformedVertex TransformVertex( ByteAddressBuffer clusterVertexBuffer, uint vertexIndex, uint vertexStride, int3 clusterAnchor, int clusterExponent, float4x4 worldTransform, bool flipWinding )
+    {
+        uint vertexAddress = vertexIndex * vertexStride;
+    
+        StaticMeshVertex vertex = clusterVertexBuffer.Load<StaticMeshVertex>( vertexAddress );
+        
+        float3 vertexPosition   = vertex.GetPosition( clusterAnchor, clusterExponent );
+        float3 vertexNormal     = vertex.GetNormal();
+    
+        if ( flipWinding ) { vertexNormal = -vertexNormal; }
+    
+        TransformedVertex result;
+        result.m_vertex         = vertex;
+        result.m_worldPosition  = mul( worldTransform, float4( vertexPosition, 1.0 ) ).xyz;
+        result.m_worldNormal    = mul( Adjugate( worldTransform ), vertexNormal );
+
+        return result;
+    }
+
+    TransformedVertex TransformVertex( ByteAddressBuffer clusterVertexBuffer, StructuredBuffer<SkinningTransform> skinningTransformBuffer,
+                                       MeshInstanceRoot meshInstanceRoot, MeshInstance meshInstance, bool flipWinding,
+                                       uint vertexIndex, int3 clusterAnchor, int clusterExponent )
+    {
+        uint vertexAddress = vertexIndex * meshInstance.m_meshVertexStride;
+    
+        StaticMeshVertex vertex = clusterVertexBuffer.Load<StaticMeshVertex>( vertexAddress );
+        
+        float3 vertexPosition   = mul( meshInstance.m_localTransform, float4( vertex.GetPosition( clusterAnchor, clusterExponent ), 1.0 ) );
+        float3 vertexNormal     = mul( Adjugate( meshInstance.m_localTransform ), vertex.GetNormal() );
+        
+        float3 localPosition    = 0.0.xxx;
+        float3 localNormal      = 0.0.xxx;
+        
+        if ( meshInstanceRoot.m_boneOffset != ~0U )
+        {
+            VertexBoneData boneData = clusterVertexBuffer.Load<VertexBoneData>( vertexAddress + sizeof( StaticMeshVertex ) );
+            
+            [unroll( 4 )]
+            for ( uint boneIndex = 0; boneIndex < 4; ++boneIndex )
+            {
+                int boneTransformIndex = boneData.m_boneIndices[boneIndex];
+                float boneWeight = boneData.m_boneWeights[boneIndex];
+                
+                if ( boneTransformIndex != -1 )
+                {
+                    SkinningTransform skinningTransform = skinningTransformBuffer[meshInstanceRoot.m_boneOffset + boneTransformIndex];
+                
+                    localPosition += skinningTransform.TransformPoint( vertexPosition ) * boneWeight;
+                    localNormal += skinningTransform.TransformNormal( vertexNormal ) * boneWeight;
+                }
+            }
+            
+            localNormal = normalize( localNormal );
+        }
+        else
+        {
+            localPosition = vertexPosition;
+            localNormal = vertexNormal;
+        }
+    
+        if ( flipWinding ) { localNormal = -localNormal; }
+        
+        TransformedVertex result;
+        result.m_vertex         = vertex;
+        result.m_worldPosition  = mul( meshInstanceRoot.m_rootTransform, float4( localPosition, 1.0 ) ).xyz;
+        result.m_worldNormal    = normalize( mul( Adjugate( meshInstanceRoot.m_rootTransform ), localNormal ) );
+
+        return result;
+    }
+
+#endif
+
+#endif

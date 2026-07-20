@@ -1,0 +1,36 @@
+#ifndef _OIT_ESH_
+#define _OIT_ESH_
+
+#ifndef __cplusplus
+
+#include "Engine/Render/Shaders/CommonPacking.esh"
+
+// Very simple 1 layer under/over OIT, https://interplayoflight.wordpress.com/2022/07/02/order-independent-transparency-part-2/
+void RasterizerOrderedBlendOIT( int2 pixelCoord, RasterizerOrderedTexture2D<uint2> colorROV, float4 inputColor, float inputDepth )
+{
+    uint2 oit = colorROV[pixelCoord];
+    
+    float4 blendColor = UnpackColor( oit.r );
+    float blendDepth = asfloat( oit.g );
+    
+    float transmission = saturate( 1.0 - blendColor.a );
+    
+    if ( inputDepth > blendDepth )
+    {
+        blendColor.rgb = lerp( blendColor.rgb, inputColor.rgb, inputColor.a );
+    }
+    else
+    {
+        float alpha = transmission * inputColor.a;
+        blendColor.rgb = lerp( blendColor.rgb, inputColor.rgb, alpha );
+    }
+    
+    transmission *= ( 1.0 - inputColor.a );
+    blendColor.a = saturate( 1.0 - transmission );
+    
+    colorROV[pixelCoord] = uint2( PackColor( blendColor ), asuint( inputDepth ) );
+}
+
+#endif
+
+#endif

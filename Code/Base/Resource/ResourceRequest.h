@@ -1,47 +1,44 @@
 #pragma once
 
-#include "ResourceRecord.h"
 #include "ResourceLoader.h"
 #include "Base/Types/Function.h"
 #include "Base/Time/Timers.h"
-#include "ResourceHeader.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Resource
 {
+    enum class ResourceLoadStage : int8_t
+    {
+        None = -1,
+
+        // Load Stages
+        RequestRawResource,
+        WaitForRawResourceRequest,
+        LoadResource,
+
+        // Install Stages
+        WaitForInstallDependencies,
+        InstallResource,
+
+        // Unload Stages
+        UninstallResource,
+        UnloadResource,
+
+        Complete,
+    };
+
+    #if EE_DEVELOPMENT_TOOLS
+    EE_BASE_API char const* GetResourceLoadStageName( ResourceLoadStage stage );
+    #endif
+
+    //-------------------------------------------------------------------------
+
     class EE_BASE_API ResourceRequest
     {
     public:
 
-        enum class Stage
-        {
-            None = -1,
-
-            // Load Stages
-            RequestRawResource,
-            WaitForRawResourceRequest,
-            LoadResource,
-            LoadingResource,
-
-            // Install Stages
-            WaitForInstallDependencies,
-            InstallResource,
-            InstallingResource,
-
-            // Unload Stages
-            UninstallResource,
-            UnloadResource,
-            UnloadFailedResource,
-
-            // Special Cases
-            CancelWaitForInstallDependencies, // This stage is needed so we can resume correctly when going from load -> unload -> load
-            CancelRawResourceRequest,
-
-            Complete,
-        };
-
-        enum class Type
+        enum class RequestType
         {
             Invalid = -1,
             Load,
@@ -53,7 +50,6 @@ namespace EE::Resource
             None = 0,
             SwitchToLoad,
             SwitchToUnload,
-            SwitchToReload,
         };
 
         struct RequestContext
@@ -67,20 +63,19 @@ namespace EE::Resource
     public:
 
         ResourceRequest() = default;
-        ResourceRequest( ResourceRequesterID const& requesterID, Type type, ResourceRecord* pRecord, ResourceLoader* pResourceLoader );
+        ResourceRequest( RequestType type, ResourceRecord* pRecord, ResourceLoader* pResourceLoader );
 
         inline bool IsValid() const { return m_pResourceRecord != nullptr; }
-        inline bool IsActive() const { return m_stage != Stage::Complete; }
-        inline bool IsComplete() const { return m_stage == Stage::Complete; }
-        inline bool IsLoadRequest() const { return m_type == Type::Load; }
-        inline bool IsUnloadRequest() const { return m_type == Type::Unload; }
-
-        inline Stage GetStage() const { return m_stage; }
+        inline bool IsActive() const { return m_stage != ResourceLoadStage::Complete; }
+        inline bool IsComplete() const { return m_stage == ResourceLoadStage::Complete; }
+        inline bool IsLoadRequest() const { return m_requestType == RequestType::Load || m_switchRequestType == SwitchRequestType::SwitchToLoad; }
+        inline bool IsUnloadRequest() const { return m_requestType == RequestType::Unload || m_switchRequestType == SwitchRequestType::SwitchToUnload; }
 
         inline ResourceRecord const* GetResourceRecord() const { return m_pResourceRecord; }
-        inline ResourceID const& GetResourceID() const { return m_pResourceRecord->GetResourceID(); }
-        inline ResourceTypeID GetResourceTypeID() const { return m_pResourceRecord->GetResourceTypeID(); }
-        inline LoadingStatus GetLoadingStatus() const { return m_pResourceRecord->GetLoadingStatus(); }
+
+        ResourceID const& GetResourceID() const;
+        ResourceTypeID GetResourceTypeID() const;
+        LoadingStatus GetLoadingStatus() const;
 
         inline bool operator==( ResourceRequest const& other ) const { return GetResourceID() == other.GetResourceID(); }
         inline bool operator!=( ResourceRequest const& other ) const { return GetResourceID() != other.GetResourceID(); }
@@ -94,37 +89,47 @@ namespace EE::Resource
         void OnRawResourceRequestComplete( String const& filePath, String const& log );
 
         // This will interrupt a load task and convert it into an unload task
-        void SwitchToLoadTask();
+        void RequestSwitchToLoadTask();
 
         // This will interrupt an unload task and convert it into a load task
-        void SwitchToUnloadTask();
-
-        //-------------------------------------------------------------------------
-
-        void RequestRawResource( RequestContext& requestContext );
-        void LoadResource( RequestContext& requestContext );
-        void UpdateLoadingResource( RequestContext& requestContext );
-        void UnloadResource( RequestContext& requestContext );
-        void UnloadFailedResource( RequestContext& requestContext );
-
-        void WaitForInstallDependencies( RequestContext& requestContext );
-        void InstallResource( RequestContext& requestContext );
-        void UpdateInstallingResource( RequestContext& requestContext );
-        void UninstallResource( RequestContext& requestContext );
-
-        void CancelRawRequestRequest( RequestContext& requestContext );
+        void RequestSwitchToUnloadTask();
 
     private:
 
-        ResourceRequesterID                     m_requesterID;
+        // Set the current stage of the load/unload
+        void SetStage( ResourceLoadStage newStage );
+
+        void SetLoadFailed();
+
+        void RequestRawResource( RequestContext& requestContext );
+        void WaitForRawResourceRequest( RequestContext& requestContext );
+        void LoadResource( RequestContext& requestContext );
+        void RequestInstallDependencies( RequestContext& requestContext );
+        void WaitForInstallDependencies( RequestContext& requestContext );
+        void InstallResource( RequestContext& requestContext );
+
+        void UninstallResource( RequestContext& requestContext );
+        void UnloadInstallDependencies( RequestContext& requestContext );
+        void UnloadResource( RequestContext& requestContext );
+
+        // Log an error to both the output log and the record
+        void LogError( char const* pFormat, ... );
+
+        // This will handle any requested switches between load/unload
+        // Be very careful where this is called, is only allowed to be called once a stage completes
+        bool ProcessSwitchRequestType( RequestContext& requestContext );
+
+    private:
+
         ResourceRecord*                         m_pResourceRecord = nullptr;
         ResourceLoader*                         m_pResourceLoader = nullptr;
         FileSystem::Path                        m_rawResourcePath;
         InstallDependencyList                   m_pendingInstallDependencies;
         InstallDependencyList                   m_installDependencies;
-        Type                                    m_type = Type::Invalid;
-        Stage                                   m_stage = Stage::None;
-        bool                                    m_isReloadRequest = false;
+        RequestType                             m_requestType = RequestType::Invalid;
+        SwitchRequestType                       m_switchRequestType = SwitchRequestType::None;
+        ResourceLoadStage                       m_stage = ResourceLoadStage::None;
+        bool                                    m_hasLoadFailed = false;
 
         #if EE_DEVELOPMENT_TOOLS
         Timer<PlatformClock>                    m_stageTimer;

@@ -694,7 +694,7 @@
  * triggered by bugs in MPack or bugs due to incorrect usage of MPack.
  */
 #ifndef MPACK_CUSTOM_ASSERT
-#define MPACK_CUSTOM_ASSERT 0
+#define MPACK_CUSTOM_ASSERT 1
 #endif
 
 /**

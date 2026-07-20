@@ -23,15 +23,15 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <PlatformToolset>v143</PlatformToolset>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -48,13 +48,11 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\..\PropertySheets\Esoterica.props" />
-    <Import Project="..\..\PropertySheets\LivePP.props" />
     <Import Project="..\..\PropertySheets\SQLite.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="..\..\PropertySheets\Esoterica.props" />
-    <Import Project="..\..\PropertySheets\LivePP.props" />
     <Import Project="..\..\PropertySheets\SQLite.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'" Label="PropertySheets">
@@ -90,15 +88,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
-    <PreBuildEvent>
-      <Command>taskkill /F /IM EsotericaResourceServer.exe 2&gt;&amp;1 | exit /B 0</Command>
-    </PreBuildEvent>
+    <Manifest>
+      <AdditionalManifestFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(SolutionDir)Code\Esoterica.manifest</AdditionalManifestFiles>
+    </Manifest>
+    <Manifest>
+      <AdditionalManifestFiles Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(SolutionDir)Code\Esoterica.manifest</AdditionalManifestFiles>
+    </Manifest>
+    <Manifest>
+      <AdditionalManifestFiles Condition="'$(Configuration)|$(Platform)'=='Shipping|x64'">$(SolutionDir)Code\Esoterica.manifest</AdditionalManifestFiles>
+    </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="ResourceServer.cpp" />
     <ClCompile Include="ResourceServerApplication.cpp" />
     <ClCompile Include="ResourceServerContext.cpp" />
+    <ClCompile Include="ResourceServerRequest.cpp" />
     <ClCompile Include="ResourceServerUI.cpp" />
+    <ClCompile Include="ResourceServerWorker.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\ResourceServer.ico" />
@@ -113,10 +119,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ResourceServerApplication.h" />
+    <ClInclude Include="ResourceServerRequest.h" />
     <ClInclude Include="ResourceServerContext.h" />
     <ClInclude Include="ResourceServerUI.h" />
-    <ClInclude Include="ResourceCompilationRequest.h" />
     <ClInclude Include="ResourceServer.h" />
+    <ClInclude Include="ResourceServerWorker.h" />
     <ClInclude Include="Resources\Resource.h" />
   </ItemGroup>
   <ItemGroup>

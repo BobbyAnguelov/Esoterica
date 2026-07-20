@@ -83,8 +83,8 @@ namespace EE::Animation
             text = "Percentage Through Sync Event";
             break;
 
-            case TimeConditionNode::ComparisonType::ElapsedTime:
-            text = "Elapsed Time In State";
+            case TimeConditionNode::ComparisonType::CurrentTime:
+            text = "Current Time";
             break;
 
             default:

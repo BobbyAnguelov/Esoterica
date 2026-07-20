@@ -1,6 +1,5 @@
 #include "Animation_RuntimeGraphNode_State.h"
 #include "Engine/Animation/AnimationBoneMask.h"
-#include "Engine/Animation/Graph/Animation_RuntimeGraph_LayerData.h"
 #include "Base/Types/ScopedValue.h"
 
 //-------------------------------------------------------------------------
@@ -36,7 +35,6 @@ namespace EE::Animation
 
         PoseNode::InitializeInternal( context, initialTime );
         m_transitionState = TransitionState::None;
-        m_elapsedTimeInState = 0.0f;
         m_sampledEventRange = SampledEventRange();
         m_previousTime = m_currentTime = 0.0f;
         m_duration = 0.0f;
@@ -99,20 +97,21 @@ namespace EE::Animation
         m_transitionState = TransitionState::TransitioningIn;
     }
 
-    SampledEventRange StateNode::StartTransitionOut( GraphContext& context )
+    SampledEventRange StateNode::StartTransitionOut( GraphContext& context, bool isZeroDurationTransition )
     {
         EE_ASSERT( context.IsValid() );
 
         m_transitionState = TransitionState::TransitioningOut;
 
-        // Since we update states before we register transitions, we need to ignore all previously sampled state events for this frame
-        context.m_pSampledEventsBuffer->MarkOnlyGraphEventsAsIgnored( m_sampledEventRange );
-
         // Since we update states before we register transitions, we need to mark all previous events as from the inactive branch
-        context.m_pSampledEventsBuffer->MarkEventsAsFromInactiveBranch( m_sampledEventRange );
+        context.GetSampledEventsBuffer()->MarkEventsAsFromInactiveBranch( m_sampledEventRange );
 
-        // Resample state events
-        SampleStateEvents( context );
+        // For zero-length transitions, we will not get another update so we need to emit the exit events now as well
+        if ( isZeroDurationTransition )
+        {
+            TScopedGuardValue const g( context.m_branchState, BranchState::Inactive );
+            SampleStateEvents( context );
+        }
 
         return m_sampledEventRange;
     }
@@ -121,6 +120,10 @@ namespace EE::Animation
     {
         EE_ASSERT( context.IsValid() );
         auto pStateDefinition = GetDefinition<StateNode>();
+
+        SourcePath const sourcePath = GetNodePath( context );
+
+        auto pSampledEventsBuffer = context.GetSampledEventsBuffer();
 
         // Sample Fixed Stage Events
         //-------------------------------------------------------------------------
@@ -131,47 +134,68 @@ namespace EE::Animation
         {
             for ( auto const& entryEventID : pStateDefinition->m_entryEvents )
             {
-                context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::Entry, entryEventID, isInActiveBranch );
+                pSampledEventsBuffer->EmplaceGraphEvent( sourcePath, GraphEventType::Entry, entryEventID, isInActiveBranch );
             }
         }
         else if ( m_transitionState == TransitionState::None && isInActiveBranch )
         {
-            for ( auto const& executeEventID : pStateDefinition->m_executeEvents )
+            for ( auto const& fullyInStateEventID : pStateDefinition->m_fullyInStateEvents )
             {
-                context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::FullyInState, executeEventID, isInActiveBranch );
+                pSampledEventsBuffer->EmplaceGraphEvent( sourcePath, GraphEventType::FullyInState, fullyInStateEventID, isInActiveBranch );
             }
         }
-        else if ( m_transitionState == TransitionState::TransitioningOut || !isInActiveBranch )
+        else if ( m_transitionState == TransitionState::TransitioningOut )
         {
             for ( auto const& exitEventID : pStateDefinition->m_exitEvents )
             {
-                context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::Exit, exitEventID, isInActiveBranch );
+                pSampledEventsBuffer->EmplaceGraphEvent( sourcePath, GraphEventType::Exit, exitEventID, isInActiveBranch );
             }
         }
 
         // Sample Timed Events
         //-------------------------------------------------------------------------
 
+        Seconds const elapsedTime = m_duration * m_currentTime.ToFloat();
         for ( auto const& timedEvent : pStateDefinition->m_timedElapsedEvents )
         {
-            if ( m_elapsedTimeInState >= timedEvent.m_timeValue )
+            if ( timedEvent.m_comparisonOperator == TimedEvent::Comparison::GreaterThanEqual )
             {
-                context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+                if ( elapsedTime >= timedEvent.m_timeValue )
+                {
+                    pSampledEventsBuffer->EmplaceGraphEvent( sourcePath, GraphEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+                }
+            }
+            else
+            {
+                if ( elapsedTime <= timedEvent.m_timeValue )
+                {
+                    pSampledEventsBuffer->EmplaceGraphEvent( sourcePath, GraphEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+                }
             }
         }
 
         Seconds const currentTimeRemaining = ( 1.0f - m_currentTime ) * m_duration;
         for ( auto const& timedEvent : pStateDefinition->m_timedRemainingEvents )
         {
-            if ( currentTimeRemaining <= timedEvent.m_timeValue )
+            if ( timedEvent.m_comparisonOperator == TimedEvent::Comparison::GreaterThanEqual )
             {
-                context.m_pSampledEventsBuffer->EmplaceGraphEvent( GetNodeIndex(), GraphEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+                if ( currentTimeRemaining >= timedEvent.m_timeValue )
+                {
+                    pSampledEventsBuffer->EmplaceGraphEvent( sourcePath, GraphEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+                }
+            }
+            else
+            {
+                if ( currentTimeRemaining <= timedEvent.m_timeValue )
+                {
+                    pSampledEventsBuffer->EmplaceGraphEvent( sourcePath, GraphEventType::Timed, timedEvent.m_ID, isInActiveBranch );
+                }
             }
         }
 
         //-------------------------------------------------------------------------
 
-        m_sampledEventRange.m_endIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
+        m_sampledEventRange.m_endIdx = context.GetSampledEventsBuffer()->GetNumSampledEvents();
     }
 
     void StateNode::UpdateLayerContext( GraphContext& context )
@@ -247,9 +271,6 @@ namespace EE::Animation
             m_sampledEventRange = result.m_sampledEventRange;
         }
 
-        // Track time spent in state
-        m_elapsedTimeInState += context.m_deltaTime;
-
         // Sample graph events ( we need to track the sampled range for this node explicitly )
         SampleStateEvents( context );
 
@@ -262,21 +283,23 @@ namespace EE::Animation
         return result;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void StateNode::RecordGraphState( RecordedGraphState& outState )
     {
         PoseNode::RecordGraphState( outState );
-        outState.WriteValue( m_elapsedTimeInState );
         outState.WriteValue( m_transitionState );
         outState.WriteValue( m_isFirstStateUpdate );
     }
 
-    void StateNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool StateNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( inState );
-        inState.ReadValue( m_elapsedTimeInState );
+        if( !PoseNode::RestoreGraphState( inState ))
+        {
+            return false;
+        }
+
         inState.ReadValue( m_transitionState );
         inState.ReadValue( m_isFirstStateUpdate );
+
+        return true;
     }
-    #endif
 }

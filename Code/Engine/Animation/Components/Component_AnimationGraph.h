@@ -67,7 +67,7 @@ namespace EE::Animation
         Pose const* GetPrimaryPose() const;
 
         // Do we have any secondary poses
-        EE_FORCE_INLINE bool HasSecondaryPoses() const { return !m_pGraphInstance->HasSecondaryPoses(); }
+        EE_FORCE_INLINE bool HasSecondaryPoses() const { return m_pGraphInstance->HasSecondaryPoses(); }
 
         // Get the number of secondary poses
         EE_FORCE_INLINE int32_t GetNumSecondaryPoses() const { return m_pGraphInstance->GetNumSecondaryPoses(); }
@@ -132,7 +132,7 @@ namespace EE::Animation
         // Graph debug
         void SetGraphDebugMode( GraphDebugMode mode );
         GraphDebugMode GetGraphDebugMode() const;
-        void SetGraphNodeDebugFilterList( TVector<int16_t> const& filterList );
+        void SetGraphNodeDebugFilterList( TVector<SourcePath> const& filterList );
 
         // Task system debug
         void SetTaskSystemDebugMode( TaskSystemDebugMode mode );
@@ -143,7 +143,7 @@ namespace EE::Animation
         RootMotionDebugMode GetRootMotionDebugMode() const;
 
         // Draw all debug visualizations
-        void DrawDebug( Drawing::DrawContext& drawingContext );
+        void DrawDebug( DebugDrawContext& drawingContext );
 
         // Enable recording playback mode
         void SwitchToRecordingPlaybackMode() { m_requiresManualUpdate = true; m_applyRootMotionToEntity = false; }
@@ -164,7 +164,11 @@ namespace EE::Animation
         SampledEventsBuffer                                     m_sampledEventsBuffer;
         Transform                                               m_rootMotionDelta = Transform::Identity;
         Skeleton::LOD                                           m_skeletonLOD = Skeleton::LOD::High;
-        
+
+        #if EE_DEVELOPMENT_TOOLS
+        TVector<SourcePath>                                     m_debugNodeFilterList;
+        #endif
+
         EE_REFLECT();
         bool                                                    m_requiresManualUpdate = false; // Does this component require a manual update via a custom entity system?
         

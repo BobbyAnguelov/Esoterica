@@ -106,43 +106,6 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    FloatAbsToolsNode::FloatAbsToolsNode()
-        : FlowToolsNode()
-    {
-        CreateOutputPin( "Result", GraphValueType::Float, true );
-        CreateInputPin( "Float", GraphValueType::Float );
-    }
-
-    int16_t FloatAbsToolsNode::Compile( GraphCompilationContext& context ) const
-    {
-        FloatAbsNode::Definition* pDefinition = nullptr;
-        NodeCompilationState const state = context.GetDefinition<FloatAbsNode>( this, pDefinition );
-        if ( state == NodeCompilationState::NeedCompilation )
-        {
-            auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
-            if ( pInputNode != nullptr )
-            {
-                int16_t const compiledNodeIdx = pInputNode->Compile( context );
-                if ( compiledNodeIdx != InvalidIndex )
-                {
-                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
-                }
-                else
-                {
-                    return InvalidIndex;
-                }
-            }
-            else
-            {
-                context.LogError( this, "Disconnected input pin!" );
-                return InvalidIndex;
-            }
-        }
-        return pDefinition->m_nodeIdx;
-    }
-
-    //-------------------------------------------------------------------------
-
     FloatEaseToolsNode::FloatEaseToolsNode()
         : FlowToolsNode()
     {
@@ -197,6 +160,80 @@ namespace EE::Animation
     {
         ImGui::Text( Math::Easing::GetName( m_easing ) );
         ImGui::Text( "Ease Time: %.2fs", m_easeTime );
+
+        if ( m_useStartValue )
+        {
+            ImGui::Text( "Start Value: %.2fs", m_startValue );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    FloatSpringToolsNode::FloatSpringToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Result", GraphValueType::Float, true );
+        CreateInputPin( "Value", GraphValueType::Float );
+    }
+
+    int16_t FloatSpringToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        FloatSpringNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatSpringNode>( this, pDefinition );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            if ( m_hertz <= 0.1f || m_hertz > 30 )
+            {
+                context.LogError( this, "Invalid hertz value!" );
+                return InvalidIndex;
+            }
+
+            if ( m_dampingRatio < 0.0f || m_dampingRatio > 10 )
+            {
+                context.LogError( this, "Invalid damping ratio!" );
+                return InvalidIndex;
+            }
+
+            auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
+            if ( pInputNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pInputNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pDefinition->m_inputValueNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
+            }
+            else
+            {
+                context.LogError( this, "Disconnected input pin!" );
+                return InvalidIndex;
+            }
+
+            //-------------------------------------------------------------------------
+
+            pDefinition->m_hertz = m_hertz;
+            pDefinition->m_dampingRatio = m_dampingRatio;
+            pDefinition->m_useStartValue = m_useStartValue;
+            pDefinition->m_startValue = m_startValue;
+        }
+        return pDefinition->m_nodeIdx;
+    }
+
+    void FloatSpringToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
+    {
+        if ( m_hertz <= 0.1f || m_hertz > 30 )
+        {
+            ImGui::TextColored( Colors::Red, "Invalid hertz value!" );
+        }
+
+        if ( m_dampingRatio < 0.0f || m_dampingRatio > 10 )
+        {
+            ImGui::TextColored( Colors::Red, "Invalid damping ratio!" );
+        }
 
         if ( m_useStartValue )
         {
@@ -285,6 +322,11 @@ namespace EE::Animation
             auto pInputNodeB = GetConnectedInputNode<FlowToolsNode>( 1 );
             if ( pInputNodeB != nullptr )
             {
+                if ( IsSingleInputOperator() )
+                {
+                    context.LogWarning( this, "Second input will be ignored for this operation" );
+                }
+
                 int16_t const compiledNodeIdx = pInputNodeB->Compile( context );
                 if ( compiledNodeIdx != InvalidIndex )
                 {
@@ -295,20 +337,49 @@ namespace EE::Animation
                     return InvalidIndex;
                 }
             }
+            else
+            {
+                if ( m_operator == FloatMathNode::Operator::Div && m_valueB == 0 )
+                {
+                    context.LogError( this, "Trying to divide by zero!" );
+                    return InvalidIndex;
+                }
+
+                if ( m_operator == FloatMathNode::Operator::Mod && m_valueB == 0 )
+                {
+                    context.LogError( this, "Trying to mod by zero!" );
+                    return InvalidIndex;
+                }
+            }
 
             //-------------------------------------------------------------------------
 
-            pDefinition->m_returnAbsoluteResult = m_returnAbsoluteResult;
+            pDefinition->m_returnAbsoluteResult = m_absoluteResult;
+            pDefinition->m_returnNegatedResult = m_negateResult;
             pDefinition->m_operator = m_operator;
             pDefinition->m_valueB = m_valueB;
         }
         return pDefinition->m_nodeIdx;
     }
 
+    bool FloatMathToolsNode::IsSingleInputOperator() const
+    {
+        if (    m_operator == FloatMathNode::Operator::Abs ||
+                m_operator == FloatMathNode::Operator::Negate ||
+                m_operator == FloatMathNode::Operator::Floor ||
+                m_operator == FloatMathNode::Operator::Ceiling ||
+                m_operator == FloatMathNode::Operator::IntegerPart ||
+                m_operator == FloatMathNode::Operator::FractionalPart ||
+                m_operator == FloatMathNode::Operator::InverseFractionalPart )
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     void FloatMathToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
-        bool const useValueB = GetConnectedInputNode( 1 ) == nullptr;
-
         switch ( m_operator )
         {
             case FloatMathNode::Operator::Add:
@@ -326,22 +397,69 @@ namespace EE::Animation
             case FloatMathNode::Operator::Div:
             ImGui::Text( "A / ");
             break;
+
+            case FloatMathNode::Operator::Mod:
+            ImGui::Text( "A Mod " );
+            break;
+
+            case FloatMathNode::Operator::Abs:
+            ImGui::Text( "Abs( A )" );
+            break;
+
+            case FloatMathNode::Operator::Negate:
+            ImGui::Text( "-A" );
+            break;
+
+            case FloatMathNode::Operator::Floor:
+            ImGui::Text( "Floor( A )" );
+            break;
+
+            case FloatMathNode::Operator::Ceiling:
+            ImGui::Text( "Ceiling( A ) " );
+            break;
+
+            case FloatMathNode::Operator::IntegerPart:
+            ImGui::Text( "IntegerPart( A )" );
+            break;
+
+            case FloatMathNode::Operator::FractionalPart:
+            ImGui::Text( "FractionalPart( A )" );
+            break;
+
+            case FloatMathNode::Operator::InverseFractionalPart:
+            ImGui::Text( "1.0 - FractionalPart( A ) " );
+            break;
         }
 
-        ImGui::SameLine();
-
-        if ( useValueB )
+        if ( !IsSingleInputOperator() )
         {
-            ImGui::Text( "%.3f", m_valueB );
+            ImGui::SameLine();
+
+            if ( GetConnectedInputNode( 1 ) == nullptr )
+            {
+                ImGui::Text( "%.3f", m_valueB );
+            }
+            else
+            {
+                ImGui::Text( "B" );
+            }
+        }
+
+        if ( m_absoluteResult && m_negateResult )
+        {
+            ImGui::Text( "Negated Absolute Result" );
         }
         else
         {
-            ImGui::Text( "B" );
-        }
+            if ( m_absoluteResult )
+            {
+                ImGui::Text( "Absolute Result" );
+            }
 
-        if ( m_returnAbsoluteResult )
-        {
-            ImGui::Text( "Absolute Result" );
+            if ( m_absoluteResult )
+            {
+                ImGui::Text( "Negate Result" );
+            }
         }
     }
 
@@ -534,11 +652,6 @@ namespace EE::Animation
                     return InvalidIndex;
                 }
             }
-            else
-            {
-                context.LogError( this, "Disconnected input pin!" );
-                return InvalidIndex;
-            }
 
             //-------------------------------------------------------------------------
 
@@ -555,13 +668,32 @@ namespace EE::Animation
                     return InvalidIndex;
                 }
             }
-            else
-            {
-                context.LogError( this, "Disconnected input pin!" );
-                return InvalidIndex;
-            }
+
+            pDefinition->m_trueValue = m_true;
+            pDefinition->m_falseValue = m_false;
         }
         return pDefinition->m_nodeIdx;
+    }
+
+    void FloatSwitchToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
+    {
+        if ( GetConnectedInputNode<FlowToolsNode>( 1 ) )
+        {
+            ImGui::Text( "True: Input Node" );
+        }
+        else
+        {
+            ImGui::Text( "True: %.3f", m_true );
+        }
+
+        if ( GetConnectedInputNode<FlowToolsNode>( 2 ) )
+        {
+            ImGui::Text( "False: Input Node" );
+        }
+        else
+        {
+            ImGui::Text( "False: %.3f", m_false );
+        }
     }
 
     //-------------------------------------------------------------------------

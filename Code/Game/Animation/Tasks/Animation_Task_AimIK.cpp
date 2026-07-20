@@ -5,10 +5,10 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
     AimIKTask::AimIKTask( int8_t sourceTaskIdx, Vector const& worldSpaceTarget )
-        : Task( TaskUpdateStage::Any, { sourceTaskIdx } )
+        : PoseTask( TaskUpdateStage::Any, { sourceTaskIdx } )
         , m_worldSpaceTarget( worldSpaceTarget )
     {
         EE_ASSERT( sourceTaskIdx != InvalidIndex );
@@ -72,7 +72,6 @@ namespace EE::Animation::Tasks
 
     void AimIKTask::Serialize( TaskSerializer& serializer ) const
     {
-        serializer.WriteDependencyIndex( m_dependencies[0] );
         serializer.WriteFloat( m_modelSpaceTarget.GetX() );
         serializer.WriteFloat( m_modelSpaceTarget.GetY() );
         serializer.WriteFloat( m_modelSpaceTarget.GetZ() );
@@ -80,15 +79,13 @@ namespace EE::Animation::Tasks
 
     void AimIKTask::Deserialize( TaskSerializer& serializer )
     {
-        m_dependencies.resize( 1 );
-        m_dependencies[0] = serializer.ReadDependencyIndex();
         m_generateEffectorData = false;
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void AimIKTask::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
+    void AimIKTask::DrawDebug( DebugDrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
     {
-        Task::DrawDebug( drawingContext, worldTransform, lod, pRecordedPoseBuffer, isDetailedViewEnabled );
+        PoseTask::DrawDebug( drawingContext, worldTransform, lod, pRecordedPoseBuffer, isDetailedViewEnabled );
     }
     #endif
 }

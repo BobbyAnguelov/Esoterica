@@ -1,48 +1,88 @@
 #pragma once
 
-#include "../_Module/API.h"
+#include "Base/_Module/API.h"
 #include "Base/Math/Math.h"
 #include "Base/Math/NumericRange.h"
 #include "Base/Types/Arrays.h"
 #include "Base/Types/String.h"
 #include "Base/Types/BitFlags.h"
+#include "Base/Types/Color.h"
 #include "Base/Threading/Threading.h"
+#include "Base/Math/Matrix.h"
 
 //-------------------------------------------------------------------------
 
 #if EE_DEVELOPMENT_TOOLS
-namespace EE::Drawing
+namespace EE
 {
-    enum class DepthTest : uint8_t
+    enum class DebugDrawLayer : uint8_t
     {
-        Enable,
-        Disable
+        World = 0,          // Tests and writes to the depth buffer
+        WorldOverlay,       // Still tests the depth buffer but doesnt write (this semantic is just clearer for general engine code)
+        Screen,             // Drawn using a separate depth buffer and on top of the rendered world
     };
 
     //-------------------------------------------------------------------------
 
-    enum TextAlignment : uint8_t
+    enum class DebugTextAlign : uint8_t
     {
-        AlignTopLeft = 0,
-        AlignTopCenter,
-        AlignTopRight,
-        AlignMiddleLeft,
-        AlignMiddleCenter,
-        AlignMiddleRight,
-        AlignBottomLeft,
-        AlignBottomCenter,
-        AlignBottomRight,
+        TopLeft = 0,
+        TopCenter,
+        TopRight,
+        MiddleLeft,
+        MiddleCenter,
+        MiddleRight,
+        BottomLeft,
+        BottomCenter,
+        BottomRight,
     };
 
-    enum FontSize : uint8_t
+    enum class DebugFont : uint8_t
     {
-        FontNormal,
-        FontSmall
+        Normal = 0,
+        Small
+    };
+
+    enum class DebugMeshID : uint64_t
+    {
+        Invalid = 0,
+        Box = 1,
+        Sphere,
+        Hemisphere,
+        Cylinder,
+        OpenCylinder,
+
+        NumDebugDrawMeshIDs,
+    };
+
+    enum class DebugMeshStyle
+    {
+        Default = 0,    // Solid + Unlit
+        Lit,            // Solid + Lit
+        Wireframe       // Wireframe
+    };
+}
+
+//-------------------------------------------------------------------------
+
+namespace EE::DebugDrawInternal
+{
+    constexpr static uint64_t const g_InvalidHitTestID = UINT64_MAX;
+
+    //-------------------------------------------------------------------------
+
+    enum DebugCommandFlags : uint32_t
+    {
+        DebugCommandFlagPoint = 1U << 0U,
+        DebugCommandFlagLine = 1U << 1U,
+        DebugCommandFlagTriangle = 1U << 2U,
+
+        DebugCommandFlagDisableAA = 1U << 10U,
     };
 
     //-------------------------------------------------------------------------
 
-    struct PointCommand
+    struct PointCommand final
     {
         PointCommand( Float3 const& position, Float4 const& color, float pointThickness, Seconds TTL )
             : m_position( position )
@@ -51,12 +91,17 @@ namespace EE::Drawing
             , m_TTL( TTL )
         {}
 
-        EE_FORCE_INLINE bool IsTransparent() const { return m_color[3] != 1.0f; }
+        EE_FORCE_INLINE bool IsTransparent() const { return m_color.IsTransparent(); }
 
-        Float3      m_position;
-        float       m_thickness;
-        Float4      m_color;
-        Seconds     m_TTL;
+        uint32_t    m_commandFlags = DebugCommandFlagPoint;
+        Float3      m_position = Float3::Zero;
+        float       m_thickness = 0.0F;
+        Color       m_color = {};
+        Seconds     m_TTL = 0;
+        uint32_t    m_padding0 = 0;
+        uint64_t    m_hitTestID = g_InvalidHitTestID;
+        Int4        m_padding1 = Int4::Zero;
+        Int2        m_padding2 = Int2::Zero;
     };
 
     //-------------------------------------------------------------------------
@@ -103,16 +148,18 @@ namespace EE::Drawing
             , m_TTL( TTL )
         {}
 
-        EE_FORCE_INLINE bool IsTransparent() const { return m_startColor[3] != 1.0f || m_endColor[3] != 1.0f; }
+        EE_FORCE_INLINE bool IsTransparent() const { return m_startColor.IsTransparent() || m_endColor.IsTransparent(); }
 
-        Float3      m_startPosition;
-        float       m_startThickness;
-        Float4      m_startColor;
-        float       m_padding; // Needed for VB upload - since each command is 2 vertices
-        Float3      m_endPosition;
-        float       m_endThickness;
-        Float4      m_endColor;
-        Seconds     m_TTL;
+        uint32_t    m_commandFlags = DebugCommandFlagLine;
+        Float3      m_startPosition = Float3::Zero;
+        float       m_startThickness = 0.0F;
+        Color       m_startColor = {};
+        Float3      m_endPosition = Float3::Zero;
+        float       m_endThickness = 0.0F;;
+        Color       m_endColor = {};
+        Seconds     m_TTL = 0;
+        uint64_t    m_hitTestID = g_InvalidHitTestID;
+        Int2        m_padding0 = Int2::Zero;
     };
 
     //-------------------------------------------------------------------------
@@ -139,60 +186,85 @@ namespace EE::Drawing
             , m_TTL( TTL )
         {}
 
-        EE_FORCE_INLINE bool IsTransparent() const { return m_color0[3] != 1.0f || m_color1[3] != 1.0f || m_color2[3] != 1.0f; }
+        EE_FORCE_INLINE bool IsTransparent() const { return m_color0.IsTransparent() || m_color1.IsTransparent() || m_color2.IsTransparent(); }
 
-        Float4      m_vertex0;
-        Float4      m_color0;
-        float       m_padding0; // Needed for VB upload - since each command is 3 vertices
-        Float4      m_vertex1;
-        Float4      m_color1;
-        float       m_padding1; // Needed for VB upload - since each command is 3 vertices
-        Float4      m_vertex2;
-        Float4      m_color2;
-        Seconds     m_TTL;
+        uint32_t    m_commandFlags = DebugCommandFlagTriangle;
+        Float3      m_vertex0 = Float3::Zero;
+        Color       m_color0 = {};
+        Float3      m_vertex1 = Float3::Zero;
+        Color       m_color1 = {};
+        Float3      m_vertex2 = Float3::Zero;
+        Color       m_color2 = {};
+        Seconds     m_TTL = 0;
+        uint64_t    m_hitTestID = g_InvalidHitTestID;
     };
 
     //-------------------------------------------------------------------------
 
     struct TextCommand
     {
-        TextCommand( Float2 const& position, char const* pText, Float4 const& color, FontSize size, TextAlignment alignment, bool background, Seconds TTL )
+        TextCommand( Float2 const& position, char const* pText, Float4 const& color, DebugFont size, DebugTextAlign alignment, bool background, Seconds TTL )
             : m_color( color )
             , m_position( position.m_x, position.m_y, 0 )
-            , m_fontSize( size )
+            , m_font( size )
             , m_alignment( alignment )
             , m_isScreenText( true )
             , m_hasBackground( background )
-            , m_text( pText )
             , m_TTL( TTL )
+            , m_text( pText )
         {}
 
-        TextCommand( Float3 const& position, char const* pText, Float4 const& color, FontSize size, TextAlignment alignment, bool background, Seconds TTL )
+        TextCommand( Float3 const& position, char const* pText, Float4 const& color, DebugFont size, DebugTextAlign alignment, bool background, Seconds TTL )
             : m_color( color )
             , m_position( position )
-            , m_fontSize( size )
+            , m_font( size )
             , m_alignment( alignment )
             , m_isScreenText( false )
             , m_hasBackground( background )
-            , m_text( pText )
             , m_TTL( TTL )
+            , m_text( pText )
         {}
 
-        EE_FORCE_INLINE bool IsTransparent() const { return m_color[3] != 1.0f; }
+        EE_FORCE_INLINE bool IsTransparent() const { return m_color.IsTransparent(); }
 
-        Float4                      m_color;
-        Float3                      m_position;
-        FontSize                    m_fontSize;
-        TextAlignment               m_alignment;
-        bool                        m_isScreenText;
-        bool                        m_hasBackground;
-        TInlineString<24>           m_text;
-        Seconds                     m_TTL;
+        Color             m_color;
+        Float3            m_position;
+        DebugFont         m_font;
+        DebugTextAlign    m_alignment;
+        bool              m_isScreenText;
+        bool              m_hasBackground;
+        Seconds           m_TTL = 0;
+        TInlineString<24> m_text;
+        uint64_t          m_hitTestID = g_InvalidHitTestID;
     };
 
     //-------------------------------------------------------------------------
 
-    struct CommandBuffer
+    struct MeshCommand
+    {
+        MeshCommand( uint64_t meshID, Matrix const& transform, Float4 const& tintColor, DebugMeshStyle style, Seconds TTL )
+            : m_meshID( meshID )
+            , m_isWireframe( style == DebugMeshStyle::Wireframe )
+            , m_useFakeLighting( style == DebugMeshStyle::Lit )
+            , m_transform( transform )
+            , m_tintColor( tintColor )
+            , m_TTL( TTL )
+        {}
+
+        EE_FORCE_INLINE bool IsTransparent() const { return m_tintColor.IsTransparent(); }
+
+        uint64_t          m_meshID = 0;
+        bool              m_isWireframe = false;
+        bool              m_useFakeLighting = false;
+        Matrix            m_transform = Matrix::Identity;
+        Color             m_tintColor;
+        Seconds           m_TTL = 0;
+        uint64_t          m_hitTestID = g_InvalidHitTestID;
+    };
+
+    //-------------------------------------------------------------------------
+
+    struct EE_BASE_API CommandBuffer
     {
         inline void Append( CommandBuffer const& buffer )
         {
@@ -207,6 +279,9 @@ namespace EE::Drawing
 
             m_textCommands.reserve( m_textCommands.size() + buffer.m_textCommands.size() );
             m_textCommands.insert( m_textCommands.end(), buffer.m_textCommands.begin(), buffer.m_textCommands.end() );
+
+            m_meshCommands.reserve( m_meshCommands.size() + buffer.m_meshCommands.size() );
+            m_meshCommands.insert( m_meshCommands.end(), buffer.m_meshCommands.begin(), buffer.m_meshCommands.end() );
         }
 
         inline void Clear()
@@ -215,16 +290,23 @@ namespace EE::Drawing
             m_lineCommands.clear();
             m_triangleCommands.clear();
             m_textCommands.clear();
+            m_meshCommands.clear();
+        }
+
+        inline bool IsEmpty() const
+        {
+            return m_pointCommands.empty() && m_lineCommands.empty() && m_triangleCommands.empty() && m_textCommands.empty() && m_meshCommands.empty();
         }
 
         void Reset( Seconds deltaTime );
 
     public:
 
-        TVector<PointCommand>       m_pointCommands;
-        TVector<LineCommand>        m_lineCommands;
-        TVector<TriangleCommand>    m_triangleCommands;
-        TVector<TextCommand>        m_textCommands;
+        TAlignedVector<PointCommand>    m_pointCommands;
+        TAlignedVector<LineCommand>     m_lineCommands;
+        TAlignedVector<TriangleCommand> m_triangleCommands;
+        TAlignedVector<TextCommand>     m_textCommands;
+        TAlignedVector<MeshCommand>     m_meshCommands;
     };
 
     //-------------------------------------------------------------------------
@@ -234,7 +316,6 @@ namespace EE::Drawing
 
     class ThreadCommandBuffer
     {
-
     public:
 
         ThreadCommandBuffer( Threading::ThreadID threadID )
@@ -243,77 +324,96 @@ namespace EE::Drawing
 
         inline Threading::ThreadID GetThreadID() const { return m_ID; }
 
-        EE_FORCE_INLINE void AddCommand( PointCommand&& cmd, DepthTest depthTestState )
+        EE_FORCE_INLINE void AddCommand( PointCommand&& cmd, DebugDrawLayer layer )
         {
-            CommandBuffer* pBuffer = GetCommandBuffer( depthTestState, cmd.IsTransparent() );
+            CommandBuffer* pBuffer = GetCommandBuffer( layer );
+            cmd.m_hitTestID = m_hitTestID;
             pBuffer->m_pointCommands.emplace_back( eastl::move( cmd ) );
         }
 
-        EE_FORCE_INLINE void AddCommand( LineCommand&& cmd, DepthTest depthTestState )
+        EE_FORCE_INLINE void AddCommand( LineCommand&& cmd, DebugDrawLayer layer )
         {
-            CommandBuffer* pBuffer = GetCommandBuffer( depthTestState, cmd.IsTransparent() );
+            CommandBuffer* pBuffer = GetCommandBuffer( layer );
+            cmd.m_hitTestID = m_hitTestID;
             pBuffer->m_lineCommands.emplace_back( eastl::move( cmd ) );
         }
 
-        EE_FORCE_INLINE void AddCommand( TriangleCommand&& cmd, DepthTest depthTestState )
+        EE_FORCE_INLINE void AddCommand( TriangleCommand&& cmd, DebugDrawLayer layer )
         {
-            CommandBuffer* pBuffer = GetCommandBuffer( depthTestState, cmd.IsTransparent() );
+            CommandBuffer* pBuffer = GetCommandBuffer( layer );
+            cmd.m_hitTestID = m_hitTestID;
             pBuffer->m_triangleCommands.emplace_back( eastl::move( cmd ) );
         }
 
-        EE_FORCE_INLINE void AddCommand( TextCommand&& cmd, DepthTest depthTestState )
+        EE_FORCE_INLINE void AddCommand( TextCommand&& cmd, DebugDrawLayer layer )
         {
-            CommandBuffer* pBuffer = GetCommandBuffer( depthTestState, cmd.IsTransparent() );
+            CommandBuffer* pBuffer = GetCommandBuffer( layer );
+            cmd.m_hitTestID = m_hitTestID;
             pBuffer->m_textCommands.emplace_back( eastl::move( cmd ) );
+        }
+
+        EE_FORCE_INLINE void AddCommand( MeshCommand&& cmd, DebugDrawLayer layer )
+        {
+            CommandBuffer* pBuffer = GetCommandBuffer( layer );
+            cmd.m_hitTestID = m_hitTestID;
+            pBuffer->m_meshCommands.emplace_back( eastl::move( cmd ) );
         }
 
         inline void Clear()
         {
-            m_opaqueDepthOn.Clear();
-            m_opaqueDepthOff.Clear();
-            m_transparentDepthOn.Clear();
-            m_transparentDepthOff.Clear();
+            m_transparentDepthOnWrite.Clear();
+            m_transparentDepthOnNoWrite.Clear();
+            m_transparentDepthSeparateWrite.Clear();
         }
 
-        CommandBuffer const& GetOpaqueDepthTestEnabledBuffer() const { return m_opaqueDepthOn; }
-        CommandBuffer const& GetOpaqueDepthTestDisabledBuffer() const { return m_opaqueDepthOff; }
-        CommandBuffer const& GetTransparentDepthTestEnabledBuffer() const { return m_transparentDepthOn; }
-        CommandBuffer const& GetTransparentDepthTestDisabledBuffer() const { return m_transparentDepthOff; }
+        CommandBuffer const& GetTransparentDepthOnWrite() const { return m_transparentDepthOnWrite; }
+        CommandBuffer const& GetTransparentDepthOnNoWrite() const { return m_transparentDepthOnNoWrite; }
+        CommandBuffer const& GetTransparentDepthSeparateWrite() const { return m_transparentDepthSeparateWrite; }
 
-    private:
-
-        inline CommandBuffer* GetCommandBuffer( DepthTest depthTestState, bool isTransparent )
+        inline void SetHitTestID( uint64_t ID )
         {
-            CommandBuffer* pBuffer = nullptr;
+            EE_ASSERT( m_hitTestID == g_InvalidHitTestID );
+            m_hitTestID = ID;
+        }
 
-            if ( depthTestState == DepthTest::Enable )
-            {
-                pBuffer = isTransparent ? &m_transparentDepthOn : &m_opaqueDepthOn;
-            }
-            else // Disable depth test
-            {
-                pBuffer = isTransparent ? &m_transparentDepthOff : &m_opaqueDepthOff;
-            }
+        inline uint64_t GetActiveHitTestID() const { return m_hitTestID; }
 
-            return pBuffer;
+        void ClearHitTestID()
+        {
+            EE_ASSERT( m_hitTestID != g_InvalidHitTestID );
+            m_hitTestID = g_InvalidHitTestID;
         }
 
     private:
 
-        Threading::ThreadID         m_ID;
-        CommandBuffer               m_opaqueDepthOn;
-        CommandBuffer               m_opaqueDepthOff;
-        CommandBuffer               m_transparentDepthOn;
-        CommandBuffer               m_transparentDepthOff;
+        inline CommandBuffer* GetCommandBuffer( DebugDrawLayer layer )
+        {
+            switch ( layer )
+            {
+                case DebugDrawLayer::WorldOverlay: return &m_transparentDepthOnNoWrite;
+                case DebugDrawLayer::World: return &m_transparentDepthOnWrite;
+                case DebugDrawLayer::Screen: return &m_transparentDepthSeparateWrite;
+            };
+
+            return nullptr;
+        }
+
+    private:
+
+        Threading::ThreadID m_ID;
+        uint64_t            m_hitTestID = g_InvalidHitTestID;
+        CommandBuffer       m_transparentDepthOnWrite;
+        CommandBuffer       m_transparentDepthOnNoWrite;
+        CommandBuffer       m_transparentDepthSeparateWrite;
     };
 
     //-------------------------------------------------------------------------
-    // Frame Buffer
+    // Frame Command Buffer
     //-------------------------------------------------------------------------
     // This contains all the commands we need to actually draw this frame
     // Any command with a TTL, will be left in this buffer at the end of the frame to be drawn again
 
-    class EE_BASE_API FrameCommandBuffer
+    class FrameCommandBuffer
     {
     public:
 
@@ -322,27 +422,32 @@ namespace EE::Drawing
         // Empties the command buffer ignoring any TTL state
         inline void Clear()
         {
-            m_opaqueDepthOn.Clear();
-            m_opaqueDepthOff.Clear();
-            m_transparentDepthOn.Clear();
-            m_transparentDepthOff.Clear();
+            m_transparentDepthOnWrite.Clear();
+            m_transparentDepthOnNoWrite.Clear();
+            m_transparentDepthSeparateWrite.Clear();
         }
 
         // Resets the buffer, will remove all commands with an expired TTL
         inline void Reset( Seconds deltaTime )
         {
-            m_opaqueDepthOn.Reset( deltaTime );
-            m_opaqueDepthOff.Reset( deltaTime );
-            m_transparentDepthOn.Reset( deltaTime );
-            m_transparentDepthOff.Reset( deltaTime );
+            m_transparentDepthOnWrite.Reset( deltaTime );
+            m_transparentDepthOnNoWrite.Reset( deltaTime );
+            m_transparentDepthSeparateWrite.Reset( deltaTime );
+        }
+
+        inline bool IsEmpty() const
+        {
+            return
+                m_transparentDepthOnWrite.IsEmpty() &&
+                m_transparentDepthOnNoWrite.IsEmpty() &&
+                m_transparentDepthSeparateWrite.IsEmpty();
         }
 
     public:
 
-        CommandBuffer               m_opaqueDepthOn;
-        CommandBuffer               m_opaqueDepthOff;
-        CommandBuffer               m_transparentDepthOn;
-        CommandBuffer               m_transparentDepthOff;
+        CommandBuffer m_transparentDepthOnWrite;
+        CommandBuffer m_transparentDepthOnNoWrite;
+        CommandBuffer m_transparentDepthSeparateWrite;
     };
 }
 #endif

@@ -27,70 +27,68 @@ namespace EE::Math
     }
 
     // Taken from DirectXMath: XMMatrixOrthographicRH
-    Matrix CreateOrthographicProjectionMatrix( float width, float height, float nearPlaneZ, float farPlaneZ )
+    Matrix CreateOrthographicProjectionMatrix( float viewWidth, float viewHeight, float nearPlaneZ, float farPlaneZ )
     {
-        EE_ASSERT( !Math::IsNearEqual( width, 0.0f, 0.00001f ) && !Math::IsNearEqual( height, 0.0f, 0.00001f ) && !Math::IsNearEqual( farPlaneZ, nearPlaneZ, 0.00001f ) );
+        EE_ASSERT( !Math::IsNearEqual( viewWidth, 0.0f, 0.00001f ) && !Math::IsNearEqual( viewHeight, 0.0f, 0.00001f ) && !Math::IsNearEqual( farPlaneZ, nearPlaneZ, 0.00001f ) );
 
-        float const range = 1.0f / ( nearPlaneZ - farPlaneZ );
+        float const depthRange = 1.0f / ( nearPlaneZ - farPlaneZ );
 
         Matrix projectionMatrix( NoInit );
-        projectionMatrix.m_values[0][0] = 2.0f / width;
+        projectionMatrix.m_values[0][0] = 2.0f / viewWidth;
         projectionMatrix.m_values[0][1] = 0.0f;
         projectionMatrix.m_values[0][2] = 0.0f;
         projectionMatrix.m_values[0][3] = 0.0f;
 
         projectionMatrix.m_values[1][0] = 0.0f;
-        projectionMatrix.m_values[1][1] = 2.0f / height;
+        projectionMatrix.m_values[1][1] = 2.0f / viewHeight;
         projectionMatrix.m_values[1][2] = 0.0f;
         projectionMatrix.m_values[1][3] = 0.0f;
 
         projectionMatrix.m_values[2][0] = 0.0f;
         projectionMatrix.m_values[2][1] = 0.0f;
-        projectionMatrix.m_values[2][2] = range;
+        projectionMatrix.m_values[2][2] = depthRange;
         projectionMatrix.m_values[2][3] = 0.0f;
 
         projectionMatrix.m_values[3][0] = 0.0f;
         projectionMatrix.m_values[3][1] = 0.0f;
-        projectionMatrix.m_values[3][2] = range * nearPlaneZ;
+        projectionMatrix.m_values[3][2] = depthRange * nearPlaneZ;
         projectionMatrix.m_values[3][3] = 1.0f;
 
         return projectionMatrix;
     }
 
     // Taken from DirectXMath: XMMatrixOrthographicOffCenterRH
-    // TODO: Rewrite with EE math lib
-    static Matrix CreateOrthographicProjectionMatrixOffCenter( float left, float right, float bottom, float top, float nearPlane, float farPlane )
+    Matrix CreateOrthographicProjectionMatrixOffCenter( float viewLeft, float viewRight, float viewBottom, float viewTop, float nearZ, float farZ )
     {
-        EE_ASSERT( !Math::IsNearEqual( right, left, 0.00001f ) && !Math::IsNearEqual( top, bottom, 0.00001f ) && !Math::IsNearEqual( farPlane, nearPlane, 0.00001f ) );
+        EE_ASSERT( farZ > nearZ );
+        EE_ASSERT( !IsNearZero( farZ - nearZ ) );
 
-        float const fReciprocalWidth = 1.0f / ( right - left );
-        float const fReciprocalHeight = 1.0f / ( top - bottom );
-        float const fRange = 1.0f / ( nearPlane - farPlane );
+        float reciprocalWidth = 1.0f / ( viewRight - viewLeft );
+        float reciprocalHeight = 1.0f / ( viewTop - viewBottom );
+        float depthRange = 1.0f / ( nearZ - farZ );
 
-        Vector vValues = { fReciprocalWidth, fReciprocalHeight, fRange, 1.0f };
-        Vector rMem2 = { -( left + right ), -( top + bottom ), nearPlane, 1.0f };
-        Vector vTemp = _mm_setzero_ps();
+        Matrix projectionMatrix( NoInit );
+        projectionMatrix.m_values[0][0] = reciprocalWidth + reciprocalWidth;
+        projectionMatrix.m_values[0][1] = 0.0f;
+        projectionMatrix.m_values[0][2] = 0.0f;
+        projectionMatrix.m_values[0][3] = 0.0f;
 
-        // Copy x only
-        vTemp = _mm_move_ss( vTemp, vValues );
-        // fReciprocalWidth*2,0,0,0
-        vTemp = _mm_add_ss( vTemp, vTemp );
+        projectionMatrix.m_values[1][0] = 0.0f;
+        projectionMatrix.m_values[1][1] = reciprocalHeight + reciprocalHeight;
+        projectionMatrix.m_values[1][2] = 0.0f;
+        projectionMatrix.m_values[1][3] = 0.0f;
 
-        Matrix M;
-        M.m_rows[0] = vTemp;
-        // 0,fReciprocalHeight*2,0,0
-        vTemp = vValues;
-        vTemp = _mm_and_ps( vTemp, SIMD::g_mask0Y00 );
-        vTemp = _mm_add_ps( vTemp, vTemp );
-        M.m_rows[1] = vTemp;
-        // 0,0,fRange,0.0f
-        vTemp = vValues;
-        vTemp = _mm_and_ps( vTemp, SIMD::g_mask00Z0 );
-        M.m_rows[2] = vTemp;
-        // -(left + right)*fReciprocalWidth,-(top + bottom)*fReciprocalHeight,fRange*-nearPlane,1.0f
-        vValues = _mm_mul_ps( vValues, rMem2 );
-        M.m_rows[3] = vValues;
-        return M;
+        projectionMatrix.m_values[2][0] = 0.0f;
+        projectionMatrix.m_values[2][1] = 0.0f;
+        projectionMatrix.m_values[2][2] = depthRange;
+        projectionMatrix.m_values[2][3] = 0.0f;
+
+        projectionMatrix.m_values[3][0] = -( viewLeft + viewRight ) * reciprocalWidth;
+        projectionMatrix.m_values[3][1] = -( viewTop + viewBottom ) * reciprocalHeight;
+        projectionMatrix.m_values[3][2] = depthRange * nearZ;
+        projectionMatrix.m_values[3][3] = 1.0f;
+
+        return projectionMatrix;
     }
 
     // Adapted from DirectXMath: XMMatrixLookAtLH (but changed to be right handed)
@@ -119,7 +117,7 @@ namespace EE::Math
         return M;
     }
 
-    EE_FORCE_INLINE static Matrix CreateLookAtMatrix( Vector const& viewPosition, Vector const& focusPosition, Vector const& upDirection )
+    Matrix CreateLookAtMatrix( Vector const& viewPosition, Vector const& focusPosition, Vector const& upDirection )
     {
         Vector const viewDirection = focusPosition - viewPosition;
         return CreateLookToMatrix( viewPosition, viewDirection, upDirection );
@@ -150,7 +148,7 @@ namespace EE::Math
     }
 
     // Calculate the 6 planes enclosing the volume
-    static void CalculateViewPlanes( Matrix const& viewProjectionMatrix, Plane viewPlanes[6] )
+    void CalculateViewPlanes( Matrix const& viewProjectionMatrix, Plane viewPlanes[6] )
     {
         // Left clipping plane
         viewPlanes[0].a = viewProjectionMatrix[0][3] + viewProjectionMatrix[0][0];
@@ -200,7 +198,7 @@ namespace EE::Math
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void ViewVolume::VolumeCorners::DrawDebug( Drawing::DrawContext& drawingContext ) const
+    void ViewVolume::VolumeCorners::DrawDebug( DebugDrawContext& drawingContext ) const
     {
         // Near Plane
         //-------------------------------------------------------------------------
@@ -240,20 +238,42 @@ namespace EE::Math
 
     //-------------------------------------------------------------------------
 
-    ViewVolume::ViewVolume( Float2 const& viewDimensions, FloatRange depthRange, Matrix const& worldMatrix )
-        : m_viewDimensions( viewDimensions )
+    ViewVolume::ViewVolume( float viewWidth, float aspectRatio, FloatRange depthRange, Matrix const& worldMatrix )
+        : m_viewWidth( viewWidth )
+        , m_aspectRatio( aspectRatio )
         , m_depthRange( depthRange )
         , m_type( ProjectionType::Orthographic )
     {
         EE_ASSERT( IsValid() );
         CalculateProjectionMatrix();
         SetView( worldMatrix.GetTranslation(), worldMatrix.GetForwardVector(), worldMatrix.GetUpVector() ); // Updates all internals
-
     }
 
-    ViewVolume::ViewVolume( Float2 const& viewDimensions, FloatRange depthRange, Radians FOV, Matrix const& worldMatrix )
-        : m_viewDimensions( viewDimensions )
-        , m_FOV( FOV )
+    ViewVolume::ViewVolume( float aspectRatio, FloatRange depthRange, Radians horizontalFOV, Matrix const& worldMatrix )
+        : m_aspectRatio( aspectRatio )
+        , m_horizontalFOV( horizontalFOV )
+        , m_depthRange( depthRange )
+        , m_type( ProjectionType::Perspective )
+    {
+        EE_ASSERT( IsValid() );
+        CalculateProjectionMatrix();
+        SetView( worldMatrix.GetTranslation(), worldMatrix.GetForwardVector(), worldMatrix.GetUpVector() ); // Updates all internals
+    }
+
+    ViewVolume::ViewVolume( float viewWidth, float aspectRatio, FloatRange depthRange, Transform const& worldMatrix )
+        : m_viewWidth( viewWidth )
+        , m_aspectRatio( aspectRatio )
+        , m_depthRange( depthRange )
+        , m_type( ProjectionType::Orthographic )
+    {
+        EE_ASSERT( IsValid() );
+        CalculateProjectionMatrix();
+        SetView( worldMatrix.GetTranslation(), worldMatrix.GetForwardVector(), worldMatrix.GetUpVector() ); // Updates all internals
+    }
+
+    ViewVolume::ViewVolume( float aspectRatio, FloatRange depthRange, Radians horizontalFOV, Transform const& worldMatrix )
+        : m_aspectRatio( aspectRatio )
+        , m_horizontalFOV( horizontalFOV )
         , m_depthRange( depthRange )
         , m_type( ProjectionType::Perspective )
     {
@@ -264,14 +284,14 @@ namespace EE::Math
 
     bool ViewVolume::IsValid() const
     {
-        if ( m_viewDimensions.m_x <= 0.0f || m_viewDimensions.m_y <= 0.0f || m_depthRange.m_begin < 0.0f || !m_depthRange.IsValid() )
+        if ( m_aspectRatio <= 0.0f || m_depthRange.m_begin < 0.0f || !m_depthRange.IsValid() )
         {
             return false;
         }
 
         if ( m_type == ProjectionType::Perspective )
         {
-            if ( Math::IsNearZero( (float) m_FOV ) )
+            if ( Math::IsNearZero( (float) m_horizontalFOV ) )
             {
                 return false;
             }
@@ -295,10 +315,17 @@ namespace EE::Math
         UpdateInternals();
     }
 
-    void ViewVolume::SetViewDimensions( Float2 dimensions )
+    void ViewVolume::SetViewWidth( float width )
     {
-        EE_ASSERT( dimensions.m_x > 0.0f && dimensions.m_y > 0.0f );
-        m_viewDimensions = dimensions;
+        EE_ASSERT( width > 0.0f );
+        EE_ASSERT( IsOrthographic() );
+        m_viewWidth = width;
+    }
+
+    void ViewVolume::SetAspectRatio( float aspectRatio )
+    {
+        EE_ASSERT( aspectRatio > 0.0f );
+        m_aspectRatio = aspectRatio;
         CalculateProjectionMatrix();
         UpdateInternals();
     }
@@ -306,7 +333,7 @@ namespace EE::Math
     void ViewVolume::SetHorizontalFOV( Radians FOV )
     {
         EE_ASSERT( IsPerspective() && FOV > 0.0f );
-        m_FOV = FOV;
+        m_horizontalFOV = FOV;
         CalculateProjectionMatrix();
         UpdateInternals();
     }
@@ -317,26 +344,26 @@ namespace EE::Math
     {
         if ( IsOrthographic() )
         {
-            m_projectionMatrix = CreateOrthographicProjectionMatrix( m_viewDimensions.m_x, m_viewDimensions.m_y, m_depthRange.m_begin, m_depthRange.m_end );
+            m_projectionMatrix = CreateOrthographicProjectionMatrix( m_viewWidth, m_viewWidth / m_aspectRatio, m_depthRange.m_begin, m_depthRange.m_end );
         }
         else
         {
-            Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_viewDimensions.m_x, m_viewDimensions.m_y, m_FOV );
-            m_projectionMatrix = CreatePerspectiveProjectionMatrix( (float) verticalFOV, GetAspectRatio(), m_depthRange.m_begin, m_depthRange.m_end );
+            Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_horizontalFOV );
+            m_projectionMatrix = CreatePerspectiveProjectionMatrix( (float) verticalFOV, m_aspectRatio, m_depthRange.m_begin, m_depthRange.m_end );
         }
     }
 
     OBB ViewVolume::GetOBB() const
     {
-        Radians const halfFOV = ( m_FOV / 2 );
-        float const volumeDepth = m_depthRange.GetLength();
+        Radians const halfFOV = ( m_horizontalFOV / 2 );
+        float const   volumeDepth = m_depthRange.GetLength();
 
-        float const halfX = Math::Tan( halfFOV.ToFloat() ) * m_depthRange.m_end;
-        float const halfY = volumeDepth / 2;
-        float const halfZ = halfX / GetAspectRatio();
+        float const  halfX = Math::Tan( halfFOV.ToFloat() ) * m_depthRange.m_end;
+        float const  halfY = volumeDepth / 2;
+        float const  halfZ = halfX / m_aspectRatio;
         Vector const extents( halfX, halfY, halfZ );
 
-        float const forwardOffset = m_depthRange.m_begin + halfY;
+        float const  forwardOffset = m_depthRange.m_begin + halfY;
         Vector const center = m_viewPosition + ( m_viewForwardDirection * forwardOffset );
 
         Quaternion const orientation = Matrix( m_viewRightDirection.GetNegated(), m_viewForwardDirection.GetNegated(), m_viewUpDirection ).GetRotation();
@@ -367,13 +394,12 @@ namespace EE::Math
         Vector const fwdDir = GetViewForwardVector();
         Vector const centerNear = Vector::MultiplyAdd( fwdDir, Vector( m_depthRange.m_begin ), viewPosition );
 
-        Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_viewDimensions.m_x, m_viewDimensions.m_y, m_FOV );
-        float const aspectRatio = GetAspectRatio();
+        Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_horizontalFOV );
         float e = Math::Tan( (float) verticalFOV * 0.5f );
 
         Float2 dimensions;
         dimensions.m_y = e * m_depthRange.m_begin * 2;
-        dimensions.m_x = dimensions.m_y * aspectRatio;
+        dimensions.m_x = dimensions.m_y * m_aspectRatio;
 
         return dimensions;
     }
@@ -384,13 +410,12 @@ namespace EE::Math
         Vector const fwdDir = GetViewForwardVector();
         Vector const centerFar = Vector::MultiplyAdd( fwdDir, Vector( m_depthRange.m_end ), viewPosition );
 
-        Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_viewDimensions.m_x, m_viewDimensions.m_y, m_FOV );
-        float const aspectRatio = GetAspectRatio();
+        Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_horizontalFOV );
         float e = Math::Tan( (float) verticalFOV * 0.5f );
 
         Float2 dimensions;
         dimensions.m_y = e * m_depthRange.m_end * 2;
-        dimensions.m_x = dimensions.m_y * aspectRatio;
+        dimensions.m_x = dimensions.m_y * m_aspectRatio;
 
         return dimensions;
     }
@@ -407,12 +432,14 @@ namespace EE::Math
             Vector const rightDir = GetViewRightVector();
 
             Vector const nearPlaneDepthCenterPoint = Vector::MultiplyAdd( fwdDir, Vector( m_depthRange.m_begin ), viewPosition );
-            Vector const halfWidth( m_viewDimensions.m_x / 2, m_viewDimensions.m_y / 2, 0.0f, 0.0f );
+            float const halfWidth( m_viewWidth / 2 );
+            float const viewHeight = m_viewWidth / m_aspectRatio;
+            float const halfHeight( viewHeight / 2 );
 
-            vc.m_points[0] = nearPlaneDepthCenterPoint - ( rightDir * ( m_viewDimensions.m_x / 2 ) ) - ( upDir * ( m_viewDimensions.m_y / 2 ) );
-            vc.m_points[1] = nearPlaneDepthCenterPoint - ( rightDir * ( m_viewDimensions.m_x / 2 ) ) + ( upDir * ( m_viewDimensions.m_y / 2 ) );
-            vc.m_points[2] = nearPlaneDepthCenterPoint + ( rightDir * ( m_viewDimensions.m_x / 2 ) ) + ( upDir * ( m_viewDimensions.m_y / 2 ) );
-            vc.m_points[3] = nearPlaneDepthCenterPoint + ( rightDir * ( m_viewDimensions.m_x / 2 ) ) - ( upDir * ( m_viewDimensions.m_y / 2 ) );
+            vc.m_points[0] = nearPlaneDepthCenterPoint - ( rightDir * halfWidth ) - ( upDir * halfHeight );
+            vc.m_points[1] = nearPlaneDepthCenterPoint - ( rightDir * halfWidth ) + ( upDir * halfHeight );
+            vc.m_points[2] = nearPlaneDepthCenterPoint + ( rightDir * halfWidth ) + ( upDir * halfHeight );
+            vc.m_points[3] = nearPlaneDepthCenterPoint + ( rightDir * halfWidth ) - ( upDir * halfHeight );
 
             Vector const farPlaneDepthOffset = fwdDir * ( m_depthRange.m_end - m_depthRange.m_begin );
             vc.m_points[4] = vc.m_points[0] + farPlaneDepthOffset;
@@ -432,13 +459,12 @@ namespace EE::Math
             Vector const centerFar = Vector::MultiplyAdd( fwdDir, Vector( m_depthRange.m_end ), viewPosition );
 
             // Get projected viewport extents on near/far planes
-            Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_viewDimensions.m_x, m_viewDimensions.m_y, m_FOV );
-            float const aspectRatio = GetAspectRatio();
+            Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_horizontalFOV );
             float e = Math::Tan( (float) verticalFOV * 0.5f );
             float extentUpNear = e * m_depthRange.m_begin;
-            float extentRightNear = extentUpNear * aspectRatio;
+            float extentRightNear = extentUpNear * m_aspectRatio;
             float extentUpFar = e * m_depthRange.m_end;
-            float extentRightFar = extentUpFar * aspectRatio;
+            float extentRightFar = extentUpFar * m_aspectRatio;
 
             // Points are just offset from the center points along camera basis
             vc.m_points[0] = centerNear - rightDir * extentRightNear - upDir * extentUpNear;
@@ -459,22 +485,15 @@ namespace EE::Math
     Radians ViewVolume::GetVerticalFOV() const
     {
         EE_ASSERT( IsPerspective() );
-        float const halfFOVX = GetFOV().ToFloat() * 0.5f;
-        float const AR = GetAspectRatio();
-        float const tanAR = Math::Tan( halfFOVX ) * AR;
-        return 2.0f * Math::ATan( tanAR );
-    }
-
-    float ViewVolume::GetScalingFactorAtPosition( Vector const& position, float pixels ) const
-    {
-        float const percentageOfScreenY = pixels / m_viewDimensions.m_y;
-        return percentageOfScreenY * GetViewForwardVector().GetDot3( position - GetViewPosition() );
+        float const halfHorizontalFOV = m_horizontalFOV.ToFloat() * 0.5f;
+        float const tanAspectRatio = Math::Tan( halfHorizontalFOV ) * ( 1.0f / m_aspectRatio );
+        return 2.0f * Math::ATan( tanAspectRatio );
     }
 
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void ViewVolume::DrawDebug( Drawing::DrawContext& drawingContext ) const
+    void ViewVolume::DrawDebug( DebugDrawContext& drawingContext ) const
     {
         VolumeCorners const corners = GetCorners();
 
@@ -507,7 +526,7 @@ namespace EE::Math
         for ( auto i = 0u; i < 6; i++ )
         {
             Plane plane( m_viewPlanes[i] );
-            Vector const absPlane = m_viewPlanes[i].ToVector().Abs();
+            Vector const absPlane = m_viewPlanes[i].ToVector().GetAbs();
 
             auto const distance = plane.SignedDistanceToPoint( center );
             auto const radius = Vector::Dot3( extents, absPlane );

@@ -4,12 +4,12 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Player
+namespace EE
 {
-    class ActionStateMachine
+    class PlayerActionStateMachine
     {
         // Hack for Fake UI
-        friend class PlayerDebugView;
+        friend class PlayerHudDebugView;
 
         #if EE_DEVELOPMENT_TOOLS
         enum class LoggedStatus
@@ -52,7 +52,6 @@ namespace EE::Player
             Dash,
             Slide,
             Interact,
-            MeleeAttack,
 
             #if EE_DEVELOPMENT_TOOLS
             DebugMode,
@@ -60,6 +59,16 @@ namespace EE::Player
 
             NumActions,
             DefaultAction = Locomotion,
+        };
+
+        enum OverlayActionID : int8_t
+        {
+            InvalidOverlayAction = -1,
+            Weapon = 0,
+            MeleeAttack,
+            TimeDilation,
+
+            NumOverlayActions,
         };
 
         // Transitions in the state machine
@@ -78,9 +87,9 @@ namespace EE::Player
                 , m_availability( availability )
             {}
 
-            inline bool IsAvailable( ActionID activeActionID, Action::Status actionStatus ) const
+            inline bool IsAvailable( ActionID activeActionID, PlayerAction::Status actionStatus ) const
             {
-                return m_targetActionID != activeActionID && ( ( m_availability == Availability::Always ) || ( actionStatus == Action::Status::Completed ) );
+                return m_targetActionID != activeActionID && ( ( m_availability == Availability::Always ) || ( actionStatus == PlayerAction::Status::Completed ) );
             }
 
             ActionID            m_targetActionID;
@@ -89,8 +98,8 @@ namespace EE::Player
 
     public:
 
-        ActionStateMachine( ActionContext const& context );
-        ~ActionStateMachine();
+        PlayerActionStateMachine( PlayerActionContext const& context );
+        ~PlayerActionStateMachine();
 
         void Update();
         void ForceStopAllRunningActions();
@@ -101,15 +110,15 @@ namespace EE::Player
 
     private:
 
-        ActionContext const&                                    m_actionContext;
+        PlayerActionContext const&                              m_actionContext;
         ActionID                                                m_activeBaseActionID = InvalidAction;
 
-        TArray<Action*, NumActions>                             m_baseActions;
+        TArray<PlayerAction*, NumActions>                       m_baseActions;
         TArray<TInlineVector<Transition, 6>, NumActions>        m_actionTransitions;
         TInlineVector<Transition, 6>                            m_highPriorityGlobalTransitions;
         TInlineVector<Transition, 6>                            m_lowPriorityGlobalTransitions;
 
-        TInlineVector<OverlayAction*, 5>                        m_overlayActions;
+        TArray<OverlayPlayerAction*, NumOverlayActions>         m_overlayActions;
         bool                                                    m_isFirstUpdate = true;
 
         #if EE_DEVELOPMENT_TOOLS

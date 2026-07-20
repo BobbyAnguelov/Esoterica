@@ -17,7 +17,10 @@ namespace EE::Animation
 
         BlendTree,
         ValueTree,
+        EntryOverrideTree,
         TransitionConduit,
+        GlobalTransitionConduit,
+        VirtualParameterValueTree
     };
 }
 
@@ -52,9 +55,6 @@ namespace EE::Animation
         // Get the types of graphs that this node is allowed to be placed in
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const = 0;
 
-        // Is this node a persistent node i.e. is it always initialized 
-        virtual bool IsPersistentNode() const { return false; }
-
         // Compile this node into its runtime representation. Returns the node index of the compiled node.
         virtual int16_t Compile( GraphCompilationContext& context ) const { return int16_t(); }
 
@@ -80,7 +80,7 @@ namespace EE::Animation
 
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) {}
 
-        virtual bool IsActive( NodeGraph::UserContext* pUserContext ) const override;
+        virtual Color GetHighlightOutlineColor( NodeGraph::UserContext* pUserContext ) const override;
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
         virtual void DrawContextMenuOptions( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, Float2 const& mouseCanvasPos, NodeGraph::Pin* pPin ) override;
     };

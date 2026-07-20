@@ -6,79 +6,10 @@
 
 namespace EE::Animation
 {
-    void EntryStateOverrideConditionsToolsNode::UpdateInputPins()
+    EntryStateOverrideConditionsToolsNode::EntryStateOverrideConditionsToolsNode()
+        : ResultToolsNode()
     {
-        auto pEntryStateOverridesNode = GetParentGraph()->GetParentNode();
-        EE_ASSERT( pEntryStateOverridesNode != nullptr );
-
-        auto pParentStateMachineGraph = pEntryStateOverridesNode->GetParentGraph();
-        EE_ASSERT( pParentStateMachineGraph != nullptr );
-
-        auto stateNodes = pParentStateMachineGraph->FindAllNodesOfType<StateToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
-
-        //-------------------------------------------------------------------------
-
-        TInlineVector<StateToolsNode*, 20> pinsToCreate;
-        TInlineVector<UUID, 20> pinsToRemove;
-
-        for ( auto const& pin : GetInputPins() )
-        {
-            pinsToRemove.emplace_back( pin.m_ID );
-        }
-
-        // Check which pins are invalid
-        //-------------------------------------------------------------------------
-
-        for ( auto pState : stateNodes )
-        {
-            int32_t const pinIdx = VectorFindIndex( m_pinToStateMapping, pState->GetID() );
-            if ( pinIdx == InvalidIndex )
-            {
-                pinsToCreate.emplace_back( pState );
-            }
-            else // Found the pin
-            {
-                pinsToRemove[pinIdx].Clear();
-                auto pInputPin = GetInputPin( pinIdx );
-                pInputPin->m_name = pState->GetName();
-            }
-        }
-
-        // Remove invalid pins
-        //-------------------------------------------------------------------------
-
-        for ( auto const& pinID : pinsToRemove )
-        {
-            if ( pinID.IsValid() )
-            {
-                int32_t const pinIdx = GetInputPinIndex( pinID );
-                DestroyDynamicInputPin( pinID );
-                m_pinToStateMapping.erase( m_pinToStateMapping.begin() + pinIdx );
-            }
-        }
-
-        // Add new pins
-        //-------------------------------------------------------------------------
-
-        for ( auto pState : pinsToCreate )
-        {
-            CreateDynamicInputPin( pState->GetName(), GetPinTypeForValueType( GraphValueType::Bool ) );
-            m_pinToStateMapping.emplace_back( pState->GetID() );
-        }
-    }
-
-    void EntryStateOverrideConditionsToolsNode::OnShowNode()
-    {
-        FlowToolsNode::OnShowNode();
-        UpdateInputPins();
-    }
-
-    void EntryStateOverrideConditionsToolsNode::UpdatePinToStateMapping( THashMap<UUID, UUID> const& IDMapping )
-    {
-        for ( auto& stateID : m_pinToStateMapping )
-        {
-            stateID = IDMapping.at( stateID );
-        }
+        CreateInputPin( "Condition", GraphValueType::Bool );
     }
 
     //-------------------------------------------------------------------------
@@ -86,36 +17,122 @@ namespace EE::Animation
     EntryStateOverrideConduitToolsNode::EntryStateOverrideConduitToolsNode()
         : NodeGraph::StateMachineNode()
     {
-        auto pFlowGraph = CreateSecondaryGraph<FlowGraph>( GraphType::ValueTree );
+        auto pFlowGraph = CreateSecondaryGraph<FlowGraph>( GraphType::EntryOverrideTree );
         pFlowGraph->CreateNode<EntryStateOverrideConditionsToolsNode>();
+        UpdateConditionsNode();
+    }
+
+    void EntryStateOverrideConduitToolsNode::OnShowNode()
+    {
+        NodeGraph::StateMachineNode::OnShowNode();
+        UpdateConditionsNode();
     }
 
     FlowToolsNode const* EntryStateOverrideConduitToolsNode::GetEntryConditionNodeForState( UUID const& stateID ) const
     {
-        auto conditionNodes = GetSecondaryGraph()->FindAllNodesOfType<EntryStateOverrideConditionsToolsNode>();
-        EE_ASSERT( conditionNodes.size() == 1 );
-        auto pConditionNode = conditionNodes.back();
+        auto entryOverrides = GetSecondaryGraph()->FindAllNodesOfType<EntryStateOverrideConditionsToolsNode>();
+        for ( EntryStateOverrideConditionsToolsNode const* pEntryOverrideNode : entryOverrides )
+        {
+            if ( pEntryOverrideNode->m_stateID == stateID )
+            {
+                return TryCast<FlowToolsNode>( pEntryOverrideNode->GetConnectedInputNode( 0 ) );
+            }
+        }
 
-        //-------------------------------------------------------------------------
-
-        int32_t const pinIdx = VectorFindIndex( pConditionNode->m_pinToStateMapping, stateID );
-        EE_ASSERT( pinIdx != InvalidIndex );
-        return TryCast<FlowToolsNode const>( pConditionNode->GetConnectedInputNode( pinIdx ) );
+        // Dont call this function with an invalid state ID
+        EE_UNREACHABLE_CODE();
+        return nullptr;
     }
 
     void EntryStateOverrideConduitToolsNode::UpdateConditionsNode()
     {
-        auto conditionNodes = GetSecondaryGraph()->FindAllNodesOfType<EntryStateOverrideConditionsToolsNode>();
-        EE_ASSERT( conditionNodes.size() == 1 );
-        auto pConditionNode = conditionNodes.back();
-        pConditionNode->UpdateInputPins();
+        // Do not run the below code for the default instance
+        if ( GetParentGraph() == nullptr )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        auto stateNodes = GetParentGraph()->FindAllNodesOfType<StateToolsNode>( NodeGraph::SearchMode::Localized, NodeGraph::SearchTypeMatch::Derived );
+        auto entryOverrides = GetSecondaryGraph()->FindAllNodesOfType<EntryStateOverrideConditionsToolsNode>();
+
+        //-------------------------------------------------------------------------
+
+        TInlineVector<StateToolsNode*, 20> entryOverridesToCreate;
+        TInlineVector<EntryStateOverrideConditionsToolsNode*, 20> entryOverridesToRemove;
+
+        for ( auto const& pEntryOverride : entryOverrides )
+        {
+            entryOverridesToRemove.emplace_back( pEntryOverride );
+        }
+
+        ImVec2 const initialPosition = entryOverrides.empty() ? ImVec2( 0, 0 ) : ImVec2( entryOverrides.front()->GetPosition() );
+
+        // Check entry overrides
+        //-------------------------------------------------------------------------
+
+        auto SearchPredicate = [] ( EntryStateOverrideConditionsToolsNode* pNode, UUID const& ID )
+        {
+            if ( pNode != nullptr )
+            {
+                return pNode->m_stateID == ID;
+            }
+            else
+            {
+                return false;
+            }
+        };
+
+        for ( StateToolsNode* pState : stateNodes )
+        {
+            int32_t const stateIdx = VectorFindIndex( entryOverridesToRemove, pState->GetID(), SearchPredicate );
+            if ( stateIdx == InvalidIndex )
+            {
+                entryOverridesToCreate.emplace_back( pState );
+            }
+            else // Found the transition, so update the name
+            {
+                entryOverridesToRemove[stateIdx]->m_name = pState->GetName();
+                entryOverridesToRemove[stateIdx] = nullptr;
+            }
+        }
+
+        // Remove invalid entry overrides
+        //-------------------------------------------------------------------------
+
+        for ( EntryStateOverrideConditionsToolsNode* pEntryOverride : entryOverridesToRemove )
+        {
+            if ( pEntryOverride != nullptr )
+            {
+                pEntryOverride->Destroy();
+            }
+        }
+
+        // Add new entry overrides
+        //-------------------------------------------------------------------------
+
+        ImVec2 offsetStep( 0, 100 );
+        ImVec2 offset = offsetStep;
+
+        for ( auto pState : entryOverridesToCreate )
+        {
+            auto pSecondaryGraph = Cast<FlowGraph>( GetSecondaryGraph() );
+            auto pNewTransition = pSecondaryGraph->CreateNode<EntryStateOverrideConditionsToolsNode>();
+            pNewTransition->m_name = pState->GetName();
+            pNewTransition->m_stateID = pState->GetID();
+
+            pNewTransition->SetPosition( initialPosition + offset );
+            offset += offsetStep;
+        }
     }
 
     void EntryStateOverrideConduitToolsNode::UpdateStateMapping( THashMap<UUID, UUID> const& IDMapping )
     {
-        auto conditionNodes = GetSecondaryGraph()->FindAllNodesOfType<EntryStateOverrideConditionsToolsNode>();
-        EE_ASSERT( conditionNodes.size() == 1 );
-        auto pConditionNode = conditionNodes.back();
-        pConditionNode->UpdatePinToStateMapping( IDMapping );
+        auto entryOverrides = GetSecondaryGraph()->FindAllNodesOfType<EntryStateOverrideConditionsToolsNode>();
+        for ( auto pNode : entryOverrides )
+        {
+            pNode->m_stateID = IDMapping.at( pNode->m_stateID );
+        }
     }
 }

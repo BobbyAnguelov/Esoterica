@@ -1,0 +1,91 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+    <BuildType Name="Shipping" />
+    <Platform Name="x64" />
+  </Configurations>
+  <Folder Name="/0. Scripts/">
+    <Project Path="Code/Scripts/Reflect/Esoterica.Scripts.Reflect.vcxproj" Id="22d8d0d3-3d46-43ac-bae5-fa588d2cac0e">
+      <Build Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/1. Applications/">
+    <Project Path="Code/Applications/BuildGenerator/Esoterica.Applications.BuildGenerator.vcxproj" Id="d12c1d44-ac38-426c-a5f1-be6bff659ec2">
+      <Build Solution="Shipping|*" Project="false" />
+    </Project>
+    <Project Path="Code/Applications/Editor/Esoterica.Applications.Editor.vcxproj" Id="d6bdd49c-ef46-4637-844a-4ffdd6a25dc5">
+      <BuildDependency Project="Code/Applications/ResourceCompiler/Esoterica.Applications.ResourceCompiler.vcxproj" />
+      <BuildDependency Project="Code/Applications/ResourceServer/Esoterica.Applications.ResourceServer.vcxproj" />
+      <Build Solution="Shipping|*" Project="false" />
+    </Project>
+    <Project Path="Code/Applications/Engine/Esoterica.Applications.Engine.vcxproj" Id="8778c386-a74a-4545-8297-ce68639d4ade">
+      <BuildDependency Project="Code/Applications/ResourceCompiler/Esoterica.Applications.ResourceCompiler.vcxproj" />
+      <BuildDependency Project="Code/Applications/ResourceServer/Esoterica.Applications.ResourceServer.vcxproj" />
+    </Project>
+    <Project Path="Code/Applications/Reflector/Esoterica.Applications.Reflector.vcxproj" Id="c6d6c2bd-89a1-41f2-b27d-3e87b8b678a5">
+      <Build Solution="Shipping|*" Project="false" />
+    </Project>
+    <Project Path="Code/Applications/ResourceCompiler/Esoterica.Applications.ResourceCompiler.vcxproj" Id="bbcf3423-e4b4-4cdd-8a97-c6c390bacc23">
+      <Build Solution="Shipping|*" Project="false" />
+    </Project>
+    <Project Path="Code/Applications/ResourceServer/Esoterica.Applications.ResourceServer.vcxproj" Id="92f52a23-7513-43a0-8299-8fc752d2b401">
+      <Build Solution="Shipping|*" Project="false" />
+    </Project>
+    <Project Path="Code/Applications/Tester/Esoterica.Applications.Tester.vcxproj" Id="15e4867a-f174-4f2a-a7c1-99cc6376d8d2">
+      <Build Solution="Shipping|*" Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/2. Game/">
+    <Project Path="Code/Game/Esoterica.Game.Runtime.vcxproj" Id="20c5d09a-3da8-4cea-9269-65dc6e6cd460" />
+    <Project Path="Code/GameTools/Esoterica.Game.Tools.vcxproj" Id="a9123702-50a2-42a7-be0b-6468c298b509">
+      <Build Solution="Shipping|*" Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/3. Engine/">
+    <Project Path="Code/Engine/Esoterica.Engine.Runtime.vcxproj" Id="2cfadbdc-ee40-4484-94d0-62a90206209e" />
+    <Project Path="Code/EngineTools/Esoterica.Engine.Tools.vcxproj" Id="821afa79-df18-4414-9775-e0c0f45bad78">
+      <Build Solution="Shipping|*" Project="false" />
+    </Project>
+  </Folder>
+  <Folder Name="/4. Base/">
+    <Project Path="Code/Base/Esoterica.Base.vcxproj" Id="07414ba8-87a7-449b-8ab7-551254b57fb3" />
+  </Folder>
+  <Folder Name="/5. Property Sheets/">
+    <File Path="Code/PropertySheets/AmdAgs.props" />
+    <File Path="Code/PropertySheets/Box3D.props" />
+    <File Path="Code/PropertySheets/DXC.props" />
+    <File Path="Code/PropertySheets/EA.props" />
+    <File Path="Code/PropertySheets/Esoterica.props" />
+    <File Path="Code/PropertySheets/FBXSDK.props" />
+    <File Path="Code/PropertySheets/FreeType.props" />
+    <File Path="Code/PropertySheets/GameNetworkingSockets.props" />
+    <File Path="Code/PropertySheets/Imgui.props" />
+    <File Path="Code/PropertySheets/CTT.props" />
+    <File Path="Code/PropertySheets/ixWebSocket.props" />
+    <File Path="Code/PropertySheets/LivePP.props" />
+    <File Path="Code/PropertySheets/LLVM.props" />
+    <File Path="Code/PropertySheets/MeshOptimizer.props" />
+    <File Path="Code/PropertySheets/NavPower.props" />
+    <File Path="Code/PropertySheets/Optick.props" />
+    <File Path="Code/PropertySheets/RenderDoc.props" />
+    <File Path="Code/PropertySheets/SQLite.props" />
+    <File Path="Code/PropertySheets/SuperLuminal.props" />
+    <File Path="Code/PropertySheets/WinPixEventRuntime.props" />
+  </Folder>
+  <Folder Name="/5. Property Sheets/Platforms/">
+    <File Path="Code/PropertySheets/Esoterica.Win32.props" />
+  </Folder>
+  <Folder Name="/6. Misc/">
+    <File Path="Code/.clang-format" />
+    <File Path="Code/.editorconfig" />
+    <File Path="Code/cpp.hint" />
+    <File Path="Code/Esoterica.manifest" />
+    <File Path="Code/Esoterica.natvis" />
+  </Folder>
+  <Folder Name="/7. Docs/">
+    <File Path="Docs/docs/CodingGuidelines.md" />
+    <File Path="LICENSE.md" />
+    <File Path="README.md" />
+  </Folder>
+</Solution>

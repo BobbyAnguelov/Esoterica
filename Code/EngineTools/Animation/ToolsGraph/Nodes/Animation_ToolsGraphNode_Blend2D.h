@@ -54,7 +54,7 @@ namespace EE::Animation
 
     private:
 
-        virtual void PostDeserialize() override;
+        virtual void PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry ) override;
 
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;

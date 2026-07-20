@@ -25,6 +25,17 @@ namespace EE::Animation
                 return InvalidIndex;
             }
 
+            //-------------------------------------------------------------------------
+
+            if ( !m_isOptionalMask )
+            {
+                if ( !context.GetVariationSkeletonDesc()->IsValidBoneMaskSetID( m_maskID ) )
+                {
+                    context.LogError( this, "Bone Mask ID: %s doesnt exist on Skeleton: %s", m_maskID.c_str(), context.GetVariationSkeletonID().c_str() );
+                    return InvalidIndex;
+                }
+            }
+
             pDefinition->m_boneMaskID = m_maskID;
         }
 
@@ -34,6 +45,11 @@ namespace EE::Animation
     void BoneMaskToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
         DrawInternalSeparator( ctx );
+
+        if ( m_isOptionalMask )
+        {
+            ImGui::TextColored( Colors::Gold, "Optional" );
+        }
 
         ImGui::Text( "Mask ID: %s", m_maskID.IsValid() ? m_maskID.c_str() : "NONE");
     }
@@ -353,5 +369,83 @@ namespace EE::Animation
             int32_t const optionIdx = i - 2;
             pInputPin->m_name = m_parameterValues[optionIdx].IsValid() ? m_parameterValues[optionIdx].c_str() : "Invalid ID";
         }
+    }
+
+    //-------------------------------------------------------------------------
+
+    BoneMaskSwitchToolsNode::BoneMaskSwitchToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Result", GraphValueType::BoneMask, true );
+        CreateInputPin( "ID", GraphValueType::Bool );
+        CreateInputPin( "If True", GraphValueType::BoneMask );
+        CreateInputPin( "If False", GraphValueType::BoneMask );
+    }
+
+    int16_t BoneMaskSwitchToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        BoneMaskSwitchNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<BoneMaskSwitchNode>( this, pDefinition );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            // Parameter
+            //-------------------------------------------------------------------------
+
+            auto pSwitchNode = GetConnectedInputNode<FlowToolsNode>( 0 );
+            if ( pSwitchNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pSwitchNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pDefinition->m_switchValueNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
+            }
+            else
+            {
+                context.LogError( this, "Disconnected switch pin on bone mask switch node!" );
+                return InvalidIndex;
+            }
+
+            //-------------------------------------------------------------------------
+
+            auto pTrueMaskNode = GetConnectedInputNode<FlowToolsNode>( 1 );
+            if ( pTrueMaskNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pTrueMaskNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pDefinition->m_trueMaskNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
+            }
+
+            auto pFalseMaskNode = GetConnectedInputNode<FlowToolsNode>( 1 );
+            if ( pFalseMaskNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pFalseMaskNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pDefinition->m_falseMaskNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            pDefinition->m_switchDynamically = m_switchDynamically;
+            pDefinition->m_blendTime = m_blendTime;
+        }
+
+        return pDefinition->m_nodeIdx;
     }
 }

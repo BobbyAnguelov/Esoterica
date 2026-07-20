@@ -4,35 +4,16 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::Settings
+namespace EE
 {
-    ISettings* SettingsRegistry::Group::GetSettings( TypeSystem::TypeInfo const* pTypeInfo )
-    {
-        EE_ASSERT( pTypeInfo != nullptr );
-        EE_ASSERT( pTypeInfo->IsDerivedFrom( ISettings::GetStaticTypeID() ) );
-        EE_ASSERT( !pTypeInfo->IsDerivedFrom( GlobalSettings::GetStaticTypeID() ) );
-
-        for ( auto pSettings : m_settings )
-        {
-            if ( pSettings->GetTypeID() == pTypeInfo->m_ID )
-            {
-                return pSettings;
-            }
-        }
-
-        return nullptr;
-    }
-
-    //-------------------------------------------------------------------------
-
     bool SettingsRegistry::Initialize( FileSystem::Path const& iniFilePath )
     {
-        EE_ASSERT( m_globalSettings.empty() );
+        EE_ASSERT( m_settings.empty() );
 
-        TVector<TypeSystem::TypeInfo const*> settingsTypes = m_typeRegistry.GetAllDerivedTypes( GlobalSettings::GetStaticTypeID(), false, false, false );
+        TVector<TypeSystem::TypeInfo const*> settingsTypes = m_typeRegistry.GetAllDerivedTypes( Settings::GetStaticTypeID(), false, false, false );
         for ( auto pTypeInfo : settingsTypes )
         {
-            m_globalSettings.emplace_back( Cast<GlobalSettings>( pTypeInfo->CreateType() ) );
+            m_settings.emplace_back( Cast<Settings>( pTypeInfo->CreateType() ) );
         }
 
         //-------------------------------------------------------------------------
@@ -41,31 +22,29 @@ namespace EE::Settings
         m_iniFilePath = iniFilePath;
 
         // If the ini file doesnt exist, create one with the default settings!
-        Settings::IniFile iniFile( iniFilePath );
+        IniFile iniFile( iniFilePath );
         if ( !iniFile.IsValid() )
         {
-            #if EE_DEVELOPMENT_TOOLS
-            if ( !SaveGlobalSettingsToIniFile() )
+            if ( !SaveSettingsToIniFile() )
             {
-                EE_LOG_FATAL_ERROR( "Settings", "Registry", "Failed to generate default INI file: %s", iniFilePath.c_str() );
+                EE_LOG_FATAL_ERROR( LogCategory::System, "Settings Registry", "Failed to generate default INI file: %s", iniFilePath.c_str() );
                 return false;
             }
-            #endif
 
             // Try to load the newly created ini file
-            iniFile = Settings::IniFile( iniFilePath );
+            iniFile = IniFile( iniFilePath );
             if ( !iniFile.IsValid() )
             {
-                EE_LOG_FATAL_ERROR( "Settings", "Registry", "Failed to load settings from INI file: %s", iniFilePath.c_str() );
+                EE_LOG_FATAL_ERROR( LogCategory::System, "Settings Registry", "Failed to load settings from INI file: %s", iniFilePath.c_str() );
                 return false;
             }
         }
 
         //-------------------------------------------------------------------------
 
-        for ( auto pGlobalSettings : m_globalSettings )
+        for ( auto pGlobalSettings : m_settings )
         {
-            if ( !pGlobalSettings->LoadSettings( iniFile ) )
+            if ( !pGlobalSettings->LoadSettings( m_typeRegistry, iniFile ) )
             {
                 return false;
             }
@@ -80,83 +59,26 @@ namespace EE::Settings
 
         //-------------------------------------------------------------------------
 
-        for ( auto pSettings : m_globalSettings )
+        for ( auto pSettings : m_settings )
         {
             EE::Delete( pSettings );
         }
 
-        m_globalSettings.clear();
+        m_settings.clear();
     }
 
-    #if EE_DEVELOPMENT_TOOLS
-    bool SettingsRegistry::SaveGlobalSettingsToIniFile()
+    bool SettingsRegistry::SaveSettingsToIniFile()
     {
-        Settings::IniFile iniFile;
+        IniFile iniFile;
 
-        for ( auto pGlobalSettings : m_globalSettings )
+        for ( auto pGlobalSettings : m_settings )
         {
-            if ( !pGlobalSettings->SaveSettings( iniFile ) )
+            if ( !pGlobalSettings->SaveSettings( m_typeRegistry, iniFile ) )
             {
                 return false;
             }
         }
 
         return iniFile.SaveToFile( m_iniFilePath );
-    }
-    #endif
-
-    //-------------------------------------------------------------------------
-
-    ISettings* SettingsRegistry::CreateSettings( uint64_t groupID, TypeSystem::TypeInfo const* pTypeInfo )
-    {
-        EE_ASSERT( pTypeInfo != nullptr );
-        EE_ASSERT( pTypeInfo->IsDerivedFrom( ISettings::GetStaticTypeID() ) );
-        EE_ASSERT( !pTypeInfo->IsDerivedFrom( GlobalSettings::GetStaticTypeID() ) );
-
-        auto pGroup = FindGroup( groupID );
-        EE_ASSERT( pGroup != nullptr );
-        EE_ASSERT( pGroup->GetSettings( pTypeInfo ) == nullptr );
-
-        ISettings* pSettings = pGroup->m_settings.emplace_back( Cast<ISettings>( pTypeInfo->CreateType() ) );
-        return pSettings;
-    }
-
-    void SettingsRegistry::CreateGroup( uint64_t groupID, String const& friendlyName )
-    {
-        Group* pGroup = FindGroup( groupID );
-        EE_ASSERT( pGroup == nullptr );
-        m_groups.emplace_back( Group( groupID, friendlyName ) );
-    }
-
-    void SettingsRegistry::DestroyGroup( uint64_t groupID )
-    {
-        for ( auto iter = m_groups.begin(); iter != m_groups.end(); ++iter )
-        {
-            if ( iter->m_groupID == groupID )
-            {
-                for ( auto pSettings : iter->m_settings )
-                {
-                    EE::Delete( pSettings );
-                }
-
-                m_groups.erase_unsorted( iter );
-                return;
-            }
-        }
-
-        EE_UNREACHABLE_CODE();
-    }
-
-    SettingsRegistry::Group* SettingsRegistry::FindGroup( uint64_t groupID )
-    {
-        for ( auto& group : m_groups )
-        {
-            if ( group.m_groupID == groupID )
-            {
-                return &group;
-            }
-        }
-
-        return nullptr;
     }
 }

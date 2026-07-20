@@ -1,6 +1,6 @@
 #include "ClangParser.h"
 #include "ClangVisitors_TranslationUnit.h"
-#include "Applications/Reflector/TypeReflection/ReflectionDatabase.h"
+#include "Applications/Reflector/TypeReflection/TypeReflection_ReflectionDatabase.h"
 #include "Base/Time/Timers.h"
 #include "Base/Platform/PlatformUtils_Win32.h"
 #include "Base/FileSystem/FileSystemUtils.h"
@@ -8,7 +8,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::TypeSystem::Reflection
+namespace EE::Reflection
 {
     static char const* const g_includePaths[] =
     {
@@ -17,7 +17,6 @@ namespace EE::TypeSystem::Reflection
         "Code\\Base\\ThirdParty\\EA\\EASTL\\include\\",
         "Code\\Base\\ThirdParty\\",
         "Code\\Base\\ThirdParty\\imgui\\",
-        "External\\PhysX\\physx\\include\\",
         "External\\Optick\\include\\",
         #if EE_ENABLE_NAVPOWER
         "External\\NavPower\\include\\"
@@ -26,15 +25,13 @@ namespace EE::TypeSystem::Reflection
 
     constexpr static int const g_numIncludePaths = sizeof( g_includePaths ) / sizeof( g_includePaths[0] );
 
-    constexpr static char const* const g_tempDataPath = "\\..\\_Temp\\";
-
     //-------------------------------------------------------------------------
 
-    ClangParser::ClangParser( FileSystem::Path const& solutionPath, ReflectionDatabase* pDatabase )
-        : m_context( solutionPath, pDatabase )
+    ClangParser::ClangParser( FileSystem::Path const& solutionDirectoryPath, ReflectionDatabase* pDatabase )
+        : m_context( solutionDirectoryPath, pDatabase )
         , m_totalParsingTime( 0 )
         , m_totalVisitingTime( 0 )
-        , m_reflectionDataPath( FileSystem::GetCurrentProcessPath() + g_tempDataPath )
+        , m_reflectionDataPath( solutionDirectoryPath.GetAppended( Settings::g_buildTempFolderPath, true ) )
     {}
 
     bool ClangParser::Parse( TVector<ReflectedHeader*> const& headers, Pass pass )
@@ -54,8 +51,10 @@ namespace EE::TypeSystem::Reflection
         m_context.m_headersToVisit.clear();
         for ( ReflectedHeader const* pHeader : headers )
         {
+            EE_ASSERT( pHeader->m_path.IsValid() && pHeader->m_path.IsFilePath() );
+
             // Exclude dev tools
-            if ( pass == NoDevToolsPass && pHeader->m_isToolsHeader )
+            if ( pass == NoDevToolsPass && pHeader->m_isToolsOnlyHeader )
             {
                 continue;
             }
@@ -86,7 +85,7 @@ namespace EE::TypeSystem::Reflection
 
         clangArgs.push_back( "-x" );
         clangArgs.push_back( "c++" );
-        clangArgs.push_back( "-std=c++17" );
+        clangArgs.push_back( "-std=c++20" );
         clangArgs.push_back( "-O0" );
         clangArgs.push_back( "-D NDEBUG" );
         clangArgs.push_back( "-Werror" );

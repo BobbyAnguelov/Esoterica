@@ -1,0 +1,409 @@
+
+#ifndef _DEBUG_DRAW_ESH_
+#define _DEBUG_DRAW_ESH_
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/Transform.esh"
+#include "Engine/Render/Shaders/CommonPacking.esh"
+#include "Engine/Render/Shaders/AppendBuffer.esh"
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+struct HLSL_ALIGN_STRUCT ShaderDebugDrawBuffer
+{
+    #if EE_DEVELOPMENT_TOOLS
+    AppendBufferHandle              m_debugDrawCommandsBuffer_TransparentDepthOn;
+    AppendBufferHandle              m_debugDrawCommandsBuffer_TransparentDepthOff;
+    
+    #else
+    uint4                           m_padding;
+    #endif
+};
+
+// Needs to math DebugCommandFlags in DebugDrawingCommands.h
+#define DEBUG_DRAW_COMMAND_FLAG_POINT       ( 1U << 0U )
+#define DEBUG_DRAW_COMMAND_FLAG_LINE        ( 1U << 1U )
+#define DEBUG_DRAW_COMMAND_FLAG_TRIANGLE    ( 1U << 2U )
+#define DEBUG_DRAW_COMMAND_FLAG_TEXT_LETTER ( 1U << 3U )
+#define DEBUG_DRAW_COMMAND_FLAG_TEXT_BOX    ( 1U << 4U )
+#define DEBUG_DRAW_COMMAND_FLAG_SKIP        ( 1U << 5U )
+
+#define DEBUG_DRAW_COMMAND_FLAG_DISABLE_AA  ( 1U << 10U )
+
+struct HLSL_ALIGN_STRUCT DebugDrawPointCommand
+{
+    uint                            m_commandFlags;
+    float3                          m_position;
+    float                           m_thickness;
+    uint                            m_packedColor;
+    float                           m_TTL;
+    uint                            m_padding0;
+    uint64_t                        m_hitTestID;
+    uint4                           m_padding1;
+    uint2                           m_padding2;
+};
+
+struct HLSL_ALIGN_STRUCT DebugDrawLineCommand
+{
+    uint                            m_commandFlags;
+    float3                          m_startPosition;
+    float                           m_startThickness;
+    uint                            m_packedStartColor;
+    float3                          m_endPosition;
+    float                           m_endThickness;
+    uint                            m_packedEndColor;
+    float                           m_TTL;
+    uint64_t                        m_hitTestID;
+    uint2                           m_padding0;
+};
+
+struct HLSL_ALIGN_STRUCT DebugDrawTriangleCommand
+{
+    uint                            m_commandFlags;
+    float3                          m_vertex0;
+    uint                            m_packedColor0;
+    float3                          m_vertex1;
+    uint                            m_packedColor1;
+    float3                          m_vertex2;
+    uint                            m_packedColor2;
+    float                           m_TTL;
+    uint64_t                        m_hitTestID;
+};
+
+struct HLSL_ALIGN_STRUCT DebugDrawTextLetterCommand
+{
+    uint                            m_commandFlags;
+    uint                            m_textColor;
+    float4                          m_alignedQuadTopLeft;
+    float4                          m_alignedQuadBottomRight;
+    float3                          m_textPosition;
+    TextureHandle                   m_fontTextureHandle;
+    GenericResourceHandle           m_padding0;
+    uint2                           m_padding1;
+};
+
+struct HLSL_ALIGN_STRUCT DebugDrawTextBoxCommand
+{
+    uint                            m_commandFlags;
+    float3                          m_textPosition;
+    float4                          m_quadCoordinates;
+    uint                            m_textColor;
+    uint4                           m_padding0;
+    uint3                           m_padding1;
+};
+
+struct HLSL_ALIGN_STRUCT DebugDrawCommand_Raw
+{
+    uint4x4                         m_data;
+};
+
+#ifdef __cplusplus
+static_assert( sizeof( DebugDrawPointCommand ) == sizeof( DebugDrawCommand_Raw ) );
+static_assert( sizeof( DebugDrawLineCommand ) == sizeof( DebugDrawCommand_Raw ) );
+static_assert( sizeof( DebugDrawTriangleCommand ) == sizeof( DebugDrawCommand_Raw ) );
+static_assert( sizeof( DebugDrawTextLetterCommand ) == sizeof( DebugDrawCommand_Raw ) );
+static_assert( sizeof( DebugDrawTextBoxCommand ) == sizeof( DebugDrawCommand_Raw ) );
+static_assert( sizeof( DebugDrawCommand_Raw ) == 64 );
+#endif
+
+#define DEBUG_DRAW_VERTEX_FLAG_NONE         ( 0 )
+#define DEBUG_DRAW_VERTEX_FLAG_2D           ( 1 << 0 )
+#define DEBUG_DRAW_VERTEX_FLAG_LINE_AA      ( 1 << 1 )
+
+struct HLSL_ALIGN_STRUCT DebugDrawParameters // THIS IS IN A CONSTANT BUFFER! 16-byte row alignment
+{
+// 16-byte row
+    float3                          m_cameraPosition;
+    uint                            m_padding0;
+    
+// 16-byte row
+    float3                          m_cameraForwardDirection;
+    uint                            m_padding1;
+
+// 16-byte row
+    float3                          m_cameraUpDirection;
+    uint                            m_padding2;
+
+// 16-byte row
+    float3                          m_cameraRightDirection;
+    uint                            m_padding3;
+
+// 16-byte row
+    float4                          m_pickingInput; // xy - mouse, z - radius in pixels, w - unused
+};
+
+#ifndef __cplusplus
+
+#if EE_DEVELOPMENT_TOOLS
+static float3 const g_unitCubeVertices[8] =
+{
+    float3( -1.0, -1.0, -1.0 ),    // BFL
+    float3( -1.0,  1.0, -1.0 ),    // TFL
+    float3(  1.0,  1.0, -1.0 ),    // TFR
+    float3(  1.0, -1.0, -1.0 ),    // BFR
+    float3( -1.0, -1.0,  1.0 ),    // BBL
+    float3( -1.0,  1.0,  1.0 ),    // TBL
+    float3(  1.0,  1.0,  1.0 ),    // TBR
+    float3(  1.0, -1.0,  1.0 )     // BBR
+};
+
+static const uint16_t g_unitCubeSolidIndices[36] =
+{
+    // Triangle faces for a solid box
+    0, 1, 3, 3, 1, 2,
+    3, 2, 7, 7, 2, 6,
+    7, 6, 4, 4, 6, 5,
+    4, 5, 0, 0, 5, 1,
+    1, 5, 2, 2, 5, 6,
+    4, 0, 7, 7, 0, 3
+};
+
+static const uint g_unitCubeWireIndices[24] =
+{
+    // Lines for a wire-frame box
+    0, 1, 1, 2, 2, 3, 3, 0,
+    4, 5, 5, 6, 6, 7, 7, 4,
+    0, 4, 1, 5, 2, 6, 3, 7,
+};
+#endif
+
+struct HLSL_ALIGN_STRUCT ShaderDebugDraw
+{
+    #if EE_DEVELOPMENT_TOOLS
+    RawAppendBuffer                     m_debugDrawCommandsBuffer_TransparentDepthOn;
+    RawAppendBuffer                     m_debugDrawCommandsBuffer_TransparentDepthOff;
+    #endif
+
+    void DrawPoint( float4 position, float4 color, uniform bool depthTest = true )
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        DebugDrawPointCommand pointCommand = ( DebugDrawPointCommand )0;
+        pointCommand.m_commandFlags = DEBUG_DRAW_COMMAND_FLAG_POINT;
+        pointCommand.m_position = position.xyz;
+        pointCommand.m_thickness = position.w;
+        pointCommand.m_packedColor = PackColor( color );
+        pointCommand.m_hitTestID = ~0ULL;
+
+        if ( depthTest )
+        {
+            if ( !m_debugDrawCommandsBuffer_TransparentDepthOn.TryAppend( pointCommand ) )
+            {
+                // No space this frame
+            }
+        }
+        else
+        {
+            if ( !m_debugDrawCommandsBuffer_TransparentDepthOff.TryAppend( pointCommand ) )
+            {
+                // No space this frame
+            }
+        }
+#endif
+    }
+
+    void DrawPoint( float3 position, float3 color, uniform bool depthTest = true )
+    {
+        DrawPoint( float4( position, 1.0 ), float4( color, 1.0 ), depthTest );
+    }
+
+    void DrawPoint( float3 position, float4 color, uniform bool depthTest = true )
+    {
+        DrawPoint( float4( position, 1.0 ), color, depthTest );
+    }
+
+    void DrawPoint( float4 position, float3 color, uniform bool depthTest = true )
+    {
+        DrawPoint( position, float4( color, 1.0 ), depthTest );
+    }
+
+    void DrawLine( float4 startPosition, float4 startColor, float4 endPosition, float4 endColor, uniform bool depthTest = true )
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        DebugDrawLineCommand lineCommand = ( DebugDrawLineCommand )0;
+        lineCommand.m_commandFlags = DEBUG_DRAW_COMMAND_FLAG_LINE;
+        lineCommand.m_startPosition = startPosition.xyz;
+        lineCommand.m_startThickness = startPosition.w;
+        lineCommand.m_packedStartColor = PackColor( startColor );
+        lineCommand.m_endPosition = endPosition.xyz;
+        lineCommand.m_endThickness = endPosition.w;
+        lineCommand.m_packedEndColor = PackColor( endColor );
+        lineCommand.m_hitTestID = ~0ULL;
+
+        if ( depthTest )
+        {
+            if ( !m_debugDrawCommandsBuffer_TransparentDepthOn.TryAppend( lineCommand ) )
+            {
+                // No space this frame
+            }
+        }
+        else
+        {
+            if ( !m_debugDrawCommandsBuffer_TransparentDepthOff.TryAppend( lineCommand ) )
+            {
+                // No space this frame
+            }
+        }
+#endif
+    }
+
+    void DrawLine( float3 startPosition, float4 startColor, float3 endPosition, float4 endColor, uniform bool depthTest = true )
+    {
+        DrawLine( float4( startPosition, 1.0 ), startColor, float4( endPosition, 1.0 ), endColor, depthTest );
+    }
+
+    void DrawLine( float4 startPosition, float3 startColor, float4 endPosition, float3 endColor, uniform bool depthTest = true )
+    {
+        DrawLine( startPosition, float4( startColor, 1.0 ), endPosition, float4( endColor, 1.0 ) );
+    }
+
+    void DrawLine( float4 startPosition, float4 endPosition, float4 color, uniform bool depthTest = true )
+    {
+        DrawLine( startPosition, color, endPosition, color, depthTest );
+    }
+
+    void DrawLine( float3 startPosition, float3 endPosition, float4 color, uniform bool depthTest = true )
+    {
+        DrawLine( float4( startPosition, 1.0 ), color, float4( endPosition, 1.0 ), color, depthTest );
+    }
+
+    void DrawLine( float3 startPosition, float3 endPosition, float3 color, uniform bool depthTest = true )
+    {
+        DrawLine( float4( startPosition, 1.0 ), float4( color, 1.0 ), float4( endPosition, 1.0 ), float4( color, 1.0 ), depthTest );
+    }
+
+    void DrawLine( float4 startPosition, float4 endPosition, float3 color, uniform bool depthTest = true )
+    {
+        DrawLine( startPosition, float4( color, 1.0 ), endPosition, float4( color, 1.0 ), depthTest );
+    }
+
+    void DrawTriangle( float3 vertex0, float4 color0, float3 vertex1, float4 color1, float3 vertex2, float4 color2, uniform bool depthTest = true )
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        DebugDrawTriangleCommand triangleCommand = ( DebugDrawTriangleCommand )0;
+        triangleCommand.m_commandFlags = DEBUG_DRAW_COMMAND_FLAG_TRIANGLE;
+        triangleCommand.m_vertex0 = vertex0;
+        triangleCommand.m_packedColor0 = PackColor( color0 );
+        triangleCommand.m_vertex1 = vertex1;
+        triangleCommand.m_packedColor1 = PackColor( color1 );
+        triangleCommand.m_vertex2 = vertex2;
+        triangleCommand.m_packedColor2 = PackColor( color2 );
+        triangleCommand.m_hitTestID = ~0ULL;
+
+        if ( depthTest )
+        {
+            if ( !m_debugDrawCommandsBuffer_TransparentDepthOn.TryAppend( triangleCommand ) )
+            {
+                // No space this frame
+            }
+        }
+        else
+        {
+            if ( !m_debugDrawCommandsBuffer_TransparentDepthOff.TryAppend( triangleCommand ) )
+            {
+                // No space this frame
+            }
+        }
+#endif
+    }
+
+    void DrawBox( Transform transform, float3 halfExtent, float4 color, uniform bool depthTest = true )
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        float3 vertices[8];
+
+        [unroll]
+        for ( int vertexIndex = 0; vertexIndex < 8; ++vertexIndex )
+        {
+            vertices[vertexIndex] = transform.TransformPoint( g_unitCubeVertices[vertexIndex] * halfExtent );
+        }
+
+        [unroll]
+        for ( int triangleIndex = 0; triangleIndex < 36; triangleIndex += 3 )
+        {
+            DrawTriangle( vertices[g_unitCubeSolidIndices[triangleIndex]], color,
+            			  vertices[g_unitCubeSolidIndices[triangleIndex + 1]], color,
+                          vertices[g_unitCubeSolidIndices[triangleIndex + 2]], color,
+                          depthTest );
+        }
+        #endif
+    }
+
+    void DrawBox( Transform transform, float3 halfExtent, float3 color, uniform bool depthTest = true )
+    {
+        DrawBox( transform, halfExtent, float4( color, 1.0 ), depthTest );
+    }
+
+    void DrawBox( float3 center, float3 halfExtent, float4 color, uniform bool depthTest = true )
+    {
+        Transform transform = ( Transform ) 0;
+        transform.m_translation = center;
+        transform.m_rotation    = float4( 0, 0, 0, 1 );
+        transform.m_scale       = 1.0.xxx;
+
+        DrawBox( transform, halfExtent, color, depthTest );
+    }
+
+    void DrawBox( float3 center, float3 halfExtent, float3 color, uniform bool depthTest = true )
+    {
+        DrawBox( center, halfExtent, float4( color, 1.0 ), depthTest );
+    }
+
+    void DrawWireBox( Transform transform, float3 halfExtent, float4 color, float thickness = 1.0, uniform bool depthTest = true )
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        float3 vertices[8];
+
+        [unroll]
+        for ( int vertexIndex = 0; vertexIndex < 8; ++vertexIndex )
+        {
+            vertices[vertexIndex] = transform.TransformPoint( g_unitCubeVertices[vertexIndex] * halfExtent );
+        }
+
+        [unroll]
+        for ( int lineIndex = 0; lineIndex < 24; lineIndex += 2 )
+        {
+            DrawLine( float4( vertices[g_unitCubeWireIndices[lineIndex]], thickness ),
+                      float4( vertices[g_unitCubeWireIndices[lineIndex + 1]], thickness ),
+                      color, depthTest );
+        }
+        #endif
+    }
+
+    void DrawWireBox( float3 center, float3 halfExtent, float4 color, float thickness = 1.0, uniform bool depthTest = true )
+    {
+        Transform transform = ( Transform ) 0;
+        transform.m_translation = center;
+        transform.m_rotation    = float4( 0, 0, 0, 1 );
+        transform.m_scale       = 1.0.xxx;
+
+        DrawWireBox( transform, halfExtent, color, thickness, depthTest );
+    }
+
+    void DrawWireBox( float3 center, float3 halfExtent, float3 color, float thickness = 1.0, uniform bool depthTest = true )
+    {
+        DrawWireBox( center, halfExtent, float4( color, 1.0 ), thickness, depthTest );
+    }
+};
+
+ShaderDebugDraw InitializeShaderDebugDraw( BufferHandle shaderDebugDrawBufferHandle )
+{
+    #if EE_DEVELOPMENT_TOOLS
+    StructuredBuffer<ShaderDebugDrawBuffer> shaderDebugDrawBuffer       = GetBuffer( shaderDebugDrawBufferHandle );
+    ShaderDebugDrawBuffer                   shaderDebugDrawBufferData   = shaderDebugDrawBuffer[0];
+
+    ShaderDebugDraw shaderDebugDraw;
+    shaderDebugDraw.m_debugDrawCommandsBuffer_TransparentDepthOn        = CreateRawAppendBuffer( shaderDebugDrawBufferData.m_debugDrawCommandsBuffer_TransparentDepthOn );
+    shaderDebugDraw.m_debugDrawCommandsBuffer_TransparentDepthOff       = CreateRawAppendBuffer( shaderDebugDrawBufferData.m_debugDrawCommandsBuffer_TransparentDepthOff );
+    
+    return shaderDebugDraw;
+    #else
+    ShaderDebugDraw shaderDebugDraw = ( ShaderDebugDraw ) 0;
+    return shaderDebugDraw;
+    #endif
+}
+
+#endif
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

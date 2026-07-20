@@ -2,9 +2,8 @@
 #include "EngineTools/Resource/ResourceImportSettings.h"
 #include "EngineTools/FileSystem/FileRegistry.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "EngineTools/Core/Dialogs.h"
-#include "Engine/Render/Mesh/StaticMesh.h"
-#include "Engine/Render/Mesh/SkeletalMesh.h"
+#include "EngineTools/Core/SystemDialogs.h"
+#include "Engine/Render/RenderMesh.h"
 #include "Engine/Animation/AnimationSkeleton.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Physics/PhysicsCollisionMesh.h"
@@ -102,21 +101,23 @@ namespace EE::Resource
 
         virtual bool IsVisible() const override
         {
-            return m_descriptor.m_path.IsValid();
+            return !m_descriptor.m_sourcePaths.empty() && m_descriptor.m_sourcePaths[0].IsValid();
         }
 
         virtual void UpdateDescriptorInternal( DataPath sourceFileResourcePath, TVector<Import::ImportableItem*> const& selectedItems ) override
         {
+            m_descriptor.m_sourcePaths.clear();
+
             bool const validSelection = !selectedItems.empty() && selectedItems[0]->GetTypeID() == Import::ImportableImage::GetStaticTypeID();
             if ( !validSelection )
             {
-                m_descriptor.m_path.Clear();
+                m_descriptor.m_sourcePaths.clear();
                 return;
             }
 
             //-------------------------------------------------------------------------
 
-            m_descriptor.m_path = sourceFileResourcePath;
+            m_descriptor.m_sourcePaths.emplace_back( sourceFileResourcePath );
         }
     };
 
@@ -158,8 +159,7 @@ namespace EE::Resource
 
             if ( !validSelection )
             {
-                pMeshDescriptor->m_meshPath.Clear();
-                pMeshDescriptor->m_meshesToInclude.clear();
+                pMeshDescriptor->Clear();
                 return;
             }
 
@@ -204,68 +204,85 @@ namespace EE::Resource
 
         virtual bool PreSaveDescriptor( FileSystem::Path const descriptorSavePath ) override
         {
-            if ( !m_setupMaterials )
-            {
-                return true;
-            }
+            //if ( !m_setupMaterials )
+            //{
+            //    return true;
+            //}
 
-            //-------------------------------------------------------------------------
+            ////-------------------------------------------------------------------------
 
-            auto* pMeshDescriptor = Cast<Render::MeshResourceDescriptor>( GetDataFile() );
-            pMeshDescriptor->m_materials.clear();
+            //auto* pMeshDescriptor = Cast<Render::MeshResourceDescriptor>( GetDataFile() );
 
-            EE_ASSERT( descriptorSavePath.IsValid() && descriptorSavePath.IsFilePath() );
-            FileSystem::Path const destinationDirectory = descriptorSavePath.GetParentDirectory();
+            //EE_ASSERT( descriptorSavePath.IsValid() && descriptorSavePath.IsFilePath() );
+            //FileSystem::Path const destinationDirectory = descriptorSavePath.GetParentDirectory();
 
-            auto AddMaterial = [&] ( Import::ImportableMesh const& meshInfo )
-            {
-                FileSystem::Path materialPath;
-                if ( meshInfo.m_materialID.IsValid() )
-                {
-                    materialPath = FileSystem::Path( destinationDirectory.ToString() + meshInfo.m_materialID.c_str() + "." + Render::Material::GetStaticResourceTypeID().ToString().c_str() );
-                }
+            //auto AddMaterial = [&] ( Import::ImportableMesh const& meshInfo )
+            //{
+            //    FileSystem::Path materialPath;
+            //    if ( meshInfo.m_materialID.IsValid() )
+            //    {
+            //        materialPath = FileSystem::Path( destinationDirectory.ToString() + meshInfo.m_materialID.c_str() + "." + Render::Material::GetStaticResourceTypeID().ToString().c_str() );
+            //    }
 
-                //-------------------------------------------------------------------------
+            //    //-------------------------------------------------------------------------
 
-                if ( materialPath.IsValid() )
-                {
-                    if ( !materialPath.Exists() )
-                    {
-                        Render::MaterialResourceDescriptor materialDesc;
-                        TrySaveDescriptorToDisk( materialPath );
-                    }
+            //    if ( materialPath.IsValid() )
+            //    {
+            //        if ( !materialPath.Exists() )
+            //        {
+            //            Render::MaterialResourceDescriptor materialDesc;
+            //            TrySaveDescriptorToDisk( materialPath );
+            //        }
 
-                    pMeshDescriptor->m_materials.emplace_back( DataPath::FromFileSystemPath( m_pToolsContext->GetSourceDataDirectory(), materialPath ) );
-                }
-                else
-                {
-                    pMeshDescriptor->m_materials.emplace_back( DataPath() );
-                }
-            };
+            //        Render::MeshMaterialMapping materialMapping = {};
+            //        materialMapping.m_ID = StringID();
+            //        materialMapping.m_sectionMaterial = TResourcePtr<Render::Material>( DataPath( materialPath, m_pToolsContext->GetSourceDataDirectory() ) );
 
-            //-------------------------------------------------------------------------
+            //        pMeshDescriptor->m_materialMappings.emplace_back( eastl::move( materialMapping ) );
+            //    }
+            //    else
+            //    {
+            //        Render::MeshMaterialMapping materialMapping = {};
+            //        materialMapping.m_ID = StringID();
+            //        materialMapping.m_sectionMaterial = TResourcePtr<Render::Material>( DataPath() );
 
-            TInlineVector<StringID, 25> uniqueMaterialIDs;
+            //        pMeshDescriptor->m_materialMappings.emplace_back( eastl::move( materialMapping ) );
+            //    }
+            //};
 
-            /*for ( auto const& meshInfo : m_meshes )
-            {
-                if ( !meshInfo.m_isSelected )
-                {
-                    continue;
-                }
+            ////-------------------------------------------------------------------------
 
-                if ( pMeshDescriptor->m_mergeSectionsByMaterial )
-                {
-                    if ( VectorContains( uniqueMaterialIDs, meshInfo.m_materialID ) )
-                    {
-                        continue;
-                    }
+            //TInlineVector<StringID, 25> uniqueMaterialIDs;
 
-                    uniqueMaterialIDs.emplace_back( meshInfo.m_materialID );
-                }
+            //if ( selectedItems.size() > 1 )
+            //{
+            //    for ( auto pItem : selectedItems )
+            //    {
+            //        if ( m_restrictToSkeletalMeshes )
+            //        {
+            //            auto pImportableMeshItem = Cast<Import::ImportableMesh>( pItem );
+            //            if ( pImportableMeshItem->m_isSkeletalMesh )
+            //            {
+            //                pMeshDescriptor->m_meshesToInclude.emplace_back( pItem->m_nameID.c_str() );
+            //            }
+            //        }
+            //        else // All meshes allowed
+            //        {
+            //            pMeshDescriptor->m_meshesToInclude.emplace_back( pItem->m_nameID.c_str() );
+            //        }
+            //    }
+            //}
 
-                AddMaterial( meshInfo );
-            }*/
+
+            //for ( auto const& meshInfo : m_meshes )
+            //{
+            //    if ( !meshInfo.m_isSelected )
+            //    {
+            //        continue;
+            //    }
+
+            //    AddMaterial( meshInfo );
+            //}
 
             return true;
         }
@@ -273,7 +290,7 @@ namespace EE::Resource
         virtual void PostSaveDescriptor( FileSystem::Path const descriptorSavePath ) override
         {
             auto* pMeshDescriptor = Cast<Render::MeshResourceDescriptor>( GetDataFile() );
-            pMeshDescriptor->m_materials.clear();
+            pMeshDescriptor->Clear();
         }
 
     protected:
@@ -372,7 +389,7 @@ namespace EE::Resource
         ImporterTreeItem( TreeListViewItem* pParent, ToolsContext const& toolsContext, FileRegistry::DirectoryInfo const* pDirectoryEntry )
             : TreeListViewItem( pParent )
             , m_toolsContext( toolsContext )
-            , m_nameID( pDirectoryEntry->m_filePath.GetDirectoryName() )
+            , m_name( pDirectoryEntry->m_filePath.GetDirectoryName() )
             , m_path( pDirectoryEntry->m_filePath )
             , m_resourcePath( pDirectoryEntry->m_dataPath )
             , m_type( Type::Directory )
@@ -407,16 +424,15 @@ namespace EE::Resource
                     CreateChild<ImporterTreeItem>( m_toolsContext, pChildFile );
                 }
             }
-
         }
 
         ImporterTreeItem( TreeListViewItem* pParent, ToolsContext const& toolsContext, FileRegistry::FileInfo const* pFileEntry )
             : TreeListViewItem( pParent )
             , m_toolsContext( toolsContext )
-            , m_nameID( pFileEntry->m_filePath.GetFilename() )
+            , m_name( pFileEntry->m_filePath.GetFilename() )
             , m_path( pFileEntry->m_filePath )
             , m_resourcePath( pFileEntry->m_dataPath )
-            , m_resourceTypeID( pFileEntry->IsResourceDescriptorFile() ? ResourceTypeID( pFileEntry->m_extensionFourCC ) : ResourceTypeID() )
+            , m_resourceTypeID( pFileEntry->IsResourceDescriptorFile() ? ResourceTypeID( pFileEntry->m_dataFileExtension ) : ResourceTypeID() )
             , m_type( Type::File )
         {
             EE_ASSERT( m_path.IsValid() );
@@ -443,30 +459,33 @@ namespace EE::Resource
             }
         }
 
-        virtual StringID GetNameID() const { return m_nameID; }
         virtual uint64_t GetUniqueID() const override { return m_resourcePath.GetID(); }
         virtual bool HasContextMenu() const override { return true; }
         virtual bool IsActivatable() const override { return false; }
         virtual bool IsLeaf() const override { return IsFile(); }
 
-        virtual InlineString GetDisplayName() const override
-        {
-            InlineString displayName;
+        virtual char const* GetDisplayName() const override { return m_name.c_str(); }
 
+        virtual bool HasIcon() const override { return true; }
+
+        virtual char const* GetIcon() const override
+        {
             if ( IsDirectory() )
             {
-                displayName.sprintf( EE_ICON_FOLDER" %s", GetNameID().c_str() );
+                return EE_ICON_FOLDER;
             }
             else if ( IsResourceDescriptorFile() )
             {
-                displayName.sprintf( EE_ICON_FILE" %s", GetNameID().c_str() );
+                return EE_ICON_FILE;
             }
             else if ( IsRawFile() )
             {
-                displayName.sprintf( EE_ICON_FILE_OUTLINE" %s", GetNameID().c_str() );
+                return EE_ICON_FILE_OUTLINE;
             }
-
-            return displayName;
+            else
+            {
+                return "";
+            }
         }
 
         // File Info
@@ -527,9 +546,9 @@ namespace EE::Resource
     protected:
 
         ToolsContext const&                     m_toolsContext;
-        StringID                                m_nameID;
+        String                                  m_name;
         FileSystem::Path                        m_path;
-        DataPath                            m_resourcePath;
+        DataPath                                m_resourcePath;
         ResourceTypeID                          m_resourceTypeID;
         Type                                    m_type;
     };
@@ -604,7 +623,7 @@ namespace EE::Resource
         CreateToolWindow( "Importer", [this] ( UpdateContext const& context, bool isFocused ) { DrawImporterWindow( context, isFocused ); } );
     }
 
-    void ResourceImporterEditorTool::InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
+    void ResourceImporterEditorTool::SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Importer" ).c_str(), dockspaceID );
     }
@@ -882,14 +901,13 @@ namespace EE::Resource
 
     void ResourceImporterEditorTool::DrawFileTree( UpdateContext const& context )
     {
-        constexpr static float const buttonWidth = 30;
         bool shouldUpdateVisibility = false;
 
         // Text Filter
         //-------------------------------------------------------------------------
 
         float const availableWidth = ImGui::GetContentRegionAvail().x;
-        float const filterWidth = availableWidth - ( 2 * ( buttonWidth + ImGui::GetStyle().ItemSpacing.x ) );
+        float const filterWidth = availableWidth - ( 2 * ( ImGuiX::Style::s_iconButtonWidth + ImGui::GetStyle().ItemSpacing.x ) );
 
         if ( m_filter.UpdateAndDraw( filterWidth ) )
         {
@@ -910,14 +928,14 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         ImGui::SameLine();
-        if ( ImGui::Button( EE_ICON_EXPAND_ALL "##Expand All", ImVec2( buttonWidth, 0 ) ) )
+        if ( ImGui::Button( EE_ICON_EXPAND_ALL "##Expand All", ImVec2( ImGuiX::Style::s_iconButtonWidth, 0 ) ) )
         {
             m_treeview.ForEachItem( [] ( TreeListViewItem* pItem ) { pItem->SetExpanded( true ); } );
         }
         ImGuiX::ItemTooltip( "Expand All" );
 
         ImGui::SameLine();
-        if ( ImGui::Button( EE_ICON_COLLAPSE_ALL "##Collapse ALL", ImVec2( buttonWidth, 0 ) ) )
+        if ( ImGui::Button( EE_ICON_COLLAPSE_ALL "##Collapse ALL", ImVec2( ImGuiX::Style::s_iconButtonWidth, 0 ) ) )
         {
             m_treeview.ForEachItem( [] ( TreeListViewItem* pItem ) { pItem->SetExpanded( false ); } );
         }
@@ -1024,7 +1042,7 @@ namespace EE::Resource
 
         if ( !m_selectedFile.m_dependentResources.empty() )
         {
-            if ( ImGuiX::BeginCollapsibleChildWindow( EE_ICON_LINK" Referenced By" ) )
+            auto DrawReferences = [this] ()
             {
                 ImVec2 const tableSize( ImGui::GetContentRegionAvail().x, 0 );
                 if ( ImGui::BeginTable( "Info", 2, 0, tableSize ) )
@@ -1066,8 +1084,9 @@ namespace EE::Resource
 
                     ImGui::EndTable();
                 }
-            }
-            ImGuiX::EndCollapsibleChildWindow();
+            };
+
+            ImGuiX::CollapsibleGroupBox( EE_ICON_LINK" Referenced By", DrawReferences );
         }
 
         if ( hasErrors )
@@ -1079,7 +1098,7 @@ namespace EE::Resource
         // Draw Importable Items
         //-------------------------------------------------------------------------
 
-        enum ImportableItemTypes{ Skeletons = 0, Animations, Images, Meshes, NumImportableTypes };
+        enum ImportableItemTypes { Skeletons = 0, Animations, Images, Meshes, NumImportableTypes };
         TypeSystem::TypeInfo const* const importableItemTypes[NumImportableTypes] = { Import::ImportableSkeleton::s_pTypeInfo, Import::ImportableAnimation::s_pTypeInfo, Import::ImportableImage::s_pTypeInfo, Import::ImportableMesh::s_pTypeInfo };
 
         TVector<Import::ImportableItem*> validItems;
@@ -1109,13 +1128,13 @@ namespace EE::Resource
             // Draw Item List Windows
             //-------------------------------------------------------------------------
 
-            if ( ImGuiX::BeginCollapsibleChildWindow( validItems[0]->GetHeading() ) )
+            auto DrawItems = [&] ()
             {
                 ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 6, 0 ) );
                 ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 4, 8 ) );
 
                 int32_t const numExtraColumns = validItems[0]->GetNumExtraInfoColumns();
-                if ( ImGui::BeginTable( validItems[0]->GetHeading(), 1 + numExtraColumns, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable) )
+                if ( ImGui::BeginTable( validItems[0]->GetHeading(), 1 + numExtraColumns, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable ) )
                 {
                     // Setup Columns
                     //-------------------------------------------------------------------------
@@ -1193,8 +1212,9 @@ namespace EE::Resource
                 {
                     SelectAllItems( validItems );
                 }
-            }
-            ImGuiX::EndCollapsibleChildWindow();
+            };
+
+            ImGuiX::CollapsibleGroupBox( validItems[0]->GetHeading(), DrawItems );
         }
     }
 

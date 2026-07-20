@@ -1,8 +1,9 @@
 #include "ResourceCompiler_RenderMaterial.h"
 #include "EngineTools/Render/ResourceDescriptors/ResourceDescriptor_RenderMaterial.h"
-#include "Engine/Render/Material/RenderMaterial.h"
+#include "EngineTools/Resource/ResourceCompilerContext.h"
+#include "Engine/Render/RenderMaterial.h"
+#include "Base/TypeSystem/CoreTypeIDs.h"
 #include "Base/Serialization/BinarySerialization.h"
-#include "Base/FileSystem/FileSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -11,61 +12,91 @@ namespace EE::Render
     MaterialCompiler::MaterialCompiler()
         : Resource::Compiler( "MaterialCompiler" )
     {
-        AddOutputType<Material>();
+        RegisterOutput<Material>();
     }
 
     Resource::CompilationResult MaterialCompiler::Compile( Resource::CompileContext const& ctx ) const
     {
-        MaterialResourceDescriptor resourceDescriptor;
-        if ( !Resource::ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, ctx.m_inputFilePath, resourceDescriptor ) )
-        {
-            return Error( "Failed to read resource descriptor from input file: %s", ctx.m_inputFilePath.c_str() );
-        }
-
-        if ( !resourceDescriptor.IsValid() )
-        {
-            return Error( "Incomplete or invalid material descriptor" );
-        }
+        auto pResourceDescriptor = ctx.GetDescriptor<MaterialResourceDescriptor>();
 
         // Create Material
         //-------------------------------------------------------------------------
 
         Material material;
-        material.m_pAlbedoTexture = resourceDescriptor.m_albedoTexture;
-        material.m_pMetalnessTexture = resourceDescriptor.m_metalnessTexture;
-        material.m_pRoughnessTexture = resourceDescriptor.m_roughnessTexture;
-        material.m_pNormalMapTexture = resourceDescriptor.m_normalMapTexture;
-        material.m_pAOTexture = resourceDescriptor.m_aoTexture;
-        material.m_albedo = resourceDescriptor.m_albedo;
-        material.m_metalness = Math::Clamp( resourceDescriptor.m_metalness, 0.0f, 1.0f );
-        material.m_roughness = Math::Clamp( resourceDescriptor.m_roughness, 0.0f, 1.0f );
-        material.m_normalScaler = resourceDescriptor.m_normalScaler;
+        material.m_shaderID = pResourceDescriptor->m_shader;
+
+        // Copy parameters from the type instance
+        for ( TypeSystem::PropertyInfo const& property : pResourceDescriptor->m_shaderParameters.GetInstanceTypeInfo()->m_properties )
+        {
+            // Resources
+            if ( property.IsResourcePtrProperty() )
+            {
+                Resource::ResourcePtr const* pResource = property.GetPropertyAddress<Resource::ResourcePtr>( pResourceDescriptor->m_shaderParameters.Get() );
+                if ( pResource->IsSet() && pResource->GetResourceTypeID() == TextureResource::GetStaticResourceTypeID() )
+                {
+                    material.m_parameterStorage.m_textures.emplace_back( property.m_ID, pResource->GetResourceID() );
+                }
+            }
+            // Scalars
+            else if ( property.m_typeID == TypeSystem::GetCoreTypeID<uint32_t>() ||
+                      property.m_typeID == TypeSystem::GetCoreTypeID<int32_t>() ||
+                      property.m_typeID == TypeSystem::GetCoreTypeID<float>() ||
+                      property.m_typeID == TypeSystem::GetCoreTypeID<BitFlags>() ||
+                      property.m_typeID == TypeSystem::GetCoreTypeID<TBitFlags>() )
+            {
+                uint32_t parameterBits = 0;
+                std::memcpy( &parameterBits, property.GetPropertyAddress( pResourceDescriptor->m_shaderParameters.Get() ), sizeof( parameterBits ) );
+                material.m_parameterStorage.m_scalars.emplace_back( property.m_ID, parameterBits );
+            }
+            // Colors
+            else if ( property.m_typeID == TypeSystem::GetCoreTypeID<Color>() )
+            {
+                // Convention is: everything in the pipeline is sRGB, everything in shaders is linear.
+                // We do the conversion during material loading or when setting parameter values on the CPU.
+                Color linearColor = property.GetPropertyAddress<Color>( pResourceDescriptor->m_shaderParameters.Get() )->ToLinear();
+
+                uint32_t parameterBits = 0;
+                std::memcpy( &parameterBits, &linearColor, sizeof( parameterBits ) );
+                material.m_parameterStorage.m_scalars.emplace_back( property.m_ID, parameterBits );
+            }
+            // Vectors2
+            else if ( property.m_typeID == TypeSystem::GetCoreTypeID<Int2>() ||
+                      property.m_typeID == TypeSystem::GetCoreTypeID<Float2>() )
+            {
+                Int2 parameterBits = {};
+                std::memcpy( &parameterBits, property.GetPropertyAddress( pResourceDescriptor->m_shaderParameters.Get() ), sizeof( parameterBits ) );
+                material.m_parameterStorage.m_vectors2.emplace_back( property.m_ID, parameterBits );
+            }
+            // Vectors4
+            else if ( property.m_typeID == TypeSystem::GetCoreTypeID<Int4>() ||
+                      property.m_typeID == TypeSystem::GetCoreTypeID<Float4>() )
+            {
+                Int4 parameterBits = {};
+                std::memcpy( &parameterBits, property.GetPropertyAddress( pResourceDescriptor->m_shaderParameters.Get() ), sizeof( parameterBits ) );
+                material.m_parameterStorage.m_vectors4.emplace_back( property.m_ID, parameterBits );
+            }
+            // Matrices
+            else if ( property.m_typeID == TypeSystem::GetCoreTypeID<Matrix>() )
+            {
+                Matrix parameterBits = Matrix::Identity;
+                std::memcpy( &parameterBits, property.GetPropertyAddress( pResourceDescriptor->m_shaderParameters.Get() ), sizeof( parameterBits ) );
+                material.m_parameterStorage.m_matrices.emplace_back( property.m_ID, parameterBits );
+            }
+            // Invalid or unsupported type
+            else
+            {
+                return ctx.LogError( "Invalid shader parameter property type: %s %s ", property.m_typeID.c_str(), property.m_ID.c_str() );
+            }
+        }
 
         // Install dependencies
         //-------------------------------------------------------------------------
 
-        Resource::ResourceHeader hdr( Material::s_version, Material::GetStaticResourceTypeID(), ctx.m_sourceResourceHash, ctx.m_advancedUpToDateHash );
-        hdr.m_installDependencies.push_back( material.m_pAlbedoTexture.GetResourceID() );
-        
-        if ( material.HasMetalnessTexture() )
+        Resource::ResourceHeader hdr( Material::s_version, Material::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
+        pResourceDescriptor->ForEachDependency( [&hdr] ( Resource::ResourcePtr const* pResource )
         {
-            hdr.m_installDependencies.push_back( material.m_pMetalnessTexture.GetResourceID() );
-        }
-
-        if ( material.HasRoughnessTexture() )
-        {
-            hdr.m_installDependencies.push_back( material.m_pRoughnessTexture.GetResourceID() );
-        }
-
-        if ( material.HasNormalMapTexture() )
-        {
-            hdr.m_installDependencies.push_back( material.m_pNormalMapTexture.GetResourceID() );
-        }
-
-        if ( material.HasAOTexture() )
-        {
-            hdr.m_installDependencies.push_back( material.m_pAOTexture.GetResourceID() );
-        }
+            hdr.m_installDependencies.push_back( pResource->GetResourceID() );
+        } );
 
         // Serialize
         //-------------------------------------------------------------------------
@@ -73,52 +104,13 @@ namespace EE::Render
         Serialization::BinaryOutputArchive archive;
         archive << hdr << material;
 
-        if ( archive.WriteToFile( ctx.m_outputFilePath ) )
+        if ( archive.WriteToFile( ctx.GetOutputPath() ) )
         {
-            return CompilationSucceeded( ctx );
+            return Resource::CompilationResult::Success;
         }
         else
         {
-            return CompilationFailed( ctx );
+            return Resource::CompilationResult::Failure;
         }
-    }
-
-    bool MaterialCompiler::GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const
-    {
-        FileSystem::Path const filePath = resourceID.GetFileSystemPath( m_sourceDataDirectoryPath );
-        MaterialResourceDescriptor resourceDescriptor;
-        if ( !Resource::ResourceDescriptor::TryReadFromFile( *m_pTypeRegistry, filePath, resourceDescriptor ) )
-        {
-            return false;
-        }
-
-        //-------------------------------------------------------------------------
-
-        if ( resourceDescriptor.m_albedoTexture.IsSet() )
-        {
-            VectorEmplaceBackUnique( outReferencedResources, resourceDescriptor.m_albedoTexture.GetResourceID() );
-        }
-
-        if ( resourceDescriptor.m_metalnessTexture.IsSet() )
-        {
-            VectorEmplaceBackUnique( outReferencedResources, resourceDescriptor.m_metalnessTexture.GetResourceID() );
-        }
-
-        if ( resourceDescriptor.m_roughnessTexture.IsSet() )
-        {
-            VectorEmplaceBackUnique( outReferencedResources, resourceDescriptor.m_roughnessTexture.GetResourceID() );
-        }
-
-        if ( resourceDescriptor.m_normalMapTexture.IsSet() )
-        {
-            VectorEmplaceBackUnique( outReferencedResources, resourceDescriptor.m_normalMapTexture.GetResourceID() );
-        }
-
-        if ( resourceDescriptor.m_aoTexture.IsSet() )
-        {
-            VectorEmplaceBackUnique( outReferencedResources, resourceDescriptor.m_aoTexture.GetResourceID() );
-        }
-
-        return true;
     }
 }

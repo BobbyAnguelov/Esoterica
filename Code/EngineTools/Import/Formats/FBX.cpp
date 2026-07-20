@@ -1,269 +1,138 @@
-#include "Fbx.h"
-#include "EngineTools/Import/ImportedSkeleton.h"
+#include "FBX.h"
+#include "EngineTools/Import/importedSkeleton.h"
 #include "EngineTools/Import/ImportedAnimation.h"
 #include "EngineTools/Import/ImportedMesh.h"
+#include "EngineTools/ThirdParty/ufbx/ufbx.h"
 
 //-------------------------------------------------------------------------
-
-using namespace fbxsdk;
-
-//-------------------------------------------------------------------------
-// Scene Context
+// UFbx Helpers
 //-------------------------------------------------------------------------
 
-namespace EE::Import::Fbx
+namespace EE::Import::UFbx
 {
-    SceneContext::SceneContext( FileSystem::Path const& filePath, float additionalScalingFactor )
+    inline static Matrix ToMatrix( ufbx_matrix const& f )
     {
-        Initialize( filePath, additionalScalingFactor );
+        Matrix m
+        (
+            (float) f.cols[0].x, (float) f.cols[0].y, (float) f.cols[0].z, 0.0f,
+            (float) f.cols[1].x, (float) f.cols[1].y, (float) f.cols[1].z, 0.0f,
+            (float) f.cols[2].x, (float) f.cols[2].y, (float) f.cols[2].z, 0.0f,
+            (float) f.cols[3].x, (float) f.cols[3].y, (float) f.cols[3].z, 1.0f
+        );
+
+        return m;
     }
 
-    SceneContext::~SceneContext()
+    inline static bool ToTransform( ufbx_matrix const& f, Transform& outTransform )
     {
-        Shutdown();
+        ufbx_transform const ft = ufbx_matrix_to_transform( &f );
+
+        Quaternion const Q( (float) ft.rotation.x, (float) ft.rotation.y, (float) ft.rotation.z, (float) ft.rotation.w );
+        Vector const T( (float) ft.translation.x, (float) ft.translation.y, (float) ft.translation.z, 0.0f );
+        Vector const S( (float) ft.scale.x, (float) ft.scale.y, (float) ft.scale.z, 1.0f );
+
+        bool const hasUniformScale = ( Math::IsNearEqual( S[0], S[1], Math::LargeEpsilon ) && Math::IsNearEqual( S[1], S[2], Math::LargeEpsilon ) );
+
+        outTransform = Transform( Q, T, (float) S[0] );
+        outTransform.SanitizeScaleValue();
+
+        return hasUniformScale;
+    }
+
+    inline static Float2 ToFloat2( ufbx_vec2 v ) { return Float2( (float) v.x, (float) v.y ); }
+    inline static Float2 ToFloat2( ufbx_vec3 v ) { return Float2( (float) v.x, (float) v.y ); }
+    inline static Float2 ToFloat2( ufbx_vec4 v ) { return Float2( (float) v.x, (float) v.y ); }
+
+    inline static Float3 ToFloat3( ufbx_vec2 v ) { return Float3( (float) v.x, (float) v.y, 0.0f ); }
+    inline static Float3 ToFloat3( ufbx_vec3 v ) { return Float3( (float) v.x, (float) v.y, (float) v.z ); }
+    inline static Float3 ToFloat3( ufbx_vec4 v ) { return Float3( (float) v.x, (float) v.y, (float) v.z ); }
+
+    inline static Float4 ToFloat4( ufbx_vec2 v ) { return Float4( (float) v.x, (float) v.y, 0.0f, 0.0f ); }
+    inline static Float4 ToFloat4( ufbx_vec3 v ) { return Float4( (float) v.x, (float) v.y, (float) v.z, 0.0f ); }
+    inline static Float4 ToFloat4( ufbx_vec4 v ) { return Float4( (float) v.x, (float) v.y, (float) v.z, (float) v.w ); }
+
+    inline static Quaternion ToQuat( ufbx_quat v ) { return Quaternion( (float) v.x, (float) v.y, (float) v.z, (float) v.w ); }
+
+    inline static bool CompareAxes( ufbx_coordinate_axes a, ufbx_coordinate_axes b )
+    {
+        return a.front == b.front && a.right == b.right && a.up == b.up;
+    };
+
+    static Quaternion const g_correctiveYtoZ( EulerAngles( -90, 0, 0 ) );
+
+    //-------------------------------------------------------------------------
+
+    static ufbx_scene* CreateSceneFromSource( Source const& source, Log& log, bool sceneContainsBoneTransforms )
+    {
+        ufbx_load_opts opts = { 0 };
+        opts.target_axes = ufbx_axes_right_handed_z_up;
+        opts.space_conversion = UFBX_SPACE_CONVERSION_MODIFY_GEOMETRY;
+        opts.target_unit_meters = 1.0f;
+        opts.normalize_normals = true;
+        opts.normalize_tangents = true;
+        opts.generate_missing_normals = true;
+
+        ufbx_error error;
+        ufbx_scene* pScene = nullptr;
+
+        if ( source.m_pFileData )
+        {
+            pScene = ufbx_load_memory( source.m_pFileData->data(), source.m_pFileData->size(), &opts, &error );
+        }
+        else // Load from file
+        {
+            pScene = ufbx_load_file( source.m_path.c_str(), &opts, &error );
+        }
+
+        if ( pScene == nullptr )
+        {
+            log.LogError( "Failed to load FBX scene: %s", error.description.data );
+        }
+
+        if ( sceneContainsBoneTransforms )
+        {
+            bool const validSourceCoordinateSystem = CompareAxes( pScene->settings.axes, ufbx_axes_right_handed_y_up ) || CompareAxes( pScene->settings.axes, ufbx_axes_right_handed_z_up );
+            if ( !validSourceCoordinateSystem )
+            {
+                log.LogError( "Invalid source file coordinate system, only right-handed y-up and z-up are supported for skeletal meshes, skeletons and animations!" );
+                ufbx_free_scene( pScene );
+                pScene = nullptr;
+            }
+        }
+
+        return pScene;
+    }
+
+    static void DestroyScene( ufbx_scene*& pScene )
+    {
+        if ( pScene != nullptr )
+        {
+            ufbx_free_scene( pScene );
+            pScene = nullptr;
+        }
     }
 
     //-------------------------------------------------------------------------
 
-    void SceneContext::LoadFile( FileSystem::Path const& filePath, float additionalScalingFactor )
-    {
-        Shutdown();
-        Initialize( filePath, additionalScalingFactor );
-    }
-
-    //-------------------------------------------------------------------------
-
-    void SceneContext::Initialize( FileSystem::Path const& filePath, float additionalScalingFactor )
-    {
-        m_filePath = filePath;
-
-        if ( !m_filePath.Exists() )
-        {
-            m_error.sprintf( "Specified FBX file doesn't exist: %s", m_filePath.c_str() );
-            return;
-        }
-
-        // Import the FBX file
-        //-------------------------------------------------------------------------
-
-        m_pManager = FbxManager::Create();
-
-        auto pImporter = FbxImporter::Create( m_pManager, "EE Importer" );
-        if ( !pImporter->Initialize( m_filePath, -1, m_pManager->GetIOSettings() ) )
-        {
-            m_error.sprintf( "Failed to load specified FBX file ( %s ) : %s", m_filePath.c_str(), pImporter->GetStatus().GetErrorString() );
-            return;
-        }
-
-        m_pScene = FbxScene::Create( m_pManager, "ImportScene" );
-        if ( !pImporter->Import( m_pScene ) )
-        {
-            m_error.sprintf( "Failed to load specified FBX file ( %s ) : %s", m_filePath.c_str(), pImporter->GetStatus().GetErrorString() );
-            pImporter->Destroy();
-            return;
-        }
-        pImporter->Destroy();
-
-        m_pGeometryConvertor = EE::New<FbxGeometryConverter>( m_pManager );
-
-        // Check file format
-        //-------------------------------------------------------------------------
-
-        FILE* fp = nullptr;
-        int32_t errcode = fopen_s( &fp, m_filePath.c_str(), "r" );
-        EE_ASSERT( errcode == 0 );
-
-        char cmpBuffer[19] = { 0 };
-        fread( cmpBuffer, 1, 18, fp );
-        fclose( fp );
-
-        if ( strcmp( cmpBuffer, "Kaydara FBX Binary" ) != 0 )
-        {
-            m_warning.sprintf( "Reading ASCII FBX files will be slower than binary. It is highly recommended that you convert all FBX input files to binary!" );
-        }
-
-        // Co-ordinate system scene conversion
-        //-------------------------------------------------------------------------
-
-        auto& globalSettings = m_pScene->GetGlobalSettings();
-
-        FbxAxisSystem const originalAxisSystem = globalSettings.GetAxisSystem();
-
-        int32_t sign = 0;
-        switch ( originalAxisSystem.GetUpVector( sign ) )
-        {
-            case FbxAxisSystem::eXAxis:
-            {
-                m_originalUpAxis = sign >= 0 ? Axis::X : Axis::NegX;
-            }
-            break;
-
-            case FbxAxisSystem::eYAxis:
-            {
-                m_originalUpAxis = sign >= 0 ? Axis::Y : Axis::NegY;
-            }
-            break;
-
-            case FbxAxisSystem::eZAxis:
-            {
-                m_originalUpAxis = sign >= 0 ? Axis::Z : Axis::NegZ;
-            }
-            break;
-        }
-
-        if ( originalAxisSystem != FbxAxisSystem::MayaZUp || originalAxisSystem != FbxAxisSystem::Max )
-        {
-            FbxAxisSystem::MayaZUp.DeepConvertScene( m_pScene );
-        }
-
-        // Unit conversion
-        //-------------------------------------------------------------------------
-        // DO NOT USE THE FBX UNIT CONVERSION FUNCTIONS AS THEY JUST INTRODUCE SCALES INTO ALL TRANSFORMS!
-
-        FbxSystemUnit const originalSystemUnits = globalSettings.GetSystemUnit();
-        m_scaleConversionMultiplier = (float) originalSystemUnits.GetConversionFactorTo( FbxSystemUnit::m );
-        m_scaleConversionMultiplier *= additionalScalingFactor;
-
-        // Common operations
-        //-------------------------------------------------------------------------
-
-        if ( !m_pGeometryConvertor->SplitMeshesPerMaterial( m_pScene, true ) )
-        {
-            m_error = "Failed to split meshes based on material!";
-        }
-    }
-
-    void SceneContext::Shutdown()
-    {
-        EE::Delete( m_pGeometryConvertor );
-
-        if ( m_pScene != nullptr ) m_pScene->Destroy();
-        if ( m_pManager != nullptr ) m_pManager->Destroy();
-
-        m_filePath.Clear();
-        m_error.clear();
-        m_warning.clear();
-        m_originalUpAxis = Axis::Z;
-        m_scaleConversionMultiplier = 1.0f;
-    }
-
-    //-------------------------------------------------------------------------
-
-    static void FindAllNodes( FbxNode* pCurrentNode, FbxNodeAttribute::EType nodeType, TVector<FbxNode*>& results )
+    // This finds all the nodes of this type that are roots of a branch
+    static void FindAllRootNodes( ufbx_node* pCurrentNode, ufbx_element_type nodeType, TVector<ufbx_node*>& results )
     {
         EE_ASSERT( pCurrentNode != nullptr );
-
-        // Read node attribute
-        //-------------------------------------------------------------------------
-
-        FbxNodeAttribute::EType attribType = FbxNodeAttribute::EType::eUnknown;
-
-        FbxNodeAttribute* pNodeAttribute = pCurrentNode->GetNodeAttribute();
-        if ( pNodeAttribute != nullptr )
-        {
-            attribType = pNodeAttribute->GetAttributeType();
-        }
 
         // Return node or continue search
         //-------------------------------------------------------------------------
 
-        if ( attribType == nodeType )
+        if ( pCurrentNode->attrib_type == nodeType )
         {
             results.emplace_back( pCurrentNode );
         }
         else // Search children
         {
-            for ( auto i = 0; i < pCurrentNode->GetChildCount(); i++ )
+            for ( ufbx_node* pChildNode : pCurrentNode->children )
             {
-                FindAllNodes( pCurrentNode->GetChild( i ), nodeType, results );
+                FindAllRootNodes( pChildNode, nodeType, results );
             }
         }
-    }
-
-    void SceneContext::FindAllNodesOfType( FbxNodeAttribute::EType nodeType, TVector<FbxNode*>& results ) const
-    {
-        EE_ASSERT( IsValid() );
-        auto pRootNode = m_pScene->GetRootNode();
-        FindAllNodes( pRootNode, nodeType, results );
-    }
-
-    static FbxNode* FindNodeByName( FbxNode* pCurrentNode, FbxNodeAttribute::EType nodeType, char const* pNodeNameToFind )
-    {
-        EE_ASSERT( pCurrentNode != nullptr && pNodeNameToFind != nullptr );
-
-        // Read node attribute
-        //-------------------------------------------------------------------------
-
-        FbxNodeAttribute::EType attribType = FbxNodeAttribute::EType::eUnknown;
-
-        FbxNodeAttribute* pNodeAttribute = pCurrentNode->GetNodeAttribute();
-        if ( pNodeAttribute != nullptr )
-        {
-            attribType = pNodeAttribute->GetAttributeType();
-        }
-
-        // Return node or continue search
-        //-------------------------------------------------------------------------
-
-        if ( attribType == nodeType && pCurrentNode->GetNameWithoutNameSpacePrefix() == pNodeNameToFind )
-        {
-            return pCurrentNode;
-        }
-        else // Search children
-        {
-            for ( auto i = 0; i < pCurrentNode->GetChildCount(); i++ )
-            {
-                FbxNode* pResultNode = FindNodeByName( pCurrentNode->GetChild( i ), nodeType, pNodeNameToFind );
-                if ( pResultNode != nullptr )
-                {
-                    return pResultNode;
-                }
-            }
-        }
-
-        return nullptr;
-    }
-
-    FbxNode* SceneContext::FindNodeOfTypeByName( FbxNodeAttribute::EType nodeType, char const* pNodeNameToFind ) const
-    {
-        EE_ASSERT( IsValid() );
-        auto pRootNode = m_pScene->GetRootNode();
-        return FindNodeByName( pRootNode, nodeType, pNodeNameToFind );
-    }
-
-    //-------------------------------------------------------------------------
-
-    void SceneContext::FindAllAnimStacks( TVector<FbxAnimStack*>& results ) const
-    {
-        EE_ASSERT( IsValid() );
-
-        auto const numAnimStacks = m_pScene->GetSrcObjectCount<FbxAnimStack>();
-        for ( auto i = 0; i < numAnimStacks; i++ )
-        {
-            results.push_back( m_pScene->GetSrcObject<FbxAnimStack>( i ) );
-        }
-    }
-
-    FbxAnimStack* SceneContext::FindAnimStack( char const* pTakeName ) const
-    {
-        EE_ASSERT( IsValid() && pTakeName != nullptr );
-
-        auto const numAnimStacks = m_pScene->GetSrcObjectCount<FbxAnimStack>();
-        if ( numAnimStacks == 0 )
-        {
-            return nullptr;
-        }
-
-        for ( auto i = 0; i < numAnimStacks; i++ )
-        {
-            auto pAnimStack = m_pScene->GetSrcObject<FbxAnimStack>( i );
-            if ( pAnimStack->GetNameWithoutNameSpacePrefix() == pTakeName )
-            {
-                return pAnimStack;
-            }
-        }
-
-        return nullptr;
     }
 }
 
@@ -271,9 +140,9 @@ namespace EE::Import::Fbx
 // Skeleton
 //-------------------------------------------------------------------------
 
-namespace EE::Import::Fbx
+namespace EE::Import::UFbx
 {
-    class FbxImportedSkeleton : public ImportedSkeleton
+    class FbxImportedSkeleton : public Skeleton
     {
         friend class FbxSkeletonFileReader;
         friend class FbxAnimationFileReader;
@@ -286,77 +155,68 @@ namespace EE::Import::Fbx
     {
     public:
 
-        static TUniquePtr<ImportedSkeleton> ReadSkeleton( FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName )
+        static TUniquePtr<Skeleton> ReadSkeleton( Source const& source, String const& skeletonRootBoneName )
         {
-            EE_ASSERT( sourceFilePath.IsValid() );
+            EE_ASSERT( source.IsValid() );
 
-            TUniquePtr<ImportedSkeleton> pSkeleton( EE::New<FbxImportedSkeleton>() );
+            TUniquePtr<Skeleton> pSkeleton( EE::New<FbxImportedSkeleton>() );
 
             FbxImportedSkeleton* pImportedSkeleton = (FbxImportedSkeleton*) pSkeleton.get();
-            pImportedSkeleton->m_sourcePath = sourceFilePath;
+            pImportedSkeleton->m_sourcePath = source.m_path;
 
             //-------------------------------------------------------------------------
 
-            Fbx::SceneContext sceneCtx( sourceFilePath );
-            if ( sceneCtx.IsValid() )
+            ufbx_scene* pScene = CreateSceneFromSource( source, *pImportedSkeleton, true );
+            if ( pScene == nullptr )
             {
-                if ( sceneCtx.HasWarningOccurred() )
-                {
-                    pImportedSkeleton->LogWarning( sceneCtx.GetWarningMessage().c_str() );
-                }
+                return pSkeleton;
+            }
 
-                ReadSkeleton( sceneCtx, skeletonRootBoneName, *pImportedSkeleton );
-            }
-            else
-            {
-                pImportedSkeleton->LogError( "Failed to read FBX file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
-            }
+            ReadSkeleton( pScene, skeletonRootBoneName, *pImportedSkeleton );
+            DestroyScene( pScene );
 
             return pSkeleton;
         }
 
-        static void ReadSkeleton( Fbx::SceneContext const& sceneCtx, String const& skeletonRootBoneName, FbxImportedSkeleton& ImportedSkeleton )
+        static bool ReadSkeleton( ufbx_scene* pScene, String const& skeletonRootBoneName, FbxImportedSkeleton& importedSkeleton )
         {
-            TVector<FbxNode*> skeletonRootNodes;
-            sceneCtx.FindAllNodesOfType( FbxNodeAttribute::eSkeleton, skeletonRootNodes );
+            TVector<ufbx_node*> skeletonRootNodes;
+            FindAllRootNodes( pScene->root_node, ufbx_element_type::UFBX_ELEMENT_BONE, skeletonRootNodes );
 
             auto const numSkeletons = skeletonRootNodes.size();
             if ( numSkeletons == 0 )
             {
-                ImportedSkeleton.LogError( "No Skeletons found in FBX scene" );
-                return;
+                importedSkeleton.LogError( "No Skeletons found in FBX scene" );
+                return false;
             }
 
-            FbxNode* pSkeletonToUse = nullptr;
+            ufbx_node* pSkeletonToUse = nullptr;
             if ( !skeletonRootBoneName.empty() )
             {
                 for ( auto& pSkeletonNode : skeletonRootNodes )
                 {
                     // Check skeleton node name
-                    if ( skeletonRootBoneName == Fbx::GetNameWithoutNamespace( pSkeletonNode ) )
+                    if ( skeletonRootBoneName.comparei( pSkeletonNode->name.data ) == 0 )
                     {
                         pSkeletonToUse = pSkeletonNode;
                         break;
                     }
 
                     // Check null parents
-                    if ( auto pParentNode = pSkeletonNode->GetParent() )
+                    if ( auto pParentNode = pSkeletonNode->parent )
                     {
-                        if ( auto pNodeAttribute = pParentNode->GetNodeAttribute() )
+                        if ( pParentNode->attrib_type == ufbx_element_type::UFBX_ELEMENT_EMPTY && skeletonRootBoneName.comparei( pParentNode->name.data ) == 0 )
                         {
-                            if ( pNodeAttribute->GetAttributeType() == FbxNodeAttribute::eNull )
-                            {
-                                pSkeletonToUse = pParentNode;
-                                break;
-                            }
+                            pSkeletonToUse = pParentNode;
+                            break;
                         }
                     }
                 }
 
                 if ( pSkeletonToUse == nullptr )
                 {
-                    ImportedSkeleton.LogError( "Couldn't find specified skeleton root: %s", skeletonRootBoneName.c_str() );
-                    return;
+                    importedSkeleton.LogError( "Couldn't find specified skeleton root: %s", skeletonRootBoneName.c_str() );
+                    return false;
                 }
             }
             else
@@ -364,52 +224,90 @@ namespace EE::Import::Fbx
                 pSkeletonToUse = skeletonRootNodes[0];
             }
 
-            // Finalize skeleton transforms
+            // Read model space transforms
             //-------------------------------------------------------------------------
 
-            ImportedSkeleton.m_name = StringID( Fbx::GetNameWithoutNamespace( pSkeletonToUse ) );
-            ReadBoneHierarchy( ImportedSkeleton, sceneCtx, pSkeletonToUse, -1 );
-            ImportedSkeleton.CalculateLocalTransforms();
-        }
-
-        static void ReadBoneHierarchy( FbxImportedSkeleton& ImportedSkeleton, Fbx::SceneContext const& sceneCtx, FbxNode* pNode, int32_t parentIdx )
-        {
-            EE_ASSERT( pNode != nullptr && ( pNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eSkeleton || pNode->GetNodeAttribute()->GetAttributeType() == FbxNodeAttribute::eNull ) );
-
-            auto const boneIdx = (int32_t) ImportedSkeleton.m_bones.size();
-            ImportedSkeleton.m_bones.push_back( ImportedSkeleton::Bone( Fbx::GetNameWithoutNamespace( pNode ) ) );
-            ImportedSkeleton.m_bones[boneIdx].m_parentBoneName = ( parentIdx != InvalidIndex ) ? ImportedSkeleton.m_bones[parentIdx].m_name : StringID();
-            ImportedSkeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
-
-            // Read Bone transform
-            FbxAMatrix const nodeTransform = pNode->EvaluateGlobalTransform();
-            ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform = sceneCtx.ConvertMatrixToTransform( nodeTransform );
-            ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform.SetTranslation( ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform.GetTranslation() * sceneCtx.GetScaleConversionMultiplier() );
-
-            // Read child bones
-            auto const numChildren = pNode->GetChildCount();
-            for ( int i = 0; i < numChildren; i++ )
+            importedSkeleton.m_name = StringID( pSkeletonToUse->name.data );
+            if ( !ReadBoneHierarchy( importedSkeleton, pScene, pSkeletonToUse, -1 ) )
             {
-                FbxNode* pChildNode = pNode->GetChild( i );
-                auto const attributeType = pChildNode->GetNodeAttribute()->GetAttributeType();
-                if ( attributeType == FbxNodeAttribute::eSkeleton ) // We only support a null root node, all children need to be bones
+                return false;
+            }
+
+            // Fix up bone rotations
+            //-------------------------------------------------------------------------
+
+            // TODO: support other coordinate systems if we ever get a file that is left-handed and y-up
+            if ( CompareAxes( pScene->settings.axes, ufbx_axes_right_handed_y_up ) )
+            {
+                for ( auto& bone : importedSkeleton.m_bones )
                 {
-                    ReadBoneHierarchy( ImportedSkeleton, sceneCtx, pChildNode, boneIdx );
+                    Quaternion rotation = bone.m_modelSpaceTransform.GetRotation();
+                    rotation = g_correctiveYtoZ * rotation;
+                    bone.m_modelSpaceTransform.SetRotation( rotation );
                 }
             }
+
+            // Complete conversion
+            //-------------------------------------------------------------------------
+
+            Vector const rootOffset = importedSkeleton.m_bones[0].m_modelSpaceTransform.GetTranslation().GetNegated();
+
+            // Shift all bones so that the root is at the origin
+            if ( !rootOffset.IsNearZero3() )
+            {
+                for ( size_t i = 1; i < importedSkeleton.m_bones.size(); i++ )
+                {
+                    importedSkeleton.m_bones[i].m_modelSpaceTransform.AddTranslation( rootOffset );
+                }
+            }
+
+            // Calculate parent space transforms
+            //-------------------------------------------------------------------------
+
+            importedSkeleton.CalculateParentSpaceTransforms();
+
+            return true;
+        }
+
+        static bool ReadBoneHierarchy( FbxImportedSkeleton& skeleton, ufbx_scene* pScene, ufbx_node* pNode, int32_t parentIdx )
+        {
+            EE_ASSERT( pNode != nullptr && ( pNode->attrib_type == UFBX_ELEMENT_BONE || pNode->attrib_type == UFBX_ELEMENT_EMPTY ) );
+
+            auto const boneIdx = (int32_t) skeleton.m_bones.size();
+            skeleton.m_bones.push_back( Skeleton::Bone( pNode->name.data ) );
+            skeleton.m_bones[boneIdx].m_parentBoneName = ( parentIdx != InvalidIndex ) ? skeleton.m_bones[parentIdx].m_name : StringID();
+            skeleton.m_bones[boneIdx].m_parentBoneIdx = parentIdx;
+
+            // Read bone transform
+            if ( !ToTransform( pNode->node_to_world, skeleton.m_bones[boneIdx].m_modelSpaceTransform ) )
+            {
+                skeleton.LogError( "Non-uniform scale detected on bone: %s", pNode->name.data );
+                return false;
+            }
+
+            // Read child bones
+            size_t const numChildren = pNode->children.count;
+            for ( size_t i = 0; i < numChildren; i++ )
+            {
+                ufbx_node* pChildNode = pNode->children.data[i];
+                if ( pChildNode->attrib_type == UFBX_ELEMENT_BONE ) // We only support a null root node, all children need to be bones
+                {
+                    if ( !ReadBoneHierarchy( skeleton, pScene, pChildNode, boneIdx ) )
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
         }
     };
 
     //-------------------------------------------------------------------------
 
-    TUniquePtr<ImportedSkeleton> ReadSkeleton( FileSystem::Path const& sourceFilePath, String const& skeletonRootBoneName )
+    TUniquePtr<Skeleton> ReadSkeleton( Source const& source, String const& skeletonRootBoneName )
     {
-        return FbxSkeletonFileReader::ReadSkeleton( sourceFilePath, skeletonRootBoneName );
-    }
-
-    void ReadSkeleton( SceneContext const& sceneCtx, String const& skeletonRootBoneName, ImportedSkeleton& skeleton )
-    {
-        return FbxSkeletonFileReader::ReadSkeleton( sceneCtx, skeletonRootBoneName, (FbxImportedSkeleton&) skeleton );
+        return FbxSkeletonFileReader::ReadSkeleton( source, skeletonRootBoneName );
     }
 }
 
@@ -417,13 +315,13 @@ namespace EE::Import::Fbx
 // Animation
 //-------------------------------------------------------------------------
 
-namespace EE::Import::Fbx
+namespace EE::Import::UFbx
 {
-    class FbxImportedAnimation : public ImportedAnimation
+    class FbxImportedAnimation : public Animation
     {
         friend class FbxAnimationFileReader;
 
-        using ImportedAnimation::ImportedAnimation;
+        using Animation::Animation;
     };
 
     //-------------------------------------------------------------------------
@@ -433,140 +331,118 @@ namespace EE::Import::Fbx
 
     public:
 
-        static TUniquePtr<ImportedAnimation> ReadAnimation( FileSystem::Path const& sourceFilePath, ImportedSkeleton const& importedSkeleton, String const& animationName )
+        static TUniquePtr<Animation> ReadAnimation( Source const& source, Skeleton const* pPrimarySkeleton, TVector<Skeleton const*> const& secondarySkeletons, String const& animationName, float samplingFrameRate )
         {
-            EE_ASSERT( sourceFilePath.IsValid() && importedSkeleton.IsValid() );
+            EE_ASSERT( source.IsValid() && pPrimarySkeleton != nullptr && pPrimarySkeleton->IsValid() );
 
-            TUniquePtr<ImportedAnimation> pAnimation( EE::New<FbxImportedAnimation>( importedSkeleton ) );
+            TUniquePtr<Animation> pAnimation( EE::New<FbxImportedAnimation>( *pPrimarySkeleton ) );
             FbxImportedAnimation* pImportedAnimation = (FbxImportedAnimation*) pAnimation.get();
-            pImportedAnimation->m_sourcePath = sourceFilePath;
+            pImportedAnimation->m_sourcePath = source.m_path;
+            pImportedAnimation->m_samplingFrameRate = samplingFrameRate;
 
-            Fbx::SceneContext sceneCtx( sourceFilePath );
-            if ( sceneCtx.IsValid() )
+            ufbx_scene* pScene = CreateSceneFromSource( source, *pImportedAnimation, true );
+            if ( pScene == nullptr )
             {
-                if ( sceneCtx.HasWarningOccurred() )
-                {
-                    pImportedAnimation->LogWarning( sceneCtx.GetWarningMessage().c_str() );
-                }
-
-                // Find the required anim stack
-                //-------------------------------------------------------------------------
-
-                FbxAnimStack* pAnimStack = nullptr;
-                if ( !animationName.empty() )
-                {
-                    pAnimStack = sceneCtx.FindAnimStack( animationName.c_str() );
-                    if ( pAnimStack == nullptr )
-                    {
-                        pImportedAnimation->LogError( "Could not find requested animation (%s) in FBX scene", animationName.c_str() );
-                        return pAnimation;
-                    }
-                }
-                else // Take the first anim stack present
-                {
-                    auto const numAnimStacks = sceneCtx.m_pScene->GetSrcObjectCount<FbxAnimStack>();
-                    if ( numAnimStacks == 0 )
-                    {
-                        pImportedAnimation->LogError( "No animations found in the FBX scene", animationName.c_str() );
-                        return pAnimation;
-                    }
-
-                    pAnimStack = sceneCtx.m_pScene->GetSrcObject<FbxAnimStack>( 0 );
-                }
-
-                EE_ASSERT( pAnimStack != nullptr );
-
-                // Read animation data
-                //-------------------------------------------------------------------------
-
-                sceneCtx.m_pScene->SetCurrentAnimationStack( pAnimStack );
-
-                // Read animation start and end times
-                float samplingStartTime = 0;
-                FbxTime duration;
-                FbxTakeInfo const* pTakeInfo = sceneCtx.m_pScene->GetTakeInfo( Fbx::GetNameWithoutNamespace( pAnimStack ) );
-                if ( pTakeInfo != nullptr )
-                {
-                    samplingStartTime = (float) pTakeInfo->mLocalTimeSpan.GetStart().GetSecondDouble();
-                    duration = pTakeInfo->mLocalTimeSpan.GetDuration();
-                    pImportedAnimation->m_duration = (float) duration.GetSecondDouble();
-                }
-                else // Take the time line value
-                {
-                    FbxTimeSpan timeLineSpan;
-                    sceneCtx.m_pScene->GetGlobalSettings().GetTimelineDefaultTimeSpan( timeLineSpan );
-
-                    samplingStartTime = (float) timeLineSpan.GetStart().GetSecondDouble();
-                    duration = timeLineSpan.GetDuration();
-                    pImportedAnimation->m_duration = (float) duration.GetSecondDouble();
-                }
-
-                // Calculate frame rate
-                FbxTime::EMode mode = duration.GetGlobalTimeMode();
-
-                // Set sampling rate and allocate memory
-                pImportedAnimation->m_samplingFrameRate = (float) duration.GetFrameRate( mode );
-                float const samplingTimeStep = 1.0f / pImportedAnimation->m_samplingFrameRate;
-                pImportedAnimation->m_numFrames = (uint32_t) Math::Round( pImportedAnimation->GetDuration() / samplingTimeStep ) + 1;
-
-                // Read animation data
-                //-------------------------------------------------------------------------
-
-                TVector<FbxNode*> boneToNodeMapping;
-                if ( GenerateNodeMappings( sceneCtx, *pImportedAnimation, boneToNodeMapping ) )
-                {
-                    ReadTrackData( sceneCtx, *pImportedAnimation, boneToNodeMapping, samplingStartTime );
-                }
-            }
-            else
-            {
-                pImportedAnimation->LogError( "Failed to read FBX file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                return pAnimation;
             }
 
+            // Find the required anim stack
+            //-------------------------------------------------------------------------
+
+            if ( pScene->anim_stacks.count == 0 )
+            {
+                pImportedAnimation->LogError( "There are no animations in the FBX scene" );
+                return pAnimation;
+            }
+
+            ufbx_anim_stack *pAnimStack = nullptr;
+            if ( !animationName.empty() )
+            {
+                for ( ufbx_anim_stack *pStack : pScene->anim_stacks )
+                {
+                    if ( animationName.comparei( pStack->name.data ) == 0 )
+                    {
+                        pAnimStack = pStack;
+                        break;
+                    }
+                }
+
+                if ( pAnimStack == nullptr )
+                {
+                    pImportedAnimation->LogError( "Could not find requested animation (%s) in FBX scene", animationName.c_str() );
+                    return pAnimation;
+                }
+            }
+            else // Take the first anim stack present
+            {
+                pAnimStack = pScene->anim_stacks[0];
+            }
+
+            EE_ASSERT( pAnimStack != nullptr );
+
+            // Read animation data
+            //-------------------------------------------------------------------------
+
+            TVector<ufbx_node*> boneToNodeMapping;
+            if ( GenerateNodeMappings( pScene, *pImportedAnimation, pImportedAnimation->GetPrimaryClip(), boneToNodeMapping ) )
+            {
+                ReadTrackData( pScene, *pImportedAnimation, pImportedAnimation->GetPrimaryClip(), boneToNodeMapping, pAnimStack );
+            }
+
+            for ( auto pSecondarySkeleton : secondarySkeletons )
+            {
+                boneToNodeMapping.clear();
+
+                AnimationClip& secondaryClip = pImportedAnimation->m_secondaryClips.emplace_back( *pSecondarySkeleton );
+                if ( GenerateNodeMappings( pScene, *pImportedAnimation, secondaryClip, boneToNodeMapping ) )
+                {
+                    ReadTrackData( pScene, *pImportedAnimation, secondaryClip, boneToNodeMapping, pAnimStack );
+                }
+            }
+
+            DestroyScene( pScene );
             return pAnimation;
         }
 
-        static bool GenerateNodeMappings( Fbx::SceneContext const& sceneCtx, FbxImportedAnimation& ImportedAnimation, TVector<FbxNode*>& outBoneToNodeMapping )
+        static bool GenerateNodeMappings( ufbx_scene* pScene, FbxImportedAnimation& animation, AnimationClip& animationClip, TVector<ufbx_node*>& outBoneToNodeMapping )
         {
             struct NodeInfo
             {
                 NodeInfo() = default;
+                NodeInfo( ufbx_node* pNode ) : m_pNode( pNode ) {}
 
-                NodeInfo( FbxNode* pNode )
-                    : m_pNode( pNode )
-                {
-                    m_nameWithoutNamespace = Fbx::GetNameWithoutNamespace( m_pNode );
-                }
-
-                FbxNode*    m_pNode = nullptr;
-                String      m_nameWithoutNamespace;
+                ufbx_node* m_pNode = nullptr;
             };
 
             //-------------------------------------------------------------------------
 
             String missingBonesStr;
 
-            TVector<NodeInfo> nodes;
-            nodes.reserve( sceneCtx.m_pScene->GetNodeCount() );
-            for ( int32_t n = 0; n < sceneCtx.m_pScene->GetNodeCount(); n++ )
+            TVector<ufbx_node*> nodes;
+            nodes.reserve( pScene->nodes.count );
+            for ( int32_t n = 0; n < pScene->nodes.count; n++ )
             {
-                nodes.emplace_back( sceneCtx.m_pScene->GetNode( n ) );
+                if ( pScene->nodes[n]->attrib_type == UFBX_ELEMENT_EMPTY || pScene->nodes[n]->attrib_type == UFBX_ELEMENT_BONE )
+                {
+                    nodes.emplace_back( pScene->nodes[n] );
+                }
             }
 
             //-------------------------------------------------------------------------
 
-            int32_t const numBones = ImportedAnimation.m_skeleton.GetNumBones();
+            uint32_t const numBones = animationClip.m_skeleton.GetNumBones();
             outBoneToNodeMapping.resize( numBones, nullptr );
 
-            for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
+            for ( auto boneIdx = 0u; boneIdx < numBones; boneIdx++ )
             {
-                StringID const& boneName = ImportedAnimation.m_skeleton.GetBoneName( boneIdx );
+                StringID const& boneName = animationClip.m_skeleton.GetBoneName( boneIdx );
+                InlineString boneNameStr( boneName.c_str() );
 
-                for ( auto const& nodeInfo : nodes )
+                for ( ufbx_node* pNode : nodes )
                 {
-                    if ( nodeInfo.m_nameWithoutNamespace == boneName.c_str() )
+                    if ( boneNameStr.comparei( pNode->name.data ) == 0 )
                     {
-                        outBoneToNodeMapping[boneIdx] = nodeInfo.m_pNode;
+                        outBoneToNodeMapping[boneIdx] = pNode;
                         break;
                     }
                 }
@@ -582,83 +458,91 @@ namespace EE::Import::Fbx
             if ( !missingBonesStr.empty() )
             {
                 missingBonesStr = missingBonesStr.substr( 0, missingBonesStr.length() - 2 );
-                ImportedAnimation.LogError( "Failed to find tracks for bones: %s", missingBonesStr.c_str() );
+                animation.LogError( "Failed to find tracks for bones: %s", missingBonesStr.c_str() );
                 return false;
             }
 
             return true;
         }
 
-        static bool ReadTrackData( Fbx::SceneContext const& sceneCtx, FbxImportedAnimation& ImportedAnimation, TVector<FbxNode*> const& boneToNodeMapping, float samplingStartTime )
+        static bool ReadTrackData( ufbx_scene* pScene, FbxImportedAnimation& animation, AnimationClip& animClip, TVector<ufbx_node*> const& boneToNodeMapping, ufbx_anim_stack *pAnimStack )
         {
-            int32_t const numBones = ImportedAnimation.m_skeleton.GetNumBones();
-            float const samplingTimeStep = 1.0f / ImportedAnimation.m_samplingFrameRate;
-            uint32_t const maxKeys = ImportedAnimation.m_numFrames * 3;
+            EE_ASSERT( pScene != nullptr && pAnimStack != nullptr );
 
-            ImportedAnimation.m_tracks.resize( numBones );
+            float const samplingTimeStep = 1.0f / animation.m_samplingFrameRate;
+
+            animation.m_duration = (float) pAnimStack->time_end - (float) pAnimStack->time_begin;
+            animation.m_numFrames = Math::RoundToInt32( animation.m_duration / samplingTimeStep ) + 1;
+
+            int32_t const numBones = (int32_t) animClip.m_skeleton.GetNumBones();
+            animClip.m_tracks.resize( numBones );
+
+            for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+            {
+                AnimationClip::TrackData& animTrack = animClip.m_tracks[boneIdx];
+                ufbx_node* pBoneNode = boneToNodeMapping[boneIdx];
+
+                bool hasUniformScale = true;
+
+                if ( pBoneNode == nullptr )
+                {
+                    // Store skeleton reference pose for bone
+                    for ( auto i = 0; i < animation.m_numFrames; i++ )
+                    {
+                        animTrack.m_parentSpaceTransforms.emplace_back( animClip.m_skeleton.GetParentSpaceTransform( boneIdx ) );
+                    }
+                }
+                else // Sample the node's transform evenly for the whole animation stack duration
+                {
+                    for ( size_t i = 0; i < animation.m_numFrames; i++ )
+                    {
+                        double const time = pAnimStack->time_begin + ( i * samplingTimeStep );
+                        EE_ASSERT( time <= ( pAnimStack->time_end + Math::Epsilon ) );
+                        ufbx_transform transform = ufbx_evaluate_transform( pAnimStack->anim, pBoneNode, time );
+
+                        Quaternion const rotation = ToQuat( transform.rotation );
+                        Float3 const translation = ToFloat3( transform.translation );
+                        Float3 const scale = ToFloat3( transform.scale );
+                        animTrack.m_parentSpaceTransforms.emplace_back( rotation, translation, scale[0] );
+
+                        if ( !( Math::IsNearEqual( scale[0], scale[1], Math::LargeEpsilon ) && Math::IsNearEqual( scale[1], scale[2], Math::LargeEpsilon ) ) )
+                        {
+                            hasUniformScale = false;
+                        }
+
+                        if ( i > 0 )
+                        {
+                            // Negated quaternions are equivalent, but interpolating between ones of different polarity takes a the longer path, so flip the quaternion if necessary.
+                            if ( animTrack.m_parentSpaceTransforms[i].GetRotation().GetDot( animTrack.m_parentSpaceTransforms[i - 1].GetRotation() ) < 0 )
+                            {
+                                animTrack.m_parentSpaceTransforms[i].SetRotation( animTrack.m_parentSpaceTransforms[i].GetRotation().GetNegated() );
+                            }
+                        }
+                    }
+                }
+
+                if ( !hasUniformScale )
+                {
+                    animation.LogWarning( "Non-uniform scale detected for bone: %s", pBoneNode->name.data );
+                }
+            }
 
             //-------------------------------------------------------------------------
 
-            FbxAnimEvaluator* pEvaluator = sceneCtx.m_pScene->GetAnimationEvaluator();
-            for ( auto boneIdx = 0; boneIdx < numBones; boneIdx++ )
+            if ( CompareAxes( pScene->settings.axes, ufbx_axes_right_handed_y_up ) )
             {
-                ImportedAnimation::TrackData& animTrack = ImportedAnimation.m_tracks[boneIdx];
-                FbxNode* pBoneNode = boneToNodeMapping[boneIdx];
+                animClip.GenerateModelSpaceTransforms();
 
-                // Get the parent node for non-root bones
-                FbxNode* pParentBoneNode = nullptr;
-                if ( boneIdx != 0 )
+                for ( auto& trackData : animClip.m_tracks )
                 {
-                    int32_t const parentBoneIdx = ImportedAnimation.m_skeleton.GetParentBoneIndex( boneIdx );
-                    EE_ASSERT( parentBoneIdx != InvalidIndex );
-                    pParentBoneNode = boneToNodeMapping[parentBoneIdx];
-                }
-
-                // Find a node that matches skeleton joint
-                if ( pBoneNode == nullptr )
-                {
-                    StringID const& boneName = ImportedAnimation.m_skeleton.GetBoneName( boneIdx );
-                    ImportedAnimation.LogWarning( "Warning: No animation track found for bone (%s), Using skeleton bind pose instead.", boneName.c_str() );
-
-                    // Store skeleton reference pose for bone
-                    for ( auto i = 0; i < ImportedAnimation.m_numFrames; i++ )
+                    for ( auto& transform : trackData.m_modelSpaceTransforms )
                     {
-                        animTrack.m_localTransforms.emplace_back( ImportedAnimation.m_skeleton.GetParentSpaceTransform( boneIdx ) );
+                        Quaternion const rotation = g_correctiveYtoZ * transform.GetRotation();
+                        transform.SetRotation( rotation );
                     }
                 }
-                else
-                {
-                    // Reserve keys in animation tracks
-                    animTrack.m_localTransforms.reserve( maxKeys );
 
-                    // Sample animation data
-                    float currentTime = samplingStartTime;
-                    for ( auto frameIdx = 0; frameIdx < ImportedAnimation.m_numFrames; frameIdx++ )
-                    {
-                        FbxAMatrix nodeLocalTransform;
-
-                        // Handle root separately as the root bone's global and local spaces are the same
-                        if ( boneIdx == 0 )
-                        {
-                            nodeLocalTransform = pEvaluator->GetNodeGlobalTransform( pBoneNode, FbxTimeSeconds( currentTime ) );
-                        }
-                        else // Read the global transforms and convert to local
-                        {
-                            // Calculate local transform
-                            FbxAMatrix const nodeParentGlobalTransform = pEvaluator->GetNodeGlobalTransform( pParentBoneNode, FbxTimeSeconds( currentTime ) );
-                            FbxAMatrix const nodeGlobalTransform = pEvaluator->GetNodeGlobalTransform( pBoneNode, FbxTimeSeconds( currentTime ) );
-                            nodeLocalTransform = nodeParentGlobalTransform.Inverse() * nodeGlobalTransform;
-                        }
-
-                        // Manually scale translation
-                        Transform localTransform = sceneCtx.ConvertMatrixToTransform( nodeLocalTransform );
-                        localTransform.SetTranslation( localTransform.GetTranslation() * sceneCtx.GetScaleConversionMultiplier() );
-                        animTrack.m_localTransforms.emplace_back( localTransform );
-
-                        // Step time
-                        currentTime += samplingTimeStep;
-                    }
-                }
+                animClip.RecreateParentSpaceTransformsFromModelSpaceTransform();
             }
 
             return true;
@@ -667,9 +551,9 @@ namespace EE::Import::Fbx
 
     //-------------------------------------------------------------------------
 
-    TUniquePtr<ImportedAnimation> ReadAnimation( FileSystem::Path const& animationFilePath, ImportedSkeleton const& ImportedSkeleton, String const& takeName )
+    TUniquePtr<Animation> ReadAnimation( Source const& source, Skeleton const* pPrimarySkeleton, TVector<Skeleton const*> const& secondarySkeletons, String const& takeName, float samplingFrameRate )
     {
-        return FbxAnimationFileReader::ReadAnimation( animationFilePath, ImportedSkeleton, takeName );
+        return FbxAnimationFileReader::ReadAnimation( source, pPrimarySkeleton, secondarySkeletons, takeName, samplingFrameRate );
     }
 }
 
@@ -677,11 +561,27 @@ namespace EE::Import::Fbx
 // Mesh
 //-------------------------------------------------------------------------
 
-namespace EE::Import::Fbx
+namespace EE::Import::UFbx
 {
-    class FbxImportedMesh : public ImportedMesh
+    class FbxImportedMesh : public Mesh
     {
         friend class FbxMeshFileReader;
+
+        static void DeduplicateSubMeshVertices( Mesh::Geometry& geo )
+        {
+            geo.m_indices.resize( geo.m_vertices.size() );
+
+            // Generate the index buffer.
+            ufbx_vertex_stream streams[1] =
+            {
+                { geo.m_vertices.data(), geo.m_vertices.size(), sizeof( Mesh::VertexData ) },
+            };
+
+            // This call will deduplicate vertices, modifying the arrays passed in `streams[]`,
+            // indices are written in `indices[]` and the number of unique vertices is returned.
+            size_t const numVertices = ufbx_generate_indices( streams, 1, geo.m_indices.data(), geo.m_indices.size(), NULL, NULL );
+            geo.m_vertices.resize( numVertices );
+        }
     };
 
     //-------------------------------------------------------------------------
@@ -690,133 +590,70 @@ namespace EE::Import::Fbx
     {
     public:
 
-        template<typename ElementType, typename ElementDataType>
-        static ElementDataType GetElementData( ElementType* pElement, int32_t const ctrlPointIdx, int32_t const vertexIdx )
+        static TUniquePtr<Mesh> ReadStaticMesh( Source const& source, TVector<String> const& meshesToInclude )
         {
-            ElementDataType data;
-            switch ( pElement->GetMappingMode() )
-            {
-                case FbxGeometryElement::eByControlPoint:
-                {
-                    switch ( pElement->GetReferenceMode() )
-                    {
-                        case FbxGeometryElement::eDirect:
-                        {
-                            data = pElement->GetDirectArray().GetAt( ctrlPointIdx );
-                        }
-                        break;
+            EE_ASSERT( source.IsValid() );
 
-                        case FbxGeometryElement::eIndexToDirect:
-                        {
-                            int32_t const dataElementIdx = pElement->GetIndexArray().GetAt( ctrlPointIdx );
-                            data = pElement->GetDirectArray().GetAt( dataElementIdx );
-                        }
-                        break;
-
-                        default:
-                        break;
-                    }
-                }
-                break;
-
-                case FbxGeometryElement::eByPolygonVertex:
-                {
-                    switch ( pElement->GetReferenceMode() )
-                    {
-                        case FbxGeometryElement::eDirect:
-                        {
-                            data = pElement->GetDirectArray().GetAt( vertexIdx );
-                        }
-                        break;
-
-                        case FbxGeometryElement::eIndexToDirect:
-                        {
-                            int32_t const dataElementIdx = pElement->GetIndexArray().GetAt( vertexIdx );
-                            data = pElement->GetDirectArray().GetAt( dataElementIdx );
-                        }
-                        break;
-
-                        default:
-                        break;
-                    }
-                }
-                break;
-
-                default:
-                break;
-            }
-
-            return data;
-        }
-
-        //-------------------------------------------------------------------------
-
-        static TUniquePtr<ImportedMesh> ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
-        {
-            EE_ASSERT( sourceFilePath.IsValid() );
-
-            TUniquePtr<ImportedMesh> pMesh( EE::New<FbxImportedMesh>() );
+            TUniquePtr<Mesh> pMesh( EE::New<FbxImportedMesh>() );
             FbxImportedMesh* pImportedMesh = (FbxImportedMesh*) pMesh.get();
-            pImportedMesh->m_sourcePath = sourceFilePath;
+            pImportedMesh->m_sourcePath = source.m_path;
 
             //-------------------------------------------------------------------------
 
-            Fbx::SceneContext sceneCtx( sourceFilePath );
-            if ( sceneCtx.IsValid() )
+            ufbx_scene* pScene = CreateSceneFromSource( source, *pImportedMesh, false );
+            if ( pScene == nullptr )
             {
-                if ( sceneCtx.HasWarningOccurred() )
-                {
-                    pImportedMesh->LogWarning( sceneCtx.GetWarningMessage().c_str() );
-                }
-
-                ReadAllSubmeshes( *pImportedMesh, sceneCtx, meshesToInclude );
+                return pMesh;
             }
-            else
+
+            ReadAllSubmeshes( *pImportedMesh, pScene, meshesToInclude );
+            DestroyScene( pScene );
+
+            if ( !pImportedMesh->HasErrors() )
             {
-                pImportedMesh->LogError( "Failed to read FBX file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                for ( auto& mp : pImportedMesh->m_geometries )
+                {
+                    FbxImportedMesh::DeduplicateSubMeshVertices( mp );
+                }
             }
 
             return pMesh;
         }
 
-        static TUniquePtr<ImportedMesh> ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences = 4 )
+        static TUniquePtr<Mesh> ReadSkeletalMesh( Source const& source, TVector<String> const& meshesToInclude )
         {
-            EE_ASSERT( sourceFilePath.IsValid() );
+            EE_ASSERT( source.IsValid() );
 
-            TUniquePtr<ImportedMesh> pMesh( EE::New<FbxImportedMesh>() );
+            TUniquePtr<Mesh> pMesh( EE::New<FbxImportedMesh>() );
             FbxImportedMesh* pImportedMesh = (FbxImportedMesh*) pMesh.get();
-            pImportedMesh->m_sourcePath = sourceFilePath;
+            pImportedMesh->m_sourcePath = source.m_path;
+            pImportedMesh->m_isSkeletalMesh = true;
 
             //-------------------------------------------------------------------------
 
-            Fbx::SceneContext sceneCtx( sourceFilePath );
-            if ( sceneCtx.IsValid() )
+            ufbx_scene* pScene = CreateSceneFromSource( source, *pImportedMesh, true );
+            if ( pScene == nullptr )
             {
-                if ( sceneCtx.HasWarningOccurred() )
-                {
-                    pImportedMesh->LogWarning( sceneCtx.GetWarningMessage().c_str() );
-                }
+                return pMesh;
+            }
 
-                pImportedMesh->m_maxNumberOfBoneInfluences = maxBoneInfluences;
-                pImportedMesh->m_isSkeletalMesh = true;
+            ReadAllSubmeshes( *pImportedMesh, pScene, meshesToInclude );
 
-                // Read mesh data
-                //-------------------------------------------------------------------------
-
-                ReadAllSubmeshes( *pImportedMesh, sceneCtx, meshesToInclude );
-
-                if ( pImportedMesh->HasErrors() )
-                {
-                    return pMesh;
-                }
-
+            if ( !pImportedMesh->HasErrors() )
+            {
                 // Since the bind pose is in global space, calculate the local space transforms for the skeleton
-                FbxImportedSkeleton& ImportedSkeleton = (FbxImportedSkeleton&) pImportedMesh->m_skeleton;
-                ImportedSkeleton.CalculateLocalTransforms();
+                FbxImportedSkeleton& importedSkeleton = (FbxImportedSkeleton&) pImportedMesh->m_skeleton;
+                importedSkeleton.CalculateParentSpaceTransforms();
             }
-            else
+
+            DestroyScene( pScene );
+
+            if ( !pImportedMesh->HasErrors() )
             {
-                pImportedMesh->LogError( "Failed to read FBX file: %s -> %s", sourceFilePath.c_str(), sceneCtx.GetErrorMessage().c_str() );
+                for ( auto& mp : pImportedMesh->m_geometries )
+                {
+                    FbxImportedMesh::DeduplicateSubMeshVertices( mp );
+                }
             }
 
             return pMesh;
@@ -824,119 +661,90 @@ namespace EE::Import::Fbx
 
         //-------------------------------------------------------------------------
 
-        static void ReadAllSubmeshes( FbxImportedMesh& ImportedMesh, Fbx::SceneContext const& sceneCtx, TVector<String> const& meshesToInclude )
+        static void ReadAllSubmeshes( FbxImportedMesh& importedMesh, ufbx_scene* pScene, TVector<String> const& meshesToInclude )
         {
-            // Find all meshes in the sceneCtx
-            //-------------------------------------------------------------------------
-
-            struct FoundMesh
+            // Check that the file contains skinned meshes if we are imported a skeletal mesh
+            if ( importedMesh.m_isSkeletalMesh )
             {
-                FbxMesh* m_pMesh;
-                bool isSkinned;
-            };
-
-            TInlineVector<FoundMesh, 20> meshes;
-            auto numGeometries = sceneCtx.m_pScene->GetGeometryCount();
-            if ( numGeometries == 0 )
-            {
-                ImportedMesh.m_errors.push_back( "No meshes present in the sceneCtx" );
-                return;
-            }
-
-            for ( auto i = 0; i < numGeometries; i++ )
-            {
-                auto pGeometry = sceneCtx.m_pScene->GetGeometry( i );
-                if ( pGeometry->Is<FbxMesh>() )
+                bool hasSkeletalMeshes = false;
+                for ( ufbx_mesh* pFoundMesh : pScene->meshes )
                 {
-                    FbxMesh* pMesh = static_cast<FbxMesh*>( pGeometry );
-                    meshes.push_back( { pMesh, pMesh->GetDeformerCount( FbxDeformer::eSkin ) > 0 } );
+                    if ( pFoundMesh->skin_deformers.count > 0 )
+                    {
+                        hasSkeletalMeshes = true;
+                        break;
+                    }
+                }
+
+                if ( !hasSkeletalMeshes )
+                {
+                    importedMesh.LogError( "No skinned meshes detected in the source file" );
+                    return;
                 }
             }
 
-            // For each mesh found perform necessary corrections and read mesh data
-            // Note: this needs to be done in two passes since these operations reorder the geometries in the sceneCtx and pScene->GetGeometry( x ) doesnt return what you expect
             bool meshFound = false;
-            
-            for ( auto foundMesh : meshes )
+            bool numUVSetsWarningEmitted = false;
+
+            for ( ufbx_mesh* pMesh : pScene->meshes )
             {
-                if ( ImportedMesh.m_isSkeletalMesh && !foundMesh.isSkinned )
+                if ( importedMesh.m_isSkeletalMesh && pMesh->skin_deformers.count == 0 )
                 {
                     continue;
                 }
 
-                auto pMesh = foundMesh.m_pMesh;
-                auto pMeshNode = pMesh->GetNode();
+                if ( pMesh->num_triangles == 0 ) // How does this happen?
+                {
+                    continue;
+                }
 
                 // Only process specified meshes
                 if ( !meshesToInclude.empty() )
                 {
-                    FbxString const meshName = Fbx::GetNameWithoutNamespace( pMeshNode );
-                    if ( !VectorContains( meshesToInclude, meshName ) )
+                    if ( !VectorContains( meshesToInclude, pMesh->name.data ) )
                     {
                         continue;
                     }
                 }
 
-                // Prepare the mesh for reading
+                meshFound = true;
+
+                // Split into sub-meshes based on material
                 //-------------------------------------------------------------------------
 
-                meshFound = true;
-                if ( !PrepareMesh( sceneCtx, pMesh, ImportedMesh ) )
+                size_t firstGeometryIdx = importedMesh.m_geometries.size();
+                for ( ufbx_mesh_part const& meshPart : pMesh->material_parts )
                 {
-                    return;
-                }
+                    Mesh::Geometry& geo = importedMesh.m_geometries.emplace_back();
+                    geo.m_ID = StringID( pMesh->name.data );
+                    geo.m_numUVChannels = Math::Min( Import::Mesh::s_maxNumOfTextureCoords, (uint32_t) pMesh->uv_sets.count );
 
-                // Create new geometry section
-                ImportedMesh::GeometrySection& meshData = ImportedMesh.m_geometrySections.emplace_back( ImportedMesh::GeometrySection() );
-                meshData.m_name = ImportedMesh.GetUniqueGeometrySectionName( Fbx::GetNameWithoutNamespace( pMeshNode ) );
-                meshData.m_numUVChannels = pMesh->GetElementUVCount();
-
-                // Get material name
-                int32_t const numMaterials = pMesh->GetElementMaterialCount();
-                if ( numMaterials == 1 )
-                {
-                    FbxGeometryElementMaterial* pMaterialElement = pMesh->GetElementMaterial( 0 );
-                    FbxSurfaceMaterial* pMaterial = pMeshNode->GetMaterial( pMaterialElement->GetIndexArray().GetAt( 0 ) );
-                    if ( pMaterial == nullptr )
+                    if ( !numUVSetsWarningEmitted && pMesh->uv_sets.count > Import::Mesh::s_maxNumOfTextureCoords )
                     {
-                        ImportedMesh.LogWarning( "Mesh section (%s) has an invalid material setup.", meshData.m_name.c_str() );
-                        return;
+                        importedMesh.LogWarning( "Exceeded the maximum number of uv sets allowed, mesh requires %d uv sets per vertex, we only allow a max of %d", pMesh->uv_sets.count, Import::Mesh::s_maxNumOfTextureCoords );
+                        numUVSetsWarningEmitted = true;
                     }
 
-                    meshData.m_materialNameID = StringID( pMaterial->GetName() );
-                }
-                else if ( numMaterials > 1 )
-                {
-                    ImportedMesh.LogError( "More than one material detected on section (%s) - This is not supported.", meshData.m_name.c_str() );
-                    return;
-                }
-                else
-                {
-                    ImportedMesh.LogWarning( "Mesh section (%s) doesnt have a material assigned.", meshData.m_name.c_str() );
+                    ReadMeshGeometry( pScene, importedMesh, pMesh, meshPart, geo );
                 }
 
-                // Read mesh data
+                size_t numGeometries = importedMesh.m_geometries.size() - firstGeometryIdx;
+
+                // Import instances
                 //-------------------------------------------------------------------------
 
-                // Allocate space for the control point mapping
-                TVector<TVector<uint32_t>> controlPointVertexMapping;
-                controlPointVertexMapping.clear();
-                controlPointVertexMapping.resize( pMesh->GetControlPointsCount() );
-
-                if ( !ReadMeshData( sceneCtx, pMesh, meshData, controlPointVertexMapping ) )
+                for ( ufbx_node* pMeshNode : pMesh->instances )
                 {
-                    return;
-                }
-
-                if ( ImportedMesh.m_isSkeletalMesh )
-                {
-                    if ( !ReadSkinningData( ImportedMesh, sceneCtx, pMesh, meshData, controlPointVertexMapping ) )
+                    for ( size_t geoIdx = 0; geoIdx < numGeometries; ++geoIdx )
                     {
-                        return;
+                        Mesh::Submesh& submesh = importedMesh.m_submeshes.emplace_back();
+                        submesh.m_ID = StringID( pMeshNode->name.data );
+                        submesh.m_transform = ToMatrix( pMeshNode->geometry_to_world );
+                        submesh.m_geometryIdx = uint32_t( firstGeometryIdx + geoIdx );
+                        submesh.m_materialID = StringID( pMeshNode->materials[geoIdx]->name.data );
                     }
                 }
             }
-
             //-------------------------------------------------------------------------
 
             if ( !meshFound )
@@ -948,236 +756,31 @@ namespace EE::Import::Fbx
                 }
                 meshNames = meshNames.substr( 0, meshNames.length() - 2 );
 
-                ImportedMesh.m_errors.push_back( String( String::CtorSprintf(), "Couldn't find any specified meshes: %s", meshNames.c_str() ) );
+                importedMesh.LogError( "Couldn't find any matching specified meshes: %s", meshNames.c_str() );
             }
         }
 
         //-------------------------------------------------------------------------
 
-        static bool PrepareMesh( Fbx::SceneContext const& sceneCtx, fbxsdk::FbxMesh*& pMesh, FbxImportedMesh& ImportedMesh )
+        static ufbx_node* FindSkeletonForSkin( ufbx_skin_deformer* pSkin )
         {
-            pMesh->RemoveBadPolygons();
-
-            // Ensure that the mesh is triangulated
-            if ( !pMesh->IsTriangleMesh() )
-            {
-                pMesh = (fbxsdk::FbxMesh*) sceneCtx.m_pGeometryConvertor->Triangulate( pMesh, true );
-                EE_ASSERT( pMesh != nullptr && pMesh->IsTriangleMesh() );
-            }
-
-            // Generate normals if they're not available or not in the right format
-            bool const hasNormals = pMesh->GetElementNormalCount() > 0;
-            if ( !hasNormals )
-            {
-                if ( !pMesh->GenerateNormals( true, true, false ) )
-                {
-                    ImportedMesh.m_errors.push_back( String( String::CtorSprintf(), "Failed to regenerate mesh normals for mesh: %s", Fbx::GetNameWithoutNamespace( pMesh ) ) );
-                    return false;
-                }
-            }
-
-            // Generate smoothing groups if they doesnt exist
-            if ( pMesh->GetElementSmoothingCount() == 0 )
-            {
-                sceneCtx.m_pGeometryConvertor->ComputeEdgeSmoothingFromNormals( pMesh );
-                sceneCtx.m_pGeometryConvertor->ComputePolygonSmoothingFromEdgeSmoothing( pMesh );
-            }
-
-            return true;
-        }
-
-        static bool ReadMeshData( Fbx::SceneContext const& sceneCtx, fbxsdk::FbxMesh* pMesh, FbxImportedMesh::GeometrySection& geometryData, TVector<TVector<uint32_t>>& controlPointVertexMapping )
-        {
-            EE_ASSERT( pMesh != nullptr && pMesh->IsTriangleMesh() );
-
-            FbxAMatrix const meshNodeGlobalTransform = sceneCtx.GetNodeGlobalTransform( pMesh->GetNode() );
+            ufbx_node* pSkeletonRootNode = nullptr;
 
             //-------------------------------------------------------------------------
 
-            // Check winding order - TODO: actually figure out how to get the real value, right now we assume CCW
-            geometryData.m_clockwiseWinding = false;
-            FbxVector4 const meshScale = meshNodeGlobalTransform.GetS();
-            uint32_t const numNegativeAxes = ( ( meshScale[0] < 0 ) ? 1 : 0 ) + ( ( meshScale[1] < 0 ) ? 1 : 0 ) + ( ( meshScale[2] < 0 ) ? 1 : 0 );
-            if ( numNegativeAxes == 1 || numNegativeAxes == 3 )
-            {
-                geometryData.m_clockwiseWinding = !geometryData.m_clockwiseWinding;
-            }
+            EE_ASSERT( pSkin->clusters.count > 0 );
+            ufbx_skin_cluster* pCluster = pSkin->clusters.data[0];
 
-            // Reserve memory for mesh data
-            int32_t const numPolygons = pMesh->GetPolygonCount();
-            int32_t const numVertices = numPolygons * 3;
-            geometryData.m_vertices.reserve( numVertices );
+            EE_ASSERT( pCluster->bone_node != nullptr );
+            ufbx_node* pBoneNode = pCluster->bone_node;
 
-            for ( int32_t polygonIdx = 0; polygonIdx < numPolygons; polygonIdx++ )
-            {
-                for ( int32_t vertexIdx = 0; vertexIdx < 3; vertexIdx++ )
-                {
-                    ImportedMesh::VertexData vert;
-
-                    // Get vertex position
-                    //-------------------------------------------------------------------------
-
-                    int32_t const ctrlPointIdx = pMesh->GetPolygonVertex( polygonIdx, vertexIdx );
-                    FbxVector4 const meshVertex = meshNodeGlobalTransform.MultT( pMesh->GetControlPointAt( ctrlPointIdx ) );
-                    vert.m_position = sceneCtx.ConvertVector3AndFixScale( meshVertex );
-                    vert.m_position.m_w = 1.0f;
-
-                    // Get vertex color
-                    //-------------------------------------------------------------------------
-
-                    FbxLayerElementVertexColor* pColorElement = pMesh->GetElementVertexColor();
-                    if ( pColorElement != nullptr )
-                    {
-                        FbxColor const color = GetElementData<FbxLayerElementVertexColor, FbxColor>( pColorElement, ctrlPointIdx, vertexIdx );
-                        vert.m_color = Float4( (float) color.mRed, (float) color.mGreen, (float) color.mBlue, (float) color.mAlpha );
-                    }
-
-                    // Get vertex normal
-                    //-------------------------------------------------------------------------
-
-                    EE_ASSERT( pMesh->GetElementNormal() != nullptr );
-                    FbxVector4 meshNormal;
-                    pMesh->GetPolygonVertexNormal( polygonIdx, vertexIdx, meshNormal );
-                    vert.m_normal = sceneCtx.ConvertVector3( meshNormal ).GetNormalized3();
-
-                    // Get vertex tangent and bi-normals
-                    //-------------------------------------------------------------------------
-
-                    FbxGeometryElementTangent* pTangentElement = pMesh->GetElementTangent();
-                    if ( pTangentElement != nullptr )
-                    {
-                        FbxVector4 const tangent = GetElementData<FbxGeometryElementTangent, FbxVector4>( pTangentElement, ctrlPointIdx, vertexIdx );
-                        vert.m_tangent = sceneCtx.ConvertVector3( tangent ).GetNormalized3();
-                    }
-
-                    FbxGeometryElementBinormal* pBinormalElement = pMesh->GetElementBinormal();
-                    if ( pBinormalElement != nullptr )
-                    {
-                        FbxVector4 const binormal = GetElementData<FbxGeometryElementBinormal, FbxVector4>( pBinormalElement, ctrlPointIdx, vertexIdx );
-                        vert.m_binormal = sceneCtx.ConvertVector3( binormal ).GetNormalized3();
-                    }
-
-                    // Get vertex UV
-                    //-------------------------------------------------------------------------
-
-                    int32_t const numUVChannelsForMeshSection = pMesh->GetElementUVCount();
-                    for ( auto i = 0; i < numUVChannelsForMeshSection; ++i )
-                    {
-                        FbxGeometryElementUV* pTexcoordElement = pMesh->GetElementUV( i );
-                        FbxVector2 texCoord( 0, 0 );
-
-                        switch ( pTexcoordElement->GetMappingMode() )
-                        {
-                            case FbxGeometryElement::eByControlPoint:
-                            {
-                                switch ( pTexcoordElement->GetReferenceMode() )
-                                {
-                                    case FbxLayerElementUV::eDirect:
-                                    {
-                                        texCoord = pTexcoordElement->GetDirectArray().GetAt( ctrlPointIdx );
-                                    }
-                                    break;
-
-                                    case FbxLayerElementUV::eIndexToDirect:
-                                    {
-                                        int32_t const texCoordIdx = pTexcoordElement->GetIndexArray().GetAt( ctrlPointIdx );
-                                        texCoord = pTexcoordElement->GetDirectArray().GetAt( texCoordIdx );
-                                    }
-                                    break;
-
-                                    default:
-                                    break;
-                                }
-                            }
-                            break;
-
-                            // This is special for UVs
-                            case FbxGeometryElement::eByPolygonVertex:
-                            {
-                                switch ( pTexcoordElement->GetReferenceMode() )
-                                {
-                                    case FbxLayerElementUV::eDirect:
-                                    case FbxLayerElementUV::eIndexToDirect:
-                                    {
-                                        int32_t const textureUVIndex = pMesh->GetTextureUVIndex( polygonIdx, vertexIdx );
-                                        texCoord = pTexcoordElement->GetDirectArray().GetAt( textureUVIndex );
-                                    }
-                                    break;
-
-                                    default:
-                                    break;
-                                }
-                            }
-                            break;
-
-                            //-------------------------------------------------------------------------
-
-                            default:
-                            break;
-                        }
-
-                        vert.m_texCoords.push_back( Float2( (float) texCoord[0], 1.0f - (float) texCoord[1] ) );
-                    }
-
-                    // Ensure we always have UV's set
-                    if ( vert.m_texCoords.empty() )
-                    {
-                        vert.m_texCoords.emplace_back( Float2::Zero );
-                    }
-
-                    // Add vertex to mesh data
-                    //-------------------------------------------------------------------------
-
-                    auto& vertexIndices = controlPointVertexMapping[ctrlPointIdx];
-
-                    // Check whether we are referencing a new vertex or should use the index to an existing one?
-                    uint32_t existingVertexIdx = (uint32_t) InvalidIndex;
-                    for ( auto const& idx : vertexIndices )
-                    {
-                        if ( vert == geometryData.m_vertices[idx] )
-                        {
-                            existingVertexIdx = idx;
-                            break;
-                        }
-                    }
-
-                    // The vertex already exists, so just add its index
-                    if ( existingVertexIdx != (uint32_t) InvalidIndex )
-                    {
-                        EE_ASSERT( existingVertexIdx < geometryData.m_vertices.size() );
-                        geometryData.m_indices.push_back( existingVertexIdx );
-                    }
-                    else // Create new vertex
-                    {
-                        geometryData.m_indices.push_back( (uint32_t) geometryData.m_vertices.size() );
-                        vertexIndices.push_back( (uint32_t) geometryData.m_vertices.size() );
-                        geometryData.m_vertices.push_back( vert );
-                    }
-                }
-            }
-
-            return true;
-        }
-
-        //-------------------------------------------------------------------------
-
-        static FbxNode* FindSkeletonForSkin( FbxSkin* pSkin )
-        {
-            FbxNode* pSkeletonRootNode = nullptr;
-
-            //-------------------------------------------------------------------------
-
-            FbxCluster* pCluster = pSkin->GetCluster( 0 );
-            FbxNode* pBoneNode = pCluster->GetLink();
-
+            // Traverse hierarchy to find the root of the skeleton
             while ( pBoneNode != nullptr )
             {
-                // Traverse hierarchy to find the root of the skeleton
-                FbxNodeAttribute* pNodeAttribute = pBoneNode->GetNodeAttribute();
-                if ( pNodeAttribute != nullptr && pNodeAttribute->GetAttributeType() == FbxNodeAttribute::eSkeleton )
+                if ( pBoneNode->attrib_type == UFBX_ELEMENT_BONE )
                 {
                     pSkeletonRootNode = pBoneNode;
-                    pBoneNode = pBoneNode->GetParent();
+                    pBoneNode = pBoneNode->parent;
                 }
                 else
                 {
@@ -1187,202 +790,193 @@ namespace EE::Import::Fbx
 
             // If the root of the skeleton has a null root, make that the root as this is a common practice
             // TODO: should we make this a setting in the descriptor?
-            if ( auto pParentNode = pSkeletonRootNode->GetParent() )
+            if ( auto pParentNode = pSkeletonRootNode->parent )
             {
-                if ( auto pNodeAttribute = pParentNode->GetNodeAttribute() )
+                if ( pParentNode->attrib_type == UFBX_ELEMENT_EMPTY )
                 {
-                    if ( pNodeAttribute->GetAttributeType() == FbxNodeAttribute::eNull )
-                    {
-                        pSkeletonRootNode = pParentNode;
-                    }
+                    pSkeletonRootNode = pParentNode;
                 }
             }
 
             return pSkeletonRootNode;
         }
 
-        static bool ReadSkinningData( FbxImportedMesh& ImportedMesh, Fbx::SceneContext const& sceneCtx, fbxsdk::FbxMesh* pMesh, ImportedMesh::GeometrySection& geometryData, TVector<TVector<uint32_t>>& controlPointVertexMapping )
+        static bool ReadMeshGeometry( ufbx_scene* pScene, FbxImportedMesh& importedMesh, ufbx_mesh* pMesh, ufbx_mesh_part const& meshPart, FbxImportedMesh::Geometry& geo )
         {
-            EE_ASSERT( pMesh != nullptr && pMesh->IsTriangleMesh() && ImportedMesh.m_isSkeletalMesh );
-
-            // Check whether skinning data exists for this mesh
-            int32_t const numSkins = pMesh->GetDeformerCount( FbxDeformer::eSkin );
-            if ( numSkins == 0 )
-            {
-                ImportedMesh.LogError( "No skin data found!" );
-                return false;
-            }
-
-            if ( numSkins > 1 )
-            {
-                ImportedMesh.LogWarning( "More than one skin found for mesh (%s), compiling only the first skin found!", geometryData.m_name.c_str() );
-            }
-
-            // Read skin
-            //-------------------------------------------------------------------------
-
-            FbxSkin* pSkin = static_cast<FbxSkin*>( pMesh->GetDeformer( 0, FbxDeformer::eSkin ) );
-            FbxSkin::EType const skinningType = pSkin->GetSkinningType();
-            if ( skinningType != FbxSkin::eRigid && skinningType != FbxSkin::eLinear )
-            {
-                ImportedMesh.LogError( "Unsupported skinning type for mesh (%s), only rigid and linear skinning supported!", geometryData.m_name.c_str() );
-                return false;
-            }
+            EE_ASSERT( pMesh != nullptr );
 
             // Read skeleton
             //-------------------------------------------------------------------------
 
-            auto pSkeletonNode = FindSkeletonForSkin( pSkin );
-            if ( pSkeletonNode == nullptr )
+            ufbx_skin_deformer* pSkin = nullptr;
+            FbxImportedSkeleton* pImportedSkeleton = nullptr;
+            if ( importedMesh.m_isSkeletalMesh )
             {
-                ImportedMesh.LogError( "Couldn't find skeleton for mesh!", geometryData.m_name.c_str() );
-                return false;
-            }
-
-            // Check if we have already read a skeleton for this mesh and if the skeleton matches
-            if ( ImportedMesh.m_skeleton.IsValid() )
-            {
-                StringID const skeletonRootName( Fbx::GetNameWithoutNamespace( pSkeletonNode ) );
-                if ( ImportedMesh.GetSkeleton().GetRootBoneName() != skeletonRootName )
+                // Check whether skinning data exists for this mesh
+                size_t const numSkins = pMesh->skin_deformers.count;
+                if ( numSkins == 0 )
                 {
-                    ImportedMesh.LogError( "Different skeletons detected for the various sub-meshes. Expected: %s, Got: %s", ImportedMesh.GetSkeleton().GetRootBoneName().c_str(), skeletonRootName.c_str() );
-                    return false;
-                }
-            }
-            else // Try to read the skeleton
-            {
-                Fbx::ReadSkeleton( sceneCtx, Fbx::GetNameWithoutNamespace( pSkeletonNode ), ImportedMesh.m_skeleton );
-                if ( !ImportedMesh.m_skeleton.IsValid() )
-                {
-                    ImportedMesh.LogError( "Failed to read mesh skeleton", geometryData.m_name.c_str() );
-                    return false;
-                }
-            }
-
-            // Read skinning cluster data (i.e. bone skin mapping)
-            //-------------------------------------------------------------------------
-
-            FbxImportedSkeleton& ImportedSkeleton = static_cast<FbxImportedSkeleton&>( ImportedMesh.m_skeleton );
-
-            auto const numClusters = pSkin->GetClusterCount();
-            for ( auto c = 0; c < numClusters; c++ )
-            {
-                FbxCluster* pCluster = pSkin->GetCluster( c );
-
-                FbxNode* pClusterNode = pCluster->GetLink();
-                if ( pClusterNode == nullptr )
-                {
-                    ImportedMesh.LogError( "No node linked to cluster: %s", pCluster->GetName() );
+                    importedMesh.LogError( "No skin data found for mesh (%s)!", pMesh->name.data );
                     return false;
                 }
 
-                StringID const clusterNodeName( Fbx::GetNameWithoutNamespace( pClusterNode ) );
-                FbxCluster::ELinkMode const mode = pCluster->GetLinkMode();
-                if ( mode == FbxCluster::eAdditive )
+                if ( numSkins > 1 )
                 {
-                    ImportedMesh.LogError( "Unsupported link mode for joint: %s", clusterNodeName.c_str() );
-                    return false;
+                    importedMesh.LogWarning( "More than one skin found for mesh (%s), compiling only the first skin found!", pMesh->name.data );
                 }
 
-                // Find bone in skeleton that matches this cluster name
-                int32_t const boneIdx = ImportedMesh.m_skeleton.GetBoneIndex( clusterNodeName );
-                if ( boneIdx == InvalidIndex )
+                pSkin = pMesh->skin_deformers.data[0];
+                if ( pSkin->skinning_method != UFBX_SKINNING_METHOD_LINEAR && pSkin->skinning_method != UFBX_SKINNING_METHOD_RIGID )
                 {
-                    ImportedMesh.LogError( "Unknown bone link node encountered in FBX scene (%s)", clusterNodeName.c_str() );
+                    importedMesh.LogError( "Unsupported skinning type for mesh (%s), only rigid and linear skinning supported!", pMesh->name.data );
                     return false;
                 }
 
                 //-------------------------------------------------------------------------
 
-                // Read bind pose
-                FbxAMatrix clusterLinkTransform;
-                pCluster->GetTransformLinkMatrix( clusterLinkTransform );
-                ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform = sceneCtx.ConvertMatrixToTransform( clusterLinkTransform );
-
-                // Manually scale translation
-                ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform.SetTranslation( ImportedSkeleton.m_bones[boneIdx].m_modelSpaceTransform.GetTranslation() * sceneCtx.GetScaleConversionMultiplier() );
-
-                // Add bone indices and weight to all influenced vertices
-                auto const* pControlPointIndices = pCluster->GetControlPointIndices();
-                auto const* pControlPointWeights = pCluster->GetControlPointWeights();
-                auto const numControlPointIndices = pCluster->GetControlPointIndicesCount();
-
-                for ( auto i = 0; i < numControlPointIndices; i++ )
+                auto pSkeletonNode = FindSkeletonForSkin( pSkin );
+                if ( pSkeletonNode == nullptr )
                 {
-                    EE_ASSERT( pControlPointIndices[i] < pMesh->GetControlPointsCount() );
-                    if ( pControlPointWeights[i] > 0.f )
+                    importedMesh.LogError( "Couldn't find skeleton for mesh!", geo.m_ID.c_str() );
+                    return false;
+                }
+
+                // Check if we have already read a skeleton for this mesh and if the skeleton matches
+                pImportedSkeleton = static_cast<FbxImportedSkeleton*>( &importedMesh.m_skeleton );
+                if ( pImportedSkeleton->IsValid() )
+                {
+                    StringID const skeletonRootName( pSkeletonNode->name.data );
+                    if ( importedMesh.GetSkeleton().GetRootBoneName() != skeletonRootName )
                     {
-                        auto const& vertexIndices = controlPointVertexMapping[pControlPointIndices[i]];
-                        for ( auto v = 0; v < vertexIndices.size(); v++ )
-                        {
-                            auto const vertexIdx = vertexIndices[v];
-                            geometryData.m_vertices[vertexIdx].m_boneIndices.push_back( boneIdx );
-                            geometryData.m_vertices[vertexIdx].m_boneWeights.push_back( (float) pControlPointWeights[i] );
-                        }
+                        importedMesh.LogError( "Different skeletons detected for the various sub-meshes. Expected: %s, Got: %s", importedMesh.GetSkeleton().GetRootBoneName().c_str(), skeletonRootName.c_str() );
+                        return false;
+                    }
+                }
+                else // Try to read the skeleton
+                {
+                    FbxSkeletonFileReader::ReadSkeleton( pScene, String( pSkeletonNode->name.data ), *pImportedSkeleton );
+                    if ( !pImportedSkeleton->IsValid() )
+                    {
+                        importedMesh.LogError( "Failed to read mesh skeleton", geo.m_ID.c_str() );
+                        return false;
                     }
                 }
             }
 
-            // Ensure we have <= the max number of skinning influences per vertex
             //-------------------------------------------------------------------------
 
-            bool vertexInfluencesReduced = false;
-            auto const numVerts = geometryData.m_vertices.size();
-            for ( auto v = 0; v < numVerts; v++ )
-            {
-                auto& vert = geometryData.m_vertices[v];
-                auto numInfluences = vert.m_boneIndices.size();
+            size_t const numTriangleIndices = pMesh->max_face_triangles * 3;
+            TVector<uint32_t> triangleIndices( numTriangleIndices );
 
-                if ( numInfluences > ImportedMesh.m_maxNumberOfBoneInfluences )
+            bool numBoneInfluencesWarningEmitted = false;
+
+            // Iterate over each face using the specific material.
+            for ( uint32_t faceIdx : meshPart.face_indices )
+            {
+                ufbx_face const& face = pMesh->faces[faceIdx];
+
+                // Iterate over each triangle corner contiguously.
+                size_t const numTriangles = ufbx_triangulate_face( triangleIndices.data(), triangleIndices.size(), pMesh, face );
+                for ( size_t vertexIdx = 0; vertexIdx < numTriangles * 3; vertexIdx++ )
                 {
-                    while ( vert.m_boneIndices.size() > ImportedMesh.m_maxNumberOfBoneInfluences )
+                    uint32_t const index = triangleIndices[vertexIdx];
+
+                    Mesh::VertexData v;
+                    v.m_position = ToFloat4( pMesh->vertex_position[index] );
+                    v.m_normal = ToFloat4( pMesh->vertex_normal[index] );
+
+                    if ( pMesh->vertex_tangent.exists )
                     {
-                        // Remove lowest influence
-                        int32_t smallestWeightIdx = 0;
-                        for ( auto f = 1; f < vert.m_boneIndices.size(); f++ )
+                        v.m_tangent = ToFloat4( pMesh->vertex_tangent[index] );
+                    }
+
+                    if ( pMesh->vertex_bitangent.exists )
+                    {
+                        v.m_binormal = ToFloat4( pMesh->vertex_bitangent[index] );
+                    }
+
+                    if ( pMesh->vertex_color.exists )
+                    {
+                        v.m_color = ToFloat4( pMesh->vertex_color[index] );
+                    }
+
+                    for ( uint32_t uvSetIdx = 0; uvSetIdx < geo.m_numUVChannels; uvSetIdx++ )
+                    {
+                        if ( pMesh->uv_sets.data[uvSetIdx].vertex_uv.exists )
                         {
-                            if ( vert.m_boneWeights[f] < vert.m_boneWeights[smallestWeightIdx] )
+                            ufbx_vec2 const uv = pMesh->uv_sets.data[uvSetIdx].vertex_uv[index];
+                            v.m_texCoords[uvSetIdx] = Float2( (float) uv.x, 1.0f - (float) uv.y );
+                        }
+                    }
+
+                    //-------------------------------------------------------------------------
+
+                    if ( pSkin != nullptr )
+                    {
+                        // NOTE: This calculation below is the same for each `vertex`, we could pre-calculate these up to `mesh->num_vertices`, and just load the results.
+                        uint32_t vertex = pMesh->vertex_indices[index];
+                        ufbx_skin_vertex skin_vertex = pSkin->vertices[vertex];
+
+                        if ( !numBoneInfluencesWarningEmitted && skin_vertex.num_weights > Import::Mesh::s_maxNumOfBoneInfluences )
+                        {
+                            importedMesh.LogWarning( "Exceeded the maximum number of bone influences allowed, mesh requires %d influences per vertex, we only allow a max of %d", skin_vertex.num_weights, Import::Mesh::s_maxNumOfBoneInfluences );
+                            numBoneInfluencesWarningEmitted = true;
+                        }
+
+                        geo.m_numBoneInfluences = Math::Max( geo.m_numBoneInfluences, Math::ClosestUpperBoundMultiple( skin_vertex.num_weights, 4u ) );
+                        geo.m_numBoneInfluences = Math::Min( geo.m_numBoneInfluences, Mesh::s_maxNumOfBoneInfluences );
+
+                        v.m_numBoneWeights = Math::Min( skin_vertex.num_weights, geo.m_numBoneInfluences );
+                        EE_ASSERT( v.m_numBoneWeights <= Mesh::s_maxNumOfBoneInfluences );
+
+                        float totalWeight = 0.0f;
+                        for ( size_t i = 0; i < v.m_numBoneWeights; i++ )
+                        {
+                            ufbx_skin_weight skinWeight = pSkin->weights[skin_vertex.weight_begin + i];
+
+                            // Find bone in skeleton that matches this cluster name
+                            ufbx_skin_cluster* pCluster = pSkin->clusters[skinWeight.cluster_index];
+                            ufbx_node* pBoneNode = pCluster->bone_node;
+                            int32_t const boneIdx = importedMesh.m_skeleton.GetBoneIndex( StringID( pBoneNode->name.data ) );
+                            if ( boneIdx == InvalidIndex )
                             {
-                                smallestWeightIdx = f;
+                                importedMesh.LogError( "Unknown bone link node encountered in FBX scene (%s)", pBoneNode->name.data );
+                                return false;
                             }
+
+                            v.m_boneIndices[i] = boneIdx;
+                            v.m_boneWeights[i] = (float) skinWeight.weight;
+                            totalWeight += (float) skinWeight.weight;
                         }
 
-                        vert.m_boneWeights.erase( vert.m_boneWeights.begin() + smallestWeightIdx );
-                        vert.m_boneIndices.erase( vert.m_boneIndices.begin() + smallestWeightIdx );
+                        // FBX does not guarantee that skin weights are normalized, and we may even be dropping some, so we must renormalize them.
+                        for ( size_t i = 0; i < v.m_numBoneWeights; i++ )
+                        {
+                            v.m_boneWeights[i] /= totalWeight;
+                        }
                     }
 
-                    vertexInfluencesReduced = true;
+                    //-------------------------------------------------------------------------
 
-                    // Re-normalize weights
-                    float const totalWeight = vert.m_boneWeights[0] + vert.m_boneWeights[1] + vert.m_boneWeights[2] + vert.m_boneWeights[3];
-                    for ( auto i = 0; i < ImportedMesh.m_maxNumberOfBoneInfluences; i++ )
-                    {
-                        vert.m_boneWeights[i] /= totalWeight;
-                    }
+                    uint32_t const subMeshVertexIdx = (uint32_t) geo.m_vertices.size();
+                    geo.m_vertices.push_back( v );
+                    geo.m_indices.push_back( subMeshVertexIdx );
                 }
             }
 
-            if ( vertexInfluencesReduced )
-            {
-                ImportedMesh.LogWarning( "More than %d skinning influences detected per bone for mesh (%s), this is not supported - influences have been reduced to %d", ImportedMesh.m_maxNumberOfBoneInfluences, geometryData.m_name.c_str(), ImportedMesh.m_maxNumberOfBoneInfluences );
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImportedSkeleton.CalculateLocalTransforms();
             return true;
         }
     };
 
     //-------------------------------------------------------------------------
 
-    TUniquePtr<ImportedMesh> Fbx::ReadStaticMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude )
+    TUniquePtr<Mesh> ReadStaticMesh( Source const& source, TVector<String> const& meshesToInclude )
     {
-        return FbxMeshFileReader::ReadStaticMesh( sourceFilePath, meshesToInclude );
+        return FbxMeshFileReader::ReadStaticMesh( source, meshesToInclude );
     }
 
-    TUniquePtr<ImportedMesh> Fbx::ReadSkeletalMesh( FileSystem::Path const& sourceFilePath, TVector<String> const& meshesToInclude, int32_t maxBoneInfluences )
+    TUniquePtr<Mesh> ReadSkeletalMesh( Source const& source, TVector<String> const& meshesToInclude )
     {
-        return FbxMeshFileReader::ReadSkeletalMesh( sourceFilePath, meshesToInclude, maxBoneInfluences );
+        return FbxMeshFileReader::ReadSkeletalMesh( source, meshesToInclude );
     }
 }

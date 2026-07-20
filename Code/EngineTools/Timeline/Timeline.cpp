@@ -276,12 +276,14 @@ namespace EE::Timeline
             pDrawList->AddConvexPolyFilled( points, 4, itemColor );
         }
 
-        InlineString const itemLabel = GetItemLabel( pItem );
-        ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
-        ImVec2 const textSize = pTinyFont->CalcTextSizeA( pTinyFont->FontSize, FLT_MAX, -1, itemLabel.c_str(), nullptr, NULL );
-        ImVec2 const textPos( itemRect.GetTR().x, itemCenter.y - ( textSize.y / 2 ) );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, textPos + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, textPos + ImVec2( 4, 0 ), ImGuiX::Style::s_colorText, itemLabel.c_str() );
+        {
+            InlineString const itemLabel = GetItemLabel( pItem );
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
+            ImVec2 const textSize = ImGui::CalcTextSize( itemLabel.c_str() );
+            ImVec2 const textPos( itemRect.GetTR().x, itemCenter.y - ( textSize.y / 2 ) );
+            pDrawList->AddText( textPos + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
+            pDrawList->AddText( textPos + ImVec2( 4, 0 ), ImGuiX::Style::s_colorText, itemLabel.c_str() );
+        }
     }
 
     void Track::DrawDurationItem( TrackContext const& context, ImDrawList* pDrawList, ImRect const& itemRect, ItemState itemState, TrackItem* pItem )
@@ -292,12 +294,14 @@ namespace EE::Timeline
         pDrawList->AddRectFilled( itemRect.GetTL() + horizontalBorder, itemRect.GetBR() - horizontalBorder, GetItemDisplayColor( pItem, itemState ), 2.0f, ImDrawFlags_RoundCornersBottom );
         pDrawList->AddRectFilled( itemRect.GetTL() + horizontalBorder, itemRect.GetBR() - horizontalBorder - ImVec2( 0, 3 ), GetItemBackgroundColor( itemState ), 2.0f, ImDrawFlags_RoundCornersBottom );
 
-        InlineString const itemLabel = GetItemLabel( pItem );
-        ImFont const* pTinyFont = ImGuiX::GetFont( ImGuiX::Font::Small );
-        ImVec2 const textSize = pTinyFont->CalcTextSizeA( pTinyFont->FontSize, FLT_MAX, -1, itemLabel.c_str(), nullptr, NULL );
-        ImVec2 const textPos( itemRect.GetTL().x, itemRect.GetCenter().y - ( textSize.y / 2 ) );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, textPos + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
-        pDrawList->AddText( pTinyFont, pTinyFont->FontSize, textPos + ImVec2( 4, 0 ), ImGuiX::Style::s_colorText, itemLabel.c_str() );
+        {
+            InlineString const itemLabel = GetItemLabel( pItem );
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
+            ImVec2 const textSize = ImGui::CalcTextSize( itemLabel.c_str() );
+            ImVec2 const textPos( itemRect.GetTL().x, itemRect.GetCenter().y - ( textSize.y / 2 ) );
+            pDrawList->AddText( textPos + ImVec2( 5, 1 ), 0xFF000000, itemLabel.c_str() );
+            pDrawList->AddText( textPos + ImVec2( 4, 0 ), ImGuiX::Style::s_colorText, itemLabel.c_str() );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -373,8 +377,14 @@ namespace EE::Timeline
         EE_ASSERT( Contains( pTrack ) );
 
         ScopedModification const stm( context );
-        m_tracks.erase_first( pTrack );
-        EE::Delete( pTrack );
+        for ( size_t i = 0; i < m_tracks.size(); i++ )
+        {
+            if ( m_tracks[i].Get() == pTrack )
+            {
+                m_tracks.erase( m_tracks.begin() + i );
+                break;
+            }
+        }
     }
 
     void TimelineData::CreateItem( TrackContext const& context, Track* pTrack, float itemStartTime )

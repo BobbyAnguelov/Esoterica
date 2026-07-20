@@ -22,6 +22,8 @@ namespace EE::TypeSystem
 
         EE_FORCE_INLINE bool IsValid() const { return m_ID.IsValid(); }
 
+        EE_FORCE_INLINE void Clear() { m_ID.Clear(); }
+
         EE_FORCE_INLINE explicit operator uint64_t() const { return m_ID.ToUint(); }
         EE_FORCE_INLINE uint64_t ToUint() const { return m_ID.ToUint(); }
         EE_FORCE_INLINE StringID ToStringID() const { return m_ID; }

@@ -17,12 +17,15 @@ namespace EE
     enum class UpdateStage : uint8_t
     {
         FrameStart = 0,
+        GameSetup,          // Preparation stage for game update
+        GamePrePhysics,     // Main game update
         PrePhysics,
         Physics,
         PostPhysics,
+        GamePostPhysics,    // Finalize game state
         FrameEnd,
 
-        Paused, // Special stage that runs only when the game is paused
+        Paused,             // Special stage that runs only when the game is paused
 
         NumStages,
     };

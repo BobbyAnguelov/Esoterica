@@ -1,18 +1,9 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "Engine/Physics/PhysicsCollision.h"
-#include "Engine/Physics/PhysicsMaterial.h"
+#include "Engine/Physics/Physics.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
-#include "Base/Types/Event.h"
-
-//-------------------------------------------------------------------------
-
-namespace physx
-{
-    class PxRigidActor;
-    class PxShape;
-}
+#include "Engine/Entity/EntityWorldSystemSignal.h"
 
 //-------------------------------------------------------------------------
 
@@ -22,22 +13,13 @@ namespace EE::Physics
     // Base class for all physics shape components
     //-------------------------------------------------------------------------
     // Each physics component will create a new body in the physics world
-    // TODO: provide option to simple weld the shape from the component to its parent actor
+    // TODO: provide option to weld the shape from the component's body to it first parent body
 
     class EE_ENGINE_API PhysicsShapeComponent : public SpatialEntityComponent
     {
         EE_ENTITY_COMPONENT( PhysicsShapeComponent );
 
-        friend class PhysicsWorld;
         friend class PhysicsWorldSystem;
-
-        // Event fired whenever we require the body to be recreated
-        static TEvent<PhysicsShapeComponent*> s_rebuildBodyRequest;
-
-    public:
-
-        // Args: Component
-        inline static TEventHandle<PhysicsShapeComponent*> OnRebuildBodyRequested() { return s_rebuildBodyRequest; }
 
     public:
 
@@ -45,7 +27,7 @@ namespace EE::Physics
         inline PhysicsShapeComponent( StringID name ) : SpatialEntityComponent( name ) {}
 
         // Did we create a physics body for this shape?
-        inline bool IsActorCreated() const { return m_pPhysicsActor != nullptr; }
+        inline bool IsPhysicsBodyCreated() const { return !B3_IS_NULL( m_physicsBodyID ); }
 
         // Collision Settings
         //-------------------------------------------------------------------------
@@ -59,17 +41,20 @@ namespace EE::Physics
         // Simulation Settings
         //-------------------------------------------------------------------------
 
-        // Update the component's current simulation settings
-        inline SimulationSettings const& GetSimulationSettings() const { return m_simulationSettings; }
+        // Get the mobility for this shape
+        Mobility GetMobility() const { return m_mobility; }
+
+        // Get the mobility for this shape
+        float GetGravityScale() const { return m_defaultGravityScale; }
 
         // Are we a static body
-        EE_FORCE_INLINE bool IsStatic() const { return m_simulationSettings.IsStatic(); }
+        EE_FORCE_INLINE bool IsStatic() const { return m_mobility == Mobility::Static; }
 
         // Are we a dynamic (simulated) body
-        EE_FORCE_INLINE bool IsDynamic() const { return m_simulationSettings.IsDynamic(); }
+        EE_FORCE_INLINE bool IsDynamic() const { return m_mobility == Mobility::Dynamic; }
 
         // Are we a kinematic ( key-framed/user positioned ) body
-        EE_FORCE_INLINE bool IsKinematic() const { return m_simulationSettings.IsKinematic(); }
+        EE_FORCE_INLINE bool IsKinematic() const { return m_mobility == Mobility::Kinematic; }
 
         // Spatial API
         //-------------------------------------------------------------------------
@@ -87,36 +72,51 @@ namespace EE::Physics
         // Note: This is only valid to call for created dynamic bodies!!!
         void SetVelocity( Float3 newVelocity );
 
+        // Signals
+        //-------------------------------------------------------------------------
+
+        inline TEntityWorldSystemSignal<PhysicsShapeComponent>* GetRebuildBodySignal() { return &m_rebuildBodySignal; }
+
     protected:
 
         // Check if the physics setup if valid for this component, will log any problems detected!
         virtual bool HasValidPhysicsSetup() const = 0;
 
+        bool CreatePhysicsBody();
+        void DestroyPhysicsBody();
+
+        // Create the specific shape for the component, will only be called if we have a valid body
+        virtual void CreatePhysicsShape() = 0;
+
         // Update physics world position for this shape
         virtual void OnWorldTransformUpdated() override final;
 
-        // Some shapes require a conversion between esoterica and physx (notably capsules)
-        virtual Transform ConvertTransformToPhysics( Transform const& esotericaTransform ) const { return esotericaTransform; }
-
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
-        #endif
-
     protected:
-
-        EE_REFLECT( Category = "Simulation" )
-        SimulationSettings                              m_simulationSettings;
 
         EE_REFLECT( Category = "Collision" )
         CollisionSettings                               m_collisionSettings;
 
-    private:
+        // The mobility of the object
+        EE_REFLECT( Category = "Body" );
+        Mobility                                        m_mobility = Mobility::Static;
 
-        physx::PxRigidActor*                            m_pPhysicsActor = nullptr;
-        physx::PxShape*                                 m_pPhysicsShape = nullptr;
+        // Dynamic Only: gravity scale
+        EE_REFLECT( Category = "Body" );
+        float                                           m_defaultGravityScale = 1.0f;
 
-        #if EE_DEVELOPMENT_TOOLS
-        String                                          m_debugName; // Keep a debug name here since the physx SDK doesnt store the name data
-        #endif
+        // The density of the object. Defaulted to the density of water
+        EE_REFLECT( Category = "Shape" );
+        float                                           m_defaultDensity = Constants::BaseDensity;
+
+        //-------------------------------------------------------------------------
+
+        PhysicsWorld*                                   m_pPhysicsWorld = nullptr;
+        b3BodyId                                        m_physicsBodyID = {};
+        b3ShapeId                                       m_physicsShapeID = {};
+        UserData                                        m_userData;
+
+        TEntityWorldSystemSignal<PhysicsShapeComponent> m_rebuildBodySignal;
+
+        Transform                                       m_kinematicTargetTransform;
     };
 }

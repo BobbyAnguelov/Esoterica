@@ -1,49 +1,49 @@
 #include "Animation_RuntimeGraphNode_TargetWarp.h"
 #include "Engine/Animation/AnimationClip.h"
-#include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
-#include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
-
+#include "Engine/Animation/AnimationPose.h"
 #include "Base/Drawing/DebugDrawing.h"
 #include "Base/Math/Curves.h"
 #include "Base/Math/MathUtils.h"
+#include "Base/Types/ScopedValue.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
     constexpr float const g_curveBlowoutDetectionThreshold = 2.5f;
-
     constexpr float const g_minAllowedRootMotionScale = 0.05f;
+
+    //-------------------------------------------------------------------------
+
+    static Quaternion CalculateWarpedOrientationReferenceQuat( RootMotionData const &rootMotion, int32_t frameIdx )
+    {
+        EE_ASSERT( frameIdx > 0 && frameIdx < rootMotion.GetNumFrames() );
+
+        Vector const referenceDirection = ( rootMotion.m_transforms[frameIdx].GetTranslation() - rootMotion.m_transforms[frameIdx - 1].GetTranslation() ).GetNormalized2();
+        if ( referenceDirection.IsZero2() )
+        {
+            // Use the previous frame's orientation as a fallback
+            return rootMotion.m_transforms[frameIdx - 1].GetRotation();
+        }
+
+        if ( Math::IsNearEqual( referenceDirection.GetDot3( Vector::WorldForward ), -1.0f, 1e-3f ) )
+        {
+            return Quaternion::LookAt( referenceDirection, rootMotion.m_transforms[frameIdx].GetUpVector() );
+        }
+
+        return Quaternion::FromRotationBetweenUnitVectors( Vector::WorldForward, referenceDirection );
+    }
 
     static Quaternion CalculateWarpedOrientationForFrame( RootMotionData const& originalRM, RootMotionData const& warpedRM, int32_t frameIdx )
     {
         EE_ASSERT( frameIdx > 0 && frameIdx < originalRM.GetNumFrames() );
 
         // Calculate relative orientation in the original root motion
-        Quaternion originalReferenceQuat;
-        Vector const originalReferenceDirection = ( originalRM.m_transforms[frameIdx].GetTranslation() - originalRM.m_transforms[frameIdx - 1].GetTranslation() ).GetNormalized2();
-        if ( !originalReferenceDirection.IsNearZero3() )
-        {
-            originalReferenceQuat = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, originalReferenceDirection );
-        }
-        else // Use the previous frame's orientation as a fallback
-        {
-            originalReferenceQuat = originalRM.m_transforms[frameIdx - 1].GetRotation();
-        }
-
+        Quaternion const originalReferenceQuat = CalculateWarpedOrientationReferenceQuat( originalRM, frameIdx );
         Quaternion const originalRotationOffset = Quaternion::Delta( originalReferenceQuat, originalRM.m_transforms[frameIdx].GetRotation() );
 
         // Calculate reference direction for warped root motion
-        Quaternion warpedReferenceQuat;
-        Vector const warpedReferenceDirection = ( warpedRM.m_transforms[frameIdx].GetTranslation() - warpedRM.m_transforms[frameIdx - 1].GetTranslation() ).GetNormalized2();
-        if ( !warpedReferenceDirection.IsNearZero3() )
-        {
-            warpedReferenceQuat = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, warpedReferenceDirection );
-        }
-        else // Use the previous frame's orientation as a fallback
-        {
-            warpedReferenceQuat = warpedRM.m_transforms[frameIdx - 1].GetRotation();
-        }
+        Quaternion const warpedReferenceQuat = CalculateWarpedOrientationReferenceQuat( warpedRM, frameIdx );
 
         Quaternion const warpedOrientation = originalRotationOffset * warpedReferenceQuat;
         return warpedOrientation;
@@ -56,13 +56,25 @@ namespace EE::Animation
         auto pNode = CreateNode<TargetWarpNode>( context, options );
         context.SetNodePtrFromIndex( m_clipReferenceNodeIdx, pNode->m_pClipReferenceNode );
         context.SetNodePtrFromIndex( m_targetValueNodeIdx, pNode->m_pTargetValueNode );
+
+        if ( m_alignmentBoneID.IsValid() )
+        {
+            pNode->m_alignmentBoneIdx = context.m_pSkeleton->GetBoneIndex( m_alignmentBoneID );
+
+            #if EE_DEVELOPMENT_TOOLS
+            if ( pNode->m_alignmentBoneIdx == InvalidIndex )
+            {
+                context.LogWarning( "Cant find specified alignment bone ID ('%s') for target warp node", m_alignmentBoneID.c_str() );
+            }
+            #endif
+        }
     }
 
     //-------------------------------------------------------------------------
 
     bool TargetWarpNode::IsValid() const
     {
-        return PoseNode::IsValid() && m_pClipReferenceNode->IsValid();
+        return PoseNode::IsValid() && m_pClipReferenceNode->IsValid() && m_duration > 0.0f;
     }
 
     void TargetWarpNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
@@ -71,6 +83,8 @@ namespace EE::Animation
         EE_ASSERT( m_pTargetValueNode != nullptr );
 
         PoseNode::InitializeInternal( context, initialTime );
+
+        auto pDefinition = GetDefinition<TargetWarpNode>();
         m_pClipReferenceNode->Initialize( context, initialTime );
         m_pTargetValueNode->Initialize( context );
 
@@ -81,14 +95,19 @@ namespace EE::Animation
             m_duration = m_pClipReferenceNode->GetDuration();
             m_previousTime = m_pClipReferenceNode->GetPreviousTime();
             m_currentTime = m_pClipReferenceNode->GetCurrentTime();
+
+            #if EE_DEVELOPMENT_TOOLS
+            if ( m_duration == 0.0f )
+            {
+                context.LogError( GetNodeIndex(), "Zero frame animations are not supported for warping!" );
+            }
+            #endif
         }
         else
         {
             m_previousTime = m_currentTime = 0.0f;
-            m_duration = 0;
+            m_duration = 0.0f;
         }
-
-        EE_ASSERT( m_duration != 0.0f );
 
         //-------------------------------------------------------------------------
 
@@ -136,7 +155,7 @@ namespace EE::Animation
 
     void TargetWarpNode::SolveFixedSection( GraphContext& context, WarpSection const& section, Transform const& startTransform )
     {
-        EE_ASSERT( section.m_isFixedSection );
+        EE_ASSERT( section.IsFixedSection() );
 
         auto& warpedTransforms = m_warpedRootMotion.m_transforms;
         warpedTransforms[section.m_startFrame] = startTransform;
@@ -272,7 +291,7 @@ namespace EE::Animation
             bool const tangentsInSameHemisphere = Math::IsVectorInTheSameHemisphere2D( startTangent, endTangent );
             if ( tangentsInSameHemisphere )
             {
-                if ( Line( Line::StartDirection, startPoint, startTangent ).GetDistanceOnLineFromStartPoint( endPoint ).ToFloat() <= 0 )
+                if ( Line( Line::StartDirection, startPoint, startTangent ).GetDistanceAlongLineToProjectedPoint( endPoint ) <= 0 )
                 {
                     triggerFallback = true;
 
@@ -296,10 +315,10 @@ namespace EE::Animation
                     if ( EnsureValidCurve( curveLength ) )
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        section.m_debugPoints[0] = startPoint;
-                        section.m_debugPoints[1] = startTangent;
-                        section.m_debugPoints[2] = endPoint;
-                        section.m_debugPoints[3] = endTangent;
+                        section.m_debugPoints[0] = m_warpStartWorldTransform.TransformPoint( startPoint );
+                        section.m_debugPoints[1] = m_warpStartWorldTransform.TransformVector( startTangent );
+                        section.m_debugPoints[2] = m_warpStartWorldTransform.TransformPoint( endPoint );
+                        section.m_debugPoints[3] = m_warpStartWorldTransform.TransformVector( endTangent );
                         #endif
 
                         //-------------------------------------------------------------------------
@@ -323,14 +342,14 @@ namespace EE::Animation
                     Vector const cp0 = startPoint + startTangent;
                     Vector const cp1 = endPoint - endTangent;
 
-                    float const curveLength = Math::CubicBezier::GetEstimatedLength( startPoint, startTangent, endPoint, endTangent );
+                    float const curveLength = Math::CubicBezier::GetEstimatedLength( startPoint, cp0, cp1, endPoint );
                     if ( EnsureValidCurve( curveLength ) )
                     {
                         #if EE_DEVELOPMENT_TOOLS
-                        section.m_debugPoints[0] = startPoint;
-                        section.m_debugPoints[1] = cp0;
-                        section.m_debugPoints[2] = cp1;
-                        section.m_debugPoints[3] = endPoint;
+                        section.m_debugPoints[0] = m_warpStartWorldTransform.TransformPoint( startPoint );
+                        section.m_debugPoints[1] = m_warpStartWorldTransform.TransformPoint( cp0 );
+                        section.m_debugPoints[2] = m_warpStartWorldTransform.TransformPoint( cp1 );
+                        section.m_debugPoints[3] = m_warpStartWorldTransform.TransformPoint( endPoint );
                         #endif
 
                         int32_t const numWarpFrames = section.m_endFrame - section.m_startFrame;
@@ -410,13 +429,13 @@ namespace EE::Animation
             if ( !triggerFallback && EnsureValidCurve( curveLength ) )
             {
                 #if EE_DEVELOPMENT_TOOLS
-                section.m_debugPoints[0] = startPoint;
-                section.m_debugPoints[1] = hermiteStartTangent;
-                section.m_debugPoints[2] = endPoint;
-                section.m_debugPoints[3] = hermiteEndTangent;
+                section.m_debugPoints[0] = m_warpStartWorldTransform.TransformPoint( startPoint );
+                section.m_debugPoints[1] = m_warpStartWorldTransform.TransformVector( hermiteStartTangent );
+                section.m_debugPoints[2] = m_warpStartWorldTransform.TransformPoint( endPoint );
+                section.m_debugPoints[3] = m_warpStartWorldTransform.TransformVector( hermiteEndTangent );
                 #endif
 
-                Quaternion const sectionDeltaOrientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, hermiteStartTangent.GetNormalized3() );
+                Quaternion const sectionDeltaOrientation = Quaternion::FromRotationBetweenUnitVectors( Vector::WorldForward, hermiteStartTangent.GetNormalized3() );
                 Vector const scaledUnwarpedEndPoint = unwarpedEndPoint * rootMotionScaleFactor;
                 int32_t const numWarpFrames = section.m_endFrame - section.m_startFrame;
 
@@ -434,7 +453,7 @@ namespace EE::Animation
 
                     // Calculate new curved path
                     auto const pt = Math::CubicHermite::GetPointAndTangent( startPoint, hermiteStartTangent, endPoint, hermiteEndTangent, percentageAlongCurve );
-                    Quaternion const curveTangentOrientation = Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, pt.m_tangent.GetNormalized2() );
+                    Quaternion const curveTangentOrientation = Quaternion::FromRotationBetweenUnitVectors( Vector::WorldForward, pt.m_tangent.GetNormalized2() );
                     Transform const curveTangentTransform( curveTangentOrientation, pt.m_point );
 
                     // Calculate final path point
@@ -470,6 +489,7 @@ namespace EE::Animation
 
     bool TargetWarpNode::GenerateWarpInfo( GraphContext& context )
     {
+        EE_ASSERT( IsValid() );
         EE_ASSERT( m_warpSections.empty() && m_warpedRootMotion.GetNumFrames() == 0 );
 
         auto pAnimation = m_pClipReferenceNode->GetAnimation();
@@ -484,22 +504,23 @@ namespace EE::Animation
         // Read warp events
         //-------------------------------------------------------------------------
 
-        #if EE_DEVELOPMENT_TOOLS
-        m_warpStartTime = m_useRecordedStartData ? m_warpStartTime : m_pClipReferenceNode->GetCurrentTime();
-        #else
-        m_warpStartTime = m_pClipReferenceNode->GetCurrentTime();
-        #endif
+        m_warpStartTime = pAnimation->GetFrameTime( m_pClipReferenceNode->GetCurrentTime() );
 
-        FrameTime const clipStartTime = pAnimation->GetFrameTime( m_warpStartTime );
+        FrameTime const clipStartTime = m_warpStartTime;
         int32_t const clipStartFrame = clipStartTime.GetFrameIndex();
         int32_t const minimumStartFrameForFirstSection = clipStartFrame + 1;
         Seconds const duration = pAnimation->GetDuration();
 
         for ( auto const pEvent : pAnimation->GetEvents() )
         {
-            Percentage const eventEndTime( pEvent->GetEndTime() / duration );
+            // Do some simple exclusions first to avoid the dynamic cast
+            if ( pEvent->IsImmediateEvent() )
+            {
+                continue;
+            }
 
             // Skip any events that are before our start time
+            FrameTime const eventEndTime = pAnimation->GetFrameTime( pEvent->GetEndTime() );
             if ( eventEndTime < m_warpStartTime )
             {
                 continue;
@@ -537,7 +558,7 @@ namespace EE::Animation
                         WarpSection fixedSection;
                         fixedSection.m_startFrame = m_warpSections.back().m_endFrame;
                         fixedSection.m_endFrame = section.m_startFrame;
-                        fixedSection.m_isFixedSection = true;
+                        fixedSection.m_warpRule = TargetWarpRule::FixedSection;
                         m_warpSections.emplace_back( fixedSection );
                     }
                 }
@@ -570,6 +591,12 @@ namespace EE::Animation
                     case TargetWarpRule::RotationOnly:
                     {
                         m_rotationSectionIdx = (int8_t) m_warpSections.size() - 1;
+                    }
+                    break;
+
+                    case TargetWarpRule::FixedSection:
+                    {
+                        // Do Nothing
                     }
                     break;
                 }
@@ -626,88 +653,126 @@ namespace EE::Animation
             section.m_deltaTransform = Transform::Delta( originalRM.m_transforms[section.m_startFrame], originalRM.m_transforms[section.m_endFrame] );
 
             // For fixed or rotation sections, we dont care about the length
-            if ( !section.m_isFixedSection )
+            if ( section.IsFixedSection() )
             {
-                section.m_totalProgress.resize( section.m_endFrame - section.m_startFrame + 1 );
+                continue;
+            }
 
-                //-------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
-                section.m_distanceCovered = 0.0f;
+            section.m_totalProgress.resize( section.m_endFrame - section.m_startFrame + 1 );
+            section.m_distanceCovered = 0.0f;
 
-                // Rotation
-                if ( section.m_warpRule == TargetWarpRule::RotationOnly )
+            // Rotation
+            if ( section.m_warpRule == TargetWarpRule::RotationOnly )
+            {
+                for ( auto i = section.m_startFrame + 1; i <= section.m_endFrame; i++ )
                 {
-                    for ( auto i = section.m_startFrame + 1; i <= section.m_endFrame; i++ )
-                    {
-                        section.m_hasTranslation |= m_deltaTransforms[i].GetTranslation().GetLengthSquared3() > 0;
-                        float const angularDistance = Math::Abs( m_deltaTransforms[i].GetRotation().GetAngle().ToFloat() );
-                        section.m_totalProgress[i - section.m_startFrame] = angularDistance;
-                        section.m_distanceCovered += angularDistance;
-                    }
+                    section.m_hasTranslation |= m_deltaTransforms[i].GetTranslation().GetLengthSquared3() > 0;
+                    float const angularDistance = Math::Abs( m_deltaTransforms[i].GetRotation().GetAngle().ToFloat() );
+                    section.m_totalProgress[i - section.m_startFrame] = angularDistance;
+                    section.m_distanceCovered += angularDistance;
                 }
-                else // Translation
+            }
+            else // Translation
+            {
+                for ( auto i = section.m_startFrame + 1; i <= section.m_endFrame; i++ )
                 {
-                    for ( auto i = section.m_startFrame + 1; i <= section.m_endFrame; i++ )
-                    {
-                        float const distance = m_deltaTransforms[i].GetTranslation().GetLength3();
-                        section.m_totalProgress[i - section.m_startFrame] = distance;
-                        section.m_distanceCovered += distance;
-                    }
-
-                    if ( section.m_warpRule == TargetWarpRule::WarpZ || section.m_warpRule == TargetWarpRule::WarpXYZ )
-                    {
-                        m_numSectionZ++;
-                        m_totalNumWarpableZFrames += section.GetNumWarpableFrames();
-                    }
-
-                    section.m_hasTranslation = section.m_distanceCovered > 0;
+                    float const distance = m_deltaTransforms[i].GetTranslation().GetLength3();
+                    section.m_totalProgress[i - section.m_startFrame] = distance;
+                    section.m_distanceCovered += distance;
                 }
 
-                // Convert progress from distance to percentage progress
-                if ( section.m_distanceCovered > 0 )
+                if ( section.m_warpRule == TargetWarpRule::WarpZ || section.m_warpRule == TargetWarpRule::WarpXYZ )
                 {
-                    // Normalize the distance contributions per frame and calculate cumulative progress
-                    for ( auto i = 1; i < section.m_totalProgress.size(); i++ )
-                    {
-                        section.m_totalProgress[i] /= section.m_distanceCovered;
-                        section.m_totalProgress[i] += section.m_totalProgress[i - 1];
-                        section.m_totalProgress[i] = Math::Min( section.m_totalProgress[i], 1.0f );
-                    }
+                    m_numSectionZ++;
+                    m_totalNumWarpableZFrames += section.GetNumWarpableFrames();
                 }
-                else // Each frame has the exact same contribution
-                {
-                    uint32_t const numWarpFrames = (uint32_t) section.m_totalProgress.size();
-                    float const contributionPerFrame = 1.0f / ( numWarpFrames - 1 );
-                    for ( uint32_t i = 1; i < numWarpFrames - 1; i++ )
-                    {
-                        section.m_totalProgress[i] = section.m_totalProgress[i - 1] + contributionPerFrame;
-                    }
 
-                    section.m_totalProgress.back() = 1.0f;
+                section.m_hasTranslation = section.m_distanceCovered > 0;
+            }
+
+            // Convert progress from distance to percentage progress
+            if ( section.m_distanceCovered > 0 )
+            {
+                // Normalize the distance contributions per frame and calculate cumulative progress
+                for ( auto i = 1; i < section.m_totalProgress.size(); i++ )
+                {
+                    section.m_totalProgress[i] /= section.m_distanceCovered;
+                    section.m_totalProgress[i] += section.m_totalProgress[i - 1];
+                    section.m_totalProgress[i] = Math::Min( section.m_totalProgress[i], 1.0f );
                 }
+            }
+            else // Each frame has the exact same contribution
+            {
+                uint32_t const numWarpFrames = (uint32_t) section.m_totalProgress.size();
+                float const contributionPerFrame = 1.0f / ( numWarpFrames - 1 );
+                for ( uint32_t i = 1; i < numWarpFrames - 1; i++ )
+                {
+                    section.m_totalProgress[i] = section.m_totalProgress[i - 1] + contributionPerFrame;
+                }
+
+                section.m_totalProgress.back() = 1.0f;
             }
         }
 
         // Calculate actual target
         //-------------------------------------------------------------------------
-        // TODO: once we get an interaction bone, adjust the target relative to that bone!!
 
         m_warpTarget = m_requestedWarpTarget;
 
-        // If we dont allow horizontal translation, just keep the target's Z value
-        if ( m_translationXYSectionIdx == InvalidIndex )
+        if ( m_alignmentBoneIdx != InvalidIndex || !m_isTranslationAllowedZ )
         {
-            Vector adjustedTranslation = originalRM.m_transforms.back().GetTranslation();
-            adjustedTranslation.SetZ( m_requestedWarpTarget.GetTranslation().GetZ() );
-            m_warpTarget.SetTranslation( adjustedTranslation );
-        }
+            auto pDefinition = GetDefinition<TargetWarpNode>();
 
-        // If we dont allow vertical translation, just keep the target's XY value
-        if ( !m_isTranslationAllowedZ )
-        {
-            Vector adjustedTranslation = m_requestedWarpTarget.GetTranslation();
-            adjustedTranslation.SetZ( originalRM.m_transforms.back().GetTranslation().GetZ() );
-            m_warpTarget.SetTranslation( adjustedTranslation );
+            Transform warpStartWorldTransform = context.m_worldTransform;
+
+            // Handle the case were we dont start the animation from the first frame
+            if ( !m_warpStartTime.IsAtStart() )
+            {
+                // Offset the warp start transform by the distance we've 'already' covered due to our later start time
+                Transform const rootTransformAtActualStartTime = originalRM.GetTransform( m_warpStartTime );
+                Transform const rootTransformOffset = rootTransformAtActualStartTime.GetInverse();
+                warpStartWorldTransform = rootTransformOffset * warpStartWorldTransform;
+            }
+
+            Transform requestedWarpTargetCS = m_requestedWarpTarget * warpStartWorldTransform.GetInverse();
+            Transform warpTargetCS = requestedWarpTargetCS;
+
+            WarpSection const& lastWarpSection = m_warpSections.back();
+
+            int32_t const targetAlignmentFrame = pDefinition->m_alignWithTargetAtLastWarpEvent ? lastWarpSection.m_endFrame : numFrames - 1;
+            int32_t const originalRootMotionFrame = originalRM.IsStationary() ? 0 : targetAlignmentFrame;
+
+            Transform alignmentBoneOffset = Transform::Identity;
+
+            if ( m_alignmentBoneIdx != InvalidIndex )
+            {
+                // We want to align the alignment bone with the target, so calculate where the root needs to be in order for that to happen at the time we want things to align
+                TInlineVector<BoneChainElement, 20> const modelSpaceChain = pAnimation->GetModelSpaceTransform( FrameTime( targetAlignmentFrame ), m_alignmentBoneIdx );
+                alignmentBoneOffset = modelSpaceChain.back().m_modelSpaceTransform;
+            }
+
+            Transform unwarpedTargetCS = alignmentBoneOffset * originalRM.m_transforms[originalRootMotionFrame];
+
+            // If we dont allow horizontal translation, just keep the target's Z value
+            if ( m_translationXYSectionIdx == InvalidIndex )
+            {
+                Vector adjustedTranslation = unwarpedTargetCS.GetTranslation();
+                adjustedTranslation.SetZ( requestedWarpTargetCS.GetTranslation().GetZ() );
+                warpTargetCS.SetTranslation( adjustedTranslation );
+            }
+
+            // If we dont allow vertical translation, just keep the target's XY value
+            if ( !m_isTranslationAllowedZ )
+            {
+                Vector adjustedTranslation = requestedWarpTargetCS.GetTranslation();
+                Vector originalFinalTranslation = unwarpedTargetCS.GetTranslation();
+                adjustedTranslation.SetZ( originalFinalTranslation.GetZ() );
+                warpTargetCS.SetTranslation( adjustedTranslation );
+            }
+
+            m_warpTarget = warpTargetCS * warpStartWorldTransform;
         }
 
         return true;
@@ -730,12 +795,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         m_samplingMode = pDefinition->m_samplingMode;
-
-        #if EE_DEVELOPMENT_TOOLS
-        m_warpStartWorldTransform = m_useRecordedStartData ? m_warpStartWorldTransform : context.m_worldTransform;
-        #else
         m_warpStartWorldTransform = context.m_worldTransform;
-        #endif
 
         // Create storage for warped root motion
         m_warpedRootMotion.Clear();
@@ -744,11 +804,12 @@ namespace EE::Animation
         m_warpedRootMotion.m_numFrames = originalRM.GetNumFrames();
 
         // Handle the case were we dont start the animation from the first frame
-        if ( m_warpStartTime != 0.0f )
+        if ( !m_warpStartTime.IsAtStart() )
         {
             // Offset the warp start transform by the distance we've 'already' covered due to our later start time
             Transform const rootTransformAtActualStartTime = originalRM.GetTransform( m_warpStartTime );
-            m_warpStartWorldTransform = rootTransformAtActualStartTime.GetInverse() * m_warpStartWorldTransform;
+            Transform const rootTransformOffset = rootTransformAtActualStartTime.GetInverse();
+            m_warpStartWorldTransform = rootTransformOffset * m_warpStartWorldTransform;
         }
 
         // Add the unwarped start and end portions of the root motion
@@ -757,15 +818,37 @@ namespace EE::Animation
         // Set all unwarped start frames
         for ( auto i = 0; i <= m_warpSections[0].m_startFrame; i++ )
         {
-            warpedTransforms[i] = originalRM.m_transforms[i] * m_warpStartWorldTransform;
+            warpedTransforms[i] = originalRM.m_transforms[i];
         }
 
-        // Add trailing unwarped frames
-        warpedTransforms.back() = m_warpTarget;
-        WarpSection const& lastWarpSection = m_warpSections.back();
-        for ( int32_t frameIdx = numFrames - 2; frameIdx >= lastWarpSection.m_endFrame; frameIdx-- )
+        WarpSection const &lastWarpSection = m_warpSections.back();
+        int32_t const targetAlignmentFrameIdx = pDefinition->m_alignWithTargetAtLastWarpEvent ? lastWarpSection.m_endFrame : numFrames - 1;
+
+        Transform rootTarget = m_warpTarget;
+
+        // We want to align the alignment bone with the target, so calculate where the root needs to be in order for that to happen at the time we want things to align
+        if ( m_alignmentBoneIdx != InvalidIndex )
         {
-            warpedTransforms[frameIdx] = m_inverseDeltaTransforms[frameIdx] * warpedTransforms[frameIdx + 1];
+            // TODO: This is bad! Provide a direct accessor for bone transforms
+            Pose alignmentPose( context.m_pSkeleton );
+            pAnimation->GetPose( FrameTime( targetAlignmentFrameIdx ), &alignmentPose );
+
+            Transform const alignmentBoneTransform = alignmentPose.GetModelSpaceTransform( m_alignmentBoneIdx );
+            rootTarget = alignmentBoneTransform.GetInverse() * rootTarget;
+        }
+
+        // Set the frame at which we want to be aligned with out target to that target
+        warpedTransforms[targetAlignmentFrameIdx] = m_warpStartWorldTransform.GetInverse() * m_warpTarget;
+
+        // Add trailing unwarped frames
+        for ( int32_t frameIdx = targetAlignmentFrameIdx + 1; frameIdx < numFrames; frameIdx++ )
+        {
+            warpedTransforms[frameIdx] = warpedTransforms[frameIdx - 1] * m_deltaTransforms[frameIdx];
+        }
+
+        for ( int32_t frameIdx = targetAlignmentFrameIdx - 1; frameIdx >= lastWarpSection.m_endFrame; frameIdx-- )
+        {
+            warpedTransforms[frameIdx] = warpedTransforms[frameIdx + 1] * m_inverseDeltaTransforms[frameIdx + 1];
         }
 
         // Forward Solve
@@ -797,7 +880,7 @@ namespace EE::Animation
                 Transform const& sectionStartTransform = warpedTransforms[warpSection.m_startFrame];
                 SolveTranslationZSection( context, warpSection, sectionStartTransform, correctionZ );
             }
-            else if( warpSection.m_isFixedSection )
+            else if( warpSection.IsFixedSection() )
             {
                 Transform const& sectionStartTransform = warpedTransforms[warpSection.m_startFrame];
                 SolveFixedSection( context, warpSection, sectionStartTransform );
@@ -812,7 +895,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
         // Stops on XY section
 
-        int32_t const backwardsEndIdx = tIdx;
+        int32_t const backwardsEndIdx = Math::Min( numSections - 1, tIdx );
         for ( auto i = numSections - 1; i > backwardsEndIdx; i-- )
         {
             auto const& warpSection = m_warpSections[i];
@@ -871,10 +954,14 @@ namespace EE::Animation
                 Vector const deltaDistance = unwarpedDeltaPostT.GetTranslation().Length2();
                 sectionStartTransform.SetTranslation( Vector::NegativeMultiplySubtract( alignmentDir, deltaDistance, targetTransform.GetTranslation() ) );
 
-                Quaternion const unwarpedMovementOrientation = originalRM.GetOutgoingMovementOrientation2DAtFrame( m_warpSections[tIdx].m_endFrame );
+                // Put the section start location at the correct height so it doesn't get doubled
+                sectionStartTransform.AddTranslation( Vector::WorldDown * unwarpedDeltaPostT.GetTranslation().GetZ() );
+
+                // Use IncomingMovementOrientation so that it allows placing translation section on the last frame of translation
+                Quaternion const unwarpedMovementOrientation = originalRM.GetIncomingMovementOrientation2DAtFrame( m_warpSections[tIdx].m_endFrame );
                 Quaternion const originalFacingOrientation = originalRM.m_transforms[m_warpSections[tIdx].m_endFrame].GetRotation();
                 Quaternion const offset = Quaternion::Delta( unwarpedMovementOrientation, originalFacingOrientation );
-                sectionStartTransform.SetRotation( offset * Quaternion::FromRotationBetweenNormalizedVectors( Vector::WorldForward, alignmentDir ) );
+                sectionStartTransform.SetRotation( offset * Quaternion::FromRotationBetweenUnitVectors( Vector::WorldForward, alignmentDir ) );
 
                 // Calculate the start transform for this section by applying the delta for each section
                 for ( auto j = tIdx + 1; j < i; j++ )
@@ -887,14 +974,14 @@ namespace EE::Animation
                 Quaternion const requiredCorrection = Quaternion::Delta( estimatedSectionEndTransform.GetRotation(), targetTransform.GetRotation() );
 
                 #if EE_DEVELOPMENT_TOOLS
-                warpSection.m_debugPoints[0] = targetTransform.GetTranslation();
-                warpSection.m_debugPoints[1] = targetTransform.GetTranslation() + unwarpedMovementOrientation.RotateVector( Vector::WorldForward );
-                warpSection.m_debugPoints[2] = targetTransform.GetTranslation() + estimatedSectionEndTransform.GetRotation().RotateVector( Vector::WorldForward );
+                warpSection.m_debugPoints[0] = m_warpStartWorldTransform.TransformPoint( targetTransform.GetTranslation() );
+                warpSection.m_debugPoints[1] = m_warpStartWorldTransform.TransformPoint( targetTransform.GetTranslation() + unwarpedMovementOrientation.RotateVector( Vector::WorldForward ) );
+                warpSection.m_debugPoints[2] = m_warpStartWorldTransform.TransformPoint( targetTransform.GetTranslation() + estimatedSectionEndTransform.GetRotation().RotateVector( Vector::WorldForward ) );
                 #endif
 
                 SolveRotationSection( context, warpSection, sectionStartTransform, requiredCorrection );
             }
-            else if ( warpSection.m_isFixedSection )
+            else if ( warpSection.IsFixedSection() )
             {
                 Transform sectionStartTransform = warpSection.m_deltaTransform.GetInverse() * warpedTransforms[warpSection.m_endFrame];
                 SolveFixedSection( context, warpSection, sectionStartTransform );
@@ -928,9 +1015,9 @@ namespace EE::Animation
                     requiredCorrection = Quaternion::Delta( sectionEndTransform.GetRotation(), targetTransform.GetRotation() );
 
                     #if EE_DEVELOPMENT_TOOLS
-                    warpSection.m_debugPoints[0] = sectionEndTransform.GetTranslation();
-                    warpSection.m_debugPoints[1] = sectionEndTransform.GetTranslation() + sectionEndTransform.GetRotation().RotateVector( Vector::WorldForward );
-                    warpSection.m_debugPoints[2] = sectionEndTransform.GetTranslation() + targetTransform.GetRotation().RotateVector( Vector::WorldForward );
+                    warpSection.m_debugPoints[0] = m_warpStartWorldTransform.TransformPoint( sectionEndTransform.GetTranslation() );
+                    warpSection.m_debugPoints[1] = m_warpStartWorldTransform.TransformPoint( sectionEndTransform.GetTranslation() + sectionEndTransform.GetRotation().RotateVector( Vector::WorldForward ) );
+                    warpSection.m_debugPoints[2] = m_warpStartWorldTransform.TransformPoint( sectionEndTransform.GetTranslation() + targetTransform.GetRotation().RotateVector( Vector::WorldForward ) );
                     #endif
                 }
                 else
@@ -944,12 +1031,12 @@ namespace EE::Animation
                     }
 
                     #if EE_DEVELOPMENT_TOOLS
-                    warpSection.m_debugPoints[0] = sectionEndTransform.GetTranslation();
-                    warpSection.m_debugPoints[1] = sectionEndTransform.GetTranslation() + outgoingMovement.GetNormalized2();
-                    warpSection.m_debugPoints[2] = sectionEndTransform.GetTranslation() + toTarget.GetNormalized2();
+                    warpSection.m_debugPoints[0] = m_warpStartWorldTransform.TransformPoint( sectionEndTransform.GetTranslation() );
+                    warpSection.m_debugPoints[1] = m_warpStartWorldTransform.TransformPoint( sectionEndTransform.GetTranslation() + outgoingMovement.GetNormalized2() );
+                    warpSection.m_debugPoints[2] = m_warpStartWorldTransform.TransformPoint( sectionEndTransform.GetTranslation() + toTarget.GetNormalized2() );
                     #endif
 
-                    requiredCorrection = Quaternion::FromRotationBetweenNormalizedVectors( outgoingMovement.GetNormalized2(), toTarget.GetNormalized2() );
+                    requiredCorrection = Quaternion::FromRotationBetweenUnitVectors( outgoingMovement.GetNormalized2(), toTarget.GetNormalized2() );
                 }
 
                 SolveRotationSection( context, warpSection, sectionStartTransform, requiredCorrection );
@@ -960,7 +1047,7 @@ namespace EE::Animation
                 Transform const& sectionEndTransform = warpedTransforms[warpSection.m_endFrame];
                 SolveTranslationSection( context, warpSection, sectionStartTransform, sectionEndTransform );
             }
-            else if ( warpSection.m_isFixedSection )
+            else if ( warpSection.IsFixedSection() )
             {
                 Transform const& sectionStartTransform = warpedTransforms[warpSection.m_startFrame];
                 SolveFixedSection( context, warpSection, sectionStartTransform );
@@ -983,18 +1070,33 @@ namespace EE::Animation
                 EE_UNREACHABLE_CODE();
             }
         }
+
+        // Put the warped root motion to the world space for the world space sampling mode
+        for ( Transform &warpedRootMotion : m_warpedRootMotion.m_transforms )
+        {
+            warpedRootMotion = warpedRootMotion * m_warpStartWorldTransform;
+        }
     }
 
     //-------------------------------------------------------------------------
 
     bool TargetWarpNode::UpdateWarp( GraphContext& context )
     {
+        EE_ASSERT( IsValid() );
+
         auto pDefinition = GetDefinition<TargetWarpNode>();
+
+        bool const isRecalculationAllowed = pDefinition->m_targetUpdateRule == TargetUpdateRule::Recalculate || pDefinition->m_targetUpdateRule == TargetUpdateRule::RecalculateOrOffset;
 
         //-------------------------------------------------------------------------
 
         if ( m_internalState == InternalState::Completed || m_internalState == InternalState::Failed )
         {
+            if ( pDefinition->m_targetUpdateRule == TargetUpdateRule::Offset && m_warpedRootMotion.IsValid() )
+            {
+                OffsetWarpedRootMotion( context );
+            }
+
             return false;
         }
 
@@ -1005,7 +1107,7 @@ namespace EE::Animation
         {
             if ( !TryReadTarget( context ) )
             {
-                m_internalState = pDefinition->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Failed;
+                m_internalState = isRecalculationAllowed ? InternalState::AllowUpdates : InternalState::Failed;
                 return false;
             }
         }
@@ -1022,9 +1124,14 @@ namespace EE::Animation
             // Cannot update a warp that is past all the warp events
             auto pAnimation = m_pClipReferenceNode->GetAnimation();
             EE_ASSERT( pAnimation != nullptr );
-            auto currentFrame = (int32_t) pAnimation->GetFrameTime( m_currentTime ).GetUpperBoundFrameIndex();
-            if ( m_warpSections.back().m_endFrame < currentFrame )
+            int32_t currentFrameIdx = (int32_t) pAnimation->GetFrameTime( m_currentTime ).GetUpperBoundFrameIndex();
+            if ( !CanRecalculateWarpedRootMotion( currentFrameIdx ) )
             {
+                if ( pDefinition->m_targetUpdateRule == TargetUpdateRule::RecalculateOrOffset )
+                {
+                    OffsetWarpedRootMotion( context );
+                }
+
                 return false;
             }
 
@@ -1068,19 +1175,80 @@ namespace EE::Animation
         if ( GenerateWarpInfo( context ) )
         {
             GenerateWarpedRootMotion( context );
-            m_internalState = pDefinition->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Completed;
+            m_internalState = isRecalculationAllowed ? InternalState::AllowUpdates : InternalState::Completed;
             return true;
         }
         else
         {
-            m_internalState = pDefinition->m_allowTargetUpdate ? InternalState::AllowUpdates : InternalState::Failed;
+            m_internalState = isRecalculationAllowed ? InternalState::AllowUpdates : InternalState::Failed;
             return false;
         }
     }
 
+    bool TargetWarpNode::OffsetWarpedRootMotion( GraphContext &context )
+    {
+        Transform const previousRequestedTarget = m_requestedWarpTarget;
+        if ( !TryReadTarget( context ) )
+        {
+            return false;
+        }
+
+        if ( m_requestedWarpTarget.IsNearEqual( previousRequestedTarget ) )
+        {
+            m_requestedWarpTarget = previousRequestedTarget;
+            return false;
+        }
+
+        Transform const delta = previousRequestedTarget.GetInverse() * m_requestedWarpTarget;
+        for ( Transform &rootTransform : m_warpedRootMotion.m_transforms )
+        {
+            rootTransform = rootTransform * delta;
+        }
+
+        m_warpStartWorldTransform = m_warpStartWorldTransform * delta;
+        m_warpTarget = m_warpTarget * delta;
+
+        return true;
+    }
+
+    bool TargetWarpNode::CanRecalculateWarpedRootMotion( int32_t startFrameIdx ) const
+    {
+        bool hasXYSection = false;
+        bool hasZSection = false;
+
+        for ( WarpSection const &warpSection : m_warpSections )
+        {
+            if ( warpSection.m_endFrame <= startFrameIdx )
+            {
+                continue;
+            }
+
+            switch ( warpSection.m_warpRule )
+            {
+                case TargetWarpRule::WarpXY:
+                hasXYSection = true;
+                break;
+
+                case TargetWarpRule::WarpZ:
+                hasZSection = true;
+                break;
+
+                case TargetWarpRule::WarpXYZ:
+                hasZSection = true;
+                hasXYSection = true;
+                break;
+
+                default:
+                break;
+            }
+        }
+
+        return hasXYSection && hasZSection;
+    }
+
     void TargetWarpNode::SampleWarpedRootMotion( GraphContext& context, GraphPoseNodeResult& result )
     {
-        bool const wasWarpUpdatedThisFrame = UpdateWarp( context );
+        EE_ASSERT( IsValid() );
 
         // If we failed to warp, just keep the original root motion delta
         if ( !m_warpedRootMotion.IsValid() )
@@ -1090,41 +1258,32 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        if ( wasWarpUpdatedThisFrame )
+        // If we are sampling accurately then we need to match the exact world space position each update
+        if ( m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
         {
-            // Always update in world space whenever we update the warp to correct any sampling error due to mid-frame delta calculation
-            // This is okay, since the update will be based on the current character position
-            result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
+            auto pDefinition = GetDefinition<TargetWarpNode>();
+
+            // Calculate error between current and expected position (only if the warp hasnt been updated this frame)
+            Transform const expectedTransform = m_warpedRootMotion.GetTransform( m_previousTime );
+            float const positionErrorSq = expectedTransform.GetTranslation().GetDistanceSquared3( context.m_worldTransform.GetTranslation() );
+            if ( positionErrorSq <= pDefinition->m_samplingPositionErrorThresholdSq )
+            {
+                result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
+            }
+            else // Exceeded the error threshold, so fallback to inaccurate sampling
+            {
+                m_samplingMode = RootMotionData::SamplingMode::Delta;
+
+                #if EE_DEVELOPMENT_TOOLS
+                context.LogWarning( GetNodeIndex(), "Target warp exceed accurate sampling error threshold! Switching to inaccurate sampling!" );
+                #endif
+            }
         }
-        else // Regular sampling
+
+        // Just sample the delta and return that
+        if ( m_samplingMode == RootMotionData::SamplingMode::Delta )
         {
-            // If we are sampling accurately then we need to match the exact world space position each update
-            if ( m_samplingMode == RootMotionData::SamplingMode::WorldSpace )
-            {
-                auto pDefinition = GetDefinition<TargetWarpNode>();
-
-                // Calculate error between current and expected position (only if the warp hasnt been updated this frame)
-                Transform const expectedTransform = m_warpedRootMotion.GetTransform( m_previousTime );
-                float const positionErrorSq = expectedTransform.GetTranslation().GetDistanceSquared3( context.m_worldTransform.GetTranslation() );
-                if ( positionErrorSq <= pDefinition->m_samplingPositionErrorThresholdSq )
-                {
-                    result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::WorldSpace, context.m_worldTransform, m_previousTime, m_currentTime );
-                }
-                else // Exceeded the error threshold, so fallback to inaccurate sampling
-                {
-                    m_samplingMode = RootMotionData::SamplingMode::Delta;
-
-                    #if EE_DEVELOPMENT_TOOLS
-                    context.LogWarning( GetNodeIndex(), "Target warp exceed accurate sampling error threshold! Switching to inaccurate sampling!" );
-                    #endif
-                }
-            }
-
-            // Just sample the delta and return that
-            if ( m_samplingMode == RootMotionData::SamplingMode::Delta )
-            {
-                result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
-            }
+            result.m_rootMotionDelta = m_warpedRootMotion.SampleRootMotion( RootMotionData::SamplingMode::Delta, context.m_worldTransform, m_previousTime, m_currentTime );
         }
     }
 
@@ -1141,12 +1300,26 @@ namespace EE::Animation
 
         if ( IsValid() )
         {
+            // Generate the warped root motion if needed
+            bool const wasWarpUpdated = UpdateWarp( context );
+
+            // Step time on target node
             result = m_pClipReferenceNode->Update( context, pUpdateRange );
             m_duration = m_pClipReferenceNode->GetDuration();
             m_previousTime = m_pClipReferenceNode->GetPreviousTime();
             m_currentTime = m_pClipReferenceNode->GetCurrentTime();
 
-            SampleWarpedRootMotion( context, result );
+            if ( wasWarpUpdated )
+            {
+                // Always update in world space whenever we update the warp to correct any sampling error due to mid-frame delta calculation
+                // This is okay, since the update will be based on the current character position
+                TScopedGuardValue const sgv( m_samplingMode, RootMotionData::SamplingMode::WorldSpace );
+                SampleWarpedRootMotion( context, result );
+            }
+            else
+            {
+                SampleWarpedRootMotion( context, result );
+            }
         }
         else
         {
@@ -1158,10 +1331,112 @@ namespace EE::Animation
         return result;
     }
 
+    void TargetWarpNode::RecordGraphState( RecordedGraphState& outState )
+    {
+        PoseNode::RecordGraphState( outState );
+        outState.WriteValue( m_samplingMode );
+        outState.WriteValue( m_internalState );
+
+        outState.WriteValue( m_translationXYSectionIdx );
+        outState.WriteValue( m_rotationSectionIdx );
+        outState.WriteValue( m_isTranslationAllowedZ );
+        outState.WriteValue( m_numSectionZ );
+        outState.WriteValue( m_totalNumWarpableZFrames );
+
+        //-------------------------------------------------------------------------
+
+        auto pAnimation = m_pClipReferenceNode->GetAnimation();
+        if ( pAnimation != nullptr )
+        {
+            Percentage startTime = pAnimation->GetPercentageThrough( m_warpStartTime );
+            outState.WriteValue( startTime );
+        }
+        else
+        {
+            outState.WriteValue( 0.0f );
+        }
+
+        outState.WriteValue( m_warpStartWorldTransform );
+        outState.WriteValue( m_requestedWarpTarget );
+        outState.WriteValue( m_warpTarget );
+
+        //-------------------------------------------------------------------------
+
+        outState.WriteValue( m_warpedRootMotion.m_numFrames );
+        outState.WriteValue( m_warpedRootMotion.m_averageLinearVelocity );
+        outState.WriteValue( m_warpedRootMotion.m_averageAngularVelocity );
+        outState.WriteValue( m_warpedRootMotion.m_totalDelta );
+
+        int32_t const numTransforms = (int32_t) m_warpedRootMotion.m_transforms.size();
+        outState.WriteValue( numTransforms );
+        for ( auto const &dt : m_warpedRootMotion.m_transforms )
+        {
+            outState.WriteValue( dt );
+        }
+
+        outState.WriteValue( m_alignmentBoneIdx );
+    }
+
+    bool TargetWarpNode::RestoreGraphState( RecordedGraphState const& inState )
+    {
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
+        inState.ReadValue( m_samplingMode );
+        inState.ReadValue( m_internalState );
+
+        inState.ReadValue( m_translationXYSectionIdx );
+        inState.ReadValue( m_rotationSectionIdx );
+        inState.ReadValue( m_isTranslationAllowedZ );
+        inState.ReadValue( m_numSectionZ );
+        inState.ReadValue( m_totalNumWarpableZFrames );
+
+        //-------------------------------------------------------------------------
+
+        Percentage startTime = 0.0f;
+        inState.ReadValue( startTime );
+
+        auto pAnimation = m_pClipReferenceNode->GetAnimation();
+        if ( pAnimation != nullptr )
+        {
+            m_warpStartTime = pAnimation->GetFrameTime( startTime );
+        }
+        else
+        {
+            m_warpStartTime = FrameTime();
+        }
+
+        inState.ReadValue( m_warpStartWorldTransform );
+        inState.ReadValue( m_requestedWarpTarget );
+        inState.ReadValue( m_warpTarget );
+
+        //-------------------------------------------------------------------------
+
+        inState.ReadValue( m_warpedRootMotion.m_numFrames );
+        inState.ReadValue( m_warpedRootMotion.m_averageLinearVelocity );
+        inState.ReadValue( m_warpedRootMotion.m_averageAngularVelocity );
+        inState.ReadValue( m_warpedRootMotion.m_totalDelta );
+
+        int32_t numTransforms = 0;
+        inState.ReadValue( numTransforms );
+
+        m_warpedRootMotion.m_transforms.resize( numTransforms );
+        for ( int32_t i = 0; i < numTransforms; i++ )
+        {
+            inState.ReadValue( m_warpedRootMotion.m_transforms[i] );
+        }
+
+        inState.ReadValue( m_alignmentBoneIdx );
+
+        return true;
+    }
+
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    void TargetWarpNode::DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx )
+    void TargetWarpNode::DrawDebug( GraphContext& graphContext, DebugDrawContext& drawCtx )
     {
         if ( !IsValid() )
         {
@@ -1185,7 +1460,7 @@ namespace EE::Animation
 
             Color const ruleColor = GetDebugColorForWarpRule( section.m_warpRule );
 
-            if ( section.m_isFixedSection )
+            if ( section.IsFixedSection() )
             {
                 Vector const debugSectionStart = m_warpedRootMotion.m_transforms[section.m_startFrame].GetTranslation();
                 Vector const debugSectionEnd = m_warpedRootMotion.m_transforms[section.m_endFrame].GetTranslation();
@@ -1225,22 +1500,6 @@ namespace EE::Animation
                 }
             }
         }
-    }
-
-    void TargetWarpNode::RecordGraphState( RecordedGraphState& outState )
-    {
-        PoseNode::RecordGraphState( outState );
-        outState.WriteValue( m_warpStartWorldTransform );
-        outState.WriteValue( m_warpStartTime );
-    }
-
-    void TargetWarpNode::RestoreGraphState( RecordedGraphState const& inState )
-    {
-        PoseNode::RestoreGraphState( inState );
-        inState.ReadValue( m_warpStartWorldTransform );
-        inState.ReadValue( m_warpStartTime );
-        m_internalState = InternalState::RequiresInitialUpdate;
-        m_useRecordedStartData = true;
     }
     #endif
 }

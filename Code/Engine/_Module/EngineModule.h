@@ -1,6 +1,8 @@
 #pragma once
 
 #include "API.h"
+#include "Base/Application/Module.h"
+#include "Base/Render/RenderWindow.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Entity/EntityWorldManager.h"
 #include "Engine/Entity/ResourceLoaders/ResourceLoader_EntityCollection.h"
@@ -8,22 +10,22 @@
 #include "Engine/Physics/ResourceLoaders/ResourceLoader_PhysicsCollisionMesh.h"
 #include "Engine/Physics/ResourceLoaders/ResourceLoader_PhysicsRagdoll.h"
 #include "Engine/Physics/PhysicsMaterial.h"
-#include "Engine/Physics/Debug/PhysicsDebugRenderer.h"
 #include "Engine/Animation/ResourceLoaders/ResourceLoader_AnimationSkeleton.h"
 #include "Engine/Animation/ResourceLoaders/ResourceLoader_AnimationClip.h"
 #include "Engine/Animation/ResourceLoaders/ResourceLoader_AnimationGraph.h"
-#include "Engine/Animation/ResourceLoaders/ResourceLoader_IKRig.h"
+#include "Engine/Hitbox/ResourceLoaders/ResourceLoader_Hitbox.h"
 #include "Engine/Navmesh/ResourceLoaders/ResourceLoader_Navmesh.h"
-#include "Engine/Render/RendererRegistry.h"
-#include "Engine/Render/Renderers/WorldRenderer.h"
-#include "Engine/Render/Renderers/DebugRenderer.h"
-#include "Engine/Render/Renderers/ImguiRenderer.h"
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderMaterial.h"
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderMesh.h"
-#include "Engine/Render/ResourceLoaders/ResourceLoader_RenderShader.h"
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderTexture.h"
-#include "Engine/Console/Console.h"
-#include "Base/Application/Module.h"
+#include "Engine/Render/RenderMaterial.h"
+#include "Engine/Render/RenderSystem.h"
+#include "Engine/Render/Renderer_ForwardShading.h"
+
+#if EE_DEVELOPMENT_TOOLS
+#include "Engine/Render/Imgui/ImguiRenderer.h"
+#include "Engine/Render/DebugMesh/DebugMeshRegistry.h"
+#endif
 
 //-------------------------------------------------------------------------
 
@@ -42,48 +44,58 @@ namespace EE
         virtual bool InitializeModule( ModuleContext const& context ) override;
         virtual void ShutdownModule( ModuleContext const& context ) override;
 
+        virtual void OnModuleResourceLoaded( Resource::ResourcePtr* pResource ) override;
+        virtual void OnModuleResourceUnload( Resource::ResourcePtr* pResource ) override;
+
         //-------------------------------------------------------------------------
 
-        virtual TInlineVector<Resource::ResourcePtr*, 4> GetModuleResources() const override;
+        virtual TInlineVector<Resource::ResourcePtr*, 10> GetModuleResources() const override;
 
         //-------------------------------------------------------------------------
+
+        inline Render::Window* GetRenderWindow() { return &m_renderWindow; }
+        inline Render::ForwardShadingRenderer* GetForwardShadingRenderer() { return &m_forwardShadingRenderer; }
 
         #if EE_DEVELOPMENT_TOOLS
-        inline Console* GetConsole() { return &m_console; }
+        inline Render::ImguiRenderer* GetImguiRenderer() { return &m_imguiRenderer; }
         #endif
 
         inline EntityWorldManager* GetEntityWorldManager() { return &m_entityWorldManager; }
-        inline Render::RendererRegistry* GetRendererRegistry() { return &m_rendererRegistry; }
+
+        #if EE_ENABLE_LPP
+        virtual void LivePP_PreReload( ModuleContext const& context ) override;
+        virtual void LivePP_PostReload( ModuleContext const& context ) override;
+        #endif
 
     private:
-
-        // Console
-        #if EE_DEVELOPMENT_TOOLS
-        Console                                         m_console;
-        #endif
 
         // Entity
         EntityWorldManager                              m_entityWorldManager;
         EntityModel::EntityCollectionLoader             m_entityCollectionLoader;
 
         // Rendering
-        Render::MeshLoader                              m_renderMeshLoader;
-        Render::ShaderLoader                            m_shaderLoader;
+        Render::MeshLoader                              m_meshLoader;
         Render::TextureLoader                           m_textureLoader;
         Render::MaterialLoader                          m_materialLoader;
-        Render::RendererRegistry                        m_rendererRegistry;
-        Render::WorldRenderer                           m_worldRenderer;
+
+        Render::RenderSystem                            m_renderSystem;
+        Render::Window                                  m_renderWindow;
+        TResourcePtr<Render::TextureResource>           m_tonemapLUT = ResourceID( "data://Render/TonyMcMapface/TonyMcMapFaceLUT.texture" );
+        TResourcePtr<Render::TextureResource>           m_smaaAreaTexture = ResourceID( "data://Render/SMAA/AreaTexture.texture" );
+        TResourcePtr<Render::TextureResource>           m_smaaSearchTexture = ResourceID( "data://Render/SMAA/SearchTexture.texture" );
+        TResourcePtr<Render::Material>                  m_placeholderMaterial = ResourceID( "data://Render/Materials/PlaceholderMaterial.material" );
+
+        Render::ForwardShadingRenderer                  m_forwardShadingRenderer;
 
         #if EE_DEVELOPMENT_TOOLS
+        Render::DebugMeshRegistry                       m_debugMeshRegistry;
         Render::ImguiRenderer                           m_imguiRenderer;
-        Render::DebugRenderer                           m_debugRenderer;
         #endif
 
         // Animation
         Animation::SkeletonLoader                       m_skeletonLoader;
         Animation::AnimationClipLoader                  m_animationClipLoader;
         Animation::GraphLoader                          m_graphLoader;
-        Animation::IKRigLoader                          m_IKRigLoader;
 
         // Physics
         Physics::CollisionMeshLoader                    m_physicsCollisionMeshLoader;
@@ -92,11 +104,16 @@ namespace EE
         Physics::MaterialRegistry                       m_physicsMaterialRegistry;
         TResourcePtr<Physics::MaterialDatabase>         m_physicsMaterialDB = ResourceID( "data://Physics/PhysicsMaterials.pmdb" );
 
-        #if EE_DEVELOPMENT_TOOLS
-        Physics::PhysicsRenderer                        m_physicsRenderer;
-        #endif
-
         // Navmesh
         Navmesh::NavmeshLoader                          m_navmeshLoader;
+
+        // Game
+        HitboxLoader                                    m_hitboxLoader;
+
+        #if EE_ENABLE_LPP
+        EventBindingID                                  m_lppReloadEventBindingID;
+        TVector<FileSystem::Path>                       m_modifiedFiles; // The set of files that were modified and reloaded
+        bool                                            m_needShaderReload = false;
+        #endif
     };
 }

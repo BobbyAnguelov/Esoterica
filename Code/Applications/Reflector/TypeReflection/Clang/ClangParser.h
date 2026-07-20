@@ -5,7 +5,7 @@
 
 //-------------------------------------------------------------------------
 
-namespace EE::TypeSystem::Reflection
+namespace EE::Reflection
 {
     class ReflectedHeader;
 
@@ -23,7 +23,7 @@ namespace EE::TypeSystem::Reflection
 
     public:
 
-        ClangParser( FileSystem::Path const& solutionPath, ReflectionDatabase* pDatabase );
+        ClangParser( FileSystem::Path const& solutionDirectoryPath, ReflectionDatabase* pDatabase );
 
         inline Milliseconds GetParsingTime() const { return m_totalParsingTime; }
         inline Milliseconds GetVisitingTime() const { return m_totalVisitingTime; }

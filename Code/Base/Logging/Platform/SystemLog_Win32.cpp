@@ -1,7 +1,6 @@
 #if _WIN32
 #include "Base/Esoterica.h"
 #include <windows.h>
-#include <dbghelp.h>
 #include <stdio.h>
 
 //-------------------------------------------------------------------------

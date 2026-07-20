@@ -1,0 +1,42 @@
+<Type TypeID="EE::Render::MeshGroup" Version="1">
+  <Property ID="m_lodSettings">
+    <Type Index="0" TypeID="EE::Render::MeshLODSettings">
+      <Property ID="m_lodDistance" Value="3" />
+      <Property ID="m_autoGenerateLOD" Value="True" />
+    </Type>
+    <Type Index="1" TypeID="EE::Render::MeshLODSettings">
+      <Property ID="m_lodDistance" Value="5" />
+      <Property ID="m_autoGenerateLOD" Value="True" />
+      <Property ID="m_targetTrianglePercentage" Value="80" />
+    </Type>
+    <Type Index="2" TypeID="EE::Render::MeshLODSettings">
+      <Property ID="m_lodDistance" Value="8" />
+      <Property ID="m_autoGenerateLOD" Value="True" />
+      <Property ID="m_targetTrianglePercentage" Value="40" />
+      <Property ID="m_targetAttributeMaxError" Value="0.05" />
+    </Type>
+    <Type Index="3" TypeID="EE::Render::MeshLODSettings">
+      <Property ID="m_lodDistance" Value="12" />
+      <Property ID="m_autoGenerateLOD" Value="True" />
+      <Property ID="m_targetTriangleCount" Value="248" />
+      <Property ID="m_targetTrianglePercentage" Value="20" />
+      <Property ID="m_targetAttributeMaxError" Value="0.1" />
+    </Type>
+    <Type Index="4" TypeID="EE::Render::MeshLODSettings">
+      <Property ID="m_lodDistance" Value="16" />
+      <Property ID="m_autoGenerateLOD" Value="True" />
+      <Property ID="m_targetTriangleCount" Value="124" />
+      <Property ID="m_targetTrianglePercentage" Value="5" />
+      <Property ID="m_targetAttributeMaxError" Value="0.2" />
+      <Property ID="m_targetAttributeWeightUV" Value="10" />
+    </Type>
+    <Type Index="5" TypeID="EE::Render::MeshLODSettings">
+      <Property ID="m_lodDistance" Value="20" />
+      <Property ID="m_autoGenerateLOD" Value="True" />
+      <Property ID="m_targetTriangleCount" Value="124" />
+      <Property ID="m_targetTrianglePercentage" Value="5" />
+      <Property ID="m_targetAttributeMaxError" Value="0.8" />
+      <Property ID="m_targetAttributeWeightUV" Value="5" />
+    </Type>
+  </Property>
+</Type>

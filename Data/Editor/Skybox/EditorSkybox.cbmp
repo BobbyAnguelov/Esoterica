@@ -1,3 +1,0 @@
-<Type TypeID="EE::Render::CubemapTextureResourceDescriptor" Version="0">
-  <Property ID="m_path" Value="data://editor/skybox/skyboxpanorama_cube_radiance.dds" />
-</Type>

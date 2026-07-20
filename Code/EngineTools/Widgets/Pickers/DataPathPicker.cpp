@@ -1,6 +1,6 @@
 #include "DataPathPicker.h"
 #include "EngineTools/Core/CommonToolTypes.h"
-#include "EngineTools/Core/Dialogs.h"
+#include "EngineTools/Core/SystemDialogs.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Platform/PlatformUtils_Win32.h"
 #include "Base/Resource/ResourceID.h"
@@ -9,11 +9,14 @@
 
 namespace EE
 {
-    static ImVec2 const g_buttonSize( 30, 0 );
+    DataPathPicker::DataPathPicker( FileSystem::Path const& sourceDataDirectoryPath, DataPath const& path )
+        : m_sourceDataDirectoryPath( sourceDataDirectoryPath )
+    {
+        EE_ASSERT( m_sourceDataDirectoryPath.IsValid() && m_sourceDataDirectoryPath.Exists() );
+        SetPath( path );
+    }
 
-    //-------------------------------------------------------------------------
-
-    bool DataPathPicker::UpdateAndDraw()
+    bool DataPathPicker::UpdateAndDraw( float width )
     {
         bool valueUpdated = false;
 
@@ -28,9 +31,9 @@ namespace EE
         //-------------------------------------------------------------------------
 
         ImGui::PushID( this );
-        if ( ImGui::BeginChild( "RP", ImVec2( -1, ImGui::GetFrameHeight() ), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
+        if ( ImGui::BeginChild( "RP", ImVec2( width, ImGui::GetFrameHeight() ), false, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
         {
-            float const itemSpacingX = ImGui::GetStyle().ItemSpacing.x;
+            static ImVec2 const pickButtonSize( 70, 0 );
 
             // Type and path
             //-------------------------------------------------------------------------
@@ -38,19 +41,28 @@ namespace EE
             {
                 // Calculate size of resource path field
                 float const contentRegionAvailableX = ImGui::GetContentRegionAvail().x;
-                float usedWidth = ( itemSpacingX * 3 ) + ( g_buttonSize.x * 3 ) + 1;
+                float usedWidth = pickButtonSize.x + ImGui::GetStyle().ItemSpacing.x;
 
                 // Resource path
                 ImGui::SetNextItemWidth( contentRegionAvailableX - usedWidth );
-                String const& dataPathStr = m_dataPath.GetString();
                 ImGui::PushStyleColor( ImGuiCol_Text, isValidPath ? ImGuiX::Style::s_colorText : Colors::Red );
-                ImGui::InputText( "##DataPath", const_cast<char*>( dataPathStr.c_str() ), dataPathStr.length(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
+                ImGui::InputText( "##DataPath", m_dataPathBuffer.Data(), m_dataPathBuffer.Size(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ReadOnly );
                 ImGui::PopStyleColor();
 
                 // Drag and drop
                 if ( ImGui::BeginDragDropTarget() )
                 {
-                    valueUpdated = TrySetPathFromDragAndDrop();
+                    if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( DragAndDrop::s_filePayloadID, ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+                    {
+                        if ( payload->IsDelivery() )
+                        {
+                            ResourceID const droppedResourceID( (char*) payload->Data );
+                            if ( droppedResourceID.IsValid() )
+                            {
+                                valueUpdated = TryUpdateDataPath( droppedResourceID.GetDataPath() );
+                            }
+                        }
+                    }
                     ImGui::EndDragDropTarget();
                 }
 
@@ -62,22 +74,22 @@ namespace EE
                         String clipboardText = ImGui::GetClipboardText();
                         if ( clipboardText.length() > 256 )
                         {
-                            EE_LOG_WARNING( "Resource", "DataFilePathPicker", "Pasting invalid length string" );
+                            EE_LOG_WARNING( LogCategory::Resource, "DataFilePathPicker", "Pasting invalid length string" );
                             clipboardText.clear();
                         }
 
                         if ( DataPath::IsValidPath( clipboardText ) )
                         {
-                            m_dataPath = DataPath( clipboardText );
-                            valueUpdated = true;
+                            DataPath const pastedDataPath( clipboardText );
+                            valueUpdated = TryUpdateDataPath( pastedDataPath );
                         }
                         else
                         {
                             FileSystem::Path pastedFilePath( clipboardText );
                             if ( pastedFilePath.IsValid() && pastedFilePath.IsUnderDirectory( m_sourceDataDirectoryPath ) )
                             {
-                                m_dataPath = DataPath::FromFileSystemPath( m_sourceDataDirectoryPath.c_str(), pastedFilePath );
-                                valueUpdated = true;
+                                DataPath const pastedDataPath( pastedFilePath, m_sourceDataDirectoryPath.c_str() );
+                                valueUpdated = TryUpdateDataPath( pastedDataPath );
                             }
                         }
                     }
@@ -89,72 +101,63 @@ namespace EE
                     ImGuiX::ItemTooltip( m_dataPath.c_str() );
                 }
 
-                // Pick Path
-                ImGui::SameLine( 0, itemSpacingX );
-                if ( ImGui::Button( EE_ICON_FILE_SEARCH_OUTLINE "##Pick", g_buttonSize ) )
+                // Options
+                auto OptionsMenu = [this, &valueUpdated]
                 {
-                    FileDialog::Result const result = FileDialog::Load( {}, "Choose Data File", true, m_sourceDataDirectoryPath.c_str() );
-                    if ( result )
+                    if ( m_mode != Mode::PickFiles )
                     {
-                        FileSystem::Path const selectedPath( result.m_filePaths[0].c_str() );
-
-                        if ( selectedPath.IsUnderDirectory( m_sourceDataDirectoryPath ) )
+                        if ( ImGui::MenuItem( EE_ICON_FOLDER_STAR_OUTLINE" Select Folder" ) )
                         {
-                            m_dataPath = DataPath::FromFileSystemPath( m_sourceDataDirectoryPath.c_str(), selectedPath );
-                            valueUpdated = true;
-                        }
-                        else
-                        {
-                            MessageDialog::Error( "Error", "Selected file is not with the raw resource folder!" );
+                            PickDirectory( valueUpdated );
                         }
                     }
-                }
-                ImGuiX::ItemTooltip( "Pick File" );
-            }
 
-            // Options
-            //-------------------------------------------------------------------------
+                    if ( ImGui::MenuItem( EE_ICON_ERASER" Clear" ) )
+                    {
+                        if ( m_dataPath.IsValid() )
+                        {
+                            SetPath( DataPath() );
+                            valueUpdated = true;
+                        }
+                    }
 
-            {
+                    ImGui::Separator();
+
+                    ImGui::BeginDisabled( !m_dataPath.IsValid() );
+                    {
+                        if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE" Copy Data Path" ) )
+                        {
+                            ImGui::SetClipboardText( m_dataPath.c_str() );
+                        }
+
+                        FileSystem::Path filePath = m_dataPath.IsValid() ? m_dataPath.GetFileSystemPath( m_sourceDataDirectoryPath ) : FileSystem::Path();
+
+                        if ( ImGui::MenuItem( EE_ICON_FILE" Copy File Path" ) )
+                        {
+                            ImGui::SetClipboardText( filePath.c_str() );
+                        }
+
+                        if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN " Open In Explorer" ) )
+                        {
+                            Platform::Win32::OpenInExplorer( filePath );
+                        }
+                    }
+                    ImGui::EndDisabled();
+                };
+
                 ImGui::SameLine();
-                ImGui::BeginDisabled( !m_dataPath.IsValid() );
-                if ( ImGui::Button( EE_ICON_COG "##Options", g_buttonSize ) )
+                if ( ImGuiX::ComboIconButton( EE_ICON_FILE_IMPORT, "##Pick", OptionsMenu, ImGuiX::Style::s_colorText, pickButtonSize ) )
                 {
-                    ImGui::OpenPopup( "##DataFilePathPickerOptions" );
+                    if ( m_mode == Mode::PickDirectories )
+                    {
+                        PickDirectory( valueUpdated );
+                    }
+                    else
+                    {
+                        PickFile( valueUpdated );
+                    }
                 }
-                ImGuiX::ItemTooltip( "Options" );
-
-                ImGui::SameLine();
-                if ( ImGui::Button( EE_ICON_ERASER "##Clear" ) )
-                {
-                    m_dataPath.Clear();
-                    valueUpdated = true;
-                }
-                ImGuiX::ItemTooltip( "Clear" );
-                ImGui::EndDisabled();
-            }
-
-            // Options Context Menu
-            //-------------------------------------------------------------------------
-
-            if ( ImGui::BeginPopup( "##DataFilePathPickerOptions" ) )
-            {
-                if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE" Copy Data Path" ) )
-                {
-                    ImGui::SetClipboardText( m_dataPath.c_str() );
-                }
-
-                if ( ImGui::MenuItem( EE_ICON_FILE" Copy File Path" ) )
-                {
-                    ImGui::SetClipboardText( filePath.c_str() );
-                }
-
-                if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN " Open In Explorer" ) )
-                {
-                    Platform::Win32::OpenInExplorer( filePath );
-                }
-
-                ImGui::EndPopup();
+                ImGuiX::ItemTooltip( "Select Path" );
             }
         }
         ImGui::EndChild();
@@ -165,19 +168,79 @@ namespace EE
         return valueUpdated;
     }
 
-    bool DataPathPicker::TrySetPathFromDragAndDrop()
+    void DataPathPicker::PickDirectory( bool& outPathUpdated )
     {
-        if ( ImGuiPayload const* payload = ImGui::AcceptDragDropPayload( DragAndDrop::s_filePayloadID, ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+        EE_ASSERT( m_mode != Mode::PickFiles );
+
+        FileSystem::Path const startingPath = m_dataPath.IsValid() ? m_dataPath.GetFileSystemPath( m_sourceDataDirectoryPath.GetDirectoryPath() ) : m_sourceDataDirectoryPath;
+
+        FileDialog::Result const result = FileDialog::SelectFolder( startingPath );
+        if ( result )
         {
-            if ( payload->IsDelivery() )
+            FileSystem::Path const selectedPath( result.m_filePaths[0].c_str() );
+
+            if ( selectedPath.IsUnderDirectory( m_sourceDataDirectoryPath ) )
             {
-                ResourceID const droppedResourceID( (char*) payload->Data );
-                if ( droppedResourceID.IsValid() )
-                {
-                    m_dataPath = droppedResourceID.GetDataPath();
-                    return true;
-                }
+                DataPath const selectedDataPath( selectedPath, m_sourceDataDirectoryPath.c_str() );
+                outPathUpdated = TryUpdateDataPath( selectedDataPath );
             }
+            else
+            {
+                MessageDialog::Error( "Error", "Selected file is not with the source data folder!" );
+            }
+        }
+    }
+
+    void DataPathPicker::PickFile( bool& outPathUpdated )
+    {
+        EE_ASSERT( m_mode != Mode::PickDirectories );
+
+        FileSystem::Path const startingPath = m_dataPath.IsValid() ? m_dataPath.GetFileSystemPath( m_sourceDataDirectoryPath.GetDirectoryPath() ) : m_sourceDataDirectoryPath;
+
+        FileDialog::Result const result = FileDialog::Load( {}, "Choose Data File", true, startingPath );
+        if ( result )
+        {
+            FileSystem::Path const selectedPath( result.m_filePaths[0].c_str() );
+
+            if ( selectedPath.IsUnderDirectory( m_sourceDataDirectoryPath ) )
+            {
+                outPathUpdated = TryUpdateDataPath( DataPath( selectedPath, m_sourceDataDirectoryPath.c_str() ) );
+            }
+            else
+            {
+                MessageDialog::Error( "Error", "Selected file is not with the source data folder!" );
+            }
+        }
+    }
+
+    void DataPathPicker::SetPath( DataPath const& path )
+    {
+        m_dataPath = path;
+        if ( m_dataPath.IsValid() )
+        {
+            m_dataPathBuffer.Fill( path.c_str() );
+        }
+        else
+        {
+            m_dataPathBuffer.Clear();
+        }
+    }
+
+    bool DataPathPicker::TryUpdateDataPath( DataPath const& newPath )
+    {
+        if ( newPath != m_dataPath )
+        {
+            if ( m_mode == Mode::PickFiles && newPath.IsDirectoryPath() )
+            {
+                return false;
+            }
+            else if ( m_mode == Mode::PickDirectories && newPath.IsFilePath() )
+            {
+                return false;
+            }
+
+            SetPath( newPath );
+            return true;
         }
 
         return false;

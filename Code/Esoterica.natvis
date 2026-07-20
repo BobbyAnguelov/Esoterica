@@ -33,6 +33,10 @@
       <Item Name="3" Condition="m_c[3].m_ID != 0">m_c[3]</Item>
     </Expand>
   </Type>
+
+  <Type Name="EE::Color">
+    <DisplayString>R={m_byteColor.m_r,nvo}, G={m_byteColor.m_g,nvo}, B={m_byteColor.m_b,nvo}, A={m_byteColor.m_a,nvo}, Hex(ABGR): {m_color,Xb}</DisplayString>
+  </Type>
   
   <Type Name="EE::Degrees">
     <DisplayString>{m_value}</DisplayString>
@@ -43,7 +47,7 @@
   </Type>
 
   <Type Name="EE::Radians">
-    <DisplayString>{m_value} ({m_value * EE::Math::RadiansToDegrees})</DisplayString>
+    <DisplayString>{m_value} (Degrees: {m_value * EE::Math::RadiansToDegrees})</DisplayString>
     <Expand>
       <Item Name="Radians">m_value</Item>
       <Item Name="Degrees">m_value * EE::Math::RadiansToDegrees</Item>
@@ -91,7 +95,10 @@
   </Type>
 
   <Type Name="EE::DataPath">
-    <DisplayString>{m_path}</DisplayString>
+    <DisplayString Condition="( !!(m_subFilenamePath.mPair.mFirst.sso.mRemainingSizeField.mnRemainingSize &amp; EE::String::kSSOMask) ) &amp;&amp; ( m_subFilenamePath.mPair.mFirst.heap.mnSize &gt; 0 )">{m_subFilenamePath}</DisplayString>
+    <DisplayString Condition="( !(m_subFilenamePath.mPair.mFirst.sso.mRemainingSizeField.mnRemainingSize &amp; EE::String::kSSOMask) ) &amp;&amp; ( ( EE::String::SSOLayout::SSO_CAPACITY - m_subFilenamePath.mPair.mFirst.sso.mRemainingSizeField.mnRemainingSize ) &gt; 0 )">{m_subFilenamePath}</DisplayString>
+    <DisplayString Condition="( !!(m_subFilenamePath.mPair.mFirst.sso.mRemainingSizeField.mnRemainingSize &amp; EE::String::kSSOMask) ) &amp;&amp; ( m_subFilenamePath.mPair.mFirst.heap.mnSize == 0 )">{m_path}</DisplayString>
+    <DisplayString Condition="( !(m_subFilenamePath.mPair.mFirst.sso.mRemainingSizeField.mnRemainingSize &amp; EE::String::kSSOMask) ) &amp;&amp; ( ( EE::String::SSOLayout::SSO_CAPACITY - m_subFilenamePath.mPair.mFirst.sso.mRemainingSizeField.mnRemainingSize ) == 0 )">{m_path}</DisplayString>
   </Type>
 
   <Type Name="EE::ResourceTypeID">
@@ -103,7 +110,7 @@
   </Type>
 
   <Type Name="EE::Resource::ResourcePtr">
-    <DisplayString Condition="m_resourceID.m_type.m_ID == 0">Not Set</DisplayString>
+    <DisplayString Condition="m_resourceID.m_type.m_ID.m_code == 0">Not Set</DisplayString>
     <DisplayString Condition="m_pResourceRecord != 0">{m_resourceID}, Status: {m_pResourceRecord->m_loadingStatus}</DisplayString>
     <DisplayString Condition="m_pResourceRecord == 0">{m_resourceID}, Status: Not Requested</DisplayString>
     <Expand>
@@ -113,7 +120,7 @@
   </Type>
 
   <Type Name="EE::TResourcePtr&lt;*&gt;">
-    <DisplayString Condition="m_resourceID.m_type.m_ID == 0">Not Set</DisplayString>
+    <DisplayString Condition="m_resourceID.m_type.m_ID.m_code == 0">Not Set</DisplayString>
     <DisplayString Condition="m_pResourceRecord != 0">{m_resourceID}, Status: {m_pResourceRecord->m_loadingStatus}</DisplayString>
     <DisplayString Condition="m_pResourceRecord == 0">{m_resourceID}, Status: Not Requested</DisplayString>
     <Expand>
@@ -121,6 +128,14 @@
       <Item Name="Data">($T1*) m_pResourceRecord->m_pResource</Item>
       <Item Name="ResourceRecord">m_pResourceRecord</Item>
     </Expand>
+  </Type>
+
+  <Type Name="EE::TypeSystem::TTypeInfo&lt;*&gt;">
+    <DisplayString>{"$T1"}</DisplayString>
+  </Type>
+
+  <Type Name="EE::TypeSystem::TypeInfo">
+    <DisplayString>{ m_ID }</DisplayString>
   </Type>
 
   <Type Name="EE::TypeInstance">

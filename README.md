@@ -1,18 +1,27 @@
 # Esoterica Prototype Game Engine
 
-![Esoterica Logo](Docs/EE_Logo.png)
+![Esoterica Logo](Docs/img/EE_Logo.png)
 
-[Esoterica Engine](https://www.esotericaengine.com) is an MIT licensed prototype game engine framework. It’s intended as a technology demonstrator, an educational tool and an R&D framework. It contains a lot of the boilerplate machinery required for resource management, serialization, gameplay, etc. It provides a lot of references for how to potentially build a resource system, basic reflection and a AAA-level animation system. It could be a good framework for experimenting with game, AI, renderer tech or as a teaching aid for how to build game engines. Additionally, if you are more interested in building your own engine, Esoterica is a really good starting point.
+[Esoterica Engine](https://www.esotericaengine.com) is an MIT licensed prototype game engine framework. It’s intended for use either as a proprietary engine starter pack, a technology demonstrator, an educational tool or an R&D framework. The goal of Esoterica is to provide a solid and robust starting point for folks that are looking to build their own tech or transition off of existing tech. It provide a lot of the boring and time consuming boilerplate work (reflection, serialization, resource management, math, etc...) as well a simple to extend tool framework allowing people to rapidly build their own tools.
+
+Esoterica is NOT an off the shelf game engine that you can just take and work with. It is intended for technical teams that have the ability to extend and build upon it.
 
 ## Important Note: Stability
 
 >Esoterica is a prototype engine that's being developed in our spare time and as such there will likely be bugs and crashes (primarily with the tooling side). It is not intended as a stable production tool. If you encounter any crashes or bugs, please file issues and we'll try to get to them as soon as we can.
 
-## Help Needed: Rendering + Test Assets
+## Open Source Not Open Contribution
 
-There are no examples of any of the tech supplied unfortunately since we do not have any assets that I can release publically. We are looking for folks that can create some test assets that we can distribute with the engine (e.g., a character model and some animations). We can then use those assets to provide a set of examples of the various tools and features.
+Esoterica is not a product, there will not be any formal releases or versions.As such we are not looking for any feature request, nor are we looking for large PR contributions. Any feature requests or large PR will be rejected. That said, please feel free to create issue on bugs, broken/incomplete sections or for questions or intended uses, etc...
 
-We are also looking for a someone to help us build out the renderer. More details can be found here: <https://www.esotericaengine.com/contribute>
+## Help Needed: Sample Game
+
+We are looking for folks to help us build out a simple sample game that we can include with the project. We are looking for the following: 
+
+* A technical animator to build out a locomotion and combat anim set
+* A technical character artist to build out some test characters as well as help define the character tech pipelines (deformation, cloth, procedural bones) 
+
+More details can be found here: <https://www.esotericaengine.com/contribute>
 
 ## What's included
 
@@ -20,25 +29,24 @@ We are also looking for a someone to help us build out the renderer. More detail
 * Libclang based c++ reflection and code-generation
 * Compiler based resource system with hot-reloading
 * Hybrid Actor/ECS object model - <https://www.youtube.com/watch?v=jjEsB611kxs>
-* AAA quality high performance animation graph system - <https://www.youtube.com/watch?v=R-T3Mk5oDHI&t=5427s>
+* AAA quality high performance animation graph system - <https://www.youtube.com/watch?v=R-T3Mk5oDHI&t=5427s> - Used in multiple shipped games.
 * Basic animation compression
-* Powered Ragdoll implmentation using PhysX articulations
+* Powered Ragdoll implmentation using Box3D
 * Basic editor infrastructure and tooling using DearImgui
 
 ## Screenshots
 
-|Resource Pipeline | Basic Editor |
-|:---:|:---:|
-|![Esoterica Resource Server](Docs/EE_ResourceServer.png)|![Esoterica Editor](Docs/EE_Editor.png)|
+|                      Resource Pipeline                       |                Basic Editor                 |
+|:------------------------------------------------------------:|:-------------------------------------------:|
+| ![Esoterica Resource Server](Docs/img/EE_ResourceServer.png) | ![Esoterica Editor](Docs/img/EE_Editor.png) |
 
-| Animation Graph | Ragdoll Editor |
-|:---:|:---:|
-|![Esoterica Animation Graph](Docs/EE_AnimGraph.png)|![Esoterica Ragdoll](Docs/EE_Ragdoll.png)|
+|                     Animation Graph                     |                Ragdoll Editor                 |
+|:-------------------------------------------------------:|:---------------------------------------------:|
+| ![Esoterica Animation Graph](Docs/img/EE_AnimGraph.png) | ![Esoterica Ragdoll](Docs/img/EE_Ragdoll.png) |
 
 ## Requirements
 
-* Visual Studio 2022 (17.4+)
-* FBX SDK
+* Visual Studio 2026 (18.6.1+)
 
 ## Building Esoterica
 
@@ -51,7 +59,6 @@ Esoterica uses vanilla msbuild for its build system. There are a set of property
 
 1. Open the solution "Esoterica.sln"
 1. Manually rebuild the "Esoterica.Scripts.Reflect" project (under the "0. Scripts" solution folder) - this will generate all the required Esoterica reflection code needed for the project to compile.
-    * Note: I'm using a semi-flaky VS feature to auto-include generated c++ files so this might require you to reload the solution for it to detect the new files (this is current a WIP feature and will improve...)
 1. Build the solution
 
 ## Applications
@@ -72,17 +79,33 @@ Easiest way to get started, is just set the "Esoterica.Applications.Editor" as t
 * EnkiTS
 * iniparser
 * PCG
-* xxhash
+* rapidhash
 * rpmalloc
 * concurrentqueue
 * MPack
 * Game Networking Sockets
-* PhysX
+* ixwebsocket
+* Box3D
+* ufbx
 * cgltf
 * pfd
 * sqlite
 * subprocess
 * optick
+* meshoptimizer
+* ctt
+* D3D12MemoryAllocator
+* STB
+* LZAV
+* pugixml
+* rapidhash
+* delabella
+* tinyexr
+* Freetype
+* LLVM
+* SMAA
+* TonyMcMapFace
+* GTAO
 
 These middleware packages are also integrated but require a license to use (so they are disabled by default)
 

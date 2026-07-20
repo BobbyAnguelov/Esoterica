@@ -1,0 +1,24 @@
+
+#ifndef __SMAA_CONFIGURATION_ESH__
+#define __SMAA_CONFIGURATION_ESH__
+
+#define SMAA_CUSTOM_SL
+
+#define SMAATexture2D(tex) Texture2D tex, SamplerState tex##_PointSampler, SamplerState tex##_LinearSampler
+#define SMAATexturePass2D(tex) tex, tex##_PointSampler, tex##_LinearSampler
+#define SMAASampleLevelZero(tex, coord) tex.SampleLevel(tex##_LinearSampler, coord, 0)
+#define SMAASampleLevelZeroPoint(tex, coord) tex.SampleLevel(tex##_PointSampler, coord, 0)
+#define SMAASampleLevelZeroOffset(tex, coord, offset) tex.SampleLevel(tex##_LinearSampler, coord, 0, offset)
+#define SMAASample(tex, coord) tex.Sample(tex##_LinearSampler, coord)
+#define SMAASamplePoint(tex, coord) tex.Sample(tex##_PointSampler, coord)
+#define SMAASampleOffset(tex, coord, offset) tex.Sample(tex##_LinearSampler, coord, offset)
+#define SMAA_FLATTEN [flatten]
+#define SMAA_BRANCH [branch]
+#define SMAATexture2DMS2(tex) Texture2DMS<float4, 2> tex
+#define SMAALoad(tex, pos, sample) tex.Load(pos, sample)
+
+#define SMAA_RT_METRICS RootConstants.m_rtMetrics
+
+#define SMAA_PRESET_HIGH
+
+#endif

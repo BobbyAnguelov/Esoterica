@@ -6,7 +6,7 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE::EntityModel
 {
-    Threading::LockFreeQueue<EntityLogRequest>* g_pEntryQueue = nullptr;
+    Threading::TLockFreeQueue<EntityLogRequest>* g_pEntryQueue = nullptr;
 
     //-------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ namespace EE::EntityModel
     void InitializeLogQueue()
     {
         EE_ASSERT( g_pEntryQueue == nullptr );
-        g_pEntryQueue = EE::New< Threading::LockFreeQueue<EntityLogRequest> >();
+        g_pEntryQueue = EE::New< Threading::TLockFreeQueue<EntityLogRequest> >();
     }
 
     void ShutdownLogQueue()

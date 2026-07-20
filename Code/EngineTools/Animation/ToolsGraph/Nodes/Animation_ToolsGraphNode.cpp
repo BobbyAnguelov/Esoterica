@@ -1,4 +1,5 @@
 #include "Animation_ToolsGraphNode.h"
+#include "EngineTools/NodeGraph/NodeGraph_Style.h"
 
 //-------------------------------------------------------------------------
 
@@ -111,9 +112,9 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        auto pFont = ImGuiX::GetFont( ImGuiX::Font::Medium );
+        auto pFont = ImGuiX::GetDefaultFont();
         Float2 const scaledTextOffset( scaledBubblePadding, scaledBubblePadding );
-        ctx.m_pDrawList->AddText( pFont, pFont->FontSize * ctx.m_viewScaleFactor, startRect + scaledTextOffset, Colors::White, idxStr.c_str() );
+        ctx.m_pDrawList->AddText( pFont, 16 * ctx.m_viewScaleFactor, startRect + scaledTextOffset, Colors::White, idxStr.c_str() );
     }
 
     void DrawVectorInfoText( NodeGraph::DrawContext const& ctx, Float3 const& value )
@@ -293,7 +294,7 @@ namespace EE::Animation
         }
     }
 
-    bool FlowToolsNode::IsActive( NodeGraph::UserContext* pUserContext ) const
+    Color FlowToolsNode::GetHighlightOutlineColor( NodeGraph::UserContext* pUserContext ) const
     {
         auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         if ( pGraphNodeContext->HasDebugData() )
@@ -302,11 +303,19 @@ namespace EE::Animation
             auto const runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
             if ( runtimeNodeIdx != InvalidIndex )
             {
-                return pGraphNodeContext->IsNodeActive( runtimeNodeIdx );
+                auto pDebugNode = pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx );
+                if ( pDebugNode->IsInitialized() && !pDebugNode->IsValid() )
+                {
+                    return NodeGraph::Style::s_invalidBorderColor;
+                }
+                else if ( pGraphNodeContext->IsNodeActive( runtimeNodeIdx ) )
+                {
+                    return NodeGraph::Style::s_activeBorderColor;
+                }
             }
         }
 
-        return false;
+        return Colors::Transparent;
     }
 
     Color FlowToolsNode::GetTitleBarColor() const

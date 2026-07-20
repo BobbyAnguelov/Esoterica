@@ -8,6 +8,8 @@
 
 namespace EE
 {
+    namespace Math { struct Intersect; }
+
     // Plane equation: a + b + c + d = 0
     //-------------------------------------------------------------------------
 
@@ -92,6 +94,9 @@ namespace EE
             return p;
         }
 
+        inline Vector& AsVector() { return reinterpret_cast<Vector&>( *this ); }
+        inline Vector const& AsVector() const { return reinterpret_cast<Vector const&>( *this ); }
+
         //-------------------------------------------------------------------------
 
         // Projects a point to the nearest point on the plane
@@ -120,9 +125,10 @@ namespace EE
         inline Vector ProjectPointVertically( Vector const& v )
         {
             EE_ASSERT( !Math::IsNearZero( GetNormal().GetZ() ) );
-            Vector Intersection;
-            IntersectRay( v, Vector::UnitZ, Intersection );
-            return Intersection.GetWithW1();
+            Vector distance;
+            Vector intersectionPoint;
+            RayIntersection( v, Vector::UnitZ, distance, intersectionPoint );
+            return intersectionPoint.GetWithW1();
         }
 
         // Project a vector vertically onto a plane. Basically intersects a vertical ray originating from the point with the plane
@@ -133,11 +139,12 @@ namespace EE
 
             // Get a copy of the plane at a distance of 0, since this operation is done in the plane referential, and not in world space.
             Plane plane = *this;
-            plane.d = 0; 
+            plane.d = 0;
 
-            Vector Intersection;
-            plane.IntersectRay( v, Vector::UnitZ, Intersection );
-            return Intersection;
+            Vector distance;
+            Vector intersectionPoint;
+            plane.RayIntersection( v, Vector::UnitZ, distance, intersectionPoint );
+            return intersectionPoint;
         }
 
         //-------------------------------------------------------------------------
@@ -155,7 +162,7 @@ namespace EE
 
         EE_FORCE_INLINE Vector AbsoluteDistanceToPoint( Vector const point ) const
         { 
-            return SignedDistanceToPoint( point ).Abs();
+            return SignedDistanceToPoint( point ).GetAbs();
         }
 
         EE_FORCE_INLINE float GetAbsoluteDistanceToPoint( Vector const point ) const
@@ -181,10 +188,7 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        bool IntersectLine( Vector const& point0, Vector const& point1, Vector& intersectionPoint ) const;
-        bool IntersectLine( LineSegment const& line, Vector& intersectionPoint ) const { return IntersectLine( line.GetStartPoint(), line.GetEndPoint(), intersectionPoint ); }
-        bool IntersectRay( Vector const& rayOrigin, Vector const& rayDirection, Vector& intersectionPoint ) const;
-        bool IntersectPlane( Plane const& otherPlane, Vector& outLineStart, Vector& outLineEnd ) const;
+        bool RayIntersection( Vector const& rayOrigin, Vector const& rayDirection, Vector& intersectionDistance, Vector& intersectionPoint ) const;
 
     private:
 
@@ -215,9 +219,6 @@ namespace EE
             Vector const D = Vector::Dot3( point0, normal ).GetNegated();
             AsVector() = Vector::Select( D, normal, Vector( 1, 1, 1, 0 ) );
         }
-
-        inline Vector& AsVector() { return reinterpret_cast<Vector&>( *this ); }
-        inline Vector const& AsVector() const { return reinterpret_cast<Vector const&>( *this ); }
 
         EE_FORCE_INLINE operator __m128&() { return m_data; }
         EE_FORCE_INLINE operator __m128 const&() const { return m_data; }

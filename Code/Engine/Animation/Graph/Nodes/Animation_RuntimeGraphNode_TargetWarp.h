@@ -21,6 +21,9 @@ namespace EE::Animation
 
         struct WarpSection
         {
+            // Is this a section that should be ignored by the warp
+            inline bool IsFixedSection() const { return m_warpRule == TargetWarpRule::FixedSection; }
+
             // Ensure that the section is at least 3 frames in length (i.e. a single warp frame)
             inline bool HasValidFrameRange() const{ return m_endFrame > m_startFrame + 1; }
 
@@ -36,7 +39,6 @@ namespace EE::Animation
             float                               m_distanceCovered = 0.0f;
             TargetWarpRule                      m_warpRule;
             TargetWarpAlgorithm                 m_translationAlgorithm;
-            bool                                m_isFixedSection = false; // Is this a fixed (unwarpable) section between other warp sections?
             bool                                m_hasTranslation = false;
 
             #if EE_DEVELOPMENT_TOOLS
@@ -44,17 +46,30 @@ namespace EE::Animation
             #endif
         };
 
+        enum class TargetUpdateRule : uint8_t
+        {
+            EE_REFLECT_ENUM
+
+            None = 0,
+            Recalculate, // Recalculate Warped Root Motion
+            Offset, // Offset Warped Root Motion
+            RecalculateOrOffset, // Recalculate Or Offset Warped Root Motion, Will offset the warped root motion if we are pass warp events
+        };
+
         struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_samplingPositionErrorThresholdSq, m_maxTangentLength, m_lerpFallbackDistanceThreshold, m_targetUpdateDistanceThreshold, m_targetUpdateAngleThresholdRadians, m_samplingMode, m_allowTargetUpdate );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_samplingMode, m_allowTargetUpdate, m_alignWithTargetAtLastWarpEvent, m_samplingPositionErrorThresholdSq, m_maxTangentLength, m_lerpFallbackDistanceThreshold, m_targetUpdateDistanceThreshold, m_targetUpdateAngleThresholdRadians );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                             m_clipReferenceNodeIdx = InvalidIndex;
             int16_t                             m_targetValueNodeIdx = InvalidIndex;
             RootMotionData::SamplingMode        m_samplingMode = RootMotionData::SamplingMode::Delta;
+            TargetUpdateRule                    m_targetUpdateRule = TargetUpdateRule::None;
             bool                                m_allowTargetUpdate = false;
+            bool                                m_alignWithTargetAtLastWarpEvent = false;
+            StringID                            m_alignmentBoneID;
             float                               m_samplingPositionErrorThresholdSq = 0.0f; // The threshold at which we switch from accurate to inaccurate sampling
             float                               m_maxTangentLength = 1.25f;
             float                               m_lerpFallbackDistanceThreshold = 0.1f;
@@ -72,6 +87,8 @@ namespace EE::Animation
 
         bool TryReadTarget( GraphContext& context );
         bool UpdateWarp( GraphContext& context );
+        bool OffsetWarpedRootMotion( GraphContext &context );
+        bool CanRecalculateWarpedRootMotion( int32_t startFrame ) const;
 
         bool GenerateWarpInfo( GraphContext& context );
         void ClearWarpInfo();
@@ -92,38 +109,39 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        #if EE_DEVELOPMENT_TOOLS
-        virtual void DrawDebug( GraphContext& graphContext, Drawing::DrawContext& drawCtx ) override;
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
+
+        #if EE_DEVELOPMENT_TOOLS
+        virtual void DrawDebug( GraphContext& graphContext, DebugDrawContext& drawCtx ) override;
         #endif
 
     private:
 
         AnimationClipReferenceNode*             m_pClipReferenceNode = nullptr;
         TargetValueNode*                        m_pTargetValueNode = nullptr;
-        RootMotionData::SamplingMode            m_samplingMode;
+        RootMotionData::SamplingMode            m_samplingMode = RootMotionData::SamplingMode::WorldSpace;
         InternalState                           m_internalState = InternalState::RequiresInitialUpdate;
 
+        int32_t                                 m_alignmentBoneIdx = InvalidIndex;
         int8_t                                  m_translationXYSectionIdx = InvalidIndex;
         int8_t                                  m_rotationSectionIdx = InvalidIndex;
         bool                                    m_isTranslationAllowedZ = false;
         int8_t                                  m_numSectionZ = 0;
         int32_t                                 m_totalNumWarpableZFrames = 0;
 
-        Percentage                              m_warpStartTime = 0.0f;
+        FrameTime                               m_warpStartTime;
         Transform                               m_warpStartWorldTransform;
         Transform                               m_requestedWarpTarget; //The warp target that was requested
         Transform                               m_warpTarget; // The actual warp target we can achieve based on events
 
-        TVector<Transform>                      m_deltaTransforms;
-        TVector<Transform>                      m_inverseDeltaTransforms;
         RootMotionData                          m_warpedRootMotion;
 
-        TInlineVector<WarpSection, 3>           m_warpSections;
+        // Scratch Data - only used for calculations
+        //-------------------------------------------------------------------------
 
-        #if EE_DEVELOPMENT_TOOLS
-        bool                                    m_useRecordedStartData = false;
-        #endif
+        TVector<Transform>                      m_deltaTransforms;
+        TVector<Transform>                      m_inverseDeltaTransforms;
+        TInlineVector<WarpSection, 3>           m_warpSections;
     };
 }

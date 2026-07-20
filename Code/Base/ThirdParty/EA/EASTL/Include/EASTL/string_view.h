@@ -189,10 +189,10 @@ namespace eastl
 		}
 
 		EA_CONSTEXPR int compare(size_type pos1,
-		                         size_type count1,
-		                         basic_string_view sw,
-		                         size_type pos2,
-		                         size_type count2) const
+								 size_type count1,
+								 basic_string_view sw,
+								 size_type pos2,
+								 size_type count2) const
 		{
 			return substr(pos1, count1).compare(sw.substr(pos2, count2));
 		}
@@ -808,26 +808,29 @@ namespace eastl
 		// for standard libary usage.
 		EA_DISABLE_VC_WARNING(4455)
 		EA_DISABLE_CLANG_WARNING(-Wuser-defined-literals)
+		EA_DISABLE_CLANG_WARNING(-Wdeprecated-literal-operator)
 		EA_DISABLE_GCC_WARNING(-Wliteral-suffix)
 
-	    inline namespace literals
-	    {
-		    inline namespace string_view_literals
-		    {
-			    EA_CONSTEXPR inline string_view operator "" sv(const char* str, size_t len) EA_NOEXCEPT { return {str, len}; }
-			    EA_CONSTEXPR inline u16string_view operator "" sv(const char16_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
-			    EA_CONSTEXPR inline u32string_view operator "" sv(const char32_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
-			    EA_CONSTEXPR inline wstring_view operator "" sv(const wchar_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
+		inline namespace literals
+		{
+			inline namespace string_view_literals
+			{
+				EA_CONSTEXPR inline string_view operator "" sv(const char* str, size_t len) EA_NOEXCEPT { return {str, len}; }
+				EA_CONSTEXPR inline u16string_view operator "" sv(const char16_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
+				EA_CONSTEXPR inline u32string_view operator "" sv(const char32_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
+				EA_CONSTEXPR inline wstring_view operator "" sv(const wchar_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
 
 				// We've seen _sv trigger the following warning on clang:
 				// identifier '_sv' is reserved because it starts with '_' at global scope [-Wreserved-identifier]
 				// Temporarily disable the warning until we figure out why it thinks _sv is "at global scope".
 				EA_DISABLE_CLANG_WARNING(-Wreserved-identifier)
+				
 				// Backwards compatibility.
-			    EA_CONSTEXPR inline string_view operator "" _sv(const char* str, size_t len) EA_NOEXCEPT { return {str, len}; }
-			    EA_CONSTEXPR inline u16string_view operator "" _sv(const char16_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
-			    EA_CONSTEXPR inline u32string_view operator "" _sv(const char32_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
-			    EA_CONSTEXPR inline wstring_view operator "" _sv(const wchar_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
+				EA_CONSTEXPR inline string_view operator "" _sv(const char* str, size_t len) EA_NOEXCEPT { return {str, len}; }
+				EA_CONSTEXPR inline u16string_view operator "" _sv(const char16_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
+				EA_CONSTEXPR inline u32string_view operator "" _sv(const char32_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
+				EA_CONSTEXPR inline wstring_view operator "" _sv(const wchar_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
+				
 				EA_RESTORE_CLANG_WARNING()	// -Wreserved-identifier
 
 				// C++20 char8_t support.
@@ -835,10 +838,11 @@ namespace eastl
 					EA_CONSTEXPR inline u8string_view operator "" sv(const char8_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
 					EA_CONSTEXPR inline u8string_view operator "" _sv(const char8_t* str, size_t len) EA_NOEXCEPT { return {str, len}; }
 				#endif
-		    }
-	    }
+			}
+		}
 
 		EA_RESTORE_GCC_WARNING()	// -Wliteral-suffix
+		EA_RESTORE_CLANG_WARNING()	// -Wdeprecated-literal-operator
 		EA_RESTORE_CLANG_WARNING()	// -Wuser-defined-literals
 		EA_RESTORE_VC_WARNING()		// warning: 4455
 	#endif

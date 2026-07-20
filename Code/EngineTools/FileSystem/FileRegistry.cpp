@@ -20,7 +20,7 @@ namespace EE
         m_dataPath = rhs.m_dataPath;
         m_filePath = rhs.m_filePath;
         m_extension = rhs.m_extension;
-        m_extensionFourCC = rhs.m_extensionFourCC;
+        m_dataFileExtension = rhs.m_dataFileExtension;
         m_fileType = rhs.m_fileType;
         m_pDataFile = rhs.m_pDataFile;
 
@@ -34,25 +34,26 @@ namespace EE
         m_dataPath = rhs.m_dataPath;
         m_filePath = rhs.m_filePath;
         m_extension = rhs.m_extension;
-        m_extensionFourCC = rhs.m_extensionFourCC;
+        m_dataFileExtension = rhs.m_dataFileExtension;
         m_fileType = rhs.m_fileType;
 
         return *this;
     }
 
-    void FileRegistry::FileInfo::LoadDataFile( TypeSystem::TypeRegistry const& typeRegistry )
+    void FileRegistry::FileInfo::LoadDataFile( TypeSystem::TypeRegistry const& typeRegistry, Log& log )
     {
         EE_ASSERT( IsResourceDescriptorFile() || IsDataFile() );
         EE_ASSERT( m_pDataFile == nullptr );
         EE_ASSERT( m_filePath.IsValid() );
 
-        m_pDataFile = IDataFile::TryReadFromFile( typeRegistry, m_filePath );
+        auto const result = IDataFile::TryReadFromFile( typeRegistry, log, m_filePath );
+        m_pDataFile = result.m_pDataFile;
     }
 
-    void FileRegistry::FileInfo::ReloadDataFile( TypeSystem::TypeRegistry const& typeRegistry )
+    void FileRegistry::FileInfo::ReloadDataFile( TypeSystem::TypeRegistry const& typeRegistry, Log& log )
     {
         EE::Delete( m_pDataFile );
-        LoadDataFile( typeRegistry );
+        LoadDataFile( typeRegistry, log );
     }
 
     //-------------------------------------------------------------------------
@@ -62,6 +63,7 @@ namespace EE
         FileSystem::Path const oldPath = m_filePath;
         m_name = newPath.GetDirectoryName();
         m_filePath = newPath;
+        m_dataPath = DataPath( m_filePath, rawResourceDirectoryPath );
 
         // Rename sub-directories
         //-------------------------------------------------------------------------
@@ -78,7 +80,7 @@ namespace EE
         for ( auto pRecord : m_files )
         {
             pRecord->m_filePath.ReplaceParentDirectory( newPath );
-            pRecord->m_dataPath = DataPath::FromFileSystemPath( rawResourceDirectoryPath, pRecord->m_filePath );
+            pRecord->m_dataPath = DataPath( pRecord->m_filePath, rawResourceDirectoryPath );
         }
     }
 
@@ -118,6 +120,27 @@ namespace EE
         }
     }
 
+    void FileRegistry::DirectoryInfo::GetAllResourceOrDataFiles( TVector<FileInfo const*>& files, bool recurseIntoChildDirectories ) const
+    {
+        for ( auto pFile : m_files )
+        {
+            if ( !pFile->IsDataFile() && !pFile->IsResourceDescriptorFile() )
+            {
+                continue;
+            }
+
+            files.emplace_back( pFile );
+        }
+
+        if ( recurseIntoChildDirectories )
+        {
+            for ( DirectoryInfo const& directory : m_directories )
+            {
+                directory.GetAllResourceOrDataFiles( files, recurseIntoChildDirectories );
+            }
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     FileRegistry::~FileRegistry()
@@ -135,7 +158,7 @@ namespace EE
         else
         {
             float const progress = float( m_numItemsProcessed ) / m_totalItemsToProcess;
-            EE_ASSERT( !Math::IsNaNOrInf( progress ) );
+            EE_ASSERT( Math::IsFinite( progress ) );
             return progress;
         }
     }
@@ -163,7 +186,7 @@ namespace EE
         TVector<TypeSystem::TypeInfo const*> descriptorTypeInfos = m_pTypeRegistry->GetAllDerivedTypes( Resource::ResourceDescriptor::GetStaticTypeID(), false, false, false );
         for ( auto pTypeInfo : descriptorTypeInfos )
         {
-            auto pDescriptorDefaultInstance = Cast<Resource::ResourceDescriptor>( pTypeInfo->GetDefaultInstance() );
+            auto pDescriptorDefaultInstance = pTypeInfo->GetDefaultInstance<Resource::ResourceDescriptor>();
             m_resourceTypesWithDescriptors.emplace_back( pDescriptorDefaultInstance->GetCompiledResourceTypeID() );
         }
 
@@ -332,7 +355,7 @@ namespace EE
             m_sourceDataDirectoryInfo.Clear();
             m_sourceDataDirectoryInfo.m_name = m_sourceDataDirPath.GetDirectoryName();
             m_sourceDataDirectoryInfo.m_filePath = m_sourceDataDirPath;
-            m_sourceDataDirectoryInfo.m_dataPath = DataPath::FromFileSystemPath( m_sourceDataDirPath, m_sourceDataDirPath );
+            m_sourceDataDirectoryInfo.m_dataPath = DataPath( m_sourceDataDirPath, m_sourceDataDirPath );
 
             // Get all files in the data directory
             //-------------------------------------------------------------------------
@@ -406,9 +429,11 @@ namespace EE
 
         auto BuildDescriptorCache = [this] ( TaskSetPartition range, uint32_t threadnum )
         {
+            Log tempLog;
+
             for ( uint32_t i = range.start; i < range.end; i++ )
             {
-                m_dataFilesToLoad[i]->LoadDataFile( *m_pTypeRegistry );
+                m_dataFilesToLoad[i]->LoadDataFile( *m_pTypeRegistry, tempLog );
                 m_dataFilesToLoad[i] = nullptr;
                 m_numItemsProcessed++;
             }
@@ -517,15 +542,15 @@ namespace EE
         return results;
     }
 
-    TVector<FileRegistry::FileInfo const*> FileRegistry::GetAllDataFileEntries( uint32_t extensionFourCC ) const
+    TVector<FileRegistry::FileInfo const*> FileRegistry::GetAllDataFileEntries( DataFileExtension extension ) const
     {
-        EE_ASSERT( m_pTypeRegistry->IsRegisteredDataFileType( extensionFourCC ) );
+        EE_ASSERT( m_pTypeRegistry->IsRegisteredDataFileType( extension ) );
 
         TVector<FileInfo const*> results;
 
         //-------------------------------------------------------------------------
 
-        auto const& foundEntries = m_dataFilesPerExtension.at( extensionFourCC );
+        auto const& foundEntries = m_dataFilesPerExtension.at( extension );
         for ( auto const& entry : foundEntries )
         {
             results.emplace_back( entry );
@@ -534,11 +559,34 @@ namespace EE
         return results;
     }
 
+    TVector<FileRegistry::FileInfo const*> FileRegistry::GetAllDataFileEntries() const
+    {
+        TVector<FileInfo const*> results;
+
+        for ( auto const& dpe : m_dataFilesPerExtension )
+        {
+            for ( auto const& entry : dpe.second )
+            {
+                results.emplace_back( entry );
+            }
+        }
+
+        return results;
+    }
+
     bool FileRegistry::DoesFileExist( DataPath const& path ) const
     {
         EE_ASSERT( path.IsValid() );
-        DataPath const actualPath = path.GetIntraFilePathParent();
-        return m_filesPerPath.find( actualPath ) != m_filesPerPath.end();
+
+        if ( path.HasSubFilename() )
+        {
+            DataPath const parentPath = path.GetPathWithoutSubFilename();
+            return m_filesPerPath.find( parentPath ) != m_filesPerPath.end();
+        }
+        else
+        {
+            return m_filesPerPath.find( path ) != m_filesPerPath.end();
+        }
     }
 
     TVector<ResourceID> FileRegistry::GetAllResourcesOfType( ResourceTypeID resourceTypeID, bool includeDerivedTypes ) const
@@ -624,18 +672,44 @@ namespace EE
     TVector<DataPath> FileRegistry::GetAllDependentResources( DataPath sourceFile ) const
     {
         TVector<DataPath> dependentResources;
-        TVector<DataPath> compileDependencies;
+
+        if ( !sourceFile.IsValid() )
+        {
+            return dependentResources;
+        }
+
+        //-------------------------------------------------------------------------
+
+        TVector<Resource::CompileDependency> compileDependencies;
         for ( auto const& fileEntryPair : m_filesPerPath )
         {
-            compileDependencies.clear();
-
+            // Check each descriptor if it depends on the specified source file 
             auto pDescriptor = TryCast<Resource::ResourceDescriptor>( fileEntryPair.second->m_pDataFile );
             if ( pDescriptor != nullptr )
             {
-                pDescriptor->GetCompileDependencies( compileDependencies );
+                compileDependencies.clear();
+
+                // Get all dependencies for main resource
+                //-------------------------------------------------------------------------
+
+                pDescriptor->GetCompileDependencies( *m_pTypeRegistry, m_sourceDataDirPath, "", compileDependencies );
                 if ( VectorContains( compileDependencies, sourceFile ) )
                 {
                     dependentResources.emplace_back( fileEntryPair.first );
+                }
+
+                // Get all dependencies for sub-resources
+                //-------------------------------------------------------------------------
+
+                TVector<String> subResources;
+                pDescriptor->GetAllSubResources( subResources );
+                for ( String const& subResourceID : subResources )
+                {
+                    pDescriptor->GetCompileDependencies( *m_pTypeRegistry, m_sourceDataDirPath, subResourceID, compileDependencies );
+                    if ( VectorContains( compileDependencies, sourceFile ) )
+                    {
+                        dependentResources.emplace_back( fileEntryPair.first );
+                    }
                 }
             }
         }
@@ -708,7 +782,7 @@ namespace EE
                 auto& newDirectory = pCurrentDir->m_directories.emplace_back( DirectoryInfo() );
                 newDirectory.m_name = splitPath[i];
                 newDirectory.m_filePath = directoryPath;
-                newDirectory.m_dataPath = DataPath::FromFileSystemPath( m_sourceDataDirPath, newDirectory.m_filePath );
+                newDirectory.m_dataPath = DataPath( newDirectory.m_filePath, m_sourceDataDirPath );
 
                 pCurrentDir = &newDirectory;
             }
@@ -738,42 +812,31 @@ namespace EE
 
     FileRegistry::FileInfo* FileRegistry::AddFileRecord( FileSystem::Path const& path, bool shouldLoadDataFile )
     {
-        auto const dataPath = DataPath::FromFileSystemPath( m_sourceDataDirPath, path );
+        auto const dataPath = DataPath( path, m_sourceDataDirPath );
         EE_ASSERT( dataPath.IsFilePath() );
-        char const* pExtension = dataPath.GetExtension();
 
         // Create entry
         auto pNewEntry = EE::New<FileInfo>();
         pNewEntry->m_filePath = path;
         pNewEntry->m_dataPath = dataPath;
-        pNewEntry->m_extensionFourCC = 0;
-        pNewEntry->m_extension = pExtension ? pExtension : "";
+        pNewEntry->m_extension = dataPath.GetExtension();
+        pNewEntry->m_dataFileExtension = DataFileExtension( pNewEntry->m_extension );
         pNewEntry->m_fileType = FileType::Unknown;
 
-        // Process extension
-        if ( FourCC::IsValidLowercase( pNewEntry->m_extension.c_str() ) )
-        {
-            pNewEntry->m_extensionFourCC = FourCC::FromLowercaseString( pNewEntry->m_extension.c_str() );
-        }
-
         // Data file
-        if ( m_pTypeRegistry->IsRegisteredDataFileType( pNewEntry->m_extensionFourCC ) )
+        if ( m_pTypeRegistry->IsRegisteredDataFileType( pNewEntry->m_dataFileExtension ) )
         {
             pNewEntry->m_fileType = FileType::DataFile;
         }
 
         // Resource
         ResourceTypeID resourceTypeID;
-        if( pNewEntry->m_extensionFourCC != 0 )
+        if( pNewEntry->m_dataFileExtension.IsValid() )
         {
-            resourceTypeID = ResourceTypeID( pNewEntry->m_extensionFourCC );
+            resourceTypeID = ResourceTypeID( pNewEntry->m_dataFileExtension );
             if ( m_pTypeRegistry->IsRegisteredResourceType( resourceTypeID ) )
             {
-                if ( EntityModel::IsResourceAnEntityDescriptor( resourceTypeID ) )
-                {
-                    pNewEntry->m_fileType = FileType::EntityDescriptor;
-                }
-                else if( VectorContains( m_resourceTypesWithDescriptors, resourceTypeID ) )
+                if( VectorContains( m_resourceTypesWithDescriptors, resourceTypeID ) )
                 {
                     pNewEntry->m_fileType = FileType::ResourceDescriptor;
                 }
@@ -786,13 +849,13 @@ namespace EE
         pDirectory->m_files.emplace_back( pNewEntry );
 
         // Add to per-type lists
-        if ( pNewEntry->IsResourceDescriptorFile() || pNewEntry->IsEntityDescriptorFile() )
+        if ( pNewEntry->IsResourceDescriptorFile() )
         {
             m_resourcesPerType[resourceTypeID].emplace_back( pNewEntry );
         }
         else if ( pNewEntry->IsDataFile() )
         {
-            m_dataFilesPerExtension[pNewEntry->m_extensionFourCC].emplace_back( pNewEntry );
+            m_dataFilesPerExtension[pNewEntry->m_dataFileExtension].emplace_back( pNewEntry );
         }
 
         // Add to file map
@@ -803,7 +866,8 @@ namespace EE
         {
             if ( pNewEntry->IsResourceDescriptorFile() || pNewEntry->IsDataFile() )
             {
-                pNewEntry->LoadDataFile( *m_pTypeRegistry );
+                Log log;
+                pNewEntry->LoadDataFile( *m_pTypeRegistry, log );
             }
         }
 
@@ -828,9 +892,9 @@ namespace EE
                 }
 
                 // Remove from categorized resource lists
-                if ( pDirectory->m_files[i]->IsResourceDescriptorFile() || pDirectory->m_files[i]->IsEntityDescriptorFile() )
+                if ( pDirectory->m_files[i]->IsResourceDescriptorFile() )
                 {
-                    ResourceTypeID const typeID = ResourceTypeID( pDirectory->m_files[i]->m_extensionFourCC );
+                    ResourceTypeID const typeID = ResourceTypeID( pDirectory->m_files[i]->m_dataFileExtension );
                     auto iter = m_resourcesPerType.find( typeID );
                     if ( iter != m_resourcesPerType.end() )
                     {
@@ -840,7 +904,7 @@ namespace EE
                 }
                 else if ( pDirectory->m_files[i]->IsDataFile() )
                 {
-                    auto iter = m_dataFilesPerExtension.find( pDirectory->m_files[i]->m_extensionFourCC );
+                    auto iter = m_dataFilesPerExtension.find( pDirectory->m_files[i]->m_dataFileExtension );
                     if ( iter != m_dataFilesPerExtension.end() )
                     {
                         TVector<FileInfo*>& category = iter->second;
@@ -916,7 +980,8 @@ namespace EE
                         {
                             if ( pDirectory->m_files[i]->IsResourceDescriptorFile() || pDirectory->m_files[i]->IsDataFile() )
                             {
-                                pDirectory->m_files[i]->ReloadDataFile( *m_pTypeRegistry );
+                                Log log;
+                                pDirectory->m_files[i]->ReloadDataFile( *m_pTypeRegistry, log );
                             }
 
                             break;

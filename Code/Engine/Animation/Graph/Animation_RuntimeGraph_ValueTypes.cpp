@@ -7,7 +7,7 @@ namespace EE::Animation
     #if EE_DEVELOPMENT_TOOLS
     Color GetColorForValueType( GraphValueType type )
     {
-        /*static*/ Color const colors[] =
+        static Color const colors[] =
         {
             Colors::GhostWhite, // unknown
             Colors::LightPink, // bool

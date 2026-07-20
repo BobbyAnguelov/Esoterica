@@ -1,0 +1,10 @@
+<Type TypeID="EE::Render::StaticMeshResourceDescriptor" Version="2">
+  <Property ID="m_meshPath" Value="data://editor/floor/floor.fbx" />
+  <Property ID="m_materialMappings">
+    <Type Index="0" TypeID="EE::Render::MeshMaterialMapping">
+      <Property ID="m_mappingID" Value="Plane/Material.001/1" />
+      <Property ID="m_material" Value="data://editor/floor/floor.material" />
+    </Type>
+  </Property>
+  <Property ID="m_meshGroup" Value="data://render/meshgroups/editormesh.meshgrp" />
+</Type>

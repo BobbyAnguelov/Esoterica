@@ -1,23 +1,47 @@
 #include "NodeGraph_BaseGraph.h"
 #include "NodeGraph_UserContext.h"
-#include "Base/Serialization/TypeSerialization.h"
 #include "Base/TypeSystem/TypeRegistry.h"
-#include "Base/Math/Line.h"
 #include "NodeGraph_Style.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::NodeGraph
 {
+    // Traverse hierarchy via nodes (ignore graphs)
     template<typename T>
-    static void TraverseHierarchy( T* pNode, TVector<T*>& nodePath )
+    static void TraverseNodeHierarchy( T* pNode, TVector<T*>& nodePath )
     {
         EE_ASSERT( pNode != nullptr );
         nodePath.insert( nodePath.begin(), pNode );
 
         if ( pNode->HasParentGraph() && !pNode->GetParentGraph()->IsRootGraph() )
         {
-            TraverseHierarchy( pNode->GetParentGraph()->GetParentNode(), nodePath );
+            TraverseNodeHierarchy( pNode->GetParentGraph()->GetParentNode(), nodePath );
+        }
+    }
+
+    // Traverse hierarchy including graphs
+    static void TraverseHierarchyAndGetIDPath( BaseGraph const *pGraph, TPath<UUID>& path );
+
+    static void TraverseHierarchyAndGetIDPath( BaseNode const *pNode, TPath<UUID>& path )
+    {
+        EE_ASSERT( pNode != nullptr );
+        path.PushFront( pNode->GetID() );
+
+        if ( pNode->HasParentGraph() )
+        {
+            TraverseHierarchyAndGetIDPath( pNode->GetParentGraph(), path );
+        }
+    }
+
+    static void TraverseHierarchyAndGetIDPath( BaseGraph const *pGraph, TPath<UUID>& path )
+    {
+        EE_ASSERT( pGraph != nullptr );
+        path.PushFront( pGraph->GetID() );
+
+        if ( pGraph->HasParentNode() )
+        {
+            TraverseHierarchyAndGetIDPath( pGraph->GetParentNode(), path );
         }
     }
 
@@ -39,21 +63,10 @@ namespace EE::NodeGraph
         }
     }
 
-    void BaseNode::PostDeserialize()
+    void BaseNode::PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry )
     {
-        IReflectedType::PostDeserialize();
-
-        // Set child graph parent ptrs
-        if ( HasChildGraph() )
-        {
-            GetChildGraph()->m_pParentNode = this;
-        }
-
-        // Set secondary graph parent ptrs
-        if ( HasSecondaryGraph() )
-        {
-            GetSecondaryGraph()->m_pParentNode = this;
-        }
+        IReflectedType::PostDeserialize( typeRegistry );
+        UpdateChildGraphAndSecondaryGraphParents();
     }
 
     void BaseNode::Destroy()
@@ -125,7 +138,7 @@ namespace EE::NodeGraph
     String BaseNode::GetStringPathFromRoot() const
     {
         TVector<BaseNode const*> path;
-        TraverseHierarchy( this, path );
+        TraverseNodeHierarchy( this, path );
 
         //-------------------------------------------------------------------------
 
@@ -142,31 +155,48 @@ namespace EE::NodeGraph
         return pathString;
     }
 
-    TVector<UUID> BaseNode::GetIDPathFromRoot() const
+    TPath<UUID> BaseNode::GetIDPathFromRoot() const
     {
-        TVector<BaseNode const*> path;
-        TraverseHierarchy( this, path );
-
-        //-------------------------------------------------------------------------
-
-        TVector<UUID> pathFromRoot;
-        for ( auto iter = path.begin(); iter != path.end(); ++iter )
-        {
-            pathFromRoot.emplace_back( ( *iter )->GetID() );
-        }
-
+        TPath<UUID> pathFromRoot;
+        TraverseHierarchyAndGetIDPath( this, pathFromRoot );
         return pathFromRoot;
     }
 
     TVector<BaseNode*> BaseNode::GetNodePathFromRoot() const
     {
         TVector<BaseNode*> path;
-        TraverseHierarchy( const_cast<BaseNode*>( this ), path );
+        TraverseNodeHierarchy( const_cast<BaseNode*>( this ), path );
         return path;
+    }
+
+    int32_t BaseNode::GetPathDepthFromRoot() const
+    {
+        int32_t depth = 0;
+        BaseNode const *pParentNode = GetParentNode();
+        while ( pParentNode != nullptr )
+        {
+            depth++;
+            pParentNode = pParentNode->GetParentNode();
+        }
+
+        return depth;
     }
 
     void BaseNode::BeginModification()
     {
+        if ( m_modificationCount == 0 )
+        {
+            // Only call events on properly deserialized graphs
+            if ( GetRootGraph() != nullptr )
+            {
+                PreModify();
+            }
+        }
+
+        m_modificationCount++;
+
+        //-------------------------------------------------------------------------
+
         // Parent graphs should only be null during construction
         if ( m_pParentGraph )
         {
@@ -176,8 +206,20 @@ namespace EE::NodeGraph
 
     void BaseNode::EndModification()
     {
+        if ( m_modificationCount == 1 )
+        {
+            // Only call events on properly deserialized graphs
+            if ( GetRootGraph() != nullptr )
+            {
+                PostModify();
+            }
+        }
+
+        m_modificationCount--;
+        EE_ASSERT( m_modificationCount >= 0 );
+
         // Parent graphs should only be null during construction
-        if ( m_pParentGraph )
+        if ( m_pParentGraph != nullptr )
         {
             m_pParentGraph->EndModification();
         }
@@ -310,9 +352,22 @@ namespace EE::NodeGraph
         m_size = m_titleRectSize = Float2::Zero;
     }
 
-    BaseGraph* BaseNode::GetNavigationTarget()
+    BaseGraph* BaseNode::GetNavigationTarget( NodeGraph::UserContext* pUserContext )
     {
         return GetChildGraph();
+    }
+
+    void BaseNode::UpdateChildGraphAndSecondaryGraphParents()
+    {
+        if ( HasChildGraph() )
+        {
+            GetChildGraph()->m_pParentNode = this;
+        }
+
+        if ( HasSecondaryGraph() )
+        {
+            GetSecondaryGraph()->m_pParentNode = this;
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -348,9 +403,9 @@ namespace EE::NodeGraph
         m_ID.Clear();
     }
 
-    void BaseGraph::PostDeserialize()
+    void BaseGraph::PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry )
     {
-        IReflectedType::PostDeserialize();
+        IReflectedType::PostDeserialize( typeRegistry );
 
         // Set parent graph ptrs
         for ( TTypeInstance<BaseNode>& nodeInstance : m_nodes )
@@ -393,40 +448,80 @@ namespace EE::NodeGraph
 
     void BaseGraph::BeginModification()
     {
-        auto pRootGraph = GetRootGraph();
-        if ( pRootGraph == nullptr )
+        if ( m_modificationCount == 0 )
         {
-            return;
-        }
-
-        if ( pRootGraph->m_beginModificationCallCount == 0 )
-        {
-            if ( s_onBeginRootGraphModification.HasBoundUsers() )
+            // Only call events on properly deserialized graphs
+            if ( GetRootGraph() != nullptr  )
             {
-                s_onBeginRootGraphModification.Execute( pRootGraph );
+                PreModify();
             }
         }
-        pRootGraph->m_beginModificationCallCount++;
+
+        m_modificationCount++;
+
+        //-------------------------------------------------------------------------
+
+        if ( !IsRootGraph() )
+        {
+            EE_ASSERT( m_pParentNode != nullptr );
+            m_pParentNode->BeginModification();
+        }
     }
 
     void BaseGraph::EndModification()
     {
-        auto pRootGraph = GetRootGraph();
-        if ( pRootGraph == nullptr )
+        if ( m_modificationCount == 1 )
         {
-            return;
-        }
-
-        EE_ASSERT( pRootGraph->m_beginModificationCallCount > 0 );
-        pRootGraph->m_beginModificationCallCount--;
-
-        if ( pRootGraph->m_beginModificationCallCount == 0 )
-        {
-            if ( s_onEndRootGraphModification.HasBoundUsers() )
+            // Only call events on properly deserialized graphs
+            if ( GetRootGraph() != nullptr )
             {
-                s_onEndRootGraphModification.Execute( pRootGraph );
+                PostModify();
             }
         }
+
+        m_modificationCount--;
+        EE_ASSERT( m_modificationCount >= 0 );
+
+        //-------------------------------------------------------------------------
+
+        if ( !IsRootGraph() )
+        {
+            EE_ASSERT( m_pParentNode != nullptr );
+            m_pParentNode->EndModification();
+        }
+    }
+
+    BaseGraph *BaseGraph::FindGraph( UUID const &graphID )
+    {
+        if ( m_ID == graphID )
+        {
+            return this;
+        }
+
+        for ( TTypeInstance<BaseNode> const& nodeInstance : m_nodes )
+        {
+            BaseNode* pNode = const_cast<BaseNode*>( nodeInstance.Get() );
+
+            if ( pNode->HasChildGraph() )
+            {
+                auto pFoundGraph = pNode->GetChildGraph()->FindGraph( graphID );
+                if ( pFoundGraph != nullptr )
+                {
+                    return pFoundGraph;
+                }
+            }
+
+            if ( pNode->HasSecondaryGraph() )
+            {
+                auto pFoundGraph = pNode->GetSecondaryGraph()->FindGraph( graphID );
+                if ( pFoundGraph != nullptr )
+                {
+                    return pFoundGraph;
+                }
+            }
+        }
+
+        return nullptr;
     }
 
     void BaseGraph::FindAllNodesOfType( TypeSystem::TypeID typeID, TInlineVector<BaseNode*, 20>& results, SearchMode mode, SearchTypeMatch typeMatch ) const
@@ -473,7 +568,10 @@ namespace EE::NodeGraph
 
             if ( pNode->GetTypeID() == typeID )
             {
-                results.emplace_back( pNode );
+                if ( matchFunction( pNode ) )
+                {
+                    results.emplace_back( pNode );
+                }
             }
             else if ( typeMatch == SearchTypeMatch::Derived )
             {
@@ -488,14 +586,14 @@ namespace EE::NodeGraph
             {
                 if ( pNode->HasChildGraph() )
                 {
-                    pNode->GetChildGraph()->FindAllNodesOfType( typeID, results, mode, typeMatch );
+                    pNode->GetChildGraph()->FindAllNodesOfTypeAdvanced( typeID, matchFunction, results, mode, typeMatch );
                 }
 
                 //-------------------------------------------------------------------------
 
                 if ( pNode->HasSecondaryGraph() )
                 {
-                    pNode->GetSecondaryGraph()->FindAllNodesOfType( typeID, results, mode, typeMatch );
+                    pNode->GetSecondaryGraph()->FindAllNodesOfTypeAdvanced( typeID, matchFunction, results, mode, typeMatch );
                 }
             }
         }
@@ -503,28 +601,32 @@ namespace EE::NodeGraph
 
     void BaseGraph::DestroyNode( UUID const& nodeID )
     {
+        BaseNode* pNode = FindNode( nodeID );
+        EE_ASSERT( pNode != nullptr );
+
+        BeginModification();
+        PreDestroyNode( pNode ); // Note: this can destroy other nodes in this graph
+
+        // Clear node data
+       
+
+        // Remove the node from the list of nodes
         for ( auto iter = m_nodes.begin(); iter != m_nodes.end(); ++iter )
         {
-            BaseNode* pNode = iter->Get();
-            if ( pNode->GetID() == nodeID )
+            if ( iter->Get()->GetID() == nodeID )
             {
-                BeginModification();
-                PreDestroyNode( pNode );
-
                 // Clear node data
                 pNode->m_pParentGraph = nullptr;
                 pNode->m_ID.Clear();
 
                 iter->DestroyInstance();
                 m_nodes.erase( iter );
-
-                PostDestroyNode( nodeID );
-                EndModification();
-                return;
+                break;
             }
         }
 
-        EE_UNREACHABLE_CODE();
+        PostDestroyNode( nodeID );
+        EndModification();
     }
 
     String BaseGraph::GetStringPathFromRoot() const
@@ -538,7 +640,7 @@ namespace EE::NodeGraph
         //-------------------------------------------------------------------------
 
         TVector<BaseNode const*> path;
-        TraverseHierarchy( GetParentNode(), path );
+        TraverseNodeHierarchy( GetParentNode(), path );
 
         //-------------------------------------------------------------------------
 
@@ -554,24 +656,10 @@ namespace EE::NodeGraph
         return pathString;
     }
 
-    TVector<UUID> BaseGraph::GetIDPathFromRoot() const
+    TPath<UUID> BaseGraph::GetIDPathFromRoot() const
     {
-        TVector<UUID> pathFromRoot;
-        if ( IsRootGraph() )
-        {
-            return pathFromRoot;
-        }
-
-        TVector<BaseNode const*> path;
-        TraverseHierarchy( GetParentNode(), path );
-
-        //-------------------------------------------------------------------------
-
-        for ( auto const& pNode : path )
-        {
-            pathFromRoot.emplace_back( pNode->GetID() );
-        }
-
+        TPath<UUID> pathFromRoot;
+        TraverseHierarchyAndGetIDPath( this, pathFromRoot );
         return pathFromRoot;
     }
 
@@ -679,7 +767,7 @@ namespace EE::NodeGraph
         return uniqueName;
     }
 
-    BaseGraph* BaseGraph::GetNavigationTarget()
+    BaseGraph* BaseGraph::GetNavigationTarget( NodeGraph::UserContext* pUserContext )
     {
         BaseNode* pParentNode = GetParentNode();
         if ( pParentNode != nullptr )

@@ -75,7 +75,7 @@ namespace EE::Animation
             {
                 // Get the transform out of the source target
                 Transform inputTargetTransform;
-                bool bIsValidTransform = inputTarget.TryGetTransform( context.m_pPreviousPose, inputTargetTransform );
+                bool bIsValidTransform = inputTarget.TryGetTransform( context.GetPreviousPrimaryPose(), inputTargetTransform );
 
                 // If we have a valid transform, update the internal value
                 if ( bIsValidTransform )
@@ -116,14 +116,14 @@ namespace EE::Animation
 
                     case Info::AngleVertical:
                     {
-                        Vector const Direction = inputTargetTransform.GetTranslation().GetNormalized3();
-                        if ( Direction.IsNearZero3() )
+                        Vector const direction = inputTargetTransform.GetTranslation().GetNormalized3();
+                        if ( direction.IsNearZero3() )
                         {
                             m_value = 0.0f;
                         }
                         else
                         {
-                            m_value = Math::RadiansToDegrees * ( Math::PiDivTwo - Math::ACos( Vector::WorldUp.GetDot3( Direction ) ) );
+                            m_value = Math::RadiansToDegrees * ( Math::PiDivTwo - Math::ACos( Vector::WorldUp.GetDot3( direction ) ) );
                         }
                     }
                     break;
@@ -156,22 +156,19 @@ namespace EE::Animation
 
                     case Info::DeltaOrientationX:
                     {
-                        Transform const targetTransformCS = inputTargetTransform * context.m_worldTransformInverse;
-                        m_value = (float) targetTransformCS.GetRotation().ToEulerAngles().m_x.ToDegrees();
+                        m_value = inputTargetTransform.GetRotation().ToEulerAngles().m_x.ToDegrees().ToFloat();
                     }
                     break;
 
                     case Info::DeltaOrientationY:
                     {
-                        Transform const targetTransformCS = inputTargetTransform * context.m_worldTransformInverse;
-                        m_value = (float) targetTransformCS.GetRotation().ToEulerAngles().m_y.ToDegrees();
+                        m_value = inputTargetTransform.GetRotation().ToEulerAngles().m_y.ToDegrees().ToFloat();
                     }
                     break;
 
                     case Info::DeltaOrientationZ:
                     {
-                        Transform const targetTransformCS = inputTargetTransform * context.m_worldTransformInverse;
-                        m_value = (float) targetTransformCS.GetRotation().ToEulerAngles().m_z.ToDegrees();
+                        m_value = inputTargetTransform.GetRotation().ToEulerAngles().m_z.ToDegrees().ToFloat();
                     }
                     break;
                     }
@@ -222,7 +219,7 @@ namespace EE::Animation
             {
                 // Get the transform out of the source target
                 Transform inputTargetTransform;
-                bool bIsValidTransform = inputTarget.TryGetTransform( context.m_pPreviousPose, inputTargetTransform );
+                bool bIsValidTransform = inputTarget.TryGetTransform( context.GetPreviousPrimaryPose(), inputTargetTransform );
 
                 // If we have a valid transform, update the internal value
                 if ( bIsValidTransform )

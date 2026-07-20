@@ -8,13 +8,33 @@ namespace EE::Resource
 {
     class ResourceRequesterID
     {
-        static constexpr uint64_t s_manualRequestID = 0x0;
-        static constexpr uint64_t s_toolsRequestID = 0xFFFFFFFFFFFFFFFF;
-
     public:
 
-        static inline ResourceRequesterID ManualRequest() { return ResourceRequesterID( s_manualRequestID ); }
-        static inline ResourceRequesterID ToolRequest() { return ResourceRequesterID( s_toolsRequestID ); }
+        enum class Source : uint8_t
+        {
+            Invalid = 0,
+            Entity,
+            InstallDependency,
+            Tool,
+            Manual,
+        };
+
+        static inline ResourceRequesterID InstallDependencyRequest( ResourceID dependentResourceID ) 
+        {
+            EE_ASSERT( dependentResourceID.IsValid() );
+            return ResourceRequesterID( dependentResourceID.GetPathID(), Source::InstallDependency );
+        }
+
+        static inline ResourceRequesterID ManualRequest()
+        { 
+            return ResourceRequesterID( 0, Source::Manual );
+        }
+
+        static inline ResourceRequesterID ToolRequest( uint64_t toolID )
+        {
+            EE_ASSERT( toolID != 0 );
+            return ResourceRequesterID( toolID, Source::Tool );
+        }
 
     public:
 
@@ -23,42 +43,24 @@ namespace EE::Resource
 
         // Explicit 64bit ID - generally refers to an entity ID
         explicit ResourceRequesterID( uint64_t requesterID )
-            : m_ID( requesterID )
+            : ResourceRequesterID( requesterID, Source::Entity )
         {}
-
-        // Explicit install dependency based on another dependent resource
-        explicit ResourceRequesterID( ResourceID dependentResourceID )
-            : m_ID( dependentResourceID.GetPathID() )
-            , m_isInstallDependency( true )
-        {
-            EE_ASSERT( dependentResourceID.IsValid() );
-        }
 
         //-------------------------------------------------------------------------
 
-        // This ID refers to a manual request outside of the default resource loading flow (usually only used for resources like maps)
-        inline bool IsManualRequest() const
-        {
-            return m_ID == s_manualRequestID;
-        }
-
-        // This ID refers to a request originating from the tools, this allows for the tools to reload resources that they are editing
-        inline bool IsToolsRequest() const
-        {
-            return m_ID == s_toolsRequestID;
-        }
+        inline bool IsValid() const { return m_source != Source::Invalid; }
 
         // A normal request via the entity system
-        inline bool IsNormalRequest() const
-        {
-            return m_ID > 0 && !m_isInstallDependency;
-        }
+        inline bool IsEntitySystemRequest() const { return m_source == Source::Entity; }
 
         // A install dependency request, coming from the resource system as part of resource loading
-        inline bool IsInstallDependencyRequest() const
-        {
-            return m_isInstallDependency;
-        }
+        inline bool IsInstallDependencyRequest() const { return m_source == Source::InstallDependency; }
+
+        // This ID refers to a request originating from the tools, this allows for the tools to reload resources that they are editing
+        inline bool IsToolsRequest() const { return m_source == Source::Tool; }
+
+        // This ID refers to a manual request outside of the default resource loading flow (usually only used for resources like maps)
+        inline bool IsManualRequest() const { return m_source == Source::Manual; }
 
         //-------------------------------------------------------------------------
 
@@ -66,10 +68,17 @@ namespace EE::Resource
         inline uint64_t GetID() const { return m_ID; }
 
         // Get the ID for the data path for install dependencies, used for reverse look ups
-        inline uint32_t GetInstallDependencyResourcePathID() const
+        inline uint64_t GetInstallDependencyResourcePathID() const
         {
-            EE_ASSERT( m_isInstallDependency );
-            return (uint32_t) m_ID;
+            EE_ASSERT( IsInstallDependencyRequest() );
+            return m_ID;
+        }
+
+        // Get the ID for the tool that requested this, used for reverse look ups
+        inline uint64_t GetToolID() const
+        {
+            EE_ASSERT( IsToolsRequest() );
+            return m_ID;
         }
 
         //-------------------------------------------------------------------------
@@ -79,7 +88,14 @@ namespace EE::Resource
 
     private:
 
-        uint64_t    m_ID = 0;
-        bool        m_isInstallDependency = false;
+        explicit ResourceRequesterID( uint64_t requesterID, Source source )
+            : m_ID( requesterID )
+            , m_source( source )
+        {}
+
+    private:
+
+        uint64_t        m_ID = 0;
+        Source          m_source = Source::Invalid;
     };
 }

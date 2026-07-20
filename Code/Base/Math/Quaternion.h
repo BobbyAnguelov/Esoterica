@@ -32,13 +32,16 @@ namespace EE
         static Quaternion const Identity;
 
         // Calculate the rotation required to align the source vector to the target vector (shortest path)
-        inline static Quaternion FromRotationBetweenNormalizedVectors( Vector const& sourceVector, Vector const& targetVector );
+        inline static Quaternion FromRotationBetweenUnitVectors( Vector const& sourceVector, Vector const& targetVector );
         
         // Calculate the rotation required to align one vector onto another but also taking account a fallback rotation axis for opposite parallel vectors
-        inline static Quaternion FromRotationBetweenNormalizedVectors( Vector const& sourceVector, Vector const& targetVector, Vector const& fallbackRotationAxis );
+        inline static Quaternion FromRotationBetweenUnitVectors( Vector const& sourceVector, Vector const& targetVector, Vector const& fallbackRotationAxis );
+
+        // Calculate the quaternion that aligns the forward dir to the requested direction while trying to maintain the up vector
+        static Quaternion LookAt( Vector const &forwardVector, Vector const &upVector = Vector::WorldUp );
 
         // Calculate the rotation required to align the source vector to the target vector (shortest path)
-        EE_FORCE_INLINE static Quaternion FromRotationBetweenVectors( Vector const& sourceVector, Vector const& targetVector ) { return FromRotationBetweenNormalizedVectors( sourceVector.GetNormalized3(), targetVector.GetNormalized3() ); }
+        EE_FORCE_INLINE static Quaternion FromRotationBetweenVectors( Vector const& sourceVector, Vector const& targetVector ) { return FromRotationBetweenUnitVectors( sourceVector.GetNormalized3(), targetVector.GetNormalized3() ); }
 
         // Normalized LERP - not accurate - only use for really short distances
         inline static Quaternion NLerp( Quaternion const& from, Quaternion const& to, float t );
@@ -56,10 +59,10 @@ namespace EE
         EE_FORCE_INLINE static Quaternion Delta( Quaternion const& from, Quaternion const& to ) { return to * from.GetInverse(); }
 
         // Simple vector dot product between two quaternions
-        inline static Vector Dot( Quaternion const& q0, Quaternion const& q1 ) { return Vector::Dot4( q0.m_data, q1.m_data ); }
+        inline static Vector Dot( Quaternion const& q0, Quaternion const& q1 ) { return q0.Dot( q1 ); }
 
         // Calculate the angular distance between two quaternions
-        inline static Radians Distance( Quaternion const& q0, Quaternion const& q1 );
+        inline static Radians Distance( Quaternion const& q0, Quaternion const& q1 ) { return q0.Distance( q1 ); }
 
     public:
 
@@ -87,9 +90,21 @@ namespace EE
         EE_FORCE_INLINE float GetZ() const { return AsVector().GetZ(); }
         EE_FORCE_INLINE float GetW() const { return AsVector().GetW(); }
 
+        EE_FORCE_INLINE Vector GetAxisX() const { return RotateVector( Vector::UnitX ); }
+        EE_FORCE_INLINE Vector GetAxisY() const { return RotateVector( Vector::UnitY ); }
+        EE_FORCE_INLINE Vector GetAxisZ() const { return RotateVector( Vector::UnitZ ); }
+
+        Vector GetAxis( Axis axis ) const;
+
+        EE_FORCE_INLINE Vector GetRightVector() const { return RotateVector( Vector::WorldRight ); }
+        EE_FORCE_INLINE Vector GetForwardVector() const { return RotateVector( Vector::WorldForward ); }
+        EE_FORCE_INLINE Vector GetUpVector() const { return RotateVector( Vector::WorldUp ); }
+
         inline Vector Length() { return AsVector().Length4(); }
 
         inline float GetLength() const { return AsVector().GetLength4(); }
+
+        inline Radians Distance( Quaternion const& other ) const;
 
         // Get the angle this rotation represents around the specified axis
         inline Radians GetAngle() const { return Radians( 2.0f * Math::ACos( GetW() ) ); }
@@ -101,26 +116,29 @@ namespace EE
         inline Vector RotateVectorInverse( Vector const& vector ) const;
 
         // Operations
-        inline Quaternion& Conjugate();
+        inline void Conjugate();
         inline Quaternion GetConjugate() const;
 
-        inline Quaternion& Negate();
+        inline void Negate();
         inline Quaternion GetNegated() const;
 
-        inline Quaternion& Invert();
+        inline void Invert();
         inline Quaternion GetInverse() const;
 
-        inline Quaternion& Normalize();
+        inline void Normalize();
         inline Quaternion GetNormalized() const;
 
+        inline Vector Dot( Quaternion const& rhs ) const { return Vector::Dot4( m_data, rhs.m_data ); }
+        inline float GetDot( Quaternion const& rhs ) const { return Vector::Dot4( m_data, rhs.m_data ).GetX(); }
+
         // Ensure that this rotation is the shortest in terms of the angle (i.e. -5 instead of 355)
-        inline Quaternion& MakeShortestPath();
+        inline void MakeShortestPath();
 
         // Ensure that this rotation is the shortest in terms of the angle (i.e. -5 instead of 355)
         inline Quaternion GetShortestPath() const;
 
         // This function will return the estimated normalized quaternion, this is not super accurate but a lot faster (use with care)
-        inline Quaternion& NormalizeInaccurate();
+        inline void NormalizeInaccurate();
 
         // This function will return the estimated normalized quaternion, this is not super accurate but a lot faster (use with care)
         inline Quaternion GetNormalizedInaccurate() const;
@@ -138,6 +156,10 @@ namespace EE
         {
             return Quaternion::Distance( *this, rhs ) <= threshold;
         }
+
+        inline Radians GetTwistAngle() const;
+
+        inline Radians GetSwingAngle() const;
 
         // Exact equality
         inline bool operator==( Quaternion const& rhs ) const { return AsVector() == rhs.AsVector(); }
@@ -162,17 +184,16 @@ namespace EE
 
     //-------------------------------------------------------------------------
 
-    inline Radians Quaternion::Distance( Quaternion const& q0, Quaternion const& q1 )
+    inline Radians Quaternion::Distance( Quaternion const& q1 ) const
     {
-        float const dot = Math::Clamp( Dot( q0, q1 ).ToFloat(), -1.0f, 1.0f );
+        float const dot = Math::Clamp( Dot( *this, q1 ).ToFloat(), -1.0f, 1.0f );
         return Radians( 2 * Math::ACos( Math::Abs( dot ) ) );
     }
 
-    inline Quaternion& Quaternion::Conjugate()
+    inline void Quaternion::Conjugate()
     {
         static __m128 const conj = { -1.0f, -1.0f, -1.0f, 1.0f };
         m_data = _mm_mul_ps( *this, conj );
-        return *this;
     }
 
     inline Quaternion Quaternion::GetConjugate() const
@@ -182,10 +203,9 @@ namespace EE
         return q;
     }
 
-    inline Quaternion& Quaternion::Negate()
+    inline void Quaternion::Negate()
     {
         m_data = _mm_mul_ps( *this, Vector::NegativeOne );
-        return *this;
     }
 
     inline Quaternion Quaternion::GetNegated() const
@@ -195,14 +215,13 @@ namespace EE
         return q;
     }
 
-    inline Quaternion& Quaternion::Invert()
+    inline void Quaternion::Invert()
     {
         Vector const conjugate( GetConjugate().m_data );
         Vector const length = AsVector().Length4();
         Vector const mask = length.LessThanEqual( Vector::Epsilon );
         Vector const result = conjugate / length;
         m_data = result.Select( result, Vector::Zero, mask );
-        return *this;
     }
 
     inline Quaternion Quaternion::GetInverse() const
@@ -212,10 +231,9 @@ namespace EE
         return q;
     }
 
-    inline Quaternion& Quaternion::Normalize()
+    inline void Quaternion::Normalize()
     {
         m_data = AsVector().GetNormalized4().m_data;
-        return *this;
     }
 
     inline Quaternion Quaternion::GetNormalized() const
@@ -225,10 +243,9 @@ namespace EE
         return q;
     }
 
-    inline Quaternion& Quaternion::NormalizeInaccurate()
+    inline void Quaternion::NormalizeInaccurate()
     {
         *this = GetNormalizedInaccurate();
-        return *this;
     }
 
     inline Quaternion Quaternion::GetNormalizedInaccurate() const
@@ -248,7 +265,7 @@ namespace EE
         return result;
     }
 
-    inline Quaternion& Quaternion::MakeShortestPath()
+    inline void Quaternion::MakeShortestPath()
     {
         // If we have a > 180 angle, negate
         // w < 0.0f is the same as dot( identity, q ) < 0
@@ -256,8 +273,6 @@ namespace EE
         {
             Negate();
         }
-
-        return *this;
     }
 
     inline Quaternion Quaternion::GetShortestPath() const
@@ -298,7 +313,7 @@ namespace EE
         m_data = ( rotationX * rotationY * rotationZ ).GetNormalized().m_data;
     }
 
-    inline Quaternion Quaternion::FromRotationBetweenNormalizedVectors( Vector const& from, Vector const& to )
+    inline Quaternion Quaternion::FromRotationBetweenUnitVectors( Vector const& from, Vector const& to )
     {
         EE_ASSERT( from.IsNormalized3() && to.IsNormalized3() );
 
@@ -329,7 +344,7 @@ namespace EE
         return result;
     }
 
-    inline Quaternion Quaternion::FromRotationBetweenNormalizedVectors( Vector const& from, Vector const& to, Vector const& fallbackRotationAxis )
+    inline Quaternion Quaternion::FromRotationBetweenUnitVectors( Vector const& from, Vector const& to, Vector const& fallbackRotationAxis )
     {
         EE_ASSERT( from.IsNormalized3() && to.IsNormalized3() );
 
@@ -512,5 +527,29 @@ namespace EE
         t = ( t - ( t * t ) ) * 2;
         Quaternion const result = Quaternion::SLerp( q03, q12, t );
         return result;
+    }
+
+    Radians Quaternion::GetTwistAngle() const
+    {
+        // Account for polarity to keep the twist angle in range.
+        // This is simpler than asking the user to check polarity or unwinding.
+        float const z = GetZ();
+        float const w = GetW();
+        float twist = w < 0.0f ? Math::ATan2( -z, -w ) : Math::ATan2( z, w );
+        twist *= 2.0f;
+        EE_ASSERT( -Math::Pi <= twist && twist <= Math::Pi );
+        return twist;
+    }
+
+    Radians Quaternion::GetSwingAngle() const
+    {
+        Float4 const q = ToFloat4();
+
+        // Polarity should not matter because all terms are squared.
+        float const x = Math::Sqrt( q.m_z * q.m_z + q.m_w * q.m_w );
+        float const y = Math::Sqrt( q.m_x * q.m_x + q.m_y * q.m_y );
+        float const swing = 2.0f * Math::ATan2( y, x );
+        EE_ASSERT( 0.0f <= swing && swing <= Math::Pi );
+        return swing;
     }
 }

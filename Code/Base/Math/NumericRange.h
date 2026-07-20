@@ -51,6 +51,13 @@ namespace EE
             return Math::Max( m_begin, rhs.m_begin ) <= Math::Min( m_end, rhs.m_end );
         }
 
+        // Does this range overlap the specified range (does not considering touching an overlap)
+        inline bool OverlapsExclusive( FloatRange const &rhs ) const
+        {
+            EE_ASSERT( IsSetAndValid() );
+            return Math::Max( m_begin, rhs.m_begin ) < Math::Min( m_end, rhs.m_end );
+        }
+
         // Shifts the range by the supplied delta
         inline void ShiftRange( float delta )
         {
@@ -185,6 +192,19 @@ namespace EE
         float m_end = -FLT_MAX;
     };
 
+    // Remap a value from one specified range to another
+    EE_FORCE_INLINE float RemapRange( float value, FloatRange const& fromRange, FloatRange const& toRange = FloatRange( 0, 1 ) )
+    {
+        return Math::RemapRange( value, fromRange.m_begin, fromRange.m_end, toRange.m_begin, toRange.m_end );
+    }
+
+    // Remap a value from one range to another asymmetrically around zero.
+    // Basically performs a remap from [-fromRange, 0] to [-toRange, 0] and [0, fromRange] to [0, toRange]
+    EE_FORCE_INLINE float RemapRangeAsymmetricAroundZero( float value, FloatRange const& fromRange, FloatRange const& toRange )
+    {
+        return Math::RemapRangeAsymmetricAroundZero( value, fromRange.m_begin, fromRange.m_end, toRange.m_begin, toRange.m_end );
+    }
+
     //-------------------------------------------------------------------------
 
     struct IntRange
@@ -295,7 +315,7 @@ namespace EE
         inline int32_t GetValueForPercentageThrough( Percentage const percentageThrough ) const
         {
             EE_ASSERT( IsSet() );
-            return Math::RoundToInt( ( GetLength() * percentageThrough ) + m_begin );
+            return Math::RoundToInt32( ( GetLength() * percentageThrough ) + m_begin );
         }
 
         // Get the value in this range at the specified percentage through. Clamped to [begin, end]

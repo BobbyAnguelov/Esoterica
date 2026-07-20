@@ -2,15 +2,14 @@
 
 #include "Base/_Module/API.h"
 #include "Base/Types/String.h"
-#include "Base/Encoding/FourCC.h"
 #include "Base/Serialization/BinarySerialization.h"
-#include "Base/FileSystem/FileSystemExtension.h"
+#include "Base/FileSystem/DataFileExtension.h"
 
 //-------------------------------------------------------------------------
 // Resource Type ID
 //-------------------------------------------------------------------------
 // Unique ID for a resource - Used for resource look up and dependencies
-// Resource type IDs are lowercase FourCCs i.e. can only contain lowercase ASCII letters and digits
+// Resource type IDs are lowercase and alphanumeric EightCCs i.e. can only contain lowercase ASCII english letters and digits
 
 namespace EE
 {
@@ -20,41 +19,50 @@ namespace EE
 
     public:
 
-        // Check if a given string is a valid resource type FourCC (i.e. [1:4] lowercase letters or digits)
-        static bool IsValidResourceFourCC( char const* pStr ) { return FourCC::IsValidLowercase( pStr ); }
+        // Check if a given string is a valid resource type EightCC (i.e. [1:8] lowercase letters or digits)
+        inline static bool IsValidResourceTypeIdentifierString( String const& str ) { return DataFileExtension::IsValidExtension( str.c_str() ); }
 
-        // Check if a given string is a valid resource type FourCC (i.e. [1:4] lowercase letters or digits)
-        inline static bool IsValidResourceFourCC( String const& str ) { return IsValidResourceFourCC( str.c_str() ); }
-
-        // Check if a given string is a valid resource type FourCC (i.e. [1:4] lowercase letters or digits)
+        // Check if a given string is a valid resource type EightCC (i.e. [1:4] lowercase letters or digits)
         template<eastl_size_t S>
-        inline static bool IsValidResourceFourCC( TInlineString<S> const& str ) { return IsValidResourceFourCC( str.c_str() ); }
+        inline static bool IsValidResourceTypeIdentifierString( TInlineString<S> const& str ) { return DataFileExtension::IsValidExtension( str.c_str() ); }
 
-        // Expensive verification to ensure that a resource type ID FourCC only contains uppercase or numeric chars
-        static bool IsValidResourceFourCC( uint32_t fourCC ) { return FourCC::IsValidLowercase( fourCC ); }
+        // Expensive verification to ensure that a resource type ID EightCCs only contains uppercase or numeric chars
+        static bool IsValidResourceTypeIdentifier( uint64_t code ) { return DataFileExtension::IsValidExtensionCode( code ); }
 
     public:
 
         inline ResourceTypeID() = default;
-        inline ResourceTypeID( uint32_t ID ) : m_ID( ID ) { EE_ASSERT( IsValidResourceFourCC( m_ID ) ); }
-        explicit ResourceTypeID( char const* pStr ) : m_ID( FourCC::FromLowercaseString( pStr ) ) {}
+        inline ResourceTypeID( uint64_t ID ) : m_ID( ID ) { EE_ASSERT( IsValidResourceTypeIdentifier( ID ) ); }
+        inline explicit ResourceTypeID( DataFileExtension ID ) : m_ID( ID ) { EE_ASSERT( ID.IsValid() ); }
+        inline explicit ResourceTypeID( char const* pStr ) : m_ID( pStr ) { EE_ASSERT( IsValidResourceTypeIdentifierString( pStr ) ); }
         inline explicit ResourceTypeID( String const& str ) : ResourceTypeID( str.c_str() ) {}
 
-        inline bool IsValid() const { return m_ID != 0; }
-        void Clear() { m_ID = 0; }
+        inline bool IsValid() const { return m_ID.IsValid() && IsValidResourceTypeIdentifierString( m_ID.ToString() ); }
+        void Clear() { m_ID.Clear(); }
 
-        inline operator uint32_t() const { return m_ID; }
-        inline operator uint32_t&() { return m_ID; }
+        inline operator uint64_t() const { return m_ID.GetCode(); }
+        inline uint64_t ToUInt64() const { return m_ID.GetCode(); }
 
         //-------------------------------------------------------------------------
 
-        inline void GetString( char outStr[5] ) const { FourCC::ToString( m_ID, outStr ); }
-        inline TInlineString<5> ToString() const { return FourCC::ToString( m_ID ); }
-        inline FileSystem::Extension ToExtension() const { return FourCC::ToString( m_ID ); }
+        // Convert the type ID to a string
+        inline TInlineString<9> ToString() const { return m_ID.ToString(); }
+
+        // Get the string value for this code
+        inline void GetString( TInlineString<9> &outStr ) const { m_ID.GetString( outStr ); }
+
+        // Get the string value for this code
+        inline void GetString( InlineString &outStr ) const { m_ID.GetString( outStr ); }
+
+        // Get the string value for this code
+        inline void GetString( String &outStr ) const { m_ID.GetString( outStr ); }
+
+        // Get the extension for this resource type ID
+        inline FileSystem::Extension ToFileSystemExtension() const { return m_ID.ToFileSystemExtension(); }
 
     public:
 
-        uint32_t                 m_ID = 0;
+        DataFileExtension     m_ID;
     };
 }
 

@@ -10,23 +10,40 @@ namespace EE::Animation
     {
         auto pNode = CreateNode<FloatSwitchNode>( context, options );
         context.SetNodePtrFromIndex( m_switchValueNodeIdx, pNode->m_pSwitchValueNode );
-        context.SetNodePtrFromIndex( m_trueValueNodeIdx, pNode->m_pTrueValueNode );
-        context.SetNodePtrFromIndex( m_falseValueNodeIdx, pNode->m_pFalseValueNode );
+        context.SetOptionalNodePtrFromIndex( m_trueValueNodeIdx, pNode->m_pTrueValueNode );
+        context.SetOptionalNodePtrFromIndex( m_falseValueNodeIdx, pNode->m_pFalseValueNode );
     }
 
     void FloatSwitchNode::InitializeInternal( GraphContext& context )
     {
         FloatValueNode::InitializeInternal( context );
         m_pSwitchValueNode->Initialize( context );
-        m_pTrueValueNode->Initialize( context );
-        m_pFalseValueNode->Initialize( context );
+
+        if ( m_pTrueValueNode != nullptr )
+        {
+            m_pTrueValueNode->Initialize( context );
+        }
+
+        if ( m_pFalseValueNode != nullptr )
+        {
+            m_pFalseValueNode->Initialize( context );
+        }
     }
 
     void FloatSwitchNode::ShutdownInternal( GraphContext& context )
     {
         m_pSwitchValueNode->Shutdown( context );
-        m_pTrueValueNode->Shutdown( context );
-        m_pFalseValueNode->Shutdown( context );
+
+        if ( m_pTrueValueNode != nullptr )
+        {
+            m_pTrueValueNode->Shutdown( context );
+        }
+
+        if ( m_pFalseValueNode != nullptr )
+        {
+            m_pFalseValueNode->Shutdown( context );
+        }
+
         FloatValueNode::ShutdownInternal( context );
     }
 
@@ -36,13 +53,15 @@ namespace EE::Animation
         {
             MarkNodeActive( context );
 
+            auto pDefinition = GetDefinition<FloatSwitchNode>();
+
             if ( m_pSwitchValueNode->GetValue<bool>( context ) )
             {
-                m_value = m_pTrueValueNode->GetValue<float>( context );
+                m_value = m_pTrueValueNode ? m_pTrueValueNode->GetValue<float>( context ) : pDefinition->m_trueValue;
             }
             else
             {
-                m_value = m_pFalseValueNode->GetValue<float>( context );
+                m_value = m_pFalseValueNode ? m_pFalseValueNode->GetValue<float>( context ) : pDefinition->m_falseValue;
             }
         }
 
@@ -125,42 +144,6 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    void FloatAbsNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
-    {
-        auto pNode = CreateNode<FloatAbsNode>( context, options );
-        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
-    }
-
-    void FloatAbsNode::InitializeInternal( GraphContext& context )
-    {
-        EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        FloatValueNode::InitializeInternal( context );
-        m_pInputValueNode->Initialize( context );
-    }
-
-    void FloatAbsNode::ShutdownInternal( GraphContext& context )
-    {
-        EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-        m_pInputValueNode->Shutdown( context );
-        FloatValueNode::ShutdownInternal( context );
-    }
-
-    void FloatAbsNode::GetValueInternal( GraphContext& context, void* pOutValue )
-    {
-        EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
-
-        if ( !WasUpdated( context ) )
-        {
-            MarkNodeActive( context );
-            auto const inputValue = m_pInputValueNode->GetValue<float>( context );
-            m_value = Math::Abs( inputValue );
-        }
-
-        *reinterpret_cast<float*>( pOutValue ) = m_value;
-    }
-
-    //-------------------------------------------------------------------------
-
     void FloatEaseNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<FloatEaseNode>( context, options );
@@ -235,7 +218,6 @@ namespace EE::Animation
         *reinterpret_cast<float*>( pOutValue ) = m_currentValue;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void FloatEaseNode::RecordGraphState( RecordedGraphState& outState )
     {
         FloatValueNode::RecordGraphState( outState );
@@ -244,14 +226,98 @@ namespace EE::Animation
         outState.WriteValue( m_currentEaseTime );
     }
 
-    void FloatEaseNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool FloatEaseNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        FloatValueNode::RestoreGraphState( inState );
+        if( !FloatValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_easeRange );
         inState.ReadValue( m_currentValue );
         inState.ReadValue( m_currentEaseTime );
+
+        return true;
     }
-    #endif
+
+    //-------------------------------------------------------------------------
+
+    void FloatSpringNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<FloatSpringNode>( context, options );
+        context.SetNodePtrFromIndex( m_inputValueNodeIdx, pNode->m_pInputValueNode );
+    }
+
+    void FloatSpringNode::InitializeInternal( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
+
+        auto pDefinition = GetDefinition<FloatSpringNode>();
+
+        FloatValueNode::InitializeInternal( context );
+        m_pInputValueNode->Initialize( context );
+
+        if ( pDefinition->m_useStartValue )
+        {
+            m_position = pDefinition->m_startValue;
+        }
+        else
+        {
+            m_position = m_pInputValueNode->GetValue<float>( context );
+        }
+
+        m_velocity = 0.0f;
+    }
+
+    void FloatSpringNode::ShutdownInternal( GraphContext& context )
+    {
+        EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
+        m_pInputValueNode->Shutdown( context );
+        FloatValueNode::ShutdownInternal( context );
+    }
+
+    void FloatSpringNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        EE_ASSERT( context.IsValid() && m_pInputValueNode != nullptr );
+        auto pDefinition = GetDefinition<FloatSpringNode>();
+
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            float const target = m_pInputValueNode->GetValue<float>( context );
+            float const timeStepSeconds = context.m_deltaTime.ToFloat();
+            float const omega = Math::TwoPi * pDefinition->m_hertz;
+            float const omegaDt = omega * timeStepSeconds;
+            float const scale = 1.0f / ( 1.0f + omegaDt * ( 2.0f * pDefinition->m_dampingRatio + omegaDt ) );
+
+            // Implicit Euler integration of the harmonic oscillator
+            m_velocity = scale * ( m_velocity - omegaDt * omega * ( m_position - target ) );
+            m_position += timeStepSeconds * m_velocity;
+        }
+
+        *reinterpret_cast<float*>( pOutValue ) = m_position;
+    }
+
+    void FloatSpringNode::RecordGraphState( RecordedGraphState& outState )
+    {
+        FloatValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_position );
+        outState.WriteValue( m_velocity );
+    }
+
+    bool FloatSpringNode::RestoreGraphState( RecordedGraphState const& inState )
+    {
+        if ( !FloatValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
+        inState.ReadValue( m_position );
+        inState.ReadValue( m_velocity );
+
+        return true;
+    }
 
     //-------------------------------------------------------------------------
 
@@ -327,7 +393,7 @@ namespace EE::Animation
     void FloatMathNode::GetValueInternal( GraphContext& context, void* pOutValue )
     {
         EE_ASSERT( context.IsValid() && m_pValueNodeA != nullptr );
-        auto FloatNodeDefinition = GetDefinition<FloatMathNode>();
+        auto pDefinition = GetDefinition<FloatMathNode>();
 
         if ( !WasUpdated( context ) )
         {
@@ -344,11 +410,11 @@ namespace EE::Animation
             }
             else
             {
-                valueB = FloatNodeDefinition->m_valueB;
+                valueB = pDefinition->m_valueB;
             }
 
             // Calculate Result
-            switch ( FloatNodeDefinition->m_operator )
+            switch ( pDefinition->m_operator )
             {
                 case Operator::Add:
                 {
@@ -383,13 +449,82 @@ namespace EE::Animation
                     }
                 }
                 break;
+
+                case Operator::Mod:
+                {
+                    if ( Math::IsNearZero( valueB ) )
+                    {
+                        #if EE_DEVELOPMENT_TOOLS
+                        context.LogWarning( GetNodeIndex(), "Modulus by zero in FloatMathNode" );
+                        #endif
+                        m_value = 0;
+                    }
+                    else
+                    {
+                        m_value = Math::FModF( valueA, valueB );
+                    }
+                }
+                break;
+
+                case FloatMathNode::Operator::Abs:
+                {
+                    m_value = Math::Abs( valueA );
+                }
+                break;
+
+                case FloatMathNode::Operator::Negate:
+                {
+                    m_value = -valueA;
+                }
+                break;
+
+                case FloatMathNode::Operator::Floor:
+                {
+                    m_value = Math::Floor( valueA );
+                }
+                break;
+
+                case FloatMathNode::Operator::Ceiling:
+                {
+                    m_value = Math::Ceiling( valueA );
+                }
+                break;
+
+                case FloatMathNode::Operator::IntegerPart:
+                {
+                    m_value = Math::GetIntegerPart( valueA );
+                }
+                break;
+
+                case FloatMathNode::Operator::FractionalPart:
+                {
+                    m_value = Math::GetFractionalPart( valueA );
+                }
+                break;
+
+                case FloatMathNode::Operator::InverseFractionalPart:
+                {
+                    m_value = 1.0f - Math::GetFractionalPart( valueA );
+                }
+                break;
+
+                default:
+                {
+                    EE_UNREACHABLE_CODE();
+                }
+                break;
             }
 
             //-------------------------------------------------------------------------
 
-            if ( FloatNodeDefinition->m_returnAbsoluteResult )
+            if ( pDefinition->m_returnAbsoluteResult )
             {
                 m_value = Math::Abs( m_value );
+            }
+
+            if ( pDefinition->m_returnNegatedResult )
+            {
+                m_value = -m_value;
             }
         }
 
@@ -671,7 +806,6 @@ namespace EE::Animation
         *( (float*) pOutValue ) = m_currentValue;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void FloatSelectorNode::RecordGraphState( RecordedGraphState& outState )
     {
         FloatValueNode::RecordGraphState( outState );
@@ -680,12 +814,17 @@ namespace EE::Animation
         outState.WriteValue( m_currentEaseTime );
     }
 
-    void FloatSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool FloatSelectorNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        FloatValueNode::RestoreGraphState( inState );
+        if ( !FloatValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_easeRange );
         inState.ReadValue( m_currentValue );
         inState.ReadValue( m_currentEaseTime );
+
+        return true;
     }
-    #endif
 }

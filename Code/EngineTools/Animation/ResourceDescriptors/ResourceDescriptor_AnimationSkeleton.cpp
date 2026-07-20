@@ -4,54 +4,174 @@
 
 namespace EE::Animation
 {
-    bool BoneMaskDefinition::IsValid() const
+    bool SkeletonResourceDescriptor::ValidateData( Log* pLog ) const
     {
-        if ( !m_ID.IsValid() )
+        for ( auto i = 0; i < m_boneMaskSetDefinitions.size(); i++ )
         {
-            return false;
-        }
-
-        for ( auto& boneWeight : m_weights )
-        {
-            if ( !boneWeight.m_boneID.IsValid() || boneWeight.m_weight < 0.0f || boneWeight.m_weight > 1.0f )
+            for ( auto j = i + 1; j < m_boneMaskSetDefinitions.size(); j++ )
             {
-                return false;
+                if ( m_boneMaskSetDefinitions[i].m_ID == m_boneMaskSetDefinitions[j].m_ID )
+                {
+                    if ( pLog != nullptr )
+                    {
+                        pLog->LogError( "Duplicate bone mask set ID detected: %s", m_boneMaskSetDefinitions[i].m_ID.c_str() );
+                    }
+
+                    return false;
+                }
             }
         }
+
+        //-------------------------------------------------------------------------
+
+        for ( auto i = 0; i < m_floatChannelSets.size(); i++ )
+        {
+            for ( auto j = i + 1; j < m_floatChannelSets.size(); j++ )
+            {
+                if ( m_floatChannelSets[i].m_ID == m_floatChannelSets[j].m_ID )
+                {
+                    if ( pLog != nullptr )
+                    {
+                        pLog->LogError( "Duplicate float channel set ID detected: %s", m_floatChannelSets[i].m_ID.c_str() );
+                    }
+
+                    return false;
+                }
+            }
+        }
+
+        //-------------------------------------------------------------------------
 
         return true;
     }
 
-    void BoneMaskDefinition::GenerateSerializedBoneMask( Skeleton const* pSkeleton, BoneMask::SerializedData& outData, TVector<StringID>* pOutDetectedMissingBones ) const
+    StringID SkeletonResourceDescriptor::GetUniqueBoneMaskSetID( String const& desiredName ) const
     {
-        EE_ASSERT( pSkeleton != nullptr );
-        EE_ASSERT( IsValid() );
+        EE_ASSERT( !desiredName.empty() );
 
-        int32_t const numWeights = BoneMask::CalculateNumWeightsToSet( pSkeleton->GetNumBones() );
+        StringID desiredID( desiredName );
 
-        outData.m_ID = m_ID;
-        outData.m_weights.resize( numWeights, -1.0f );
-
-        if ( pOutDetectedMissingBones != nullptr )
+        bool isUniqueName = false;
+        while ( !isUniqueName )
         {
-            pOutDetectedMissingBones->clear();
-        }
+            isUniqueName = true;
 
-        for ( BoneWeight const& boneWeight : m_weights )
-        {
-            EE_ASSERT( boneWeight.m_weight >= 0.0f && boneWeight.m_weight <= 1.0f );
-            int32_t const boneIdx = pSkeleton->GetBoneIndex( boneWeight.m_boneID );
-            if ( boneIdx != InvalidIndex )
+            for ( auto const& bms : m_boneMaskSetDefinitions )
             {
-                outData.m_weights[boneIdx] = boneWeight.m_weight;
-            }
-            else // If we should return the list of missing bone, add the missing bone to the list
-            {
-                if ( pOutDetectedMissingBones != nullptr )
+                if ( desiredID == bms.m_ID )
                 {
-                    pOutDetectedMissingBones->emplace_back( boneWeight.m_boneID );
+                    isUniqueName = false;
+                    break;
                 }
             }
+
+            //-------------------------------------------------------------------------
+
+            if ( !isUniqueName )
+            {
+                InlineString str = desiredName.c_str();
+                str.append( "_" );
+                desiredID = StringID( str.c_str() );
+            }
+        }
+
+        return desiredID;
+    }
+
+    StringID SkeletonResourceDescriptor::GetUniqueFloatChannelSetID( String const& desiredName ) const
+    {
+        EE_ASSERT( !desiredName.empty() );
+
+        StringID desiredID( desiredName );
+
+        bool isUniqueName = false;
+        while ( !isUniqueName )
+        {
+            isUniqueName = true;
+
+            for ( auto const& floatChannelSet : m_floatChannelSets)
+            {
+                if ( desiredID == floatChannelSet.m_ID )
+                {
+                    isUniqueName = false;
+                    break;
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( !isUniqueName )
+            {
+                InlineString str = desiredName.c_str();
+                str.append( "_" );
+                desiredID = StringID( str.c_str() );
+            }
+        }
+
+        return desiredID;
+    }
+
+    void SkeletonResourceDescriptor::PostLoad( TypeSystem::TypeRegistry const& typeRegistry )
+    {
+        Resource::ResourceDescriptor::PostLoad( typeRegistry );
+
+        // Fix any duplicate mask set IDs and remove duplicate bone weights set IDs
+        //-------------------------------------------------------------------------
+
+        for ( auto& bms : m_boneMaskSetDefinitions )
+        {
+            if ( !bms.m_ID.IsValid() )
+            {
+                bms.m_ID = GetUniqueBoneMaskSetID( "Bone Mask Set" );
+            }
+        }
+
+        for ( int32_t i = 0; i < m_boneMaskSetDefinitions.size(); i++ )
+        {
+            for ( int32_t j = i + 1; j < m_boneMaskSetDefinitions.size(); j++ )
+            {
+                if ( m_boneMaskSetDefinitions[i].m_ID == m_boneMaskSetDefinitions[j].m_ID )
+                {
+                    m_boneMaskSetDefinitions[j] = GetUniqueBoneMaskSetID( m_boneMaskSetDefinitions[j].m_ID.c_str() );
+                }
+            }
+        }
+
+        for ( auto& boneMaskSetDefinition : m_boneMaskSetDefinitions )
+        {
+            boneMaskSetDefinition.m_primaryWeightList.RemoveDuplicateWeights();
+
+            for ( auto& secondaryWeightList : boneMaskSetDefinition.m_secondaryWeightLists )
+            {
+                secondaryWeightList.RemoveDuplicateWeights();
+            }
+        }
+
+        // Fix any duplicate set IDs and remove duplicate channel set IDs
+        //-------------------------------------------------------------------------
+
+        for ( auto& fcs : m_floatChannelSets )
+        {
+            if ( !fcs.m_ID.IsValid() )
+            {
+                fcs.m_ID = GetUniqueFloatChannelSetID( "Float Channel Set" );
+            }
+        }
+
+        for ( int32_t i = 0; i < m_floatChannelSets.size(); i++ )
+        {
+            for ( int32_t j = i + 1; j < m_floatChannelSets.size(); j++ )
+            {
+                if ( m_floatChannelSets[i].m_ID == m_floatChannelSets[j].m_ID )
+                {
+                    m_floatChannelSets[j] = GetUniqueBoneMaskSetID( m_floatChannelSets[j].m_ID.c_str() );
+                }
+            }
+        }
+
+        for ( auto& floatChannelSet : m_floatChannelSets )
+        {
+            floatChannelSet.RemoveDuplicateChannelIDs();
         }
     }
 }

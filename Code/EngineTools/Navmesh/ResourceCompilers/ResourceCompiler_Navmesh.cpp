@@ -1,14 +1,19 @@
 #include "ResourceCompiler_Navmesh.h"
+#include "EngineTools/Resource/ResourceCompilerContext.h"
 #include "EngineTools/Entity/EntitySerializationTools.h"
-#include "EngineTools/Navmesh/NavmeshGenerator.h"
+#include "EngineTools/Entity/ResourceDescriptors/ResourceDescriptor_EntityMap.h"
+#include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsCollisionMesh.h"
+#include "EngineTools/Navmesh/NavmeshBuilder.h"
+#include "EngineTools/Navmesh/NavmeshBuildData.h"
+#include "EngineTools/Import/ImporterSource.h"
 #include "Engine/Navmesh/NavmeshData.h"
+#include "Engine/Entity/EntitySpatialComponent.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
 #include "Base/FileSystem/FileSystem.h"
 #include "Base/Serialization/BinarySerialization.h"
 #include "Base/Time/Timers.h"
 #include "Base/TypeSystem/TypeRegistry.h"
-#include <filesystem>
 
 //-------------------------------------------------------------------------
 
@@ -17,128 +22,177 @@ namespace EE::Navmesh
     NavmeshCompiler::NavmeshCompiler()
         : Resource::Compiler( "NavmeshCompiler" )
     {
-        AddOutputType<NavmeshData>();
+        RegisterOutput<NavmeshData>();
     }
 
-    uint64_t NavmeshCompiler::CalculateAdvancedUpToDateHash( ResourceID resourceID ) const
+    uint64_t NavmeshCompiler::GetAdditionalVersionForResourceType( ResourceTypeID resourceTypeID ) const
     {
+        #if EE_ENABLE_NAVPOWER
+        uint64_t const navpowerVersion = uint64_t( bfx::GetMajorVersion() ) + bfx::GetMinorVersion();
+        return navpowerVersion;
+        #else
         return 0;
+        #endif
+    }
+
+    void NavmeshCompiler::GetAdditionalCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, ResourceID const& resourceID, Resource::ResourceDescriptor const* pDescriptor, TVector<Resource::CompileDependency>& outDependencies ) const
+    {
+        if ( auto pMapDesc = TryCast<EntityModel::EntityMapResourceDescriptor>( pDescriptor ) )
+        {
+            // If we are using a pre-generated navmesh that is the only dependency
+            FileSystem::Path const userGeneratedNavmeshPath = NavmeshData::GetUserGeneratedNavmeshFilePathForMap( resourceID.GetParentResourceID(), sourceResourceDirectoryPath );
+            if ( userGeneratedNavmeshPath.Exists() )
+            {
+                outDependencies.emplace_back( DataPath( userGeneratedNavmeshPath, sourceResourceDirectoryPath ), false );
+            }
+            else // Add map and all nav relevant resources as dependencies
+            {
+                // Add map as a dependency
+                DataPath const mapDataPath = resourceID.GetDataPath().GetPathWithoutSubFilename();
+                outDependencies.emplace_back( mapDataPath, true );
+
+                //-------------------------------------------------------------------------
+
+                NavmeshBuildData buildData;
+                buildData.ExtractBuildData( typeRegistry, pMapDesc->m_mapDescriptor );
+
+                for ( TPair<ResourceID, TVector<NavmeshBuildData::MeshInstance>> const& meshInstancePair : buildData.m_collisionMeshInstances )
+                {
+                    outDependencies.emplace_back( meshInstancePair.first.GetDataPath(), true );
+                }
+            }
+        }
     }
 
     Resource::CompilationResult NavmeshCompiler::Compile( Resource::CompileContext const& ctx ) const
     {
-        if ( ctx.m_inputFilePath.Exists() )
-        {
-            Serialization::BinaryInputArchive archive;
-            if ( archive.ReadFromFile( ctx.m_inputFilePath ) )
-            {
-                Resource::ResourceHeader header;
-                archive << header;
+        NavmeshData navmeshData;
 
-                // Is we have a mismatched version, rebuild the source file
-                #if EE_ENABLE_NAVPOWER
-                if ( header.m_version != NavmeshData::s_version )
-                {
-                    if ( GenerateNavmesh( ctx, true ) == Resource::CompilationResult::Failure )
-                    {
-                        return Resource::CompilationResult::Failure;
-                    }
-                }
-                #endif
-            }
-            else // Corrupted source file
+        FileSystem::Path const userGeneratedNavmeshPath = NavmeshData::GetUserGeneratedNavmeshFilePathForMap( ctx.GetResourceID().GetParentResourceID(), ctx.m_sourceResourceDirectoryPath );
+        if ( userGeneratedNavmeshPath.Exists() )
+        {
+            if ( !LoadUserGeneratedNavmeshData( ctx, userGeneratedNavmeshPath, navmeshData ) )
             {
-                Error( "Failed to read pre-generated navmesh file (%s)!", ctx.m_inputFilePath.c_str() );
                 return Resource::CompilationResult::Failure;
             }
-
-            //-------------------------------------------------------------------------
-
-            std::error_code ec;
-            std::filesystem::copy_options opts = std::filesystem::copy_options::overwrite_existing;
-            std::filesystem::copy( ctx.m_inputFilePath.c_str(), ctx.m_outputFilePath.c_str(), opts, ec );
-            return ( ec.value() == 0 ) ? CompilationSucceeded(ctx) : CompilationFailed(ctx);
         }
         else
         {
-            return GenerateNavmesh( ctx, false );
+            if ( !GenerateNavmeshData( ctx, navmeshData ) )
+            {
+                return Resource::CompilationResult::Failure;
+            }
+        }
+
+        // Save navmesh data
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( navmeshData.IsValid() );
+
+        Resource::ResourceHeader hdr( NavmeshData::s_version, NavmeshData::GetStaticResourceTypeID(), 0 );
+        Serialization::BinaryOutputArchive archive;
+        archive << hdr << navmeshData;
+
+        if ( archive.WriteToFile( ctx.GetOutputPath() ) )
+        {
+            return Resource::CompilationResult::Success;
+        }
+        else
+        {
+            return Resource::CompilationResult::Failure;
         }
     }
 
-    Resource::CompilationResult NavmeshCompiler::GenerateNavmesh( Resource::CompileContext const& ctx, bool updatePregeneratedNavmesh ) const
+    bool NavmeshCompiler::LoadUserGeneratedNavmeshData( Resource::CompileContext const& ctx, FileSystem::Path const& path, NavmeshData& outData ) const
     {
-        if ( updatePregeneratedNavmesh )
+        Serialization::BinaryInputArchive archive;
+        if ( !archive.ReadFromFile( path ) )
         {
-            Warning( "Pre-generated navmesh file has an old version - rebuilding (%s)!", ctx.m_inputFilePath.c_str() );
-        }
-        else
-        {
-            Message( "No pre-generated navmesh found, generating navmesh!" );
+            return false;
         }
 
-        // Get map data
+        archive << outData;
+        return outData.IsValid();
+    }
+
+    bool NavmeshCompiler::GenerateNavmeshData( Resource::CompileContext const& ctx, NavmeshData& outData ) const
+    {
+        Milliseconds time = 0;
+
+        // Setup Build Data
         //-------------------------------------------------------------------------
 
-        FileSystem::Path mapPath = ctx.m_inputFilePath;
-        mapPath.ReplaceExtension( "map" );
+        NavmeshBuildData buildData;
 
-        if ( !mapPath.Exists() )
         {
-            Error( "Entity map file (%s) doesnt exist!", mapPath.c_str() );
-            return Resource::CompilationResult::Failure;
-        }
+            ScopedTimer<PlatformClock> timer( time );
 
-        EntityModel::EntityMapDescriptor serializedMap;
+            // Extract Build data
+            //-------------------------------------------------------------------------
 
-        Milliseconds elapsedTime = 0.0f;
-        {
-            ScopedTimer<PlatformClock> timer( elapsedTime );
+            auto pMapDesc = Cast<EntityModel::EntityMapResourceDescriptor>( ctx.m_pResourceToCompile->m_pDescriptor );
+            buildData.ExtractBuildData( ctx.m_typeRegistry, pMapDesc->m_mapDescriptor );
+            EE_ASSERT( !buildData.HasErrors() );
 
-            if ( !EntityModel::ReadMapDescriptorFromFile( *m_pTypeRegistry, mapPath, serializedMap ) )
+            // Dump build data log
+            for ( auto const& entry : buildData.GetLogEntries() )
             {
-                Error( "Entity map file (%s) is malformed!", mapPath.c_str() );
-                return Resource::CompilationResult::Failure;
+                if ( entry.m_severity == Severity::Warning )
+                {
+                    ctx.LogWarning( entry.m_message.c_str() );
+                }
+                else
+                {
+                    ctx.LogMessage( entry.m_message.c_str() );
+                }
             }
+
+            // Enable build logging if requested
+            if ( buildData.m_buildSettings.m_enableBuildLogging )
+            {
+                buildData.m_optionalBuildLogPath = ctx.GetOutputPath();
+            }
+
+            // Load collision meshes
+            //-------------------------------------------------------------------------
+
+            auto GetMeshLoadInfo = [&ctx] ( ResourceID const& resourceID, Import::Source& outSource, TVector<String>& outMeshesToInclude )
+            {
+                auto pPhysCollisionMeshDesc = ctx.GetDescriptor<Physics::PhysicsCollisionMeshResourceDescriptor>( resourceID );
+                outMeshesToInclude = pPhysCollisionMeshDesc->m_meshesToInclude;
+
+                outSource.m_path = pPhysCollisionMeshDesc->m_sourcePath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath );
+                outSource.m_pFileData = ctx.GetRawData( pPhysCollisionMeshDesc->m_sourcePath );
+            };
+
+            buildData.LoadCollisionMeshes( ctx.m_typeRegistry, ctx.m_sourceResourceDirectoryPath, GetMeshLoadInfo );
         }
 
-        Message( "Entity map read in: %.2fms", elapsedTime.ToFloat() );
+        ctx.LogMessage( "Build Data Setup: %.2fms", time.ToFloat() );
 
-        // Get navmesh component
-        //-------------------------------------------------------------------------
-
-        auto const navmeshComponents = serializedMap.GetComponentsOfType<NavmeshComponent>( *m_pTypeRegistry, false );
-        if ( navmeshComponents.empty() )
-        {
-            Error( "Requesting navmesh for a map without a navmesh component! This is an invalid operation!" );
-            return CompilationFailed( ctx );
-        }
-
-        if ( navmeshComponents.size() > 1 )
-        {
-            Warning( "More than one navmesh component found in this map, this is not supported... Ignoring all components apart from the first found!" );
-        }
-
-        auto pNavmeshComponent = navmeshComponents[0].m_pComponent->CreateType<Navmesh::NavmeshComponent>( *m_pTypeRegistry );
-        EE_ASSERT( pNavmeshComponent != nullptr );
-        Navmesh::NavmeshBuildSettings const buildSettings = pNavmeshComponent->GetBuildSettings();
-        EE::Delete( pNavmeshComponent );
-
-        // Generate navmesh
+        // Navpower Build
         //-------------------------------------------------------------------------
 
         #if EE_ENABLE_NAVPOWER
-        Navmesh::NavmeshGenerator generator( *m_pTypeRegistry, m_sourceDataDirectoryPath, updatePregeneratedNavmesh ? ctx.m_inputFilePath : ctx.m_outputFilePath, serializedMap, buildSettings );
-
         {
-            ScopedTimer<PlatformClock> timer( elapsedTime );
-            generator.GenerateSync();
+            ScopedTimer<PlatformClock> timer( time );
+            NavmeshBuilder builder;
+            if ( !builder.Build( buildData, outData ) )
+            {
+                return false;
+            }
+        }
+        ctx.LogMessage( "Navpower Build Completed: %.2fms", time.ToFloat() );
+        #else
+        ctx.LogError( "Navpower is disabled!" );
+        return false;
+        #endif
+
+        if ( !outData.IsValid() )
+        {
+            return false;
         }
 
-        Message( "Navmesh built in: %.2fms", elapsedTime.ToFloat() );
-
-        return Resource::CompilationResult::Success;
-        #else
-        return Error( "No navmesh middleware present!" );
-        #endif
+        return true;
     }
 }

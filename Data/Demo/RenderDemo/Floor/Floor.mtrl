@@ -1,5 +1,0 @@
-<Type TypeID="EE::Render::MaterialResourceDescriptor" Version="0">
-  <Property ID="m_albedoTexture" Value="data://demo/renderdemo/floor/floor.txtr" />
-  <Property ID="m_albedo" Value="FFFFFFFF" />
-  <Property ID="m_roughness" Value="0.5" />
-</Type>

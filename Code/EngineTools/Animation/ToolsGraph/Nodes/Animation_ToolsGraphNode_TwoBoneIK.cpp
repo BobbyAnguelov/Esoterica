@@ -10,11 +10,12 @@ namespace EE::Animation
     TwoBoneIKToolsNode::TwoBoneIKToolsNode()
         : VariationDataToolsNode()
     {
+        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
+
         CreateOutputPin( "Result", GraphValueType::Pose );
         CreateInputPin( "Input", GraphValueType::Pose );
         CreateInputPin( "Effector Target", GraphValueType::Target );
-
-        m_defaultVariationData.CreateInstance( GetVariationDataTypeInfo() );
+        CreateInputPin( "Enable", GraphValueType::Bool );
     }
 
     int16_t TwoBoneIKToolsNode::Compile( GraphCompilationContext& context ) const
@@ -70,8 +71,34 @@ namespace EE::Animation
                 return InvalidIndex;
             }
 
+            //-------------------------------------------------------------------------
+
+            auto pEnableNode = GetConnectedInputNode<FlowToolsNode>( 2 );
+            if ( pEnableNode != nullptr )
+            {
+                int16_t const compiledNodeIdx = pEnableNode->Compile( context );
+                if ( compiledNodeIdx != InvalidIndex )
+                {
+                    pDefinition->m_enableNodeIdx = compiledNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
+            }
+
             pDefinition->m_effectorBoneID = pData->m_effectorBoneID;
+
+            if ( !pData->m_effectorBoneID.IsValid() )
+            {
+                context.LogError( this, "No effector bone ID set for variation: %s!", context.GetVariationID().c_str() );
+                return InvalidIndex;
+            }
+
             pDefinition->m_isTargetInWorldSpace = m_isTargetInWorldSpace;
+            pDefinition->m_blendTime = Math::Max( pData->m_blendTime.ToFloat(), 0.0f);
+            pDefinition->m_blendMode = m_blendMode;
+            pDefinition->m_referencePoseTwistWeight = m_referencePoseTwistWeight;
         }
 
         return pDefinition->m_nodeIdx;
@@ -79,9 +106,23 @@ namespace EE::Animation
 
     void TwoBoneIKToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
+        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
+        if ( pGraphNodeContext->HasDebugData() )
+        {
+            int16_t const runtimeNodeIdx = pGraphNodeContext->GetRuntimeGraphNodeIndex( GetID() );
+            auto pRuntimeNode = static_cast<TwoBoneIKNode const*>( pGraphNodeContext->GetNodeDebugInstance( runtimeNodeIdx ) );
+            if ( pRuntimeNode->IsInitialized() )
+            {
+                BeginDrawInternalRegion( ctx );
+                ImGui::Text( "%.2f", pRuntimeNode->GetIKWeight() );
+                EndDrawInternalRegion( ctx );
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
         DrawInternalSeparator( ctx );
 
-        auto pGraphNodeContext = static_cast<ToolsGraphUserContext*>( pUserContext );
         auto pData = GetResolvedVariationDataAs<Data>( *pGraphNodeContext->m_pVariationHierarchy, pGraphNodeContext->m_selectedVariationID );
         if ( !pData->m_effectorBoneID.IsValid() )
         {

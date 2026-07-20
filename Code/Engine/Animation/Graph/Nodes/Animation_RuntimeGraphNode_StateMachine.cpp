@@ -93,7 +93,7 @@ namespace EE::Animation
 
     void StateMachineNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
-        EE_ASSERT( context.IsValid() && m_activeStateIndex == InvalidIndex && m_pActiveTransition == nullptr );
+        EE_ASSERT( context.IsValid() && m_activeStateIndex == InvalidIndex && m_requestShutdownConditionsStateIndex == InvalidIndex && m_pActiveTransition == nullptr );
 
         PoseNode::InitializeInternal( context, initialTime );
 
@@ -108,18 +108,7 @@ namespace EE::Animation
         m_previousTime = pActiveState->GetPreviousTime();
         m_currentTime = pActiveState->GetCurrentTime();
 
-        InitializeTransitionConditions( context );
-    }
-
-    void StateMachineNode::InitializeTransitionConditions( GraphContext& context )
-    {
-        for ( auto const& transition : m_states[m_activeStateIndex].m_transitions )
-        {
-            if ( transition.m_pConditionNode != nullptr )
-            {
-                transition.m_pConditionNode->Initialize( context );
-            }
-        }
+        InitializeTransitionConditions( context, m_activeStateIndex );
     }
 
     void StateMachineNode::ShutdownInternal( GraphContext& context )
@@ -132,7 +121,13 @@ namespace EE::Animation
             m_pActiveTransition->Shutdown( context );
         }
 
-        ShutdownTransitionConditions( context );
+        if ( m_requestShutdownConditionsStateIndex != InvalidIndex )
+        {
+            ShutdownTransitionConditions( context, m_requestShutdownConditionsStateIndex );
+            m_requestShutdownConditionsStateIndex = InvalidIndex;
+        }
+
+        ShutdownTransitionConditions( context, m_activeStateIndex );
 
         m_states[m_activeStateIndex].m_pStateNode->Shutdown( context );
         m_activeStateIndex = InvalidIndex;
@@ -141,9 +136,20 @@ namespace EE::Animation
         PoseNode::ShutdownInternal( context );
     }
 
-    void StateMachineNode::ShutdownTransitionConditions( GraphContext& context )
+    void StateMachineNode::InitializeTransitionConditions( GraphContext& context, StateIndex stateIdx )
     {
-        for ( auto const& transition : m_states[m_activeStateIndex].m_transitions )
+        for ( auto const& transition : m_states[stateIdx].m_transitions )
+        {
+            if ( transition.m_pConditionNode != nullptr )
+            {
+                transition.m_pConditionNode->Initialize( context );
+            }
+        }
+    }
+
+    void StateMachineNode::ShutdownTransitionConditions( GraphContext& context, StateIndex stateIdx )
+    {
+        for ( auto const& transition : m_states[stateIdx].m_transitions )
         {
             if ( transition.m_pConditionNode != nullptr )
             {
@@ -208,7 +214,7 @@ namespace EE::Animation
             }
 
             // Check if we have forceable transition back to our current state, if so we need to immediately start caching the source pose
-            bool const startCachingSourcePose = VectorContains( forceableTargetStatesUsingCachedPoses, currentlyActiveStateInfo.m_pStateNode );
+            bool const startCachingSourcePose = !m_states[m_activeStateIndex].m_pStateNode->IsOffState() && VectorContains( forceableTargetStatesUsingCachedPoses, currentlyActiveStateInfo.m_pStateNode );
 
             // Notify current transition of the new transition about to start
             if ( m_pActiveTransition != nullptr )
@@ -235,9 +241,9 @@ namespace EE::Animation
             m_pActiveTransition = transition.m_pTransitionNode;
 
             // Update state data to that of the new active state
-            ShutdownTransitionConditions( context );
+            m_requestShutdownConditionsStateIndex = m_activeStateIndex;
             m_activeStateIndex = transition.m_targetStateIdx;
-            InitializeTransitionConditions( context );
+            InitializeTransitionConditions( context, m_activeStateIndex );
 
             m_duration = m_states[m_activeStateIndex].m_pStateNode->GetDuration();
             m_previousTime = m_states[m_activeStateIndex].m_pStateNode->GetPreviousTime();
@@ -251,11 +257,18 @@ namespace EE::Animation
         MarkNodeActive( context );
 
         #if EE_DEVELOPMENT_TOOLS
-        int16_t const startSampledEventIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
+        int16_t const startSampledEventIdx = context.GetSampledEventsBuffer()->GetNumSampledEvents();
         #endif
 
         // Record the task system marker before we evaluate the source state, this is used to rollback the task system if needed
-        int8_t const taskIndexMarker = context.m_pTaskSystem->GetCurrentTaskIndexMarker();
+        int8_t const taskIndexMarker = context.GetTaskSystem()->GetCurrentTaskIndexMarker();
+
+        // This is done in a deferred manner so that the conditions stay active on the update that a transition fires so that it be more easily debugged
+        if ( m_requestShutdownConditionsStateIndex != InvalidIndex )
+        {
+            ShutdownTransitionConditions( context, m_requestShutdownConditionsStateIndex );
+            m_requestShutdownConditionsStateIndex = InvalidIndex;
+        }
 
         // Check active transition
         if ( m_pActiveTransition != nullptr )
@@ -289,7 +302,7 @@ namespace EE::Animation
             m_currentTime = m_pActiveTransition->GetCurrentTime();
         }
 
-        EE_ASSERT( context.m_pSampledEventsBuffer->IsValidRange( result.m_sampledEventRange ) );
+        EE_ASSERT( context.GetSampledEventsBuffer()->IsValidRange( result.m_sampledEventRange ) );
 
         // Check for a valid transition, if one exists start it
         if ( context.m_branchState == BranchState::Active )
@@ -304,7 +317,6 @@ namespace EE::Animation
         return result;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void StateMachineNode::RecordGraphState( RecordedGraphState& outState )
     {
         PoseNode::RecordGraphState( outState );
@@ -341,9 +353,13 @@ namespace EE::Animation
         }
     }
 
-    void StateMachineNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool StateMachineNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( inState );
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_activeStateIndex );
 
         bool hasActiveTransition = false;
@@ -357,6 +373,7 @@ namespace EE::Animation
             inState.ReadValue( transitionIdx );
             m_pActiveTransition = m_states[stateIdx].m_transitions[transitionIdx].m_pTransitionNode;
         }
+
+        return true;
     }
-    #endif
 }

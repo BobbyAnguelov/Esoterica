@@ -13,46 +13,25 @@ namespace EE::Animation
     public:
 
         FrameTime() = default;
+        FrameTime( int32_t frameIndex, Percentage percentageThrough = Percentage( 0 ) );
+        FrameTime( Percentage percent, int32_t numFrames );
 
-        inline FrameTime( int32_t frameIndex, Percentage percentageThrough = Percentage( 0 ) )
-            : m_frameIndex( frameIndex )
-            , m_percentageThrough( percentageThrough )
-        {
-            EE_ASSERT( percentageThrough.ToFloat() >= 0.0f && percentageThrough < 1.0f );
-        }
+        // Reset the frame time to zero
+        inline void Reset() { m_frameIndex = 0; m_percentageThrough = 0.0f; }
 
-        inline FrameTime( Percentage percent, int32_t numFrames )
-        {
-            EE_ASSERT( numFrames > 0 && percent.ToFloat() >= 0.0f );
-            int32_t const lastFrameIdx = numFrames - 1;
+        // Are we at the start of a frame based range
+        inline bool IsZero() const { return m_frameIndex == 0 && m_percentageThrough == 0.0f; }
 
-            if ( percent == 0.0f )
-            {
-                m_frameIndex = 0;
-                m_percentageThrough = 0.0f;
-            }
-            else if ( percent == 1.0f )
-            {
-                m_frameIndex = lastFrameIdx;
-                m_percentageThrough = 0.0f;
-            }
-            else
-            {
-                percent.Clamp( true );
-                float integerPortion = 0;
-                m_percentageThrough = Percentage( Math::ModF( percent.ToFloat() * lastFrameIdx, integerPortion ) );
-                if ( Math::IsNearZero( m_percentageThrough, Math::LargeEpsilon ) )
-                {
-                    m_percentageThrough = 0.0f;
-                }
-                m_frameIndex = (int32_t) integerPortion;
-            }
-        }
+        // Are we at the start of a frame based range
+        inline bool IsAtStart() const { return IsZero(); }
 
-        //-------------------------------------------------------------------------
-
+        // Get the frame index
         inline int32_t GetFrameIndex() const { return m_frameIndex; }
+
+        // Get the percentage through the frame
         inline Percentage GetPercentageThrough() const { return m_percentageThrough; }
+
+        // Is this an exact keyframe i.e. percentage through == 0.0
         inline bool IsExactlyAtKeyFrame() const { return m_percentageThrough == 0.0f; }
 
         // Get the nearest frame index to the current time (basically acts as a round)
@@ -64,8 +43,10 @@ namespace EE::Animation
         // Get the upper bound frame index for the current time
         inline int32_t GetUpperBoundFrameIndex() const { return ( m_percentageThrough > 0.0f ) ? m_frameIndex + 1 : m_frameIndex; }
 
-        inline float ToFloat() const { return m_percentageThrough.ToFloat() + m_frameIndex; }
+        // Convert to a single float where the fraction part is the percentage through
+        inline float ToFloat() const { EE_ASSERT( m_percentageThrough.ToFloat() < 1.0f ); return m_percentageThrough.ToFloat() + m_frameIndex; }
 
+        // Get the time in seconds
         inline Seconds GetTimeInSeconds( Seconds frameLength ) const { EE_ASSERT( frameLength > 0.0f ); return ToFloat() * frameLength; }
 
         inline FrameTime operator+( FrameTime const& RHS ) const;
@@ -82,6 +63,13 @@ namespace EE::Animation
         FrameTime& operator+=( Percentage const& RHS );
         FrameTime operator-( Percentage const& RHS ) const;
         FrameTime& operator-=( Percentage const& RHS );
+
+        inline bool operator <( FrameTime const &rhs ) const;
+        inline bool operator <=( FrameTime const &rhs ) const;
+        inline bool operator >( FrameTime const &rhs ) const;
+        inline bool operator >=( FrameTime const &rhs ) const;
+        inline bool operator ==( FrameTime const &rhs ) const;
+        inline bool operator !=( FrameTime const &rhs ) const;
 
     private:
 
@@ -145,5 +133,55 @@ namespace EE::Animation
     {
         m_frameIndex -= RHS;
         return *this;
+    }
+
+    inline bool FrameTime::operator<( FrameTime const &rhs ) const
+    {
+        if ( m_frameIndex < rhs.m_frameIndex )
+        {
+            return true;
+        }
+
+        return ( m_frameIndex == rhs.m_frameIndex ) && m_percentageThrough < rhs.m_percentageThrough;
+    }
+
+    inline bool FrameTime::operator<=( FrameTime const &rhs ) const
+    {
+        if ( m_frameIndex < rhs.m_frameIndex )
+        {
+            return true;
+        }
+
+        return ( m_frameIndex == rhs.m_frameIndex ) && m_percentageThrough <= rhs.m_percentageThrough;
+    }
+
+    inline bool FrameTime::operator >( FrameTime const &rhs ) const
+    {
+        if ( m_frameIndex > rhs.m_frameIndex )
+        {
+            return true;
+        }
+
+        return ( m_frameIndex == rhs.m_frameIndex ) && m_percentageThrough > rhs.m_percentageThrough;
+    }
+
+    inline bool FrameTime::operator>=( FrameTime const &rhs ) const
+    {
+        if ( m_frameIndex > rhs.m_frameIndex )
+        {
+            return true;
+        }
+
+        return ( m_frameIndex == rhs.m_frameIndex ) && m_percentageThrough >= rhs.m_percentageThrough;
+    }
+
+    inline bool FrameTime::operator==( FrameTime const &rhs ) const
+    {
+        return ( m_frameIndex == rhs.m_frameIndex ) && ( m_percentageThrough == rhs.m_percentageThrough );
+    }
+
+    inline bool FrameTime::operator!=( FrameTime const &rhs ) const
+    {
+        return ( m_frameIndex != rhs.m_frameIndex ) || ( m_percentageThrough != rhs.m_percentageThrough );
     }
 }

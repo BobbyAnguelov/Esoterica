@@ -1,0 +1,28 @@
+
+#ifndef _COMMON_SAMPLERS_ESH_
+#define _COMMON_SAMPLERS_ESH_
+
+#define COMMON_SAMPLER_POINT_WRAP           0
+#define COMMON_SAMPLER_LINEAR_WRAP          1
+
+#define COMMON_SAMPLER_POINT_CLAMP          2
+#define COMMON_SAMPLER_LINEAR_CLAMP         3
+
+#define COMMON_SAMPLER_LINEAR_CLAMP_COMPARE 4
+
+#define COMMON_SAMPLER_LINEAR_CLAMP_MAX     5
+
+#ifndef __cplusplus
+
+    #define GetPointWrapSampler()   GetSamplerState( COMMON_SAMPLER_POINT_WRAP )
+    #define GetLinearWrapSampler()  GetSamplerState( COMMON_SAMPLER_LINEAR_WRAP )
+
+    #define GetPointClampSampler()  GetSamplerState( COMMON_SAMPLER_POINT_CLAMP )
+    #define GetLinearClampSampler() GetSamplerState( COMMON_SAMPLER_LINEAR_CLAMP )
+
+    #define GetLinearClampCompareSampler() GetSamplerState( COMMON_SAMPLER_LINEAR_CLAMP_COMPARE )
+
+    #define GetLinearClampMaxSampler() GetSamplerState( COMMON_SAMPLER_LINEAR_CLAMP_MAX )
+#endif
+
+#endif

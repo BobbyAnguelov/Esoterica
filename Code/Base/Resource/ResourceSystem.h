@@ -20,13 +20,14 @@ namespace EE::Resource
     class ResourceProvider;
     class ResourceLoader;
     class ResourceRequest;
-    class ResourceGlobalSettings;
+    class ResourceSettings;
 
     //-------------------------------------------------------------------------
 
     class EE_BASE_API ResourceSystem : public ISystem
     {
         friend class ResourceDebugView;
+        friend class ResourceSystemEditorTool;
 
         struct PendingRequest
         {
@@ -36,16 +37,14 @@ namespace EE::Resource
 
             PendingRequest() = default;
 
-            PendingRequest( Type type, ResourceRecord* pRecord, ResourceRequesterID const& requesterID )
+            PendingRequest( Type type, ResourceRecord* pRecord )
                 : m_pRecord( pRecord )
-                , m_requesterID( requesterID )
                 , m_type( type )
             {
                 EE_ASSERT( m_pRecord != nullptr );
             }
 
             ResourceRecord*         m_pRecord = nullptr;
-            ResourceRequesterID     m_requesterID;
             Type                    m_type = Type::Load;
         };
 
@@ -70,7 +69,7 @@ namespace EE::Resource
         ~ResourceSystem();
 
         inline bool WasInitialized() const { return m_pResourceProvider != nullptr; }
-        ResourceGlobalSettings const& GetSettings() const;
+        ResourceSettings const& GetSettings() const;
         void Initialize( ResourceProvider* pResourceProvider );
         void Shutdown();
 
@@ -93,23 +92,48 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         // Request a load of a resource, can optionally provide a ResourceRequesterID for identification of the request source
-        void LoadResource( ResourcePtr& resourcePtr, ResourceRequesterID const& requesterID = ResourceRequesterID() );
+        void LoadResource( ResourcePtr& resourcePtr, ResourceRequesterID const& requesterID = ResourceRequesterID::ManualRequest() );
 
         // Request an unload of a resource, can optionally provide a ResourceRequesterID for identification of the request source
-        void UnloadResource( ResourcePtr& resourcePtr, ResourceRequesterID const& requesterID = ResourceRequesterID() );
+        void UnloadResource( ResourcePtr& resourcePtr, ResourceRequesterID const& requesterID = ResourceRequesterID::ManualRequest() );
 
         template<typename T>
-        inline void LoadResource( TResourcePtr<T>& resourcePtr, ResourceRequesterID const& requesterID = ResourceRequesterID() ) { LoadResource( (ResourcePtr&) resourcePtr, requesterID ); }
+        inline void LoadResource( TResourcePtr<T>& resourcePtr, ResourceRequesterID const& requesterID = ResourceRequesterID::ManualRequest() )
+        {
+            if ( resourcePtr.IsSetAndIsValidResourceTypeID() )
+            {
+                LoadResource( (ResourcePtr&) resourcePtr, requesterID );
+            }
+            else
+            {
+                LoadResourceWithMismatchedType( resourcePtr.GetRequiredResourceTypeID(), (ResourcePtr&) resourcePtr, requesterID );
+            }
+        }
 
         template<typename T>
-        inline void UnloadResource( TResourcePtr<T>& resourcePtr, ResourceRequesterID const& requesterID = ResourceRequesterID() ) { UnloadResource( (ResourcePtr&) resourcePtr, requesterID ); }
+        inline void UnloadResource( TResourcePtr<T>& resourcePtr, ResourceRequesterID const& requesterID = ResourceRequesterID::ManualRequest() )
+        {
+            UnloadResource( (ResourcePtr&) resourcePtr, requesterID );
+        }
 
         // Hot Reload
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
+        inline bool RequiresHotReloading() const
+        {
+            // Do-not allow hot-reloading while we are busy waiting for resources as hot-reload is a blocking operation!
+            if ( IsBusy() )
+            {
+                return false;
+            }
+
+            return !m_externallyUpdatedResources.empty();
+        }
+
+        inline ResourceProvider const* GetResourceProvider() const { return m_pResourceProvider; }
+
         void RequestResourceHotReload( ResourceID const& resourceID );
-        inline bool RequiresHotReloading() const { return !m_externallyUpdatedResources.empty(); }
         inline TInlineVector<ResourceRequesterID, 20> const& GetUsersToBeReloaded() const { return m_usersThatRequireReload; }
         inline TInlineVector<ResourceID, 20> const& GetResourcesToBeReloaded() const { return m_externallyUpdatedResources; }
         void ClearHotReloadRequests();
@@ -118,6 +142,8 @@ namespace EE::Resource
     private:
 
         void UpdateResourceProvider();
+
+        void LoadResourceWithMismatchedType( ResourceTypeID requiredTypeID, ResourcePtr& resourcePtr, ResourceRequesterID const& requesterID );
 
         // Non-copyable
         ResourceSystem( const ResourceSystem& ) = delete;

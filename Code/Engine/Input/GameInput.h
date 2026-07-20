@@ -17,7 +17,7 @@ namespace EE::Input
 
     class EE_ENGINE_API GameInputAxis
     {
-        friend class GameInputMap;
+        friend class GameInputState;
 
     public:
 
@@ -38,7 +38,7 @@ namespace EE::Input
 
     class EE_ENGINE_API GameInputValue
     {
-        friend class GameInputMap;
+        friend class GameInputState;
 
     public:
 
@@ -57,7 +57,7 @@ namespace EE::Input
 
     class EE_ENGINE_API GameInputSignal
     {
-        friend class GameInputMap;
+        friend class GameInputState;
 
     public:
 
@@ -85,13 +85,13 @@ namespace EE::Input
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API GameInputMap : public IReflectedType
+    class EE_ENGINE_API GameInputState : public IReflectedType
     {
-        EE_REFLECT_TYPE( GameInputMap );
+        EE_REFLECT_TYPE( GameInputState );
 
     public:
 
-        virtual ~GameInputMap() = default;
+        virtual ~GameInputState() = default;
 
         virtual void RegisterInputs() = 0;
         virtual void UnregisterInputs() final;

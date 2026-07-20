@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Engine/Animation/TaskSystem/Animation_Task.h"
+#include "Engine/Animation/TaskSystem/Animation_PoseTask.h"
 
 //-------------------------------------------------------------------------
 
@@ -11,9 +11,9 @@ namespace EE::Physics
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
-    class RagdollSetPoseTask : public Task
+    class RagdollSetPoseTask : public PoseTask
     {
         EE_REFLECT_TYPE( RagdollSetPoseTask );
 
@@ -29,7 +29,7 @@ namespace EE::Animation::Tasks
 
         RagdollSetPoseTask( Physics::Ragdoll* pRagdoll, int8_t sourceTaskIdx, InitOption initOption = InitOption::DoNothing );
         virtual void Execute( TaskContext const& context ) override;
-        virtual bool AllowsSerialization() const override { return false; }
+        virtual int32_t GetNumDependencies() const override { return 1; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetDebugName() const override { return "Set Ragdoll Pose"; }
@@ -38,7 +38,7 @@ namespace EE::Animation::Tasks
 
     private:
 
-        RagdollSetPoseTask() : Task() {}
+        RagdollSetPoseTask() : PoseTask() {}
 
     private:
 
@@ -48,7 +48,7 @@ namespace EE::Animation::Tasks
 
     //-------------------------------------------------------------------------
 
-    class RagdollGetPoseTask : public Task
+    class RagdollGetPoseTask : public PoseTask
     {
         EE_REFLECT_TYPE( RagdollGetPoseTask );
 
@@ -57,17 +57,17 @@ namespace EE::Animation::Tasks
         RagdollGetPoseTask( Physics::Ragdoll* pRagdoll, int8_t sourceTaskIdx, float const physicsBlendWeight = 1.0f );
         RagdollGetPoseTask( Physics::Ragdoll* pRagdoll );
         virtual void Execute( TaskContext const& context ) override;
-        virtual bool AllowsSerialization() const override { return false; }
 
         #if EE_DEVELOPMENT_TOOLS
         virtual char const* GetDebugName() const override { return "Get Ragdoll Pose"; }
         virtual float GetDebugProgressOrWeight() const override { return m_physicsBlendWeight; }
         virtual Color GetDebugColor() const override { return Colors::Yellow; }
+        virtual void DrawDebug( DebugDrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const override;
         #endif
 
     private:
 
-        RagdollGetPoseTask() : Task() {}
+        RagdollGetPoseTask() : PoseTask() {}
 
     private:
 

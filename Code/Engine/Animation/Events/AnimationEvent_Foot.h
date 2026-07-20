@@ -29,6 +29,7 @@ namespace EE::Animation
             RightFootPassing = 1,
             RightFootDown = 2,
             LeftFootPassing = 3,
+            None = 4, // Useful for animations where you need to markup a section that has no clear foot events
         };
 
         // Used wherever we need to specify a phase (or phase group)
@@ -42,7 +43,9 @@ namespace EE::Animation
 
             RightFootDown = 2,
             RightFootPassing = 3,
-            RightPhase = 5, // The whole phase for the right foot down (right foot down + left foot passing)
+            RightPhase = 5, // The whole phase for the left foot down (left foot down + right foot passing)
+
+            None, // Useful for animations where you need to markup a section that has no clear foot events
         };
 
         #if EE_DEVELOPMENT_TOOLS
@@ -57,7 +60,7 @@ namespace EE::Animation
         virtual StringID GetSyncEventID() const override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual InlineString GetDebugText() const override { return GetPhaseName( m_phase ); }
+        virtual InlineString GetDebugText( Percentage percentageThroughEvent ) const override { return GetPhaseName( m_phase ); }
         #endif
 
     private:

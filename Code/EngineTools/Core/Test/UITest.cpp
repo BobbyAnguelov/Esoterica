@@ -1,7 +1,8 @@
 #include "UITest.h"
 #include "Base/Imgui/ImguiX.h"
-#include "EngineTools/Core/Dialogs.h"
+#include "EngineTools/Core/SystemDialogs.h"
 #include "EngineTools/Core/ToolsContext.h"
+#include "Base/TypeSystem/ResourceInfo.h"
 
 //-------------------------------------------------------------------------
 
@@ -12,37 +13,91 @@ namespace EE
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Fonts" ) )
         {
+            ImGui::SeparatorText( "Mixed Fonts" );
+
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Tiny );
                 ImGui::Text( EE_ICON_FILE_CHECK"This is a test - Tiny" );
+            }
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::TinyItalic);
+                ImGui::Text( EE_ICON_ALERT"This is a test - Tiny Italic" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::TinyBold );
                 ImGui::Text( EE_ICON_ALERT"This is a test - Tiny Bold" );
             }
             {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::TinyBoldItalic );
+                ImGui::Text( EE_ICON_ALERT"This is a test - Tiny Bold Italic" );
+            }
+
+            
+            {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
                 ImGui::Text( EE_ICON_FILE_CHECK"This is a test - Small" );
+            }
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::SmallItalic );
+                ImGui::Text( EE_ICON_ALERT"This is a test - Small Italic" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
                 ImGui::Text( EE_ICON_ALERT"This is a test - Small Bold" );
             }
             {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBoldItalic );
+                ImGui::Text( EE_ICON_ALERT"This is a test - Small Bold Italic" );
+            }
+
+
+            {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Medium );
                 ImGui::Text( EE_ICON_FILE_CHECK"This is a test - Medium" );
+            }
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::MediumItalic );
+                ImGui::Text( EE_ICON_ALERT"This is a test - Medium Italic" );
             }
             {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::MediumBold );
                 ImGui::Text( EE_ICON_ALERT"This is a test - Medium Bold" );
             }
             {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::MediumBoldItalic );
+                ImGui::Text( EE_ICON_ALERT"This is a test - Medium Bold Italic" );
+            }
+
+
+            {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
                 ImGui::Text( EE_ICON_FILE_CHECK"This is a test - Large" );
             }
             {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::LargeItalic );
+                ImGui::Text( EE_ICON_ALERT"This is a test - Large Italic" );
+            }
+            {
                 ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
-                ImGui::Text( EE_ICON_CCTV_OFF"This is a test - Large Bold" );
+                ImGui::Text( EE_ICON_ALERT"This is a test - Large Bold" );
+            }
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBoldItalic );
+                ImGui::Text( EE_ICON_ALERT"This is a test - Large Bold Italic" );
+            }
+
+
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::FontType::Regular, 35 );
+                ImGui::Text( EE_ICON_FILE_CHECK"This is a test - Regular Custom Size 35" );
+            }
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::FontType::BoldItalic, 23 );
+                ImGui::Text( EE_ICON_FILE_CHECK"This is a test - BoldItalic Custom Size 23" );
+            }
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::FontType::Bold, 76, Colors::HotPink );
+                ImGui::Text( EE_ICON_ALERT"This is a test - Pink BoldItalic Custom Size 64" );
             }
         }
     }
@@ -83,6 +138,39 @@ namespace EE
                 ImGui::Button( EE_ICON_KANGAROO );
                 ImGui::SameLine();
                 ImGui::Button( EE_ICON_YIN_YANG );
+            }
+        }
+    }
+
+    static void DrawButtonsWithCalculatedWidth()
+    {
+        if ( ImGui::CollapsingHeader( "Buttons with Calculated Widths" ) )
+        {
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::Small );
+                float const w0 = ImGuiX::CalculateButtonWidth( EE_ICON_HAIR_DRYER );
+                ImGui::Button( EE_ICON_HAIR_DRYER, ImVec2( w0, 0 ) );
+
+                float const w1 = ImGuiX::CalculateButtonWidth( EE_ICON_CAR_2_PLUS" TEST" );
+                ImGui::Button( EE_ICON_CAR_2_PLUS" TEST", ImVec2( w1, 0));
+            }
+
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::Medium );
+                float const w0 = ImGuiX::CalculateButtonWidth( EE_ICON_HAIR_DRYER );
+                ImGui::Button( EE_ICON_HAIR_DRYER, ImVec2( w0, 0 ) );
+
+                float const w1 = ImGuiX::CalculateButtonWidth( EE_ICON_CAR_2_PLUS" TEST" );
+                ImGui::Button( EE_ICON_CAR_2_PLUS" TEST", ImVec2( w1, 0 ) );
+            }
+
+            {
+                ImGuiX::ScopedFont sf( ImGuiX::Font::Large );
+                float const w0 = ImGuiX::CalculateButtonWidth( EE_ICON_HAIR_DRYER );
+                ImGui::Button( EE_ICON_HAIR_DRYER, ImVec2( w0, 0 ) );
+
+                float const w1 = ImGuiX::CalculateButtonWidth( EE_ICON_CAR_2_PLUS" TEST" );
+                ImGui::Button( EE_ICON_CAR_2_PLUS" TEST", ImVec2( w1, 0 ) );
             }
         }
     }
@@ -202,6 +290,20 @@ namespace EE
         }
     }
 
+    static void DrawToggleButtons()
+    {
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Toggle Buttons" ) )
+        {
+            static bool toggle = false;
+            ImGuiX::ToggleButton( EE_ICON_TOGGLE_SWITCH" Toggle Button On", EE_ICON_TOGGLE_SWITCH_OFF" Toggle Button Off", toggle, ImVec2( -1, 0 ) );
+
+            ImGuiX::FlatToggleButton( EE_ICON_TOGGLE_SWITCH, "Toggle Button On", EE_ICON_TOGGLE_SWITCH_OFF, "Toggle Button Off", toggle, ImVec2( -1, 0 ) );
+
+            ImGuiX::FlatToggleButton( "Toggle Button On###3", "Toggle Button Off###3", toggle, ImVec2( -1, 0 ) );
+        }
+    }
+
     static void DrawInputText()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
@@ -289,30 +391,34 @@ namespace EE
             static Float4 f4;
             static Transform t;
 
-            ImGuiX::DrawFloat2( f2 );
-            ImGuiX::DrawFloat3( f3 );
-            ImGuiX::DrawFloat4( f4 );
-            ImGuiX::DrawTransform( t );
+            ImGui::SeparatorText( "Basic Display" );
 
-            ImGui::Separator();
+            ImGuiX::DrawFloat2( f2 );
+            ImGuiX::DrawFloat2( "F2", f2, 200);
+
+            ImGuiX::DrawFloat3( f3 );
+            ImGuiX::DrawFloat3( "F3", f3, 300 );
+
+            ImGuiX::DrawFloat4( f4 );
+            ImGuiX::DrawFloat4( "F4", f4, 240 );
+
+            ImGuiX::DrawTransform( t );
+            ImGuiX::DrawTransformNoScale( "NoScale", t, 300 );
+
+            ImGui::SeparatorText( "Basic Input" );
 
             ImGuiX::InputFloat2( "Float2", f2 );
             ImGuiX::InputFloat3( "Float3", f3 );
             ImGuiX::InputFloat4( "Float4", f4 );
-            ImGuiX::InputTransform( "Float4", t );
 
-            ImGui::Separator();
+            ImGui::SeparatorText( "Transform" );
 
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text( "prefix" );
-            ImGui::SameLine();
-            ImGuiX::InputFloat2( "blah", f2 );
-            ImGui::SameLine();
-            ImGui::Text( "suffix" );
+            ImGuiX::InputTransform( t );
+            ImGuiX::InputTransformNoScale( "TransformNoScale", t );
         }
     }
 
-    static void DrawSpinners()
+    static void DrawSpinnersAndAnimated()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Spinners" ) )
@@ -320,11 +426,26 @@ namespace EE
             ImGui::Text( "No Size" );
             ImGuiX::DrawSpinner( "S1" );
 
+            ImGuiX::DrawSpinner( "S1-1" );
+            ImGui::SameLine();
+            ImGui::Button( "ButtonTest" );
+            ImGuiX::FlatButton( "Sds" );
+
             ImGui::Text( "Specified Size" );
             ImGuiX::DrawSpinner( "S2", Colors::Yellow, 100, 10 );
 
             ImGui::Text( "Fill Remaining Space" );
             ImGuiX::DrawSpinner( "S3", Colors::Blue, -1, 5 );
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Animated" ) )
+        {
+            ImGuiX::DrawFlashingText( EE_ICON_ALERT, Colors::Red );
+            ImGuiX::DrawFlashingText( EE_ICON_ALERT_CIRCLE_OUTLINE, Colors::Yellow, 2.5f );
+            ImGuiX::DrawFlashingText( EE_ICON_ALERT_CIRCLE_OUTLINE, Colors::Pink, 0.5f );
         }
     }
 
@@ -333,14 +454,124 @@ namespace EE
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Color Helpers" ) )
         {
-            static float f = 0.0f;
+            static float f = 0.5f;
             ImGui::SliderFloat( "Gradient Weight", &f, 0.0f, 1.0f );
             {
-                ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
-                ImGui::TextColored( Color::EvaluateRedGreenGradient( f ).ToFloat4(), "Red/Green Gradient" );
-                ImGui::TextColored( Color::EvaluateBlueRedGradient( f ).ToFloat4(), "Blue/Red Gradient" );
-                ImGui::TextColored( Color::EvaluateYellowRedGradient( f ).ToFloat4(), "Yellow/Red Gradient" );
+
+                ImGui::SeparatorText( "Distinct Color For Zero" );
+                {
+                    ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
+                    ImGui::TextColored( Color::EvaluateRedGreenGradient( f ).ToFloat4(), "Red/Green Gradient" );
+                    ImGui::TextColored( Color::EvaluateBlueRedGradient( f ).ToFloat4(), "Blue/Red Gradient" );
+                    ImGui::TextColored( Color::EvaluateYellowRedGradient( f ).ToFloat4(), "Yellow/Red Gradient" );
+                }
+
+                ImGui::SeparatorText( "No Distinct Color For Zero" );
+                {
+                    ImGuiX::ScopedFont sf( ImGuiX::Font::LargeBold );
+                    ImGui::TextColored( Color::EvaluateRedGreenGradient( f, false ).ToFloat4(), "Red/Green Gradient" );
+                    ImGui::TextColored( Color::EvaluateBlueRedGradient( f, false ).ToFloat4(), "Blue/Red Gradient" );
+                    ImGui::TextColored( Color::EvaluateYellowRedGradient( f, false ).ToFloat4(), "Yellow/Red Gradient" );
+                }
             }
+        }
+    }
+
+    static void DrawHeadersAndSeparators()
+    {
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Headers/Separators" ) )
+        {
+            ImGuiX::DrawHeader( "Item Name" );
+            ImGuiX::DrawHeader( "Item Name", Colors::Pink, 50 );
+            ImGuiX::DrawHeader( EE_ICON_HOME, "Item Name", Colors::Pink );
+            ImGuiX::DrawHeader( EE_ICON_CABLE_DATA, "Item Name", Colors::Pink, Colors::White, 50 );
+        }
+    }
+
+    static void DrawLayoutWidgets()
+    {
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Layout Widgets" ) )
+        {
+            ImGuiX::CollapsibleGroupBox( "dasdas", [] () { ImGui::Text( "Contents" ); } );
+
+            ImGuiX::CollapsibleGroupBoxSettings settings;
+            settings.m_backgroundColor = ImGuiX::Style::s_colorGray8;
+            settings.m_hasBorder = false;
+            settings.m_contentsHeight = 200;
+            settings.m_rounding = 0;
+
+            ImGuiX::CollapsibleGroupBox( "Seconda", [] ()
+            {
+                {
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Button( "SADa" );
+                }
+            }, settings );
+
+            settings.Reset();
+            settings.m_headerColor = Colors::LightBlue;
+            settings.m_headerTextColor = Colors::Black;
+            settings.m_backgroundColor = Colors::CornflowerBlue;
+            settings.m_hasBorder = false;
+            settings.m_contentsHeight = -1;
+            ImGuiX::CollapsibleGroupBox( "Third", [] ()
+            {
+                {
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Button( "SADa" );
+                }
+            }, settings );
+
+
+            settings.Reset();
+            settings.m_headerColor = Colors::GoldenRod;
+            settings.m_headerTextColor = Colors::Black;
+            settings.m_backgroundColor = Colors::PeachPuff;
+            settings.m_hasBorder = true;
+            settings.m_rounding = 0.0f;
+            settings.m_contentsHeight = -1;
+            ImGuiX::CollapsibleGroupBox( "Fourth", [] ()
+            {
+                {
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Text( "Contents" );
+                    ImGui::Button( "SADa" );
+                }
+            }, settings );
+        }
+    }
+
+    static void DrawSpecialWidgets()
+    {
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Severity Icons" ) )
+        {
+            ImGuiX::DrawSeverityIcon( Severity::Info );
+            ImGuiX::DrawSeverityIcon( Severity::Warning );
+            ImGuiX::DrawSeverityIcon( Severity::Error );
+            ImGuiX::DrawSeverityIcon( Severity::FatalError );
         }
     }
 
@@ -442,6 +673,18 @@ namespace EE
         }
     }
 
+    static void DrawResourceColors( ToolsContext* pContext )
+    {
+        THashMap<ResourceTypeID, TypeSystem::ResourceInfo*> const& resourceTypes = pContext->m_pTypeRegistry->GetRegisteredResourceTypes();
+        for ( auto const& resourceTypePair : resourceTypes )
+        {
+            TypeSystem::ResourceInfo const* pResourceInfo = resourceTypePair.second;
+            ImGui::ColorButton( pResourceInfo->m_friendlyName.c_str(), pResourceInfo->m_color.ToFloat4() );
+            ImGui::SameLine();
+            ImGui::Text( pResourceInfo->m_friendlyName.c_str() );
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     void DrawUITestWindow( ToolsContext* pContext, bool* pIsWindowOpen )
@@ -455,8 +698,11 @@ namespace EE
                     DrawFonts();
                     DrawSeparators();
                     DrawTooltips();
-                    DrawSpinners();
+                    DrawHeadersAndSeparators();
+                    DrawLayoutWidgets();
+                    DrawSpecialWidgets();
                     DrawColorHelpers();
+                    DrawSpinnersAndAnimated();
 
                     ImGui::EndTabItem();
                 }
@@ -464,10 +710,12 @@ namespace EE
                 if ( ImGui::BeginTabItem( "Buttons" ) )
                 {
                     DrawIconsInButtons();
+                    DrawButtonsWithCalculatedWidth();
                     DrawColoredButtons();
                     DrawIconButtons();
                     DrawDropDownButtons();
                     DrawComboButtons();
+                    DrawToggleButtons();
 
                     ImGui::EndTabItem();
                 }
@@ -485,6 +733,12 @@ namespace EE
                     DrawMessageBoxTests();
                     DrawDialogTests( pContext );
 
+                    ImGui::EndTabItem();
+                }
+
+                if ( ImGui::BeginTabItem( "Resources" ) )
+                {
+                    DrawResourceColors( pContext );
                     ImGui::EndTabItem();
                 }
 

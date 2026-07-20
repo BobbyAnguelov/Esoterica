@@ -26,11 +26,11 @@ namespace EE::Animation
         inline FlowGraph* GetRootGraph() { return m_rootGraph.Get(); }
         inline FlowGraph const* GetRootGraph() const { return m_rootGraph.Get(); }
 
+        // Refresh clone states and parameter references
+        void UpdateInternalReferencesAndClones( TypeSystem::TypeRegistry const& typeRegistry );
+
         // Parameters
         //-------------------------------------------------------------------------
-
-        // Refreshes and fixes up all parameter references in this graph
-        void RefreshParameterReferences();
 
         // Reflects all parameters from another graph into this one
         // This will try to create a new control parameter for each control and virtual parameter present in the other graph
@@ -50,7 +50,7 @@ namespace EE::Animation
 
     private:
 
-        virtual void PostDeserialize() override;
+        virtual void PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry ) override;
 
     private:
 

@@ -3,12 +3,24 @@
   "Id": "d6bdd49c-ef46-4637-844a-4ffdd6a25dc5",
   "Items": [
     {
+      "Id": "e50a4a7b-0b15-4ed6-a200-89a45be5c7e9",
+      "Command": "-map data://maps/navtest.map"
+    },
+    {
       "Id": "e0990d19-2cb1-4b6a-a95e-a9eb8f5678c6",
       "Command": "-map data://maps/test.map"
     },
     {
+      "Id": "568cb3f2-9fba-4252-b2d2-7fd0a53aa178",
+      "Command": "-map data://maps/aimprototype.map"
+    },
+    {
       "Id": "49c06ffe-e890-415d-9b67-38560969dd27",
-      "Command": "-map data://maps/br_nav.map"
+      "Command": "-map data://maps/br_full.map"
+    },
+    {
+      "Id": "085de810-cfb0-49ee-9a5c-f96809395b33",
+      "Command": "-map data://maps/br_minimal.map"
     },
     {
       "Id": "b2f325a1-49f8-4b85-ab51-0c56a859bf7f",

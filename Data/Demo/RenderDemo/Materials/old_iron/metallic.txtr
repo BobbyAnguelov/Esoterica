@@ -1,3 +1,0 @@
-<Type TypeID="EE::Render::TextureResourceDescriptor" Version="0">
-  <Property ID="m_path" Value="data://demo/renderdemo/materials/old_iron/metallic.png" />
-</Type>

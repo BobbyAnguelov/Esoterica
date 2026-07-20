@@ -1,0 +1,5 @@
+<Type TypeID="EE::Render::MeshGroup" Version="1">
+  <Property ID="m_lodSettings">
+    <Type Index="0" TypeID="EE::Render::MeshLODSettings" />
+  </Property>
+</Type>

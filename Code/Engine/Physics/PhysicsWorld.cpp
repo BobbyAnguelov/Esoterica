@@ -1,225 +1,100 @@
 #include "PhysicsWorld.h"
-#include "Physics.h"
-#include "PhysicsQuery.h"
-#include "PhysicsRagdoll.h"
-#include "Components/Component_PhysicsShape.h"
-#include "Components/Component_PhysicsSphere.h"
-#include "Components/Component_PhysicsBox.h"
-#include "Components/Component_PhysicsCapsule.h"
-#include "Components/Component_PhysicsCollisionMesh.h"
-#include "Components/Component_PhysicsCharacter.h"
-#include "Engine/Entity/EntityLog.h"
-#include "Base/Profiling.h"
+#include "Settings/ViewportSettings_Physics.h"
+#include "Engine/Render/DebugMesh/DebugMeshRegistry.h"
+#include "Engine/Viewport/Viewport.h"
 #include "EASTL/sort.h"
+#include "Base/Time/TimeStamp.h"
+#include "Base/FileSystem/FileSystem.h"
 
-//-------------------------------------------------------------------------
-
-using namespace physx;
-
-//-------------------------------------------------------------------------
-// PhysX
-//-------------------------------------------------------------------------
-
-namespace EE::Physics::PX
-{
-    class TaskDispatcher final : public PxCpuDispatcher
-    {
-        virtual void submitTask( PxBaseTask & task ) override
-        {
-            // Surprisingly it is faster to run all physics tasks on a single thread since there is a fair amount of gaps when spreading the tasks across multiple cores.
-            // TODO: re-evaluate this when we have additional work. Perhaps we can interleave other tasks while physics tasks are waiting
-            auto pTask = &task;
-            pTask->run();
-            pTask->release();
-        }
-
-        virtual PxU32 getWorkerCount() const override
-        {
-            return 1;
-        }
-    };
-
-    TaskDispatcher g_taskDispatcher;
-
-    //-------------------------------------------------------------------------
-
-    class SimulationFilter final : public PxSimulationFilterCallback
-    {
-    public:
-
-        static PxFilterFlags Shader( PxFilterObjectAttributes attributes0, PxFilterData filterData0, PxFilterObjectAttributes attributes1, PxFilterData filterData1, PxPairFlags& pairFlags, void const* constantBlock, uint32_t constantBlockSize )
-        {
-            // Triggers
-            //-------------------------------------------------------------------------
-
-            if ( PxFilterObjectIsTrigger( attributes0 ) || PxFilterObjectIsTrigger( attributes1 ) )
-            {
-                pairFlags = PxPairFlag::eTRIGGER_DEFAULT;
-                return PxFilterFlag::eDEFAULT;
-            }
-
-            // Articulations
-            //-------------------------------------------------------------------------
-
-            if ( PxGetFilterObjectType( attributes0 ) == PxFilterObjectType::eARTICULATION && PxGetFilterObjectType( attributes1 ) == PxFilterObjectType::eARTICULATION )
-            {
-                pairFlags = PxPairFlag::eCONTACT_DEFAULT;
-                return PxFilterFlag::eCALLBACK;
-            }
-
-            pairFlags = PxPairFlag::eCONTACT_DEFAULT;
-
-            // Filter
-            //-------------------------------------------------------------------------
-            // Word 0 is the category, Word 1 is the collision mask
-            // The below rule, takes the least blocking result for the pair
-
-            if ( ( filterData0.word0 & filterData1.word1 ) && ( filterData1.word0 & filterData0.word1 ) )
-            {
-                pairFlags |= PxPairFlag::eNOTIFY_TOUCH_FOUND;
-            }
-
-            return PxFilterFlag::eDEFAULT;
-        }
-
-        virtual ~SimulationFilter() = default;
-
-    private:
-
-        virtual PxFilterFlags pairFound( PxU32 pairID, PxFilterObjectAttributes attributes0, PxFilterData filterData0, const PxActor* a0, const PxShape* s0, PxFilterObjectAttributes attributes1, PxFilterData filterData1, const PxActor* a1, const PxShape* s1, PxPairFlags& pairFlags ) override
-        {
-            // Articulations
-            //-------------------------------------------------------------------------
-
-            //if ( PxGetFilterObjectType( attributes0 ) == PxFilterObjectType::eARTICULATION && PxGetFilterObjectType( attributes1 ) == PxFilterObjectType::eARTICULATION )
-            //{
-            //    auto pL0 = static_cast<PxArticulationLink const*>( a0 );
-            //    auto pL1 = static_cast<PxArticulationLink const*>( a1 );
-            //    PxArticulationReducedCoordinate const* pArticulation0 = &pL0->getArticulation();
-            //    PxArticulationReducedCoordinate const* pArticulation1 = &pL1->getArticulation();
-            //    Ragdoll const* pRagdoll0 = reinterpret_cast<Ragdoll*>( pArticulation0->userData );
-            //    Ragdoll const* pRagdoll1 = reinterpret_cast<Ragdoll*>( pArticulation1->userData );
-
-            //    // If these are different articulation on the same user, then ignore collisions
-            //    if ( pArticulation0 != pArticulation1 && pRagdoll0->GetUserID() == pRagdoll1->GetUserID() )
-            //    {
-            //        return PxFilterFlag::eKILL;
-            //    }
-
-            //    // If these are the same articulation, then check the self-collision rules
-            //    if ( pArticulation0 == pArticulation1 )
-            //    {
-            //        uint64_t const bodyIdx0 = (uint64_t) pL0->userData;
-            //        uint64_t const bodyIdx1 = (uint64_t) pL1->userData;
-            //        if ( !pRagdoll0->ShouldBodiesCollides( (int32_t) bodyIdx0, (int32_t) bodyIdx1 ) )
-            //        {
-            //            return PxFilterFlag::eKILL;
-            //        }
-            //    }
-            //}
-
-            return PxFilterFlag::eDEFAULT;
-        }
-
-        virtual void pairLost( PxU32 pairID, PxFilterObjectAttributes attributes0, PxFilterData filterData0, PxFilterObjectAttributes attributes1, PxFilterData filterData1, bool objectRemoved ) override
-        {
-            // Do Nothing
-        }
-
-        virtual bool statusChange( PxU32& pairID, PxPairFlags& pairFlags, PxFilterFlags& filterFlags ) override
-        {
-            return false;
-        }
-    };
-
-    SimulationFilter g_simulationFilter;
-
-    //-------------------------------------------------------------------------
-
-    class QueryFilter final : public PxQueryFilterCallback
-    {
-    public:
-
-        QueryFilter( QueryRules const& rules )
-            : m_rules( rules )
-        {}
-
-        virtual PxQueryHitType::Enum preFilter( PxFilterData const& queryFilterData, PxShape const* pShape, PxRigidActor const* pActor, PxHitFlags& queryFlags ) override
-        {
-            for ( auto const& ignoredComponentID : m_rules.GetIgnoredComponents() )
-            {
-                auto pOwnerComponent = reinterpret_cast<EntityComponent const*>( pActor->userData );
-                if ( pOwnerComponent->GetID() == ignoredComponentID )
-                {
-                    return PxQueryHitType::eNONE;
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
-            for ( auto const& ignoredEntityID : m_rules.GetIgnoredEntities() )
-            {
-                auto pOwnerComponent = reinterpret_cast<EntityComponent const*>( pActor->userData );
-                if ( pOwnerComponent->GetEntityID() == ignoredEntityID )
-                {
-                    return PxQueryHitType::eNONE;
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
-            return m_rules.m_allowMultipleHits ? PxQueryHitType::eTOUCH : PxQueryHitType::eBLOCK;
-        }
-
-        virtual PxQueryHitType::Enum postFilter( PxFilterData const& queryFilterData, PxQueryHit const& hit ) override
-        {
-            EE_UNREACHABLE_CODE(); // Not currently used
-            return PxQueryHitType::eBLOCK;
-        }
-
-    private:
-
-        QueryRules const& m_rules;
-    };
-}
-
-//-------------------------------------------------------------------------
-// Physics World
 //-------------------------------------------------------------------------
 
 namespace EE::Physics
 {
-    PhysicsWorld::PhysicsWorld( MaterialRegistry const* pRegistry, bool isGameWorld )
-        : m_pMaterialRegistry( pRegistry )
+    PhysicsWorld::PhysicsWorld( SystemRegistry const& systemRegistry, bool isGameWorld )
+        : m_taskSystem( *systemRegistry.GetSystem<TaskSystem>() )
+        , m_materialRegistry( *systemRegistry.GetSystem<MaterialRegistry>() )
         , m_isGameWorld( isGameWorld )
+        #if EE_DEVELOPMENT_TOOLS
+        , m_debugMeshRegistry( *systemRegistry.GetSystem<Render::DebugMeshRegistry>() )
+        #endif
     {
-        EE_ASSERT( m_pMaterialRegistry != nullptr );
+        auto EnqueueTask = [] ( b3TaskCallback* pTask, void* pTaskContext, void* pUserContext, const char* taskName ) -> void*
+        {
+            PhysicsWorld* pPhysicsWorld = static_cast<PhysicsWorld*>( pUserContext );
+            return pPhysicsWorld->EnqueueAsyncTask( pTask, pTaskContext );
+        };
 
-        PxTolerancesScale tolerancesScale;
-        tolerancesScale.length = Constants::s_lengthScale;
-        tolerancesScale.speed = Constants::s_speedScale;
+        auto FinishTask = [] ( void* pTask, void* pUserContext )
+        {
+            PhysicsWorld* pPhysicsWorld = static_cast<PhysicsWorld*>( pUserContext );
+            PhysicsWorld::AsyncTask* pAsyncTask = static_cast<PhysicsWorld::AsyncTask*>( pTask );
+            pPhysicsWorld->WaitForAsyncTask( pAsyncTask );
+        };
 
-        PxSceneDesc sceneDesc( tolerancesScale );
-        sceneDesc.gravity = ToPx( Constants::s_gravity );
-        sceneDesc.cpuDispatcher = &PX::g_taskDispatcher;
-        sceneDesc.filterShader = PX::SimulationFilter::Shader;
-        sceneDesc.filterCallback = &PX::g_simulationFilter;
-        sceneDesc.flags = PxSceneFlag::eENABLE_CCD | PxSceneFlag::eREQUIRE_RW_LOCK;
-        reinterpret_cast<uint64_t&>( sceneDesc.userData ) = isGameWorld ? 1 : 0;
-        m_pScene = Core::GetPxPhysics()->createScene( sceneDesc );
+        #if EE_DEVELOPMENT_TOOLS
+        auto RegisterDebugMesh = [] ( b3DebugShape const* pDebugShape, void* pUserContext ) -> void*
+        {
+            auto pDebugMeshRegistry = static_cast<Render::DebugMeshRegistry*>( pUserContext );
+            PointerID const instanceID = Core::RegisterDebugShapeInstance( pDebugMeshRegistry, pDebugShape );
+            EE_ASSERT( instanceID.IsValid() );
+            return instanceID.ToVoidPtr();
+        };
 
-        m_pControllerManager = PxCreateControllerManager( *m_pScene );
-        m_pControllerManager->setOverlapRecoveryModule( true );
+        auto UnregisterDebugMesh = [] ( void* pUserShape, void* pUserContext )
+        {
+            auto pDebugMeshRegistry = static_cast<Render::DebugMeshRegistry*>( pUserContext );
+            PointerID const instanceID( pUserShape );
+            EE_ASSERT( instanceID.IsValid() );
+            Core::UnregisterDebugShapeInstance( pDebugMeshRegistry, instanceID );
+        };
+        #endif
+
+        //-------------------------------------------------------------------------
+
+        b3WorldDef worldDef = b3DefaultWorldDef();
+
+        worldDef.gravity = ToBox3D( Constants::Gravity );
+        worldDef.workerCount = m_taskSystem.GetNumWorkers() + 1; // All workers + main thread
+        worldDef.enqueueTask = EnqueueTask;
+        worldDef.finishTask = FinishTask;
+        worldDef.userTaskContext = this;
+        worldDef.enableSleep = true;
+        worldDef.enableContinuous = true;
+
+        #if EE_DEVELOPMENT_TOOLS
+        worldDef.createDebugShape = RegisterDebugMesh;
+        worldDef.destroyDebugShape = UnregisterDebugMesh;
+        worldDef.userDebugShapeContext = (void*) &m_debugMeshRegistry;
+        #endif
+
+        m_worldID = b3CreateWorld( &worldDef );
+        EE_ASSERT( B3_IS_NON_NULL( m_worldID ) );
+
+        //-------------------------------------------------------------------------
+
+        auto CustomFilter = [] ( b3ShapeId shapeIdA, b3ShapeId shapeIdB, void* pContext ) -> bool
+        {
+            return false;
+        };
+
+        b3World_SetCustomFilterCallback( m_worldID, CustomFilter, this );
     }
 
     PhysicsWorld::~PhysicsWorld()
     {
-        m_pControllerManager->purgeControllers();
-        m_pControllerManager->release();
-        m_pControllerManager = nullptr;
+        #if EE_DEVELOPMENT_TOOLS
+        if ( IsRecording() )
+        {
+            StopRecording();
+        }
+        #endif
 
-        m_pScene->release();
-        m_pScene = nullptr;
+        for ( auto& task : m_tasks )
+        {
+            m_taskSystem.WaitForTask( &task );
+        }
+
+        b3DestroyWorld( m_worldID );
     }
 
     //-------------------------------------------------------------------------
@@ -230,686 +105,500 @@ namespace EE::Physics
     {
         EE_PROFILE_FUNCTION_PHYSICS();
 
-        AcquireWriteLock();
+        LockWrite();
+
+        // Adjust time-step
+        //-------------------------------------------------------------------------
+
+        m_averageFrameTime.AddValue( deltaTime );
+        m_timeSinceLastTimeStepUpdate += deltaTime;
+
+        static Seconds const timeStepUpdateInterval = 2.0f;
+        if ( m_timeSinceLastTimeStepUpdate > timeStepUpdateInterval || m_fixedTimeStep > deltaTime )
         {
-            // TODO: run at fixed time step
-            EE_PROFILE_SCOPE_PHYSICS( "Simulate" );
-            m_pScene->simulate( deltaTime );
+            m_fixedTimeStep = m_averageFrameTime.GetAverage() - Math::LargeEpsilon;
+            m_timeSinceLastTimeStepUpdate = 0.0f;
         }
 
+        // Step the physics simulation
+        //-------------------------------------------------------------------------
+
+        m_accumulatedTime += deltaTime;
+
+        {
+            EE_PROFILE_SCOPE_PHYSICS( "Sim" );
+
+            while ( m_accumulatedTime >= m_fixedTimeStep )
+            {
+                b3World_Step( m_worldID, m_fixedTimeStep, 4 );
+                m_accumulatedTime -= m_fixedTimeStep;
+                m_usedTasks = 0;
+            }
+        }
+
+        // Handle any sensor events
         //-------------------------------------------------------------------------
 
         {
-            EE_PROFILE_SCOPE_PHYSICS( "Fetch Results" );
-            m_pScene->fetchResults( true );
+            EE_PROFILE_SCOPE_PHYSICS( "Events" );
+
+            b3SensorEvents events = b3World_GetSensorEvents( m_worldID );
+
+            for ( int32_t i = 0; i < events.beginCount; ++i )
+            {
+                EE_UNIMPLEMENTED_FUNCTION();
+                b3SensorBeginTouchEvent* pEvent = events.beginEvents + i;
+                /*if ( B3_ID_EQUALS( pEvent->sensorShapeId, m_sensorShapeId ) )
+                {
+                    b3BodyId bodyId = b3Shape_GetBody( event->visitorShapeId );
+                    b3DestroyBody( bodyId );
+                    break;
+                }*/
+            }
         }
-        ReleaseWriteLock();
+
+        UnlockWrite();
+    }
+
+    PhysicsWorld::AsyncTask* PhysicsWorld::EnqueueAsyncTask( b3TaskCallback* pTask, void* pTaskContext )
+    {
+        if ( m_usedTasks < PhysicsWorld::s_maxAsyncTasks )
+        {
+            PhysicsWorld::AsyncTask& asyncTask = m_tasks[m_usedTasks];
+            asyncTask.m_pTask = pTask;
+            asyncTask.m_pTaskContext = pTaskContext;
+            m_taskSystem.ScheduleTask( &asyncTask );
+
+            m_usedTasks++;
+            return &asyncTask;
+        }
+
+        EE_LOG_WARNING( LogCategory::Physics, "Physics World", "Exceeded pre-allocated async tasks" );
+        pTask( pTaskContext );
+        return nullptr;
+    }
+
+    void PhysicsWorld::WaitForAsyncTask( AsyncTask *pAsyncTask )
+    {
+        m_taskSystem.WaitForTask( pAsyncTask );
     }
 
     //-------------------------------------------------------------------------
     // Locks
     //-------------------------------------------------------------------------
 
-    void PhysicsWorld::AcquireReadLock()
+    void PhysicsWorld::LockRead() const
     {
-        m_pScene->lockRead();
+        m_mutex.LockRead();
         EE_DEVELOPMENT_TOOLS_ONLY( ++m_readLockCount );
     }
 
-    void PhysicsWorld::ReleaseReadLock()
+    void PhysicsWorld::UnlockRead() const
     {
-        m_pScene->unlockRead();
+        m_mutex.UnlockRead();
         EE_DEVELOPMENT_TOOLS_ONLY( --m_readLockCount );
     }
 
-    void PhysicsWorld::AcquireWriteLock()
+    void PhysicsWorld::LockWrite()
     {
-        m_pScene->lockWrite();
+        m_mutex.LockWrite();
         EE_DEVELOPMENT_TOOLS_ONLY( m_writeLockAcquired = true );
     }
 
-    void PhysicsWorld::ReleaseWriteLock()
+    void PhysicsWorld::UnlockWrite()
     {
-        m_pScene->unlockWrite();
+        m_mutex.UnlockWrite();
         EE_DEVELOPMENT_TOOLS_ONLY( m_writeLockAcquired = false );
     }
 
     //-------------------------------------------------------------------------
-    // Sweeps
+    // Casts
     //-------------------------------------------------------------------------
 
-    bool PhysicsWorld::RayCastInternal( Vector const& position, Vector const& direction, float distance, QueryRules const& rules, RayCastResults& outResults )
+    static float CastCallback( b3ShapeId shapeID, b3Vec3 point, b3Vec3 normal, float fraction, uint64_t userMaterialId, int32_t triangleIndex, int childIndex, void* pContext )
     {
-        PX::QueryFilter filterCallback( rules );
-        PxRaycastBufferN<50> buffer;
-        buffer.maxNbTouches = rules.m_allowMultipleHits ? 50 : 0;
-        bool const result = m_pScene->raycast( ToPx( position ), ToPx( direction ), distance, buffer, rules.m_hitFlags, rules.m_queryFilterData, &filterCallback );
+        CastQuery* pQuery = (CastQuery*) pContext;
+
+        bool const allowMultipleHits = pQuery->IsMultipleHitQuery();
+
+        // Handle ignore rules
+        UserData* pUserData = (UserData*) ( b3Shape_GetUserData( shapeID ) );
+        if ( pUserData != nullptr )
+        {
+            if ( pQuery->IsEntityIgnored( pUserData->m_entityID ) )
+            {
+                return -1.0f;
+            }
+
+            if ( pQuery->IsComponentIgnored( pUserData->m_componentID ) )
+            {
+                return -1.0f;
+            }
+        }
 
         //-------------------------------------------------------------------------
 
-        auto ConvertHit = [&] ( PxRaycastHit const& pxHit )
+        // Update existing hit or create a new hit
+        CastQuery::Hit* pHit = nullptr;
+        if ( allowMultipleHits )
         {
-            auto& hit = outResults.m_hits.emplace_back();
-            hit.m_pActor = pxHit.actor;
-            hit.m_pShape = pxHit.shape;
-            hit.m_contactPoint = FromPx( pxHit.position );
-            hit.m_distance = pxHit.distance;
-            hit.m_normal = FromPx( pxHit.normal );
-        };
-
-        // Fill Results
-        //-------------------------------------------------------------------------
-
-        outResults.m_startPosition = position;
-        outResults.m_direction = direction;
-        outResults.m_desiredDistance = distance;
-
-        if ( result )
-        {
-            // Add block
-            if ( buffer.hasBlock )
-            {
-                ConvertHit( buffer.block );
-            }
-
-            // Add additional touches
-            for ( uint32_t i = 0; i < buffer.nbTouches; i++ )
-            {
-                ConvertHit( buffer.getTouch( i ) );
-            }
-
-            //-------------------------------------------------------------------------
-
-            eastl::sort( outResults.m_hits.begin(), outResults.m_hits.end(), [] ( RayCastResults::Hit const& a, RayCastResults::Hit const& b ) { return a.m_distance < b.m_distance; } );
-
-            //-------------------------------------------------------------------------
-
-            outResults.m_actualDistance = outResults.m_hits[0].m_distance;
-            outResults.m_remainingDistance = distance - outResults.m_actualDistance;
+            pHit = &pQuery->m_hits.emplace_back();
         }
         else
         {
-            outResults.m_actualDistance = distance;
-            outResults.m_remainingDistance = 0.0f;
+            pHit = pQuery->m_hits.empty() ? &pQuery->m_hits.emplace_back() : &pQuery->m_hits.back();
         }
 
-        //-------------------------------------------------------------------------
+        // Fill out hit data
+        pHit->m_bodyID = b3Shape_GetBody( shapeID );
+        pHit->m_shapeID = shapeID;
+        pHit->m_distance = fraction * pQuery->m_desiredDistance;
+        pHit->m_position = Vector::MultiplyAdd( pQuery->m_direction, Vector( pHit->m_distance ), pQuery->m_startPosition );
+        pHit->m_contactPoint = FromBox3D( point );
+        pHit->m_contactNormal = FromBox3D( normal );
+        pHit->m_materialID = userMaterialId;
+        pHit->m_isInitiallyOverlapping = ( fraction == 0.0f );
 
-        return result;
+        // Return max fraction to continue the cast, or the current fraction to clip to only the closest hits
+        return allowMultipleHits ? 1.0f : fraction;
     }
 
-    bool PhysicsWorld::SweepInternal( PxGeometry const& geo, Transform const& startTransform, Vector const& direction, float distance, QueryRules const& rules, SweepResults& outResults )
+    bool PhysicsWorld::RayCastInternal( Vector const& start, Vector const& end, Vector const& direction, float distance, CastQuery& outQuery )
     {
-        PX::QueryFilter filterCallback( rules );
-        PxSweepBufferN<50> buffer;
-        buffer.maxNbTouches = rules.m_allowMultipleHits ? 50 : 0;
-        PxTransform const pxStartTransform( ToPx( startTransform ) );
-        PxVec3 const pxSweepDir = ToPx( direction );
-        bool const result = m_pScene->sweep( geo, pxStartTransform, pxSweepDir, distance, buffer, rules.m_hitFlags, rules.m_queryFilterData, &filterCallback );
+        outQuery.m_startPosition = start;
+        outQuery.m_endPosition = end;
+        outQuery.m_direction = direction;
+        outQuery.m_desiredDistance = distance;
+        outQuery.m_actualDistance = 0.0f;
+        outQuery.m_remainingDistance = 0.0f;
+        outQuery.m_hasInitialOverlap = false;
+        outQuery.m_hits.clear();
 
-        //-------------------------------------------------------------------------
+        b3World_CastRay( m_worldID, ToBox3D( outQuery.m_startPosition ), ToBox3D( outQuery.m_endPosition - outQuery.m_startPosition ), ToBox3D( outQuery ), CastCallback, &outQuery );
+        eastl::sort( outQuery.m_hits.begin(), outQuery.m_hits.end() );
+        return outQuery.HasHits();
+    }
 
-        auto ConvertHit = [&] ( PxSweepHit const& pxHit )
+    bool PhysicsWorld::CastInternal( b3ShapeProxy& shapeProxy, Transform const& startTransform, Vector const& end, Vector const& direction, float distance, CastQuery& outQuery )
+    {
+        outQuery.m_startPosition = startTransform.GetTranslation();
+        outQuery.m_endPosition = end;
+        outQuery.m_direction = direction;
+        outQuery.m_desiredDistance = distance;
+        outQuery.m_actualDistance = 0.0f;
+        outQuery.m_remainingDistance = 0.0f;
+        outQuery.m_hasInitialOverlap = false;
+        outQuery.m_hits.clear();
+
+        b3World_CastShape( m_worldID, ToBox3D( outQuery.m_startPosition ), &shapeProxy, ToBox3D( outQuery.m_endPosition - outQuery.m_startPosition ), ToBox3D( outQuery ), CastCallback, &outQuery );
+        eastl::sort( outQuery.m_hits.begin(), outQuery.m_hits.end() );
+        return outQuery.HasHits();
+    }
+
+    bool PhysicsWorld::SphereCastInternal( float radius, Vector const& start, Vector const& end, Vector const& direction, float distance, CastQuery& outQuery )
+    {
+        b3Vec3 origin = ToBox3D( start );
+
+        b3ShapeProxy proxy = {};
+        proxy.count = 1;
+        proxy.radius = radius;
+        proxy.points = &origin;
+
+        return CastInternal( proxy, Transform( Quaternion::Identity, start ), end, direction, distance, outQuery );
+    }
+
+    bool PhysicsWorld::CapsuleCastInternal( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& end, Vector const& direction, float distance, CastQuery& outQuery )
+    {
+        Vector capsuleEnds[2] =
         {
-            auto& hit = outResults.m_hits.emplace_back();
-            hit.m_pActor = pxHit.actor;
-            hit.m_pShape = pxHit.shape;
-
-            if ( pxHit.hadInitialOverlap() )
-            {
-                hit.m_shapePosition = outResults.m_sweepStartPosition;
-                hit.m_isInitiallyOverlapping = true;
-
-                // If we need to solve the depenetration, run a geometry query
-                if ( rules.m_calculateDepenetration )
-                {
-                    PxSweepHit hitInfo;
-                    PxHitFlags const hitFlags = PxHitFlag::ePOSITION | PxHitFlag::eNORMAL | PxHitFlag::eMTD;
-                    PxU32 hitCount = PxGeometryQuery::sweep( pxSweepDir, 0.0f, geo, pxStartTransform, pxHit.shape->getGeometry(), pxHit.actor->getGlobalPose(), hitInfo, hitFlags, 0.0f );
-                    EE_ASSERT( hitCount == 1 );
-                    hit.m_contactPoint = FromPx( hitInfo.position );
-                    hit.m_normal = FromPx( hitInfo.normal );
-                    hit.m_distance = -hitInfo.distance;
-                }
-                else // Clear all the values
-                {
-                    hit.m_contactPoint = hit.m_shapePosition;
-                    hit.m_normal = Vector::Zero;
-                    hit.m_distance = 0;
-                }
-            }
-            else // Regular hit
-            {
-                hit.m_shapePosition = outResults.m_sweepStartPosition + ( direction * pxHit.distance );
-                hit.m_contactPoint = FromPx( pxHit.position );
-                hit.m_normal = FromPx( pxHit.normal );
-                hit.m_distance = pxHit.distance;
-                hit.m_isInitiallyOverlapping = false;
-            }
+            Vector( 0, 0, cylinderPortionHalfHeight ),
+            Vector( 0, 0, -cylinderPortionHalfHeight )
         };
 
-        // Fill Results
-        //-------------------------------------------------------------------------
-
-        outResults.m_sweepStartPosition = startTransform.GetTranslation();
-        outResults.m_sweepDirection = direction;
-        outResults.m_sweepEndPosition = outResults.m_sweepStartPosition + ( direction * distance );
-        outResults.m_desiredDistance = distance;
-
-        if ( result )
-        {
-            // Add block
-            if ( buffer.hasBlock )
-            {
-                ConvertHit( buffer.block );
-            }
-
-            // Add additional touches
-            for ( uint32_t i = 0; i < buffer.nbTouches; i++ )
-            {
-                ConvertHit( buffer.getTouch( i ) );
-            }
-
-            //-------------------------------------------------------------------------
-
-            eastl::sort( outResults.m_hits.begin(), outResults.m_hits.end(), [] ( SweepResults::Hit const& a, SweepResults::Hit const& b ) { return a.m_distance < b.m_distance; } );
-
-            //-------------------------------------------------------------------------
-
-            auto const& firstHit = outResults.m_hits[0];
-            if ( firstHit.m_isInitiallyOverlapping )
-            {
-                outResults.m_hasInitialOverlap = true;
-                outResults.m_actualDistance = 0;
-                outResults.m_remainingDistance = distance;
-            }
-            else
-            {
-                outResults.m_actualDistance = firstHit.m_distance;
-                outResults.m_remainingDistance = distance - firstHit.m_distance;
-            }
-        }
-        else // No hits
-        {
-            outResults.m_actualDistance = distance;
-            outResults.m_remainingDistance = 0.0f;
-        }
+        capsuleEnds[0] = orientation.RotateVector( capsuleEnds[0] );
+        capsuleEnds[1] = orientation.RotateVector( capsuleEnds[1] );
 
         //-------------------------------------------------------------------------
 
-        return result;
+        b3Vec3 const capsulePoints[2] =
+        {
+            ToBox3D( start + capsuleEnds[0] ),
+            ToBox3D( start + capsuleEnds[1] )
+        };
+
+        b3ShapeProxy proxy = {};
+        proxy.count = 2;
+        proxy.radius = radius;
+        proxy.points = capsulePoints;
+
+        return CastInternal( proxy, Transform( Quaternion::Identity, start ), end, direction, distance, outQuery );
     }
 
-    bool PhysicsWorld::SphereSweepInternal( float radius, Vector const& position, Vector const& direction, float distance, QueryRules const& rules, SweepResults& outResults )
+    bool PhysicsWorld::CylinderCastInternal( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& start, Vector const& end, Vector const& direction, float distance, CastQuery& outQuery )
     {
-        PxSphereGeometry const sphereGeo( radius );
-        return SweepInternal( sphereGeo, Transform( Quaternion::Identity, position ), direction, distance, rules, outResults );
+        TInlineVector<b3Vec3, 32> hullPoints;
+        GetTransformedCylinderHullPoints( start, orientation, radius, cylinderPortionHalfHeight, hullPoints );
+
+        b3ShapeProxy proxy = {};
+        proxy.points = hullPoints.data();
+        proxy.count = (int32_t) hullPoints.size();
+
+        return CastInternal( proxy, Transform( Quaternion::Identity, start ), end, direction, distance, outQuery );
     }
 
-    bool PhysicsWorld::CapsuleSweepInternal( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& position, Vector const& direction, float distance, QueryRules const& rules, SweepResults& outResults )
+    bool PhysicsWorld::BoxCastInternal( Vector halfExtents, Quaternion const& orientation, Vector const& start, Vector const& end, Vector const& direction, float distance, CastQuery& outQuery )
     {
-        PxCapsuleGeometry const capsuleGeo( radius, cylinderPortionHalfHeight );
-        return SweepInternal( capsuleGeo, Transform( PX::Conversion::s_capsuleConversionToPx * orientation, position ), direction, distance, rules, outResults );
-    }
+        b3BoxHull const box = b3MakeTransformedBoxHull( halfExtents.GetX(), halfExtents.GetY(), halfExtents.GetZ(), { ToBox3D( start ), ToBox3D( orientation ) } );
 
-    bool PhysicsWorld::CylinderSweepInternal( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& position, Vector const& direction, float distance, QueryRules const& rules, SweepResults& outResults )
-    {
-        PxConvexMeshGeometry const cylinderGeo( PX::Shapes::s_pUnitCylinderMesh, PxMeshScale( PxVec3( 2.0f * radius, 2.0f * radius, 2.0f * cylinderPortionHalfHeight ) ) );
-        return SweepInternal( cylinderGeo, Transform( orientation, position ), direction, distance, rules, outResults );
-    }
+        b3ShapeProxy proxy = {};
+        proxy.points = box.boxPoints;
+        proxy.count = box.base.vertexCount;
 
-    bool PhysicsWorld::BoxSweepInternal( Vector halfExtents, Quaternion const& orientation, Vector const& position, Vector const& direction, float distance, QueryRules const& rules, SweepResults& outResults )
-    {
-        PxBoxGeometry const boxGeo( ToPx( halfExtents ) );
-        return SweepInternal( boxGeo, Transform( orientation, position ), direction, distance, rules, outResults );
+        return CastInternal( proxy, Transform( Quaternion::Identity, start ), end, direction, distance, outQuery );
     }
 
     //-------------------------------------------------------------------------
     // Overlaps
     //-------------------------------------------------------------------------
 
-    bool PhysicsWorld::OverlapInternal( PxGeometry const& geo, Transform const& transform, QueryRules const& rules, OverlapResults& outResults )
+    static bool OverlapCallback( b3ShapeId shapeID, void* pContext )
     {
-        PX::QueryFilter filterCallback( rules );
-        PxOverlapBufferN<50> buffer;
-        PxTransform const pxTransform( ToPx( transform ) );
-        bool const result = m_pScene->overlap( geo, pxTransform, buffer, rules.m_queryFilterData, &filterCallback );
+        OverlapQuery* pQuery = static_cast<OverlapQuery*>( pContext );
+
+        // Handle ignore rules
+        bool isOverlapIgnored = false;
+        UserData* pUserData = (UserData*) ( b3Shape_GetUserData( shapeID ) );
+        if ( pUserData != nullptr )
+        {
+            if ( pQuery->IsEntityIgnored( pUserData->m_entityID ) || pQuery->IsComponentIgnored( pUserData->m_componentID ) )
+            {
+                isOverlapIgnored = true;
+            }
+        }
 
         //-------------------------------------------------------------------------
 
-        auto ConvertOverlap = [&] ( PxOverlapHit const& hit )
+        if ( !isOverlapIgnored )
         {
-            auto& overlap = outResults.m_overlaps.emplace_back();
-            overlap.m_pActor = hit.actor;
-            overlap.m_pShape = hit.shape;
+            auto& overlap = pQuery->m_overlaps.emplace_back();
+            overlap.m_bodyID = b3Shape_GetBody( shapeID );
+            overlap.m_shapeID = shapeID;
 
-            if ( rules.m_calculateDepenetration )
-            {
-                PxSweepHit hitInfo;
-                PxHitFlags const hitFlags = PxHitFlag::eNORMAL | PxHitFlag::eMTD;
-                PxU32 hitCount = PxGeometryQuery::sweep( PxVec3( 0, 0, 1 ), 0.0f, geo, pxTransform, hit.shape->getGeometry(), hit.actor->getGlobalPose(), hitInfo, hitFlags, 0.0f );
-                EE_ASSERT( hitCount == 1 );
-                overlap.m_normal = FromPx( hitInfo.normal );
-                overlap.m_distance = -hitInfo.distance;
-            }
-            else
-            {
-                overlap.m_normal = Vector::Zero;
-                overlap.m_distance = 0.0f;
-            }
+            // @erin
+            // How do I get depenetration info?
+            //    if ( pQuery->m_calculateDepenetration )
+            //    {
+            //        PxCastHit hitInfo;
+            //        PxHitFlags const hitFlags = PxHitFlag::eNORMAL | PxHitFlag::eMTD;
+            //        PxU32 hitCount = PxGeometryQuery::sweep( PxVec3( 0, 0, 1 ), 0.0f, geo, pxTransform, hit.shape->getGeometry(), hit.actor->getGlobalPose(), hitInfo, hitFlags, 0.0f );
+            //        EE_ASSERT( hitCount == 1 );
+            //        overlap.m_normal = FromPx( hitInfo.normal );
+            //        overlap.m_distance = -hitInfo.distance;
+            //    }
+            //    else
+            //    {
+            //        overlap.m_normal = Vector::Zero;
+            //        overlap.m_distance = 0.0f;
+            //    }
+        }
+
+        return pQuery->IsMultipleHitQuery();
+    }
+
+    bool PhysicsWorld::OverlapInternal( b3ShapeProxy& shapeProxy, Transform const& transform, OverlapQuery& outQuery )
+    {
+        LockRead();
+
+        outQuery.m_transform = transform;
+        outQuery.m_overlaps.clear();
+        b3World_OverlapShape( m_worldID, ToBox3D( transform.GetTranslation() ), &shapeProxy, ToBox3D( outQuery ), OverlapCallback, &outQuery );
+
+        UnlockRead();
+
+        return outQuery.HasOverlaps();
+    }
+
+    bool PhysicsWorld::SphereOverlap( float radius, Vector const& position, OverlapQuery& outQuery )
+    {
+        b3Vec3 origin = ToBox3D( position );
+
+        b3ShapeProxy proxy = {};
+        proxy.count = 1;
+        proxy.radius = radius;
+        proxy.points = &origin;
+
+        return OverlapInternal( proxy, Transform( Quaternion::Identity, position ), outQuery );
+    }
+
+    bool PhysicsWorld::CapsuleOverlap( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& position, OverlapQuery& outQuery )
+    {
+        Vector capsuleEnds[2] =
+        {
+            Vector( 0, 0, cylinderPortionHalfHeight ),
+            Vector( 0, 0, -cylinderPortionHalfHeight )
         };
 
-        // Fill Results
+        capsuleEnds[0] = orientation.RotateVector( capsuleEnds[0] );
+        capsuleEnds[1] = orientation.RotateVector( capsuleEnds[1] );
+
         //-------------------------------------------------------------------------
 
-        outResults.m_overlapPosition = transform.GetTranslation();
-
-        if ( result )
+        b3Vec3 const capsulePoints[2] =
         {
-            // Add block
-            if ( buffer.hasBlock )
-            {
-                ConvertOverlap( buffer.block );
-            }
+            ToBox3D( position + capsuleEnds[0] ),
+            ToBox3D( position + capsuleEnds[1] )
+        };
 
-            // Add additional touches
-            for ( uint32_t i = 0; i < buffer.nbTouches; i++ )
-            {
-                ConvertOverlap( buffer.getTouch( i ) );
-            }
-        }
+        b3ShapeProxy proxy = {};
+        proxy.count = 2;
+        proxy.radius = radius;
+        proxy.points = capsulePoints;
 
-        //-------------------------------------------------------------------------
-
-        return result;
+        return OverlapInternal( proxy, Transform( orientation, position ), outQuery );
     }
 
-    bool PhysicsWorld::SphereOverlap( float radius, Vector const& position, QueryRules const& rules, OverlapResults& outResults )
+    bool PhysicsWorld::CylinderOverlap( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& position, OverlapQuery& outQuery )
     {
-        PxSphereGeometry const sphereGeo( radius );
-        return OverlapInternal( sphereGeo, Transform( Quaternion::Identity, position ), rules, outResults );
+        TInlineVector<b3Vec3, 32> hullPoints;
+        GetTransformedCylinderHullPoints( position, orientation, radius, cylinderPortionHalfHeight, hullPoints );
+
+        b3ShapeProxy proxy = {};
+        proxy.points = hullPoints.data();
+        proxy.count = (int32_t) hullPoints.size();
+
+        return OverlapInternal( proxy, Transform( orientation, position ), outQuery );
     }
 
-    bool PhysicsWorld::CapsuleOverlap( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& position, QueryRules const& rules, OverlapResults& outResults )
+    bool PhysicsWorld::BoxOverlap( Vector halfExtents, Quaternion const& orientation, Vector const& position, OverlapQuery& outQuery )
     {
-        PxCapsuleGeometry const capsuleGeo( radius, cylinderPortionHalfHeight );
-        return OverlapInternal( capsuleGeo, Transform( PX::Conversion::s_capsuleConversionToPx * orientation, position ), rules, outResults);
-    }
+        b3BoxHull const box = b3MakeTransformedBoxHull( halfExtents.GetX(), halfExtents.GetY(), halfExtents.GetZ(), { ToBox3D( position ), ToBox3D( orientation ) } );
 
-    bool PhysicsWorld::CylinderOverlap( float radius, float cylinderPortionHalfHeight, Quaternion const& orientation, Vector const& position, QueryRules const& rules, OverlapResults& outResults )
-    {
-        PxConvexMeshGeometry const cylinderGeo( PX::Shapes::s_pUnitCylinderMesh, PxMeshScale( PxVec3( 2.0f * radius, 2.0f * radius, 2.0f * cylinderPortionHalfHeight ) ) );
-        return OverlapInternal( cylinderGeo, Transform( orientation, position ), rules, outResults );
-    }
+        b3ShapeProxy proxy = {};
+        proxy.points = box.boxPoints;
+        proxy.count = box.base.vertexCount;
 
-    bool PhysicsWorld::BoxOverlap( Vector halfExtents, Quaternion const& orientation, Vector const& position, QueryRules const& rules, OverlapResults& outResults )
-    {
-        PxBoxGeometry const boxGeo( ToPx( halfExtents ) );
-        return OverlapInternal( boxGeo, Transform( orientation, position ), rules, outResults );
+        return OverlapInternal( proxy, Transform( orientation, position ), outQuery );
     }
 
     //-------------------------------------------------------------------------
-    // Actors and Shapes
-    //-------------------------------------------------------------------------
-
-    bool PhysicsWorld::CreateActor( PhysicsShapeComponent* pComponent ) const
-    {
-        EE_ASSERT( pComponent != nullptr );
-        PxPhysics* pPhysics = &m_pScene->getPhysics();
-
-        if ( !pComponent->HasValidPhysicsSetup() )
-        {
-            EE_LOG_ENTITY_WARNING( pComponent, "Physics", "Invalid physics setup set for component: %s (%u), no physics actors will be created!", pComponent->GetNameID().c_str(), pComponent->GetID() );
-            return false;
-        }
-
-        #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_debugName = pComponent->GetNameID().IsValid() ? pComponent->GetNameID().c_str() : "Invalid Name";
-        #endif
-
-        // Create Actor
-        //-------------------------------------------------------------------------
-
-        Transform const& worldTransform = pComponent->ConvertTransformToPhysics( pComponent->GetWorldTransform() );
-        PxTransform const pxTransform = ToPx( worldTransform );
-        PxRigidActor* pPhysicsActor = nullptr;
-
-        SimulationSettings const& settings = pComponent->GetSimulationSettings();
-        switch ( settings.m_mobility )
-        {
-            case Mobility::Static:
-            {
-                pPhysicsActor = pPhysics->createRigidStatic( pxTransform );
-            }
-            break;
-
-            case Mobility::Dynamic:
-            {
-                PxRigidDynamic * pRigidDynamicActor = pPhysics->createRigidDynamic( pxTransform );
-                PxRigidBodyExt::setMassAndUpdateInertia( *pRigidDynamicActor, settings.m_mass );
-                pPhysicsActor = pRigidDynamicActor;
-
-                // Disable dynamic actors by default in non game worlds
-                if ( !m_isGameWorld )
-                {
-                    pRigidDynamicActor->setActorFlag( PxActorFlag::eDISABLE_SIMULATION, true );
-                }
-            }
-            break;
-
-            case Mobility::Kinematic:
-            {
-                PxRigidDynamic* pRigidDynamicActor = pPhysics->createRigidDynamic( pxTransform );
-                pRigidDynamicActor->setRigidBodyFlag( PxRigidBodyFlag::eKINEMATIC, true );
-                pRigidDynamicActor->setRigidBodyFlag( PxRigidBodyFlag::eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES, true );
-                pPhysicsActor = pRigidDynamicActor;
-            }
-            break;
-        }
-
-        pPhysicsActor->setActorFlag( PxActorFlag::eDISABLE_GRAVITY, !settings.m_enableGravity );
-        pPhysicsActor->userData = pComponent;
-
-        #if EE_DEVELOPMENT_TOOLS
-        pPhysicsActor->setName( pComponent->m_debugName.c_str() );
-        #endif
-
-        // Create Shape
-        //-------------------------------------------------------------------------
-        // We also calculate and set the component local bounds
-
-        PxShape* pPhysicsShape = nullptr;
-        PxShapeFlags const shapeFlags( PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE );
-        float const scale = worldTransform.GetScale();
-
-        if ( auto pMeshComponent = TryCast<CollisionMeshComponent>( pComponent ) )
-        {
-            EE_ASSERT( pMeshComponent->m_collisionMesh->IsValid() );
-
-            auto const& physicsMaterialIDs = pMeshComponent->m_collisionMesh->GetPhysicsMaterials();
-            TInlineVector<PxMaterial*, 4> physicsMaterials;
-            for ( auto const& materialID : physicsMaterialIDs )
-            {
-                PxMaterial* pPhysicsMaterial = m_pMaterialRegistry->GetMaterial( materialID );
-                if ( pPhysicsMaterial == nullptr )
-                {
-                    EE_LOG_ENTITY_ERROR( pComponent, "Physics", "Invalid physics materials for collision mesh (%s) on component %s (%u). No shapes will be created!", pMeshComponent->m_collisionMesh.GetResourceID().c_str(), pComponent->GetNameID().c_str(), pComponent->GetID() );
-                    return false;
-                }
-
-                physicsMaterials.emplace_back( pPhysicsMaterial );
-            }
-
-            if ( physicsMaterials.empty() )
-            {
-                EE_LOG_ENTITY_ERROR( pComponent, "Physics", "No physics materials set for collision mesh (%s) on component %s (%u). No shapes will be created!", pMeshComponent->m_collisionMesh.GetResourceID().c_str(), pComponent->GetNameID().c_str(), pComponent->GetID() );
-                return false;
-            }
-
-            Vector const finalScale = pMeshComponent->GetLocalScale() * scale;
-
-            // Triangle Mesh
-            if ( pMeshComponent->m_collisionMesh->IsTriangleMesh() )
-            {
-                PxTriangleMesh const* pTriMesh = pMeshComponent->m_collisionMesh->GetMesh()->is<PxTriangleMesh>();
-                PxTriangleMeshGeometry const meshGeo( const_cast<PxTriangleMesh*>( pTriMesh ), ToPx( finalScale ) );
-                pPhysicsShape = pPhysics->createShape( meshGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
-            }
-            else // Convex Mesh
-            {
-                PxConvexMesh const* pConvexMesh = pMeshComponent->m_collisionMesh->GetMesh()->is<PxConvexMesh>();
-                PxConvexMeshGeometry const meshGeo( const_cast<PxConvexMesh*>( pConvexMesh ), ToPx( finalScale ) );
-                pPhysicsShape = pPhysics->createShape( meshGeo, physicsMaterials.data(), (uint16_t) physicsMaterials.size(), true, shapeFlags );
-            }
-        }
-        else if ( auto pBoxComponent = TryCast<BoxComponent>( pComponent ) )
-        {
-            PxMaterial* const material[1] = { m_pMaterialRegistry->GetMaterial( pBoxComponent->m_materialID ) };
-            Vector const scaledExtents = pBoxComponent->m_boxHalfExtents * scale;
-            PxBoxGeometry const boxGeo( ToPx( scaledExtents ) );
-            pPhysicsShape = pPhysics->createShape( boxGeo, material, 1, true, shapeFlags );
-        }
-        else if ( auto pSphereComponent = TryCast<SphereComponent>( pComponent ) )
-        {
-            PxMaterial* const material[1] = { m_pMaterialRegistry->GetMaterial( pSphereComponent->m_materialID ) };
-            float const scaledRadius = pSphereComponent->m_radius * scale;
-            PxSphereGeometry const sphereGeo( scaledRadius );
-            pPhysicsShape = pPhysics->createShape( sphereGeo, material, 1, true, shapeFlags );
-        }
-        else if ( auto pCapsuleComponent = TryCast<CapsuleComponent>( pComponent ) )
-        {
-            PxMaterial* const material[1] = { m_pMaterialRegistry->GetMaterial( pCapsuleComponent->m_materialID ) };
-            float const scaledRadius = pCapsuleComponent->m_radius * scale;
-            float const scaledHalfHeight = pCapsuleComponent->m_cylinderPortionHalfHeight * scale;
-            PxCapsuleGeometry const capsuleGeo( scaledRadius, scaledHalfHeight );
-            pPhysicsShape = pPhysics->createShape( capsuleGeo, material, 1, true, shapeFlags );
-        }
-
-        if ( pPhysicsShape == nullptr )
-        {
-            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "Failed to create physics shape for component %s (%u)!", pComponent->GetNameID().c_str(), pComponent->GetID() );
-            pPhysicsActor->release();
-            return false;
-        }
-
-        // Simulation flags - Word 0 is the category and Word1 is the collision mask
-        PxFilterData const simulationFilterData( 1 << (uint32_t) pComponent->m_collisionSettings.m_category, pComponent->m_collisionSettings.m_collidesWithMask, 0, 0 );
-        pPhysicsShape->setSimulationFilterData( simulationFilterData );
-
-        // Query flags - Word 0 is the collision mask
-        PxFilterData const queryFilterData( pComponent->m_collisionSettings.m_collidesWithMask, 0, 0, 0 );
-        pPhysicsShape->setQueryFilterData( queryFilterData );
-
-        // User data
-        pPhysicsShape->userData = pComponent;
-
-        // Debug name
-        #if EE_DEVELOPMENT_TOOLS
-        pPhysicsShape->setName( pComponent->m_debugName.c_str() );
-        #endif
-
-        pPhysicsActor->attachShape( *pPhysicsShape );
-        pPhysicsShape->release(); // Release temp reference
-
-        // Component
-        //-------------------------------------------------------------------------
-
-        pComponent->m_pPhysicsActor = pPhysicsActor;
-        pComponent->m_pPhysicsShape = pPhysicsShape;
-
-        // Add to scene
-        //-------------------------------------------------------------------------
-
-        m_pScene->lockWrite();
-        m_pScene->addActor( *pPhysicsActor );
-        m_pScene->unlockWrite();
-
-        return true;
-    }
-
-    void PhysicsWorld::DestroyActor( PhysicsShapeComponent* pComponent ) const
-    {
-        PxScene* pPxScene = m_pScene;
-        if ( pComponent->m_pPhysicsActor != nullptr )
-        {
-            EE_ASSERT( pComponent->m_pPhysicsActor->getScene() != nullptr );
-
-            pPxScene->lockWrite();
-            pPxScene->removeActor( *pComponent->m_pPhysicsActor );
-            pPxScene->unlockWrite();
-            pComponent->m_pPhysicsActor->release();
-        }
-
-        //-------------------------------------------------------------------------
-
-        pComponent->m_pPhysicsShape = nullptr;
-        pComponent->m_pPhysicsActor = nullptr;
-
-        #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_debugName.clear();
-        #endif
-    }
-
-    bool PhysicsWorld::CreateCharacterController( CharacterComponent* pComponent ) const
-    {
-        EE_ASSERT( pComponent != nullptr );
-        PxPhysics* pPhysics = &m_pScene->getPhysics();
-
-        if ( !pComponent->HasValidCharacterSetup() )
-        {
-            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "No Physics Material set for component: %s, no physics actors will be created!", pComponent->GetNameID().c_str() );
-            return false;
-        }
-
-        #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_debugName = pComponent->GetNameID().c_str();
-        #endif
-
-        // Create controller
-        //-------------------------------------------------------------------------
-
-        PxTransform const worldTransform = ToPxCapsuleTransform( pComponent->GetWorldTransform() );
-
-        PxCapsuleControllerDesc controllerDesc;
-        controllerDesc.radius = pComponent->m_radius;
-        controllerDesc.height = pComponent->m_halfHeight * 2;
-        controllerDesc.upDirection = PxVec3( 0, 0, 1 );
-        controllerDesc.climbingMode = PxCapsuleClimbingMode::eCONSTRAINED;
-        controllerDesc.position = PxExtendedVec3( worldTransform.p.x, worldTransform.p.y, worldTransform.p.z );
-        controllerDesc.nonWalkableMode = PxControllerNonWalkableMode::ePREVENT_CLIMBING_AND_FORCE_SLIDING;
-        controllerDesc.slopeLimit = Radians( pComponent->m_defaultSlopeLimit ).ToFloat();
-        controllerDesc.stepOffset = pComponent->m_defaultStepHeight;
-        controllerDesc.material = m_pMaterialRegistry->GetDefaultMaterial();
-        controllerDesc.reportCallback = &pComponent->m_callbackHandler;
-        controllerDesc.contactOffset = 0.01f; // 1cm
-        controllerDesc.scaleCoeff = 0.95f;
-        //controllerDesc.behaviorCallback = &pComponent->m_callbackHandler;
-
-        m_pScene->lockWrite();
-        PxCapsuleController* pController = static_cast<PxCapsuleController*> ( m_pControllerManager->createController( controllerDesc ) );
-        if ( pController != nullptr )
-        {
-            PxRigidDynamic* pPhysicsActor = pController->getActor();
-            pPhysicsActor->userData = pComponent;
-
-            #if EE_DEVELOPMENT_TOOLS
-            pPhysicsActor->setName( pComponent->m_debugName.c_str() );
-            #endif
-        }
-        m_pScene->unlockWrite();
-
-        if ( pController == nullptr )
-        {
-            EE_LOG_ENTITY_ERROR( pComponent, "Physics", "failed to create physics character controller: %s!", pComponent->GetNameID().c_str() );
-            return false;
-        }
-
-        // Component
-        //-------------------------------------------------------------------------
-
-        pComponent->m_pController = pController;
-
-        return true;
-    }
-
-    void PhysicsWorld::DestroyCharacterController( CharacterComponent* pComponent ) const
-    {
-        if ( pComponent->m_pController != nullptr )
-        {
-            m_pScene->lockWrite();
-            pComponent->m_pController->release();
-            pComponent->m_pController = nullptr;
-            m_pScene->unlockWrite();
-        }
-
-        #if EE_DEVELOPMENT_TOOLS
-        pComponent->m_debugName.clear();
-        #endif
-    }
-
-    Ragdoll* PhysicsWorld::CreateRagdoll( RagdollDefinition const* pDefinition, StringID const& profileID, uint64_t userID )
-    {
-        EE_ASSERT( m_pScene != nullptr && pDefinition != nullptr );
-        auto pRagdoll = EE::New<Ragdoll>( pDefinition, profileID, userID );
-        pRagdoll->AddToScene( m_pScene );
-        return pRagdoll;
-    }
-
-    void PhysicsWorld::DestroyRagdoll( Ragdoll*& pRagdoll )
-    {
-        EE_ASSERT( pRagdoll );
-        pRagdoll->RemoveFromScene();
-        EE::Delete( pRagdoll );
-    }
-
-    //------------------------------------------------------------------------- 
     // Debug
     //-------------------------------------------------------------------------
 
     #if EE_DEVELOPMENT_TOOLS
-    bool PhysicsWorld::IsDebugDrawingEnabled() const
+    void PhysicsWorld::DrawDebug( Viewport* pViewport ) const
     {
-        uint32_t const result = m_sceneDebugFlags & ( 1 << PxVisualizationParameter::eSCALE );
-        return result != 0;
-    }
-
-    void PhysicsWorld::SetDebugDrawingEnabled( bool enableDrawing )
-    {
-        if ( enableDrawing )
+        auto pSettings = pViewport->GetViewportSettings<PhysicsViewportSettings>();
+        if ( !pSettings->m_drawDebug )
         {
-            m_sceneDebugFlags |= ( 1 << PxVisualizationParameter::eSCALE );
+            return;
         }
-        else
-        {
-            m_sceneDebugFlags = m_sceneDebugFlags & ~( 1 << PxVisualizationParameter::eSCALE );
-        }
-
-        SetDebugFlags( m_sceneDebugFlags );
-    }
-
-    void PhysicsWorld::SetDebugFlags( uint32_t debugFlags )
-    {
-        EE_ASSERT( m_pScene != nullptr );
-        m_sceneDebugFlags = debugFlags;
 
         //-------------------------------------------------------------------------
 
-        auto SetVisualizationParameter = [this] ( PxVisualizationParameter::Enum flag, float onValue, float offValue )
+        auto DrawShapeCallback = [] ( void* pUserShape, b3Transform transform, b3HexColor color, void* pContext ) -> bool
         {
-            bool const isFlagSet = ( m_sceneDebugFlags & ( 1 << flag ) ) != 0;
-            m_pScene->setVisualizationParameter( flag, isFlagSet ? onValue : offValue );
+            auto pDrawContext = (DebugDrawContext*) pContext;
+            PointerID const instanceID( pUserShape );
+            Core::DrawDebugShapeInstance( pDrawContext, instanceID, FromBox3D( transform ), FromBox3D( color, 0.9f ) );
+            return true;
         };
 
-        m_pScene->lockWrite();
-        SetVisualizationParameter( PxVisualizationParameter::eSCALE, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCOLLISION_AABBS, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCOLLISION_SHAPES, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCOLLISION_AXES, 0.25f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCOLLISION_FNORMALS, 0.15f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCOLLISION_EDGES, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCONTACT_POINT, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCONTACT_NORMAL, 0.25f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eCONTACT_FORCE, 0.25f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eACTOR_AXES, 0.25f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eBODY_AXES, 0.25f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eBODY_LIN_VELOCITY, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eBODY_ANG_VELOCITY, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eBODY_MASS_AXES, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eJOINT_LIMITS, 1.0f, 0.0f );
-        SetVisualizationParameter( PxVisualizationParameter::eJOINT_LOCAL_FRAMES, 1.0f, 0.0f );
-        m_pScene->unlockWrite();
+        auto DrawPointCallback = [] ( b3Vec3 point, float size, b3HexColor color, void* pContext )
+        {
+            auto pDrawContext = (DebugDrawContext*) pContext;
+            pDrawContext->DrawPoint( FromBox3D( point ), FromBox3D( color ), size );
+        };
+
+        auto DrawLineCallback = [] ( b3Vec3 vertex1, b3Vec3 vertex2, b3HexColor color, void* pContext )
+        {
+            auto pDrawContext = (DebugDrawContext*) pContext;
+            pDrawContext->DrawLine( FromBox3D( vertex1 ), FromBox3D( vertex2 ), FromBox3D( color ), 1.0F );
+        };
+
+        auto DrawBoundsCallback = [] ( b3AABB bounds, b3HexColor color, void* pContext )
+        {
+            auto pDrawContext = (DebugDrawContext*) pContext;
+            pDrawContext->DrawLitBox( FromBox3D( bounds ), FromBox3D( color, 0.25F ) );
+            pDrawContext->DrawWireBox( FromBox3D( bounds ), FromBox3D( color ), 1.0F );
+        };
+
+        auto DrawBoxCallback = [] ( b3Vec3 extents, b3Transform transform, b3HexColor color, void* pContext )
+        {
+            auto pDrawContext = (DebugDrawContext*) pContext;
+            pDrawContext->DrawLitBox( FromBox3D( transform ), FromBox3D( extents ), FromBox3D( color, 0.25F ) );
+            pDrawContext->DrawWireBox( FromBox3D( transform ), FromBox3D( extents ), FromBox3D( color ), 1.0F );
+        };
+
+        auto DrawTransformCallback = [] ( b3Transform transform, void* pContext )
+        {
+            auto pDrawContext = (DebugDrawContext*) pContext;
+            pDrawContext->DrawAxis( FromBox3D( transform ), 0.25f, 1.0F );
+        };
+
+        auto DrawSceneTextCallback = [] ( b3Vec3 position, const char* text, b3HexColor color, void* pContext )
+        {
+            auto pDrawContext = (DebugDrawContext*) pContext;
+            pDrawContext->DrawText3D( FromBox3D( position ), text, FromBox3D( color ) );
+        };
+
+        //-------------------------------------------------------------------------
+
+        DebugDrawContext drawingCtx = pViewport->GetDebugDrawContext();
+
+        b3DebugDraw debugDraw = b3DefaultDebugDraw();
+
+        debugDraw.DrawShapeFcn = DrawShapeCallback;
+        debugDraw.DrawSegmentFcn = DrawLineCallback;
+        debugDraw.DrawPointFcn = DrawPointCallback;
+        debugDraw.DrawBoundsFcn = DrawBoundsCallback;
+        debugDraw.DrawBoxFcn = DrawBoxCallback;
+        debugDraw.DrawTransformFcn = DrawTransformCallback;
+        debugDraw.DrawStringFcn = DrawSceneTextCallback;
+
+        debugDraw.context = &drawingCtx;
+        debugDraw.drawingBounds = ToBox3D( pViewport->GetViewVolume().GetAABB() );
+        debugDraw.forceScale = pSettings->m_forceScale;
+        debugDraw.jointScale = pSettings->m_jointScale;
+        debugDraw.drawShapes = pSettings->m_drawShapes;
+        debugDraw.drawJoints = pSettings->m_drawJoints;
+        debugDraw.drawJointExtras = pSettings->m_drawJointExtras;
+        debugDraw.drawBounds = pSettings->m_drawBounds;
+        debugDraw.drawMass = pSettings->m_drawMass;
+        debugDraw.drawSleep = pSettings->m_drawSleep;
+        debugDraw.drawBodyNames = pSettings->m_drawBodyNames;
+        debugDraw.drawContacts = pSettings->m_drawContacts;
+        debugDraw.drawAnchorA = pSettings->m_drawAnchorA ? 1 : 0;
+        debugDraw.drawGraphColors = pSettings->m_drawGraphColors;
+        debugDraw.drawContactFeatures = pSettings->m_drawContactFeatures;
+        debugDraw.drawContactNormals = pSettings->m_drawContactNormals;
+        debugDraw.drawContactForces = pSettings->m_drawContactForces;
+        debugDraw.drawIslands = pSettings->m_drawIslands;
+
+        b3World_Draw( m_worldID, &debugDraw, B3_DEFAULT_MASK_BITS );
     }
 
-    void PhysicsWorld::SetDebugCullingBox( AABB const& cullingBox )
+    void PhysicsWorld::StartRecording()
     {
-        m_pScene->lockWrite();
-        m_pScene->setVisualizationCullingBox( ToPx( cullingBox ) );
-        m_pScene->unlockWrite();
+        EE_ASSERT( !IsRecording() );
+        m_pRecording = b3CreateRecording( 0 );
+        b3World_StartRecording( m_worldID, m_pRecording );
     }
 
-    PxRenderBuffer const& PhysicsWorld::GetRenderBuffer() const
+    void PhysicsWorld::StopRecording()
     {
-        return m_pScene->getRenderBuffer();
+        EE_ASSERT( IsRecording() );
+        b3World_StopRecording( m_worldID );
+
+        FileSystem::Path recordingPath = FileSystem::GetCurrentProcessPath();
+        EE_ASSERT( recordingPath.IsDirectoryPath() );
+
+        InlineString filename( InlineString::CtorSprintf(), "box3d_recording_%s.b3rec", TimeStamp().GetTimeDetailed().c_str() );
+        StringUtils::ReplaceAllOccurrencesInPlace( filename, ":", "_" );
+        recordingPath.AppendFilename( filename );
+        b3SaveRecordingToFile( m_pRecording, recordingPath.c_str() );
+
+        b3DestroyRecording( m_pRecording );
+        m_pRecording = nullptr;
     }
     #endif
 }

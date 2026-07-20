@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Animation_ToolsGraphNode_VariationData.h"
+#include "Engine/Animation/IK/IK.h"
 
 //-------------------------------------------------------------------------
 
@@ -18,8 +19,13 @@ namespace EE::Animation
 
         public:
 
+            // The effector bone ID
             EE_REFLECT();
             StringID            m_effectorBoneID;
+
+            // The amount of time to blend IK in or out
+            EE_REFLECT();
+            Seconds             m_blendTime = 0.0f;
         };
 
     public:
@@ -41,5 +47,11 @@ namespace EE::Animation
 
         EE_REFLECT();
         bool                m_isTargetInWorldSpace = false;
+
+        EE_REFLECT();
+        IKBlendMode         m_blendMode = IKBlendMode::Effector;
+
+        EE_REFLECT();
+        float               m_referencePoseTwistWeight = 0.0f;
     };
 }

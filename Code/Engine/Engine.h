@@ -1,9 +1,8 @@
 #pragma once
 
 #include "_Module/API.h"
-#include "Engine/Render/RenderingSystem.h"
 #include "Engine/_Module/EngineModule.h"
-#include "Engine/ToolsUI/IDevelopmentToolsUI.h"
+#include "Engine/ToolsUI/ToolsUI.h"
 #include "Engine/UpdateContext.h"
 #include "Base/_Module/BaseModule.h"
 #include "Base/Types/Function.h"
@@ -14,8 +13,6 @@ namespace EE
 {
     class EE_ENGINE_API Engine
     {
-        friend class EngineApplication;
-
         class EngineUpdateContext : public UpdateContext
         {
             friend Engine;
@@ -37,13 +34,21 @@ namespace EE
         Engine( TFunction<bool( EE::String const& error )>&& errorHandler );
         virtual ~Engine();
 
-        bool Initialize( Int2 const& windowDimensions );
+        bool Initialize( int32_t argc, char** argv, Int2 const& windowDimensions );
         bool Shutdown();
         bool Update();
 
         // Needed for window processor access
-        Render::RenderingSystem* GetRenderingSystem() { return &m_renderingSystem; }
         Input::InputSystem* GetInputSystem() { return m_pInputSystem; }
+
+        // Resize the main window for the engine
+        virtual void ResizeMainWindow( Int2 newMainWindowDimensions );
+
+        // Live++
+        #if EE_ENABLE_LPP
+        void LivePP_PreReload();
+        void LivePP_PostReload();
+        #endif
 
     protected:
 
@@ -56,12 +61,20 @@ namespace EE
         // Called just before we shutdown the engine
         virtual void PreShutdown() {};
 
+        // Set the startup map - only called if there is a startup map set
+        virtual void SetStartupMap( ResourceID const& mapID );
+
         #if EE_DEVELOPMENT_TOOLS
-        virtual void CreateDevelopmentToolsUI() = 0;
+        virtual void CreateToolsUI() = 0;
         #endif
 
         inline BaseModule* GetBaseModule() { return static_cast<BaseModule*>( m_modules[0] ); }
         inline EngineModule* GetEngineModule() { return static_cast<EngineModule*>( m_modules[1] ); }
+
+    private:
+
+        // This is a blocking call to update the resource and render system to process all pending load/unloads requests
+        void UpdateResourceLoadingRequests_Blocking();
 
     protected:
 
@@ -84,21 +97,22 @@ namespace EE
         TaskSystem*                                     m_pTaskSystem = nullptr;
         TypeSystem::TypeRegistry*                       m_pTypeRegistry = nullptr;
         Resource::ResourceSystem*                       m_pResourceSystem = nullptr;
-        Render::RenderDevice*                           m_pRenderDevice = nullptr;
-        Render::RenderingSystem                         m_renderingSystem;
+        Resource::ResourceProvider*                     m_pResourceProvider = nullptr;
+        Render::RenderSystem*                           m_pRenderSystem = nullptr;
+        Render::Window*                                 m_pRenderWindow = nullptr;
+        Render::ForwardShadingRenderer*                 m_pForwardShadingRenderer = nullptr;
         EntityWorldManager*                             m_pEntityWorldManager = nullptr;
         Input::InputSystem*                             m_pInputSystem = nullptr;
 
         #if EE_DEVELOPMENT_TOOLS
+        Render::ImguiRenderer*                          m_pImguiRenderer = nullptr;
         ImGuiX::ImguiSystem*                            m_pImguiSystem = nullptr;
-        ImGuiX::IDevelopmentToolsUI*                    m_pDevelopmentToolsUI = nullptr;
-        Console*                                        m_pConsole = nullptr;
+        ImGuiX::ToolsUI*                                m_pToolsUI = nullptr;
         #endif
 
         // Application data
         //-------------------------------------------------------------------------
 
-        DataPath                                    m_startupMap;
         Stage                                           m_initializationStageReached = Stage::Uninitialized;
         bool                                            m_exitRequested = false;
     };

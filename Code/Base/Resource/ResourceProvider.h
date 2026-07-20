@@ -2,7 +2,7 @@
 
 #include "Base/_Module/API.h"
 #include "ResourceID.h"
-#include "Settings/GlobalSettings_Resource.h"
+#include "Settings/Settings_Resource.h"
 
 //-------------------------------------------------------------------------
 
@@ -23,16 +23,24 @@ namespace EE::Resource
 
     public:
 
-        ResourceProvider( ResourceGlobalSettings const& settings ) : m_settings( settings ) {}
+        ResourceProvider( ResourceSettings const& settings ) : m_settings( settings ) {}
         ResourceProvider( ResourceProvider const& ) = delete;
         virtual ~ResourceProvider() {}
 
+        // Is fully ready to service resource requests
         virtual bool IsReady() const = 0;
+        
+        // Initialize the provider - Will start connecting for network providers
         virtual bool Initialize() = 0;
+
+        // Shutdown the provider
         virtual void Shutdown() {}
 
+        // Only valid for network providers
+        virtual bool IsConnecting() const { return false; }
+
         // Get general resource settings
-        ResourceGlobalSettings const& GetSettings() const { return m_settings; }
+        ResourceSettings const& GetSettings() const { return m_settings; }
 
         // The resource provider update function
         virtual void Update() {};
@@ -54,6 +62,6 @@ namespace EE::Resource
 
     protected:
 
-        ResourceGlobalSettings const m_settings;
+        ResourceSettings const m_settings;
     };
 }

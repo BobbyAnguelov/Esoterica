@@ -21,11 +21,11 @@ namespace EE::Physics
         virtual FileSystem::Extension GetExtension() const override final { return CollisionMesh::GetStaticResourceTypeID().ToString(); }
         virtual char const* GetFriendlyName() const override final { return CollisionMesh::s_friendlyName; }
 
-        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
+        virtual void GetCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<Resource::CompileDependency>& outDependencies ) const override
         {
             if ( m_sourcePath.IsValid() )
             {
-                outDependencies.emplace_back( m_sourcePath );
+                outDependencies.emplace_back( m_sourcePath, false );
             }
         }
 
@@ -34,7 +34,7 @@ namespace EE::Physics
             m_sourcePath.Clear();
             m_meshesToInclude.clear();
             m_collisionSettings.Clear();
-            m_isConvexMesh = false;
+            m_isConvexHull = false;
             m_scale = Float3( 1.0f, 1.0f, 1.0f );
         }
 
@@ -53,7 +53,7 @@ namespace EE::Physics
 
         // Optional: Specifies if the collision setup is a convex shape
         EE_REFLECT();
-        bool                m_isConvexMesh = false;
+        bool                m_isConvexHull = false;
 
         // This allows you to perform non-uniform scaling/mirroring at import time since the engine does not support non-uniform scaling
         EE_REFLECT();

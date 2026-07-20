@@ -1,0 +1,60 @@
+find_package(Doxygen REQUIRED dot)
+
+set(DOXYGEN_PROJECT_NAME "Box3D")
+set(DOXYGEN_GENERATE_HTML YES)
+set(DOXYGEN_GENERATE_XML YES)
+set(DOXYGEN_USE_MATHJAX YES)
+set(DOXYGEN_MATHJAX_VERSION MathJax_3)
+set(DOXYGEN_MATHJAX_FORMAT SVG)
+set(DOXYGEN_EXTRACT_ALL NO)
+set(DOXYGEN_FILE_PATTERNS *.h)
+set(DOXYGEN_ENABLE_PREPROCESSING YES)
+set(DOXYGEN_MACRO_EXPANSION YES)
+set(DOXYGEN_EXPAND_ONLY_PREDEF YES)
+set(DOXYGEN_PREDEFINED B3_API= B3_INLINE= B3_BREAKPOINT= B3_ASSERT= B3_VALIDATE=)
+set(DOXYGEN_WARN_IF_UNDOCUMENTED YES)
+
+# In multiline comments, this takes the first line/sentence as a brief description to use in the table of functions.
+# So I don't need to use @brief tags to separate the short description from the full description.
+set(DOXYGEN_JAVADOC_AUTOBRIEF YES)
+
+set(DOXYGEN_IMAGE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/images")
+set(DOXYGEN_HTML_EXTRA_STYLESHEET "${CMAKE_CURRENT_SOURCE_DIR}/extra.css")
+set(DOXYGEN_USE_MDFILE_AS_MAINPAGE "${CMAKE_CURRENT_SOURCE_DIR}/overview.md")
+set(DOXYGEN_PROJECT_LOGO "${CMAKE_CURRENT_SOURCE_DIR}/images/logo.svg")
+set(DOXYGEN_LAYOUT_FILE "${CMAKE_CURRENT_SOURCE_DIR}/layout.xml")
+
+set(DOXYGEN_INLINE_SIMPLE_STRUCTS YES)
+set(DOXYGEN_TYPEDEF_HIDES_STRUCT YES)
+# Drop the top tab bar, the tree carries the same navigation
+set(DOXYGEN_DISABLE_INDEX YES)
+set(DOXYGEN_GENERATE_TREEVIEW YES)
+set(DOXYGEN_FULL_SIDEBAR NO)
+
+# No per-page outline panel on the right
+set(DOXYGEN_PAGE_OUTLINE_PANEL NO)
+
+# Dark theme baked by doxygen, extra.css only adds the Box3D accent
+set(DOXYGEN_HTML_COLORSTYLE DARK)
+
+# this tells doxygen to label structs as structs instead of classes
+set(DOXYGEN_OPTIMIZE_OUTPUT_FOR_C YES)
+set(DOXYGEN_WARN_IF_INCOMPLETE_DOC NO)
+
+doxygen_add_docs(doc
+                "${CMAKE_SOURCE_DIR}/include/box3d"
+                "overview.md"
+                "hello.md"
+                "samples.md"
+                "foundation.md"
+                "collision.md"
+                "compound.md"
+                "simulation.md"
+                "loose_ends.md"
+                "recording.md"
+                "large_worlds.md"
+                "character.md"
+                "reading.md"
+                ALL
+                COMMENT "Generate HTML documentation")
+                

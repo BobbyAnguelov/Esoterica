@@ -1,17 +1,15 @@
 #include "EditorTool_ResourceBrowser.h"
-#include "EngineTools/Resource/ResourceDescriptorCreator.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
 #include "EngineTools/FileSystem/FileRegistry.h"
 #include "EngineTools/Core/ToolsContext.h"
-#include "EngineTools/Core/Dialogs.h"
 #include "EngineTools/Core/CommonToolTypes.h"
+#include "EngineTools/Core/DialogManager.h"
 #include "Base/TypeSystem/TypeRegistry.h"
-#include "Base/FileSystem/FileSystemUtils.h"
 #include "Base/TypeSystem/DataFileInfo.h"
 #include "Base/TypeSystem/ResourceInfo.h"
-#include "Base/Profiling.h"
 #include "Base/Platform/PlatformUtils_Win32.h"
 #include <eastl/sort.h>
+#include "EngineTools/Resource/Dialogs/EditorDialog_FileSystemAction.h"
 
 //-------------------------------------------------------------------------
 
@@ -28,6 +26,7 @@ namespace EE::Resource
             , m_nameID( pDirectoryEntry->m_filePath.GetDirectoryName() )
             , m_path( pDirectoryEntry->m_filePath )
             , m_dataPath( pDirectoryEntry->m_dataPath )
+            , m_isRootPath( m_dataPath.IsRootPath() )
         {
             EE_ASSERT( m_path.IsValid() );
             EE_ASSERT( m_dataPath.IsValid() );
@@ -51,17 +50,23 @@ namespace EE::Resource
             EE_ASSERT( m_dataPath.IsValid() );
         }
 
-        virtual StringID GetNameID() const { return m_nameID; }
-        virtual uint64_t GetUniqueID() const override { return m_path.GetHashCode(); }
+        virtual uint64_t GetUniqueID() const override { return m_dataPath.GetID(); }
         virtual bool HasContextMenu() const override { return true; }
         virtual bool IsActivatable() const override { return false; }
 
-        virtual InlineString GetDisplayName() const override
+        virtual bool HasIcon() const override { return true; }
+
+        virtual char const* GetIcon() const override 
         {
-            InlineString displayName;
-            displayName.sprintf( EE_ICON_FOLDER" %s", GetNameID().c_str() );
-            return displayName;
+            return m_isRootPath ? EE_ICON_DATABASE : EE_ICON_FOLDER;
         }
+
+        virtual Color GetIconColor() const override
+        {
+            return m_isRootPath ? Colors::LightSkyBlue : Colors::SandyBrown;
+        }
+
+        virtual char const* GetDisplayName() const override { return m_nameID.c_str(); }
 
         // File System Info
         //-------------------------------------------------------------------------
@@ -95,6 +100,7 @@ namespace EE::Resource
         StringID                                m_nameID;
         FileSystem::Path                        m_path;
         DataPath                                m_dataPath;
+        bool                                    m_isRootPath = false;
     };
 
     //-------------------------------------------------------------------------
@@ -103,25 +109,26 @@ namespace EE::Resource
         : EditorTool( pToolsContext, "Resource Browser" )
         , m_dataDirectoryPathDepth( m_pToolsContext->GetSourceDataDirectory().GetPathDepth() )
     {
-        m_folderTreeView.SetFlag( TreeListView::ExpandItemsOnlyViaArrow, true );
-        m_folderTreeView.SetFlag( TreeListView::UseSmallFont, false );
-        m_folderTreeView.SetFlag( TreeListView::ShowBranchesFirst, false );
-        m_folderTreeView.SetFlag( TreeListView::SortTree, true );
+        m_directoryTreeView.SetFlag( TreeListView::ExpandItemsOnlyViaArrow, true );
+        m_directoryTreeView.SetFlag( TreeListView::ExpandItemsWithDoubleClick, true );
+        m_directoryTreeView.SetFlag( TreeListView::UseSmallFont, false );
+        m_directoryTreeView.SetFlag( TreeListView::SortTree, true );
+        m_directoryTreeView.SetFlag( TreeListView::ShowBranchesFirst, false );
 
         m_filter.SetFilterHelpText( "Search..." );
 
         // Rebuild the tree whenever the file registry updates
-        m_resourceDatabaseUpdateEventBindingID = m_pToolsContext->m_pFileRegistry->OnFileSystemCacheUpdated().Bind( [this] () { m_rebuildTree = true; } );
+        m_resourceDatabaseUpdateEventBindingID = m_pToolsContext->m_pFileRegistry->OnFileSystemCacheUpdated().Bind( [this] () { m_refreshRequested = true; } );
 
         // Create descriptor category tree
         //-------------------------------------------------------------------------
 
         TypeSystem::TypeRegistry const* pTypeRegistry = m_pToolsContext->m_pTypeRegistry;
-        TVector<TypeSystem::TypeInfo const*> descriptorTypeInfos = pTypeRegistry->GetAllDerivedTypes( Resource::ResourceDescriptor::GetStaticTypeID(), false, false );
 
+        TVector<TypeSystem::TypeInfo const*> descriptorTypeInfos = pTypeRegistry->GetAllDerivedTypes( Resource::ResourceDescriptor::GetStaticTypeID(), false, false );
         for ( auto pTypeInfo : descriptorTypeInfos )
         {
-            auto pRD = (Resource::ResourceDescriptor const*) pTypeInfo->GetDefaultInstance();
+            auto pRD = pTypeInfo->GetDefaultInstance<Resource::ResourceDescriptor>();
             if ( !pRD->IsUserCreateableDescriptor() )
             {
                 continue;
@@ -133,12 +140,35 @@ namespace EE::Resource
             StringUtils::ReplaceAllOccurrencesInPlace( category, "::", "/" );
             StringUtils::ReplaceAllOccurrencesInPlace( category, "EE/", "" );
             size_t const foundIdx = category.find_last_of( '/' );
-            EE_ASSERT( foundIdx != String::npos );
-            category = category.substr( 0, foundIdx );
+            if ( foundIdx != String::npos )
+            {
+                category = category.substr( 0, foundIdx );
+            }
+            else
+            {
+                category.clear();
+            }
 
             auto pResourceInfo = pTypeRegistry->GetResourceInfo( pRD->GetCompiledResourceTypeID() );
             EE_ASSERT( pResourceInfo != nullptr );
             m_categorizedDescriptorTypes.AddItem( category, pResourceInfo->m_friendlyName.c_str(), pTypeInfo );
+        }
+
+        THashMap<TypeSystem::TypeID, TypeSystem::DataFileInfo*> const& dataFileInfos = pTypeRegistry->GetRegisteredDataFileTypes();
+        for ( auto const& pair : dataFileInfos )
+        {
+            TypeSystem::TypeInfo const* pTypeInfo = pTypeRegistry->GetTypeInfo( pair.second->m_typeID );
+
+            //-------------------------------------------------------------------------
+
+            String category = pTypeInfo->m_ID.c_str();
+            StringUtils::ReplaceAllOccurrencesInPlace( category, "::", "/" );
+            StringUtils::ReplaceAllOccurrencesInPlace( category, "EE/", "" );
+            size_t const foundIdx = category.find_last_of( '/' );
+            EE_ASSERT( foundIdx != String::npos );
+            category = category.substr( 0, foundIdx );
+
+            m_categorizedDescriptorTypes.AddItem( category, pair.second->m_friendlyName.c_str(), pTypeInfo );
         }
     }
 
@@ -161,6 +191,7 @@ namespace EE::Resource
             typeFilter.m_friendlyName = resourceInfo.second->m_friendlyName;
             typeFilter.m_resourceTypeID = resourceInfo.second->m_resourceTypeID;
             typeFilter.m_extension = resourceInfo.second->m_resourceTypeID.ToString();
+            typeFilter.m_color = resourceInfo.second->m_color;
             m_allPossibleTypeFilters.emplace_back( typeFilter );
         }
 
@@ -169,7 +200,8 @@ namespace EE::Resource
             TypeFilter typeFilter;
             typeFilter.m_friendlyName = dataFileInfo.second->m_friendlyName;
             typeFilter.m_resourceTypeID = ResourceTypeID();
-            typeFilter.m_extension = FourCC::ToString( dataFileInfo.second->m_extensionFourCC );
+            typeFilter.m_extension = dataFileInfo.second->m_extension.ToFileSystemExtension();
+            typeFilter.m_color = Colors::LightBlue;
             m_allPossibleTypeFilters.emplace_back( typeFilter );
         }
 
@@ -180,7 +212,9 @@ namespace EE::Resource
 
         eastl::sort( m_allPossibleTypeFilters.begin(), m_allPossibleTypeFilters.end(), SortPredicate );
 
-        m_rebuildTree = true;
+        m_navigationRequest.m_path = DataPath( DataPath::s_pathPrefix );
+
+        m_refreshRequested = true;
     }
 
     void ResourceBrowserEditorTool::Update( UpdateContext const& context, bool isVisible, bool isFocused )
@@ -193,13 +227,20 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         TreeListViewContext treeViewContext;
-        treeViewContext.m_rebuildTreeFunction = [this] ( TreeListViewItem* pRootItem ) { RebuildFolderTreeView( pRootItem ); };
-        treeViewContext.m_drawItemContextMenuFunction = [this] ( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus ) { DrawFolderContextMenu( selectedItemsWithContextMenus ); };
+        treeViewContext.m_rebuildTreeFunction = [this] ( TreeListViewItem* pRootItem ) { RebuildDirectoryTreeView( pRootItem ); };
+        treeViewContext.m_drawItemContextMenuFunction = [this] ( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus ) { DrawDirectoryTreeContextMenu( selectedItemsWithContextMenus ); };
 
-        if ( m_rebuildTree )
+        if ( m_refreshRequested )
         {
-            m_folderTreeView.RebuildTree( treeViewContext, true );
-            m_rebuildTree = false;
+            m_directoryTreeView.RebuildTree( treeViewContext, true );
+            GenerateDirectoryContentsList();
+            m_refreshRequested = false;
+            m_filterUpdated = false;
+        }
+        else if ( m_filterUpdated )
+        {
+            GenerateDirectoryContentsList();
+            m_filterUpdated = false;
         }
 
         //-------------------------------------------------------------------------
@@ -229,45 +270,96 @@ namespace EE::Resource
 
         if ( m_pToolsContext->m_pFileRegistry->IsFileSystemCacheBuilt() )
         {
-            // Controls
-            //-------------------------------------------------------------------------
-
-            DrawControlRow( context );
-            DrawResourceTypeFilterRow( context );
-
-            // Update Filter
-            //-------------------------------------------------------------------------
-
-            if ( m_filterUpdated )
-            {
-                UpdateFolderTreeVisibility();
-                GenerateFileList();
-            }
-            m_filterUpdated = false;
-
             // Folders
             //-------------------------------------------------------------------------
 
-            bool const isTextFilterSet = m_filter.HasFilterSet();
-            if ( !isTextFilterSet )
+            ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 0 ) );
+            ImGui::BeginChild( "left pane", ImVec2( 150, 0 ), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX | ImGuiChildFlags_AlwaysUseWindowPadding );
+            ImGui::PopStyleVar();
             {
-                ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 1, 0 ) );
-                ImGui::BeginChild( "left pane", ImVec2( 150, 0 ), ImGuiChildFlags_Borders | ImGuiChildFlags_ResizeX | ImGuiChildFlags_AlwaysUseWindowPadding );
-                ImGui::PopStyleVar();
                 {
-                    DrawFolderView( context );
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
+
+                    float const importButtonWidth = ImGuiX::CalculateButtonWidth( EE_ICON_IMPORT" IMPORT" );
+                    float const createButtonWidth = ImGui::GetContentRegionAvail().x - importButtonWidth - ImGui::GetStyle().ItemSpacing.x;
+                    if ( ImGuiX::IconButtonColored( EE_ICON_PLUS, "CREATE", Colors::Green, Colors::White, Colors::White, ImVec2( createButtonWidth, 0 ) ) )
+                    {
+                        ImGui::OpenPopup( "CreateNewDescriptor" );
+                    }
+                    ImGuiX::ItemTooltip( "Create a new resource descriptor and fill out the settings by hand! This is how you create resources that dont have a source file." );
+
+                    if ( ImGui::BeginPopup( "CreateNewDescriptor" ) )
+                    {
+                        DrawCreateDescriptorMenuCategory( m_pToolsContext->GetSourceDataDirectory(), m_categorizedDescriptorTypes.GetRootCategory() );
+                        ImGui::EndPopup();
+                    }
+                    ImGuiX::ItemTooltip( "Create a resource descriptor based on a source file. This will pop up a helper window to help you with the creation." );
+
+                    //-------------------------------------------------------------------------
+
+                    ImGui::SameLine();
+                    if ( ImGuiX::IconButton( EE_ICON_IMPORT, "IMPORT", Colors::White ) )
+                    {
+                        m_pToolsContext->OpenResourceImporter();
+                    }
                 }
-                ImGui::EndChild();
-                ImGui::SameLine( 0, 0 );
+
+                //-------------------------------------------------------------------------
+
+                DrawDirectoryView( context );
             }
+            ImGui::EndChild();
+            ImGui::SameLine( 0, 0 );
 
             // Files
             //-------------------------------------------------------------------------
 
-            ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 1, 0 ) );
+            ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 4, 0 ) );
             ImGui::BeginChild( "item view", ImVec2( 0, 0 ), ImGuiChildFlags_AlwaysUseWindowPadding );
             ImGui::PopStyleVar();
             {
+                if ( ImGuiX::ToggleButton( EE_ICON_RAW, EE_ICON_RAW_OFF, m_showRawFiles, ImVec2( ImGuiX::Style::s_iconButtonWidth, 0 ) ) )
+                {
+                    m_filterUpdated = true;
+                }
+
+                //-------------------------------------------------------------------------
+
+                auto DrawFiltersMenu = [this] ()
+                {
+                    InlineString label;
+                    int32_t const numTypeFilters = (int32_t) m_allPossibleTypeFilters.size();
+                    for ( int32_t i = 0; i < numTypeFilters; i++ )
+                    {
+                        bool isChecked = VectorContains( m_selectedTypeFilterIndices, i );
+                        label.sprintf( "%s (.%s)", m_allPossibleTypeFilters[i].m_friendlyName.c_str(), m_allPossibleTypeFilters[i].m_extension.c_str() );
+
+                        if ( ImGui::Checkbox( label.c_str(), &isChecked ) )
+                        {
+                            if ( isChecked )
+                            {
+                                m_selectedTypeFilterIndices.emplace_back( i );
+                            }
+                            else
+                            {
+                                m_selectedTypeFilterIndices.erase_first_unsorted( i );
+                            }
+
+                            m_filterUpdated = true;
+                        }
+                    }
+                };
+
+                ImGui::SameLine();
+                ImGuiX::DropDownIconButton( EE_ICON_FILTER, "##Resource Filters", DrawFiltersMenu, ImGuiX::Style::s_colorText, ImVec2( ImGuiX::Style::s_iconButtonWidth, 0 ) );
+
+                ImGui::SameLine();
+                m_filterUpdated |= m_filter.UpdateAndDraw();
+
+                DrawResourceTypeFilterRow( context );
+
+                //-------------------------------------------------------------------------
+
                 DrawFileView( context );
             }
             ImGui::EndChild();
@@ -282,7 +374,6 @@ namespace EE::Resource
         //-------------------------------------------------------------------------
 
         m_selectedTypeFilterIndices.clear();
-        UpdateFolderTreeVisibility();
 
         // Select folder
         //-------------------------------------------------------------------------
@@ -293,15 +384,15 @@ namespace EE::Resource
             return;
         }
 
-        auto pFoundItem = m_folderTreeView.FindItem( directoryPath.GetID() );
+        auto pFoundItem = m_directoryTreeView.FindItem( directoryPath.GetID() );
         if ( pFoundItem == nullptr )
         {
             return;
         }
 
-        m_folderTreeView.SetSelection( pFoundItem );
-        m_folderTreeView.SetViewToSelection();
-        SetSelectedFolder( directoryPath );
+        m_directoryTreeView.SetSelection( pFoundItem );
+        m_directoryTreeView.SetViewToSelection();
+        SetSelectedDirectory( directoryPath );
 
         // Select file
         //-------------------------------------------------------------------------
@@ -313,35 +404,6 @@ namespace EE::Resource
     }
 
     //-------------------------------------------------------------------------
-
-    bool ResourceBrowserEditorTool::DrawDeleteConfirmationDialog( UpdateContext const& context )
-    {
-        bool shouldClose = false;
-
-        ImGui::Text( "Are you sure you want to delete this file?" );
-        ImGui::Text( "This cannot be undone!" );
-
-        if ( ImGui::Button( "Ok", ImVec2( 143, 0 ) ) )
-        {
-            auto pResourceItem = (ResourceBrowserTreeItem*) m_folderTreeView.GetSelection()[0];
-            FileSystem::Path const fileToDelete = pResourceItem->GetFilePath();
-            m_folderTreeView.ClearSelection();
-            FileSystem::EraseFile( fileToDelete );
-            shouldClose = true;
-        }
-
-        ImGui::SameLine( 0, 6 );
-
-        if ( ImGui::Button( "Cancel", ImVec2( 143, 0 ) ) )
-        {
-            shouldClose = true;
-        }
-        ImGui::SetItemDefaultFocus();
-
-        //-------------------------------------------------------------------------
-
-        return !shouldClose;
-    }
 
     void ResourceBrowserEditorTool::DrawCreationControls( UpdateContext const& context )
     {
@@ -355,26 +417,26 @@ namespace EE::Resource
 
         if ( ImGui::BeginPopup( "CreateNewDescriptor" ) )
         {
-            DrawDescriptorMenuCategory( m_pToolsContext->GetSourceDataDirectory(), m_categorizedDescriptorTypes.GetRootCategory() );
+            DrawCreateDescriptorMenuCategory( m_pToolsContext->GetSourceDataDirectory(), m_categorizedDescriptorTypes.GetRootCategory() );
             ImGui::EndPopup();
         }
         ImGuiX::ItemTooltip( "Create a resource descriptor based on a source file. This will pop up a helper window to help you with the creation." );
     }
 
-    void ResourceBrowserEditorTool::DrawDescriptorMenuCategory( FileSystem::Path const& path, Category<TypeSystem::TypeInfo const*> const& category )
+    void ResourceBrowserEditorTool::DrawCreateDescriptorMenuCategory( FileSystem::Path const& startingPath, Category<TypeSystem::TypeInfo const*> const& category )
     {
-        auto DrawItems = [this, &path, &category] ()
+        auto DrawItems = [this, &startingPath, &category] ()
         {
             for ( auto const& childCategory : category.m_childCategories )
             {
-                DrawDescriptorMenuCategory( path, childCategory );
+                DrawCreateDescriptorMenuCategory( startingPath, childCategory );
             }
 
             for ( auto const& item : category.m_items )
             {
                 if ( ImGui::MenuItem( item.m_name.c_str() ) )
                 {
-                    m_pToolsContext->TryCreateNewResourceDescriptor( item.m_data->m_ID, path );
+                    m_pToolsContext->TryCreateNewResourceDescriptorOrDataFile( item.m_data->m_ID, startingPath );
                 }
             }
         };
@@ -395,83 +457,11 @@ namespace EE::Resource
         }
     }
 
-    void ResourceBrowserEditorTool::DrawControlRow( UpdateContext const& context )
-    {
-        ImGuiX::ScopedFont const sf( ImGuiX::Font::SmallBold );
-
-        constexpr static float const buttonWidth = 30;
-
-        //-------------------------------------------------------------------------
-        // Create / Import Buttons
-        //-------------------------------------------------------------------------
-
-        if ( ImGuiX::IconButtonColored( EE_ICON_PLUS, "CREATE", Colors::Green, Colors::White ) )
-        {
-            ImGui::OpenPopup( "CreateNewDescriptor" );
-        }
-        ImGuiX::ItemTooltip( "Create a new resource descriptor and fill out the settings by hand! This is how you create resources that dont have a source file." );
-
-        if ( ImGui::BeginPopup( "CreateNewDescriptor" ) )
-        {
-            DrawDescriptorMenuCategory( m_pToolsContext->GetSourceDataDirectory(), m_categorizedDescriptorTypes.GetRootCategory() );
-            ImGui::EndPopup();
-        }
-        ImGuiX::ItemTooltip( "Create a resource descriptor based on a source file. This will pop up a helper window to help you with the creation." );
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SameLine();
-        if ( ImGuiX::IconButton( EE_ICON_IMPORT, "IMPORT", Colors::White ) )
-        {
-        }
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SameLine();
-        float const filterWidth = ImGui::GetContentRegionAvail().x - ( 2 * ( buttonWidth + ImGui::GetStyle().ItemSpacing.x ) );
-        m_filterUpdated |= m_filter.UpdateAndDraw( filterWidth );
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SameLine();
-        if ( ImGuiX::ToggleButton( EE_ICON_RAW, EE_ICON_RAW_OFF, m_showRawFiles, ImVec2( buttonWidth, 0 ) ) )
-        {
-            m_filterUpdated = true;
-        }
-
-        //-------------------------------------------------------------------------
-
-        auto DrawFiltersMenu = [this] ()
-        {
-            InlineString label;
-            int32_t const numTypeFilters = (int32_t) m_allPossibleTypeFilters.size();
-            for ( int32_t i = 0; i < numTypeFilters; i++ )
-            {
-                bool isChecked = VectorContains( m_selectedTypeFilterIndices, i );
-                label.sprintf( "%s (.%s)", m_allPossibleTypeFilters[i].m_friendlyName.c_str(), m_allPossibleTypeFilters[i].m_extension.c_str() );
-
-                if ( ImGui::Checkbox( label.c_str(), &isChecked ) )
-                {
-                    if ( isChecked )
-                    {
-                        m_selectedTypeFilterIndices.emplace_back( i );
-                    }
-                    else
-                    {
-                        m_selectedTypeFilterIndices.erase_first_unsorted( i );
-                    }
-
-                    m_filterUpdated = true;
-                }
-            }
-        };
-
-        ImGui::SameLine();
-        ImGuiX::DropDownIconButton( EE_ICON_FILTER, "##Resource Filters", DrawFiltersMenu, ImGuiX::Style::s_colorText, ImVec2( buttonWidth, 0 ) );
-    }
-
     void ResourceBrowserEditorTool::DrawResourceTypeFilterRow( UpdateContext const& context )
     {
+        ImGuiX::ScopedFont sf( ImGuiX::Font::SmallBold );
+        ImGui::PushStyleVar( ImGuiStyleVar_FramePadding, ImVec2( 4, 2 ) );
+
         if ( !m_selectedTypeFilterIndices.empty() )
         {
             ImGui::AlignTextToFramePadding();
@@ -485,7 +475,7 @@ namespace EE::Resource
             TypeFilter const& filter = m_allPossibleTypeFilters[m_selectedTypeFilterIndices[i]];
 
             ImGui::SameLine();
-            if ( ImGui::Button( filter.m_extension.c_str() ) )
+            if ( ImGuiX::ButtonColored( filter.m_extension.c_str(), filter.m_color, Colors::Black ) )
             {
                 selectedFilterToRemove = i;
             }
@@ -497,12 +487,14 @@ namespace EE::Resource
             m_selectedTypeFilterIndices.erase( m_selectedTypeFilterIndices.begin() + selectedFilterToRemove );
             m_filterUpdated = true;
         }
+
+        ImGui::PopStyleVar();
     }
 
-    // Folders
+    // Directories
     //-------------------------------------------------------------------------
 
-    void ResourceBrowserEditorTool::RebuildFolderTreeView( TreeListViewItem* pRootItem )
+    void ResourceBrowserEditorTool::RebuildDirectoryTreeView( TreeListViewItem* pRootItem )
     {
         EE_ASSERT( m_pToolsContext->m_pFileRegistry->IsFileSystemCacheBuilt() );
         auto pDataDirectory = m_pToolsContext->m_pFileRegistry->GetRawResourceDirectoryEntry();
@@ -511,71 +503,38 @@ namespace EE::Resource
 
         pRootItem->DestroyChildren();
         auto pDataDirItem = pRootItem->CreateChild<ResourceBrowserTreeItem>( *m_pToolsContext, pDataDirectory );
+        pDataDirItem->SetExpanded( false, true );
         pDataDirItem->SetExpanded( true, false );
-
-        //-------------------------------------------------------------------------
-
-        UpdateFolderTreeVisibility();
     }
 
-    void ResourceBrowserEditorTool::UpdateFolderTreeVisibility()
+    void ResourceBrowserEditorTool::SetSelectedDirectory( DataPath const& newFolderPath )
     {
-        auto VisibilityFunc = [this] ( TreeListViewItem const* pTreeItem )
-        {
-            // Type filter
-            //-------------------------------------------------------------------------
-
-            bool containsVisibleFile = false;
-            auto pItem = static_cast<ResourceBrowserTreeItem const*>( pTreeItem );
-
-            FileRegistry::DirectoryInfo const* pDirectoryInfo = m_pToolsContext->m_pFileRegistry->FindDirectoryEntry( pItem->GetFilePath() );
-            for ( FileRegistry::FileInfo const* pFile : pDirectoryInfo->m_files )
-            {
-                if ( DoesFileMatchFilter( pFile ) )
-                {
-                    containsVisibleFile = true;
-                    break;
-                }
-            }
-
-            //-------------------------------------------------------------------------
-
-            return containsVisibleFile;
-        };
-
-        //-------------------------------------------------------------------------
-
-        m_folderTreeView.UpdateItemVisibility( VisibilityFunc, true );
+        m_selectedDirectory = newFolderPath;
+        m_selectedItem.Clear();
+        GenerateDirectoryContentsList();
     }
 
-    void ResourceBrowserEditorTool::SetSelectedFolder( DataPath const& newFolderPath )
-    {
-        m_selectedFolder = newFolderPath;
-        m_selectedFile.Clear();
-        GenerateFileList();
-    }
-
-    void ResourceBrowserEditorTool::DrawFolderView( UpdateContext const& context )
+    void ResourceBrowserEditorTool::DrawDirectoryView( UpdateContext const& context )
     {
         TreeListViewContext treeViewContext;
-        treeViewContext.m_rebuildTreeFunction = [this] ( TreeListViewItem* pRootItem ) { RebuildFolderTreeView( pRootItem ); };
-        treeViewContext.m_drawItemContextMenuFunction = [this] ( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus ) { DrawFolderContextMenu( selectedItemsWithContextMenus ); };
+        treeViewContext.m_rebuildTreeFunction = [this] ( TreeListViewItem* pRootItem ) { RebuildDirectoryTreeView( pRootItem ); };
+        treeViewContext.m_drawItemContextMenuFunction = [this] ( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus ) { DrawDirectoryTreeContextMenu( selectedItemsWithContextMenus ); };
 
-        if ( m_folderTreeView.UpdateAndDraw( treeViewContext ) )
+        if ( m_directoryTreeView.UpdateAndDraw( treeViewContext ) )
         {
-            TVector<TreeListViewItem*> const& selection = m_folderTreeView.GetSelection();
+            TVector<TreeListViewItem*> const& selection = m_directoryTreeView.GetSelection();
             if ( selection.empty() )
             {
-                SetSelectedFolder( DataPath() );
+                SetSelectedDirectory( DataPath() );
             }
             else
             {
-                SetSelectedFolder( static_cast<ResourceBrowserTreeItem const*>( selection.back() )->GetDataPath() );
+                SetSelectedDirectory( static_cast<ResourceBrowserTreeItem const*>( selection.back() )->GetDataPath() );
             }
         }
     }
 
-    void ResourceBrowserEditorTool::DrawFolderContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus )
+    void ResourceBrowserEditorTool::DrawDirectoryTreeContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus )
     {
         auto pResourceItem = (ResourceBrowserTreeItem*) selectedItemsWithContextMenus[0];
 
@@ -600,7 +559,7 @@ namespace EE::Resource
 
         if ( ImGui::BeginMenu( "Create New Descriptor" ) )
         {
-            DrawDescriptorMenuCategory( pResourceItem->GetFilePath(), m_categorizedDescriptorTypes.GetRootCategory() );
+            DrawCreateDescriptorMenuCategory( pResourceItem->GetFilePath(), m_categorizedDescriptorTypes.GetRootCategory() );
             ImGui::EndMenu();
         }
     }
@@ -672,12 +631,13 @@ namespace EE::Resource
         return isVisible;
     }
 
-    void ResourceBrowserEditorTool::GenerateFileList()
+    void ResourceBrowserEditorTool::GenerateDirectoryContentsList()
     {
         m_fileList.clear();
+        m_directoryList.clear();
         m_sortedFileListIndices.clear();
 
-        DataPath const previouslySelectedFile = m_selectedFile;
+        DataPath const previouslySelectedFile = m_selectedItem;
 
         //-------------------------------------------------------------------------
 
@@ -685,19 +645,36 @@ namespace EE::Resource
         files.reserve( 25000 );
         if ( m_filter.HasFilterSet() )
         {
-            FileRegistry::DirectoryInfo const* pDirectoryInfo = m_pToolsContext->m_pFileRegistry->FindDirectoryEntry( DataPath( "Data://" ) );
+            FileRegistry::DirectoryInfo const* pDirectoryInfo = m_pToolsContext->m_pFileRegistry->FindDirectoryEntry( m_selectedDirectory );
+            if ( pDirectoryInfo == nullptr )
+            {
+                pDirectoryInfo = m_pToolsContext->m_pFileRegistry->FindDirectoryEntry( DataPath( "Data://" ) );
+            }
+
             pDirectoryInfo->GetAllFiles( files, true );
         }
         else
         {
-            FileRegistry::DirectoryInfo const* pDirectoryInfo = m_pToolsContext->m_pFileRegistry->FindDirectoryEntry( m_selectedFolder );
+            FileRegistry::DirectoryInfo const* pDirectoryInfo = m_pToolsContext->m_pFileRegistry->FindDirectoryEntry( m_selectedDirectory );
             if ( pDirectoryInfo != nullptr )
             {
                 for ( FileRegistry::FileInfo const* pFileInfo : pDirectoryInfo->m_files )
                 {
                     files.emplace_back( pFileInfo );
                 }
+
+                for ( FileRegistry::DirectoryInfo const &subDir : pDirectoryInfo->m_directories )
+                {
+                    m_directoryList.emplace_back( subDir );
+                }
             }
+
+            auto SortPredicate = [] ( FileRegistry::DirectoryInfo const& a, FileRegistry::DirectoryInfo const& b )
+            {
+                return _stricmp( a.m_dataPath.c_str(), b.m_dataPath.c_str() ) < 0;
+            };
+
+            eastl::sort( m_directoryList.begin(), m_directoryList.end(), SortPredicate );
         }
 
         //-------------------------------------------------------------------------
@@ -723,7 +700,7 @@ namespace EE::Resource
 
     void ResourceBrowserEditorTool::SortFileList()
     {
-        auto sortPredicate = [this] ( int32_t a, int32_t b )
+        auto SortPredicate = [this] ( int32_t a, int32_t b )
         {
             FileRegistry::FileInfo const& lhs = m_fileList[a];
             FileRegistry::FileInfo const& rhs = m_fileList[b];
@@ -772,12 +749,12 @@ namespace EE::Resource
             return a < b;
         };
 
-        eastl::sort( m_sortedFileListIndices.begin(), m_sortedFileListIndices.end(), sortPredicate );
+        eastl::sort( m_sortedFileListIndices.begin(), m_sortedFileListIndices.end(), SortPredicate );
     }
 
     void ResourceBrowserEditorTool::SetSelectedFile( DataPath const& filePath, bool setFocus )
     {
-        m_selectedFile.Clear();
+        m_selectedItem.Clear();
 
         if ( !filePath.IsValid() || filePath.IsDirectoryPath() )
         {
@@ -788,7 +765,7 @@ namespace EE::Resource
         {
             if ( fileInfo.m_dataPath == m_navigationRequest.m_path )
             {
-                m_selectedFile = m_navigationRequest.m_path;
+                m_selectedItem = m_navigationRequest.m_path;
                 m_setFocusToSelectedItem = setFocus;
                 break;
             }
@@ -797,12 +774,17 @@ namespace EE::Resource
 
     void ResourceBrowserEditorTool::DrawFileView( UpdateContext const& context )
     {
+        bool itemContextMenuRequested = false;
+        ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 8, 0 ) );
         if ( ImGui::BeginTable( "TableItems", 2, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable, ImGui::GetContentRegionAvail() - ImVec2( 0, 1 ) ) )
         {
             ImGui::TableSetupScrollFreeze( 0, 1 );
             ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_PreferSortAscending | ImGuiTableColumnFlags_WidthStretch );
-            ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_PreferSortAscending | ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize, 50 );
+            ImGui::TableSetupColumn( "Type", ImGuiTableColumnFlags_PreferSortAscending | ImGuiTableColumnFlags_WidthFixed );
+
+            ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 8, 8 ) );
             ImGui::TableHeadersRow();
+            ImGui::PopStyleVar();
 
             // Sort table contents
             //-------------------------------------------------------------------------
@@ -816,7 +798,7 @@ namespace EE::Resource
                     {
                         m_sortRule = isAscending ? SortRule::TypeAscending : SortRule::TypeDescending;
                     }
-                    else if ( pSortSpecs->Specs[0].ColumnIndex == 2 )
+                    else if ( pSortSpecs->Specs[0].ColumnIndex == 0 )
                     {
                         m_sortRule = isAscending ? SortRule::NameAscending : SortRule::NameDescending;
                     }
@@ -826,7 +808,94 @@ namespace EE::Resource
                 }
             }
 
-            // Items
+            // Up
+            //-------------------------------------------------------------------------
+
+            bool const isTextFilterSet = m_filter.HasFilterSet();
+            if ( m_selectedDirectory.IsValid() && m_selectedDirectory != DataPath( "Data://" ) && !isTextFilterSet )
+            {
+                DataPath const parentPath = m_selectedDirectory.GetParentDirectory();
+                bool const isSelected = ( m_selectedItem == parentPath );
+
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+
+                ImGui::Text( EE_ICON_ARROW_UP_LEFT_BOLD );
+                ImGui::SameLine();
+                InlineString const selectableLabel( InlineString::CtorSprintf(), "...##%u", parentPath.GetID() );
+                if ( ImGui::Selectable( selectableLabel.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick ) )
+                {
+                    m_selectedItem = parentPath;
+
+                    if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+                    {
+                        m_navigationRequest.m_path = parentPath;
+                    }
+                }
+
+                ImGui::TableNextColumn();
+                ImGui::Text( "Directory" );
+            }
+
+            // Directory
+            //-------------------------------------------------------------------------
+
+            for ( FileRegistry::DirectoryInfo const& directoryInfo : m_directoryList )
+            {
+                bool const isSelected = ( m_selectedItem == directoryInfo.m_dataPath );
+
+                ImGui::PushID( directoryInfo.m_dataPath.c_str() );
+
+                ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+
+                ImGui::TextColored( Colors::SandyBrown, EE_ICON_FOLDER );
+
+                if ( isSelected )
+                {
+                    ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::Style::s_colorAccent1 );
+                }
+
+                ImGui::SameLine();
+                InlineString const selectableLabel( InlineString::CtorSprintf(), "%s##%u", directoryInfo.m_dataPath.GetDirectoryName().c_str(), directoryInfo.m_dataPath.GetID() );
+                if ( ImGui::Selectable( selectableLabel.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick ) )
+                {
+                    m_selectedItem = directoryInfo.m_dataPath;
+
+                    if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+                    {
+                        m_navigationRequest.m_path = directoryInfo.m_dataPath;
+                    }
+                }
+
+                if ( isSelected )
+                {
+                    ImGui::PopStyleColor( 1 );
+                }
+
+                if ( ImGui::IsItemClicked( ImGuiMouseButton_Right ) )
+                {
+                    ImGui::OpenPopup( s_directoryInfoContextMenu );
+                    m_selectedItem = directoryInfo.m_dataPath;
+                    itemContextMenuRequested = true;
+                }
+
+                ImGui::TableNextColumn();
+                ImGui::Text( "Directory" );
+
+                // Directory Context Menu
+                //-------------------------------------------------------------------------
+
+                if ( ImGui::BeginPopup( s_directoryInfoContextMenu ) )
+                {
+                    DrawDirectoryInfoContextMenu( directoryInfo, true );
+                    ImGui::EndPopup();
+                }
+
+                ImGui::PopID();
+            }
+
+            // Files
             //-------------------------------------------------------------------------
 
             for ( int32_t const fileInfoIdx : m_sortedFileListIndices )
@@ -839,35 +908,31 @@ namespace EE::Resource
                 }
 
                 ImGui::PushID( fileInfoIdx );
+                bool const isSelected = ( m_selectedItem == fileInfo.m_dataPath );
 
                 // Filename
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
+                ImGui::AlignTextToFramePadding();
+
+                auto const pResourceInfo = fileInfo.IsResourceDescriptorFile() ? m_pToolsContext->m_pTypeRegistry->GetResourceInfo( fileInfo.GetResourceTypeID() ) : nullptr;
                 if ( fileInfo.IsResourceDescriptorFile() )
                 {
-                    ImGui::Text( EE_ICON_FILE );
-                }
-                else if ( fileInfo.IsEntityDescriptorFile() )
-                {
-                    ImGui::Text( EE_ICON_FILE_IMAGE_OUTLINE );
+                    ImGui::TextColored( pResourceInfo->m_color.ToFloat4(), EE_ICON_FILE );
                 }
                 else if ( fileInfo.IsDataFile() )
                 {
-                    ImGui::Text( EE_ICON_FILE_TABLE_OUTLINE );
+                    ImGui::TextColored( Colors::LightBlue.ToFloat4(), EE_ICON_CUBE_OUTLINE );
                 }
                 else
                 {
-                    ImGui::TextColored( Colors::LightBlue.ToFloat4(), EE_ICON_FILE_IMPORT_OUTLINE );
+                    ImGui::Text( EE_ICON_FILE_OUTLINE );
                 }
 
-                ImGui::SameLine();
-
-                bool const isSelected = ( m_selectedFile == fileInfo.m_dataPath );
                 if ( isSelected )
                 {
-                    ImGui::PushStyleColor( ImGuiCol_Header, ImGuiX::Style::s_colorAccent2 );
-                    ImGui::PushStyleColor( ImGuiCol_HeaderHovered, Color( ImGuiX::Style::s_colorAccent2 ).GetScaledColor( 0.8f ) );
+                    ImGui::PushStyleColor( ImGuiCol_Text, ImGuiX::Style::s_colorAccent1 );
 
                     if ( m_setFocusToSelectedItem )
                     {
@@ -876,14 +941,15 @@ namespace EE::Resource
                     }
                 }
 
-                InlineString const selectableLabel( InlineString::CtorSprintf(), "%s##%u", fileInfo.m_filePath.GetFilename().c_str(), fileInfo.m_dataPath.GetID() );
+                ImGui::SameLine();
+                InlineString const selectableLabel( InlineString::CtorSprintf(), "%s##%u", isTextFilterSet ? fileInfo.m_dataPath.GetString().substr( 7 ).c_str() : fileInfo.m_filePath.GetFilename().c_str(), fileInfo.m_dataPath.GetID() );
                 if ( ImGui::Selectable( selectableLabel.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowDoubleClick ) )
                 {
-                    m_selectedFile = fileInfo.m_dataPath;
+                    m_selectedItem = fileInfo.m_dataPath;
 
                     if ( ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
                     {
-                        if ( fileInfo.IsResourceDescriptorFile() || fileInfo.IsEntityDescriptorFile() )
+                        if ( fileInfo.IsResourceDescriptorFile() )
                         {
                             m_pToolsContext->TryOpenResource( fileInfo.GetResourceID() );
                         }
@@ -894,16 +960,6 @@ namespace EE::Resource
                     }
                 }
 
-                if ( isSelected )
-                {
-                    ImGui::PopStyleColor( 2 );
-                }
-
-                if ( ImGui::IsItemClicked( ImGuiMouseButton_Right ) )
-                {
-                    ImGui::OpenPopup( "FileContextMenu" );
-                }
-
                 if ( ImGui::BeginDragDropSource( ImGuiDragDropFlags_None ) )
                 {
                     ImGui::SetDragDropPayload( DragAndDrop::s_filePayloadID, (void*) fileInfo.m_dataPath.c_str(), fileInfo.m_dataPath.GetString().length() + 1 );
@@ -911,39 +967,42 @@ namespace EE::Resource
                     ImGui::EndDragDropSource();
                 }
 
+                if ( isSelected )
+                {
+                    ImGui::PopStyleColor( 1 );
+                }
+
+                if ( ImGui::IsItemClicked( ImGuiMouseButton_Right ) )
+                {
+                    m_selectedItem = fileInfo.m_dataPath;
+                    ImGui::OpenPopup( s_fileInfoContextMenu );
+                    itemContextMenuRequested = true;
+                }
+
                 // Type
                 //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
-                ImGui::Text( fileInfo.m_extension.c_str() );
 
-                // Context Menu
+                if ( fileInfo.IsResourceDescriptorFile() )
+                {
+                    ImGui::Text( pResourceInfo->m_friendlyName.c_str() );
+                }
+                else if ( fileInfo.IsDataFile() )
+                {
+                    ImGui::Text( "Data File" );
+                }
+                else
+                {
+                    ImGui::Text( fileInfo.m_extension.c_str() );
+                }
+
+                // File Context Menu
                 //-------------------------------------------------------------------------
 
-                if( ImGui::BeginPopup( "FileContextMenu" ) )
+                if( ImGui::BeginPopup( s_fileInfoContextMenu ) )
                 {
-                    if ( ImGui::MenuItem( "Open In Explorer" ) )
-                    {
-                        Platform::Win32::OpenInExplorer( fileInfo.m_filePath );
-                    }
-
-                    if ( ImGui::MenuItem( "Copy File Path" ) )
-                    {
-                        ImGui::SetClipboardText( fileInfo.m_filePath.c_str() );
-                    }
-
-                    if ( ImGui::MenuItem( "Copy Resource Path" ) )
-                    {
-                        ImGui::SetClipboardText( fileInfo.m_filePath.c_str() );
-                    }
-
-                    ImGui::Separator();
-
-                    if ( ImGui::MenuItem( EE_ICON_ALERT_OCTAGON" Delete" ) )
-                    {
-                        m_dialogManager.CreateModalDialog( "Delete", [this] ( UpdateContext const& context ) { return DrawDeleteConfirmationDialog( context ); } );
-                    }
-
+                    DrawFileInfoContextMenu( fileInfo );
                     ImGui::EndPopup();
                 }
 
@@ -951,6 +1010,129 @@ namespace EE::Resource
             }
 
             ImGui::EndTable();
+
+            // Parent Folder Context Menu
+            //-------------------------------------------------------------------------
+
+            if ( !itemContextMenuRequested && ImGui::IsItemClicked( ImGuiMouseButton_Right ) )
+            {
+                ImGui::OpenPopup( s_directoryInfoContextMenu );
+            }
+
+            if ( ImGui::BeginPopup( s_directoryInfoContextMenu ) )
+            {
+                FileRegistry::DirectoryInfo const* pDirectoryInfo = m_pToolsContext->m_pFileRegistry->FindDirectoryEntry( m_selectedDirectory );
+                if ( pDirectoryInfo != nullptr )
+                {
+                    DrawDirectoryInfoContextMenu( *pDirectoryInfo, false );
+                }
+                else
+                {
+                    ImGui::CloseCurrentPopup();
+                }
+
+                ImGui::EndPopup();
+            }
+        }
+        ImGui::PopStyleVar();
+    }
+
+    void ResourceBrowserEditorTool::DrawDirectoryInfoContextMenu( FileRegistry::DirectoryInfo const& directoryInfo, bool isFileListView )
+    {
+        if ( ImGui::MenuItem( EE_ICON_OPEN_IN_NEW" Open In Explorer" ) )
+        {
+            Platform::Win32::OpenInExplorer( directoryInfo.m_filePath );
+        }
+
+        if ( ImGui::MenuItem( EE_ICON_FILE" Copy File Path" ) )
+        {
+            ImGui::SetClipboardText( directoryInfo.m_filePath );
+        }
+
+        if ( ImGui::MenuItem( EE_ICON_DATABASE" Copy Data Path" ) )
+        {
+            ImGui::SetClipboardText( directoryInfo.m_dataPath.c_str() );
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( !isFileListView )
+        {
+            ImGui::Separator();
+
+            if ( ImGui::BeginMenu( "Create New Descriptor" ) )
+            {
+                DrawCreateDescriptorMenuCategory( directoryInfo.m_filePath, m_categorizedDescriptorTypes.GetRootCategory() );
+                ImGui::EndMenu();
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        ImGui::Separator();
+
+        if ( ImGui::MenuItem( EE_ICON_RENAME" Rename" ) )
+        {
+            m_pToolsContext->m_pDialogManager->StartModalDialog<FileSystemActionDialog>( FileSystemActionDialog::Action::Rename, m_pToolsContext, directoryInfo.m_dataPath );
+        }
+
+        if ( ImGui::MenuItem( EE_ICON_ALERT_OCTAGON" Delete" ) )
+        {
+            m_pToolsContext->m_pDialogManager->StartModalDialog<FileSystemActionDialog>( FileSystemActionDialog::Action::Delete, m_pToolsContext, directoryInfo.m_dataPath );
+        }
+    }
+
+    void ResourceBrowserEditorTool::DrawFileInfoContextMenu( FileRegistry::FileInfo const& fileInfo )
+    {
+        if ( ImGui::MenuItem( EE_ICON_OPEN_IN_APP" Open" ) )
+        {
+            if ( fileInfo.IsResourceDescriptorFile() )
+            {
+                m_pToolsContext->TryOpenResource( fileInfo.GetResourceID() );
+            }
+            else if ( fileInfo.IsDataFile() )
+            {
+                m_pToolsContext->TryOpenDataFile( fileInfo.m_dataPath );
+            }
+        }
+
+        if ( ImGui::MenuItem( EE_ICON_OPEN_IN_NEW" Open In Explorer" ) )
+        {
+            Platform::Win32::OpenInExplorer( fileInfo.m_filePath );
+        }
+
+        ImGui::Separator();
+
+        if ( ImGui::MenuItem( EE_ICON_FILE" Copy File Path" ) )
+        {
+            ImGui::SetClipboardText( fileInfo.m_filePath.c_str() );
+        }
+
+        if ( ImGui::MenuItem( EE_ICON_DATABASE" Copy Data Path" ) )
+        {
+            ImGui::SetClipboardText( fileInfo.m_dataPath.c_str() );
+        }
+
+        ImGui::Separator();
+
+        if ( fileInfo.IsResourceDescriptorFile() )
+        {
+            if ( ImGui::MenuItem( EE_ICON_GRAPH" Show Dependencies" ) )
+            {
+                m_pToolsContext->ShowResourceDependencies( fileInfo.GetResourceID() );
+            }
+        }
+
+        ImGui::Separator();
+
+        if ( ImGui::MenuItem( EE_ICON_RENAME" Rename" ) )
+        {
+            m_pToolsContext->m_pDialogManager->StartModalDialog<FileSystemActionDialog>( FileSystemActionDialog::Action::Rename, m_pToolsContext, fileInfo.m_dataPath );
+        }
+
+        if ( ImGui::MenuItem( EE_ICON_ALERT_OCTAGON" Delete" ) )
+        {
+            m_pToolsContext->m_pDialogManager->StartModalDialog<FileSystemActionDialog>( FileSystemActionDialog::Action::Delete, m_pToolsContext, fileInfo.m_dataPath );
         }
     }
 }

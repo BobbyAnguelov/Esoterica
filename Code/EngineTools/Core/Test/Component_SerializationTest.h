@@ -3,7 +3,7 @@
 #include "EngineTools/_Module/API.h"
 #include "Engine/Entity/EntityDescriptors.h"
 #include "Engine/Entity/EntityComponent.h"
-#include "Engine/Physics/PhysicsCollision.h"
+#include "Engine/Physics/Physics.h"
 #include "Base/Types/Color.h"
 #include "Base/TypeSystem/ReflectedType.h"
 #include "Base/TypeSystem/TypeInstance.h"
@@ -14,7 +14,6 @@
 #include "Base/Math/NumericRange.h"
 #include "Base/Math/FloatCurve.h"
 #include "Base/Types/Tag.h"
-#include "Base/Render/RenderShader.h"
 #include "EngineTools/Physics/ResourceDescriptors/ResourceDescriptor_PhysicsMaterialDatabase.h"
 
 //-------------------------------------------------------------------------
@@ -42,7 +41,7 @@ namespace EE::SerializationTest
         EE_REFLECT();
         TVector<float>                              m_floats = { 0.3f, 5.0f, 7.0f };
 
-        EE_REFLECT();
+        EE_REFLECT(); // comment
         TVector<SimpleStruct>                       m_dynamicArray = { SimpleStruct(), SimpleStruct() };
     };
 
@@ -50,7 +49,7 @@ namespace EE::SerializationTest
     {
         EE_REFLECT_TYPE( DerivedStruct );
 
-        EE_REFLECT();
+        EE_REFLECT(); // Comment test
         int32_t                                     m_extraInt = 88;
     };
 
@@ -123,11 +122,33 @@ namespace EE::SerializationTest
 
         Moo, // Sound cows make
         // Animal
-        Cow
+        Cow,
+
+        EE_REFLECT( Hidden )
+        Tree,
+
+        EE_REFLECT( Hidden ) House,
     };
     #endif
 
-    // Component
+    // TinyComponent
+    //-------------------------------------------------------------------------
+    // Useful for very specific testing
+
+    class EE_ENGINETOOLS_API TestComponentTiny : public EntityComponent
+    {
+        EE_ENTITY_COMPONENT( TestComponentTiny );
+
+    public:
+
+        EE_REFLECT();
+        ComplexStruct   m_struct;
+
+        EE_REFLECT( Category = "Meta", ReadOnly );
+        ComplexStruct   m_readOnlyStruct;
+    };
+
+    // Full Component
     //-------------------------------------------------------------------------
 
     class EE_ENGINETOOLS_API TestComponent : public EntityComponent
@@ -150,7 +171,12 @@ namespace EE::SerializationTest
 
             Moo = 54,// Sound cows make
              // Animal
-            Cow = 75
+            Cow = 75,
+
+            EE_REFLECT( Hidden )
+            Tree,
+
+            EE_REFLECT( Hidden ) House,
         };
 
         struct InternalEnumStructWrapper

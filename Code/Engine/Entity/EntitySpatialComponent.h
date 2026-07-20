@@ -12,6 +12,7 @@ namespace EE
     namespace EntityModel
     {
         class EntityEditor;
+        class EditorContext;
     }
     #endif
 
@@ -24,11 +25,13 @@ namespace EE
         friend class Entity;
         friend class EntityDebugView;
         friend EntityModel::EntityDescriptor;
-        friend EntityModel::EntityMapEditor;
+        friend EntityModel::ComponentDescriptor;
+        friend EntityModel::MapEditor;
         friend EntityModel::EntityCollection;
 
         #if EE_DEVELOPMENT_TOOLS
         friend EntityModel::EntityEditor;
+        friend EntityModel::EditorContext;
         #endif
 
         struct AttachmentSocketTransformResult
@@ -96,7 +99,7 @@ namespace EE
         inline bool HasSpatialParent() const { return m_pSpatialParent != nullptr; }
         
         // Do we have any spatial children
-        inline bool HasChildren() const { return !m_spatialChildren.empty(); }
+        inline bool HasSpatialChildren() const { return !m_spatialChildren.empty(); }
 
         // Get the spatial parent ID
         inline ComponentID GetSpatialParentID() const { EE_ASSERT( HasSpatialParent() ); return m_pSpatialParent->GetID(); }
@@ -116,21 +119,53 @@ namespace EE
         // Set the socket ID that we want to be attached to on the parent
         inline void SetAttachmentSocketID( StringID socketID ) { m_parentAttachmentSocketID = socketID; }
 
+        // Tries to find a specified attachment socket if it exists and gets its transform (the world transform will be returned if the socket doesnt exist)
+        bool TryGetAttachmentSocketTransform( StringID socketID, Transform& outTransform ) const;
+
         // Returns the world transform for the specified attachment socket if it exists, if it doesnt this function returns the world transform
-        // The search children parameter controls, whether to only search this component or to also search it's children
-        Transform GetAttachmentSocketTransform( StringID socketID ) const;
+        inline Transform GetAttachmentSocketTransform( StringID socketID ) const
+        {
+            Transform socketTransform;
+            TryGetAttachmentSocketTransform( socketID, socketTransform );
+            return socketTransform;
+        }
 
         // Apply an translation offset to all children, needed in many cases to maintain relative offset when a spatial component's bound change
         void ApplyOffsetToAllChildren( Vector const& offset );
 
-        // Local Scale
+        // Non-uniform scale (NUS)
         //-------------------------------------------------------------------------
+        // We only support non-uniform as a leaf-operation for some components
+        // Components need to opt into non-uniform scaling and provide that value
+        // Non-uniform scale is propagated down the hierarchy separately from the uniform scale in the transform to avoid all the classic problems with NUS
 
-        // Do we support local scaling?
-        virtual bool SupportsLocalScale() const { return false; }
+        // Do we support non-uniform scaling?
+        virtual bool SupportsNonUniformScale() const { return false; }
 
-        // Get the local scaling multiplier
-        virtual Float3 const& GetLocalScale() const { return Float3::One; }
+        // Get the local scaling multiplier - this does not take any parent NUS into account
+        inline Float3 const& GetNonUniformScale() const { return SupportsNonUniformScale() ? *const_cast<SpatialEntityComponent*>( this )->GetNonUniformScaleForEdit() : Float3::One; }
+
+        // Calculate the final local scale for this component taking parent NUS into account
+        inline Float3 GetWorldNonUniformScale() const
+        {
+            if ( HasSpatialParent() )
+            {
+                Float3 const parentNUS = m_pSpatialParent->GetWorldNonUniformScale();
+                return parentNUS * GetNonUniformScale();
+            }
+            else
+            {
+                return GetNonUniformScale();
+            }
+        }
+
+        // Set the local scaling multiplier
+        inline void SetNonUniformScale( Float3 const& newNUS )
+        {
+            EE_ASSERT( SupportsNonUniformScale() );
+            *GetNonUniformScaleForEdit() = newNUS;
+            OnNonUniformScaleChanged();
+        }
 
         // Conversion Functions
         //-------------------------------------------------------------------------
@@ -150,9 +185,6 @@ namespace EE
 
         virtual void Initialize() override;
 
-        // This function should be called whenever the local scale is changed - this is left entirely up to the end user as we will have very few spatial components that support this
-        virtual void OnLocalScaleChanged( Float3 const& newLocalScale ) {}
-
         // Calculate and return the local bounds for this component - This should not be called directly!
         virtual OBB CalculateLocalBounds() const 
         {
@@ -168,12 +200,9 @@ namespace EE
             m_worldBounds = m_bounds.GetTransformed( m_worldTransform );
         }
 
-        // Try to find and return the world space transform for the specified socket
-        bool TryGetAttachmentSocketTransform( StringID socketID, Transform& outSocketWorldTransform ) const;
-
         // This should be implemented on each derived spatial component to find the transform of the socket if it exists
         // This function must always return a valid world transform in the outSocketTransform usually that of the component
-        virtual bool TryFindAttachmentSocketTransform( StringID socketID, Transform& outSocketWorldTransform ) const;
+        virtual bool GetAttachmentSocketTransformInternal( StringID socketID, Transform& outSocketWorldTransform ) const;
 
         // This function should be implemented on any component that supports sockets, it will check if the specified socket exists on the component
         virtual bool HasSocket( StringID socketID ) const { return false; }
@@ -217,6 +246,12 @@ namespace EE
             }
         }
 
+        // This function should be called whenever the local scale is changed - this is left entirely up to the end user as we will have very few spatial components that support this
+        virtual void OnNonUniformScaleChanged() {}
+
+        // Override this function to provide write access to the non uniform scale variable
+        virtual Float3* GetNonUniformScaleForEdit() { EE_ASSERT( SupportsNonUniformScale() ); return nullptr; }
+
         #if EE_DEVELOPMENT_TOOLS
         virtual void PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited ) override;
         #endif
@@ -255,7 +290,11 @@ namespace EE
     private:
 
         EE_REFLECT();
+        StringID                                                            m_parentAttachmentSocketID;             // The socket we are attached to (can be invalid)
+
+        EE_REFLECT();
         Transform                                                           m_transform;                            // Local space transform
+
         OBB                                                                 m_bounds;                               // Local space bounding box
         Transform                                                           m_worldTransform;                       // World space transform (left uninitialized to catch initialization errors)
         OBB                                                                 m_worldBounds;                          // World space bounding box
@@ -263,11 +302,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         SpatialEntityComponent*                                             m_pSpatialParent = nullptr;             // The component we are attached to (spatial hierarchy is managed by the parent entity!)
-        EE_REFLECT();
-        StringID                                                            m_parentAttachmentSocketID;             // The socket we are attached to (can be invalid)
         TInlineVector<SpatialEntityComponent*, 2>                           m_spatialChildren;                      // All components that are attached to us. DO NOT EXPOSE THIS!!!
-
-        //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
         bool                                                                m_boundsValidationGuard = false;

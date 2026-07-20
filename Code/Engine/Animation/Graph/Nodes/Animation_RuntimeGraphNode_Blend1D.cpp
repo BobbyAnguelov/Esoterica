@@ -3,6 +3,7 @@
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Animation/TaskSystem/Tasks/Animation_Task_Blend.h"
+#include "Engine/Animation/TaskSystem/Tasks/Animation_Task_DefaultPose.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_RootMotionDebugger.h"
 #include "EASTL/sort.h"
 
@@ -94,14 +95,6 @@ namespace EE::Animation
             return false;
         }
 
-        for ( auto pSource : m_sourceNodes )
-        {
-            if ( !pSource->IsValid() )
-            {
-                return false;
-            }
-        }
-
         return true;
     }
 
@@ -188,7 +181,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         auto const& blendRange = m_parameterization.m_blendRanges[selectedRangeIdx];
-        if ( m_bsr.m_blendWeight == 0.0f )
+        if ( Math::IsNearZero( m_bsr.m_blendWeight ) )
         {
             m_bsr.m_pSource0 = m_sourceNodes[blendRange.m_inputIdx0];
             m_bsr.m_pSource1 = nullptr;
@@ -197,7 +190,7 @@ namespace EE::Animation
             m_blendedSyncTrack = SyncTrack( m_bsr.m_pSource0->GetSyncTrack(), m_bsr.m_pSource0->GetSyncTrack(), 0.0f );
             m_duration = m_bsr.m_pSource0->GetDuration();
         }
-        else if ( m_bsr.m_blendWeight == 1.0f )
+        else if ( Math::IsNearEqual( m_bsr.m_blendWeight, 1.0f ) )
         {
             m_bsr.m_pSource0 = m_sourceNodes[blendRange.m_inputIdx1];
             m_bsr.m_pSource1 = nullptr;
@@ -257,9 +250,17 @@ namespace EE::Animation
 
         if ( m_bsr.m_pSource1 == nullptr )
         {
-            result = m_bsr.m_pSource0->Update( context, &updateRange );
-            m_previousTime = GetSyncTrack().GetPercentageThrough( updateRange.m_startTime );
-            m_currentTime = GetSyncTrack().GetPercentageThrough( updateRange.m_endTime );
+            if ( m_bsr.m_pSource0->IsValid() )
+            {
+
+                result = m_bsr.m_pSource0->Update( context, &updateRange );
+                m_previousTime = GetSyncTrack().GetPercentageThrough( updateRange.m_startTime );
+                m_currentTime = GetSyncTrack().GetPercentageThrough( updateRange.m_endTime );
+            }
+            else
+            {
+                result.m_sampledEventRange = context.GetEmptySampledEventRange();
+            }
         }
 
         // 2-Way Blend
@@ -268,13 +269,27 @@ namespace EE::Animation
         else
         {
             // Update Source 0
-            GraphPoseNodeResult const sourceResult0 = m_bsr.m_pSource0->Update( context, &updateRange );
+            GraphPoseNodeResult sourceResult0;
+            sourceResult0.m_sampledEventRange = context.GetEmptySampledEventRange();
+
+            if ( m_bsr.m_pSource0->IsValid() )
+            {
+                sourceResult0 = m_bsr.m_pSource0->Update( context, &updateRange );
+            }
+
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource0 = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
 
             // Update Source 1
-            GraphPoseNodeResult const sourceResult1 = m_bsr.m_pSource1->Update( context, &updateRange );
+            GraphPoseNodeResult sourceResult1;
+            sourceResult1.m_sampledEventRange = context.GetEmptySampledEventRange();
+
+            if ( m_bsr.m_pSource1->IsValid() )
+            {
+                sourceResult1 = m_bsr.m_pSource1->Update( context, &updateRange );
+            }
+
             #if EE_DEVELOPMENT_TOOLS
             int16_t const rootMotionActionIdxSource1 = context.GetRootMotionDebugger()->GetLastActionIndex();
             #endif
@@ -282,21 +297,44 @@ namespace EE::Animation
             // Register Tasks
             //-------------------------------------------------------------------------
 
-            if ( sourceResult0.HasRegisteredTasks() && sourceResult1.HasRegisteredTasks() )
-            {
-                result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::BlendTask>( GetNodeIndex(), sourceResult0.m_taskIdx, sourceResult1.m_taskIdx, m_bsr.m_blendWeight );
-                result.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult0.m_rootMotionDelta, sourceResult1.m_rootMotionDelta, m_bsr.m_blendWeight );
+            TaskSystem* pTaskSystem = context.GetTaskSystem();
+            bool const isInAdditiveLayer = ( context.m_pLayerContext != nullptr ) && context.m_pLayerContext->m_isAdditive;
 
-                #if EE_DEVELOPMENT_TOOLS
-                context.GetRootMotionDebugger()->RecordBlend( GetNodeIndex(), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
-                #endif
-            }
-            else
+            if ( !sourceResult0.HasRegisteredTasks() )
             {
-                result = ( sourceResult0.HasRegisteredTasks() ) ? sourceResult0 : sourceResult1;
+                if ( isInAdditiveLayer )
+                {
+                    sourceResult0.m_taskIdx = pTaskSystem->RegisterTask<ZeroPoseTask>( GetNodePath( context ) );
+                }
+                else [[likely]]
+                {
+                    sourceResult0.m_taskIdx = context.GetTaskSystem()->RegisterTask<ReferencePoseTask>( GetNodePath( context ) );
+                }
             }
 
-            result.m_sampledEventRange = context.m_pSampledEventsBuffer->BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_bsr.m_blendWeight );
+            if ( !sourceResult1.HasRegisteredTasks() )
+            {
+                if ( isInAdditiveLayer )
+                {
+                    sourceResult1.m_taskIdx = pTaskSystem->RegisterTask<ZeroPoseTask>( GetNodePath( context ) );
+                }
+                else [[likely]]
+                {
+                    sourceResult1.m_taskIdx = context.GetTaskSystem()->RegisterTask<ReferencePoseTask>( GetNodePath( context ) );
+                }
+            }
+
+            result.m_taskIdx = context.GetTaskSystem()->RegisterTask<BlendTask>( GetNodePath( context ), sourceResult0.m_taskIdx, sourceResult1.m_taskIdx, m_bsr.m_blendWeight );
+            result.m_rootMotionDelta = Blender::BlendRootMotionDeltas( sourceResult0.m_rootMotionDelta, sourceResult1.m_rootMotionDelta, m_bsr.m_blendWeight );
+
+            #if EE_DEVELOPMENT_TOOLS
+            if ( rootMotionActionIdxSource0 != InvalidIndex || rootMotionActionIdxSource1 != InvalidIndex )
+            {
+                context.GetRootMotionDebugger()->RecordBlend( GetNodePath( context ), rootMotionActionIdxSource0, rootMotionActionIdxSource1, result.m_rootMotionDelta );
+            }
+            #endif
+
+            result.m_sampledEventRange = context.GetSampledEventsBuffer()->BlendEventRanges( sourceResult0.m_sampledEventRange, sourceResult1.m_sampledEventRange, m_bsr.m_blendWeight );
 
             // Update internal time
             //-------------------------------------------------------------------------
@@ -305,18 +343,11 @@ namespace EE::Animation
             m_currentTime = GetSyncTrack().GetPercentageThrough( updateRange.m_endTime );
         }
 
+        EE_ASSERT( context.GetSampledEventsBuffer()->IsValidRange( result.m_sampledEventRange ) );
         return result;
     }
 
     //-------------------------------------------------------------------------
-
-    #if EE_DEVELOPMENT_TOOLS
-    void ParameterizedBlendNode::GetDebugInfo( int16_t& outSourceIdx0, int16_t& outSourceIdx1, float& outBlendweight ) const
-    {
-        outSourceIdx0 = ( m_bsr.m_pSource0 != nullptr ) ? m_bsr.m_pSource0->GetNodeIndex() : InvalidIndex;
-        outSourceIdx1 = ( m_bsr.m_pSource1 != nullptr ) ? m_bsr.m_pSource1->GetNodeIndex() : InvalidIndex;
-        outBlendweight = m_bsr.m_blendWeight;
-    }
 
     void ParameterizedBlendNode::RecordGraphState( RecordedGraphState& outState )
     {
@@ -347,9 +378,12 @@ namespace EE::Animation
         outState.WriteValue( m_blendedSyncTrack );
     }
 
-    void ParameterizedBlendNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool ParameterizedBlendNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( inState );
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
 
         //-------------------------------------------------------------------------
 
@@ -363,6 +397,18 @@ namespace EE::Animation
 
         inState.ReadValue( m_bsr.m_blendWeight );
         inState.ReadValue( m_blendedSyncTrack );
+
+        return true;
+    }
+
+    //-------------------------------------------------------------------------
+
+    #if EE_DEVELOPMENT_TOOLS
+    void ParameterizedBlendNode::GetDebugInfo( int16_t& outSourceIdx0, int16_t& outSourceIdx1, float& outBlendweight ) const
+    {
+        outSourceIdx0 = ( m_bsr.m_pSource0 != nullptr ) ? m_bsr.m_pSource0->GetNodeIndex() : InvalidIndex;
+        outSourceIdx1 = ( m_bsr.m_pSource1 != nullptr ) ? m_bsr.m_pSource1->GetNodeIndex() : InvalidIndex;
+        outBlendweight = m_bsr.m_blendWeight;
     }
     #endif
 
@@ -385,13 +431,13 @@ namespace EE::Animation
 
     void VelocityBlendNode::InitializeInternal( GraphContext& context, SyncTrackTime const& initialTime )
     {
-        ParameterizedBlendNode::InitializeInternal( context, initialTime );
-
         if ( !m_lazyInitializationPerformed )
         {
             CreateParameterizationFromSpeeds();
             m_lazyInitializationPerformed = true;
         }
+
+        ParameterizedBlendNode::InitializeInternal( context, initialTime );
     }
 
     void VelocityBlendNode::CreateParameterizationFromSpeeds()
@@ -415,10 +461,12 @@ namespace EE::Animation
         m_parameterization = Parameterization::CreateParameterization( values );
     }
 
-    #if EE_DEVELOPMENT_TOOLS
-    void VelocityBlendNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool VelocityBlendNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( inState );
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
 
         //-------------------------------------------------------------------------
 
@@ -439,6 +487,7 @@ namespace EE::Animation
 
         inState.ReadValue( m_bsr.m_blendWeight );
         inState.ReadValue( m_blendedSyncTrack );
+
+        return true;
     }
-    #endif
 }

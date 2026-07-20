@@ -1,4 +1,0 @@
-<Type TypeID="EE::Render::TextureResourceDescriptor" Version="0">
-  <Property ID="m_path" Value="data://editor/floor/floor.png" />
-  <Property ID="m_type" Value="Uncompressed" />
-</Type>

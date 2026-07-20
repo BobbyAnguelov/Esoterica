@@ -22,17 +22,31 @@ namespace EE::Animation
 
         struct TimedEvent
         {
-            EE_SERIALIZE( m_ID, m_timeValue );
+            EE_SERIALIZE( m_ID, m_timeValue, m_comparisonOperator );
+
+            enum class Comparison : uint8_t
+            {
+                EE_REFLECT_ENUM
+
+                LessThanEqual,
+                GreaterThanEqual,
+            };
+
+        public:
 
             TimedEvent() = default;
 
-            TimedEvent( StringID ID, Seconds value )
+            TimedEvent( StringID ID, Seconds value, Comparison op )
                 : m_ID ( ID )
                 , m_timeValue( value )
+                , m_comparisonOperator( op )
             {}
+
+        public:
 
             StringID                                    m_ID;
             Seconds                                     m_timeValue;
+            Comparison                                  m_comparisonOperator;
         };
 
         //-------------------------------------------------------------------------
@@ -40,7 +54,7 @@ namespace EE::Animation
         struct EE_ENGINE_API Definition : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_childNodeIdx, m_entryEvents, m_executeEvents, m_exitEvents, m_timedRemainingEvents, m_timedElapsedEvents, m_layerBoneMaskNodeIdx, m_layerRootMotionWeightNodeIdx,  m_layerWeightNodeIdx, m_isOffState );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_childNodeIdx, m_entryEvents, m_fullyInStateEvents, m_exitEvents, m_timedRemainingEvents, m_timedElapsedEvents, m_layerBoneMaskNodeIdx, m_layerRootMotionWeightNodeIdx,  m_layerWeightNodeIdx, m_isOffState );
 
         public:
 
@@ -50,7 +64,7 @@ namespace EE::Animation
 
             int16_t                                     m_childNodeIdx = InvalidIndex;
             TInlineVector<StringID, 3>                  m_entryEvents;
-            TInlineVector<StringID, 3>                  m_executeEvents;
+            TInlineVector<StringID, 3>                  m_fullyInStateEvents;
             TInlineVector<StringID, 3>                  m_exitEvents;
             TInlineVector<TimedEvent, 1>                m_timedRemainingEvents;
             TInlineVector<TimedEvent, 1>                m_timedElapsedEvents;
@@ -68,7 +82,6 @@ namespace EE::Animation
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
         // State info
-        inline float GetElapsedTimeInState() const { return m_elapsedTimeInState; }
         inline SampledEventRange GetSampledEventRange() const { return m_sampledEventRange; }
         inline bool IsOffState() const { return GetDefinition<StateNode>()->m_isOffState; }
 
@@ -87,7 +100,7 @@ namespace EE::Animation
         void StartTransitionIn( GraphContext& context );
 
         // Starts a transition out of this state, this call may change the sampled event range so we return the new range
-        SampledEventRange StartTransitionOut( GraphContext& context );
+        SampledEventRange StartTransitionOut( GraphContext& context, bool isZeroDurationTransition );
 
         // Sample all the state events for this given update
         void SampleStateEvents( GraphContext& context );
@@ -95,10 +108,8 @@ namespace EE::Animation
         // Update the layer weights for this state
         void UpdateLayerContext( GraphContext& context );
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -107,7 +118,6 @@ namespace EE::Animation
         BoneMaskValueNode*                              m_pBoneMaskNode = nullptr;
         FloatValueNode*                                 m_pLayerWeightNode = nullptr;
         FloatValueNode*                                 m_pLayerRootMotionWeightNode = nullptr;
-        Seconds                                         m_elapsedTimeInState = 0.0f;
         TransitionState                                 m_transitionState = TransitionState::None;
         bool                                            m_isFirstStateUpdate = false;
     };

@@ -1,0 +1,179 @@
+
+#ifndef _MESH_DATA_ESH_
+#define _MESH_DATA_ESH_
+
+#include "Base/Render/RHI.esh"
+
+#ifndef __cplusplus
+    // These defines have to match the corresponding MeshData.h constants!
+    #define MAX_CLUSTER_VERTICES 64
+    #define MAX_CLUSTER_TRIANGLES 64
+
+    // Dispatch count is set to max cluster vertices to achieve optimal CU utilization.
+    // Triangle indices are filled with an unrolled loop while each vertex is shaded exactly once by one thread in the group.
+    #define MESH_SHADER_DISPATCH_COUNT MAX_CLUSTER_VERTICES
+#endif
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    struct HLSL_ALIGN_STRUCT StaticMeshVertex
+    {
+        uint16_t3                       m_compressedPosition;
+        int16_t3                        m_compressedNormal;
+        float2                          m_uv0;
+        float2                          m_uv1;
+        uint                            m_packedColor;
+
+        #ifndef __cplusplus
+        float3 GetPosition( int3 anchor, int exponent )
+        {
+            int3 decompressedPosition = anchor + int3( m_compressedPosition );
+            return ldexp( decompressedPosition, exponent );
+        }
+
+        float3 GetNormal()
+        {
+            return max( float3( m_compressedNormal ) * ( 1.0 / 32767.0 ), -1.0 );
+        }
+        #endif
+    };
+
+    HLSL_STATIC_ASSERT( sizeof(StaticMeshVertex ) == 32, "Expected to be exactly 32 bytes" );
+
+    struct HLSL_ALIGN_STRUCT VertexBoneData
+    {
+        int4                            m_boneIndices;
+        float4                          m_boneWeights;
+    };
+
+    struct HLSL_ALIGN_STRUCT MeshCluster
+    {
+        uint16_t3                       m_boundingSphereCenter;
+        uint16_t                        m_padding;
+        uint32_t                        m_vertexOffset;
+        uint32_t                        m_triangleOffset;
+        int32_t                         m_anchorX : 24;
+        uint32_t                        m_numVertices : 8;          // only 6 bits needed
+        int32_t                         m_anchorY : 24;
+        uint32_t                        m_numTriangles : 8;         // only 7 bits needed
+        int32_t                         m_anchorZ : 24;
+        int32_t                         m_sharedExponent : 8;
+        float                           m_boundingSphereRadius;     // TODO: a whole float is kinda wasteful, can compress this to get more bits for other stuff. Not needed right now.
+
+        #ifndef __cplusplus
+        int3 GetAnchor() { return int3( m_anchorX, m_anchorY, m_anchorZ ); }
+
+        float4 GetBoundingSphere()
+        {
+            int3 decompressedPosition = GetAnchor() + int3( m_boundingSphereCenter );
+            return float4( ldexp( float3( decompressedPosition ), m_sharedExponent ), m_boundingSphereRadius );
+        }
+        #endif
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( MeshCluster ) == 32, "Don't exceed 32 bytes for this structure, it is performance critical" );
+
+    struct HLSL_ALIGN_STRUCT Mesh
+    {
+        float3                          m_aabbCenterLocal;
+        float3                          m_aabbHalfExtentsLocal;
+    
+        uint                            m_vertexStride;
+        uint                            m_numBones;
+    
+        uint                            m_clusterOffset;
+        uint                            m_numClusters;
+    
+        uint4                           m_padding0;
+        uint                            m_padding1;
+    
+        BufferHandle                    m_clusterVertexBuffer;
+        BufferHandle                    m_clusterTriangleBuffer;
+    };
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#ifndef __cplusplus
+
+    // Adapted from "Triangle Visibility" Buffer and "AMD GeometryFX"
+    // https://github.com/GPUOpen-Effects/GeometryFX/blob/master/amd_geometryfx/src/Shaders/AMD_GeometryFX_Filtering.hlsl
+    // https://diaryofagraphicsprogrammer.blogspot.com/2018/03/triangle-visibility-buffer.html
+    bool IsTriangleCulled( float4 clipVertices[3], float2 renderTargetSize, bool twoSided )
+    {
+        // Backface cull
+        if ( !twoSided )
+        {
+            // "Triangle Scan Conversion using 2D Homogeneus Coordinates" by Marc Olano, Trey Greer
+            if ( determinant( float3x3( clipVertices[0].xyw, clipVertices[1].xyw, clipVertices[2].xyw ) ) >= 0 )
+            {
+                return true;
+            }
+        }
+
+        // Clipping cull
+        uint numVerticesOutsideOfClipPlane = 0;
+        float2 screenVertices[3];
+        [unroll] for ( uint vertexIndex = 0; vertexIndex < 3; ++vertexIndex )
+        {
+            screenVertices[vertexIndex] = ( clipVertices[vertexIndex].xy / clipVertices[vertexIndex].w ) * 0.5 + 0.5.xx;
+            [flatten] if ( clipVertices[vertexIndex].w < 0.0 )
+            {
+                numVerticesOutsideOfClipPlane++;
+            }
+        }
+
+        if ( numVerticesOutsideOfClipPlane == 3 )
+        {
+            // Triangle is fully outside of the clip plane
+            return true;
+        }
+
+        if ( numVerticesOutsideOfClipPlane != 0 )
+        {
+            // Triangle is clipped, we can't do anything else with it.
+            return false;
+        }
+
+        // Frustum cull
+        float screenMinY = min( min( screenVertices[0].y, screenVertices[1].y ), screenVertices[2].y );
+        float screenMinX = min( min( screenVertices[0].x, screenVertices[1].x ), screenVertices[2].x );
+        float screenMaxX = max( max( screenVertices[0].x, screenVertices[1].x ), screenVertices[2].x );
+        float screenMaxY = max( max( screenVertices[0].y, screenVertices[1].y ), screenVertices[2].y );
+
+        if ( ( screenMaxX < 0 ) || ( screenMaxY < 0 ) || ( screenMinX > 1 ) || ( screenMinY > 1 ) )
+        {
+            return true;
+        }
+
+        // Overlap cull, culls triangles that don't overlap pixel centers.
+        // Uses 23.8 fixed-point math to match what the hardware is doing.
+        const uint SUBPIXEL_BITS          = 8;
+        const uint SUBPIXEL_MASK          = 0xFF;
+        const uint SUBPIXEL_SAMPLES       = 1U << SUBPIXEL_BITS;
+        const uint SUBPIXEL_SAMPLE_CENTER = SUBPIXEL_SAMPLES >> 1;
+        const uint SUBPIXEL_SAMPLE_SIZE   = SUBPIXEL_SAMPLES - 1;
+
+        int2 minBB = ( 1 << 30 ).xx;
+        int2 maxBB = -minBB;
+
+        [unroll] for ( uint vertexIndex = 0; vertexIndex < 3; ++vertexIndex )
+        {
+            float2 viewportPositionFP = screenVertices[vertexIndex].xy * renderTargetSize;
+            int2 viewportPosition = int2( viewportPositionFP * SUBPIXEL_SAMPLES );
+            minBB = min( minBB, viewportPosition );
+            maxBB = max( maxBB, viewportPosition );
+        }
+
+        int2 testMin = minBB & SUBPIXEL_MASK;
+        int2 testMax = maxBB - ( ( minBB & ~SUBPIXEL_MASK ) + SUBPIXEL_SAMPLE_CENTER );
+
+        if ( any( and( testMin > SUBPIXEL_SAMPLE_CENTER, testMax < SUBPIXEL_SAMPLE_SIZE ) ) )
+        {
+            return true;
+        }
+
+        return false;
+    }
+#endif
+
+#endif

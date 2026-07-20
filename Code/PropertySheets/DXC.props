@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <DXC_DIR>$(SolutionDir)External\DirectXShaderCompiler\</DXC_DIR>
+    <DXC_LIB_DIR>$(DXC_DIR)lib\x64\</DXC_LIB_DIR>
+    <DXC_BIN_DIR>$(DXC_DIR)bin\x64\</DXC_BIN_DIR>
+  </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(DXC_DIR)inc\;%(AdditionalIncludeDirectories);</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalLibraryDirectories>$(DXC_LIB_DIR);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>dxcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <Target Name="DXC_CopyDLL" BeforeTargets="Build">
+    <Copy SkipUnchangedFiles="True" SourceFiles="$(DXC_BIN_DIR)dxcompiler.dll;$(DXC_BIN_DIR)dxil.dll" DestinationFolder="$(OutDir)" />
+  </Target>
+  <Target Name="DXC_CleanDLL" BeforeTargets="Clean">
+    <Delete TreatErrorsAsWarnings="True" Files="$(OutDir)dxcompiler.dll;$(OutDir)dxil.dll" />
+  </Target>
+</Project>

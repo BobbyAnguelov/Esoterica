@@ -1,36 +1,39 @@
 #pragma once
 
-#include "Engine/Animation/TaskSystem/Animation_Task.h"
+#include "Engine/Animation/TaskSystem/Animation_PoseTask.h"
 #include "Engine/Animation/AnimationBoneMask.h"
 #include "Engine/Animation/AnimationBlender.h"
-
-namespace EE::Drawing { class DrawContext; }
+#include "Engine/Animation/TaskSystem/Animation_BoneMaskTask.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE { class DebugDrawContext; }
+
+//-------------------------------------------------------------------------
+
+namespace EE::Animation
 {
-    class BlendTaskBase : public Task
+    class BlendTaskBase : public PoseTask
     {
         EE_REFLECT_TYPE( BlendTaskBase );
 
     public:
 
-        using Task::Task;
+        using PoseTask::PoseTask;
 
-        virtual bool AllowsSerialization() const override { return true; }
+        virtual int32_t GetNumDependencies() const override { return 2; }
         virtual void Serialize( TaskSerializer& serializer ) const override final;
         virtual void Deserialize( TaskSerializer& serializer ) override final;
 
         #if EE_DEVELOPMENT_TOOLS
         virtual Color GetDebugColor() const override final { return Colors::Lime; }
         virtual float GetDebugProgressOrWeight() const override { return m_blendWeight; }
-        virtual void DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const override final;
+        virtual void DrawDebug( DebugDrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const override final;
         #endif
 
     protected:
 
-        BlendTaskBase() : Task() {}
+        BlendTaskBase() : PoseTask() {}
 
     protected:
 
@@ -107,21 +110,22 @@ namespace EE::Animation::Tasks
 
     //-------------------------------------------------------------------------
 
-    class GlobalBlendTask final : public BlendTaskBase
+    class ModelSpaceBlendTask final : public BlendTaskBase
     {
-        EE_REFLECT_TYPE( GlobalBlendTask );
+        EE_REFLECT_TYPE( ModelSpaceBlendTask );
 
     public:
 
-        GlobalBlendTask( int8_t baseTaskIdx, int8_t layerTaskIdx, float const blendWeight, BoneMaskTaskList const& boneMaskTaskList );
+        ModelSpaceBlendTask( int8_t baseTaskIdx, int8_t layerTaskIdx, float const blendWeight, BoneMaskTaskList const& boneMaskTaskList );
         virtual void Execute( TaskContext const& context ) override;
 
         #if EE_DEVELOPMENT_TOOLS
-        virtual char const* GetDebugName() const override { return "Global Blend"; }
+        virtual char const* GetDebugName() const override { return "Model Space Blend"; }
+        virtual InlineString GetDebugTextInfo( bool isDetailedModeEnabled ) const override;
         #endif
 
     protected:
 
-        GlobalBlendTask() : BlendTaskBase() {}
+        ModelSpaceBlendTask() : BlendTaskBase() {}
     };
 }

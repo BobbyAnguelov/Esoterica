@@ -2,17 +2,17 @@
 #include "Base/Types/StringID.h"
 #include "Base/Types/BitFlags.h"
 #include "Base/Types/String.h"
+#include "Base/Logging/Log.h"
 
 //-------------------------------------------------------------------------
 // Property Metadata
 //-------------------------------------------------------------------------
-// Extra information about properties that is relevant for the tools code
-// Primarily the property grid
+// Extra information about properties that is mostly relevant for tools code
+// Primarily the property grid and any auto-generated editors
 
-#if EE_DEVELOPMENT_TOOLS
 namespace EE::TypeSystem
 {
-    struct PropertyMetadata
+    struct EE_BASE_API PropertyMetadata
     {
         // Currently Supported Meta Data:
         enum Flag : int8_t
@@ -61,17 +61,16 @@ namespace EE::TypeSystem
 
     public:
 
+        PropertyMetadata() { Clear(); }
+        PropertyMetadata( String const& metaDataStr, Log* pLog = nullptr );
+
         void Clear()
         {
             m_flags.ClearAllFlags();
             m_keyValues.clear();
         }
 
-        // Get the friendly name - always exists
-        inline String const& GetFriendlyName() const { return m_keyValues[FriendlyName].m_value; }
-
-        // Get the description - always exists
-        inline String const& GetDescription() const { return m_keyValues[Description].m_value; }
+        void AppendMetaDataFromString( String const& metaDataStr, Log* pLog = nullptr );
 
         //-------------------------------------------------------------------------
 
@@ -80,9 +79,9 @@ namespace EE::TypeSystem
             return m_flags.IsFlagSet( f );
         }
 
-        KV const* TryGetEntryForFlag( Flag f ) const
+        inline KV* TryGetEntryForFlag( Flag f )
         {
-            for ( KV const& kv : m_keyValues )
+            for ( KV& kv : m_keyValues )
             {
                 if ( kv.m_key == f )
                 {
@@ -92,6 +91,8 @@ namespace EE::TypeSystem
 
             return nullptr;
         }
+
+        inline KV const* TryGetEntryForFlag( Flag f ) const { return const_cast<PropertyMetadata*>( this )->TryGetEntryForFlag( f ); }
 
         inline String GetValue( Flag f, String const& defaultValue = String() ) const
         {
@@ -161,4 +162,3 @@ namespace EE::TypeSystem
         TVector<KV>             m_keyValues;
     };
 }
-#endif

@@ -1,80 +1,47 @@
 #include "ResourceDescriptor_AnimationGraph.h"
+#include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
 #include "Base/ThirdParty/pugixml/src/pugixml.hpp"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
 {
-    bool GraphResourceDescriptor::UpgradeSourceData( TypeSystem::TypeRegistry const& typeRegistry, pugi::xml_document& document, int32_t versionDetected ) const
+    void GraphResourceDescriptor::GetAllSubResources( TVector<String>& outSubResources ) const
     {
-        auto UpgradeClipVariationData = [] ( pugi::xml_node propertyNode, bool isOverride = false )
+        for ( StringID variationID : m_graphDefinition.GetVariationIDs() )
         {
-            ResourceID oldValue = propertyNode.attribute( "Value" ).as_string();
-
-            propertyNode.set_name( "Type" );
-            propertyNode.remove_attribute( "Value" );
-
-            auto attr = propertyNode.attribute( "ID" );
-            attr.set_value( isOverride ? "m_variationData" : "m_defaultVariationData" );
-
-            attr = propertyNode.append_attribute( "TypeID" );
-            attr.set_value( "EE::Animation::AnimationClipNode::VariationData" );
-
-            //-------------------------------------------------------------------------
-
-            auto newPropNode = propertyNode.append_child( "Property" );
-            newPropNode.append_attribute( "ID" ).set_value( "m_animClipResourcePtr" );
-            newPropNode.append_attribute( "Value" ).set_value( oldValue.c_str() );
-        };
-
-        auto UpgradeRefVariationData = [] ( pugi::xml_node propertyNode, bool isOverride = false )
-        {
-            ResourceID oldValue = propertyNode.attribute( "Value" ).as_string();
-
-            propertyNode.set_name( "Type" );
-            propertyNode.remove_attribute( "Value" );
-
-            auto attr = propertyNode.attribute( "ID" );
-            attr.set_value( isOverride ? "m_variationData" : "m_defaultVariationData" );
-
-            attr = propertyNode.append_attribute( "TypeID" );
-            attr.set_value( "EE::Animation::ReferencedGraphNode::VariationData" );
-
-            //-------------------------------------------------------------------------
-
-            auto newPropNode = propertyNode.append_child( "Property" );
-            newPropNode.append_attribute( "ID" ).set_value( "m_referencedGraphResourcePtr" );
-            newPropNode.append_attribute( "Value" ).set_value( oldValue.c_str() );
-        };
-
-        //-------------------------------------------------------------------------
-
-        pugi::xpath_node_set clipNodes = document.select_nodes( "//Type[@TypeID='EE::Animation::AnimationClipToolsNode']/Property[@ID='m_defaultResourceID']" );
-        for ( pugi::xpath_node const& propertyNode : clipNodes )
-        {
-            UpgradeClipVariationData( propertyNode.node() );
+            outSubResources.emplace_back( String( String::CtorSprintf(), "%s.ag", variationID.c_str() ) );
         }
+    }
 
-        pugi::xpath_node_set refNodes = document.select_nodes( "//Type[@TypeID='EE::Animation::ReferencedGraphToolsNode']/Property[@ID='m_defaultResourceID']" );
-        for ( pugi::xpath_node const& propertyNode : refNodes )
+    void GraphResourceDescriptor::GetInstallDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<ResourceID>& outDependencies ) const
+    {
+        StringID const variationID = subResourceName.empty() ? Variation::s_defaultVariationID : StringID( StringUtils::StripExtension( subResourceName ) );
+        if ( !m_graphDefinition.IsValidVariation( variationID ) )
         {
-            UpgradeRefVariationData( propertyNode.node() );
+            return;
         }
 
         //-------------------------------------------------------------------------
 
-        clipNodes = document.select_nodes( "//Type[@TypeID='EE::Animation::AnimationClipToolsNode']/Property[@ID='m_overrides']/Type[@TypeID='EE::Animation::DataSlotToolsNode::OverrideValue']/Property[@ID='m_resourceID']" );
-        for ( pugi::xpath_node const& propertyNode : clipNodes )
+        GraphDefinitionCompiler definitionCompiler( typeRegistry, sourceResourceDirectoryPath );
+        if ( !definitionCompiler.CompileGraph( m_graphDefinition, variationID ) )
         {
-            UpgradeClipVariationData( propertyNode.node(), true );
+            return;
         }
 
-        refNodes = document.select_nodes( "//Type[@TypeID='EE::Animation::ReferencedGraphToolsNode']/Property[@ID='m_overrides']/Type[@TypeID='EE::Animation::DataSlotToolsNode::OverrideValue']/Property[@ID='m_resourceID']" );
-        for ( pugi::xpath_node const& propertyNode : refNodes )
-        {
-            UpgradeRefVariationData( propertyNode.node(), true );
-        }
+        //-------------------------------------------------------------------------
 
-        return true;
+        GraphDefinition const *pCompiledGraphDef = definitionCompiler.GetCompiledGraph();
+
+        outDependencies.emplace_back( pCompiledGraphDef->GetPrimarySkeletonResourceID() );
+
+        int32_t const numSlots = pCompiledGraphDef->GetNumSlots();
+        for ( int16_t i = 0; i < numSlots; i++ )
+        {
+            ResourceID const& referencedResourceID = pCompiledGraphDef->GetResourceIDForSlot( i );
+            EE_ASSERT( referencedResourceID.IsValid() );
+            outDependencies.emplace_back( referencedResourceID );
+        }
     }
 }

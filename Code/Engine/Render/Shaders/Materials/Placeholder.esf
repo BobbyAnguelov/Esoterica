@@ -1,0 +1,15 @@
+
+#include "Engine/Render/Shaders/Renderer/DefaultMeshShader.esh"
+#include "Engine/Render/Shaders/Renderer/MaterialShaderPBR.esh"
+
+ESF_PARAMETER string ShaderType = "Material";
+
+MaterialShaderOutput MaterialShaderMain( in MaterialShaderInput materialInput )
+{
+    MaterialShaderOutput materialOutput   = MaterialShaderOutput::New( materialInput );
+
+    materialOutput.m_albedo                                 = float3( 1.0, 0.255, 0.385 );
+    materialOutput.m_primitiveFlags.m_rendererDebugFlags    = RENDERER_DEBUG_FLAG_SHOW_WIREFRAME;
+    
+    return materialOutput;
+}

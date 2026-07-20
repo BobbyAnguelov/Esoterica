@@ -59,8 +59,18 @@ namespace EE::NodeGraph
         // Get the ID of the end (to) state
         inline UUID const GetEndStateID() const { return m_endStateID; }
 
+        // Set the ID of the start (from) state
+        void SetStartStateID( UUID const &startStateID );
+
+        // Set the ID of the end (to) state
+        void SetEndStateID( UUID const &endStateID );
+
+        // Switch the start and end states
+        void InvertDirection();
+
         // Get the conduit arrow color
-        virtual Color GetConduitColor( NodeGraph::DrawContext const& ctx, UserContext* pUserContext, TBitFlags<NodeVisualState> visualState ) const;
+        // Note, if you return transparent then we will use the default colors from the graph view in terms of selection/hover
+        virtual Color GetConduitColor( UserContext* pUserContext ) const { return Colors::Transparent; }
 
         // Conduit specific draw extra controls function, that provides the start and end points of the conduit
         virtual void DrawExtraControls( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext, ImVec2 const& startPoint, ImVec2 const& endPoint ) {}
@@ -99,12 +109,15 @@ namespace EE::NodeGraph
         //-------------------------------------------------------------------------
 
         bool DoesTransitionConduitExist( StateNode const* pStartState, StateNode const* pEndState ) const;
+        bool DoesTransitionConduitExist( UUID const& startStateID, UUID const &endStateID ) const;
         bool CanCreateTransitionConduit( StateNode const* pStartState, StateNode const* pEndState ) const;
+        bool CanCreateTransitionConduit( UUID const &startStateID, UUID const &endStateID ) const;
         virtual TransitionConduitNode* CreateTransitionConduit( StateNode const* pStartState, StateNode const* pEndState ) = 0;
+
 
     protected:
 
-        virtual void PostDeserialize() override;
+        virtual void PostDeserialize( TypeSystem::TypeRegistry const& typeRegistry ) override;
 
         virtual BaseNode const* GetMostSignificantNode() const override { return FindNode( m_entryStateID ); }
 

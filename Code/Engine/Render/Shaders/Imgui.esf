@@ -1,0 +1,86 @@
+
+#include "Base/Render/RHI.esh"
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+struct ImguiVertex
+{
+    float2                      m_position;
+    float2                      m_uv;
+    uint                        m_packedColor;
+};
+
+struct ImguiConstantBuffer
+{
+    float4x4                    m_projectionMatrix;
+    
+    uint                        m_vertexBuffer          : 16;
+    uint                        m_padding               : 16;
+};
+
+struct ImguiRootConstants
+{
+    uint                        m_vertexOffset;
+
+    uint                        m_colorSampler          : 16;
+    uint                        m_colorTexture          : 16;
+};
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#ifndef __cplusplus
+
+ESF_PARAMETER string ShaderType = "Surface";
+ESF_PARAMETER bool   ShowInResourceEditor = false;
+
+struct PS_INPUT
+{
+    float4                      m_position   : SV_POSITION;
+    float2                      m_uv         : TEXCOORD0;
+    float4                      m_color      : COLOR0;
+};
+
+EE_DECLARE_ROOT_CONSTANTS( ImguiRootConstants, b0, space0 );
+EE_DECLARE_ROOT_CBV( ImguiConstantBuffer, b1, space0 );
+
+#define ImguiRootSignature  EE_BEGIN_ROOT_SIGNATURE                                 \
+                            "CBV( b0, space = 0 ),"                                 \
+                            "RootConstants( b1, num32BitConstants = 2, space = 0),"
+
+[RootSignature( ImguiRootSignature )]
+PS_INPUT VS_main( uint vertexID : SV_VertexID )
+{
+    StructuredBuffer<ImguiVertex>   vertexBuffer    = GetBuffer( RootCBV.m_vertexBuffer );
+    ImguiVertex                     vertex          = vertexBuffer[RootConstants.m_vertexOffset + vertexID];
+    
+    float4 unpackedColor = float4(
+        ( ( vertex.m_packedColor & 0xFF ) ),
+        ( ( vertex.m_packedColor & 0xFF00 ) >> 8 ),
+        ( ( vertex.m_packedColor & 0xFF0000 ) >> 16 ),
+        ( ( vertex.m_packedColor & 0xFF000000 ) >> 24 ) ) * ( 1.0 / 255.0 );
+    
+    PS_INPUT output;
+    output.m_position   = mul( RootCBV.m_projectionMatrix, float4( vertex.m_position, 0.0, 1.0 ) );
+    output.m_uv         = vertex.m_uv;
+    output.m_color      = unpackedColor;
+    return output;
+}
+
+[RootSignature( ImguiRootSignature )]
+#ifdef PERMUTATION_DEPTH_ONLY
+void PS_main(PS_INPUT input)
+#else
+float4 PS_main( PS_INPUT input ) : SV_TARGET
+#endif
+{
+    SamplerState samplerState   = GetSamplerState( RootConstants.m_colorSampler );
+    Texture2D colorTexture      = GetTexture( RootConstants.m_colorTexture );
+    
+    float4 color = pow( input.m_color, 2.2 ) * colorTexture.Sample( samplerState, input.m_uv );
+    
+    #ifndef PERMUTATION_DEPTH_ONLY
+    return color;
+    #endif
+}
+
+#endif

@@ -9,13 +9,70 @@
 
 namespace EE::Animation
 {
+    void AnimationClipNode::SampleEvents( GraphContext &context, PoseNode* pSourceNode, AnimationClip const* pAnimation, Percentage fromTime, Percentage toTime, bool shouldPlayInReverse )
+    {
+        EE_ASSERT( toTime >= fromTime );
+        bool const isFromActiveBranch = ( context.m_branchState == BranchState::Active );
+        bool const includeTrailingEdge = ( toTime == 1.0f );
+
+        //-------------------------------------------------------------------------
+
+        auto AddSampledEvent = [&] ( Event const *pEvent )
+        {
+            Percentage percentageThroughEvent = 1.0f;
+
+            if ( pEvent->IsDurationEvent() )
+            {
+                percentageThroughEvent = pEvent->GetTimeRange().GetPercentageThroughClamped( toTime );
+                EE_ASSERT( percentageThroughEvent <= 1.0f );
+
+                if ( shouldPlayInReverse )
+                {
+                    percentageThroughEvent = 1.0f - percentageThroughEvent;
+                }
+            }
+
+            Seconds const eventDuration = pAnimation->GetDuration() * pEvent->GetDuration().ToFloat();
+            context.GetSampledEventsBuffer()->EmplaceAnimationEvent( pSourceNode->GetNodePath( context ), pEvent, percentageThroughEvent, eventDuration, isFromActiveBranch );
+        };
+
+        //-------------------------------------------------------------------------
+
+        for ( auto const &pEvent : pAnimation->GetEvents() )
+        {
+            // Events are stored sorted by time so as soon as we reach an event after the end of the time range, we're done
+            if ( pEvent->GetStartTime() > toTime )
+            {
+                break;
+            }
+
+            // Perform a [from,to) check for any events
+            if ( FloatRange( fromTime, toTime ).Overlaps( pEvent->GetTimeRange() ) )
+            {
+                if ( includeTrailingEdge )
+                {
+                    AddSampledEvent( pEvent );
+                }
+                else // Exclude trailing edge
+                {
+                    if ( pEvent->GetStartTime() != toTime )
+                    {
+                        AddSampledEvent( pEvent );
+                    }
+                }
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     void AnimationClipNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
     {
         auto pNode = CreateNode<AnimationClipNode>( context, options );
         context.SetOptionalNodePtrFromIndex( m_playInReverseValueNodeIdx, pNode->m_pPlayInReverseValueNode );
         context.SetOptionalNodePtrFromIndex( m_resetTimeValueNodeIdx, pNode->m_pResetTimeValueNode );
 
-        pNode->m_pAnimation = context.GetResource<AnimationClip>( m_dataSlotIdx );
+        pNode->m_pAnimation = context.GetResourceForSlot<AnimationClip>( m_dataSlotIdx );
 
         //-------------------------------------------------------------------------
 
@@ -95,6 +152,8 @@ namespace EE::Animation
 
         m_shouldSampleRootMotion = pDefinition->m_sampleRootMotion;
         m_shouldPlayInReverse = false;
+        m_isFirstUpdate = true;
+        m_hasLooped = false;
     }
 
     void AnimationClipNode::ShutdownInternal( GraphContext& context )
@@ -124,6 +183,8 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        m_hasLooped = false;
+
         // Synchronized Update
         if ( pUpdateRange != nullptr )
         {
@@ -142,9 +203,14 @@ namespace EE::Animation
             }
             else // Regular time update
             {
-                m_previousTime = GetSyncTrack().GetPercentageThrough( pUpdateRange->m_startTime );
-                m_currentTime = GetSyncTrack().GetPercentageThrough( pUpdateRange->m_endTime );
-                m_loopCount = 0;
+                SyncTrack const& syncTrack = GetSyncTrack();
+                m_previousTime = syncTrack.GetPercentageThrough( pUpdateRange->m_startTime );
+                m_currentTime = syncTrack.GetPercentageThrough( pUpdateRange->m_endTime );
+
+                if ( m_currentTime < m_previousTime )
+                {
+                    m_hasLooped = true;
+                }
             }
         }
         else // Unsynchronized Update
@@ -177,8 +243,16 @@ namespace EE::Animation
 
             if ( m_pAnimation->IsSingleFrameAnimation() )
             {
-                m_previousTime = 1.0f;
-                m_currentTime = 1.0f;
+                if ( m_isFirstUpdate )
+                {
+                    m_previousTime = 0.0f;
+                    m_currentTime = 1.0f;
+                }
+                else
+                {
+                    m_previousTime = 1.0f;
+                    m_currentTime = 1.0f;
+                }
             }
             else
             {
@@ -198,7 +272,7 @@ namespace EE::Animation
                     if ( m_currentTime > 1 )
                     {
                         m_currentTime = m_currentTime.GetNormalizedTime();
-                        m_loopCount++;
+                        m_hasLooped = true;
                     }
                 }
             }
@@ -207,66 +281,91 @@ namespace EE::Animation
         return CalculateResult( context );
     }
 
-    GraphPoseNodeResult AnimationClipNode::CalculateResult( GraphContext& context ) const
+    GraphPoseNodeResult AnimationClipNode::CalculateResult( GraphContext& context )
     {
         EE_ASSERT( m_pAnimation != nullptr );
         EE_ASSERT( m_currentTime.ToFloat() >= 0.0f && m_currentTime.ToFloat() <= 1.0f );
 
         GraphPoseNodeResult result;
-        result.m_sampledEventRange = context.GetEmptySampledEventRange();
 
-        // Events
+        // Time
         //-------------------------------------------------------------------------
-
-        bool const isFromActiveBranch = ( context.m_branchState == BranchState::Active );
 
         Percentage actualAnimationSampleStartTime = m_previousTime;
         Percentage actualAnimationSampleEndTime = m_currentTime;
 
         // Invert times and swap the start and end times to create the correct sampling range for events
-        TInlineVector<Event const*, 10> sampledAnimationEvents;
         if ( m_shouldPlayInReverse )
         {
             actualAnimationSampleEndTime = 1.0f - m_currentTime;
             actualAnimationSampleStartTime = 1.0f - m_previousTime;
-            m_pAnimation->GetEventsForRange( actualAnimationSampleEndTime, actualAnimationSampleStartTime, sampledAnimationEvents );
+        }
+
+        // Events
+        //-------------------------------------------------------------------------
+
+        SampledEventsBuffer *pSampledEventsBuffer = context.GetSampledEventsBuffer();
+        result.m_sampledEventRange = context.GetEmptySampledEventRange();
+
+        Percentage const eventSampleStartTime = m_shouldPlayInReverse ? actualAnimationSampleEndTime : actualAnimationSampleStartTime;
+        Percentage const eventSampleEndTime = m_shouldPlayInReverse ? actualAnimationSampleStartTime : actualAnimationSampleEndTime;
+
+        // Get raw events
+        if ( m_hasLooped )
+        {
+            SampleEvents( context, this, m_pAnimation, eventSampleStartTime, 1.0f, m_shouldPlayInReverse );
+            SampleEvents( context, this, m_pAnimation, 0.0f, eventSampleEndTime, m_shouldPlayInReverse );
+
+            // Remove any duration events that are duplicated
+            // This can occur for really long duration events that end up getting sampled in both calls to the sampled event functions
+            int32_t const nStartEventIdx = result.m_sampledEventRange.m_startIdx;
+            int32_t const nEndEventIdx = pSampledEventsBuffer->GetNumSampledEvents() - 1;
+            for ( int32_t i = nEndEventIdx; i >= nStartEventIdx; i-- )
+            {
+                for ( int32_t j = nStartEventIdx; j < i; j++ )
+                {
+                    if ( pSampledEventsBuffer->m_sampledEvents[i] == pSampledEventsBuffer->m_sampledEvents[j] )
+                    {
+                        pSampledEventsBuffer->m_sampledEvents.erase( pSampledEventsBuffer->m_sampledEvents.begin() + j );
+                        break;
+                    }
+                }
+            }
         }
         else
         {
-            m_pAnimation->GetEventsForRange( actualAnimationSampleStartTime, actualAnimationSampleEndTime, sampledAnimationEvents );
+            SampleEvents( context, this, m_pAnimation, eventSampleStartTime, eventSampleEndTime, m_shouldPlayInReverse );
         }
 
-        // Snap to frame settings
+        // Sample graph events
+        auto pDefinition = GetDefinition<AnimationClipNode>();
+        SourcePath const sourcePath = GetNodePath( context );
+        for ( StringID const& ID : pDefinition->m_graphEvents )
+        {
+            context.GetSampledEventsBuffer()->EmplaceGraphEvent( sourcePath, GraphEventType::Generic, ID, context.m_branchState == BranchState::Active );
+        }
+
+        result.m_sampledEventRange.m_endIdx = context.GetSampledEventsBuffer()->GetNumSampledEvents();
+
+        // Check for the Frame snap events
+        //-------------------------------------------------------------------------
+
         bool shouldSnapToFrame = false;
         SnapToFrameEvent::SelectionMode frameSelectionMode = SnapToFrameEvent::SelectionMode::Floor;
 
-        // Post-process sampled events
-        for ( auto pEvent : sampledAnimationEvents )
+        for ( int16_t evtIdx = result.m_sampledEventRange.m_startIdx; evtIdx < result.m_sampledEventRange.m_endIdx; evtIdx++ )
         {
-            Percentage percentageThroughEvent = 1.0f;
-
-            if ( pEvent->IsDurationEvent() )
+            SampledEvent const &evt = context.GetSampledEventsBuffer()->GetEvent( evtIdx );
+            if ( evt.IsAnimationEvent() )
             {
-                Seconds const currentAnimTimeSeconds( m_pAnimation->GetDuration() * actualAnimationSampleEndTime.ToFloat() );
-                percentageThroughEvent = pEvent->GetTimeRange().GetPercentageThroughClamped( currentAnimTimeSeconds );
-                EE_ASSERT( percentageThroughEvent <= 1.0f );
-
-                if ( m_shouldPlayInReverse )
+                if ( SnapToFrameEvent const *pSnapFrameEvent = evt.TryGetEvent<SnapToFrameEvent>() )
                 {
-                    percentageThroughEvent = 1.0f - percentageThroughEvent;
+                    shouldSnapToFrame = true;
+                    frameSelectionMode = pSnapFrameEvent->GetFrameSelectionMode();
+                    break;
                 }
             }
-
-            if ( auto pSnapFrameEvent = TryCast<SnapToFrameEvent>( pEvent ) )
-            {
-                shouldSnapToFrame = true;
-                frameSelectionMode = pSnapFrameEvent->GetFrameSelectionMode();
-            }
-
-            context.m_pSampledEventsBuffer->EmplaceAnimationEvent( GetNodeIndex(), pEvent, percentageThroughEvent, isFromActiveBranch );
         }
-
-        result.m_sampledEventRange.m_endIdx = context.m_pSampledEventsBuffer->GetNumSampledEvents();
 
         // Root Motion
         //-------------------------------------------------------------------------
@@ -293,7 +392,7 @@ namespace EE::Animation
             }
 
             #if EE_DEVELOPMENT_TOOLS
-            context.GetRootMotionDebugger()->RecordSampling( GetNodeIndex(), result.m_rootMotionDelta );
+            context.GetRootMotionDebugger()->RecordSampling( GetNodePath( context ), result.m_rootMotionDelta );
             #endif
         }
 
@@ -309,23 +408,34 @@ namespace EE::Animation
             sampleTime = m_pAnimation->GetPercentageThrough( frameIndex );
         }
 
-        result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::SampleTask>( GetNodeIndex(), m_pAnimation, sampleTime );
+        result.m_taskIdx = context.GetTaskSystem()->RegisterTask<SampleTask>( GetNodePath( context ), m_pAnimation, sampleTime );
+
+        //-------------------------------------------------------------------------
+
+        m_isFirstUpdate = false;
+
         return result;
     }
 
-    #if EE_DEVELOPMENT_TOOLS
     void AnimationClipNode::RecordGraphState( RecordedGraphState& outState )
     {
         PoseNode::RecordGraphState( outState );
         outState.WriteValue( m_shouldPlayInReverse );
         outState.WriteValue( m_shouldSampleRootMotion );
+        outState.WriteValue( m_isFirstUpdate );
     }
 
-    void AnimationClipNode::RestoreGraphState( RecordedGraphState const& inState )
+    bool AnimationClipNode::RestoreGraphState( RecordedGraphState const& inState )
     {
-        PoseNode::RestoreGraphState( inState );
+        if ( !PoseNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
         inState.ReadValue( m_shouldPlayInReverse );
         inState.ReadValue( m_shouldSampleRootMotion );
+        inState.ReadValue( m_isFirstUpdate );
+
+        return true;
     }
-    #endif
 }

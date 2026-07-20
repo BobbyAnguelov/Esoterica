@@ -1,5 +1,5 @@
 #include "Component_StaticMesh.h"
-#include "Engine/Entity/EntityLog.h"
+#include "Engine/Render/Device/DeviceRenderWorld.h"
 
 //-------------------------------------------------------------------------
 
@@ -10,20 +10,75 @@ namespace EE::Render
         if ( HasMeshResourceSet() )
         {
             OBB scaledMeshBounds = m_mesh->GetBounds();
-            scaledMeshBounds.m_center *= m_localScale;
-            scaledMeshBounds.m_extents *= m_localScale;
+            scaledMeshBounds.m_center *= GetWorldNonUniformScale();
+            scaledMeshBounds.m_extents *= GetWorldNonUniformScale();
             return scaledMeshBounds;
         }
-        else
-        {
-            return MeshComponent::CalculateLocalBounds();
-        }
+
+        return MeshComponent::CalculateLocalBounds();
     }
 
-    TVector<TResourcePtr<Render::Material>> const& StaticMeshComponent::GetDefaultMaterials() const
+    bool StaticMeshComponent::GetAttachmentSocketTransformInternal( StringID socketID, Transform& outSocketWorldTransform ) const
     {
-        EE_ASSERT( IsInitialized() && HasMeshResourceSet() );
-        return m_mesh->GetMaterials();
+        EE_ASSERT( socketID.IsValid() );
+
+        outSocketWorldTransform = GetWorldTransform();
+
+        if ( m_mesh.IsSet() && m_mesh.IsLoaded() )
+        {
+            auto const pSocket = m_mesh->GetSocket( socketID );
+            if ( pSocket != nullptr )
+            {
+                outSocketWorldTransform = pSocket->m_offset * outSocketWorldTransform;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void StaticMeshComponent::OnWorldTransformUpdated()
+    {
+        if ( !m_meshInstanceProxy.IsValid() )
+        {
+            return;
+        }
+
+        m_meshInstanceRootProxy.WriteRootTransform( GetWorldTransform(), GetWorldNonUniformScale() );
+    }
+
+    void StaticMeshComponent::OnNonUniformScaleChanged()
+    {
+        if ( !m_meshInstanceProxy.IsValid() )
+        {
+            return;
+        }
+
+        m_meshInstanceRootProxy.WriteRootTransform( GetWorldTransform(), GetWorldNonUniformScale() );
+    }
+
+    void StaticMeshComponent::OnRenderInstanceDataUpdated()
+    {
+        GetInstanceDataUpdateSignal()->Send( this );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void StaticMeshComponent::QueueInitializeMeshInstance( DeviceRenderWorld* pDeviceRenderWorld )
+    {
+        EE_ASSERT( m_meshInstanceRootProxy.IsValid() );
+        EE_ASSERT( m_meshInstanceProxy.IsValid() );
+
+        pDeviceRenderWorld->QueueMeshInstanceInitialize
+        (
+            uint32_t( m_meshInstanceProxy.m_instanceHandle.m_offset ),
+            uint32_t( m_meshInstanceRootProxy.m_instanceHandle.m_offset ),
+            GetMesh(),
+            m_materialOverrides
+        );
+
+        m_meshInstanceRootProxy.WriteRootTransform( GetWorldTransform(), GetWorldNonUniformScale() );
+        m_meshInstanceProxy.WriteLocalTransforms( GetMesh()->GetSubmeshLocalTransforms() );
     }
 
     //-------------------------------------------------------------------------
@@ -31,11 +86,11 @@ namespace EE::Render
     #if EE_DEVELOPMENT_TOOLS
     void StaticMeshComponent::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
     {
-        MeshComponent::PostPropertyEdit( pPropertyEdited );
+        if ( Math::IsNearZero( m_nonUniformScale.m_x ) ) m_nonUniformScale.m_x = 0.001f;
+        if ( Math::IsNearZero( m_nonUniformScale.m_y ) ) m_nonUniformScale.m_y = 0.001f;
+        if ( Math::IsNearZero( m_nonUniformScale.m_z ) ) m_nonUniformScale.m_z = 0.001f;
 
-        if ( Math::IsNearZero( m_localScale.m_x ) ) m_localScale.m_x = 0.1f;
-        if ( Math::IsNearZero( m_localScale.m_y ) ) m_localScale.m_y = 0.1f;
-        if ( Math::IsNearZero( m_localScale.m_z ) ) m_localScale.m_z = 0.1f;
+        MeshComponent::PostPropertyEdit( pPropertyEdited );
     }
     #endif
 }

@@ -170,6 +170,7 @@ namespace EE::NodeGraph
             for ( int32_t n = 1; n < paletteSize; n++ )
             {
                 ImGui::ColorConvertHSVtoRGB( n / 31.0f, 0.8f, 0.8f, palette[n].x, palette[n].y, palette[n].z );
+                palette[n].w = 1.0f;
             }
             wasPaletteInitialized = true;
         }

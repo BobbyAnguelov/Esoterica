@@ -1,15 +1,13 @@
 #pragma once
 #include "EngineTools/Resource/ResourceCompiler.h"
-#include "CompiledResourceDatabase.h"
+#include "EngineTools/Resource/ResourceCompilationDatabase.h"
+#include "EngineTools/Resource/ResourceCompilerNetworkMessages.h"
+#include "Base/Network/Clients/NetworkClient_WebSockets.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Settings/SettingsRegistry.h"
-
-//-------------------------------------------------------------------------
-
-namespace EE
-{
-    struct CommandLineArgumentParser;
-}
+#include "Base/Threading/TaskSystem.h"
+#include "Base/Threading/Threading.h"
+#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
@@ -22,68 +20,73 @@ namespace EE::Resource
 
     class ResourceCompilerApplication
     {
-        struct CompileDependencyNode
+        constexpr static float const s_identificationResendCooldownSeconds = 1.0f;
+        constexpr static float const s_heartbeatSendIntervalSeconds = 1.0f;
+        constexpr static float const s_maxUpToDateLoopProcessingTimeMilliseconds = 60.0f;
+        constexpr static float const s_maxCompletionLoopProcessingTimeMilliseconds = 60.0f;
+
+        struct Request : public CompileContext
         {
-            void Reset();
+            using CompileContext::CompileContext;
 
-            // Destroy all allocated dependency nodes
-            void DestroyDependencies();
-
-            // Is this a resource we can actually compile or is it just a data file dependency
-            bool IsCompileableResource() const { return m_compilerVersion >= 0; }
-
-            // Check if this resource is up-to-date, checks existence of source and target files as well as their modified timestamps
-            bool IsUpToDate() const;
-
-        public:
-
-            ResourceID                              m_ID;
-            FileSystem::Path                        m_sourcePath;
-            FileSystem::Path                        m_targetPath;
-            bool                                    m_sourceExists = false;
-            bool                                    m_targetExists = false;
-            bool                                    m_errorOccurredReadingDependencies = true;
-            bool                                    m_forceRecompile = false;
-            int32_t                                 m_compilerVersion = -1;
-            CompiledResourceRecord                  m_compiledRecord;
-            uint64_t                                m_timestamp = 0;
-            uint64_t                                m_combinedHash = 0; // The sum of the source timestamp for this resource and all dependency timestamps
-
-            CompileDependencyNode*                  m_pParentNode = nullptr;
-            TVector<CompileDependencyNode*>         m_dependencies;
+            UUID                                        m_sourceTaskID;
+            CountdownTimer<PlatformClock>               m_heartbeatTimer;
         };
 
-    public:
+        //-------------------------------------------------------------------------
 
-        static bool ShouldCheckCompileDependenciesForResourceType( ResourceID const& resourceID );
+        struct AsyncCompileTask : public IPinnedTask
+        {
+            AsyncCompileTask( ResourceCompilerApplication* pApplication ) : IPinnedTask( 1 ), m_pApp( pApplication ) { EE_ASSERT( m_pApp != nullptr ); }
+            virtual void Execute() override final;
+
+        private:
+
+            ResourceCompilerApplication* m_pApp = nullptr;
+        };
 
     public:
 
         ResourceCompilerApplication();
         ~ResourceCompilerApplication();
 
-        bool Initialize( CommandLineArgumentParser& argParser, FileSystem::Path const& iniFilePath );
+        bool Initialize( struct CommandLine& argParser, FileSystem::Path const& iniFilePath );
         void Shutdown();
 
-        CompilationResult Run();
+        int32_t Run();
 
     private:
 
-        bool BuildCompileDependencyTree( ResourceID const& resourceID );
-        bool TryReadCompileDependencies( ResourceID const& resourceID, TVector<DataPath>& outDependencies );
-        bool FillCompileDependencyNode( CompileDependencyNode* pNode, DataPath const& resourceID );
+        CompilationResult RunStandaloneCompile();
+
+        bool RunWorker();
+        void HandleNetworkMessage( Network::Message const& message );
 
     private:
 
-        TypeSystem::TypeRegistry                m_typeRegistry;
-        Settings::SettingsRegistry              m_settingsRegistry;
-        CompiledResourceDatabase                m_compiledResourceDB;
-        CompilerRegistry*                       m_pCompilerRegistry = nullptr;
-        CompileContext*                         m_pCompileContext = nullptr;
-        bool                                    m_forceCompilation = false;
+        TypeSystem::TypeRegistry                        m_typeRegistry;
+        SettingsRegistry                                m_settingsRegistry;
+        CompiledResourceDatabase                        m_compiledResourceDB;
+        CompilerRegistry*                               m_pCompilerRegistry = nullptr;
+        Resource::ResourceSettings const*               m_pSettings = nullptr;
 
-        TVector<ResourceID>                     m_uniqueCompileDependencies;
-        CompileDependencyNode                   m_compileDependencyTreeRoot;
-        String                                  m_errorMessage;
+        // Standalone compilation
+        bool                                            m_isStandaloneCompile = false;
+        ResourceID                                      m_resourceToCompile;
+        bool                                            m_isForPackagedBuild = false;
+        bool                                            m_forceCompilation = false;
+
+        // Worker mode
+        int64_t                                         m_uniqueID = 0;
+        Network::Client_WS                              m_networkClient;
+        TaskSystem                                      m_taskSystem = TaskSystem( 1 );
+        AsyncCompileTask                                m_asyncCompileTask = AsyncCompileTask( this );
+        TVector<Request*>                               m_requests;
+        TVector<Request*>                               m_upToDateCheckQueue;
+        Threading::TLockFreeQueue<Request*>             m_compileQueue;
+        Threading::TLockFreeQueue<Request*>             m_completedQueue;
+        NetworkResourceCompilerRequest                  m_requestHeartbeatsMessageData;
+        NetworkResourceCompilerResponse                 m_responseMessageData;
+        CountdownTimer<PlatformClock>                   m_IDTimer;
     };
 }

@@ -1,0 +1,1 @@
+taskkill /F /FI "IMAGENAME eq Esoterica*"

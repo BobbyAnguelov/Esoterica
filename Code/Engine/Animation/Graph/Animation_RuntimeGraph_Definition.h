@@ -8,14 +8,14 @@
 
 namespace EE::Animation
 {
-    using ResourceLUT = THashMap<uint32_t, Resource::ResourcePtr>;
+    using ResourceLUT = THashMap<uint64_t, Resource::ResourcePtr>;
 
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API GraphDefinition final : public Resource::IResource
     {
-        EE_RESOURCE( 'ag', "Animation Graph Definition", 71, false );
-        EE_SERIALIZE( m_variationID, m_skeleton, m_persistentNodeIndices, m_instanceNodeStartOffsets, m_instanceRequiredMemory, m_instanceRequiredAlignment, m_rootNodeIdx, m_controlParameterIDs, m_virtualParameterIDs, m_virtualParameterNodeIndices, m_referencedGraphSlots, m_externalGraphSlots, m_resources );
+        EE_RESOURCE( "ag", "Animation Graph Definition", Colors::Plum, 80, false );
+        EE_SERIALIZE( m_variationID, m_skeleton, m_persistentNodeIndices, m_instanceNodeStartOffsets, m_instanceRequiredMemory, m_instanceRequiredAlignment, m_rootNodeIdx, m_controlParameterIDs, m_virtualParameterIDs, m_virtualParameterNodeIndices, m_internalGraphSlots, m_externalGraphSlots, m_resources );
 
         friend class AnimationGraphCompiler;
         friend class GraphDefinitionCompiler;
@@ -35,15 +35,26 @@ namespace EE::Animation
             StringID                                m_slotID;
         };
 
-        struct ReferencedGraphSlot
+        struct InternalGraphSlot
         {
             EE_SERIALIZE( m_nodeIdx, m_dataSlotIdx );
 
-            ReferencedGraphSlot() = default;
-            ReferencedGraphSlot( int16_t idx, int16_t dataSlotIdx ) : m_nodeIdx( idx ), m_dataSlotIdx( dataSlotIdx ) { EE_ASSERT( idx != InvalidIndex ); }
+            InternalGraphSlot() = default;
+            InternalGraphSlot( int16_t idx, int16_t dataSlotIdx ) : m_nodeIdx( idx ), m_dataSlotIdx( dataSlotIdx ) { EE_ASSERT( idx != InvalidIndex ); }
 
             int16_t                                 m_nodeIdx = InvalidIndex;
             int16_t                                 m_dataSlotIdx = InvalidIndex;
+        };
+
+        struct ExternalPoseSlot
+        {
+            EE_SERIALIZE( m_nodeIdx, m_slotID );
+
+            ExternalPoseSlot() = default;
+            ExternalPoseSlot( int16_t idx, StringID ID ) : m_nodeIdx( idx ), m_slotID( ID ) { EE_ASSERT( idx != InvalidIndex && ID.IsValid() ); }
+
+            int16_t                                 m_nodeIdx = InvalidIndex;
+            StringID                                m_slotID;
         };
 
     public:
@@ -61,15 +72,19 @@ namespace EE::Animation
             return m_skeleton.GetPtr();
         }
 
+        inline ResourceID const& GetPrimarySkeletonResourceID() const { return m_skeleton.GetResourceID(); }
+
+        TVector<InternalGraphSlot> const &GetInternalGraphSlots() const { return m_internalGraphSlots; }
+        TVector<ExternalGraphSlot> const &GetExternalGraphSlots() const { return m_externalGraphSlots; }
+        TVector<ExternalPoseSlot> const &GetExternalPoseSlots() const { return m_externalPoseSlots; }
+
         // Get the flattened resource lookup table
         ResourceLUT const& GetResourceLookupTable() const { return m_resourceLUT; }
 
-        #if EE_DEVELOPMENT_TOOLS
-        String const& GetNodePath( int16_t nodeIdx ) const { return m_nodePaths[nodeIdx]; }
-        #endif
+        int32_t GetNumSlots() const { return (int32_t) m_resources.size(); }
 
         template<typename T>
-        inline T const* GetResource( int16_t slotIdx ) const
+        inline T const* GetResourceForSlot( int16_t slotIdx ) const
         {
             if ( slotIdx == InvalidIndex )
             {
@@ -85,6 +100,26 @@ namespace EE::Animation
 
             return nullptr;
         }
+
+        inline ResourceID GetResourceIDForSlot( int16_t slotIdx ) const
+        {
+            if ( slotIdx != InvalidIndex )
+            {
+                EE_ASSERT( slotIdx >= 0 && slotIdx < m_resources.size() );
+                if ( m_resources[slotIdx].IsSet() )
+                {
+                    return m_resources[slotIdx].GetResourceID();
+                }
+            }
+
+            return ResourceID();
+        }
+
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        String const& GetNodePath( int16_t nodeIdx ) const { return m_nodePaths[nodeIdx]; }
+        #endif
 
     protected:
 
@@ -102,8 +137,9 @@ namespace EE::Animation
         TVector<StringID>                           m_controlParameterIDs;
         TVector<StringID>                           m_virtualParameterIDs;
         TVector<int16_t>                            m_virtualParameterNodeIndices;
-        TVector<ReferencedGraphSlot>                m_referencedGraphSlots;
+        TVector<InternalGraphSlot>                  m_internalGraphSlots;
         TVector<ExternalGraphSlot>                  m_externalGraphSlots;
+        TVector<ExternalPoseSlot>                   m_externalPoseSlots;
 
         #if EE_DEVELOPMENT_TOOLS
         TVector<String>                             m_nodePaths;

@@ -3,8 +3,7 @@
 #include "EngineTools/Widgets/Pickers/DataPathPicker.h"
 #include "EngineTools/Widgets/Pickers/ResourcePickers.h"
 #include "EngineTools/Widgets/Pickers/TypeInfoPicker.h"
-#include "EngineTools/Widgets/CurveEditor.h"
-#include "Base/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiCurveEditor.h"
 #include "Base/Resource/ResourcePtr.h"
 #include "Base/TypeSystem/PropertyInfo.h"
 #include "Base/TypeSystem/EnumInfo.h"
@@ -89,17 +88,22 @@ namespace EE::PG
             ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x );
             if ( ImGui::BeginCombo( "##enumCombo", currentValueStr.c_str() ) )
             {
-                for ( auto const& enumValue : m_pEnumInfo->m_constants )
+                for ( EnumInfo::ConstantInfo const& constantInfo : m_pEnumInfo->m_constants )
                 {
-                    bool const isSelected = ( enumValue.m_value == m_value_imgui );
-                    if ( ImGui::Selectable( enumValue.m_ID.c_str(), isSelected ) )
+                    if ( constantInfo.m_isHiddenInTools )
                     {
-                        m_value_imgui = enumValue.m_value;
+                        continue;
                     }
 
-                    if ( !enumValue.m_description.empty() )
+                    bool const isSelected = ( constantInfo.m_value == m_value_imgui );
+                    if ( ImGui::Selectable( constantInfo.m_ID.c_str(), isSelected ) )
                     {
-                        ImGuiX::ItemTooltip( enumValue.m_description.c_str() );
+                        m_value_imgui = constantInfo.m_value;
+                    }
+
+                    if ( !constantInfo.m_description.empty() )
+                    {
+                        ImGuiX::ItemTooltip( constantInfo.m_description.c_str() );
                     }
 
                     // Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
@@ -123,37 +127,37 @@ namespace EE::PG
             {
                 case CoreTypeID::Uint8:
                 {
-                    *reinterpret_cast<uint8_t*>( m_pPropertyInstance ) = (uint8_t)m_value_cached;
+                    *reinterpret_cast<uint8_t*>( m_pPropertyInstance ) = (uint8_t) m_value_cached;
                 }
                 break;
 
                 case CoreTypeID::Int8:
                 {
-                    *reinterpret_cast<int8_t*>( m_pPropertyInstance ) = (int8_t)m_value_cached;
+                    *reinterpret_cast<int8_t*>( m_pPropertyInstance ) = (int8_t) m_value_cached;
                 }
                 break;
 
                 case CoreTypeID::Uint16:
                 {
-                    *reinterpret_cast<uint16_t*>( m_pPropertyInstance ) = (uint16_t)m_value_cached;
+                    *reinterpret_cast<uint16_t*>( m_pPropertyInstance ) = (uint16_t) m_value_cached;
                 }
                 break;
 
                 case CoreTypeID::Int16:
                 {
-                    *reinterpret_cast<int16_t*>( m_pPropertyInstance ) = (int16_t)m_value_cached;
+                    *reinterpret_cast<int16_t*>( m_pPropertyInstance ) = (int16_t) m_value_cached;
                 }
                 break;
 
                 case CoreTypeID::Uint32:
                 {
-                    *reinterpret_cast<uint32_t*>( m_pPropertyInstance ) = (uint32_t)m_value_cached;
+                    *reinterpret_cast<uint32_t*>( m_pPropertyInstance ) = (uint32_t) m_value_cached;
                 }
                 break;
 
                 case CoreTypeID::Int32:
                 {
-                    *reinterpret_cast<int32_t*>( m_pPropertyInstance ) = (int32_t)m_value_cached;
+                    *reinterpret_cast<int32_t*>( m_pPropertyInstance ) = (int32_t) m_value_cached;
                 }
                 break;
 
@@ -287,9 +291,9 @@ namespace EE::PG
 
     private:
 
-        EnumInfo const*         m_pEnumInfo = nullptr;
-        int64_t                 m_value_cached;
-        int64_t                 m_value_imgui;
+        EnumInfo const*     m_pEnumInfo = nullptr;
+        int64_t               m_value_cached;
+        int64_t               m_value_imgui;
     };
 
     //-------------------------------------------------------------------------
@@ -372,7 +376,7 @@ namespace EE::PG
             outMax = std::numeric_limits<T>::max();
             mode = ClampMode::None;
 
-            EE_LOG_WARNING( "Tools", "PropertyGrid", "Invalid Min/Max meta flags for property: %s", propertyInfo.m_ID.c_str() );
+            EE_LOG_WARNING( LogCategory::Tools, "PropertyGrid", "Invalid Min/Max meta flags for property: %s", propertyInfo.m_ID.c_str() );
         }
 
         return mode;
@@ -452,8 +456,8 @@ namespace EE::PG
 
     private:
 
-        T                   m_value_imgui;
-        T                   m_value_cached;
+        T m_value_imgui;
+        T m_value_cached;
         T                   m_min;
         T                   m_max;
         ClampMode           m_clampMode = ClampMode::None;
@@ -604,7 +608,7 @@ namespace EE::PG
 
                 case CoreTypeID::Float3:
                 {
-                    if ( ImGuiX::InputFloat3( this, (Float3&)m_value_imgui ) )
+                    if ( ImGuiX::InputFloat3( this, (Float3&) m_value_imgui ) )
                     {
                         valueChanged = true;
                     }
@@ -613,7 +617,7 @@ namespace EE::PG
 
                 case CoreTypeID::Float4:
                 {
-                    if ( ImGuiX::InputFloat4( this, (Float4&)m_value_imgui ) )
+                    if ( ImGuiX::InputFloat4( this, (Float4&) m_value_imgui ) )
                     {
                         valueChanged = true;
                     }
@@ -652,8 +656,8 @@ namespace EE::PG
 
     private:
 
-        T                   m_value_imgui;
-        T                   m_value_cached;
+        T m_value_imgui;
+        T m_value_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -700,8 +704,8 @@ namespace EE::PG
 
     private:
 
-        Float4              m_value_imgui;
-        Float4              m_value_cached;
+        Float4 m_value_imgui;
+        Float4 m_value_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -718,9 +722,41 @@ namespace EE::PG
 
         virtual Result InternalUpdateAndDraw() override
         {
-            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x );
-            ImGui::ColorEdit4( "##ce", &m_value_imgui.x );
-            return ImGui::IsItemDeactivatedAfterEdit() ? Result::ValueUpdated : Result::None;
+            bool wasValueUpdated = false;
+
+            // Color Picker
+            //-------------------------------------------------------------------------
+
+            if ( ImGui::ColorButton( "##ColorButton", m_value_imgui, 0, ImVec2( ImGui::GetContentRegionAvail().x, 0 ) ) )
+            {
+                ImGui::OpenPopup( "picker" );
+                ImGui::SetNextWindowPos( ImGui::GetCurrentContext()->LastItemData.Rect.GetBL() + ImVec2( 0.0f, ImGui::GetStyle().ItemSpacing.y ) );
+            }
+
+            if ( ImGui::BeginPopup( "picker" ) )
+            {
+                ImGui::ColorPicker4( "##picker", &m_value_imgui.x, 0, &m_value_cached.x );
+                ImGui::EndPopup();
+            }
+
+            // We need to do this to only get a single edit operation
+            if ( ImGui::IsPopupOpen( ImGui::GetID( "picker" ), 0 ) )
+            {
+                if ( !m_isEditing )
+                {
+                    m_isEditing = true;
+                }
+            }
+            else
+            {
+                if ( m_isEditing )
+                {
+                    m_isEditing = false;
+                    wasValueUpdated = m_value_imgui != m_value_cached;
+                }
+            }
+
+            return wasValueUpdated ? Result::ValueUpdated : Result::None;
         }
 
         virtual void UpdatePropertyValue() override
@@ -745,8 +781,9 @@ namespace EE::PG
 
     private:
 
-        ImVec4 m_value_imgui;
-        ImVec4 m_value_cached;
+        ImVec4  m_value_imgui;
+        ImVec4  m_value_cached;
+        bool    m_isEditing = false;
     };
 
     //-------------------------------------------------------------------------
@@ -808,8 +845,8 @@ namespace EE::PG
             {
                 // We need to check the delta between the working copy and the real value since there are multiple euler representations of a given quaternion
                 Quaternion const& externalQuat = *reinterpret_cast<Quaternion*>( m_pPropertyInstance );
-                Quaternion const cachedQuat = Quaternion( EulerAngles( m_anglesInDegrees_cached ) );
-                Radians const angularDistance = Quaternion::Distance( externalQuat, cachedQuat );
+                Quaternion const  cachedQuat = Quaternion( EulerAngles( m_anglesInDegrees_cached ) );
+                Radians const     angularDistance = Quaternion::Distance( externalQuat, cachedQuat );
                 if ( angularDistance > Degrees( 0.5f ) )
                 {
                     Float3 const actualValue = externalQuat.ToEulerAngles().GetAsDegrees();
@@ -820,8 +857,8 @@ namespace EE::PG
 
     private:
 
-        Float3                m_anglesInDegrees_imgui;
-        Float3                m_anglesInDegrees_cached;
+        Float3 m_anglesInDegrees_imgui;
+        Float3 m_anglesInDegrees_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -912,8 +949,8 @@ namespace EE::PG
 
     private:
 
-        float                m_valueInDegrees_imgui;
-        float                m_valueInDegrees_cached;
+        float m_valueInDegrees_imgui;
+        float m_valueInDegrees_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -938,7 +975,7 @@ namespace EE::PG
             ImGui::InputText( "##ue", m_stringValue.data(), m_stringValue.length(), ImGuiInputTextFlags_ReadOnly );
 
             ImGui::SameLine( 0, ImGui::GetStyle().ItemSpacing.x );
-            if ( ImGui::Button( EE_ICON_COG"##Generate", ImVec2( g_iconButtonWidth, 0 ) ) )
+            if ( ImGui::Button( EE_ICON_COG "##Generate", ImVec2( g_iconButtonWidth, 0 ) ) )
             {
                 m_value_imgui = UUID::GenerateID();
                 m_stringValue = m_value_imgui.ToString();
@@ -973,9 +1010,9 @@ namespace EE::PG
 
     private:
 
-        UUID            m_value_imgui;
-        UUID            m_value_cached;
-        UUIDString      m_stringValue;
+        UUID       m_value_imgui;
+        UUID       m_value_cached;
+        UUIDString m_stringValue;
     };
 
     //-------------------------------------------------------------------------
@@ -1069,8 +1106,8 @@ namespace EE::PG
 
     private:
 
-        float                m_value_imgui;
-        float                m_value_cached;
+        float m_value_imgui;
+        float m_value_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -1096,7 +1133,7 @@ namespace EE::PG
             //-------------------------------------------------------------------------
 
             ImGui::SameLine();
-            if ( ImGui::Button( EE_ICON_PERCENT_BOX_OUTLINE"##ClampPercentage", ImVec2( g_iconButtonWidth, 0 ) ) )
+            if ( ImGui::Button( EE_ICON_PERCENT_BOX_OUTLINE "##ClampPercentage", ImVec2( g_iconButtonWidth, 0 ) ) )
             {
                 m_value_imgui = ( Percentage( m_value_imgui / 100 ).GetClamped( true ) ).ToFloat() * 100;
                 valueChanged = true;
@@ -1119,7 +1156,7 @@ namespace EE::PG
 
         virtual void HandleExternalUpdate() override
         {
-            auto actualValue = reinterpret_cast<Percentage*>( m_pPropertyInstance )->ToFloat() * 100;;
+            auto actualValue = reinterpret_cast<Percentage*>( m_pPropertyInstance )->ToFloat() * 100;
             if ( actualValue != m_value_cached )
             {
                 m_value_cached = m_value_imgui = actualValue;
@@ -1128,8 +1165,8 @@ namespace EE::PG
 
     private:
 
-        float  m_value_imgui;
-        float  m_value_cached;
+        float m_value_imgui;
+        float m_value_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -1205,8 +1242,7 @@ namespace EE::PG
                     ImGuiX::TextTooltip( "Scale" );
 
                     ImGui::TableNextColumn();
-                    ImGui::SetNextItemWidth( -1 );
-                    if ( ImGui::InputFloat( "##S", &m_scale_imgui ) )
+                    if ( ImGuiX::InputFloat( m_scale_imgui, Colors::HotPink, -1 ) )
                     {
                         m_scale_imgui = Math::IsNearZero( m_scale_imgui ) ? 0.01f : m_scale_imgui;
                         m_scale_cached = m_scale_imgui;
@@ -1251,8 +1287,8 @@ namespace EE::PG
                 auto const& matrix = reinterpret_cast<Matrix*>( m_pPropertyInstance );
 
                 Quaternion q;
-                Vector t;
-                Vector s;
+                Vector     t;
+                Vector     s;
                 matrix->Decompose( q, t, s );
 
                 m_rotation_cached = m_rotation_imgui = q.ToEulerAngles().GetAsDegrees();
@@ -1264,8 +1300,8 @@ namespace EE::PG
         virtual void HandleExternalUpdate() override
         {
             Quaternion actualQ;
-            Vector actualTranslation;
-            float actualScale = 1.0f;
+            Vector     actualTranslation;
+            float      actualScale = 1.0f;
 
             // Get actual transform values
             //-------------------------------------------------------------------------
@@ -1280,7 +1316,7 @@ namespace EE::PG
             else if ( m_coreType == CoreTypeID::Matrix )
             {
                 auto const& matrix = reinterpret_cast<Matrix*>( m_pPropertyInstance );
-                Vector vScale;
+                Vector      vScale;
                 matrix->Decompose( actualQ, actualTranslation, vScale );
                 actualScale = vScale.ToFloat();
             }
@@ -1289,7 +1325,7 @@ namespace EE::PG
             //-------------------------------------------------------------------------
 
             EulerAngles const currentRotation( m_rotation_cached );
-            Quaternion const currentQ( currentRotation );
+            Quaternion const  currentQ( currentRotation );
 
             Radians const angularDistance = Quaternion::Distance( currentQ, actualQ );
             if ( angularDistance > Degrees( 0.5f ) )
@@ -1313,13 +1349,13 @@ namespace EE::PG
 
     private:
 
-        Float3                m_rotation_imgui;
-        Float3                m_translation_imgui;
-        float                 m_scale_imgui;
+        Float3 m_rotation_imgui;
+        Float3 m_translation_imgui;
+        float  m_scale_imgui;
 
-        Float3                m_rotation_cached;
-        Float3                m_translation_cached;
-        float                 m_scale_cached;
+        Float3 m_rotation_cached;
+        Float3 m_translation_cached;
+        float  m_scale_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -1493,7 +1529,7 @@ namespace EE::PG
     private:
 
         ResourcePicker                          m_picker;
-        ResourceID                              m_value_cached;
+        ResourceID               m_value_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -1588,9 +1624,9 @@ namespace EE::PG
 
     private:
 
-        ResourceTypeID              m_value_imgui;
-        ResourceTypeID              m_value_cached;
-        String                      m_resourceTypeFriendlyName;
+        ResourceTypeID m_value_imgui;
+        ResourceTypeID m_value_cached;
+        String         m_resourceTypeFriendlyName;
     };
 
     //-------------------------------------------------------------------------
@@ -1714,7 +1750,7 @@ namespace EE::PG
             else if ( m_coreType == CoreTypeID::TBitFlags )
             {
                 // Get enum type for specific flags
-                TypeID const enumTypeID = m_propertyInfo.m_templateArgumentTypeID;
+                TypeID const    enumTypeID = m_propertyInfo.m_templateArgumentTypeID;
                 EnumInfo const* pEnumInfo = GetTypeRegistry()->GetEnumInfo( enumTypeID );
                 EE_ASSERT( pEnumInfo != nullptr );
 
@@ -1725,7 +1761,7 @@ namespace EE::PG
                 {
                     int32_t flagCount = 0;
 
-                    // For each label 
+                    // For each label
                     for ( auto const& constant : pEnumInfo->m_constants )
                     {
                         if ( ( flagCount % 2 ) == 0 )
@@ -1788,8 +1824,8 @@ namespace EE::PG
 
     private:
 
-        bool        m_values_imgui[32];
-        uint32_t    m_cachedFlags = 0;
+        bool     m_values_imgui[32];
+        uint32_t m_cachedFlags = 0;
     };
 
     //-------------------------------------------------------------------------
@@ -1836,8 +1872,8 @@ namespace EE::PG
 
     private:
 
-        char    m_buffer_imgui[256];
-        char    m_buffer_cached[256];
+        char m_buffer_imgui[256];
+        char m_buffer_cached[256];
     };
 
     //-------------------------------------------------------------------------
@@ -1865,7 +1901,7 @@ namespace EE::PG
             {
                 valueUpdated = true;
             }
-            
+
             if ( ImGui::IsItemDeactivatedAfterEdit() )
             {
                 valueUpdated = true;
@@ -1946,9 +1982,9 @@ namespace EE::PG
 
     private:
 
-        char                             m_buffer_imgui[s_bufferSize];
-        TInlineString<s_bufferSize>      m_buffer_cached;
-        TInlineString<s_bufferSize>      m_IDString;
+        char                        m_buffer_imgui[s_bufferSize];
+        TInlineString<s_bufferSize> m_buffer_cached;
+        TInlineString<s_bufferSize> m_IDString;
     };
 
     //-------------------------------------------------------------------------
@@ -1965,10 +2001,10 @@ namespace EE::PG
 
         virtual Result InternalUpdateAndDraw() override
         {
-            float const cellContentWidth = ImGui::GetContentRegionAvail().x;
-            float const elementAreaWidth = ( cellContentWidth - ImGui::GetStyle().ItemSpacing.x ) / 4;
+            float const   cellContentWidth = ImGui::GetContentRegionAvail().x;
+            float const   elementAreaWidth = ( cellContentWidth - ImGui::GetStyle().ItemSpacing.x ) / 4;
             int32_t const tagDepth = m_value_imgui.GetDepth();
-            bool valueUpdated = false;
+            bool          valueUpdated = false;
 
             //-------------------------------------------------------------------------
 
@@ -2061,9 +2097,9 @@ namespace EE::PG
 
     private:
 
-        char    m_buffers[2][255] = { {0}, {0} };
-        Tag2    m_value_imgui;
-        Tag2    m_value_cached;
+        char m_buffers[2][255] = { { 0 }, { 0 } };
+        Tag2 m_value_imgui;
+        Tag2 m_value_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -2202,9 +2238,9 @@ namespace EE::PG
 
     private:
 
-        char    m_buffers[4][255] = { {0}, {0}, {0}, {0} };
-        Tag4    m_value_imgui;
-        Tag4    m_value_cached;
+        char m_buffers[4][255] = { { 0 }, { 0 }, { 0 }, { 0 } };
+        Tag4 m_value_imgui;
+        Tag4 m_value_cached;
     };
 
     //-------------------------------------------------------------------------
@@ -2224,8 +2260,8 @@ namespace EE::PG
             bool valueUpdated = false;
 
             constexpr float const verticalOffset = 3.0f;
-            float const columnWidth = ImGui::GetColumnWidth();
-            float const cursorStartPosX = ImGui::GetCursorScreenPos().x;
+            float const           columnWidth = ImGui::GetColumnWidth();
+            float const           cursorStartPosX = ImGui::GetCursorScreenPos().x;
 
             //-------------------------------------------------------------------------
 
@@ -2254,7 +2290,7 @@ namespace EE::PG
 
             float const cursorEndPosX = ImGui::GetCursorScreenPos().x;
             float const inputWidth = ( columnWidth - ( cursorEndPosX - cursorStartPosX ) - ( ImGui::GetStyle().ItemSpacing.x * 2 ) ) / 2;
-            int32_t tmpValue = 0;
+            int32_t     tmpValue = 0;
 
             //-------------------------------------------------------------------------
 
@@ -2361,9 +2397,9 @@ namespace EE::PG
             bool valueUpdated = false;
 
             constexpr float const verticalOffset = 4.0f;
-            float const columnWidth = ImGui::GetColumnWidth();
-            float const cursorStartPosX = ImGui::GetCursorScreenPos().x;
-
+            constexpr float const fixRangeButtonWidth = 32.0f;
+            float const           columnWidth = ImGui::GetColumnWidth();
+            float const           cursorStartPosX = ImGui::GetCursorScreenPos().x;
             //-------------------------------------------------------------------------
 
             bool isSet = m_value_imgui.IsSet();
@@ -2389,22 +2425,28 @@ namespace EE::PG
 
             //-------------------------------------------------------------------------
 
+            bool const isInvalidRange = m_value_imgui.IsSet() && !m_value_imgui.IsValid();
+
             static constexpr char const separatorText[] = "to";
             float const cursorEndPosX = ImGui::GetCursorScreenPos().x;
-            float const inputWidth = ( columnWidth - ImGui::CalcTextSize( separatorText ).x - ( cursorEndPosX - cursorStartPosX ) - ( ImGui::GetStyle().ItemSpacing.x * 3 ) ) / 2;
+            float const extraGap = isInvalidRange ? fixRangeButtonWidth + ImGui::GetStyle().ItemSpacing.x : 0.0f;
+            float const inputWidth = ( columnWidth - ImGui::CalcTextSize( separatorText ).x - ( cursorEndPosX - cursorStartPosX ) - ( ImGui::GetStyle().ItemSpacing.x * 3 ) - extraGap ) / 2 ;
             float tmpValue = 0;
 
             //-------------------------------------------------------------------------
 
-            ImGui::BeginDisabled( !isSet );
-            ImGui::SetNextItemWidth( inputWidth );
-            ImGui::InputFloat( "##min", isSet ? &m_value_imgui.m_begin : &tmpValue, 0, 0, "%.3f", 0 );
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
             {
-                ValidateUserInput( true );
-                valueUpdated = true;
+                ImGuiX::ScopedFont const sf( isInvalidRange ? Colors::Red : ImGuiX::Style::s_colorText );
+
+                ImGui::BeginDisabled( !isSet );
+                ImGui::SetNextItemWidth( inputWidth );
+                ImGui::InputFloat( "##min", isSet ? &m_value_imgui.m_begin : &tmpValue, 0, 0, "%.3f", 0 );
+                if ( ImGui::IsItemDeactivatedAfterEdit() )
+                {
+                    valueUpdated = true;
+                }
+                ImGui::EndDisabled();
             }
-            ImGui::EndDisabled();
 
             //-------------------------------------------------------------------------
 
@@ -2414,17 +2456,34 @@ namespace EE::PG
 
             //-------------------------------------------------------------------------
 
-            ImGui::SameLine( 0, ImGui::GetStyle().ItemSpacing.x );
-            ImGui::SetCursorPosY( ImGui::GetCursorPosY() - verticalOffset );
-            ImGui::BeginDisabled( !isSet );
-            ImGui::SetNextItemWidth( inputWidth );
-            ImGui::InputFloat( "##max", isSet ? &m_value_imgui.m_end : &tmpValue, 0, 0, "%.3f", 0 );
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
             {
-                ValidateUserInput( false );
-                valueUpdated = true;
+                ImGuiX::ScopedFont const sf( isInvalidRange ? Colors::Red : ImGuiX::Style::s_colorText );
+
+                ImGui::SameLine( 0, ImGui::GetStyle().ItemSpacing.x );
+                ImGui::SetCursorPosY( ImGui::GetCursorPosY() - verticalOffset );
+                ImGui::BeginDisabled( !isSet );
+                ImGui::SetNextItemWidth( inputWidth );
+                ImGui::InputFloat( "##max", isSet ? &m_value_imgui.m_end : &tmpValue, 0, 0, "%.3f", 0 );
+                if ( ImGui::IsItemDeactivatedAfterEdit() )
+                {
+                    valueUpdated = true;
+                }
+                ImGui::EndDisabled();
             }
-            ImGui::EndDisabled();
+
+            //-------------------------------------------------------------------------
+
+            if ( isInvalidRange )
+            {
+                ImGui::SameLine();
+                ImGui::SetCursorPosY( ImGui::GetCursorPosY() - verticalOffset );
+                if ( ImGuiX::FlatIconButton( EE_ICON_AUTO_FIX, "##FixRange", Colors::Lime, ImVec2( fixRangeButtonWidth, 0 ), true ) )
+                {
+                    m_value_imgui.MakeValid();
+                    valueUpdated = true;
+                }
+                ImGuiX::ItemTooltip( "Fix Range" );
+            }
 
             //-------------------------------------------------------------------------
 
@@ -2444,11 +2503,11 @@ namespace EE::PG
             // Ensure we always have a valid range!
             if ( m_value_imgui.IsSet() )
             {
-                if ( m_value_imgui.IsValid() )
+                /*if (  )
                 {
                     m_value_imgui.Clear();
                     m_value_cached = m_value_imgui;
-                }
+                }*/
             }
         }
 
@@ -2458,27 +2517,6 @@ namespace EE::PG
             if ( actualValue != m_value_cached )
             {
                 m_value_cached = m_value_imgui = actualValue;
-            }
-        }
-
-    private:
-
-        // Ensure users cant input an invalid range
-        void ValidateUserInput( bool wasRangeStartEdited )
-        {
-            if ( wasRangeStartEdited )
-            {
-                if ( m_value_imgui.m_begin > m_value_imgui.m_end )
-                {
-                    m_value_imgui.m_begin = m_value_imgui.m_end;
-                }
-            }
-            else
-            {
-                if ( m_value_imgui.m_end < m_value_imgui.m_begin )
-                {
-                    m_value_imgui.m_end = m_value_imgui.m_begin;
-                }
             }
         }
 
@@ -2539,9 +2577,9 @@ namespace EE::PG
 
     private:
 
-        FloatCurve      m_value_imgui;
-        FloatCurve      m_value_cached;
-        CurveEditor     m_editor;
+        FloatCurve              m_value_imgui;
+        FloatCurve              m_value_cached;
+        ImGuiX::CurveEditor     m_editor;
     };
 
     //-------------------------------------------------------------------------

@@ -1,14 +1,14 @@
 #pragma once
 
 #include "EngineTools/Core/EditorTool.h"
-#include "Base/Render/RenderTexture.h"
+#include "Engine/Render/RenderTexture.h"
 #include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE::Render
 {
-    class TextureEditor final : public TResourceEditor<Texture>
+    class TextureEditor final : public TResourceEditor<TextureResource>
     {
         EE_EDITOR_TOOL( TextureEditor );
 
@@ -19,12 +19,16 @@ namespace EE::Render
     private:
 
         virtual bool HasTitlebarIcon() const override { return true; }
-        virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_IMAGE_OUTLINE; }
-        virtual bool SupportsViewport() const { return false; }
+        virtual char const* GetTitlebarIcon() const override { return EE_ICON_IMAGE_OUTLINE; }
+        virtual bool SupportsViewport() const override { return false; }
         virtual void Initialize( UpdateContext const& context ) override;
-        virtual void InitializeDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
+        virtual void SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
+        virtual void ExtendViewportToolBar( UpdateContext const& context, Viewport* pViewport ) override;
 
-        void DrawInfoWindow( UpdateContext const& context, bool isFocused );
         void DrawPreviewWindow( UpdateContext const& context, bool isFocused );
+
+    private:
+
+        RHI::Sampler* m_pPointWrapSampler = nullptr;
     };
 }

@@ -75,34 +75,6 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    class EE_ENGINE_API FloatAbsNode final : public FloatValueNode
-    {
-    public:
-
-        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
-        {
-            EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_inputValueNodeIdx );
-
-            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
-
-            int16_t                     m_inputValueNodeIdx = InvalidIndex;
-        };
-
-    private:
-
-        virtual void InitializeInternal( GraphContext& context ) override;
-        virtual void ShutdownInternal( GraphContext& context ) override;
-        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-
-    private:
-
-        FloatValueNode*                 m_pInputValueNode = nullptr;
-        float                           m_value = 0.0f;
-    };
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINE_API FloatEaseNode final : public FloatValueNode
     {
     public:
@@ -126,11 +98,8 @@ namespace EE::Animation
         virtual void InitializeInternal( GraphContext& context ) override;
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
-
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 
@@ -139,6 +108,42 @@ namespace EE::Animation
         float                           m_currentValue = 0.0f;
         float                           m_currentEaseTime = 0.0f;
     };
+
+    //-------------------------------------------------------------------------
+
+    class EE_ENGINE_API FloatSpringNode final : public FloatValueNode
+    {
+    public:
+
+        struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
+        {
+            EE_REFLECT_TYPE( Definition );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_startValue, m_hertz, m_dampingRatio, m_inputValueNodeIdx, m_useStartValue );
+
+            virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
+
+            float                       m_startValue = 0.0f;
+            float                       m_hertz = 4.0f;
+            float                       m_dampingRatio = 0.7f;
+            int16_t                     m_inputValueNodeIdx = InvalidIndex;
+            bool                        m_useStartValue = false;
+        };
+
+    private:
+
+        virtual void InitializeInternal( GraphContext& context ) override;
+        virtual void ShutdownInternal( GraphContext& context ) override;
+        virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
+        virtual void RecordGraphState( RecordedGraphState& outState ) override;
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
+
+    private:
+
+        FloatValueNode*                 m_pInputValueNode = nullptr;
+        float                           m_position = 0.0f;
+        float                           m_velocity = 0.0f;
+    };
+
 
     //-------------------------------------------------------------------------
 
@@ -184,6 +189,14 @@ namespace EE::Animation
             Sub,
             Mul,
             Div,
+            Mod,
+            Abs,
+            Negate,
+            Floor,
+            Ceiling,
+            IntegerPart, // Floor
+            FractionalPart, // Modf
+            InverseFractionalPart, // Modf
         };
 
         struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
@@ -196,6 +209,7 @@ namespace EE::Animation
             int16_t                     m_inputValueNodeIdxA = InvalidIndex;
             int16_t                     m_inputValueNodeIdxB = InvalidIndex; // Optional
             bool                        m_returnAbsoluteResult = false;
+            bool                        m_returnNegatedResult = false;
             Operator                    m_operator = Operator::Add;
             float                       m_valueB = 0.0f;
         };
@@ -296,13 +310,15 @@ namespace EE::Animation
         struct EE_ENGINE_API Definition final : public FloatValueNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_switchValueNodeIdx, m_trueValueNodeIdx, m_falseValueNodeIdx );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( FloatValueNode::Definition, m_switchValueNodeIdx, m_trueValueNodeIdx, m_falseValueNodeIdx, m_falseValue, m_trueValue );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                    m_switchValueNodeIdx = InvalidIndex;
             int16_t                    m_trueValueNodeIdx = InvalidIndex;
             int16_t                    m_falseValueNodeIdx = InvalidIndex;
+            float                      m_falseValue = 0.0f;
+            float                      m_trueValue = 1.0f;
         };
 
     private:
@@ -384,10 +400,8 @@ namespace EE::Animation
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual void GetValueInternal( GraphContext& context, void* pOutValue ) override;
 
-        #if EE_DEVELOPMENT_TOOLS
         virtual void RecordGraphState( RecordedGraphState& outState ) override;
-        virtual void RestoreGraphState( RecordedGraphState const& inState ) override;
-        #endif
+        virtual bool RestoreGraphState( RecordedGraphState const& inState ) override;
 
     private:
 

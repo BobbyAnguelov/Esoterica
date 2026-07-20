@@ -21,11 +21,8 @@ namespace EE::Animation
 
         AnimationGraphCompiler();
         virtual Resource::CompilationResult Compile( Resource::CompileContext const& ctx ) const final;
-        virtual bool GetInstallDependencies( ResourceID const& resourceID, TVector<ResourceID>& outReferencedResources ) const override;
 
     private:
-
-        virtual bool IsInputFileRequired() const override { return false; }
 
         Resource::CompilationResult CompileGraphDefinition( Resource::CompileContext const& ctx, StringID variationID ) const;
         Resource::CompilationResult CompileGraphVariation( Resource::CompileContext const& ctx ) const;

@@ -21,8 +21,6 @@ namespace EE::Animation
         IgnoreTarget
     };
 
-    
-
     // Commonly need state enum
     enum class BlendState : uint8_t
     {
@@ -52,6 +50,11 @@ namespace EE::Animation
             {
                 return Vector::Lerp( translationScale0, translationScale1, t );
             }
+
+            EE_FORCE_INLINE static Vector BlendFloatChannel( Vector const &fc0, Vector const &fc1, float const &t )
+            {
+                return Vector::Lerp( fc0, fc1, t );
+            }
         };
 
         struct AdditiveBlendFunction
@@ -66,6 +69,11 @@ namespace EE::Animation
             {
                 return Vector::MultiplyAdd( translationScale1, Vector( t ), translationScale0 );
             }
+
+            EE_FORCE_INLINE static Vector BlendFloatChannel( Vector const &fc0, Vector const &fc1, float const &t )
+            {
+                return Vector::MultiplyAdd( fc1, Vector( t ), fc0 );
+            }
         };
 
     private:
@@ -78,69 +86,65 @@ namespace EE::Animation
         template<typename BlendFunction>
         static inline void ParentSpaceBlendMasked( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose, bool isLayeredBlend );
 
-        // Blend to a reference pose
+        // Blend float channels
         template<typename BlendFunction>
-        static EE_FORCE_INLINE void ParentSpaceBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
-
-        // Blend from a reference pose
-        template<typename BlendFunction>
-        static EE_FORCE_INLINE void ParentSpaceBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float const blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+        static inline void BlendFloatChannels( FloatChannelSetValues const &source, FloatChannelSetValues const &target, float const blendWeight, FloatChannelSetValues &result, bool isLayeredBlend );
 
     public:
 
         // Parent space blend
-        EE_FORCE_INLINE static void ParentSpaceBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
-
-        // Blend to a reference pose
-        EE_FORCE_INLINE static void ParentSpaceBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+        EE_FORCE_INLINE static void ParentSpaceBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
         {
-            ParentSpaceBlendToReferencePose<BlendFunction>( skeletonLOD, pSourcePose, blendWeight, pBoneMask, pResultPose );
+            if ( pBoneMask != nullptr )
+            {
+                ParentSpaceBlendMasked<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, false );
+            }
+            else
+            {
+                ParentSpaceBlend<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, false );
+            }
         }
 
-        // Blend from a reference pose
-        EE_FORCE_INLINE static void ParentSpaceBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+        // Parent space blend
+        EE_FORCE_INLINE static void ParentSpaceOverlayBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
         {
-            ParentSpaceBlendFromReferencePose<BlendFunction>( skeletonLOD, pTargetPose, blendWeight, pBoneMask, pResultPose );
+            if ( pBoneMask != nullptr )
+            {
+                ParentSpaceBlendMasked<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
+            }
+            else
+            {
+                ParentSpaceBlend<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, true );
+            }
         }
 
         // Model space blend
         static void ModelSpaceBlend( Skeleton::LOD skeletonLOD, Pose const* pBasePose, Pose const* pLayerPose, float layerWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
         // Parent space Additive blend
-        EE_FORCE_INLINE static void AdditiveBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
+        EE_FORCE_INLINE static void AdditiveBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+        {
+            EE_ASSERT( pTargetPose->IsAdditivePose() );
+
+            if ( pBoneMask != nullptr )
+            {
+                ParentSpaceBlendMasked<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
+            }
+            else
+            {
+                ParentSpaceBlend<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, true );
+            }
+        }
 
         // Parent space Additive blend
         EE_FORCE_INLINE static void ApplyAdditiveToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pAdditivePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose );
 
         // Blend two root motion deltas together
         EE_FORCE_INLINE static Transform BlendRootMotionDeltas( Transform const& source, Transform const& target, float blendWeight, RootMotionBlendMode blendMode = RootMotionBlendMode::Blend );
+
+        // Apply an additive float channel value set on top of a zero value set
+        static void ApplyAdditiveFloatChannelsToReferencePose( FloatChannelSetValues const &additive, float const blendWeight, FloatChannelSetValues &result );
     };
-
-    //-------------------------------------------------------------------------
-
-    EE_FORCE_INLINE void Blender::ParentSpaceBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
-    {
-        if ( pBoneMask != nullptr )
-        {
-            ParentSpaceBlendMasked<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, false );
-        }
-        else
-        {
-            ParentSpaceBlend<BlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, false );
-        }
-    }
-
-    EE_FORCE_INLINE void Blender::AdditiveBlend( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
-    {
-        if ( pBoneMask != nullptr )
-        {
-            ParentSpaceBlendMasked<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pBoneMask, pResultPose, true );
-        }
-        else
-        {
-            ParentSpaceBlend<AdditiveBlendFunction>( skeletonLOD, pSourcePose, pTargetPose, blendWeight, pResultPose, true );
-        }
-    }
 
     //-------------------------------------------------------------------------
 
@@ -148,36 +152,25 @@ namespace EE::Animation
     {
         Transform result;
 
-        if ( blendMode == RootMotionBlendMode::IgnoreTarget )
+        if ( blendWeight <= 0.0f || blendMode == RootMotionBlendMode::IgnoreTarget )
         {
             result = source;
         }
-        else if ( blendMode == RootMotionBlendMode::IgnoreSource )
+        else if ( blendWeight >= 1.0f || blendMode == RootMotionBlendMode::IgnoreSource )
         {
             result = target;
         }
         else
         {
-            if ( blendWeight <= 0.0f )
+            if ( blendMode == RootMotionBlendMode::Additive )
             {
-                result = source;
+                result.SetRotation( AdditiveBlendFunction::BlendRotation( source.GetRotation(), target.GetRotation(), blendWeight ) );
+                result.SetTranslationAndScale( AdditiveBlendFunction::BlendTranslationAndScale( source.GetTranslation(), target.GetTranslation(), blendWeight ).GetWithW1() );
             }
-            else if ( blendWeight >= 1.0f )
+            else // Regular blend
             {
-                result = target;
-            }
-            else
-            {
-                if ( blendMode == RootMotionBlendMode::Additive )
-                {
-                    result.SetRotation( AdditiveBlendFunction::BlendRotation( source.GetRotation(), target.GetRotation(), blendWeight ) );
-                    result.SetTranslationAndScale( AdditiveBlendFunction::BlendTranslationAndScale( source.GetTranslation(), target.GetTranslation(), blendWeight ).GetWithW1() );
-                }
-                else // Regular blend
-                {
-                    result.SetRotation( BlendFunction::BlendRotation( source.GetRotation(), target.GetRotation(), blendWeight ) );
-                    result.SetTranslationAndScale( BlendFunction::BlendTranslationAndScale( source.GetTranslation(), target.GetTranslation(), blendWeight ).GetWithW1() );
-                }
+                result.SetRotation( BlendFunction::BlendRotation( source.GetRotation(), target.GetRotation(), blendWeight ) );
+                result.SetTranslationAndScale( BlendFunction::BlendTranslationAndScale( source.GetTranslation(), target.GetTranslation(), blendWeight ).GetWithW1() );
             }
         }
 
@@ -194,9 +187,9 @@ namespace EE::Animation
         EE_ASSERT( pSourcePose != nullptr && pTargetPose != nullptr && pResultPose != nullptr );
         EE_ASSERT( pSourcePose->IsPoseSet() && pTargetPose->IsPoseSet() );
 
-        Pose::State const finalState = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
+        Pose::State const finalState = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::ParentSpacePose;
 
-        // Full in source
+        // Fully in source
         if ( blendWeight == 0.0f )
         {
             // If the source pose is different from the result pose then copy the transforms
@@ -230,6 +223,14 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        int32_t const numFloatChannelSets = pSourcePose->GetNumFloatChannelSets();
+        for ( int32_t setIdx = 0; setIdx < numFloatChannelSets; setIdx++ )
+        {
+            BlendFloatChannels<BlendFunction>( pSourcePose->m_floatChannelSetValues[setIdx], pTargetPose->m_floatChannelSetValues[setIdx], blendWeight, pResultPose->m_floatChannelSetValues[setIdx], true );
+        }
+
+        //-------------------------------------------------------------------------
+
         pResultPose->m_state = finalState;
     }
 
@@ -242,7 +243,42 @@ namespace EE::Animation
         EE_ASSERT( pSourcePose->IsPoseSet() && pTargetPose->IsPoseSet() );
         EE_ASSERT( pBoneMask != nullptr );
 
-        Pose::State const finalState = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
+        Pose::State const finalState = ( pSourcePose->IsAdditivePose() && pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::ParentSpacePose;
+
+        // Check early out conditions
+        //-------------------------------------------------------------------------
+
+        if ( blendWeight == 0.0f )
+        {
+            if ( pSourcePose != pResultPose )
+            {
+                pResultPose->CopyFrom( pSourcePose );
+                return;
+            }
+        }
+
+        if ( !isLayeredBlend && blendWeight == 1.0f )
+        {
+            if ( pTargetPose != pResultPose )
+            {
+                pResultPose->CopyFrom( pTargetPose );
+                return;
+            }
+        }
+
+        if ( pBoneMask != nullptr )
+        {
+            if ( pBoneMask->IsZeroWeightMask() )
+            {
+                if ( pSourcePose != pResultPose )
+                {
+                    pResultPose->CopyFrom( pSourcePose );
+                }
+                return;
+            }
+        }
+
+        //-------------------------------------------------------------------------
 
         // Fully in Source
         if ( blendWeight == 0.0f )
@@ -283,46 +319,10 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        pResultPose->m_state = finalState;
-    }
-
-    // Blend to a reference pose
-    template<typename BlendFunction>
-    void Blender::ParentSpaceBlendToReferencePose( Skeleton::LOD skeletonLOD, Pose const* pSourcePose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
-    {
-        EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
-        EE_ASSERT( pSourcePose != nullptr && pResultPose != nullptr );
-        EE_ASSERT( pSourcePose->IsPoseSet() );
-
-        Pose::State const finalState = ( pSourcePose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
-
-        // Fully in source pose
-        if ( blendWeight == 0.0f )
+        int32_t const numFloatChannelSets = pSourcePose->GetNumFloatChannelSets();
+        for ( int32_t setIdx = 0; setIdx < numFloatChannelSets; setIdx++ )
         {
-            // If the source pose is different from the result pose then copy
-            if ( pSourcePose != pResultPose )
-            {
-                pResultPose->CopyFrom( pSourcePose );
-            }
-        }
-        // Fully in reference pose
-        else if ( blendWeight == 1.0f )
-        {
-            pResultPose->Reset( ( finalState == Pose::State::AdditivePose ) ? Pose::Type::ZeroPose : Pose::Type::ReferencePose );
-        }
-        else // Blend
-        {
-            TVector<Transform> const& referencePose = pSourcePose->GetSkeleton()->GetParentSpaceReferencePose();
-            int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
-            for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
-            {
-                Transform const& sourceTransform = pSourcePose->m_parentSpaceTransforms[boneIdx];
-                Transform const& targetTransform = referencePose[boneIdx];
-                Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
-                Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
-            }
-
-            pResultPose->ClearModelSpaceTransforms();
+            BlendFloatChannels<BlendFunction>( pSourcePose->m_floatChannelSetValues[setIdx], pTargetPose->m_floatChannelSetValues[setIdx], blendWeight, pResultPose->m_floatChannelSetValues[setIdx], true );
         }
 
         //-------------------------------------------------------------------------
@@ -330,48 +330,48 @@ namespace EE::Animation
         pResultPose->m_state = finalState;
     }
 
-    // Blend from a reference pose
+    //-------------------------------------------------------------------------
+
+    // Float channel blend
     template<typename BlendFunction>
-    void Blender::ParentSpaceBlendFromReferencePose( Skeleton::LOD skeletonLOD, Pose const* pTargetPose, float blendWeight, BoneMask const* pBoneMask, Pose* pResultPose )
+    void Blender::BlendFloatChannels( FloatChannelSetValues const &source, FloatChannelSetValues const &target, float const blendWeight, FloatChannelSetValues &result, bool isLayeredBlend )
     {
-        EE_ASSERT( blendWeight >= 0.0f && blendWeight <= 1.0f );
-        EE_ASSERT( pTargetPose != nullptr && pResultPose != nullptr );
-        EE_ASSERT( pTargetPose->IsPoseSet() );
+        EE_ASSERT( source.m_pSet == target.m_pSet && source.m_pSet == result.m_pSet );
+        EE_ASSERT( source.m_values.size() == target.m_values.size() && blendWeight >= 0.0f && blendWeight <= 1.0f );
 
-        Pose::State const finalState = ( pTargetPose->IsAdditivePose() ) ? Pose::State::AdditivePose : Pose::State::Pose;
-
-        // Fully in reference pose
+        // Full in source
         if ( blendWeight == 0.0f )
         {
-            pResultPose->Reset( ( finalState == Pose::State::AdditivePose ) ? Pose::Type::ZeroPose : Pose::Type::ReferencePose );
+            // If the source pose is different from the result pose then copy the transforms
+            if ( &source != &result )
+            {
+                result.CopyFrom( source );
+            }
         }
-        // Fully in target pose
-        else if ( blendWeight == 1.0f )
+        // Fully in target - If we're not blending on top of a pose, then we can skip the blend
+        if ( !isLayeredBlend && blendWeight == 1.0f )
         {
             // If the source pose is different from the result pose then copy
-            if ( pTargetPose != pResultPose )
+            if ( &target != &result )
             {
-                pResultPose->CopyFrom( pTargetPose );
+                result.CopyFrom( target );
             }
         }
         else // Blend
         {
-            TVector<Transform> const& referencePose = pTargetPose->GetSkeleton()->GetParentSpaceReferencePose();
-            int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
-            for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+            bool hasNonZeroValue = false;
+            int32_t const numWeights = (int32_t) source.m_values.size();
+            for ( int32_t i = 0; i < numWeights; i += 4 )
             {
-                Transform const& sourceTransform = referencePose[boneIdx];
-                Transform const& targetTransform = pTargetPose->m_parentSpaceTransforms[boneIdx];
-                Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
-                Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], BlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
+                Vector const vSource( &source.m_values[i] );
+                Vector const vTarget( &target.m_values[i] );
+                Vector const vResult = BlendFunction::BlendFloatChannel( vSource, vTarget, blendWeight );
+                hasNonZeroValue |= !vResult.IsNearZero4();
+                vResult.Store( &result.m_values[i] );
             }
 
-            pResultPose->ClearModelSpaceTransforms();
+            result.m_state = hasNonZeroValue ? FloatChannelSetValues::State::Set : FloatChannelSetValues::State::Unset;
         }
-
-        //-------------------------------------------------------------------------
-
-        pResultPose->m_state = finalState;
     }
 
     //-------------------------------------------------------------------------
@@ -385,25 +385,62 @@ namespace EE::Animation
         // Fully in reference pose
         if ( blendWeight == 0.0f )
         {
-            pResultPose->Reset( Pose::Type::ReferencePose );
+            pResultPose->Reset( Pose::Init::ReferencePose );
         }
         else // Blend
         {
             TVector<Transform> const& referencePose = pAdditivePose->GetSkeleton()->GetParentSpaceReferencePose();
             int32_t const numBones = pResultPose->GetNumBones( skeletonLOD );
-            for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+
+            if ( pBoneMask != nullptr )
             {
-                Transform const& sourceTransform = referencePose[boneIdx];
-                Transform const& targetTransform = pAdditivePose->m_parentSpaceTransforms[boneIdx];
-                Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], AdditiveBlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
-                Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], AdditiveBlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
+                for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+                {
+                    Transform const& sourceTransform = referencePose[boneIdx];
+
+                    // If the bone has been masked out
+                    float const boneBlendWeight = blendWeight * pBoneMask->GetWeight( boneIdx );
+                    if ( boneBlendWeight == 0.0f )
+                    {
+                        pResultPose->SetTransform( boneIdx, sourceTransform );
+                    }
+                    else
+                    {
+                        Transform const& targetTransform = pAdditivePose->m_parentSpaceTransforms[boneIdx];
+                        Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], AdditiveBlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), boneBlendWeight ) );
+                        Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], AdditiveBlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), boneBlendWeight ) );
+                    }
+                }
+            }
+            else // No mask
+            {
+                for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
+                {
+                    Transform const& sourceTransform = referencePose[boneIdx];
+                    Transform const& targetTransform = pAdditivePose->m_parentSpaceTransforms[boneIdx];
+                    Transform::DirectlySetRotation( pResultPose->m_parentSpaceTransforms[boneIdx], AdditiveBlendFunction::BlendRotation( sourceTransform.GetRotation(), targetTransform.GetRotation(), blendWeight ) );
+                    Transform::DirectlySetTranslationScale( pResultPose->m_parentSpaceTransforms[boneIdx], AdditiveBlendFunction::BlendTranslationAndScale( sourceTransform.GetTranslationAndScale(), targetTransform.GetTranslationAndScale(), blendWeight ) );
+                }
             }
 
-            pResultPose->ClearModelSpaceTransforms();
         }
 
         //-------------------------------------------------------------------------
 
-        pResultPose->m_state = Pose::State::Pose;
+        pResultPose->ClearModelSpaceTransforms();
+        pResultPose->m_state = Pose::State::ParentSpacePose;
+
+        //-------------------------------------------------------------------------
+
+        int32_t const numFloatChannelSets = pAdditivePose->GetNumFloatChannelSets();
+        for ( int32_t setIdx = 0; setIdx < numFloatChannelSets; setIdx++ )
+        {
+            if ( pAdditivePose->m_floatChannelSetValues[setIdx].IsUnset() )
+            {
+                continue;
+            }
+
+            ApplyAdditiveFloatChannelsToReferencePose( pAdditivePose->m_floatChannelSetValues[setIdx], blendWeight, pResultPose->m_floatChannelSetValues[setIdx] );
+        }
     }
 }

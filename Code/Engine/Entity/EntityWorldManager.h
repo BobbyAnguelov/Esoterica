@@ -12,8 +12,8 @@ namespace EE
     class UpdateContext;
     class EntityWorld;
     class SystemRegistry;
+    class Viewport;
     namespace TypeSystem { class TypeInfo; }
-    namespace Render { class Viewport; }
 
     //-------------------------------------------------------------------------
 
@@ -66,6 +66,10 @@ namespace EE
 
         // Run the world update - updates all entities, systems and camera
         void UpdateWorlds( UpdateContext const& context );
+
+        #if EE_DEVELOPMENT_TOOLS
+        void DebugDrawWorlds( UpdateContext const& context );
+        #endif
 
         // Hot Reload
         //-------------------------------------------------------------------------

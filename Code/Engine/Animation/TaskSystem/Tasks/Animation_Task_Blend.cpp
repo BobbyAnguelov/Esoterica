@@ -1,16 +1,16 @@
 #include "Animation_Task_Blend.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSerializer.h"
+#include "Engine/Animation/TaskSystem/Animation_PoseTask.h"
 #include "Base/Profiling.h"
 #include "Base/Drawing/DebugDrawing.h"
+#include "Engine/Animation/TaskSystem/Animation_BoneMaskPool.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Animation::Tasks
+namespace EE::Animation
 {
     void BlendTaskBase::Serialize( TaskSerializer& serializer ) const
     {
-        serializer.WriteDependencyIndex( m_dependencies[0] );
-        serializer.WriteDependencyIndex( m_dependencies[1] );
         serializer.WriteNormalizedFloat8Bit( m_blendWeight );
 
         // Bone Mask Task List
@@ -18,29 +18,31 @@ namespace EE::Animation::Tasks
         serializer.WriteBool( hasBoneMaskTasks );
         if ( hasBoneMaskTasks )
         {
-            m_boneMaskTaskList.Serialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
+            serializer.WriteBoneMaskTaskList( m_boneMaskTaskList );
         }
     }
 
     void BlendTaskBase::Deserialize( TaskSerializer& serializer )
     {
-        m_dependencies.resize( 2 );
-        m_dependencies[0] = serializer.ReadDependencyIndex();
-        m_dependencies[1] = serializer.ReadDependencyIndex();
         m_blendWeight = serializer.ReadNormalizedFloat8Bit();
 
         // Bone Mask Task List
         bool const hasBoneMaskTasks = serializer.ReadBool();
         if ( hasBoneMaskTasks )
         {
-            m_boneMaskTaskList.Deserialize( serializer, serializer.GetMaxBitsForBoneMaskIndex() );
+            serializer.ReadBoneMaskTaskList( m_boneMaskTaskList );
         }
     }
 
     #if EE_DEVELOPMENT_TOOLS
-    void BlendTaskBase::DrawDebug( Drawing::DrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
+    void BlendTaskBase::DrawDebug( DebugDrawContext& drawingContext, Transform const& worldTransform, Skeleton::LOD lod, PoseBuffer const* pRecordedPoseBuffer, bool isDetailedViewEnabled ) const
     {
-        pRecordedPoseBuffer->m_poses[0].DrawDebug( drawingContext, worldTransform, lod, GetDebugColor(), 3.0f, isDetailedViewEnabled, m_debugBoneMask.IsValid() ? &m_debugBoneMask : nullptr );
+        DrawOptions options;
+        options.m_boneColor = GetDebugColor();
+        options.m_drawBoneNames = isDetailedViewEnabled;
+        options.m_pBoneWeights = m_debugBoneMask.IsValid() ? &m_debugBoneMask.GetWeights() : nullptr;
+
+        pRecordedPoseBuffer->m_poses[0].DrawDebug( drawingContext, worldTransform, lod, options );
         DrawSecondaryPoses( drawingContext, worldTransform, lod, pRecordedPoseBuffer, isDetailedViewEnabled );
     }
     #endif
@@ -76,76 +78,45 @@ namespace EE::Animation::Tasks
         auto pTargetBuffer = AccessDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pSourceBuffer;
 
-        // Primary Pose
+        // If neither pose is set, this is a no-op
+        if ( !pSourceBuffer->IsPoseSet() && !pTargetBuffer->IsPoseSet() )
+        {
+            ReleaseDependencyPoseBuffer( context, 1 );
+            MarkTaskComplete( context );
+            return;
+        }
+
+        // If the pose types are different then this is an invalid operation
+        if ( pSourceBuffer->IsAdditivePose() != pTargetBuffer->IsAdditivePose() )
+        {
+            EE_DEVELOPMENT_TOOLS_ONLY( context.LogError( m_sourcePath, "BlendTask - Trying to perform an blend with mis-matched pose types (additive/parent-space)" ) );
+
+            pFinalBuffer->ResetPose();
+            ReleaseDependencyPoseBuffer( context, 1 );
+            MarkTaskComplete( context );
+            return;
+        }
+
+        // Bone Mask
         //-------------------------------------------------------------------------
 
-        // If we have a bone mask task list, execute it
-        // Note: Bone masks only apply to the primary skeleton
+        int8_t boneMaskBufferIdx = InvalidIndex;
+        BoneMaskBuffer const* pBoneMaskBuffer = nullptr;
         if ( m_boneMaskTaskList.HasTasks() )
         {
-            auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-
-            bool const hasSourcePose = pSourceBuffer->m_poses[0].IsPoseSet();
-            bool const hasTargetPose = pTargetBuffer->m_poses[0].IsPoseSet();
-
-            // If no source pose but valid target (can occur when deserializing cached pose reads in bad network situations) - blend the target onto the reference pose
-            if ( !hasSourcePose && hasTargetPose )
-            {
-                Blender::ParentSpaceBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
-            }
-            // Has both poses
-            else if ( hasSourcePose && hasTargetPose )
-            {
-                Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
-            }
-            else // Undefined scenarios (should never happen): No poses set or target unset
-            {
-                EE_UNREACHABLE_CODE();
-            }
-
-            //-------------------------------------------------------------------------
-
-            #if EE_DEVELOPMENT_TOOLS
-            if ( context.m_posePool.IsRecordingEnabled() )
-            {
-                m_debugBoneMask = *boneMaskResult.m_pBoneMask;
-            }
-            #endif
-
-            if ( boneMaskResult.m_maskPoolIdx != InvalidIndex )
-            {
-                context.m_boneMaskPool.ReleaseMask( boneMaskResult.m_maskPoolIdx );
-            }
-        }
-        else // Perform a simple blend
-        {
-            bool const hasSourcePose = pSourceBuffer->m_poses[0].IsPoseSet();
-            bool const hasTargetPose = pTargetBuffer->m_poses[0].IsPoseSet();
-
-            // If no source pose but valid target (can occur when deserializing cached pose reads in bad network situations) - just use the target pose
-            if ( !hasSourcePose && hasTargetPose )
-            {
-                pFinalBuffer->m_poses[0].CopyFrom( pTargetBuffer->m_poses[0] );
-            }
-            // Has both poses
-            else if ( hasSourcePose && hasTargetPose )
-            {
-                Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
-            }
-            else // Undefined scenarios (should never happen): No poses set or target unset
-            {
-                EE_UNREACHABLE_CODE();
-            }
+            boneMaskBufferIdx = m_boneMaskTaskList.GenerateBoneMask( pSourceBuffer->GetPrimarySkeleton(), context.m_boneMaskPool );
+            EE_ASSERT( boneMaskBufferIdx != InvalidIndex );
+            pBoneMaskBuffer = context.m_boneMaskPool.GetBuffer( boneMaskBufferIdx );
         }
 
-        EE_ASSERT( pFinalBuffer->GetPrimaryPose()->IsPoseSet() );
-
-        // Secondary Poses
+        // Blend
         //-------------------------------------------------------------------------
 
         int32_t const numPoses = (int32_t) pSourceBuffer->m_poses.size();
-        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+        for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
         {
+            BoneMask const* pBoneMask = ( pBoneMaskBuffer != nullptr ) ? pBoneMaskBuffer->TryGetBoneMask( pSourceBuffer->m_poses[poseIdx].GetSkeleton() ) : nullptr;
+
             bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
             bool const hasTargetPose = pTargetBuffer->m_poses[poseIdx].IsPoseSet();
 
@@ -153,21 +124,45 @@ namespace EE::Animation::Tasks
             {
                 // Do Nothing
             }
-            else if ( !hasSourcePose && hasTargetPose )
+            else
             {
-                Blender::ParentSpaceBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                if ( !hasSourcePose )
+                {
+                    pSourceBuffer->m_poses[poseIdx].Reset( pSourceBuffer->IsAdditivePose() ? Pose::Init::ZeroPose : Pose::Init::ReferencePose );
+                }
+
+                if ( !hasTargetPose )
+                {
+                    pTargetBuffer->m_poses[poseIdx].Reset( pTargetBuffer->IsAdditivePose() ? Pose::Init::ZeroPose : Pose::Init::ReferencePose );
+                }
+
+                Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, pBoneMask, &pFinalBuffer->m_poses[poseIdx] );
             }
-            else if ( hasSourcePose && !hasTargetPose )
+
+            //-------------------------------------------------------------------------
+
+            #if EE_DEVELOPMENT_TOOLS
+            if ( poseIdx == 0 && context.m_posePool.IsRecordingEnabled() && pBoneMask != nullptr )
             {
-                Blender::ParentSpaceBlendToReferencePose( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                m_debugBoneMask = *pBoneMask;
             }
-            else // has both poses
-            {
-                Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
-            }
+            #endif
         }
 
         //-------------------------------------------------------------------------
+
+        bool const isAdditive = pFinalBuffer->GetPrimaryPose()->IsAdditivePose();
+        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+        {
+            EE_ASSERT( !pFinalBuffer->m_poses[poseIdx].IsPoseSet() || pFinalBuffer->m_poses[poseIdx].IsAdditivePose() == isAdditive );
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( boneMaskBufferIdx != InvalidIndex )
+        {
+            context.m_boneMaskPool.ReleaseMaskBuffer( boneMaskBufferIdx );
+        }
 
         ReleaseDependencyPoseBuffer( context, 1 );
         MarkTaskComplete( context );
@@ -216,41 +211,43 @@ namespace EE::Animation::Tasks
         auto pTargetBuffer = AccessDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pSourceBuffer;
 
-        // Primary Pose
+        // If neither pose is set, this is a no-op
+        if ( !pSourceBuffer->IsPoseSet() && !pTargetBuffer->IsPoseSet() )
+        {
+            ReleaseDependencyPoseBuffer( context, 1 );
+            MarkTaskComplete( context );
+            return;
+        }
+
+        // If the pose types are different then this is an invalid operation
+        if ( pTargetBuffer->IsPoseSet() && ( pSourceBuffer->IsAdditivePose() != pTargetBuffer->IsAdditivePose() ) )
+        {
+            EE_DEVELOPMENT_TOOLS_ONLY( context.LogError( m_sourcePath, "OverlayBlendTask - Trying to perform an overlay blend with mis-matched pose types (additive/parent-space)" ) );
+
+            pFinalBuffer->ResetPose();
+            ReleaseDependencyPoseBuffer( context, 1 );
+            MarkTaskComplete( context );
+            return;
+        }
+
+        // Bone Mask
         //-------------------------------------------------------------------------
 
-        // If we have a bone mask task list, execute it
-        // Note: Bone masks only apply to the primary skeleton
+        int8_t boneMaskBufferIdx = InvalidIndex;
+        BoneMaskBuffer const* pBoneMaskBuffer = nullptr;
         if ( m_boneMaskTaskList.HasTasks() )
         {
-            auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-            Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
-
-            //-------------------------------------------------------------------------
-
-            #if EE_DEVELOPMENT_TOOLS
-            if ( context.m_posePool.IsRecordingEnabled() )
-            {
-                m_debugBoneMask = *boneMaskResult.m_pBoneMask;
-            }
-            #endif
-
-            if ( boneMaskResult.m_maskPoolIdx != InvalidIndex )
-            {
-                context.m_boneMaskPool.ReleaseMask( boneMaskResult.m_maskPoolIdx );
-            }
-        }
-        else // Perform a simple blend
-        {
-            Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
+            boneMaskBufferIdx = m_boneMaskTaskList.GenerateBoneMask( pSourceBuffer->GetPrimarySkeleton(), context.m_boneMaskPool );
+            EE_ASSERT( boneMaskBufferIdx != InvalidIndex );
+            pBoneMaskBuffer = context.m_boneMaskPool.GetBuffer( boneMaskBufferIdx );
         }
 
-        // Secondary Pose
+        // Overlay Blend
         //-------------------------------------------------------------------------
 
         // Since this is an overlay blend - if a secondary pose is not set in the overlay, then we ignore the blend
         int32_t const numPoses = (int32_t) pSourceBuffer->m_poses.size();
-        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+        for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
         {
             bool const hasTargetPose = pTargetBuffer->m_poses[poseIdx].IsPoseSet();
             if ( !hasTargetPose )
@@ -260,15 +257,46 @@ namespace EE::Animation::Tasks
 
             //-------------------------------------------------------------------------
 
+            BoneMask const* pBoneMask = ( pBoneMaskBuffer != nullptr ) ? pBoneMaskBuffer->TryGetBoneMask( pSourceBuffer->m_poses[poseIdx].GetSkeleton() ) : nullptr;
+
             bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
-            if ( hasSourcePose )
+            if ( !hasSourcePose )
             {
-                Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                if ( pSourceBuffer->GetPrimaryPose()->IsAdditivePose() )
+                {
+                    pSourceBuffer->m_poses[poseIdx].Reset( Pose::Init::ZeroPose );
+                }
+                else
+                {
+                    pSourceBuffer->m_poses[poseIdx].Reset( Pose::Init::ReferencePose );
+                }
             }
-            else // Apply overlay to the reference pose
+
+            Blender::ParentSpaceOverlayBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, pBoneMask, &pFinalBuffer->m_poses[poseIdx] );
+
+            //-------------------------------------------------------------------------
+
+            #if EE_DEVELOPMENT_TOOLS
+            if ( poseIdx == 0 && context.m_posePool.IsRecordingEnabled() && pBoneMask != nullptr )
             {
-                Blender::ParentSpaceBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                m_debugBoneMask = *pBoneMask;
             }
+            #endif
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( boneMaskBufferIdx != InvalidIndex )
+        {
+            context.m_boneMaskPool.ReleaseMaskBuffer( boneMaskBufferIdx );
+        }
+
+        //-------------------------------------------------------------------------
+
+        bool const isAdditive = pFinalBuffer->GetPrimaryPose()->IsAdditivePose();
+        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+        {
+            EE_ASSERT( !pFinalBuffer->m_poses[poseIdx].IsPoseSet() || pFinalBuffer->m_poses[poseIdx].IsAdditivePose() == isAdditive );
         }
 
         //-------------------------------------------------------------------------
@@ -320,46 +348,42 @@ namespace EE::Animation::Tasks
         auto pTargetBuffer = AccessDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pSourceBuffer;
 
-        // Primary Pose
-        //-------------------------------------------------------------------------
-
-        if ( !pTargetBuffer->m_poses[0].IsZeroPose() )
+        // If there's no target pose set, then this is a no-op
+        if ( !pTargetBuffer->IsPoseSet() )
         {
-            // If we have a bone mask task list, execute it 
-            // Note: Bone masks only apply to the primary skeleton
-            if ( m_boneMaskTaskList.HasTasks() )
-            {
-                auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-
-                //-------------------------------------------------------------------------
-
-                Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, boneMaskResult.m_pBoneMask, &pFinalBuffer->m_poses[0] );
-
-                //-------------------------------------------------------------------------
-
-                #if EE_DEVELOPMENT_TOOLS
-                if ( context.m_posePool.IsRecordingEnabled() )
-                {
-                    m_debugBoneMask = *boneMaskResult.m_pBoneMask;
-                }
-                #endif
-
-                if ( boneMaskResult.m_maskPoolIdx != InvalidIndex )
-                {
-                    context.m_boneMaskPool.ReleaseMask( boneMaskResult.m_maskPoolIdx );
-                }
-            }
-            else // Perform a simple blend
-            {
-                Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[0], &pTargetBuffer->m_poses[0], m_blendWeight, nullptr, &pFinalBuffer->m_poses[0] );
-            }
+            ReleaseDependencyPoseBuffer( context, 1 );
+            MarkTaskComplete( context );
+            return;
         }
 
-        // Secondary Pose
+        // Check that the target pose is an additive pose
+        if ( !pTargetBuffer->IsAdditivePose() )
+        {
+            EE_DEVELOPMENT_TOOLS_ONLY( context.LogError( m_sourcePath, "AdditiveBlendTask - Trying to perform an additive blend using a parent space pose" ) );
+
+            pFinalBuffer->ResetPose();
+            ReleaseDependencyPoseBuffer( context, 1 );
+            MarkTaskComplete( context );
+            return;
+        }
+
+        // Bone Mask
+        //-------------------------------------------------------------------------
+
+        int8_t boneMaskBufferIdx = InvalidIndex;
+        BoneMaskBuffer const* pBoneMaskBuffer = nullptr;
+        if ( m_boneMaskTaskList.HasTasks() )
+        {
+            boneMaskBufferIdx = m_boneMaskTaskList.GenerateBoneMask( pSourceBuffer->GetPrimarySkeleton(), context.m_boneMaskPool );
+            EE_ASSERT( boneMaskBufferIdx != InvalidIndex );
+            pBoneMaskBuffer = context.m_boneMaskPool.GetBuffer( boneMaskBufferIdx );
+        }
+
+        // Additive Blend
         //-------------------------------------------------------------------------
 
         int32_t const numPoses = (int32_t) pSourceBuffer->m_poses.size();
-        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+        for ( int32_t poseIdx = 0; poseIdx < numPoses; poseIdx++ )
         {
             // Skip any unset or zero additives
             if ( pTargetBuffer->m_poses[poseIdx].IsZeroPose() || !pTargetBuffer->m_poses[poseIdx].IsPoseSet() )
@@ -367,20 +391,36 @@ namespace EE::Animation::Tasks
                 continue;
             }
 
+            EE_ASSERT( pTargetBuffer->m_poses[poseIdx].IsAdditivePose() );
+
             //-------------------------------------------------------------------------
+
+            BoneMask const* pBoneMask = ( pBoneMaskBuffer != nullptr ) ? pBoneMaskBuffer->TryGetBoneMask( pSourceBuffer->m_poses[poseIdx].GetSkeleton() ) : nullptr;
 
             bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
             if ( hasSourcePose )
             {
-                Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                Blender::AdditiveBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, pBoneMask, &pFinalBuffer->m_poses[poseIdx] );
             }
             else // Apply the additive to the reference pose
             {
-                Blender::ApplyAdditiveToReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
+                Blender::ApplyAdditiveToReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, pBoneMask, &pFinalBuffer->m_poses[poseIdx] );
             }
+
+            #if EE_DEVELOPMENT_TOOLS
+            if ( poseIdx == 0 && context.m_posePool.IsRecordingEnabled() && pBoneMask != nullptr )
+            {
+                m_debugBoneMask = *pBoneMask;
+            }
+            #endif
         }
 
         //-------------------------------------------------------------------------
+
+        if ( boneMaskBufferIdx != InvalidIndex )
+        {
+            context.m_boneMaskPool.ReleaseMaskBuffer( boneMaskBufferIdx );
+        }
 
         ReleaseDependencyPoseBuffer( context, 1 );
         MarkTaskComplete( context );
@@ -400,7 +440,7 @@ namespace EE::Animation::Tasks
 
     //-------------------------------------------------------------------------
 
-    GlobalBlendTask::GlobalBlendTask( int8_t baseTaskIdx, int8_t layerTaskIdx, float const blendWeight, BoneMaskTaskList const& boneMaskTaskList )
+    ModelSpaceBlendTask::ModelSpaceBlendTask( int8_t baseTaskIdx, int8_t layerTaskIdx, float const blendWeight, BoneMaskTaskList const& boneMaskTaskList )
         : BlendTaskBase( TaskUpdateStage::Any, { baseTaskIdx, layerTaskIdx } )
     {
         m_blendWeight = blendWeight;
@@ -409,7 +449,7 @@ namespace EE::Animation::Tasks
         m_boneMaskTaskList.CopyFrom( boneMaskTaskList );
     }
 
-    void GlobalBlendTask::Execute( TaskContext const& context )
+    void ModelSpaceBlendTask::Execute( TaskContext const& context )
     {
         //EE_PROFILE_FUNCTION_ANIMATION();
 
@@ -420,62 +460,81 @@ namespace EE::Animation::Tasks
         auto pTargetBuffer = TransferDependencyPoseBuffer( context, 1 );
         auto pFinalBuffer = pTargetBuffer;
 
+        // If neither pose is set, this is a no-op
+        if ( !pSourceBuffer->IsPoseSet() && !pTargetBuffer->IsPoseSet() )
+        {
+            ReleaseDependencyPoseBuffer( context, 0 );
+            MarkTaskComplete( context );
+            return;
+        }
+
+        // Check that both poses are parent-space
+        if ( pSourceBuffer->IsAdditivePose() || pTargetBuffer->IsAdditivePose() )
+        {
+            EE_DEVELOPMENT_TOOLS_ONLY( context.LogError( m_sourcePath, "ModelSpaceBlendTask - Trying to perform a model-space blend using an additive pose" ) );
+
+            pFinalBuffer->ResetPose( Pose::Init::ReferencePose );
+            ReleaseDependencyPoseBuffer( context, 0 );
+            MarkTaskComplete( context );
+            return;
+        }
+
         // Primary Pose
         //-------------------------------------------------------------------------
 
-        bool shouldRunBlend = m_boneMaskTaskList.HasTasks();
+        auto pPrimaryPose = pSourceBuffer->GetPrimaryPose();
+        int8_t const boneMaskBufferIdx = m_boneMaskTaskList.GenerateBoneMask( pPrimaryPose->GetSkeleton(), context.m_boneMaskPool );
+        EE_ASSERT( boneMaskBufferIdx != InvalidIndex );
 
-        // If we have a bone mask task list, execute it
-        if ( shouldRunBlend )
+        BoneMaskBuffer const* pBoneMaskBuffer = context.m_boneMaskPool.GetBuffer( boneMaskBufferIdx );
+        Blender::ModelSpaceBlend( context.m_skeletonLOD, pSourceBuffer->GetPrimaryPose(), pTargetBuffer->GetPrimaryPose(), m_blendWeight, &pBoneMaskBuffer->m_masks[0], pFinalBuffer->GetPrimaryPose() );
+
+        #if EE_DEVELOPMENT_TOOLS
+        if ( context.m_posePool.IsRecordingEnabled() )
         {
-            auto const boneMaskResult = m_boneMaskTaskList.GenerateBoneMask( context.m_boneMaskPool );
-            Blender::ModelSpaceBlend( context.m_skeletonLOD, pSourceBuffer->GetPrimaryPose(), pTargetBuffer->GetPrimaryPose(), m_blendWeight, boneMaskResult.m_pBoneMask, pFinalBuffer->GetPrimaryPose() );
+            m_debugBoneMask.CopyFrom( pBoneMaskBuffer->m_masks[0] );
+        }
+        #endif
 
-            #if EE_DEVELOPMENT_TOOLS
-            if ( context.m_posePool.IsRecordingEnabled() )
-            {
-                m_debugBoneMask = *boneMaskResult.m_pBoneMask;
-            }
-            #endif
+        // Secondary Poses
+        //-------------------------------------------------------------------------
+        // Since a model-space blend is an overlay blend - if a secondary pose is not set in the overlay, then we ignore the blend
 
-            if ( boneMaskResult.m_maskPoolIdx != InvalidIndex )
+        int32_t const numPoses = (int32_t) pSourceBuffer->m_poses.size();
+        for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
+        {
+            bool const hasTargetPose = pTargetBuffer->m_poses[poseIdx].IsPoseSet();
+            if ( !hasTargetPose )
             {
-                context.m_boneMaskPool.ReleaseMask( boneMaskResult.m_maskPoolIdx );
+                continue;
             }
+
+            //-------------------------------------------------------------------------
+
+            BoneMask const* pMask = pBoneMaskBuffer->TryGetBoneMask( pSourceBuffer->m_poses[poseIdx].GetSkeleton() );
+
+            bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
+            if ( !hasSourcePose )
+            {
+                pSourceBuffer->m_poses[poseIdx].Reset( Pose::Init::ReferencePose );
+            }
+
+            Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, pMask, &pFinalBuffer->m_poses[poseIdx] );
         }
 
-        // Secondary Pose
+        // Release buffers and complete task
         //-------------------------------------------------------------------------
 
-        if ( shouldRunBlend )
-        {
-            // Since a global blend is an overlay blend - if a secondary pose is not set in the overlay, then we ignore the blend
-            int32_t const numPoses = (int32_t) pSourceBuffer->m_poses.size();
-            for ( int32_t poseIdx = 1; poseIdx < numPoses; poseIdx++ )
-            {
-                bool const hasTargetPose = pTargetBuffer->m_poses[poseIdx].IsPoseSet();
-                if ( !hasTargetPose )
-                {
-                    continue;
-                }
-
-                //-------------------------------------------------------------------------
-
-                bool const hasSourcePose = pSourceBuffer->m_poses[poseIdx].IsPoseSet();
-                if ( hasSourcePose )
-                {
-                    Blender::ParentSpaceBlend( context.m_skeletonLOD, &pSourceBuffer->m_poses[poseIdx], &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
-                }
-                else // Apply overlay to the reference pose
-                {
-                    Blender::ParentSpaceBlendFromReferencePose( context.m_skeletonLOD, &pTargetBuffer->m_poses[poseIdx], m_blendWeight, nullptr, &pFinalBuffer->m_poses[poseIdx] );
-                }
-            }
-        }
-
-        //-------------------------------------------------------------------------
-
+        context.m_boneMaskPool.ReleaseMaskBuffer( boneMaskBufferIdx );
         ReleaseDependencyPoseBuffer( context, 0 );
         MarkTaskComplete( context );
     }
+
+    #if EE_DEVELOPMENT_TOOLS
+    InlineString ModelSpaceBlendTask::GetDebugTextInfo( bool isDetailedModeEnabled ) const
+    {
+        InlineString str( InlineString::CtorSprintf(), "Weight: %.2f%%", m_blendWeight );
+        return str;
+    }
+    #endif
 }

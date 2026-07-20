@@ -1,10 +1,10 @@
 #include "BaseModule.h"
 #include "Base/Threading/Threading.h"
 #include "Base/Network/NetworkSystem.h"
-#include "Base/Resource/ResourceProviders/NetworkResourceProvider.h"
-#include "Base/Resource/ResourceProviders/PackagedResourceProvider.h"
-#include "Base/Resource/Settings/GlobalSettings_Resource.h"
-#include "Base/Render/Settings/GlobalSettings_Render.h"
+#include "Base/Resource/ResourceProviders/ResourceProvider_Network.h"
+#include "Base/Resource/ResourceProviders/ResourceProvider_Package.h"
+#include "Base/Resource/Settings/Settings_Resource.h"
+#include "Base/Render/RHI.h"
 
 #ifdef _WIN32
 #include "Base/Platform/PlatformUtils_Win32.h"
@@ -15,9 +15,17 @@
 namespace EE
 {
     #if EE_DEVELOPMENT_TOOLS
-    bool EnsureResourceServerIsRunning( FileSystem::Path const& resourceServerExecutablePath )
+    bool EnsureResourceServerIsRunning( FileSystem::Path const& resourceServerExecutablePath, String const& resourceServerNetworkAddress )
     {
         #if _WIN32
+
+        // Don't start resource server when it's running on a remote PC
+        if ( resourceServerNetworkAddress != "127.0.0.1" && resourceServerNetworkAddress != "localhost" )
+        {
+            EE_LOG_MESSAGE( LogCategory::Resource, "Resource Server", "Resource server is running remotely" );
+            return true;
+        }
+        
         bool shouldStartResourceServer = false;
 
         // If the resource server is not running then start it
@@ -78,7 +86,6 @@ namespace EE
         moduleContext.m_pSettingsRegistry = &mutableModule->m_settingsRegistry;
         moduleContext.m_pResourceSystem = &mutableModule->m_resourceSystem;
         moduleContext.m_pSystemRegistry = &mutableModule->m_systemRegistry;
-        moduleContext.m_pRenderDevice = &mutableModule->m_renderDevice;
         return moduleContext;
     }
 
@@ -94,41 +101,44 @@ namespace EE
 
         if ( !Network::NetworkSystem::Initialize() )
         {
-            EE_LOG_ERROR( "Networking", nullptr, "Failed to initialize network system" );
+            EE_LOG_ERROR( LogCategory::Network, nullptr, "Failed to initialize network system" );
             return false;
         }
 
         // Resource
         //-------------------------------------------------------------------------
 
-        Resource::ResourceGlobalSettings const* pResourceSettings = m_settingsRegistry.GetGlobalSettings<Resource::ResourceGlobalSettings>();
+        Resource::ResourceSettings const* pResourceSettings = m_settingsRegistry.GetSettings<Resource::ResourceSettings>();
         EE_ASSERT( pResourceSettings != nullptr );
-
-        #if EE_DEVELOPMENT_TOOLS
+    
+        if ( pResourceSettings->UsePackagedResourceProvider() )
         {
-            if ( !EnsureResourceServerIsRunning( pResourceSettings->m_resourceServerExecutablePath ) )
+            m_pResourceProvider = EE::New<Resource::PackagedResourceProvider>( *pResourceSettings );
+        }
+        else
+        {
+            #if EE_DEVELOPMENT_TOOLS
+            if ( !EnsureResourceServerIsRunning( pResourceSettings->m_resourceServerExecutablePath, pResourceSettings->m_resourceServerNetworkAddress ) )
             {
-                EE_LOG_ERROR( "Resource Provider", nullptr, "Couldn't start resource server (%s)!", pResourceSettings->m_resourceServerExecutablePath.c_str() );
+                EE_LOG_ERROR( LogCategory::Resource, "Resource Provider", "Couldn't start resource server (%s)!", pResourceSettings->m_resourceServerExecutablePath.c_str() );
                 return false;
             }
 
             m_pResourceProvider = EE::New<Resource::NetworkResourceProvider>( *pResourceSettings );
+            #else
+            EE_UNREACHABLE_CODE();
+            #endif
         }
-        #else
-        {
-            m_pResourceProvider = EE::New<Resource::PackagedResourceProvider>( *pResourceSettings );
-        }
-        #endif
 
         if ( m_pResourceProvider == nullptr )
         {
-            EE_LOG_ERROR( "Resource", nullptr, "Failed to create resource provider" );
+            EE_LOG_ERROR( LogCategory::Resource, nullptr, "Failed to create resource provider" );
             return false;
         }
 
         if ( !m_pResourceProvider->Initialize() )
         {
-            EE_LOG_ERROR( "Resource", nullptr, "Failed to intialize resource provider" );
+            EE_LOG_ERROR( LogCategory::Resource, nullptr, "Failed to intialize resource provider" );
             EE::Delete( m_pResourceProvider );
             return false;
         }
@@ -140,23 +150,11 @@ namespace EE
 
         m_inputSystem.Initialize();
 
-        // Rendering
-        //-------------------------------------------------------------------------
-
-        Render::RenderGlobalSettings const* pRenderSettings = m_settingsRegistry.GetGlobalSettings<Render::RenderGlobalSettings>();
-        EE_ASSERT( pRenderSettings != nullptr );
-
-        if ( !m_renderDevice.Initialize( *pRenderSettings ) )
-        {
-            EE_LOG_ERROR( "Render", nullptr, "Failed to create render device" );
-            return false;
-        }
-
         // ImGui
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        m_imguiSystem.Initialize( &m_renderDevice, &m_inputSystem, true );
+        m_imguiSystem.Initialize( &m_inputSystem, true );
         #endif
 
         // Register Systems
@@ -192,7 +190,7 @@ namespace EE
         // Rendering
         //-------------------------------------------------------------------------
 
-        m_renderDevice.Shutdown();
+        Render::RHI::ReportDeviceMemoryLeaks();
 
         // Input
         //-------------------------------------------------------------------------

@@ -17,14 +17,14 @@ namespace EE::Resource
         EE_ASSERT( m_pResourceProvider == nullptr && !IsBusy() && m_resourceRecords.empty() );
     }
 
-    ResourceGlobalSettings const& ResourceSystem::GetSettings() const
+    ResourceSettings const& ResourceSystem::GetSettings() const
     {
         return m_pResourceProvider->GetSettings();
     }
 
     void ResourceSystem::Initialize( ResourceProvider* pResourceProvider )
     {
-        EE_ASSERT( pResourceProvider != nullptr && pResourceProvider->IsReady() );
+        EE_ASSERT( pResourceProvider != nullptr && ( pResourceProvider->IsReady() || pResourceProvider->IsConnecting() ) );
         m_pResourceProvider = pResourceProvider;
     }
 
@@ -66,7 +66,7 @@ namespace EE::Resource
             // Internal user i.e. install dependency
             if ( requesterID.IsInstallDependencyRequest() )
             {
-                uint32_t const resourcePathID( requesterID.GetInstallDependencyResourcePathID() );
+                uint64_t const resourcePathID( requesterID.GetInstallDependencyResourcePathID() );
                 auto const dependentRecordIter = m_resourceRecords.find_as( resourcePathID );
                 EE_ASSERT( dependentRecordIter != m_resourceRecords.end() );
 
@@ -96,7 +96,7 @@ namespace EE::Resource
         {
             if ( requesterID.IsInstallDependencyRequest() )
             {
-                uint32_t const resourcePathID( requesterID.GetInstallDependencyResourcePathID() );
+                uint64_t const resourcePathID( requesterID.GetInstallDependencyResourcePathID() );
                 auto const dependentRecordIter = m_resourceRecords.find_as( resourcePathID );
                 EE_ASSERT( dependentRecordIter != m_resourceRecords.end() );
 
@@ -165,6 +165,8 @@ namespace EE::Resource
 
     void ResourceSystem::LoadResource( ResourcePtr& resourcePtr, ResourceRequesterID const& requesterID )
     {
+        EE_ASSERT( requesterID.IsValid() );
+        EE_ASSERT( resourcePtr.IsSet() );
         Threading::RecursiveScopeLock lock( m_accessLock );
 
         // Immediately update the resource ptr
@@ -175,7 +177,31 @@ namespace EE::Resource
 
         if ( !pRecord->HasReferences() )
         {
-            AddPendingRequest( PendingRequest( PendingRequest::Type::Load, pRecord, requesterID ) );
+            AddPendingRequest( PendingRequest( PendingRequest::Type::Load, pRecord ) );
+        }
+
+        pRecord->AddReference( requesterID );
+    }
+
+    void ResourceSystem::LoadResourceWithMismatchedType( ResourceTypeID requiredTypeID, ResourcePtr& resourcePtr, ResourceRequesterID const& requesterID )
+    {
+        EE_ASSERT( requesterID.IsValid() );
+        EE_ASSERT( resourcePtr.IsSet() );
+        Threading::RecursiveScopeLock lock( m_accessLock );
+
+        // Immediately update the resource ptr
+        auto pRecord = FindOrCreateResourceRecord( resourcePtr.GetResourceID() );
+        resourcePtr.m_pResourceRecord = pRecord;
+
+        //-------------------------------------------------------------------------
+
+        if ( !pRecord->HasReferences() )
+        {
+            pRecord->m_loadingStatus = LoadingStatus::Failed;
+
+            #if EE_DEVELOPMENT_TOOLS
+            pRecord->m_compilationLog.append_sprintf( "Trying to load a '%s' instead of a '%s'", pRecord->m_resourceID.GetResourceTypeID().ToString().c_str(), requiredTypeID.ToString().c_str() );
+            #endif
         }
 
         pRecord->AddReference( requesterID );
@@ -183,6 +209,8 @@ namespace EE::Resource
 
     void ResourceSystem::UnloadResource( ResourcePtr& resourcePtr, ResourceRequesterID const& requesterID )
     {
+        EE_ASSERT( requesterID.IsValid() );
+        EE_ASSERT( resourcePtr.IsSet() );
         Threading::RecursiveScopeLock lock( m_accessLock );
 
         // Immediately update the resource ptr
@@ -195,7 +223,7 @@ namespace EE::Resource
 
         if ( !pRecord->HasReferences() )
         {
-            AddPendingRequest( PendingRequest( PendingRequest::Type::Unload, pRecord, requesterID ) );
+            AddPendingRequest( PendingRequest( PendingRequest::Type::Unload, pRecord ) );
         }
     }
 
@@ -286,7 +314,7 @@ namespace EE::Resource
         {
             Threading::RecursiveScopeLock lock( m_accessLock );
 
-            for ( auto& pendingRequest : m_pendingRequests )
+            for ( PendingRequest& pendingRequest : m_pendingRequests )
             {
                 // Get existing active request
                 auto pActiveRequest = TryFindActiveRequest( pendingRequest.m_pRecord );
@@ -298,7 +326,7 @@ namespace EE::Resource
                     {
                         if ( pActiveRequest->IsUnloadRequest() )
                         {
-                            pActiveRequest->SwitchToLoadTask();
+                            pActiveRequest->RequestSwitchToLoadTask();
                         }
                     }
                     else if ( pendingRequest.m_pRecord->IsLoaded() ) // Can occur due to multiple requests for the same resource in the same frame
@@ -309,7 +337,7 @@ namespace EE::Resource
                     {
                         auto loaderIter = m_resourceLoaders.find( pendingRequest.m_pRecord->GetResourceTypeID() );
                         EE_ASSERT( loaderIter != m_resourceLoaders.end() );
-                        m_activeRequests.emplace_back( EE::New<ResourceRequest>( pendingRequest.m_requesterID, ResourceRequest::Type::Load, pendingRequest.m_pRecord, loaderIter->second ) );
+                        m_activeRequests.emplace_back( EE::New<ResourceRequest>( ResourceRequest::RequestType::Load, pendingRequest.m_pRecord, loaderIter->second ) );
                     }
                 }
                 else // Unload request
@@ -318,7 +346,7 @@ namespace EE::Resource
                     {
                         if ( pActiveRequest->IsLoadRequest() )
                         {
-                            pActiveRequest->SwitchToUnloadTask();
+                            pActiveRequest->RequestSwitchToUnloadTask();
                         }
                     }
                     else if ( pendingRequest.m_pRecord->IsUnloaded() ) // Can occur due to multiple requests for the same resource in the same frame
@@ -337,7 +365,7 @@ namespace EE::Resource
                     {
                         auto loaderIter = m_resourceLoaders.find( pendingRequest.m_pRecord->GetResourceTypeID() );
                         EE_ASSERT( loaderIter != m_resourceLoaders.end() );
-                        m_activeRequests.emplace_back( EE::New<ResourceRequest>( pendingRequest.m_requesterID, ResourceRequest::Type::Unload, pendingRequest.m_pRecord, loaderIter->second ) );
+                        m_activeRequests.emplace_back( EE::New<ResourceRequest>( ResourceRequest::RequestType::Unload, pendingRequest.m_pRecord, loaderIter->second ) );
                     }
                 }
             }
@@ -429,6 +457,7 @@ namespace EE::Resource
             if ( isRequestComplete )
             {
                 // We need to process and remove completed requests at the next update stage since unload task may have queued unload requests which refer to the request's allocated memory
+                EE_ASSERT( pRequest->IsComplete() );
                 m_completedRequests.emplace_back( pRequest );
                 m_activeRequests.erase_unsorted( m_activeRequests.begin() + i );
             }

@@ -1,12 +1,12 @@
 #pragma once
 
 #include "AnimationSkeleton.h"
+#include "AnimationFloatChannels.h"
 #include "Base/Math/Math.h"
-#include "Base/Types/Color.h"
 
 //-------------------------------------------------------------------------
 
-namespace EE::Drawing { class DrawContext; }
+namespace EE { class DebugDrawContext; }
 
 //-------------------------------------------------------------------------
 
@@ -16,24 +16,43 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    struct BoneChainElement
+    {
+        BoneChainElement() = default;
+
+        BoneChainElement( int32_t boneIdx, StringID boneID, Transform const& parentSpaceTransform, Transform const& modelSpaceTransform )
+            : m_boneIdx( boneIdx ), m_boneID( boneID ), m_parentSpaceTransform( parentSpaceTransform ), m_modelSpaceTransform( modelSpaceTransform )
+        {}
+
+    public:
+
+        int32_t     m_boneIdx = InvalidIndex;
+        StringID    m_boneID;
+        Transform   m_parentSpaceTransform;
+        Transform   m_modelSpaceTransform;
+    };
+
+    //-------------------------------------------------------------------------
+
     class EE_ENGINE_API Pose
     {
         friend class Blender;
         friend class AnimationClip;
+        friend struct TransformAccessor;
 
     public:
 
-        enum class Type : uint8_t
+        enum class Init : uint8_t
         {
             None = 0,
-            ReferencePose,
-            ZeroPose
+            ReferencePose, // A reference parent space pose
+            ZeroPose, // A zero additive pose
         };
 
         enum class State : uint8_t
         {
             Unset = 0,
-            Pose,
+            ParentSpacePose,
             ReferencePose,
             ZeroPose,
             AdditivePose
@@ -41,7 +60,7 @@ namespace EE::Animation
 
     public:
 
-        Pose( Skeleton const* pSkeleton, Type initialPoseType = Type::ReferencePose );
+        Pose( Skeleton const* pSkeleton, Init initialPoseType = Init::ReferencePose );
 
         Pose( Pose&& rhs );
         Pose( Pose const& rhs );
@@ -69,23 +88,27 @@ namespace EE::Animation
         // Pose state
         //-------------------------------------------------------------------------
 
-        void Reset( Type initState = Type::None, bool calculateModelSpacePose = false );
+        void Reset( Init initState = Init::None, bool calculateModelSpacePose = false );
 
         inline bool IsPoseSet() const { return m_state != State::Unset; }
         inline bool IsReferencePose() const { return m_state == State::ReferencePose; }
         inline bool IsZeroPose() const { return m_state == State::ZeroPose; }
-        inline bool IsAdditivePose() const { return m_state == State::AdditivePose; }
+        inline bool IsParentSpacePose() const { return m_state == State::ParentSpacePose || m_state == State::ReferencePose; }
+        inline bool IsAdditivePose() const { return m_state == State::AdditivePose || m_state == State::ZeroPose; }
 
         // Parent-Bone-Space Transforms
         //-------------------------------------------------------------------------
 
         TVector<Transform> const& GetTransforms() const { return m_parentSpaceTransforms; }
+        TVector<Transform> const& GetParentSpaceTransforms() const { return m_parentSpaceTransforms; }
 
-        inline Transform const& GetTransform( int32_t boneIdx ) const
+        EE_FORCE_INLINE Transform const& GetTransform( int32_t boneIdx ) const
         {
             EE_ASSERT( boneIdx < GetNumBones() );
             return m_parentSpaceTransforms[boneIdx];
         }
+
+        EE_FORCE_INLINE Transform const& GetParentSpaceTransform( int32_t boneIdx ) const { return GetTransform( boneIdx ); }
 
         inline void SetTransform( int32_t boneIdx, Transform const& transform )
         {
@@ -125,11 +148,23 @@ namespace EE::Animation
         void CalculateModelSpaceTransforms( Skeleton::LOD lod = Skeleton::LOD::High );
         Transform GetModelSpaceTransform( int32_t boneIdx ) const;
 
+        // Return all the model space transforms from the root to the specified bone
+        TInlineVector<BoneChainElement, 20> CalculateModelSpaceTransformsForChain( int32_t chainEndBoneIdx ) const;
+
+        // Float Channels
+        //-------------------------------------------------------------------------
+
+        inline bool SupportsFloatChannelData() const { return !m_floatChannelSetValues.empty(); }
+        bool HasFloatChannelValues() const;
+        inline int32_t GetNumFloatChannelSets() const { return (int32_t) m_floatChannelSetValues.size(); }
+        TVector<FloatChannelSetValues> const &GetFloatChannelSetValues() const { return m_floatChannelSetValues; }
+
+
         // Debug
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        void DrawDebug( Drawing::DrawContext& ctx, Transform const& worldTransform, Skeleton::LOD lod = Skeleton::LOD::High, Color color = Colors::HotPink, float lineThickness = 2.0f, bool bDrawBoneNames = false, BoneMask const* pBoneMask = nullptr, TVector<int32_t> const& boneIdxFilter = {} ) const;
+        void DrawDebug( DebugDrawContext& ctx, Transform const& worldTransform, Skeleton::LOD lod = Skeleton::LOD::High, DrawOptions const& options = DrawOptions() ) const;
         #endif
 
     private:
@@ -137,21 +172,22 @@ namespace EE::Animation
         Pose() = delete;
 
         void SetToReferencePose( bool setGlobalPose );
-        void SetToZeroPose( bool setGlobalPose );
+        void SetToZeroPose( bool setGlobalPose, bool setZeroScale = true );
 
         EE_FORCE_INLINE void MarkAsValidPose()
         {
-            if ( m_state != State::Pose && m_state != State::AdditivePose )
+            if ( m_state != State::ParentSpacePose && m_state != State::AdditivePose )
             {
-                m_state = State::Pose;
+                m_state = State::ParentSpacePose;
             }
         }
 
     private:
 
-        Skeleton const*             m_pSkeleton;                // The skeleton for this pose
-        TVector<Transform>          m_parentSpaceTransforms;    // Parent-space transforms
-        TVector<Transform>          m_modelSpaceTransforms;     // Model-space transforms
-        State                       m_state = State::Unset;     // Pose state
+        Skeleton const*                     m_pSkeleton;                // The skeleton for this pose
+        TVector<Transform>                  m_parentSpaceTransforms;    // Parent-space transforms
+        TVector<Transform>                  m_modelSpaceTransforms;     // Model-space transforms
+        TVector<FloatChannelSetValues>      m_floatChannelSetValues;    // Float channel set values
+        State                               m_state = State::Unset;     // Pose state
     };
 }

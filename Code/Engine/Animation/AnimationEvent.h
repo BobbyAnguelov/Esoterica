@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "Base/Time/Time.h"
 #include "Base/TypeSystem/ReflectedType.h"
 #include "Base/Math/NumericRange.h"
 
@@ -35,26 +34,29 @@ namespace EE::Animation
 
         virtual bool IsValid() const { return true; }
 
-        inline Seconds GetStartTime() const { return m_startTime; }
-        inline Seconds GetDuration() const { return m_duration; }
-        inline Seconds GetEndTime() const { EE_ASSERT( IsDurationEvent() ); return m_startTime + m_duration; }
+        inline Percentage GetStartTime() const { return m_startTime; }
+        inline Percentage GetDuration() const { return m_duration; }
+        inline Percentage GetEndTime() const { EE_ASSERT( IsDurationEvent() ); return m_startTime + m_duration; }
         inline bool IsImmediateEvent() const { return m_duration == 0; }
         inline bool IsDurationEvent() const { return m_duration > 0; }
 
-        // Get the time range for this event (in seconds)
-        EE_FORCE_INLINE FloatRange GetTimeRange() const { return FloatRange( m_startTime, m_startTime + m_duration ); }
+        // Get the time range for this event
+        EE_FORCE_INLINE FloatRange GetTimeRange() const { return FloatRange( m_startTime.ToFloat(), ( m_startTime + m_duration ).ToFloat() ); }
 
         // Optional: Allow the track to return a specific sync event ID
         virtual StringID GetSyncEventID() const;
 
         #if EE_DEVELOPMENT_TOOLS
-        // Get a string description of the event for use when debugging
-        virtual InlineString GetDebugText() const { return GetStaticTypeID().c_str(); }
+        // Get a string description of the event for use when debugging (events sampled at runtime will have their percentage through provided)
+        virtual InlineString GetDebugText( Percentage percentageThroughEvent = -1.0f ) const { return GetStaticTypeID().c_str(); }
         #endif
 
     protected:
 
-        EE_REFLECT( ReadOnly ) Seconds         m_startTime = 0.0f;
-        EE_REFLECT( ReadOnly ) Seconds         m_duration = 0.0f;
+        EE_REFLECT( ReadOnly );
+        Percentage         m_startTime = 0.0f;
+
+        EE_REFLECT( ReadOnly );
+        Percentage         m_duration = 0.0f;
     };
 }

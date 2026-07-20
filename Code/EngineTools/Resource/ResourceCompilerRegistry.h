@@ -34,11 +34,11 @@ namespace EE::Resource
             return nullptr;
         }
 
-        inline int32_t GetVersionForType( ResourceTypeID const& typeID ) const
+        inline uint64_t GetVersionForResourceType( ResourceTypeID const& typeID ) const
         {
             auto pCompiler = GetCompilerForResourceType( typeID );
             EE_ASSERT( pCompiler != nullptr );
-            return pCompiler->GetVersion( typeID );
+            return pCompiler->GetVersionForResourceType( typeID );
         }
 
     private:

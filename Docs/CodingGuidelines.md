@@ -4,7 +4,7 @@
 
 ## Filenames and Folder Structure
 
-Filenames should all be named using CamelCase (https://en.wikipedia.org/wiki/Camel_case).
+Filenames should all be named using [CamelCase](https://en.wikipedia.org/wiki/Camel_case).
 
 Filenames should be descriptive and ideally contain the domain/namespace that the file is part of:
 
@@ -33,7 +33,7 @@ ResourceEditor_AnimationClip.cpp
 ## Braces, indentation and spacing
 
 ### Braces
-Esoterica uses Allman style braces (https://en.wikipedia.org/wiki/Indentation_style#Allman_style)
+Esoterica uses [Allman](https://en.wikipedia.org/wiki/Indentation_style#Allman_style) style braces
 
 The only exception for this is for empty functions or one line functions. These should be written as follows:
 
@@ -180,6 +180,75 @@ namespace EE::Foo
 
 **Exception**: Code within parts of EE::Render is allowed to not match this convention, until ClangFormat is fixed!
 
+## Indentation / Multi-line statements
+
+Try to avoid multi-line statements where-ever possible, so prefer:
+
+```cpp
+Function( arg, arg, arg );
+
+int arr[4] = { 1, 2, 3, 4 };
+```
+
+over:
+
+```cpp
+Function(
+    arg,
+    arg,
+    arg );
+
+int arr[4] = {
+1, 
+2,
+3,
+4 };
+```
+
+If a multi-line statement is unavoidable due to readability, *DO-NOT* use K&R bracing patterns! So make sure that braces are aligned.
+
+This is <span style="color:green">*CORRECT*</span>
+
+```cpp
+Function
+(
+    arg,
+    {
+        arg,
+        arg,
+        arg
+    }
+    arg,
+    arg 
+);
+
+int arr[4] =
+{
+    1, 
+    2,
+    3,
+    4
+};
+```
+
+This is <span style="color:red">*WRONG*</span>
+
+```cpp
+Function(
+    arg,
+    {   Arg,
+        Arg,
+        Arg },
+    arg,
+    arg );
+
+int arr[4] = {
+1, 
+2,
+3,
+4 };
+```
+
 ## Separators
 
 Please use this separator string to break up logical code blocks (structures, namespaces, etc..)
@@ -188,7 +257,14 @@ Please use this separator string to break up logical code blocks (structures, na
 //-------------------------------------------------------------------------
 ```
 
-Look at existing usage of this separator and following the same conventions
+If you want to create a section seperator, the text goes above the separator
+
+```cpp
+// My Section Header
+//-------------------------------------------------------------------------
+```
+
+In general, look at existing usage of this separator and following the same conventions as the rest of the code.
 
 ## Namespaces
 
@@ -244,7 +320,7 @@ Namespaces also allow us to have multiple things with the same name:
 ## Naming Conventions
 
 ### Variables
-Variables must use Camel Case (https://en.wikipedia.org/wiki/Camel_case).
+Variables must use [CamelCase](https://en.wikipedia.org/wiki/Camel_case).
 
 ```cpp
 int someVariableName;
@@ -369,7 +445,7 @@ enum class AIStates
 
 ### Macros
 
-Macros must be decalared in ALL CAPS and Snake Case (https://simple.wikipedia.org/wiki/Snake_case)
+Macros must be decalared in ALL_CAPS and [SnakeCase](https://simple.wikipedia.org/wiki/Snake_case)
 
 Avoid macros as much as possible, prefer const-expr/const-eval wherever possible!
 

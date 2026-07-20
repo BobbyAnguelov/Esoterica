@@ -48,6 +48,8 @@ namespace EE::NodeGraph
 
     public:
 
+        inline bool IsReadOnly() const { return m_isReadOnly; }
+
         // Extra graph title info
         //-------------------------------------------------------------------------
 
@@ -93,7 +95,7 @@ namespace EE::NodeGraph
 
         void NotifySelectionChanged( TVector<SelectedNode> const& oldSelection, TVector<SelectedNode> const& newSelection );
 
-        void NotifyNodesPasted( TInlineVector<BaseNode*, 20> const& pastedNodes );
+        void NotifyNodesPasted( TInlineVector<BaseNode*, 20> const& pastedNodes, THashMap<UUID, UUID> const& IDMapping );
 
         // Fired whenever we received an open resource request
         inline TEventHandle<ResourceID const&> OnRequestOpenResource() { return m_requestOpenResourceEvent; }
@@ -102,7 +104,7 @@ namespace EE::NodeGraph
         inline TEventHandle<TVector<SelectedNode> const&, TVector<SelectedNode> const&> OnSelectionChanged() { return m_selectionChangedEvent; }
 
         // Event fired whenever we paste nodes but before we complete the graph modification, allows for addition validation, manipulation of data
-        inline TEventHandle<TInlineVector<BaseNode*, 20> const&> OnPostPasteNodes() { return m_postPasteEvent; }
+        inline TEventHandle<TInlineVector<BaseNode*, 20> const&, THashMap<UUID, UUID> const&> OnPostPasteNodes() { return m_postPasteEvent; }
 
     private:
 
@@ -111,22 +113,26 @@ namespace EE::NodeGraph
 
     public:
 
-        bool                                                                    m_isAltDown = false;
-        bool                                                                    m_isCtrlDown = false;
-        bool                                                                    m_isShiftDown = false;
+        bool                                                                            m_isAltDown = false;
+        bool                                                                            m_isCtrlDown = false;
+        bool                                                                            m_isShiftDown = false;
 
     protected:
 
-        TEvent<BaseNode*>                                                       m_navigateToNodeEvent;
-        TEvent<BaseNode*>                                                       m_nodeDoubleClickedEvent;
-        TEvent<BaseGraph*>                                                      m_navigateToGraphEvent;
-        TEvent<BaseGraph*>                                                      m_graphDoubleClickedEvent;
-        TEvent<ResourceID const&>                                               m_requestOpenResourceEvent;
-        TEvent<CustomCommand const*>                                            m_customCommandRequestedEvent;
-        TEvent<TInlineVector<BaseNode*, 20> const&>                             m_postPasteEvent;
-        TEvent<TVector<SelectedNode> const&, TVector<SelectedNode> const&>      m_selectionChangedEvent;
+        TEvent<BaseNode*>                                                               m_navigateToNodeEvent;
+        TEvent<BaseNode*>                                                               m_nodeDoubleClickedEvent;
+        TEvent<BaseGraph*>                                                              m_navigateToGraphEvent;
+        TEvent<BaseGraph*>                                                              m_graphDoubleClickedEvent;
+        TEvent<ResourceID const&>                                                       m_requestOpenResourceEvent;
+        TEvent<CustomCommand const*>                                                    m_customCommandRequestedEvent;
+        TEvent<TInlineVector<BaseNode*, 20> const&, THashMap<UUID, UUID> const&>        m_postPasteEvent;
+        TEvent<TVector<SelectedNode> const&, TVector<SelectedNode> const&>              m_selectionChangedEvent;
 
-        String                                                                  m_extraGraphTitleInfo;
-        uint32_t                                                                m_extraTitleInfoColor;
+        String                                                                          m_extraGraphTitleInfo;
+        uint32_t                                                                        m_extraTitleInfoColor;
+
+    private:
+
+        bool                                                                            m_isReadOnly = false;
     };
 }

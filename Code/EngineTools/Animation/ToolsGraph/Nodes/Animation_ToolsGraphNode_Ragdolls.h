@@ -1,6 +1,6 @@
 #pragma once
 #include "Animation_ToolsGraphNode_VariationData.h"
-#include "Engine/Physics/PhysicsRagdoll.h"
+#include "Engine/Physics/Ragdoll/PhysicsRagdoll_Instance.h"
 
 //-------------------------------------------------------------------------
 
@@ -14,7 +14,15 @@ namespace EE::Animation
         {
             EE_REFLECT_TYPE( Data );
 
-            virtual void GetReferencedResources( TInlineVector<ResourceID, 2>& outReferencedResources ) const override { outReferencedResources.emplace_back( m_ragdollDefinition.GetResourceID() ); }
+            virtual void GetReferencedResources( TInlineVector<ResourceID, 2>& outReferencedResources ) const override 
+            {
+                if ( m_ragdollDefinition.IsSet() )
+                {
+                    outReferencedResources.emplace_back( m_ragdollDefinition.GetResourceID() );
+                }
+            }
+
+            virtual VisualState GetVisualState() const override { return m_ragdollDefinition.IsSet() ? VisualState::None : VisualState::HasUnsetData; }
 
         public:
 
@@ -37,9 +45,11 @@ namespace EE::Animation
 
     private:
 
-        EE_REFLECT() StringID                m_profileID;
-        EE_REFLECT() float                   m_physicsBlendWeight = 1.0f;
-        EE_REFLECT() bool                    m_isGravityEnabled = false;
+        EE_REFLECT();
+        float                   m_physicsBlendWeight = 1.0f;
+
+        EE_REFLECT();
+        bool                    m_isGravityEnabled = false;
     };
 
     //-------------------------------------------------------------------------
@@ -52,7 +62,15 @@ namespace EE::Animation
         {
             EE_REFLECT_TYPE( Data );
 
-            virtual void GetReferencedResources( TInlineVector<ResourceID, 2>& outReferencedResources ) const override { outReferencedResources.emplace_back( m_ragdollDefinition.GetResourceID() ); }
+            virtual void GetReferencedResources( TInlineVector<ResourceID, 2>& outReferencedResources ) const override
+            {
+                if ( m_ragdollDefinition.IsSet() )
+                {
+                    outReferencedResources.emplace_back( m_ragdollDefinition.GetResourceID() );
+                }
+            }
+
+            virtual VisualState GetVisualState() const override { return m_ragdollDefinition.IsSet() ? VisualState::None : VisualState::HasUnsetData; }
 
         public:
 
@@ -80,15 +98,8 @@ namespace EE::Animation
 
         virtual TypeSystem::TypeInfo const* GetVariationDataTypeInfo() const override { return SimulatedRagdollToolsNode::Data::s_pTypeInfo; }
 
-    private:
-
-        // The profile to use when initializing the ragdoll simulation
-        EE_REFLECT() StringID                m_entryProfileID;
-
-        // The profile to use when "fully simulated"
-        EE_REFLECT() StringID                m_simulatedProfileID;
-
-        // The profile to use when leaving "fully simulated"
-        EE_REFLECT() StringID                m_exitProfileID;
+        // The time it takes to blend into the ragdoll (when there's no ragdoll event) and the time take to blend to the exit pose
+        EE_REFLECT();
+        Seconds                 m_blendTime = 0.3f;
     };
 }

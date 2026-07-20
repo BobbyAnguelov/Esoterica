@@ -2,19 +2,17 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="ResourceCompilerApplication.cpp" />
-    <ClCompile Include="CompiledResourceDatabase.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Resources">
-      <UniqueIdentifier>{63fc95d5-1bce-48a5-a2b1-53bf833e7db4}</UniqueIdentifier>
-    </Filter>
-  </ItemGroup>
-  <ItemGroup>
+    <ClInclude Include="ResourceCompilerApplication.h" />
     <ClInclude Include="Resources\Resource.h">
       <Filter>Resources</Filter>
     </ClInclude>
-    <ClInclude Include="CompiledResourceDatabase.h" />
-    <ClInclude Include="ResourceCompilerApplication.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Resources">
+      <UniqueIdentifier>{ba3f4b75-a121-48ad-a0f3-03d2adda78b1}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resources\Resource.rc">

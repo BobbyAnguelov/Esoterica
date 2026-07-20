@@ -3,51 +3,35 @@
 #include "Base/_Module/API.h"
 #include "Base/Types/String.h"
 #include "Base/Types/Arrays.h"
+#include "Base/ThirdParty/rapidhash/rapidhash.h"
 
 //-----------------------------------------------------------------------------
 
 namespace EE::Hash
 {
-    // XXHash
+    // RapidHash
     //-------------------------------------------------------------------------
-    // This is the default hashing algorithm for the engine
 
-    namespace XXHash
+    namespace RapidHash
     {
-        EE_BASE_API uint32_t GetHash32( void const* pData, size_t size );
-
-        EE_FORCE_INLINE uint32_t GetHash32( String const& string )
+        EE_FORCE_INLINE uint64_t GetHash( void const* pData, size_t size )
         {
-            return GetHash32( string.c_str(), string.length() );
+            return rapidhash( pData, size );
         }
 
-        EE_FORCE_INLINE uint32_t GetHash32( char const* pString )
+        EE_FORCE_INLINE uint64_t GetHash( String const& string )
         {
-            return GetHash32( pString, strlen( pString ) );
-        }
-
-        EE_FORCE_INLINE uint32_t GetHash32( Blob const& data )
-        {
-            return GetHash32( data.data(), data.size() );
-        }
-
-        //-------------------------------------------------------------------------
-
-        EE_BASE_API uint64_t GetHash64( void const* pData, size_t size );
-
-        EE_FORCE_INLINE uint64_t GetHash64( String const& string )
-        {
-            return GetHash64( string.c_str(), string.length() );
+            return GetHash( string.c_str(), string.length() );
         }
 
         EE_FORCE_INLINE uint64_t GetHash64( char const* pString )
         {
-            return GetHash64( pString, strlen( pString ) );
+            return GetHash( pString, strlen( pString ) );
         }
 
         EE_FORCE_INLINE uint64_t GetHash64( Blob const& data )
         {
-            return GetHash64( data.data(), data.size() );
+            return GetHash( data.data(), data.size() );
         }
     }
 
@@ -74,58 +58,37 @@ namespace EE::Hash
         }
     }
 
-    // Default EE hashing functions
     //-------------------------------------------------------------------------
-
-    EE_FORCE_INLINE uint32_t GetHash32( String const& string )
-    {
-        return XXHash::GetHash32( string.c_str(), string.length() );
-    }
-
-    template<size_t S>
-    EE_FORCE_INLINE uint32_t GetHash32( TInlineString<S> const& string )
-    {
-        return XXHash::GetHash32( string.c_str(), string.length() );
-    }
-
-    EE_FORCE_INLINE uint32_t GetHash32( char const* pString )
-    {
-        return XXHash::GetHash32( pString, strlen( pString ) );
-    }
-
-    EE_FORCE_INLINE uint32_t GetHash32( void const* pPtr, size_t size )
-    {
-        return XXHash::GetHash32( pPtr, size );
-    }
-
-    EE_FORCE_INLINE uint32_t GetHash32( Blob const& data )
-    {
-        return XXHash::GetHash32( data.data(), data.size() );
-    }
 
     EE_FORCE_INLINE uint64_t GetHash64( String const& string )
     {
-        return XXHash::GetHash64( string.c_str(), string.length() );
+        return RapidHash::GetHash( string.c_str(), string.length() );
     }
 
     template<size_t S>
     EE_FORCE_INLINE uint64_t GetHash64( TInlineString<S> const& string )
     {
-        return XXHash::GetHash64( string.c_str(), string.length() );
+        return RapidHash::GetHash( string.c_str(), string.length() );
     }
 
     EE_FORCE_INLINE uint64_t GetHash64( char const* pString )
     {
-        return XXHash::GetHash64( pString, strlen( pString ) );
+        return RapidHash::GetHash( pString, strlen( pString ) );
     }
 
     EE_FORCE_INLINE uint64_t GetHash64( void const* pPtr, size_t size )
     {
-        return XXHash::GetHash64( pPtr, size );
+        return RapidHash::GetHash( pPtr, size );
     }
 
     EE_FORCE_INLINE uint64_t GetHash64( Blob const& data )
     {
-        return XXHash::GetHash64( data.data(), data.size() );
+        return RapidHash::GetHash( data.data(), data.size() );
+    }
+
+    EE_FORCE_INLINE uint64_t CombineHashes64( uint64_t a, uint64_t b )
+    {
+        uint64_t const arr[2] = { a, b };
+        return RapidHash::GetHash( arr, sizeof( uint64_t ) * 2 );
     }
 }

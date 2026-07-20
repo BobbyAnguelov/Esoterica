@@ -11,12 +11,12 @@ namespace EE::Physics
 {
     struct EE_ENGINETOOLS_API PhysicsMaterialLibrary : public IDataFile
     {
-        EE_DATA_FILE( PhysicsMaterialLibrary, 'pml', "Physic Material Library", 0 );
+        EE_DATA_FILE( PhysicsMaterialLibrary, "pml", "Physics Material Library", 0 );
 
     public:
 
         EE_REFLECT();
-        TVector<MaterialSettings>         m_settings;
+        TVector<Material>         m_materials;
     };
 
     //-------------------------------------------------------------------------
@@ -32,13 +32,13 @@ namespace EE::Physics
         virtual FileSystem::Extension GetExtension() const override final { return MaterialDatabase::GetStaticResourceTypeID().ToString(); }
         virtual char const* GetFriendlyName() const override final { return MaterialDatabase::s_friendlyName; }
 
-        virtual void GetCompileDependencies( TVector<DataPath>& outDependencies ) override
+        virtual void GetCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<Resource::CompileDependency>& outDependencies ) const override
         {
             for( auto const& matLibPath : m_materialLibraries )
             {
                 if ( matLibPath.IsValid() )
                 {
-                    outDependencies.emplace_back( matLibPath );
+                    outDependencies.emplace_back( matLibPath, false );
                 }
             }
         }

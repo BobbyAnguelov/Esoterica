@@ -1,12 +1,20 @@
+#include "Reflector.h"
 #include "Base/Application/ApplicationGlobalState.h"
-#include "Base/ThirdParty/cmdParser/cmdParser.h"
-#include "TypeReflection/TypeReflector.h"
+#include "Base/Utils/CommandLineParser.h"
+
+#include <windows.h>
+#include <locale>
+#include <consoleapi2.h>
+
+//-------------------------------------------------------------------------
+
+using namespace EE;
 
 //-------------------------------------------------------------------------
 
 int main( int argc, char *argv[] )
 {
-    EE::ApplicationGlobalState State;
+    ApplicationGlobalState State;
 
     // Set precision of cout
     //-------------------------------------------------------------------------
@@ -17,55 +25,108 @@ int main( int argc, char *argv[] )
     // Read CMD line arguments
     //-------------------------------------------------------------------------
 
-    cli::Parser cmdParser( argc, argv );
-    cmdParser.set_required<std::string>( "s", "SlnPath", "Solution Path." );
-    cmdParser.set_optional<bool>( "clean", "Clean", false, "Clean Reflection Data." );
-    cmdParser.set_optional<bool>( "rebuild", "rebuild", false, "Rebuild Reflection Data." );
+    CommandLineParser cl;
+    cl.AddRequiredStringArg( "s", "Solution Path." );
+    cl.AddOptionalBoolArg( "clean", "Clean Shader and Type Reflection Data.", false );
+    cl.AddOptionalBoolArg( "rebuild", "Rebuild Shaders and Type Reflection Data.", false );
+    cl.AddOptionalBoolArg( "hotreload", "Faster option for hot-reloading shaders, only valid with -shaders", false );
+    cl.AddOptionalBoolArg( "shaders", "Build only Shader Data.", false );
+    cl.AddOptionalBoolArg( "typeinfo", "Build only Type Reflection Data.", false );
 
-    if ( !cmdParser.run() )
+    if ( !cl.Parse( argc, argv ) )
     {
-        EE_LOG_ERROR( "Type System", "Reflector", "Invalid commandline arguments" );
+        EE_LOG_ERROR( LogCategory::TypeSystem, "Reflector", "Invalid commandline arguments" );
         return 1;
     }
 
     // TODO: rewrite command parser to return error codes and not throw exceptions
-    EE::FileSystem::Path slnPath = cmdParser.get<std::string>( "s" ).c_str();
-    bool const shouldClean = cmdParser.get<bool>( "clean" );
-    bool const shouldRebuild = cmdParser.get<bool>( "rebuild" );
+    FileSystem::Path slnPath = cl.GetStringArg( "s" );
 
-    // Execute reflector
+    if ( slnPath.Length() == 0 )
+    {
+        EE_LOG_ERROR( LogCategory::TypeSystem, "Reflector", "Invalid commandline arguments: solution path cannot be empty!" );
+        return 1;
+    }
+
+    if ( !slnPath.IsValid() || slnPath.IsDirectoryPath() )
+    {
+        EE_LOG_ERROR( LogCategory::TypeSystem, "Reflector", "Invalid solution file name: %s", slnPath.c_str() );
+        return 1;
+    }
+
+    if ( !slnPath.MatchesExtension( "slnx" ) )
+    {
+        EE_LOG_ERROR( LogCategory::TypeSystem, "Reflector", "Invalid solution file type: %s", slnPath.c_str() );
+        return 1;
+    }
+
+    if ( !slnPath.Exists() )
+    {
+        EE_LOG_ERROR( LogCategory::TypeSystem, "Reflector", "Solution doesn't exist: %s", slnPath.c_str() );
+        return 1;
+    }
+
+    // TODO: evaluate better alternatives to this
     //-------------------------------------------------------------------------
 
-    std::cout << std::endl;
-    std::cout << "===============================================" << std::endl;
-    std::cout << " * Esoterica Reflector" << std::endl;
-    std::cout << "===============================================" << std::endl << std::endl;
-
-    // Parse solution
-    EE::TypeSystem::Reflection::TypeInfoReflector typeReflector( slnPath );
-    if ( typeReflector.ParseSolution() )
+    bool const buildOnlyShaders = cl.GetBoolArg( "shaders" );
+    bool const buildOnlyTypeinfo = cl.GetBoolArg( "typeinfo" );
+    if ( buildOnlyShaders && buildOnlyTypeinfo )
     {
-        // Clean data
-        if ( shouldClean || shouldRebuild )
+        EE_LOG_ERROR( LogCategory::TypeSystem, "Reflector", "Invalid commandline arguments: 'shaders' and 'typeinfo' arguments are mutally exclusive" );
+        return 1;
+    }
+
+    Reflection::Reflector::Output output = Reflection::Reflector::Output::ShadersAndTypeInfo;
+    if ( buildOnlyShaders )
+    {
+        output = Reflection::Reflector::Output::Shaders;
+    }
+    else if ( buildOnlyTypeinfo )
+    {
+        output = Reflection::Reflector::Output::TypeInfo;
+    }
+
+    //-------------------------------------------------------------------------
+
+    Reflection::Reflector::Operation operation = Reflection::Reflector::Operation::IncrementalBuild;
+    {
+        bool const isCleanRequested = cl.GetBoolArg( "clean" );
+        bool const isRebuildRequested = cl.GetBoolArg( "rebuild" );
+        bool const isHotReloadRequested = cl.GetBoolArg( "hotreload" );
+
+        if ( ( uint8_t( isCleanRequested ) + uint8_t( isRebuildRequested ) + uint8_t( isHotReloadRequested ) ) > 1 )
         {
-            if ( !typeReflector.Clean() )
+            EE_LOG_ERROR( LogCategory::TypeSystem, "Reflector", "Invalid commandline arguments: 'rebuild', 'clean' and 'hotreload' arguments are mutally exclusive" );
+            return 1;
+        }
+
+        if ( isCleanRequested )
+        {
+            operation = Reflection::Reflector::Operation::Clean;
+        }
+        else if ( isRebuildRequested )
+        {
+            operation = Reflection::Reflector::Operation::Rebuild;
+        }
+        else if ( isHotReloadRequested )
+        {
+            if ( output != Reflection::Reflector::Output::Shaders )
             {
-                std::cout << std::endl << "Failed to clean: " << slnPath.c_str() << std::endl;
-                EE_TRACE_MSG( "Failed to clean: %s", slnPath.c_str() );
+                EE_LOG_ERROR( LogCategory::TypeSystem, "Reflector", "Invalid commandline arguments: 'hotreload' requires '-Shaders' argument as well" );
                 return 1;
             }
 
-            if ( shouldClean )
-            {
-                return 0;
-            }
+            operation = Reflection::Reflector::Operation::HotReload;
         }
+    }
+    //-------------------------------------------------------------------------
 
-        // Incremental Build
-        if ( shouldRebuild || !shouldClean )
-        {
-            return typeReflector.Build() ? 0 : 1;
-        }
+    Reflection::Reflector reflector( slnPath );
+
+    if ( !reflector.Run( output, operation ) )
+    {
+        return 1;
     }
 
     return 0;

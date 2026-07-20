@@ -10,7 +10,7 @@
 //-------------------------------------------------------------------------
 
 namespace bfx { class CustomAllocator; }
-namespace EE::Drawing { class DrawingSystem; }
+namespace EE { class DebugDrawSystem; }
 
 //-------------------------------------------------------------------------
 

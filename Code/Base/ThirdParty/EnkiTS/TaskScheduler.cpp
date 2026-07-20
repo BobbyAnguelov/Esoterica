@@ -48,7 +48,6 @@ namespace
 #endif
 
 #ifdef ENKI_USE_WINDOWS_PROCESSOR_API
-
 #ifndef WIN32_LEAN_AND_MEAN
     #define WIN32_LEAN_AND_MEAN
 #endif
@@ -56,8 +55,7 @@ namespace
 #ifndef NOMINMAX
     #define NOMINMAX
 #endif
-
-#include "Windows.h"
+#include <windows.h>
 #endif
 
 uint32_t enki::GetNumHardwareThreads()
@@ -291,7 +289,7 @@ void TaskScheduler::TaskingThreadFunction( const ThreadArgs& args_ )
 
     uint32_t spinCount = 0;
     uint32_t hintPipeToCheck_io = threadNum + 1; // does not need to be clamped.
-    while( pTS->GetIsRunning() )
+    while( pTS->GetIsRunningInt() )
     {
         if( !pTS->TryRunTask( threadNum, hintPipeToCheck_io ) )
         {
@@ -356,18 +354,20 @@ void TaskScheduler::StartThreads()
     {
         m_pThreadDataStore[thread].threadState   = ENKI_THREAD_STATE_NOT_LAUNCHED;
     }
-    // only launch threads once all thread states are set
-    for( uint32_t thread = m_Config.numExternalTaskThreads + GetNumFirstExternalTaskThread(); thread < m_NumThreads; ++thread )
-    {
-        m_pThreads[thread]                       = std::thread( TaskingThreadFunction, ThreadArgs{ thread, this } );
-        ++m_NumInternalTaskThreadsRunning;
-    }
+
 
     // Create Wait New Pinned Task Semaphores and init rndSeed
     for( uint32_t threadNum = 0; threadNum < m_NumThreads; ++threadNum )
     {
         m_pThreadDataStore[threadNum].pWaitNewPinnedTaskSemaphore = SemaphoreNew();
         m_pThreadDataStore[threadNum].rndSeed = threadNum;
+    }
+
+    // only launch threads once all thread states are set
+    for( uint32_t thread = m_Config.numExternalTaskThreads + GetNumFirstExternalTaskThread(); thread < m_NumThreads; ++thread )
+    {
+        m_pThreads[thread]                       = std::thread( TaskingThreadFunction, ThreadArgs{ thread, this } );
+        ++m_NumInternalTaskThreadsRunning;
     }
 
     // ensure we have sufficient tasks to equally fill either all threads including main
@@ -405,7 +405,7 @@ void TaskScheduler::StartThreads()
         if( success )
         {
             uint32_t mainProcessorGroup = mainThreadAffinity.Group;
-            uint32_t currLogicalProcess = GetActiveProcessorCount( (WORD) mainProcessorGroup ); // we start iteration at end of current process group's threads
+            uint32_t currLogicalProcess = GetActiveProcessorCount( (WORD)mainProcessorGroup ); // we start iteration at end of current process group's threads
 
             // If more threads are created than there are logical processors then we still want to distribute them evenly amongst groups
             // so we iterate continuously around the groups until we reach m_NumThreads
@@ -414,7 +414,7 @@ void TaskScheduler::StartThreads()
             {
                 ++group; // start at group 1 since we set currLogicalProcess to start of next group
                 uint32_t currGroup = ( group + mainProcessorGroup ) % numProcessorGroups; // we start at mainProcessorGroup, go round in circles
-                uint32_t groupNumLogicalProcessors = GetActiveProcessorCount( (WORD) currGroup );
+                uint32_t groupNumLogicalProcessors = GetActiveProcessorCount( (WORD)currGroup );
                 ENKI_ASSERT( groupNumLogicalProcessors <= 64 );
                 uint64_t GROUPMASK = 0xFFFFFFFFFFFFFFFFULL >> (64-groupNumLogicalProcessors); // group mask should not have 1's where there are no processors
                 for( uint32_t groupLogicalProcess = 0; ( groupLogicalProcess < groupNumLogicalProcessors ) && ( currLogicalProcess < m_NumThreads ); ++groupLogicalProcess, ++currLogicalProcess )
@@ -431,7 +431,7 @@ void TaskScheduler::StartThreads()
                         ENKI_ASSERT(success); (void)success;
                         if( threadAffinity.Group != currGroup )
                         {
-                            threadAffinity.Group = (WORD) currGroup;
+                            threadAffinity.Group = (WORD)currGroup;
                             threadAffinity.Mask  = GROUPMASK;
                             success = SetThreadGroupAffinity( thread_handle, &threadAffinity, nullptr );
                             ENKI_ASSERT( success ); (void)success;
@@ -523,10 +523,6 @@ bool TaskScheduler::TryRunTask( uint32_t threadNum_, uint32_t& hintPipeToCheck_i
     return false;
 }
 
-static inline uint32_t RotateLeft( uint32_t value, int32_t count )
-{
-    return ( value << count ) | ( value >> ( 32 - count ));
-}
 /*  xxHash variant based on documentation on
     https://github.com/Cyan4973/xxHash/blob/eec5700f4d62113b47ee548edbc4746f61ffb098/doc/xxhash_spec.md
 
@@ -536,24 +532,20 @@ static inline uint32_t RotateLeft( uint32_t value, int32_t count )
 */
 static inline uint32_t Hash32( uint32_t in_ )
 {
-    static const uint32_t PRIME32_1 = 2654435761U;  // 0b10011110001101110111100110110001
     static const uint32_t PRIME32_2 = 2246822519U;  // 0b10000101111010111100101001110111
     static const uint32_t PRIME32_3 = 3266489917U;  // 0b11000010101100101010111000111101
-    static const uint32_t PRIME32_4 =  668265263U;  // 0b00100111110101001110101100101111
     static const uint32_t PRIME32_5 =  374761393U;  // 0b00010110010101100110011110110001
     static const uint32_t SEED      = 0; // can configure seed if needed
 
-    // simple hash of nodes, does not check if nodePool is compressed or not.
+    // less than 16 bytes of input so simplified hash steps
     uint32_t acc = SEED + PRIME32_5;
-
-    // add node types to map, and also ensure that fully empty nodes are well distributed by hashing the pointer.
     acc += in_;
     acc = acc ^ (acc >> 15);
     acc = acc * PRIME32_2;
     acc = acc ^ (acc >> 13);
     acc = acc * PRIME32_3;
     acc = acc ^ (acc >> 16);
-    return (std::size_t)acc;
+    return acc;
 }
 
 bool TaskScheduler::TryRunTask( uint32_t threadNum_, uint32_t priority_, uint32_t& hintPipeToCheck_io_ )
@@ -820,7 +812,6 @@ void TaskScheduler::SplitAndAddTask( uint32_t threadNum_, SubTaskSet subTask_, u
 {
     int32_t numAdded = 0;
     int32_t numNewTasksSinceNotification = 0;
-    int32_t numRun   = 0;
 
     int32_t upperBoundNumToAdd = 2 + (int32_t)( ( subTask_.partition.end - subTask_.partition.start ) / rangeToSplit_ );
 
@@ -848,7 +839,6 @@ void TaskScheduler::SplitAndAddTask( uint32_t threadNum_, SubTaskSet subTask_, u
                 subTask_.partition.start = taskToAdd.partition.end;
             }
             taskToAdd.pTask->ExecuteRange( taskToAdd.partition, threadNum_ );
-            ++numRun;
         }
     }
     int32_t countToRemove = upperBoundNumToAdd - numAdded;
@@ -997,7 +987,7 @@ void    TaskScheduler::WaitforTask( const ICompletable* pCompletable_, enki::Tas
         // so we clamp the priorityOfLowestToRun_ to no smaller than the task we're waiting for
         priorityOfLowestToRun_ = std::max( priorityOfLowestToRun_, pCompletable_->m_Priority );
         uint32_t spinCount = 0;
-        while( !pCompletable_->GetIsComplete() && GetIsRunning() )
+        while( !pCompletable_->GetIsComplete() && GetIsRunningInt() )
         {
             ++spinCount;
             for( int priority = 0; priority <= priorityOfLowestToRun_; ++priority )
@@ -1056,7 +1046,7 @@ void TaskScheduler::WaitforAll()
     uint32_t spinCount = 0;
     TaskSchedulerWaitTask dummyWaitTask;
     dummyWaitTask.threadNum = 0;
-    while( GetIsRunning() && ( bHaveTasks || otherThreadsRunning ) )
+    while( GetIsRunningInt() && ( bHaveTasks || otherThreadsRunning ) )
     {
         bHaveTasks = TryRunTask( ourThreadNum, hintPipeToCheck_io );
         ++spinCount;
@@ -1320,7 +1310,7 @@ void TaskScheduler::Initialize()
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
-#include <Windows.h>
+#include <windows.h>
 
 namespace enki
 {

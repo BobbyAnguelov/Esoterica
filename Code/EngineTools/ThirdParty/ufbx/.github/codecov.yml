@@ -1,0 +1,41 @@
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+      master:
+        informational: false
+        target: 95%
+        branches: 
+          - master
+    patch:
+      default:
+        informational: true
+parsers:
+  gcov:
+    branch_detection:
+      conditional: yes
+      loop: yes
+      method: yes
+      macro: yes
+ignore:
+  - "test"
+comment: 
+  layout: "diff"
+
+flags:
+  tests:
+    paths:
+      - ufbx.c
+      - ufbx.h
+    carryforward: false
+  fuzz:
+    paths:
+      - ufbx.c
+      - ufbx.h
+    carryforward: false
+  dataset:
+    paths:
+      - ufbx.c
+      - ufbx.h
+    carryforward: false

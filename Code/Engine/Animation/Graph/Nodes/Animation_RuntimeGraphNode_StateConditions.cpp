@@ -58,9 +58,16 @@ namespace EE::Animation
             }
             else
             {
-                Percentage const transitionTime( transitionDuration / m_pSourceStateNode->GetDuration() );
-                Percentage const transitionPoint = 1.0f - transitionTime;
-                m_result = ( m_pSourceStateNode->GetCurrentTime() >= transitionPoint );
+                if ( Math::IsNearZero( transitionDuration ) )
+                {
+                    m_result = Math::IsNearEqual( m_pSourceStateNode->GetCurrentTime(), 1.0f ) || m_pSourceStateNode->GetCurrentTime() < m_pSourceStateNode->GetPreviousTime();
+                }
+                else [[likely]]
+                {
+                    Percentage const transitionTime( transitionDuration / m_pSourceStateNode->GetDuration() );
+                    Percentage const transitionPoint = 1.0f - transitionTime;
+                    m_result = ( m_pSourceStateNode->GetCurrentTime() >= transitionPoint );
+                }
             }
 
             MarkNodeActive( context );
@@ -150,15 +157,10 @@ namespace EE::Animation
                 }
                 break;
 
-                case ComparisonType::ElapsedTime:
+                case ComparisonType::CurrentTime:
                 {
-                    m_result = DoComparision( m_pSourceStateNode->GetElapsedTimeInState(), comparisonValue );
-                }
-                break;
-
-                case ComparisonType::LoopCount:
-                {
-                    m_result = DoComparision( float( m_pSourceStateNode->GetLoopCount() ), comparisonValue );
+                    Seconds const elapsedTime = m_pSourceStateNode->GetDuration() * m_pSourceStateNode->GetCurrentTime().ToFloat();
+                    m_result = DoComparision( elapsedTime, comparisonValue );
                 }
                 break;
             }

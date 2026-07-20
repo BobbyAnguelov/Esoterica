@@ -9,6 +9,7 @@
 // Toast Notifications
 //-------------------------------------------------------------------------
 
+#if EE_DEVELOPMENT_TOOLS
 namespace EE::ImGuiX
 {
     struct NotificationSystem
@@ -18,3 +19,4 @@ namespace EE::ImGuiX
         static void Render();
     };
 }
+#endif

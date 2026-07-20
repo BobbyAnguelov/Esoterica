@@ -1,0 +1,7 @@
+<Type TypeID="EE::Render::TextureResourceDescriptor" Version="0">
+  <Property ID="m_sourcePaths">
+    <Property Index="0" Value="data://render/textures/black_16x16.png" />
+  </Property>
+  <Property ID="m_textureGroup" Value="data://render/texturegroups/uncompressed4channels.txtg" />
+  <Property ID="m_name" Value="DefaultTexture" />
+</Type>

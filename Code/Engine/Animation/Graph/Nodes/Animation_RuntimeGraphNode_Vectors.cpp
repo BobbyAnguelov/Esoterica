@@ -62,7 +62,7 @@ namespace EE::Animation
                     if ( !inputVector.IsNearZero3() )
                     {
                         Vector const normalizedInputVector = inputVector.GetNormalized3();
-                        m_value = Math::GetYawAngleBetweenNormalizedVectors( Vector::WorldForward, normalizedInputVector ).ToDegrees().ToFloat();
+                        m_value = Math::CalculateYawAngleBetweenVectors( Vector::WorldForward, normalizedInputVector ).ToDegrees().ToFloat();
                     }
                     else
                     {
@@ -81,7 +81,7 @@ namespace EE::Animation
                     if ( !inputVector.IsNearZero3() )
                     {
                         Vector const normalizedInputVector = inputVector.GetNormalized3();
-                        m_value = Math::GetPitchAngleBetweenNormalizedVectors( Vector::WorldForward, normalizedInputVector ).ToDegrees().ToFloat();
+                        m_value = Math::CalculatePitchAngleBetweenUnitVectors( Vector::WorldForward, normalizedInputVector ).ToDegrees().ToFloat();
                     }
                     else
                     {

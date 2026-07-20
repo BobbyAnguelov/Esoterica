@@ -1,0 +1,9 @@
+<Type TypeID="EE::Render::TextureGroup" Version="1">
+  <Property ID="m_fileMasks">
+    <Type Index="0" TypeID="EE::Render::TextureGroupFileMask">
+      <Property ID="m_channelName" Value="R" />
+      <Property ID="m_sourceMask" Value="R" />
+      <Property ID="m_destinationMask" Value="R" />
+    </Type>
+  </Property>
+</Type>

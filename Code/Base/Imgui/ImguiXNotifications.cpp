@@ -4,6 +4,7 @@
 
 //-------------------------------------------------------------------------
 
+#if EE_DEVELOPMENT_TOOLS
 namespace EE::ImGuiX
 {
     class EE_BASE_API Notification
@@ -335,3 +336,4 @@ namespace EE::ImGuiX
         va_end( args );
     }
 }
+#endif

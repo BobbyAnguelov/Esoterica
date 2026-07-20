@@ -601,6 +601,122 @@ namespace EE::Animation
         return pDefinition->m_nodeIdx;
     }
 
+    void FootstepEventIDToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
+    {
+        if ( m_limitSearchToSourceState )
+        {
+            ImGui::Text( "Only checks source state" );
+        }
+
+        if ( m_ignoreInactiveBranchEvents )
+        {
+            ImGui::Text( "Inactive events ignored" );
+        }
+
+        if ( m_priorityRule == EventPriorityRule::HighestPercentageThrough )
+        {
+            ImGui::Text( "Prefer Highest Event %" );
+        }
+        else
+        {
+            ImGui::Text( "Prefer Highest Event Weight" );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
+    FloatCurveEventToolsNode::FloatCurveEventToolsNode()
+        : FlowToolsNode()
+    {
+        CreateOutputPin( "Value", GraphValueType::Float, true );
+        CreateInputPin( "Default", GraphValueType::Float );
+    }
+
+    int16_t FloatCurveEventToolsNode::Compile( GraphCompilationContext& context ) const
+    {
+        FloatCurveEventNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<FloatCurveEventNode>( this, pDefinition );
+        if ( state == NodeCompilationState::NeedCompilation )
+        {
+            pDefinition->m_matchEventID = m_matchEventID;
+            pDefinition->m_defaultValue = m_defaultValue;
+
+            // Optionally compile default node
+            auto pInputNode = GetConnectedInputNode<FlowToolsNode>( 0 );
+            if ( pInputNode != nullptr )
+            {
+                int16_t const compiledDefaultNodeIdx = pInputNode->Compile( context );
+                if ( compiledDefaultNodeIdx != InvalidIndex )
+                {
+                    pDefinition->m_defaultValueNodeIdx = compiledDefaultNodeIdx;
+                }
+                else
+                {
+                    return InvalidIndex;
+                }
+            }
+
+            // Set rules
+            //-------------------------------------------------------------------------
+
+            pDefinition->m_rules.ClearAllFlags();
+            pDefinition->m_rules.SetFlag( EventConditionRules::LimitSearchToSourceState, m_limitSearchToSourceState );
+            pDefinition->m_rules.SetFlag( EventConditionRules::IgnoreInactiveEvents, m_ignoreInactiveBranchEvents );
+
+            switch ( m_priorityRule )
+            {
+                case EventPriorityRule::HighestWeight:
+                {
+                    pDefinition->m_rules.SetFlag( EventConditionRules::PreferHighestWeight );
+                }
+                break;
+
+                case EventPriorityRule::HighestPercentageThrough:
+                {
+                    pDefinition->m_rules.SetFlag( EventConditionRules::PreferHighestProgress );
+                }
+                break;
+            }
+        }
+        return pDefinition->m_nodeIdx;
+    }
+
+    void FloatCurveEventToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
+    {
+        if ( m_matchEventID.IsValid() )
+        {
+            ImGui::Text( "Match Event: %s", m_matchEventID.c_str() );
+        }
+
+        if ( m_limitSearchToSourceState )
+        {
+            ImGui::Text( "Only checks source state" );
+        }
+
+        if ( m_ignoreInactiveBranchEvents )
+        {
+            ImGui::Text( "Inactive events ignored" );
+        }
+
+        if ( m_priorityRule == EventPriorityRule::HighestPercentageThrough )
+        {
+            ImGui::Text( "Prefer Highest Event %" );
+        }
+        else
+        {
+            ImGui::Text( "Prefer Highest Event Weight" );
+        }
+
+        if ( GetConnectedInputNode<FlowToolsNode>( 0 ) == nullptr )
+        {
+            ImGui::Text( "Default value: %.3f", m_defaultValue );
+        }
+        else
+        {
+            ImGui::Text( "Default value: Input Node" );
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     SyncEventIndexConditionToolsNode::SyncEventIndexConditionToolsNode()
@@ -664,44 +780,48 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    CurrentSyncEventIndexToolsNode::CurrentSyncEventIndexToolsNode()
+    CurrentSyncEventToolsNode::CurrentSyncEventToolsNode()
         : FlowToolsNode()
     {
         CreateOutputPin( "Result", GraphValueType::Float, true );
     }
 
-    int16_t CurrentSyncEventIndexToolsNode::Compile( GraphCompilationContext& context ) const
+    int16_t CurrentSyncEventToolsNode::Compile( GraphCompilationContext& context ) const
     {
-        CurrentSyncEventIndexNode::Definition* pDefinition = nullptr;
-        NodeCompilationState const state = context.GetDefinition<CurrentSyncEventIndexNode>( this, pDefinition );
+        CurrentSyncEventNode::Definition* pDefinition = nullptr;
+        NodeCompilationState const state = context.GetDefinition<CurrentSyncEventNode>( this, pDefinition );
         if ( state == NodeCompilationState::NeedCompilation )
         {
             EE_ASSERT( context.IsCompilingConduit() );
 
             pDefinition->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
+            pDefinition->m_infoType = m_infoType;
         }
         return pDefinition->m_nodeIdx;
     }
 
-    //-------------------------------------------------------------------------
-
-    CurrentSyncEventPercentageThroughToolsNode::CurrentSyncEventPercentageThroughToolsNode()
-        : FlowToolsNode()
+    void CurrentSyncEventToolsNode::DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext )
     {
-        CreateOutputPin( "Result", GraphValueType::Float, true );
-    }
-
-    int16_t CurrentSyncEventPercentageThroughToolsNode::Compile( GraphCompilationContext& context ) const
-    {
-        CurrentSyncEventPercentageThroughNode::Definition* pDefinition = nullptr;
-        NodeCompilationState const state = context.GetDefinition<CurrentSyncEventPercentageThroughNode>( this, pDefinition );
-        if ( state == NodeCompilationState::NeedCompilation )
+        switch ( m_infoType )
         {
-            EE_ASSERT( context.IsCompilingConduit() );
+            case CurrentSyncEventNode::InfoType::IndexAndPercentage:
+            {
+                ImGui::Text( "Index And Percentage" );
+            }
+            break;
 
-            pDefinition->m_sourceStateNodeIdx = context.GetConduitSourceStateIndex();
+            case CurrentSyncEventNode::InfoType::IndexOnly:
+            {
+                ImGui::Text( "Index Only" );
+            }
+            break;
+
+            case CurrentSyncEventNode::InfoType::PercentageOnly:
+            {
+                ImGui::Text( "Percentage Only" );
+            }
+            break;
         }
-        return pDefinition->m_nodeIdx;
     }
 
     //-------------------------------------------------------------------------

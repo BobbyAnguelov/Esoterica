@@ -1,305 +1,465 @@
 #include "DataPath.h"
+#include "Base/Math/Math.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
-    struct IntraPathUtils
+    struct DataPathValidator
     {
-        inline bool IsValid() const { return !m_parentExtension.empty() && m_parentExtension.length() <= 4; }
-
-        bool DecomposePathString( String const& pathStr )
+        struct PathInfo
         {
-            // Check for path delimiter
-            m_lastPathDelimiterIndex = pathStr.rfind( DataPath::s_pathDelimiter );
-            if ( m_lastPathDelimiterIndex == String::npos )
-            {
-                return false;
-            }
+            int16_t                 m_lastPathDelimiterIdx = InvalidIndex;
+            int16_t                 m_extensionDelimiterIdx = InvalidIndex;
+            int16_t                 m_subFilenameDelimiterIdx = InvalidIndex;
+            int16_t                 m_subFilenameExtensionDelimiterIdx = InvalidIndex;
+            int16_t                 m_totalInputPathLength = 0;
+            int16_t                 m_pathLength = 0;
+            int16_t                 m_subFilenameLength = 0;
+            bool                    m_isDirectoryPath = false;
+        };
 
-            // Check for directory path
-            if ( m_lastPathDelimiterIndex == pathStr.length() - 1 )
-            {
-                return false;
-            }
-
-            // If we found a parent, create the substring for it and get the extension
-            m_parentPath = InlineString( pathStr.c_str(), m_lastPathDelimiterIndex );
-            m_childResourceFilename = &pathStr[m_lastPathDelimiterIndex + 1];
-            size_t const extIdx = FileSystem::Path::FindExtensionStartIdx( m_parentPath.c_str(), DataPath::s_pathDelimiter );
-
-            // If no extension found, parent is likely a directory
-            if ( extIdx == String::npos )
-            {
-                return false;
-            }
-
-            m_parentExtension = InlineString( &m_parentPath[extIdx] );
-            return IsValid();
-        }
-
-        void GenerateFilePath( String& outPath )
+        static bool Validate( char const* pPath, PathInfo& outInfo )
         {
-            EE_ASSERT( IsValid() );
+            if ( pPath == nullptr )
+            {
+                return false;
+            }
 
-            size_t const parentPathPortionLength = m_parentPath.length() - m_parentExtension.length() - 1; // parent length without extension and delimiter
-            outPath.resize( parentPathPortionLength + m_childResourceFilename.length() + 1 ); // Add back delimiter and child resource name
+            // Clear path internals
+            //-------------------------------------------------------------------------
 
-            // Copy parent path without extension and null terminator
-            memcpy( outPath.data(), m_parentPath.data(), ( parentPathPortionLength ) * sizeof( m_parentPath[0] ) );
+            outInfo.m_extensionDelimiterIdx = InvalidIndex;
+            outInfo.m_lastPathDelimiterIdx = DataPath::s_pathPrefixLength - 1;
+            outInfo.m_subFilenameDelimiterIdx = InvalidIndex;
+            outInfo.m_subFilenameExtensionDelimiterIdx = InvalidIndex;
 
-            // Set delimiter
-            outPath[parentPathPortionLength] = DataPath::s_intraPathFlattenedPathDelimiter;
+            //-------------------------------------------------------------------------
 
-            // Copy child resource name with null terminator
-            memcpy( outPath.data() + parentPathPortionLength + 1, m_childResourceFilename.data(), m_childResourceFilename.length() * sizeof( m_parentPath[0] ) );
+            int16_t charIdx = 0;
+            int16_t numSubFilenameDelimiters = 0;
+            int16_t numInvalidCharsFound = 0;
+
+            TInlineVector<int16_t, 4> extensionDelimiterIndices;
+
+            while ( pPath[charIdx] != 0 )
+            {
+                // Ensure that the prefix is found
+                if ( charIdx < DataPath::s_pathPrefixLength )
+                {
+                    if ( tolower( pPath[charIdx] ) != DataPath::s_pathPrefix[charIdx] )
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    // Check for delimiters and invalid chars
+                    if ( pPath[charIdx] == DataPath::s_subFileDelimiter )
+                    {
+                        outInfo.m_subFilenameDelimiterIdx = charIdx;
+                        numSubFilenameDelimiters++;
+                    }
+                    else if ( pPath[charIdx] == '\\' )
+                    {
+                        numInvalidCharsFound++;
+                    }
+                    else if ( pPath[charIdx] == DataPath::s_pathDelimiter )
+                    {
+                        if ( outInfo.m_subFilenameDelimiterIdx != InvalidIndex && charIdx > outInfo.m_subFilenameDelimiterIdx )
+                        {
+                            return false;
+                        }
+
+                        outInfo.m_lastPathDelimiterIdx = charIdx;
+                    }
+                    else if ( pPath[charIdx] == '.' )
+                    {
+                        extensionDelimiterIndices.emplace_back( charIdx );
+                    }
+                }
+
+                charIdx++;
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( charIdx == 0 )
+            {
+                return false;
+            }
+
+            if ( numInvalidCharsFound > 0 )
+            {
+                return false;
+            }
+
+            if ( numSubFilenameDelimiters > 1 )
+            {
+                return false;
+            }
+
+            outInfo.m_totalInputPathLength = charIdx;
+
+            //-------------------------------------------------------------------------
+
+            // If this has a sub-filename present
+            if ( numSubFilenameDelimiters == 1 )
+            {
+                // We need at least two extensions
+                if ( extensionDelimiterIndices.size() < 2 )
+                {
+                    return false;
+                }
+
+                // We need an extension on either side of the internal object delimiter
+                if ( extensionDelimiterIndices.front() > outInfo.m_subFilenameDelimiterIdx )
+                {
+                    return false;
+                }
+
+                outInfo.m_pathLength = outInfo.m_subFilenameDelimiterIdx;
+                outInfo.m_subFilenameLength = outInfo.m_totalInputPathLength - outInfo.m_subFilenameDelimiterIdx;
+            }
+            else
+            {
+                outInfo.m_pathLength = outInfo.m_totalInputPathLength;
+                outInfo.m_subFilenameLength = 0;
+            }
+
+            // Get extensions
+            //-------------------------------------------------------------------------
+
+            outInfo.m_extensionDelimiterIdx = InvalidIndex;
+            outInfo.m_subFilenameExtensionDelimiterIdx = InvalidIndex;
+
+            int32_t const numExtensionDelimiters = (int32_t) extensionDelimiterIndices.size();
+            if ( numExtensionDelimiters > 0 )
+            {
+                if ( outInfo.m_subFilenameDelimiterIdx != InvalidIndex )
+                {
+                    // Get the last extension between the last path delimiter and the sub-filename delimiter
+                    for ( int32_t i = 0; i < numExtensionDelimiters; i++ )
+                    {
+                        if ( extensionDelimiterIndices[i] > outInfo.m_subFilenameDelimiterIdx )
+                        {
+                            break;
+                        }
+
+                        if ( extensionDelimiterIndices[i] > outInfo.m_lastPathDelimiterIdx )
+                        {
+                            outInfo.m_extensionDelimiterIdx = extensionDelimiterIndices[i];
+                        }
+                    }
+
+                    // Get the sub-filename delimiter
+                    if ( extensionDelimiterIndices.back() > outInfo.m_subFilenameDelimiterIdx )
+                    {
+                        outInfo.m_subFilenameExtensionDelimiterIdx = extensionDelimiterIndices.back();
+                    }
+                }
+                else // No sub-filename
+                {
+                    if ( extensionDelimiterIndices.back() > outInfo.m_lastPathDelimiterIdx )
+                    {
+                        outInfo.m_extensionDelimiterIdx = extensionDelimiterIndices.back();
+                    }
+                }
+            }
+
+            //-------------------------------------------------------------------------
+
+            outInfo.m_isDirectoryPath = ( outInfo.m_lastPathDelimiterIdx == ( charIdx - 1 ) );
+
+            //-------------------------------------------------------------------------
+
+            return true;
         }
-
-    public:
-
-        InlineString    m_parentPath;
-        InlineString    m_parentExtension;
-        InlineString    m_childResourceFilename;
-        size_t          m_lastPathDelimiterIndex = String::npos;
     };
 
-    // Extremely naive data path validation function, this is definitely not robust!
+    //-------------------------------------------------------------------------
+
     bool DataPath::IsValidPath( char const* pPath )
     {
-        EE_ASSERT( pPath != nullptr );
-
-        if ( strlen( pPath ) == 0 )
-        {
-            return false;
-        }
-
-        if ( StringUtils::CompareInsensitive( DataPath::s_pathPrefix, pPath, s_pathPrefixLength ) != 0 )
-        {
-            return false;
-        }
-
-        if ( strchr( pPath, '\\' ) != nullptr )
-        {
-            return false;
-        }
-
-        return true;
+        DataPathValidator::PathInfo info;
+        return DataPathValidator::Validate( pPath, info );
     }
 
-    DataPath DataPath::FromFileSystemPath( FileSystem::Path const& dataDirectoryPath, FileSystem::Path const& filePath )
+    static bool IsValidFilename( char const* pFilenameString )
+    {
+        if ( pFilenameString == nullptr )
+        {
+            return false;
+        }
+
+        StringView const str( pFilenameString );
+        if ( str.empty() )
+        {
+            return false;
+        }
+
+        bool extensionFound = false;
+        for ( size_t i = 0; i < str.length(); i++ )
+        {
+            if ( str[i] == '.' )
+            {
+                extensionFound = true;
+            }
+
+            if ( str[i] == DataPath::s_pathDelimiter || str[i] == FileSystem::Path::s_pathDelimiter )
+            {
+                return false;
+            }
+        }
+
+        return extensionFound;
+    }
+
+    //-------------------------------------------------------------------------
+
+    DataPath::DataPath( FileSystem::Path const& filePath, FileSystem::Path const& dataDirectoryPath )
     {
         EE_ASSERT( dataDirectoryPath.IsValid() && dataDirectoryPath.IsDirectoryPath() && filePath.IsValid() );
+        EE_ASSERT( filePath.IsUnderDirectory( dataDirectoryPath ) );
 
-        DataPath path;
+        InlineString tmpStr = DataPath::s_pathPrefix;
+        tmpStr.append( &filePath.GetString()[dataDirectoryPath.Length()] );
+        eastl::replace( tmpStr.begin(), tmpStr.end(), FileSystem::Path::s_pathDelimiter, DataPath::s_pathDelimiter );
 
-        if ( filePath.IsUnderDirectory( dataDirectoryPath ) )
+        if ( filePath.IsDirectoryPath() && tmpStr[tmpStr.length() - 1] != DataPath::s_pathDelimiter )
         {
-            String tempPath = DataPath::s_pathPrefix;
-            tempPath.append( filePath.GetString().substr( dataDirectoryPath.Length() ) );
-            eastl::replace( tempPath.begin(), tempPath.end(), FileSystem::Path::s_pathDelimiter, DataPath::s_pathDelimiter );
-            path = DataPath( tempPath );
+            tmpStr.push_back( DataPath::s_pathDelimiter );
         }
 
-        return path;
+        FromString( tmpStr.c_str(), CreationOptions::Default );
     }
 
-    FileSystem::Path DataPath::GetFileSystemPath( FileSystem::Path const& dataDirectoryPath ) const
+    DataPath::DataPath( DataPath const& rhs )
+        : m_path( rhs.m_path )
+        , m_subFilenamePath( rhs.m_subFilenamePath )
+        , m_ID( rhs.m_ID )
+        , m_lastPathDelimiterIdx( rhs.m_lastPathDelimiterIdx )
+        , m_extensionDelimiterIdx( rhs.m_extensionDelimiterIdx )
+        , m_subFilenameExtensionDelimiterIdx( rhs.m_subFilenameExtensionDelimiterIdx )
+    {}
+
+    DataPath::DataPath( DataPath&& rhs )
+        : m_ID( rhs.m_ID )
+        , m_lastPathDelimiterIdx( rhs.m_lastPathDelimiterIdx )
+        , m_extensionDelimiterIdx( rhs.m_extensionDelimiterIdx )
+        , m_subFilenameExtensionDelimiterIdx( rhs.m_subFilenameExtensionDelimiterIdx )
     {
-        EE_ASSERT( IsValid() );
-        EE_ASSERT( dataDirectoryPath.IsValid() && dataDirectoryPath.IsDirectoryPath() );
-
-        //-------------------------------------------------------------------------
-
-        String decomposedResourcePath = m_path;
-
-        // Check if it's a sub-resource path
-        if ( IsFilePath() )
-        {
-            IntraPathUtils ipu;
-            if ( ipu.DecomposePathString( m_path ) )
-            {
-                ipu.GenerateFilePath( decomposedResourcePath );
-            }
-        }
-
-        // Replace slashes and remove prefix
-        String tempPath( dataDirectoryPath );
-        tempPath += decomposedResourcePath.substr( 7 );
-
-        // Finalize path
-        eastl::replace( tempPath.begin(), tempPath.end(), DataPath::s_pathDelimiter, FileSystem::Path::s_pathDelimiter );
-        FileSystem::Path::GetCorrectCaseForPath( tempPath.c_str(), tempPath );
-
-        return FileSystem::Path( tempPath );
+        m_path.swap( rhs.m_path );
+        m_subFilenamePath.swap( rhs.m_subFilenamePath );
     }
 
-    FileSystem::Path DataPath::GetParentFileSystemPath( FileSystem::Path const& dataDirectoryPath ) const
+    DataPath& DataPath::operator=( DataPath const& rhs )
     {
-        EE_ASSERT( IsValid() );
-        EE_ASSERT( dataDirectoryPath.IsValid() && dataDirectoryPath.IsDirectoryPath() );
-
-        String decomposedResourcePath = m_path;
-
-        // Check if it's a sub-resource path
-        if ( IsFilePath() )
-        {
-            // Try to decompose the path, if we fail just return the current path
-            IntraPathUtils ipu;
-            if ( ipu.DecomposePathString( m_path ) )
-            {
-                decomposedResourcePath = ipu.m_parentPath;
-            }
-        }
-
-        // Replace slashes and remove prefix
-        String tempPath( dataDirectoryPath );
-        tempPath += decomposedResourcePath.substr( 7 );
-
-        // Finalize path
-        eastl::replace( tempPath.begin(), tempPath.end(), DataPath::s_pathDelimiter, FileSystem::Path::s_pathDelimiter );
-        FileSystem::Path::GetCorrectCaseForPath( tempPath.c_str(), tempPath );
-
-        return FileSystem::Path( tempPath );
-    }
-
-    //-------------------------------------------------------------------------
-
-    DataPath::DataPath( String const& path )
-        : m_path( path )
-    {
-        EE_ASSERT( m_path.empty() || IsValidPath( m_path ) );
-        OnPathMemberChanged();
-    }
-
-    DataPath::DataPath( char const* pPath )
-        : m_path( pPath )
-    {
-        EE_ASSERT( m_path.empty() || IsValidPath( m_path ) );
-        OnPathMemberChanged();
-    }
-
-    DataPath::DataPath( String&& path )
-    {
-        m_path.swap( path );
-        EE_ASSERT( m_path.empty() || IsValidPath( m_path ) );
-        OnPathMemberChanged();
-    }
-
-    DataPath::DataPath( DataPath const& path )
-        : m_path( path.m_path )
-        , m_ID( path.m_ID )
-    {
-    }
-
-    DataPath::DataPath( DataPath&& path )
-        : m_ID( path.m_ID )
-    {
-        m_path.swap( path.m_path );
-    }
-
-    DataPath& DataPath::operator=( DataPath const& path )
-    {
-        m_path = path.m_path;
-        m_ID = path.m_ID;
+        m_path = rhs.m_path;
+        m_subFilenamePath = rhs.m_subFilenamePath;
+        m_ID = rhs.m_ID;
+        m_extensionDelimiterIdx = rhs.m_extensionDelimiterIdx;
+        m_lastPathDelimiterIdx = rhs.m_lastPathDelimiterIdx;
+        m_subFilenameExtensionDelimiterIdx = rhs.m_subFilenameExtensionDelimiterIdx;
         return *this;
     }
 
-    DataPath& DataPath::operator=( DataPath&& path )
+    DataPath& DataPath::operator=( DataPath&& rhs )
     {
-        m_path.swap( path.m_path );
-        m_ID = path.m_ID;
+        m_path.swap( rhs.m_path );
+        m_subFilenamePath.swap( rhs.m_subFilenamePath );
+        m_ID = rhs.m_ID;
+        m_extensionDelimiterIdx = rhs.m_extensionDelimiterIdx;
+        m_lastPathDelimiterIdx = rhs.m_lastPathDelimiterIdx;
+        m_subFilenameExtensionDelimiterIdx = rhs.m_subFilenameExtensionDelimiterIdx;
         return *this;
     }
 
     //-------------------------------------------------------------------------
 
-    void DataPath::OnPathMemberChanged()
+    void DataPath::FromString( char const* pPath, CreationOptions opt )
     {
-        if ( IsValidPath( m_path ) )
+        DataPathValidator::PathInfo info;
+        bool const isValidPath = DataPathValidator::Validate( pPath, info );
+
+        if ( isValidPath )
         {
-            m_path.make_lower();
-            m_ID = Hash::GetHash32( m_path.c_str() );
+            m_lastPathDelimiterIdx = info.m_lastPathDelimiterIdx;
+            m_extensionDelimiterIdx = info.m_extensionDelimiterIdx;
+            m_subFilenameExtensionDelimiterIdx = info.m_subFilenameExtensionDelimiterIdx;
+
+            // Set path and sub-filename
+            //-------------------------------------------------------------------------
+
+            if ( info.m_subFilenameLength > 0 )
+            {
+                m_subFilenamePath.resize( info.m_totalInputPathLength );
+                memcpy( m_subFilenamePath.data(), pPath, info.m_totalInputPathLength );
+                m_subFilenamePath.make_lower();
+
+                m_path = m_subFilenamePath.substr( 0, info.m_subFilenameDelimiterIdx );
+            }
+            else
+            {
+                bool const addPathDelimiter = info.m_isDirectoryPath && info.m_lastPathDelimiterIdx != ( info.m_pathLength - 1 );
+                size_t const pathLength = info.m_pathLength + ( ( addPathDelimiter ) ? 1 : 0 );
+
+                m_path.resize( pathLength );
+                memcpy( m_path.data(), pPath, pathLength );
+
+                if ( addPathDelimiter )
+                {
+                    m_path[pathLength - 2] = s_pathDelimiter;
+                }
+
+                m_path.make_lower();
+            }
+        }
+
+        if ( opt != AllowInvalidPath )
+        {
+            EE_ASSERT( isValidPath );
+        }
+
+        CalculateID();
+    }
+
+    void DataPath::CalculateID()
+    {
+        m_ID = 0;
+
+        if ( !m_subFilenamePath.empty() )
+        {
+            m_ID += Hash::GetHash64( m_subFilenamePath.c_str() );
         }
         else
         {
-            m_path.clear();
-            m_ID = 0;
+            m_ID += Hash::GetHash64( m_path.c_str() );
         }
-    }
-
-    bool DataPath::TrySetFromString( String const& path )
-    {
-        if ( IsValidPath( path ) )
-        {
-            m_path = path;
-            OnPathMemberChanged();
-            return true;
-        }
-
-        Clear();
-        return false;
     }
 
     String DataPath::GetFilename() const
     {
-        EE_ASSERT( DataPath::IsValid() && IsFilePath() );
-
-        auto filenameStartIdx = m_path.find_last_of( s_pathDelimiter );
-        EE_ASSERT( filenameStartIdx != String::npos );
-        filenameStartIdx++;
-
-        return m_path.substr( filenameStartIdx, m_path.length() - filenameStartIdx );
+        EE_ASSERT( IsValid() && IsFilePath() );
+        return m_path.substr( m_lastPathDelimiterIdx + 1 );
     }
 
     String DataPath::GetFilenameWithoutExtension() const
     {
-        EE_ASSERT( DataPath::IsValid() && IsFilePath() );
+        EE_ASSERT( IsValid() && IsFilePath() );
+        EE_ASSERT( m_extensionDelimiterIdx != InvalidIndex );
+        return m_path.substr( m_lastPathDelimiterIdx + 1, m_extensionDelimiterIdx - m_lastPathDelimiterIdx - 1 );
+    }
 
-        auto filenameStartIdx = m_path.find_last_of( s_pathDelimiter );
-        EE_ASSERT( filenameStartIdx != String::npos );
-        filenameStartIdx++;
+    String DataPath::GetDirectoryName() const
+    {
+        EE_ASSERT( IsValid() && IsDirectoryPath() );
 
-        //-------------------------------------------------------------------------
+        size_t idx = m_path.rfind( s_pathDelimiter );
+        EE_ASSERT( idx != String::npos );
 
-        size_t extStartIdx = FileSystem::Path::FindExtensionStartIdx( m_path, DataPath::s_pathDelimiter );
-        if ( extStartIdx != String::npos )
+        idx = m_path.rfind( s_pathDelimiter, Math::Max( size_t( 0 ), idx - 1 ) );
+        if ( idx == String::npos )
         {
-            return m_path.substr( filenameStartIdx, extStartIdx - filenameStartIdx - 1 );
+            return String();
         }
-        else
+
+        idx++;
+        return m_path.substr( idx, m_path.length() - idx - 1 );
+    }
+
+    bool DataPath::HasParentDirectory() const
+    {
+        EE_ASSERT( IsValid() );
+
+        int32_t numDelimitersFound = 0;
+
+        // Handle directory paths
+        size_t lastDelimiterIdx = m_path.rfind( s_pathDelimiter );
+        if ( lastDelimiterIdx == m_path.length() - 1 )
         {
-            return String( &m_path[filenameStartIdx] );
+            lastDelimiterIdx = m_path.rfind( s_pathDelimiter, lastDelimiterIdx - 1 );
         }
+
+        while ( lastDelimiterIdx != String::npos )
+        {
+            lastDelimiterIdx = m_path.rfind( s_pathDelimiter, lastDelimiterIdx - 1 );
+            numDelimitersFound++;
+            if ( numDelimitersFound > 2 )
+            {
+                return true;
+            }
+        }
+
+        EE_ASSERT( numDelimitersFound >= 0 );
+        return false;
+    }
+
+    void DataPath::ReplaceFilename( char const* pFilename, bool alsoClearSubFilename )
+    {
+        EE_ASSERT( IsFilePath() );
+        EE_ASSERT( IsValidFilename( pFilename ) );
+
+        if ( alsoClearSubFilename )
+        {
+            m_subFilenamePath.clear();
+        }
+
+        size_t const pathOriginalLength = m_path.length();
+        m_path.resize( m_lastPathDelimiterIdx + 1 ); // Remove old filename
+        m_path.append( pFilename );
+
+        if ( !m_subFilenamePath.empty() )
+        {
+            InlineString subFileStr( &m_subFilenamePath[pathOriginalLength] );
+            m_subFilenamePath = m_path + subFileStr.c_str();
+        }
+
+        CalculateID();
+    }
+
+    void DataPath::AppendFilename( char const* pFilename )
+    {
+        EE_ASSERT( IsDirectoryPath() );
+        EE_ASSERT( IsValidFilename( pFilename ) );
+
+        m_path.append( pFilename );
+        CalculateID();
     }
 
     DataPath DataPath::GetParentDirectory() const
     {
         EE_ASSERT( DataPath::IsValid() );
 
-        size_t lastDelimiterIdx = m_path.rfind( s_pathDelimiter );
-
-        // Handle directory paths
-        if ( lastDelimiterIdx == m_path.length() - 1 )
+        if ( m_lastPathDelimiterIdx != InvalidIndex )
         {
-            lastDelimiterIdx = m_path.rfind( s_pathDelimiter, lastDelimiterIdx - 1 );
+            String parentPath;
+
+            // If we found a parent, create the substring for it
+            if ( IsDirectoryPath() )
+            {
+                size_t const parentDelimiterIdx = m_path.rfind( s_pathDelimiter, m_lastPathDelimiterIdx - 1 );
+                if ( parentDelimiterIdx != String::npos )
+                {
+                    parentPath = m_path.substr( 0, parentDelimiterIdx + 1 );
+                }
+            }
+            else if ( m_lastPathDelimiterIdx != InvalidIndex )
+            {
+                parentPath = m_path.substr( 0, m_lastPathDelimiterIdx + 1 );
+            }
+
+            return DataPath( parentPath );
         }
-
-        //-------------------------------------------------------------------------
-
-        String parentPath;
-
-        // If we found a parent, create the substring for it
-        if ( lastDelimiterIdx != String::npos )
+        else
         {
-            parentPath = m_path.substr( 0, lastDelimiterIdx + 1 );
+            return DataPath();
         }
-
-        return DataPath( parentPath );
     }
 
     int32_t DataPath::GetDirectoryDepth() const
     {
-        int32_t dirDepth = -1;
+        int32_t dirDepth = 0;
 
         if ( IsValid() )
         {
@@ -326,80 +486,186 @@ namespace EE
         return pathDepth;
     }
 
-    bool DataPath::IsIntraFilePath( DataPath* pParentPath ) const
+    bool DataPath::IsUnder( DataPath const& parentpath ) const
     {
-        EE_ASSERT( DataPath::IsValid() );
-        IntraPathUtils ipu;
-
-        if ( ipu.DecomposePathString( m_path ) )
+        if ( m_path.length() < parentpath.m_path.length() )
         {
-            if ( pParentPath != nullptr )
-            {
-                *pParentPath = DataPath( ipu.m_parentPath.c_str() );
-            }
-            return true;
-        }
-        else
-        {
-            if ( pParentPath != nullptr )
-            {
-                pParentPath->Clear();
-            }
+            return false;
         }
 
-        return false;
+        int32_t const result = String::comparei( m_path.begin(), m_path.begin() + parentpath.m_path.length(), parentpath.m_path.begin(), parentpath.m_path.end() );
+        return result == 0;
     }
 
-    DataPath DataPath::GetIntraFilePathParent() const
+    FileSystem::Extension DataPath::GetExtension() const
     {
-        EE_ASSERT( DataPath::IsValid() );
+        EE_ASSERT( DataPath::IsValid() && IsFilePath() ); // This is called by the derived class's 'IsValid' so dont call the virtual 'IsValid'
 
-        DataPath parentDataPath;
-
-        IntraPathUtils ipu;
-        if ( ipu.DecomposePathString( m_path ) )
+        FileSystem::Extension ext;
+        if ( m_extensionDelimiterIdx != InvalidIndex )
         {
-            parentDataPath = DataPath( ipu.m_parentPath.c_str() );
-        }
-        else
-        {
-            parentDataPath = *this;
+            size_t const size = m_path.length() - m_extensionDelimiterIdx - 1;
+            ext.resize( size );
+            memcpy( ext.data(), &m_path[m_extensionDelimiterIdx + 1], size );
         }
 
-        return parentDataPath;
-    }
-
-    char const* DataPath::GetExtension() const
-    {
-        EE_ASSERT( DataPath::IsValid() && IsFilePath() );
-
-        size_t const extIdx = FileSystem::Path::FindExtensionStartIdx( m_path.c_str(), DataPath::s_pathDelimiter );
-        if ( extIdx != String::npos )
-        {
-            return &m_path.c_str()[extIdx];
-        }
-        else
-        {
-            return nullptr;
-        }
+        return ext;
     }
 
     void DataPath::ReplaceExtension( const char* pExtension )
     {
-        EE_ASSERT( DataPath::IsValid() && IsFilePath() && pExtension != nullptr );
+        EE_ASSERT( pExtension != nullptr );
         EE_ASSERT( pExtension[0] != 0 && pExtension[0] != '.' );
+        EE_ASSERT( IsValid() && IsFilePath() );
 
-        size_t const extIdx = FileSystem::Path::FindExtensionStartIdx( m_path.c_str(), DataPath::s_pathDelimiter );
-        if ( extIdx != String::npos )
+        size_t const pathOriginalLength = m_path.length();
+
+        FileSystem::Extension ext;
+        m_path.erase( m_extensionDelimiterIdx + 1 );
+        m_path.append( pExtension );
+        m_path.make_lower();
+
+        if ( !m_subFilenamePath.empty() )
         {
-            m_path = m_path.substr( 0, extIdx ) + pExtension;
-        }
-        else // No extension, so just append
-        {
-            m_path.append( "." );
-            m_path.append( pExtension );
+            InlineString subFileStr( &m_subFilenamePath[pathOriginalLength] );
+            m_subFilenamePath = m_path + subFileStr.c_str();
         }
 
-        OnPathMemberChanged();
+        CalculateID();
+    }
+
+    FileSystem::Path DataPath::GetFileSystemPath( FileSystem::Path const& dataDirectoryPath ) const
+    {
+        EE_ASSERT( dataDirectoryPath.IsValid() && dataDirectoryPath.IsDirectoryPath() );
+        EE_ASSERT( IsValid() );
+
+        //-------------------------------------------------------------------------
+
+        String filePath( dataDirectoryPath );
+        filePath.append( m_path.substr( s_pathPrefixLength ) );
+        eastl::replace( filePath.begin(), filePath.end(), DataPath::s_pathDelimiter, FileSystem::Path::s_pathDelimiter );
+        FileSystem::Path::GetCorrectCaseForPath( filePath.c_str(), filePath );
+
+        return FileSystem::Path( filePath );
+    }
+
+    FileSystem::Path DataPath::GetFlattenedFileSystemPath( FileSystem::Path const& dataDirectoryPath ) const
+    {
+        EE_ASSERT( dataDirectoryPath.IsValid() && dataDirectoryPath.IsDirectoryPath() );
+        EE_ASSERT( IsValid() && HasSubFilename() );
+
+        //-------------------------------------------------------------------------
+
+        String filePath( dataDirectoryPath );
+        filePath.append( m_path.substr( s_pathPrefixLength, m_extensionDelimiterIdx - s_pathPrefixLength ) );
+        filePath.push_back( s_subFileFlattenedPathDelimiter );
+        filePath.append( m_subFilenamePath.substr( m_path.length() + 1 ) );
+
+        eastl::replace( filePath.begin(), filePath.end(), DataPath::s_pathDelimiter, FileSystem::Path::s_pathDelimiter );
+        FileSystem::Path::GetCorrectCaseForPath( filePath.c_str(), filePath );
+
+        return FileSystem::Path( filePath );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void DataPath::SetSubFilename( char const* pFilename )
+    {
+        EE_ASSERT( pFilename != nullptr );
+        EE_ASSERT( IsValid() && IsFilePath() );
+
+        //-------------------------------------------------------------------------
+
+        auto IsValidSubFilename = [] ( char const* pFilename )
+        {
+            if ( pFilename == nullptr )
+            {
+                return false;
+            }
+
+            int16_t charIdx = 0;
+            int16_t numExtensionDelimitersFound = 0;
+
+            while ( pFilename[charIdx] != 0 )
+            {
+                // Check for delimiters and invalid chars
+                if ( pFilename[charIdx] == DataPath::s_subFileDelimiter )
+                {
+                    return false;
+                }
+
+                if ( pFilename[charIdx] == '\\' )
+                {
+                    return false;
+                }
+
+                if ( pFilename[charIdx] == DataPath::s_pathDelimiter )
+                {
+                    return false;
+                }
+
+                if ( pFilename[charIdx] == '.' )
+                {
+                    numExtensionDelimitersFound++;
+                }
+
+                charIdx++;
+            }
+
+            //-------------------------------------------------------------------------
+
+            if ( charIdx == 0 )
+            {
+                return false;
+            }
+
+            if ( numExtensionDelimitersFound != 1 )
+            {
+                return false;
+            }
+
+            return true;
+        };
+
+        EE_ASSERT( IsValidSubFilename( pFilename ) );
+
+        m_subFilenamePath = m_path;
+        m_subFilenamePath.push_back( s_subFileDelimiter );
+        m_subFilenamePath.append( pFilename );
+        m_subFilenamePath.make_lower();
+
+        size_t const extensionDelimiterIdx = m_subFilenamePath.rfind( '.' );
+        EE_ASSERT( extensionDelimiterIdx != String::npos );
+        m_subFilenameExtensionDelimiterIdx = (int16_t) extensionDelimiterIdx;
+
+        CalculateID();
+    }
+
+    char const* DataPath::GetSubFilename() const
+    {
+        EE_ASSERT( IsValid() && HasSubFilename() );
+
+        return &m_subFilenamePath[m_path.length() + 1];
+    }
+
+    FileSystem::Extension DataPath::GetSubFilenameExtension() const
+    {
+        EE_ASSERT( IsValid() && HasSubFilename() );
+        EE_ASSERT( m_subFilenameExtensionDelimiterIdx != InvalidIndex );
+
+        FileSystem::Extension ext;
+        size_t const size = m_subFilenamePath.length() - m_subFilenameExtensionDelimiterIdx - 1;
+        ext.resize( size );
+        memcpy( ext.data(), &m_subFilenamePath[m_subFilenameExtensionDelimiterIdx + 1], size );
+
+        return ext;
+    }
+
+    String DataPath::GetSubFilenameWithoutExtension() const
+    {
+        EE_ASSERT( IsValid() && HasSubFilename() );
+        EE_ASSERT( m_subFilenameExtensionDelimiterIdx != InvalidIndex );
+
+        return m_subFilenamePath.substr( m_path.length() + 1, m_subFilenameExtensionDelimiterIdx - m_path.length() - 1 );
     }
 }

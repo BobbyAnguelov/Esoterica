@@ -3,9 +3,9 @@
   <ImportGroup Label="PropertySheets" />
   <ItemDefinitionGroup>
     <Link>
-      <AdditionalDependencies Condition="!$(ProjectName.Contains('Tools'))">dxguid.lib;D3D11.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies Condition="$(ProjectName.Contains('Tools'))">D3DCompiler.lib;dxguid.lib;D3D11.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>Xinput.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="!$(ProjectName.Contains('Tools'))">%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies Condition="$(ProjectName.Contains('Tools'))">%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>dxcompiler.lib;dxguid.lib;D3D12.lib;dxgi.lib;Xinput.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
     <Target Name="DbgHelp_CopyDLL" BeforeTargets="Build">

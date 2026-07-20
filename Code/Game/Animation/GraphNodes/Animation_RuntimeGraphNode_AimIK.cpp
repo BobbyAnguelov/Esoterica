@@ -34,7 +34,7 @@ namespace EE::Animation
         if ( result.HasRegisteredTasks() )
         {
             Vector const worldSpaceTarget = m_pTargetValueNode->GetValue<Float3>( context );
-            result.m_taskIdx = context.m_pTaskSystem->RegisterTask<Tasks::AimIKTask>( GetNodeIndex(), result.m_taskIdx, worldSpaceTarget );
+            result.m_taskIdx = context.GetTaskSystem()->RegisterTask<AimIKTask>( GetNodePath( context ), result.m_taskIdx, worldSpaceTarget );
         }
 
         return result;

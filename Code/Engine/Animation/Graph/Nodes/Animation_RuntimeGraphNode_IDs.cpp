@@ -109,4 +109,145 @@ namespace EE::Animation
 
         *reinterpret_cast<float*>( pOutValue ) = m_value;
     }
+
+    //-------------------------------------------------------------------------
+
+    void IDSwitchNode::Definition::InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<IDSwitchNode>( context, options );
+        context.SetNodePtrFromIndex( m_switchValueNodeIdx, pNode->m_pSwitchValueNode );
+        context.SetOptionalNodePtrFromIndex( m_trueValueNodeIdx, pNode->m_pTrueValueNode );
+        context.SetOptionalNodePtrFromIndex( m_falseValueNodeIdx, pNode->m_pFalseValueNode );
+    }
+
+    void IDSwitchNode::InitializeInternal( GraphContext& context )
+    {
+        IDValueNode::InitializeInternal( context );
+        m_pSwitchValueNode->Initialize( context );
+
+        if ( m_pTrueValueNode != nullptr )
+        {
+            m_pTrueValueNode->Initialize( context );
+        }
+
+        if ( m_pFalseValueNode != nullptr )
+        {
+            m_pFalseValueNode->Initialize( context );
+        }
+    }
+
+    void IDSwitchNode::ShutdownInternal( GraphContext& context )
+    {
+        m_pSwitchValueNode->Shutdown( context );
+
+        if ( m_pTrueValueNode != nullptr )
+        {
+            m_pTrueValueNode->Shutdown( context );
+        }
+
+        if ( m_pFalseValueNode != nullptr )
+        {
+            m_pFalseValueNode->Shutdown( context );
+        }
+
+        IDValueNode::ShutdownInternal( context );
+
+        m_value.Clear();
+    }
+
+    void IDSwitchNode::GetValueInternal( GraphContext& context, void* pOutValue )
+    {
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            auto pDefinition = GetDefinition<IDSwitchNode>();
+
+            if ( m_pSwitchValueNode->GetValue<bool>( context ) )
+            {
+                m_value = m_pTrueValueNode ? m_pTrueValueNode->GetValue<StringID>( context ) : pDefinition->m_trueValue;;
+            }
+            else
+            {
+                m_value = m_pFalseValueNode ? m_pFalseValueNode->GetValue<StringID>( context ) : pDefinition->m_falseValue;;
+            }
+        }
+
+        *reinterpret_cast<StringID*>( pOutValue ) = m_value;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void IDSelectorNode::Definition::InstantiateNode( InstantiationContext const &context, InstantiationOptions options ) const
+    {
+        auto pNode = CreateNode<IDSelectorNode>( context, options );
+        for ( auto nodeIdx : m_conditionNodeIndices )
+        {
+            BoolValueNode*& pConditionNode = pNode->m_conditionNodes.emplace_back( nullptr );
+            context.SetNodePtrFromIndex( nodeIdx, pConditionNode );
+        }
+    }
+
+    void IDSelectorNode::InitializeInternal( GraphContext &context )
+    {
+        EE_ASSERT( context.IsValid() );
+        IDValueNode::InitializeInternal( context );
+        for ( auto pConditionNode : m_conditionNodes )
+        {
+            pConditionNode->Initialize( context );
+        }
+    }
+
+    void IDSelectorNode::ShutdownInternal( GraphContext &context )
+    {
+        EE_ASSERT( context.IsValid() );
+        for ( auto pConditionNode : m_conditionNodes )
+        {
+            pConditionNode->Shutdown( context );
+        }
+        IDValueNode::ShutdownInternal( context );
+    }
+
+    void IDSelectorNode::GetValueInternal( GraphContext &context, void *pOutValue )
+    {
+        EE_ASSERT( context.IsValid() );
+        auto pDefinition = GetDefinition<IDSelectorNode>();
+
+        if ( !WasUpdated( context ) )
+        {
+            MarkNodeActive( context );
+
+            m_value = pDefinition->m_defaultValue;
+
+            int32_t const numConditions = (int32_t) m_conditionNodes.size();
+            for ( int32_t i = 0; i < numConditions; i++ )
+            {
+                if ( m_conditionNodes[i]->GetValue<bool>( context ) )
+                {
+                    m_value = pDefinition->m_values[i];
+                    break;
+                }
+            }
+        }
+
+        *( (StringID *) pOutValue ) = m_value;
+    }
+
+    void IDSelectorNode::RecordGraphState( RecordedGraphState &outState )
+    {
+        IDValueNode::RecordGraphState( outState );
+        outState.WriteValue( m_value );
+    }
+
+    bool IDSelectorNode::RestoreGraphState( RecordedGraphState const &inState )
+    {
+        if ( !IDValueNode::RestoreGraphState( inState ) )
+        {
+            return false;
+        }
+
+        inState.ReadValue( m_value );
+
+        return true;
+    }
 }

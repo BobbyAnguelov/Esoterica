@@ -16,7 +16,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Float Remap"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
@@ -38,29 +38,13 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Float Clamp"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
     public:
 
         EE_REFLECT() FloatRange                   m_clampRange = FloatRange( 0 );
-    };
-
-    //-------------------------------------------------------------------------
-
-    class FloatAbsToolsNode final : public FlowToolsNode
-    {
-        EE_REFLECT_TYPE( FloatAbsToolsNode );
-
-    public:
-
-        FloatAbsToolsNode();
-
-        virtual char const* GetTypeName() const override { return "Float Abs"; }
-        virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
-        virtual int16_t Compile( GraphCompilationContext& context ) const override;
     };
 
     //-------------------------------------------------------------------------
@@ -75,7 +59,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Float Ease"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
@@ -96,6 +80,37 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
+    class FloatSpringToolsNode final : public FlowToolsNode
+    {
+        EE_REFLECT_TYPE( FloatSpringToolsNode );
+
+    public:
+
+        FloatSpringToolsNode();
+
+        virtual char const* GetTypeName() const override { return "Float Spring"; }
+        virtual char const* GetCategory() const override { return "Values/Float"; }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
+        virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
+
+    public:
+
+        EE_REFLECT( Min = "0.1", Max = "30" );
+        float                       m_hertz = 4.0f;
+
+        EE_REFLECT( Min = "0", Max = "10" ); // 1 = Critically Damped
+        float                       m_dampingRatio = 0.7f;
+
+        EE_REFLECT();
+        bool                        m_useStartValue = true;
+
+        EE_REFLECT();
+        float                       m_startValue = 0.0f; // Optional initialization value for this node
+    };
+
+    //-------------------------------------------------------------------------
+
     class FloatCurveToolsNode final : public FlowToolsNode
     {
         EE_REFLECT_TYPE( FloatCurveToolsNode );
@@ -106,7 +121,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Float Curve"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
     public:
@@ -126,15 +141,29 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Float Math"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
+    private:
+
+        bool IsSingleInputOperator() const;
+
     public:
 
-        EE_REFLECT() bool                       m_returnAbsoluteResult = false;
-        EE_REFLECT() FloatMathNode::Operator    m_operator = FloatMathNode::Operator::Add;
-        EE_REFLECT() float                      m_valueB = 0.0f;
+        // Should we apply an abs to the result (is performed before we take into account the negate option)
+        EE_REFLECT();
+        bool                       m_absoluteResult = false;
+
+        // Should we negate the result (absolute value will be performed before negation)
+        EE_REFLECT();
+        bool                       m_negateResult = false;
+
+        EE_REFLECT();
+        FloatMathNode::Operator    m_operator = FloatMathNode::Operator::Add;
+
+        EE_REFLECT();
+        float                      m_valueB = 0.0f;
     };
 
     //-------------------------------------------------------------------------
@@ -149,7 +178,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Float Comparison"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
@@ -172,7 +201,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Float Range Check"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
 
@@ -194,8 +223,17 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Float Switch"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
+        virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
+
+    private:
+
+        EE_REFLECT();
+        float                                   m_false = 0.0f;
+
+        EE_REFLECT();
+        float                                   m_true = 1.0f;
     };
 
     //-------------------------------------------------------------------------
@@ -210,7 +248,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Angle Math"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
     private:
@@ -248,7 +286,7 @@ namespace EE::Animation
 
         virtual char const* GetTypeName() const override { return "Dynamic Float Selector"; }
         virtual char const* GetCategory() const override { return "Values/Float"; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::TransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::VirtualParameterValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
         virtual bool SupportsUserEditableDynamicInputPins() const override { return true; }
