@@ -2,9 +2,9 @@
 
 ![Esoterica Logo](Docs/img/EE_Logo.png)
 
-[Esoterica Engine](https://www.esotericaengine.com) is an MIT licensed prototype game engine framework. It’s intended for use either as a proprietary engine starter pack, a technology demonstrator, an educational tool or an R&D framework. The goal of Esoterica is to provide a solid and robust starting point for folks that are looking to build their own tech or transition off of existing tech. It provide a lot of the boring and time consuming boilerplate work (reflection, serialization, resource management, math, etc...) as well a simple to extend tool framework allowing people to rapidly build their own tools.
+[Esoterica Engine](https://www.esotericaengine.com) is an MIT licensed prototype game engine framework. It’s intended for use either as a proprietary engine starter pack, a technology demonstrator, an educational tool or an R&D framework. The goal of Esoterica is to provide a solid and robust starting point for folks that are looking to build their own tech or transition off of existing tech. It provides a lot of the boring and time consuming boilerplate systems (reflection, serialization, resource management, math, etc...) as well as a tool framework allowing people to rapidly build their own tool/editors.
 
-Esoterica is NOT an off the shelf game engine that you can just take and work with. It is intended for technical teams that have the ability to extend and build upon it.
+We need to be clear that Esoterica is NOT an off the shelf game engine that you can just take and work with. It is intended for technical teams that have the ability to extend and build upon it.
 
 ## Important Note: Stability
 
@@ -12,14 +12,24 @@ Esoterica is NOT an off the shelf game engine that you can just take and work wi
 
 ## Open Source Not Open Contribution
 
-Esoterica is not a product, there will not be any formal releases or versions.As such we are not looking for any feature request, nor are we looking for large PR contributions. Any feature requests or large PR will be rejected. That said, please feel free to create issue on bugs, broken/incomplete sections or for questions or intended uses, etc...
+Esoterica is not a product and so there wont be any formal releases or versions. As such, we are not looking for any feature requests, nor are we looking for large PR contributions. Any feature requests or large PR will be rejected. That said, please feel free to create issues for bugs, clearly broken/incomplete pieces of code or for general questions.
+
+## Documentation
+
+As Esoterica is constantly being iterated and worked upon, it becomes hard to provide any documentation that isnt immediately out of date. Additionally, it becomes even less relevant for people forking it to build their own engine with. The code itself is heavily commented and written to be as readable as possible, this is how we intended to provide documentation moving forward.
+
+We do have highlevel docs for the renderer here: <https://docs.esotericaengine.com>
+
+And we have several presentations that cover the high level decisions regarding the entity model and the animation systems here: <https://www.esotericaengine.com/docs>
 
 ## Help Needed: Sample Game
 
-We are looking for folks to help us build out a simple sample game that we can include with the project. We are looking for the following: 
+If really you do wish to contribute, we do need some help. We are looking for folks to help us build out a simple sample game that we can include with the project. 
 
-* A technical animator to build out a locomotion and combat anim set
-* A technical character artist to build out some test characters as well as help define the character tech pipelines (deformation, cloth, procedural bones) 
+We are looking for the following: 
+
+* *A technical animator* to build out a locomotion and combat anim set.
+* *A technical character artist* to build out some test characters, as well as help define the character tech pipelines (deformation, cloth, procedural bones).
 
 More details can be found here: <https://www.esotericaengine.com/contribute>
 
@@ -28,10 +38,10 @@ More details can be found here: <https://www.esotericaengine.com/contribute>
 * Basic core of a game engine (serialization, math, string handling, logging, etc...)
 * Libclang based c++ reflection and code-generation
 * Compiler based resource system with hot-reloading
+* Modern bindless DX12 renderer - <https://docs.esotericaengine.com>
 * Hybrid Actor/ECS object model - <https://www.youtube.com/watch?v=jjEsB611kxs>
-* AAA quality high performance animation graph system - <https://www.youtube.com/watch?v=R-T3Mk5oDHI&t=5427s> - Used in multiple shipped games.
-* Basic animation compression
-* Powered Ragdoll implmentation using Box3D
+* AAA quality high performance animation system - <https://www.youtube.com/watch?v=R-T3Mk5oDHI&t=5427s> - Used in multiple shipped games.
+* Box3D integration and basic ragdoll tooling
 * Basic editor infrastructure and tooling using DearImgui
 
 ## Screenshots
