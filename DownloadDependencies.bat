@@ -1,1 +1,2 @@
-powershell Start-BitsTransfer -Source https://data.esotericaengine.com/ExternalData.zip -Destination .\ExternalData.zip;Expand-Archive -Path ExternalData.zip -DestinationPath .\;rm ExternalData.zip
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference='Stop'; $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri 'https://github.com/BobbyAnguelov/Esoterica/releases/download/Dependencies/External.zip' -OutFile 'External.zip'; Expand-Archive -Path 'External.zip' -DestinationPath '.' -Force; Remove-Item 'External.zip'"

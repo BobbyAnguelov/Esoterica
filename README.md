@@ -57,6 +57,7 @@ More details can be found here: <https://www.esotericaengine.com/contribute>
 ## Requirements
 
 * Visual Studio 2026 (18.6.1+)
+* External Dependencies - Available from the releases section
 
 ## Building Esoterica
 
@@ -65,7 +66,7 @@ Esoterica uses vanilla msbuild for its build system. There are a set of property
 1. Get the external dependencies set up: there are two ways to do this:
 
     * Run the ```DownloadDependencies.bat``` script found in the root folder
-    * Manually download the [external dependencies](https://data.esotericaengine.com/ExternalData.zip) archive and extract into the Esoterica root folder (X:/Esoterica Path/). You should end up with 'X:/Esoterica Path/External/'
+    * Manually download the [external dependencies](https://github.com/BobbyAnguelov/Esoterica/releases/download/Dependencies/External.zip) archive and extract into the Esoterica root folder (X:/Esoterica Path/). You should end up with 'X:/Esoterica Path/External/'
 
 1. Open the solution "Esoterica.sln"
 1. Manually rebuild the "Esoterica.Scripts.Reflect" project (under the "0. Scripts" solution folder) - this will generate all the required Esoterica reflection code needed for the project to compile.
