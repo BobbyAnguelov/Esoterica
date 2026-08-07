@@ -105,8 +105,8 @@ namespace EE::Animation
     enum class RecordedUpdateType
     {
         Unknown,
-        FirstRecording,
         Reset,
+        FullState,
         TimeStep,
         ExternalGraphChanged
     };
@@ -152,6 +152,7 @@ namespace EE::Animation
         SyncTrackTimeRange                                  m_updateRange;
         TVector<ParameterData>                              m_parameterData;
         Seconds                                             m_deltaTime = 0.0f;
+        int32_t                                             m_updateID = 0;
         Blob                                                m_serializedTopologyData;
         Blob                                                m_serializedTaskData;
         GraphTimeInfo                                       m_timingInfo;
@@ -196,6 +197,10 @@ namespace EE::Animation
 
     public:
 
+        constinit static int32_t const s_fullStateRecordingInterval = 200;
+
+    public:
+
         GraphRecording() = default;
         ~GraphRecording() { Reset(); }
 
@@ -235,6 +240,7 @@ namespace EE::Animation
         StringID                                            m_variationID;
         TVector<RecordedGraphUpdateData*>                   m_recordedUpdateData;
         TVector<RecordedGraphState*>                        m_recordedGraphStates;
+        int32_t                                             m_timeStepRecordingCount = 0;
     };
 
     //-------------------------------------------------------------------------
@@ -245,7 +251,7 @@ namespace EE::Animation
     {
     public:
 
-        enum class StepResult
+        enum class Result
         {
             Success,
             SuccessExternalGraphsChanged,
@@ -269,7 +275,7 @@ namespace EE::Animation
         bool IsPlaybackActive() const { return m_pPlaybackGraphInstance != nullptr && m_pRecording != nullptr; }
 
         // Run the recording to the specified update index
-        StepResult GoToRecordedUpdate( int32_t recordedUpdateIdx );
+        Result GoToRecordedUpdate( int32_t targetRecordedUpdateIdx );
 
         // Get the currently viewed update index
         int32_t GetCurrentUpdateIndex() const { return m_currentViewedUpdateIdx; }
@@ -285,6 +291,9 @@ namespace EE::Animation
 
         // Get the delta time for the currently viewed index
         Seconds GetDeltaTime() const;
+
+        // Get the recorded updateID
+        int32_t GetGraphUpdateID() const;
 
         // Get the task list topology size for the currently viewed index
         size_t GetTaskListTopologySize() const { return m_taskListTopologySize; }
@@ -303,9 +312,6 @@ namespace EE::Animation
         void DestroyCreatedExternalGraphInstances();
 
         AnimationClip const* TryGetExternalClip( ResourceID const& ID ) const;
-
-        // Steps the recording from the current point forward N steps
-        StepResult StepRecording( int32_t steps );
 
     private:
 

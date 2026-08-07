@@ -101,6 +101,9 @@ namespace EE
         // Do we have any spatial children
         inline bool HasSpatialChildren() const { return !m_spatialChildren.empty(); }
 
+        // Get spatial children
+        inline TInlineVector<SpatialEntityComponent*, 2> const& GetSpatialChildren() const { return m_spatialChildren; }
+
         // Get the spatial parent ID
         inline ComponentID GetSpatialParentID() const { EE_ASSERT( HasSpatialParent() ); return m_pSpatialParent->GetID(); }
 
@@ -110,7 +113,7 @@ namespace EE
         // How deep in the spatial hierarchy are we?
         int32_t GetSpatialHierarchyDepth( bool limitToCurrentEntity = true ) const;
 
-        // Check if we are a spatial child a certain component
+        // Check if we are a spatial child of a certain component
         bool IsSpatialChildOf( SpatialEntityComponent const* pPotentialParent ) const;
 
         // Get the socket ID that we want to be attached to
@@ -165,6 +168,7 @@ namespace EE
             EE_ASSERT( SupportsNonUniformScale() );
             *GetNonUniformScaleForEdit() = newNUS;
             OnNonUniformScaleChanged();
+            UpdateBounds( true );
         }
 
         // Conversion Functions
@@ -193,9 +197,18 @@ namespace EE
         }
 
         // Updates the local and world bounds for this component
-        void UpdateBounds()
+        void UpdateBounds( bool recurse = false )
         {
             EE_DEVELOPMENT_TOOLS_ONLY( m_boundsValidationGuard = true );
+
+            if ( recurse )
+            {
+                for ( auto pChild : m_spatialChildren )
+                {
+                    pChild->UpdateBounds( true );
+                }
+            }
+
             m_bounds = CalculateLocalBounds();
             m_worldBounds = m_bounds.GetTransformed( m_worldTransform );
         }

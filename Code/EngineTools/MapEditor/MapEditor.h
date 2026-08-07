@@ -87,8 +87,8 @@ namespace EE::EntityModel
         //-------------------------------------------------------------------------
 
         void DrawEditModeWindow( UpdateContext const& context, bool isFocused );
-        void SwitchEditMode( TypeSystem::TypeInfo const* pNewModeTypeInfo );
-        void ClearEditMode() { SwitchEditMode( nullptr ); }
+        void SwitchEditMode( UpdateContext const& context, TypeSystem::TypeInfo const* pNewModeTypeInfo );
+        void ClearEditMode();
 
     private:
 

@@ -265,7 +265,7 @@ namespace EE::NodeGraph
                 static constexpr float const rectThickness = 8.0f;
                 static constexpr float const rectMargin = 2.0f;
                 static ImVec2 const offset( ( rectThickness / 2.f ) + rectMargin, ( rectThickness / 2.f ) + rectMargin );
-                ctx.m_pDrawList->AddRect( ctx.m_windowRect.Min + offset, ctx.m_windowRect.Max - offset, Style::s_readOnlyCanvasBorderColor, 8.0f, 0, rectThickness );
+                ctx.m_pDrawList->AddRect( ctx.m_windowRect.Min + offset, ctx.m_windowRect.Max - offset, Style::s_readOnlyCanvasBorderColor, 8.0f, rectThickness );
             }
 
             // Title Block
@@ -435,18 +435,18 @@ namespace EE::NodeGraph
             {
                 outlineColor = AdjustColorBasedOnVisualState( outlineColor, visualState );
                 ImVec2 const activeBorderPadding( Style::s_activeBorderIndicatorPadding, Style::s_activeBorderIndicatorPadding );
-                ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, outlineColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll, Style::s_activeBorderIndicatorThickness );
+                ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, outlineColor, scaledCornerRounding, Style::s_activeBorderIndicatorThickness, ImDrawFlags_RoundCornersAll );
             }
 
             ctx.m_pDrawList->AddRectFilled( backgroundRectMin, backgroundRectMax, nodeBackgroundColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll );
             ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarMax, Style::s_defaultTitleColor, scaledCornerRounding, ImDrawFlags_RoundCornersTop );
             ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarColorItemMax, pNode->GetTitleBarColor(), scaledCornerRounding, ImDrawFlags_RoundCornersTopLeft );
-            ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll, scaledBorderThickness );
+            ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, scaledBorderThickness, ImDrawFlags_RoundCornersAll );
         }
         else // Non-state node
         {
             ctx.m_pDrawList->AddRectFilled( backgroundRectMin, backgroundRectMax, nodeBackgroundColor, scaledCornerRounding );
-            ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll, scaledBorderThickness );
+            ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, scaledBorderThickness, ImDrawFlags_RoundCornersAll );
         }
 
         //-------------------------------------------------------------------------
@@ -821,13 +821,13 @@ namespace EE::NodeGraph
         {
             outlineColor = AdjustColorBasedOnVisualState( outlineColor, visualState );
             ImVec2 const activeBorderPadding( Style::s_activeBorderIndicatorPadding, Style::s_activeBorderIndicatorPadding );
-            ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, outlineColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll, Style::s_activeBorderIndicatorThickness );
+            ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, outlineColor, scaledCornerRounding, Style::s_activeBorderIndicatorThickness, ImDrawFlags_RoundCornersAll );
         }
 
         ctx.m_pDrawList->AddRectFilled( backgroundRectMin, backgroundRectMax, nodeBackgroundColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll );
         ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarMax, nodeTitleBarColor, scaledCornerRounding, ImDrawFlags_RoundCornersTop);
         ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarColorItemMax, pNode->GetTitleBarColor(), scaledCornerRounding, ImDrawFlags_RoundCornersTopLeft );
-        ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll, scaledBorderThickness );
+        ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, scaledBorderThickness, ImDrawFlags_RoundCornersAll );
 
         //-------------------------------------------------------------------------
         // Merge Channels
@@ -907,8 +907,8 @@ namespace EE::NodeGraph
         ctx.SetDrawChannel( (uint8_t) DrawChannel::Background );
         ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, nodeBackgroundColor.GetAlphaVersion( 0.1f ), 0, ImDrawFlags_RoundCornersNone );
         ctx.m_pDrawList->AddRectFilled( rectMin, titleRectMax, nodeBackgroundColor.GetAlphaVersion( 0.3f ), 0, ImDrawFlags_RoundCornersNone );
-        ctx.m_pDrawList->AddRect( rectMin, rectMax, nodeBackgroundColor, 0, ImDrawFlags_RoundCornersNone, scaledBorderThickness );
-        ctx.m_pDrawList->AddRect( rectMin - ImVec2( scaledBorderThickness, scaledBorderThickness ), rectMax + ImVec2( scaledBorderThickness, scaledBorderThickness ), nodeBorderColor, 0, ImDrawFlags_RoundCornersNone, scaledBorderThickness );
+        ctx.m_pDrawList->AddRect( rectMin, rectMax, nodeBackgroundColor, 0, scaledBorderThickness, ImDrawFlags_RoundCornersNone );
+        ctx.m_pDrawList->AddRect( rectMin - ImVec2( scaledBorderThickness, scaledBorderThickness ), rectMax + ImVec2( scaledBorderThickness, scaledBorderThickness ), nodeBorderColor, 0, scaledBorderThickness, ImDrawFlags_RoundCornersNone );
 
         //-------------------------------------------------------------------------
         // Merge Channels

@@ -7,7 +7,7 @@
 
 float3 ComputeShadowNormalOffset( float dotNL, float3 normal, float2 texelSize )
 {
-    const float OffsetScale = 5.0;
+    const float OffsetScale = 2.0;
     return OffsetScale * saturate( 1.0 - dotNL ) * texelSize.x * normal;
 }
 
@@ -41,15 +41,20 @@ float SampleShadowCascade( CascadedShadow cascadedShadow, Texture2DArray shadowT
     float v0 = ( 2.0 - st.y ) / vw0 - 1.0;
     float v1 = st.y / vw1 + 1.0;
 
-    shadow += uw0 * vw0 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u0, v0 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), shadowPosition.z );
-    shadow += uw1 * vw0 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u1, v0 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), shadowPosition.z );
-    shadow += uw0 * vw1 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u0, v1 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), shadowPosition.z );
-    shadow += uw1 * vw1 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u1, v1 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), shadowPosition.z );
+    const float ShadowBias = 0.0015;
+    float referenceDepth = shadowPosition.z + ShadowBias;
+    
+    shadow += uw0 * vw0 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u0, v0 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), referenceDepth );
+    shadow += uw1 * vw0 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u1, v0 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), referenceDepth );
+    shadow += uw0 * vw1 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u0, v1 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), referenceDepth );
+    shadow += uw1 * vw1 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u1, v1 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), referenceDepth );
 
     return shadow * ( 1.0 / 16.0 );
 }
 
-float SampleShadow( CascadedShadow cascadedShadow, float3 lightDirection, float3 worldSpacePosition, float depth, float3 normal, out float3 debugShadowColor )
+// triangleNormal should be the triangle's true geometric normal (e.g. cross(edge0, edge1)), this is computed by default in the mesh shader.
+// It can be the vertex normal, but this will have worse results for meshes that have edited normals for artistic reasons.
+float SampleShadow( CascadedShadow cascadedShadow, float3 lightDirection, float3 worldSpacePosition, float depth, float3 triangleNormal, out float3 debugShadowColor )
 {
     SamplerComparisonState  shadowSampler = GetLinearClampCompareSampler();
     Texture2DArray          shadowTexture = GetTexture( cascadedShadow.m_shadowCascades );
@@ -80,8 +85,8 @@ float SampleShadow( CascadedShadow cascadedShadow, float3 lightDirection, float3
         debugShadowColor = DebugCascadeColors[cascade];
     #endif
 
-    float dotNL = saturate( dot( normal, lightDirection ) );
-    float3 normalOffset = ComputeShadowNormalOffset( dotNL, normal, cascadedShadow.m_cascadeSize.zw ) / abs( cascadedShadow.m_cascadeScales[cascade].z );
+    float dotNL = saturate( dot( triangleNormal, lightDirection ) );
+    float3 normalOffset = ComputeShadowNormalOffset( dotNL, triangleNormal, cascadedShadow.m_cascadeSize.zw ) / abs( cascadedShadow.m_cascadeScales[cascade].z );
 
     float3 samplePosition = worldSpacePosition + normalOffset;
     float3 shadowPosition = mul( cascadedShadow.m_shadowMatrix, float4( samplePosition, 1.0 ) ).xyz;
@@ -100,7 +105,7 @@ float SampleShadow( CascadedShadow cascadedShadow, float3 lightDirection, float3
     [branch] if ( distanceToEdge < BlendThreshold && cascade != 3 )
     {
         uint nextCascade = cascade + 1;
-        float3 nextNormalOffset = ComputeShadowNormalOffset( dotNL, normal, cascadedShadow.m_cascadeSize.zw ) / abs( cascadedShadow.m_cascadeScales[nextCascade].z );
+        float3 nextNormalOffset = ComputeShadowNormalOffset( dotNL, triangleNormal, cascadedShadow.m_cascadeSize.zw ) / abs( cascadedShadow.m_cascadeScales[nextCascade].z );
 
         float3 nextSamplePosition = worldSpacePosition + nextNormalOffset;
         float3 nextShadowPosition = mul( cascadedShadow.m_shadowMatrix, float4( nextSamplePosition, 1.0 ) ).xyz;

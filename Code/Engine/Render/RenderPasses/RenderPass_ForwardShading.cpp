@@ -396,7 +396,7 @@ namespace EE::Render
 
         deviceRenderView.m_projectionP00 = projectionMatrix.m_values[0][0];
         deviceRenderView.m_projectionP11 = projectionMatrix.m_values[1][1];
-        deviceRenderView.m_znear = 0.001F;
+        deviceRenderView.m_znear = viewVolume.GetDepthRange().m_begin;
 
         deviceRenderView.m_renderViewFlags = ShaderTypes::RENDER_VIEW_FLAG_NONE;
         deviceRenderView.m_renderViewLayerFlags = ShaderTypes::RENDER_VIEW_LAYER_FLAG_FORWARD_SHADING;

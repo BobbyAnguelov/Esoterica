@@ -8,6 +8,7 @@ EE_DECLARE_ROOT_CONSTANTS( DrawRootConstants, b0, space0 );
 EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
 
 groupshared float4 gsClipVertices[MAX_CLUSTER_VERTICES];
+groupshared float3 gsWorldVertices[MAX_CLUSTER_VERTICES];
 
 #if EE_DEVELOPMENT_TOOLS
 groupshared uint gsNumIntersections;
@@ -128,6 +129,7 @@ void MS_main
         #endif
 
         gsClipVertices[groupThreadID]   = output.m_clipPosition;
+        gsWorldVertices[groupThreadID]  = output.m_worldPosition;
         outVertices[groupThreadID]      = output;
     }
 
@@ -156,12 +158,20 @@ void MS_main
         clipVertices[0] = gsClipVertices[triangleIndices.x];
         clipVertices[1] = gsClipVertices[triangleIndices.y];
         clipVertices[2] = gsClipVertices[triangleIndices.z];
+        
+        float3 worldVertices[3];
+        worldVertices[0] = gsWorldVertices[triangleIndices.x];
+        worldVertices[1] = gsWorldVertices[triangleIndices.y];
+        worldVertices[2] = gsWorldVertices[triangleIndices.z];
+        
+        float3 triangleNormal = normalize( cross( worldVertices[2] - worldVertices[0], worldVertices[1] - worldVertices[0] ) );
             
         PrimitiveOutput output = ( PrimitiveOutput ) 0;
-        output.m_cullPrimitive      = IsTriangleCulled( clipVertices, renderView.m_renderTargetSize.xy, isDoubleSided );            
+        output.m_cullPrimitive      = IsTriangleCulled( clipVertices, renderView.m_renderTargetSize.xy, isDoubleSided );
         output.SetInstanceIndex( instanceIndex );
         output.SetClusterIndex( clusterIndex );
         output.SetShaderParametersOffsetIn32ByteBlocks( meshInstance.m_shaderParametersOffsetIn32ByteBlocks );
+        output.SetTriangleNormal( triangleNormal );
             
         output.m_primitiveFlags.m_rendererGlobalFlags               = rendererGlobalFlags;
         output.m_primitiveFlags.m_rendererDebugFlags                = RootCBV.m_rendererDebugFlags;

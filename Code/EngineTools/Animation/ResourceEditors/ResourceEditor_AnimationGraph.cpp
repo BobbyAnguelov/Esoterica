@@ -5982,12 +5982,6 @@ namespace EE::Animation
 
                 switch ( updateType )
                 {
-                    case RecordedUpdateType::FirstRecording:
-                    {
-                         ImGui::Text(  "Recording Start" );
-                    }
-                    break;
-
                     case RecordedUpdateType::Reset:
                     {
                         float const initSyncTime = timingInfo.m_baseUpdateRange.m_endTime.ToFloat();
@@ -5995,6 +5989,7 @@ namespace EE::Animation
                     }
                     break;
 
+                    case RecordedUpdateType::FullState:
                     case RecordedUpdateType::TimeStep:
                     {
                         float const initSyncTime = timingInfo.m_baseUpdateRange.m_endTime.ToFloat();

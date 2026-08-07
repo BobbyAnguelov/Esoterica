@@ -244,6 +244,20 @@ namespace EE::Animation
         }
     }
 
+    void IDEventToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
+    {
+        outIDs.emplace_back( m_defaultValue );
+    }
+
+    void IDEventToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
+    {
+        if ( m_defaultValue == oldID )
+        {
+            NodeGraph::ScopedNodeModification snm( this );
+            m_defaultValue = newID;
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     IDEventPercentageThroughToolsNode::IDEventPercentageThroughToolsNode()
@@ -717,6 +731,20 @@ namespace EE::Animation
         }
     }
 
+    void FloatCurveEventToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
+    {
+        outIDs.emplace_back( m_matchEventID );
+    }
+
+    void FloatCurveEventToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
+    {
+        if ( m_matchEventID == oldID )
+        {
+            NodeGraph::ScopedNodeModification snm( this );
+            m_matchEventID = newID;
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     SyncEventIndexConditionToolsNode::SyncEventIndexConditionToolsNode()
@@ -880,6 +908,20 @@ namespace EE::Animation
         if ( m_ignoreInactiveBranchEvents )
         {
             ImGui::Text( "Inactive events ignored" );
+        }
+    }
+
+    void TransitionEventConditionToolsNode::GetLogicAndEventIDs( TVector<StringID>& outIDs ) const
+    {
+        outIDs.emplace_back( m_markerIDToMatch );
+    }
+
+    void TransitionEventConditionToolsNode::RenameLogicAndEventIDs( StringID oldID, StringID newID )
+    {
+        if ( m_markerIDToMatch == oldID ) 
+        {
+            NodeGraph::ScopedNodeModification snm( this );
+            m_markerIDToMatch = newID;
         }
     }
 }

@@ -51,7 +51,7 @@ namespace EE::Navmesh
         AABB GetNavmeshBounds( uint32_t layerIdx ) const;
 
         #if EE_ENABLE_NAVPOWER
-        EE_FORCE_INLINE bfx::SpaceHandle GetSpaceHandle() const { return bfx::GetDefaultSpaceHandle( m_pInstance ); }
+        EE_FORCE_INLINE bfx::SpaceHandle& GetSpaceHandle() { return m_defaultSpaceHandle; }
         #endif
 
     private:
@@ -77,11 +77,11 @@ namespace EE::Navmesh
 
         #if EE_ENABLE_NAVPOWER
         bfx::Instance*                                  m_pInstance = nullptr;
+        bfx::SpaceHandle                                m_defaultSpaceHandle;
 
         #if EE_DEVELOPMENT_TOOLS
         Navpower::Renderer*                             m_pRenderer = nullptr;
         #endif
-
         #endif
 
         //-------------------------------------------------------------------------

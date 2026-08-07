@@ -240,6 +240,8 @@ namespace EE::Render
         meshInstanceRoot.m_forceLOD = uint32_t( Math::Max( 0, m_forcedLOD ) );
         meshInstanceRoot.m_useForcedLOD = ( m_forcedLOD >= 0 );
 
+        meshInstanceRoot.m_numSkinningAttributes = pMeshResource->GetGeometry()[0].GetNumSkinningAttributes();
+
         Matrix transformMatrix = GetWorldTransform().ToMatrix();
         float const globalUniformScale = GetWorldTransform().GetScale();
 

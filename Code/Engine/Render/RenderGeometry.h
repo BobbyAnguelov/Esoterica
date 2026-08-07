@@ -62,9 +62,8 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
-    struct SkeletalMeshVertex final
+    struct SkinningAttribute final
     {
-        StaticMeshVertex                m_vertex;
         Int4                            m_boneIndices;
         Float4                          m_boneWeights;
     };
@@ -207,7 +206,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        EE_SERIALIZE( m_clusterVertices, m_vertexStride, m_clusterTriangles, m_clusters, m_bounds );
+        EE_SERIALIZE( m_clusterVertices, m_numSkinningAttributes, m_vertexStride, m_clusterTriangles, m_clusters, m_bounds );
 
     public:
 
@@ -220,12 +219,19 @@ namespace EE::Render
         // Vertices
         //-------------------------------------------------------------------------
 
+        inline void SetNumSkinningAttributes( uint32_t numSkinningVertexDatas )
+        {
+            EE_ASSERT( numSkinningVertexDatas <= 2 ); // Only up to 2 is allowed right now
+            m_numSkinningAttributes = numSkinningVertexDatas;
+        }
+
         inline void SetVertexStride( uint32_t vertexStride )
         {
-            EE_ASSERT( vertexStride == sizeof( StaticMeshVertex ) || vertexStride == sizeof( SkeletalMeshVertex ) );
+            EE_ASSERT( vertexStride == ( sizeof( StaticMeshVertex ) + m_numSkinningAttributes * sizeof( SkinningAttribute ) ) );
             m_vertexStride = vertexStride;
         }
 
+        inline uint32_t GetNumSkinningAttributes() const { return m_numSkinningAttributes; }
         inline uint32_t GetVertexStride() const { return m_vertexStride; }
 
         inline Blob& GetClusterVertices() { return m_clusterVertices; }
@@ -306,6 +312,7 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         Blob                            m_clusterVertices;
+        uint32_t                        m_numSkinningAttributes = 0;
         uint32_t                        m_vertexStride = 0;
         TAlignedVector<uint32_t>        m_clusterTriangles;
         Blob                            m_clusters;

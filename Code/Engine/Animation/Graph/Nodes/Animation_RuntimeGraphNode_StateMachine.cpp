@@ -325,6 +325,8 @@ namespace EE::Animation
         bool const hasActiveTransition = m_pActiveTransition != nullptr;
         outState.WriteValue( hasActiveTransition );
 
+        outState.WriteValue( m_requestShutdownConditionsStateIndex );
+
         if ( hasActiveTransition )
         {
             bool transitionSerialized = false;
@@ -364,6 +366,8 @@ namespace EE::Animation
 
         bool hasActiveTransition = false;
         inState.ReadValue( hasActiveTransition );
+
+        inState.ReadValue( m_requestShutdownConditionsStateIndex );
 
         if ( hasActiveTransition )
         {

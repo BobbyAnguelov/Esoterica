@@ -15,6 +15,7 @@
 #include "EngineTools/Animation/ToolsGraph/Nodes/Animation_ToolsGraphNode.h"
 #include "Base/Math/Matrix43.h"
 #include "Base/Math/Matrix.h"
+#include "Base/Settings/IniFile.h"
 
 //-------------------------------------------------------------------------
 
@@ -54,12 +55,23 @@ int main( int argc, char *argv[] )
         auto res = typeRegistry.GetAllDerivedLeafTypes( Animation::FlowToolsNode::GetStaticTypeID() );*/
 
         //DataPath dp( "data://blah/foo.tar.bar" );
-        FileSystem::Path dp( "d:/esoterica/flag" );
+        //FileSystem::Path dp( "d:/esoterica/flag" );
 
         //if ( dp.HasSubFilename() )
         {
-            std::cout << dp.GetExtension();
+            //std::cout << dp.GetExtension();
         }
+
+        IniFile i;
+
+        i.Load( "D:\\Esoterica\\Build\\x64_Debug\\EsotericaEditor.settings.ini" );
+
+        i.SetString( "NEW", "Bob", "GAr" );
+        i.SetInt( "NEW", "dot", -21321313232245879 );
+        i.SetFloat( "NEW", "a", 1.423123120f );
+        i.SetBool( "NEW", "isTrue", false );
+
+        i.Save( "D:\\Esoterica\\Build\\x64_Debug\\EsotericaEditor.settings.ini" );
 
         /*CommandLineParser cl;
         cl.AddRequiredStringArg( "mAp", "DASDASDAS" );

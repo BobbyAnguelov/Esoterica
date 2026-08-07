@@ -29,27 +29,7 @@ namespace EE::Import::gltf
 
     //-------------------------------------------------------------------------
 
-    SceneContext::SceneContext( Source const& source, float additionalScalingFactor )
-    {
-        Initialize( source, additionalScalingFactor );
-    }
-
-    SceneContext::~SceneContext()
-    {
-        Shutdown();
-    }
-
-    //-------------------------------------------------------------------------
-
-    void SceneContext::LoadFile( Source const& source, float additionalScalingFactor )
-    {
-        Shutdown();
-        Initialize( source, additionalScalingFactor );
-    }
-
-    //-------------------------------------------------------------------------
-
-    void SceneContext::Initialize( Source const& source, float additionalScalingFactor )
+    SceneContext::SceneContext( Source const& source )
     {
         EE_ASSERT( source.IsValid() );
 
@@ -89,19 +69,58 @@ namespace EE::Import::gltf
             m_error.sprintf( "Failed to load gltf file buffers ( %s ) : %s", source.m_path.c_str(), g_errorStrings[bufferLoadResult] );
             return;
         }
-
-        m_scaleConversionMultiplier *= additionalScalingFactor;
     }
 
-    void SceneContext::Shutdown()
+    SceneContext::~SceneContext()
     {
         if ( m_pSceneData != nullptr )
         {
             cgltf_free( m_pSceneData );
             m_pSceneData = nullptr;
         }
+    }
 
-        m_scaleConversionMultiplier = 1.0f;
+    Transform SceneContext::GetNodeTransform( cgltf_node* pNode, bool includeParentTransform ) const
+    {
+        EE_ASSERT( pNode != nullptr );
+
+        Transform t;
+
+        if ( pNode->has_matrix )
+        {
+            t = ToTransform( pNode->matrix );
+        }
+        else
+        {
+            Quaternion rotation = Quaternion::Identity;
+            if ( pNode->has_rotation )
+            {
+                rotation = Quaternion( pNode->rotation[0], pNode->rotation[1], pNode->rotation[2], pNode->rotation[3] );
+            }
+
+            Vector translation = Vector::Zero;
+            if ( pNode->has_translation )
+            {
+                translation = Vector( pNode->translation[0], pNode->translation[1], pNode->translation[2] );
+            }
+
+            float scale = 1.0f;
+            if ( pNode->has_scale )
+            {
+                // TODO: log warning
+                EE_ASSERT( pNode->scale[0] != pNode->scale[1] || pNode->scale[1] != pNode->scale[2] );
+                scale = pNode->scale[0];
+            }
+
+            t = Transform( rotation, translation, scale );
+        }
+
+        if ( includeParentTransform && pNode->parent != nullptr )
+        {
+            return t * GetNodeTransform( pNode->parent, includeParentTransform );
+        }
+
+        return t;
     }
 }
 
@@ -149,7 +168,7 @@ namespace EE::Import::gltf
 
         static void ReadSkeleton( gltf::SceneContext const& sceneCtx, String const& skeletonRootBoneName, gltfImportedSkeleton& skeleton )
         {
-            auto pSceneData = sceneCtx.GetSceneData();
+            auto pSceneData = sceneCtx.GetScene();
 
             if ( pSceneData->skins_count == 0 )
             {
@@ -275,7 +294,7 @@ namespace EE::Import::gltf
             gltf::SceneContext sceneCtx( source );
             if ( sceneCtx.IsValid() )
             {
-                auto pSceneData = sceneCtx.GetSceneData();
+                auto pSceneData = sceneCtx.GetScene();
 
                 if ( pSceneData->animations_count == 0 )
                 {
@@ -707,7 +726,7 @@ namespace EE::Import::gltf
         {
             TVector<SkinInstanceInfo> skeletalMeshes;
 
-            auto pSceneData = ctx.GetSceneData();
+            auto pSceneData = ctx.GetScene();
             for ( auto n = 0; n < pSceneData->nodes_count; n++ )
             {
                 cgltf_node const& node = pSceneData->nodes[n];
@@ -785,7 +804,7 @@ namespace EE::Import::gltf
                 return pMesh;
             }
 
-            auto pSceneData = sceneCtx.GetSceneData();
+            auto pSceneData = sceneCtx.GetScene();
 
             // Build map of unique meshes
             //-------------------------------------------------------------------------

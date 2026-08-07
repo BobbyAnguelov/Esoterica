@@ -501,12 +501,21 @@ namespace EE::Render
                     pDstMeshVertex->m_packedColor = color;
                 }
 
+                // Up to 2 skinning attributes / 8 bone weights total
                 if ( SkinningAttribute skinning; GetSkinningAttribute( sourceVertexIndex, 0, skinning ) )
                 {
-                    SkeletalMeshVertex* pDstSkeletalMeshVertex = reinterpret_cast<SkeletalMeshVertex*>( pDstMeshVertex );
+                    SkinningAttribute* pDstSkinningVertexData = reinterpret_cast<SkinningAttribute*>( pDstMeshVertex + 1 ) + 0;
 
-                    pDstSkeletalMeshVertex->m_boneIndices = skinning.m_boneIndices;
-                    pDstSkeletalMeshVertex->m_boneWeights = skinning.m_boneWeights;
+                    pDstSkinningVertexData->m_boneIndices = skinning.m_boneIndices;
+                    pDstSkinningVertexData->m_boneWeights = skinning.m_boneWeights;
+                }
+
+                if ( SkinningAttribute skinning; GetSkinningAttribute( sourceVertexIndex, 1, skinning ) )
+                {
+                    SkinningAttribute* pDstSkinningVertexData = reinterpret_cast<SkinningAttribute*>( pDstMeshVertex + 1 ) + 1;
+
+                    pDstSkinningVertexData->m_boneIndices = skinning.m_boneIndices;
+                    pDstSkinningVertexData->m_boneWeights = skinning.m_boneWeights;
                 }
 
                 // Validate compression

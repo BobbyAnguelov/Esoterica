@@ -22,8 +22,8 @@ namespace EE
         m_iniFilePath = iniFilePath;
 
         // If the ini file doesnt exist, create one with the default settings!
-        IniFile iniFile( iniFilePath );
-        if ( !iniFile.IsValid() )
+        IniFile iniFile;
+        if ( !iniFile.Load( iniFilePath ) )
         {
             if ( !SaveSettingsToIniFile() )
             {
@@ -32,8 +32,7 @@ namespace EE
             }
 
             // Try to load the newly created ini file
-            iniFile = IniFile( iniFilePath );
-            if ( !iniFile.IsValid() )
+            if ( !iniFile.Load( iniFilePath ) )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::System, "Settings Registry", "Failed to load settings from INI file: %s", iniFilePath.c_str() );
                 return false;
@@ -79,6 +78,6 @@ namespace EE
             }
         }
 
-        return iniFile.SaveToFile( m_iniFilePath );
+        return iniFile.Save( m_iniFilePath );
     }
 }

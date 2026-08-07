@@ -54,7 +54,7 @@ namespace EE::Animation
                     curvePoints.emplace_back( curvePoint );
                 }
 
-                pDrawList->AddPolyline( curvePoints.data(), numPointsToDraw, Colors::HotPink, 0, lineWidth );
+                pDrawList->AddPolyline( curvePoints.data(), numPointsToDraw, Colors::HotPink, lineWidth );
 
                 if ( isHovered )
                 {

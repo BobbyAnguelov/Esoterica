@@ -353,9 +353,6 @@
     <ClCompile Include="ThirdParty\implot\implot.cpp">
       <Filter>ThirdParty\implot</Filter>
     </ClCompile>
-    <ClCompile Include="ThirdParty\implot\implot_demo.cpp">
-      <Filter>ThirdParty\implot</Filter>
-    </ClCompile>
     <ClCompile Include="ThirdParty\implot\implot_items.cpp">
       <Filter>ThirdParty\implot</Filter>
     </ClCompile>
@@ -364,12 +361,6 @@
     </ClCompile>
     <ClCompile Include="ThirdParty\rpmalloc\rpmalloc.c">
       <Filter>ThirdParty\rpmalloc</Filter>
-    </ClCompile>
-    <ClCompile Include="ThirdParty\iniparser\dictionary.c">
-      <Filter>ThirdParty\iniparser</Filter>
-    </ClCompile>
-    <ClCompile Include="ThirdParty\iniparser\iniparser.c">
-      <Filter>ThirdParty\iniparser</Filter>
     </ClCompile>
     <ClCompile Include="ThirdParty\D3D12MemoryAllocator\Common.cpp">
       <Filter>ThirdParty\D3D12MemoryAllocator</Filter>
@@ -449,6 +440,8 @@
     <ClCompile Include="Serialization\BinarySerialization.cpp">
       <Filter>Serialization</Filter>
     </ClCompile>
+    <ClCompile Include="Imgui\ImguiTextureID.cpp" />
+    <ClCompile Include="ThirdParty\implot\implot_demo.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Esoterica.h" />
@@ -1750,12 +1743,6 @@
     <ClInclude Include="ThirdParty\rapidhash\rapidhash.h">
       <Filter>ThirdParty\rapidhash</Filter>
     </ClInclude>
-    <ClInclude Include="ThirdParty\iniparser\dictionary.h">
-      <Filter>ThirdParty\iniparser</Filter>
-    </ClInclude>
-    <ClInclude Include="ThirdParty\iniparser\iniparser.h">
-      <Filter>ThirdParty\iniparser</Filter>
-    </ClInclude>
     <ClInclude Include="ThirdParty\concurrentqueue\blockingconcurrentqueue.h">
       <Filter>ThirdParty\concurrentqueue</Filter>
     </ClInclude>
@@ -1858,6 +1845,8 @@
     <ClInclude Include="Serialization\BinarySerialization.h">
       <Filter>Serialization</Filter>
     </ClInclude>
+    <ClInclude Include="ThirdParty\mINI\ini.h" />
+    <ClInclude Include="Imgui\ImguiTextureID.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Render\RHI.esh">
@@ -1882,9 +1871,6 @@
   <ItemGroup>
     <Text Include="ThirdParty\stb\LICENSE">
       <Filter>ThirdParty\stb</Filter>
-    </Text>
-    <Text Include="ThirdParty\iniparser\LICENSE">
-      <Filter>ThirdParty\iniparser</Filter>
     </Text>
   </ItemGroup>
   <ItemGroup>

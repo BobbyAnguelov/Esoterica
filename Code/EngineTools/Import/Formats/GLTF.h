@@ -35,10 +35,8 @@ namespace EE::Import::gltf
     public:
 
         SceneContext() = default;
-        SceneContext( Source const& source, float additionalScalingFactor = 1.0f );
+        SceneContext( Source const& source );
         ~SceneContext();
-
-        void LoadFile( Source const& source, float additionalScalingFactor = 1.0f );
 
         inline bool IsValid() const { return m_pSceneData != nullptr; }
 
@@ -48,25 +46,7 @@ namespace EE::Import::gltf
         inline bool HasWarningOccurred() const { return !m_warning.empty(); }
         inline String const& GetWarningMessage() const { return m_warning; }
 
-        cgltf_data const* GetSceneData() const { return m_pSceneData; }
-
-        // Conversion Functions
-        //-------------------------------------------------------------------------
-
-        inline Transform ConvertMatrix( cgltf_float const gltfMatrix[16] ) const
-        {
-            Matrix engineMatrix
-            (
-                (float) gltfMatrix[0], (float) gltfMatrix[1], (float) gltfMatrix[2], (float) gltfMatrix[3],
-                (float) gltfMatrix[4], (float) gltfMatrix[5], (float) gltfMatrix[6], (float) gltfMatrix[7],
-                (float) gltfMatrix[8], (float) gltfMatrix[9], (float) gltfMatrix[10], (float) gltfMatrix[11],
-                (float) gltfMatrix[12], (float) gltfMatrix[13], (float) gltfMatrix[14], (float) gltfMatrix[15]
-            );
-
-            Transform convertedTransform = Transform( engineMatrix );
-            convertedTransform.SanitizeScaleValue();
-            return convertedTransform;
-        }
+        cgltf_data const* GetScene() const { return m_pSceneData; }
 
         // Up Axis Correction
         //-------------------------------------------------------------------------
@@ -88,53 +68,7 @@ namespace EE::Import::gltf
         // Helpers
         //-------------------------------------------------------------------------
 
-        inline Transform GetNodeTransform( cgltf_node* pNode, bool includeParentTransform = false ) const
-        {
-            EE_ASSERT( pNode != nullptr );
-
-            Transform t;
-
-            if ( pNode->has_matrix )
-            {
-                t = ConvertMatrix( pNode->matrix );
-            }
-            else
-            {
-                Quaternion rotation = Quaternion::Identity;
-                if ( pNode->has_rotation )
-                {
-                    rotation = Quaternion( pNode->rotation[0], pNode->rotation[1], pNode->rotation[2], pNode->rotation[3] );
-                }
-
-                Vector translation = Vector::Zero;
-                if ( pNode->has_translation )
-                {
-                    translation = Vector( pNode->translation[0], pNode->translation[1], pNode->translation[2] );
-                }
-
-                float scale = 1.0f;
-                if ( pNode->has_scale )
-                {
-                    // TODO: log warning
-                    EE_ASSERT( pNode->scale[0] != pNode->scale[1] || pNode->scale[1] != pNode->scale[2] );
-                    scale = pNode->scale[0];
-                }
-
-                t = Transform( rotation, translation, scale );
-            }
-
-            if ( includeParentTransform && pNode->parent != nullptr )
-            {
-                return t * GetNodeTransform( pNode->parent, includeParentTransform );
-            }
-
-            return t;
-        }
-
-    private:
-
-        void Initialize( Source const& source, float additionalScalingFactor );
-        void Shutdown();
+        Transform GetNodeTransform( cgltf_node* pNode, bool includeParentTransform = false ) const;
 
     private:
 
@@ -142,8 +76,26 @@ namespace EE::Import::gltf
         String                      m_error;
         String                      m_warning;
         Transform                   m_upAxisCorrectionTransform = Transform( AxisAngle( Float3::UnitX, Degrees( 90 ) ) );
-        float                       m_scaleConversionMultiplier = 1.0f;
     };
+
+    //-------------------------------------------------------------------------
+    // Conversion Functions
+    //-------------------------------------------------------------------------
+
+    inline Transform ToTransform( cgltf_float const gltfMatrix[16] )
+    {
+        Matrix engineMatrix
+        (
+            (float) gltfMatrix[0], (float) gltfMatrix[1], (float) gltfMatrix[2], (float) gltfMatrix[3],
+            (float) gltfMatrix[4], (float) gltfMatrix[5], (float) gltfMatrix[6], (float) gltfMatrix[7],
+            (float) gltfMatrix[8], (float) gltfMatrix[9], (float) gltfMatrix[10], (float) gltfMatrix[11],
+            (float) gltfMatrix[12], (float) gltfMatrix[13], (float) gltfMatrix[14], (float) gltfMatrix[15]
+        );
+
+        Transform convertedTransform = Transform( engineMatrix );
+        convertedTransform.SanitizeScaleValue();
+        return convertedTransform;
+    }
 
     //-------------------------------------------------------------------------
     // Import Functions

@@ -91,6 +91,8 @@ namespace EE::Navmesh
         bfx::RegisterPlannerSystem( m_pInstance );
         bfx::SystemStart( m_pInstance );
 
+        m_defaultSpaceHandle = bfx::GetDefaultSpaceHandle( m_pInstance );
+
         #if EE_DEVELOPMENT_TOOLS
         m_pRenderer = EE::New<Navpower::Renderer>();
         bfx::SetRenderer( m_pInstance, m_pRenderer );
@@ -108,6 +110,7 @@ namespace EE::Navmesh
         EE::Delete( m_pRenderer );
         #endif
 
+        m_defaultSpaceHandle.Release();
         bfx::SystemStop( m_pInstance );
         bfx::SystemDestroy( m_pInstance );
         m_pInstance = nullptr;

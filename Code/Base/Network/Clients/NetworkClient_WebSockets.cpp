@@ -52,7 +52,7 @@ namespace EE::Network
 
                 case ix::WebSocketMessageType::Fragment:
                 {
-                    EE_UNIMPLEMENTED_FUNCTION();
+                    // Do Nothing - we dont need to handle this explicitly
                 }
                 break;
 

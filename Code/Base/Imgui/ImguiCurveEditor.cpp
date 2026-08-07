@@ -224,7 +224,7 @@ namespace EE::ImGuiX
             curvePoints.emplace_back( curvePoint );
         }
 
-        pDrawList->AddPolyline( curvePoints.data(), numPointsToDraw, s_curveColor, 0, 2.0f );
+        pDrawList->AddPolyline( curvePoints.data(), numPointsToDraw, s_curveColor, 2.0f );
     }
 
     bool CurveEditor::DrawInTangentHandle( ImDrawList* pDrawList, int32_t pointIdx )

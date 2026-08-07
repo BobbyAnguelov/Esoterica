@@ -701,6 +701,7 @@
     <ClCompile Include="ThirdParty\meshoptimizer\meshoptimizer_esoterica.cpp">
       <Filter>ThirdParty\meshoptimizer</Filter>
     </ClCompile>
+    <ClCompile Include="Navmesh\NavmeshPath.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TimeControlledAnimationClip.h">
@@ -1480,6 +1481,7 @@
     <ClInclude Include="ThirdParty\meshoptimizer\meshoptimizer_esoterica.h">
       <Filter>ThirdParty\meshoptimizer</Filter>
     </ClInclude>
+    <ClInclude Include="Navmesh\NavmeshPath.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\box3d\src\recording_ops.inl">

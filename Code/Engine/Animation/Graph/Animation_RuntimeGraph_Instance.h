@@ -381,6 +381,9 @@ namespace EE::Animation
         // Set the graph debug mode
         inline void SetGraphDebugMode( GraphDebugMode mode ) { m_debugMode = mode; }
 
+        // Get the update ID from the context, this ID is bumped each time the graph evaluates
+        int32_t GetDebugUpdateID() const { return m_graphContext.m_updateID; }
+
         // Get the root motion debug mode
         inline RootMotionDebugMode GetRootMotionDebugMode() const { EE_ASSERT( m_isStandaloneGraphInstance ); return m_graphContext.m_pRootMotionDebugger->GetDebugMode(); }
 

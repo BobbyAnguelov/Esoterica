@@ -70,6 +70,7 @@ namespace EE::Animation
 
     ReferencedGraphNode::~ReferencedGraphNode()
     {
+        // Must have already been destroyed by the owning graph instance
         EE_ASSERT( m_pGraphInstance == nullptr );
     }
 
@@ -379,12 +380,14 @@ namespace EE::Animation
     #if EE_DEVELOPMENT_TOOLS
     void ReferencedGraphNode::DrawDebug( GraphContext& graphContext, DebugDrawContext& drawCtx )
     {
-        if ( m_pGraphInstance != nullptr )
+        if ( m_pGraphInstance == nullptr )
         {
-            m_pGraphInstance->SetGraphDebugMode( GraphDebugMode::On );
-            m_pGraphInstance->DrawDebug( drawCtx, graphContext.m_pNodesToDebug );
-            m_pGraphInstance->SetGraphDebugMode( GraphDebugMode::Off );
+            return;
         }
+
+        m_pGraphInstance->SetGraphDebugMode( GraphDebugMode::On );
+        m_pGraphInstance->DrawDebug( drawCtx, graphContext.m_pNodesToDebug );
+        m_pGraphInstance->SetGraphDebugMode( GraphDebugMode::Off );
     }
     #endif
 

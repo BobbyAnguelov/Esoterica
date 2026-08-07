@@ -1927,6 +1927,56 @@ namespace EE::EntityModel
         }
     }
 
+
+    void EditorContext::ApplyNonUniformScaleToSpatialHierarchy( SpatialEntityComponent* pComponent, Float3 const& scaleDelta )
+    {
+        if ( pComponent->SupportsNonUniformScale() )
+        {
+            pComponent->SetNonUniformScale( pComponent->GetNonUniformScale() + scaleDelta );
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        for ( auto pChildComponent : pComponent->m_spatialChildren )
+        {
+            ApplyNonUniformScaleToSpatialHierarchy( pComponent, scaleDelta );
+        }
+    }
+
+    TInlineVector<EE::SpatialEntityComponent*, 10> EditorContext::CalculateSetOfComponentsAffectedByScale( TVector<EntityEditorItem> const& items )
+    {
+        TInlineVector<SpatialEntityComponent*, 10> affectedComponents;
+
+        for ( auto& selectedItem : items )
+        {
+            bool ignoreComponent = false;
+
+            for ( auto& potentialParentItem : items )
+            {
+                if ( &selectedItem == &potentialParentItem )
+                {
+                    continue;
+                }
+
+                if ( selectedItem.GetSpatialComponent()->IsSpatialChildOf( potentialParentItem.GetSpatialComponent() ) )
+                {
+                    ignoreComponent = true;
+                    break;
+                }
+
+            }
+
+            // Add component to list of components to be modified
+            if ( !ignoreComponent )
+            {
+                affectedComponents.emplace_back( const_cast<SpatialEntityComponent*>( selectedItem.GetSpatialComponent() ) );
+            }
+        }
+
+        return affectedComponents;
+    }
+
     void EditorContext::ScaleSpatialSelection( Float3 const& scaleDelta )
     {
         EE_ASSERT( m_pActiveUndoableAction != nullptr );
@@ -1948,24 +1998,51 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
-        int32_t const numItems = (int32_t) m_spatialSelection.size();
-        for ( int32_t i = 0; i < numItems; i++ )
+        if ( supportsNonUniformScale )
         {
-            if ( m_spatialSelection[i].IsSpatialEntity() )
+            // For components we need to isolate the parent components as NUS propagates
+            if ( DoesSpatialSelectionContainComponents() )
             {
-                auto pRootSpatialComponent = m_spatialSelection[i].m_pEntity->GetRootSpatialComponent();
-                Transform transform = pRootSpatialComponent->GetLocalTransform();
-                transform.SetScale( transform.GetScale() + scaleDelta.m_x );
-                pRootSpatialComponent->SetLocalTransform( transform );
+                TInlineVector<EE::SpatialEntityComponent*, 10> affectedComponents = CalculateSetOfComponentsAffectedByScale( m_spatialSelection );
+                for ( auto pComponent : affectedComponents )
+                {
+                    pComponent->SetNonUniformScale( pComponent->GetNonUniformScale() + scaleDelta );
+                }
             }
-            else // Component
+            else // Only entities selected
             {
-                EE_ASSERT( m_spatialSelection[i].IsSpatialComponent() );
+                for ( auto& selectedItem : m_spatialSelection )
+                {
+                    EE_ASSERT( selectedItem.IsSpatialEntity() );
+                    ApplyNonUniformScaleToSpatialHierarchy( selectedItem.m_pEntity->GetRootSpatialComponent(), scaleDelta );
+                }
+            }
+        }
+        else
+        {
+            float scaleDeltaMax = scaleDelta.GetMax();
 
-                SpatialEntityComponent* pSpatialComponent = m_spatialSelection[i].GetSpatialComponent();
-                Transform transform = pSpatialComponent->GetLocalTransform();
-                transform.SetScale( transform.GetScale() + scaleDelta.m_x );
-                pSpatialComponent->SetLocalTransform( transform );
+            if ( DoesSpatialSelectionContainComponents() )
+            {
+                TInlineVector<EE::SpatialEntityComponent*, 10> affectedComponents = CalculateSetOfComponentsAffectedByScale( m_spatialSelection );
+                for ( auto pComponent : affectedComponents )
+                {
+                    Transform transform = pComponent->GetLocalTransform();
+                    transform.SetScale( transform.GetScale() + scaleDeltaMax );
+                    pComponent->SetLocalTransform( transform );
+                }
+            }
+            else
+            {
+                for ( auto& selectedItem : m_spatialSelection )
+                {
+                    EE_ASSERT( selectedItem.IsSpatialEntity() );
+
+                    auto pRootSpatialComponent = selectedItem.m_pEntity->GetRootSpatialComponent();
+                    Transform transform = pRootSpatialComponent->GetLocalTransform();
+                    transform.SetScale( transform.GetScale() + scaleDeltaMax );
+                    pRootSpatialComponent->SetLocalTransform( transform );
+                }
             }
         }
 

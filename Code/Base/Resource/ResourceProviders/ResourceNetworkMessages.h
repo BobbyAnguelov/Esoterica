@@ -21,7 +21,7 @@ namespace EE::Resource
 
     struct NetworkMessageSettings
     {
-        constexpr static size_t const   s_maxNumberOfRequestsPerMessage = 32;
+        constexpr static size_t const   s_maxNumberOfRequestsPerMessage = 24;
         constexpr static float const    s_heartbeatSendIntervalSeconds = 1.5f;
         constexpr static float const    s_heartbeatTimeoutSeconds = 4.0f;
         constexpr static int8_t const   s_maxRequestTimeoutRetries = 5;

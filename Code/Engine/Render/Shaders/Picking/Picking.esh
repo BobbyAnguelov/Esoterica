@@ -23,7 +23,8 @@ EE_END_SHADER_TYPES_NAMESPACE
 #ifndef __cplusplus
 
 // Based on https://github.com/RenderKit/embree/blob/master/tutorials/common/math/closest_point.h
-float3 ComputeClosestPointOnTriangle( float3 p, float3 a, float3 b, float3 c )
+// outBarycentrics: (u, v, w) where result = u*a + v*b + w*c, u+v+w = 1
+float3 ComputeClosestPointOnTriangle( float3 p, float3 a, float3 b, float3 c, out float3 outBarycentrics )
 {
     const float3 ab = b - a;
     const float3 ac = c - a;
@@ -31,42 +32,59 @@ float3 ComputeClosestPointOnTriangle( float3 p, float3 a, float3 b, float3 c )
 
     const float d1 = dot(ab, ap);
     const float d2 = dot(ac, ap);
-    if (d1 <= 0.f && d2 <= 0.f) return a;
+    if (d1 <= 0.f && d2 <= 0.f)
+    {
+        outBarycentrics = float3(1.0, 0.0, 0.0);
+        return a;
+    }
 
     const float3 bp = p - b;
     const float d3 = dot(ab, bp);
     const float d4 = dot(ac, bp);
-    if (d3 >= 0.f && d4 <= d3) return b;
+    if (d3 >= 0.f && d4 <= d3)
+    {
+        outBarycentrics = float3(0.0, 1.0, 0.0);
+        return b;
+    }
 
     const float3 cp = p - c;
     const float d5 = dot(ab, cp);
     const float d6 = dot(ac, cp);
-    if (d6 >= 0.f && d5 <= d6) return c;
+    if (d6 >= 0.f && d5 <= d6)
+    {
+        outBarycentrics = float3(0.0, 0.0, 1.0);
+        return c;
+    }
 
     const float vc = d1 * d4 - d3 * d2;
     if (vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
     {
-        const float v = d1 / (d1 - d3);
-        return a + v * ab;
+        const float t = d1 / (d1 - d3);
+        outBarycentrics = float3(1.0 - t, t, 0.0);
+        return a + t * ab;
     }
     
     const float vb = d5 * d2 - d1 * d6;
     if (vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
     {
-        const float v = d2 / (d2 - d6);
-        return a + v * ac;
+        const float t = d2 / (d2 - d6);
+        outBarycentrics = float3(1.0 - t, 0.0, t);
+        return a + t * ac;
     }
     
     const float va = d3 * d6 - d5 * d4;
     if (va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
     {
-        const float v = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-        return b + v * (c - b);
+        const float t = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+        outBarycentrics = float3(0.0, 1.0 - t, t);
+        return b + t * (c - b);
     }
 
     const float denom = 1.f / (va + vb + vc);
     const float v = vb * denom;
     const float w = vc * denom;
+
+    outBarycentrics = float3(1.0 - v - w, v, w);
     return a + v * ab + w * ac;
 }
 
@@ -83,11 +101,12 @@ bool PickTriangleClipSpace( float2 mouse, float pickingDistance, float4 clipVert
     float3 ndcVertex1 = clipVertex1.xyz / clipVertex1.w;
     float3 ndcVertex2 = clipVertex2.xyz / clipVertex2.w;
     
-    float3 closestPoint = ComputeClosestPointOnTriangle( float3( mouse, 0.0 ), ndcVertex0.xyz, ndcVertex1.xyz, ndcVertex2.xyz );
+    float3 barycentrics;
+    float2 closestPoint = ComputeClosestPointOnTriangle( float3( mouse, 0.0 ), float3( ndcVertex0.xy, 0.0 ), float3( ndcVertex1.xy, 0.0 ), float3( ndcVertex2.xy, 0.0 ), barycentrics ).xy;
 
-    if ( distance( closestPoint.xy, mouse ) <= pickingDistance )
+    if ( distance( closestPoint, mouse ) <= pickingDistance )
     {
-        hitDistance = 1.0 - closestPoint.z;
+        hitDistance = 1.0 - dot( barycentrics, float3( ndcVertex0.z, ndcVertex1.z, ndcVertex2.z ) );
         return true;
     }
     

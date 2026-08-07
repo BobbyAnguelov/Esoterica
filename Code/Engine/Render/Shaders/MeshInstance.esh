@@ -14,12 +14,13 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     
         uint                            m_instanceHidden            : 1;
         RenderViewLayerFlags            m_renderViewLayerFlags      : 8;
-        uint                            m_numLODs                   : 16; // TODO: Can hardcode this to 8
+        uint                            m_numLODs                   : 8;    // TODO: Max num LODs is 8, put an assert somewhere
+        uint                            m_numSkinningAttributes     : 8;    // TODO: This should be part of MeshInstance but we don't have skinned geometry in PCG yet so its not urgent.
         uint                            m_forceMinLOD               : 3;
         uint                            m_forceLOD                  : 3;
         uint                            m_useForcedLOD              : 1;
 
-        uint                            m_boneOffset; // TODO: This should be part of MeshInstance but we don't have skinned geometry in PCG yet so its not urgent.
+        uint                            m_boneOffset;                       // TODO: This should be part of MeshInstance but we don't have skinned geometry in PCG yet so its not urgent.
     
         uint                            m_firstInstance;
         uint                            m_numInstances;
@@ -196,20 +197,24 @@ EE_END_SHADER_TYPES_NAMESPACE
         
         if ( meshInstanceRoot.m_boneOffset != ~0U )
         {
-            VertexBoneData boneData = clusterVertexBuffer.Load<VertexBoneData>( vertexAddress + sizeof( StaticMeshVertex ) );
-            
-            [unroll( 4 )]
-            for ( uint boneIndex = 0; boneIndex < 4; ++boneIndex )
+            [loop]
+            for ( uint skinningAttributeIndex = 0; skinningAttributeIndex < meshInstanceRoot.m_numSkinningAttributes; ++skinningAttributeIndex )
             {
-                int boneTransformIndex = boneData.m_boneIndices[boneIndex];
-                float boneWeight = boneData.m_boneWeights[boneIndex];
-                
-                if ( boneTransformIndex != -1 )
+                SkinningAttribute skinningAttribute = clusterVertexBuffer.Load<SkinningAttribute>( vertexAddress + sizeof( StaticMeshVertex ) + skinningAttributeIndex * sizeof( SkinningAttribute ) );
+            
+                [unroll( 4 )]
+                for ( uint boneIndex = 0; boneIndex < 4; ++boneIndex )
                 {
-                    SkinningTransform skinningTransform = skinningTransformBuffer[meshInstanceRoot.m_boneOffset + boneTransformIndex];
+                    int boneTransformIndex = skinningAttribute.m_boneIndices[boneIndex];
+                    float boneWeight = skinningAttribute.m_boneWeights[boneIndex];
                 
-                    localPosition += skinningTransform.TransformPoint( vertexPosition ) * boneWeight;
-                    localNormal += skinningTransform.TransformNormal( vertexNormal ) * boneWeight;
+                    if ( boneTransformIndex != -1 )
+                    {
+                        SkinningTransform skinningTransform = skinningTransformBuffer[meshInstanceRoot.m_boneOffset + boneTransformIndex];
+                
+                        localPosition += skinningTransform.TransformPoint( vertexPosition ) * boneWeight;
+                        localNormal += skinningTransform.TransformNormal( vertexNormal ) * boneWeight;
+                    }
                 }
             }
             

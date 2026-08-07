@@ -8,31 +8,37 @@
 
 namespace EE
 {
-    static void GenerateValueName( char const* pSectionName, TypeSystem::PropertyInfo const& propertyInfo, InlineString& outName )
+    static void GenerateSectionAndKeyIDs( char const* pBaseSectionName, TypeSystem::PropertyInfo const& propertyInfo, InlineString& outSectionID, InlineString& outKeyID )
     {
         auto SanitizeStringForIni = [] ( InlineString& str )
         {
             StringUtils::ReplaceAllOccurrencesInPlace( str, " ", "_" );
         };
 
-        // Append section
-        EE_ASSERT( pSectionName != nullptr && strlen( pSectionName ) > 0 );
-        outName = pSectionName;
-        outName.append( ":" );
+        outSectionID.clear();
+        outKeyID.clear();
+
+        // Section Name
+        //-------------------------------------------------------------------------
+
+        EE_ASSERT( pBaseSectionName != nullptr && strlen( pBaseSectionName ) > 0 );
+        outSectionID = pBaseSectionName;
 
         // Append category
-        InlineString tempStr = propertyInfo.m_metadata.GetValue( TypeSystem::PropertyMetadata::Category ).c_str();
-        if ( !tempStr.empty() )
+        InlineString const categoryStr = propertyInfo.m_metadata.GetValue( TypeSystem::PropertyMetadata::Category ).c_str();
+        if ( !categoryStr.empty() )
         {
-            SanitizeStringForIni( tempStr );
-            outName.append( tempStr );
-            outName.append( ":" );
+            outSectionID.append( ":" );
+            outSectionID.append( categoryStr );
         }
 
-        // Append name
-        tempStr = propertyInfo.m_metadata.GetValue( TypeSystem::PropertyMetadata::FriendlyName ).c_str();
-        SanitizeStringForIni( tempStr );
-        outName.append( tempStr.c_str() );
+        SanitizeStringForIni( outSectionID );
+
+        // Key Name
+        //-------------------------------------------------------------------------
+
+        outKeyID.append( propertyInfo.m_metadata.GetValue( TypeSystem::PropertyMetadata::FriendlyName ).c_str() );
+        SanitizeStringForIni( outKeyID );
     }
 
     //-------------------------------------------------------------------------
@@ -84,7 +90,8 @@ namespace EE
         TInlineVector<TypeSystem::PropertyInfo const*, 20> consoleEditableProperties;
         #endif
 
-        InlineString nameStr;
+        InlineString sectionIDStr;
+        InlineString keyIDStr;
         String valueStr;
 
         auto const pTypeInfo = GetTypeInfo();
@@ -106,8 +113,8 @@ namespace EE
             // Read property value
             //-------------------------------------------------------------------------
 
-            GenerateValueName( GetSectionName(), propertyInfo, nameStr );
-            valueStr = ini.GetInlineStringOrDefault( nameStr.c_str(), "" );
+            GenerateSectionAndKeyIDs( GetSectionName(), propertyInfo, sectionIDStr, keyIDStr );
+            valueStr = ini.GetString( sectionIDStr.c_str(), keyIDStr.c_str(), "" );
             if ( !valueStr.empty() )
             {
                 auto pPropertyInstance = propertyInfo.GetPropertyAddress( this );
@@ -158,11 +165,8 @@ namespace EE
 
     bool Settings::SaveSettings( TypeSystem::TypeRegistry const& typeRegistry, IniFile& ini ) const
     {
-        ini.CreateSection( GetSectionName() );
-
-        //-------------------------------------------------------------------------
-
-        InlineString nameStr;
+        InlineString sectionIDStr;
+        InlineString keyIDStr;
         String valueStr;
 
         auto const pTypeInfo = GetTypeInfo();
@@ -187,8 +191,8 @@ namespace EE
             auto pPropertyInstance = propertyInfo.GetPropertyAddress( this );
             if ( TypeSystem::Conversion::ConvertNativeTypeToString( typeRegistry, propertyInfo, pPropertyInstance, valueStr ) )
             {
-                GenerateValueName( GetSectionName(), propertyInfo, nameStr );
-                ini.SetString( nameStr.c_str(), valueStr.c_str() );
+                GenerateSectionAndKeyIDs( GetSectionName(), propertyInfo, sectionIDStr, keyIDStr );
+                ini.SetString( sectionIDStr.c_str(), keyIDStr.c_str(), valueStr.c_str() );
             }
         }
 

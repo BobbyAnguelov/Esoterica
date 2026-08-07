@@ -288,6 +288,9 @@ namespace EE::EntityModel
         void SerializeEntities( TVector<Entity*> const& entities, TVector<EntityDescriptor>& outDescs );
         void SerializeComponents( TVector<EntityComponent*> const& components, TVector<ComponentDescriptor>& outDescs );
 
+        void ApplyNonUniformScaleToSpatialHierarchy( SpatialEntityComponent* pRootComponent, Float3 const& scaleDelta );
+        TInlineVector<SpatialEntityComponent*, 10> CalculateSetOfComponentsAffectedByScale( TVector<EntityEditorItem> const& items );
+
     public:
 
         ToolsContext const*                                                 m_pToolsContext = nullptr;

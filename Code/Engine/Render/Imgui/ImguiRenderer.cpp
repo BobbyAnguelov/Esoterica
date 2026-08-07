@@ -1,13 +1,8 @@
 #include "ImguiRenderer.h"
 #include "Engine/Render/RenderSystem.h"
 #include "Base/Render/RenderWindow.h"
-#include "Base/Profiling.h"
-#include "Base/Threading/Threading.h"
-#include "imgui.h"
-
-#if EE_DEVELOPMENT_TOOLS
+#include "Base/Imgui/ImguiTextureID.h"
 #include "Engine/Render/Shaders/Imgui.esf"
-#endif
 
 //-------------------------------------------------------------------------
 
@@ -16,7 +11,7 @@ namespace EE::Render
 {
     static void ImGui_CreateWindowContext( ImGuiViewport* pViewport )
     {
-        ImGuiIO&               io = ImGui::GetIO();
+        ImGuiIO& io = ImGui::GetIO();
         ImGui_BackendUserData* pBackendUserData = static_cast<ImGui_BackendUserData*>( io.BackendRendererUserData );
         EE_ASSERT( pBackendUserData != nullptr );
 
@@ -97,11 +92,13 @@ namespace EE::Render
         {
             pBackendUserData->m_pRenderSystem->WaitGraphicsQueueIdle();
 
-            pUserData->m_renderWindow.ResizeSwapchain(
+            pUserData->m_renderWindow.ResizeSwapchain
+            (
                 pBackendUserData->m_pRenderSystem->GetContextRHI(),
                 pBackendUserData->m_pRenderSystem->GetGraphicsQueue(),
                 pBackendUserData->m_pRenderSystem->GetComputeQueue(),
-                newSize );
+                newSize
+            );
         }
     }
 
@@ -228,6 +225,11 @@ namespace EE::Render
     #if EE_DEVELOPMENT_TOOLS
     void ImguiRenderer::PreShaderHotReload()
     {
+        RHI::DestroyPipeline( m_pRenderSystem->GetContextRHI(), eastl::move( m_pPipeline ) );
+    }
+
+    void ImguiRenderer::PostShaderHotReload()
+    {
         static StringID const            s_ImguiShaderID( "Imgui" );
         SurfaceShader const* pImguiShader = m_pRenderSystem->FindSurfaceShader( s_ImguiShaderID );
 
@@ -255,11 +257,6 @@ namespace EE::Render
         graphicsPipelineParameters.m_debugName = "ImguiPipeline";
 
         m_pPipeline = RHI::CreatePipeline( m_pRenderSystem->GetContextRHI(), graphicsPipelineParameters );
-    }
-
-    void ImguiRenderer::PostShaderHotReload()
-    {
-        RHI::DestroyPipeline( m_pRenderSystem->GetContextRHI(), eastl::move( m_pPipeline ) );
     }
     #endif
 
@@ -421,7 +418,8 @@ namespace EE::Render
             float const R = pPrimaryDrawData->DisplayPos.x + pPrimaryDrawData->DisplaySize.x;
             float const T = pPrimaryDrawData->DisplayPos.y;
             float const B = pPrimaryDrawData->DisplayPos.y + pPrimaryDrawData->DisplaySize.y;
-            float       mvp[4][4] = {
+            float       mvp[4][4] =
+            {
                 { 2.0f / ( R - L ), 0.0f, 0.0f, 0.0f },
                 { 0.0f, 2.0f / ( T - B ), 0.0f, 0.0f },
                 { 0.0f, 0.0f, 0.5f, 0.0f },
@@ -434,7 +432,8 @@ namespace EE::Render
 
             Memory::CopyToWriteCombined( m_constantBuffers[frameIndex]->m_pMappedAddress_WriteCombined, &constantBufferData, sizeof( constantBufferData ) );
 
-            RenderImguiData(
+            RenderImguiData
+            (
                 pPrimaryDrawData,
                 m_pRenderSystem,
                 pPrimaryCommandBuffer,
@@ -445,7 +444,8 @@ namespace EE::Render
                 m_indexBuffers[frameIndex].m_buffer,
                 frameIndex,
                 clear,
-                state );
+                state
+            );
         }
 
         // Viewport Support
@@ -481,7 +481,8 @@ namespace EE::Render
                 float const R = pViewport->DrawData->DisplayPos.x + pViewport->DrawData->DisplaySize.x;
                 float const T = pViewport->DrawData->DisplayPos.y;
                 float const B = pViewport->DrawData->DisplayPos.y + pViewport->DrawData->DisplaySize.y;
-                float       mvp[4][4] = {
+                float       mvp[4][4] =
+                {
                     { 2.0f / ( R - L ), 0.0f, 0.0f, 0.0f },
                     { 0.0f, 2.0f / ( T - B ), 0.0f, 0.0f },
                     { 0.0f, 0.0f, 0.5f, 0.0f },
@@ -493,7 +494,8 @@ namespace EE::Render
 
                 Memory::CopyToWriteCombined( pUserData->m_constantBuffers[frameIndex]->m_pMappedAddress_WriteCombined, &constantBufferData, sizeof( constantBufferData ) );
 
-                RenderImguiData(
+                RenderImguiData
+                (
                     pViewport->DrawData,
                     m_pRenderSystem,
                     pUserData->m_renderWindow.GetActiveCommandBuffer( frameIndex ),
@@ -504,7 +506,8 @@ namespace EE::Render
                     m_indexBuffers[frameIndex].m_buffer,
                     frameIndex,
                     true,
-                    state );
+                    state
+                );
             }
         }
     }
@@ -517,7 +520,8 @@ namespace EE::Render
         }
     }
 
-    void ImguiRenderer::RenderImguiData(
+    void ImguiRenderer::RenderImguiData
+    (
         ImDrawData const*                        pDrawData,
         RenderSystem*                            pRenderSystem,
         RHI::CommandBuffer*                      pCommandBuffer,
@@ -528,7 +532,8 @@ namespace EE::Render
         RHI::Buffer*                             pIndexBuffer,
         uint32_t                                 frameIndex,
         bool                                     clear,
-        ImguiRenderer::ImguiGeometryState& state )
+        ImguiRenderer::ImguiGeometryState& state
+    )
     {
         if ( pDrawData->DisplaySize.x <= 0.0f || pDrawData->DisplaySize.y <= 0.0f )
         {
@@ -548,10 +553,13 @@ namespace EE::Render
         uint32_t viewportHeight = pRenderTarget->m_height;
 
         RHI::CmdSetRenderTargets( pCommandBuffer, { &pRenderTarget, 1 }, nullptr, &loadAction );
-        RHI::CmdSetViewport( pCommandBuffer, 0.0F, 0.0F,
-                             float( viewportWidth ),
-                             float( viewportHeight ),
-                             0.0F, 1.0F );
+        RHI::CmdSetViewport
+        (
+            pCommandBuffer, 0.0F, 0.0F,
+            float( viewportWidth ),
+            float( viewportHeight ),
+            0.0F, 1.0F
+        );
         RHI::CmdSetScissor( pCommandBuffer, 0, 0, viewportWidth, viewportHeight );
 
         RHI::CmdSetPipeline( pCommandBuffer, pPipeline );
@@ -561,7 +569,7 @@ namespace EE::Render
         ImDrawVert* pVB = static_cast<ImDrawVert*>( pVertexBuffer->m_pMappedAddress_WriteCombined );
         ImDrawIdx*  pIB = static_cast<ImDrawIdx*>( pIndexBuffer->m_pMappedAddress_WriteCombined );
 
-        for ( int32_t cmdListIndex = 0; cmdListIndex < pDrawData->CmdListsCount; ++cmdListIndex )
+        for ( int32_t cmdListIndex = 0; cmdListIndex < pDrawData->CmdLists.Size; ++cmdListIndex )
         {
             ImDrawList const* pCmdList = pDrawData->CmdLists[cmdListIndex];
 
@@ -598,7 +606,7 @@ namespace EE::Render
                     RHI::SamplerStateHandle colorSampler;
                     RHI::TextureHandle      colorTexture;
 
-                    ImTextureID_Unpack( pCmd->GetTexID(), colorSampler, colorTexture );
+                    ImGuiX::ImTextureID_Unpack( pCmd->GetTexID(), colorSampler, colorTexture );
 
                     ShaderTypes::ImguiRootConstants rootConstants = {};
                     rootConstants.m_vertexOffset = pCmd->VtxOffset + state.vertexOffset;
@@ -644,7 +652,8 @@ namespace EE::Render
                     RHI::Texture* pTextureRHI = pRenderSystem->QueueTextureCreate( CopyTextureMemory, textureParameters );
 
                     pTexture->BackendUserData = pTextureRHI;
-                    pTexture->TexID = ImTextureID_Pack(
+                    pTexture->TexID = ImGuiX::ImTextureID_Pack
+                    (
                         RHI::GetSamplerStateHandle( pRenderSystem->GetLinearWrapSampler() ),
                         RHI::GetTextureHandle( pTextureRHI, RHI::DescriptorTypeFlags::Texture, 0 )
                     );

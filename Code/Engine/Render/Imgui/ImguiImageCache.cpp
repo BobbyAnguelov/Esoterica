@@ -4,6 +4,7 @@
 #include "Base/FileSystem/FileSystemPath.h"
 #include "Base/Encoding/Encoding.h"
 #include "Base/Render/RHI.h"
+#include "Base/Imgui/ImguiTextureID.h"
 #include "Base/ThirdParty/stb/stb_image.h"
 #include "Engine/Render/RenderSystem.h"
 
@@ -113,7 +114,7 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         ImageInfo info;
-        info.m_ID = ImTextureID_Pack
+        info.m_ID = ImGuiX::ImTextureID_Pack
         (
             0, // TODO: Provide correct sampler
             Render::RHI::GetTextureHandle( pTexture, Render::RHI::DescriptorTypeFlags::Texture, 0 )
@@ -141,7 +142,7 @@ namespace EE::ImGuiX
         //-------------------------------------------------------------------------
 
         ImageInfo info;
-        info.m_ID = ImTextureID_Pack
+        info.m_ID = ImGuiX::ImTextureID_Pack
         (
             0, // TODO: Provide correct sampler
             Render::RHI::GetTextureHandle( pTexture, Render::RHI::DescriptorTypeFlags::Texture, 0 )

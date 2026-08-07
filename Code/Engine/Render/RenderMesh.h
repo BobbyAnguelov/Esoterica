@@ -47,7 +47,7 @@ namespace EE::Render
             Transform                   m_offset;
         };
 
-        constexpr static int32_t const s_sharedMeshVersion = 20;
+        constexpr static int32_t const s_sharedMeshVersion = 21;
 
     private:
 

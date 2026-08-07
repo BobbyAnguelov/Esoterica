@@ -75,7 +75,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
             float4 P6 = P4 + SY;
             float4 P7 = P6 + SZ;
 
-            if ( min( P0.w, min( P1.w, min( P2.w, min( P3.w, min( P4.w, min( P5.w, min( P6.w, P7.w ) ) ) ) ) ) ) < m_znear ) { return false; }
+            if ( min( P0.w, min( P1.w, min( P2.w, min( P3.w, min( P4.w, min( P5.w, min( P6.w, P7.w ) ) ) ) ) ) ) < m_znear ) { aabb = 0.0.xxxx; return false; }
 
             P0.xy /= P0.w;
             P1.xy /= P1.w;
@@ -97,24 +97,26 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     
         // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
         bool ProjectSphere( float3 c, float r, out float4 aabb )
-        {    
-	        if ( c.z < r + m_znear ) { return false; }
+        {
+            c.z = -c.z; 
 
-	        float3 cr = c * r;
-	        float czr2 = c.z * c.z - r * r;
+            if ( c.z < r + m_znear ) { return false; }
 
-	        float vx = sqrt( c.x * c.x + czr2 );
-	        float minx = ( vx * c.x - cr.z ) / ( vx * c.z + cr.x );
-	        float maxx = ( vx * c.x + cr.z ) / ( vx * c.z - cr.x );
+            float3 cr = c * r;
+            float czr2 = c.z * c.z - r * r;
 
-	        float vy = sqrt( c.y * c.y + czr2 );
-	        float miny = ( vy * c.y - cr.z ) / ( vy * c.z + cr.y );
-	        float maxy = ( vy * c.y + cr.z ) / ( vy * c.z - cr.y );
+            float vx = sqrt( c.x * c.x + czr2 );
+            float minx = ( vx * c.x - cr.z ) / ( vx * c.z + cr.x );
+            float maxx = ( vx * c.x + cr.z ) / ( vx * c.z - cr.x );
 
-	        aabb = float4( minx * m_projectionP00, miny * m_projectionP11, maxx * m_projectionP00, maxy * m_projectionP11 );
-	        aabb = aabb.xwzy * float4( 0.5, -0.5, 0.5, -0.5 ) + 0.5.xxxx; // clip space -> uv space
+            float vy = sqrt( c.y * c.y + czr2 );
+            float miny = ( vy * c.y - cr.z ) / ( vy * c.z + cr.y );
+            float maxy = ( vy * c.y + cr.z ) / ( vy * c.z - cr.y );
 
-	        return true;
+            aabb = float4( minx * m_projectionP00, miny * m_projectionP11, maxx * m_projectionP00, maxy * m_projectionP11 );
+            aabb = aabb.xwzy * float4( 0.5, -0.5, 0.5, -0.5 ) + 0.5.xxxx; // clip space -> uv space
+
+            return true;
         }
 
         #endif
@@ -466,8 +468,9 @@ EE_END_SHADER_TYPES_NAMESPACE
     {
         // NOTE: Do not use floats in this structure, pack into uint4 instead.
         uint4   m_data0                                     : TEXCOORD4;
+        uint4   m_data1                                     : TEXCOORD5;
         
-        PrimitiveOutputFlags    m_primitiveFlags            : TEXCOORD5;
+        PrimitiveOutputFlags    m_primitiveFlags            : TEXCOORD6;
         bool                    m_cullPrimitive             : SV_CullPrimitive;
     
         // TODO: Probably don't need instance index here, pixel shaders are not supposed to fetch instances. But it is useful for debugging.
@@ -479,6 +482,9 @@ EE_END_SHADER_TYPES_NAMESPACE
     
         void SetShaderParametersOffsetIn32ByteBlocks( uint offset ) { m_data0.z = offset; }
         uint GetShaderParametersOffsetIn32ByteBlocks() { return m_data0.z; }
+    
+        void SetTriangleNormal( float3 triangleNormal ) { m_data1.xyz = uint3( asuint( triangleNormal.x ), asuint( triangleNormal.y ), asuint( triangleNormal.z ) ); }
+        float3 GetTriangleNormal() { return float3( asfloat( m_data1.x ), asfloat( m_data1.y ), asfloat( m_data1.z ) ); }
     };
 
 #endif

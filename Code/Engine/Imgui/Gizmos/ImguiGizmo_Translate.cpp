@@ -448,7 +448,7 @@ namespace EE::ImGuiX
                 if ( !m_planes[p].m_isHidden )
                 {
                     pDrawList->AddConvexPolyFilled( m_planes[p].m_pointsSS, 5, m_planes[p].m_color.GetAlphaVersion( Style::s_planeManipulatorAlpha ) );
-                    pDrawList->AddPolyline( m_planes[p].m_pointsSS, 5, m_planes[p].m_color, 0, m_style.m_axisPlaneManipulatorBorderThickness );
+                    pDrawList->AddPolyline( m_planes[p].m_pointsSS, 5, m_planes[p].m_color, m_style.m_axisPlaneManipulatorBorderThickness );
                 }
             }
         }

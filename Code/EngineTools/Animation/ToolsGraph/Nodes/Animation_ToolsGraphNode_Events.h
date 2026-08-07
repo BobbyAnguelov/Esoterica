@@ -85,6 +85,8 @@ namespace EE::Animation
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::GlobalTransitionConduit, GraphType::ValueTree, GraphType::EntryOverrideTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
     private:
 
@@ -293,6 +295,8 @@ namespace EE::Animation
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::GlobalTransitionConduit, GraphType::ValueTree, GraphType::EntryOverrideTree, GraphType::BlendTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
     private:
 
@@ -392,8 +396,8 @@ namespace EE::Animation
         virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::TransitionConduit, GraphType::GlobalTransitionConduit, GraphType::ValueTree, GraphType::EntryOverrideTree ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
         virtual void DrawInfoText( NodeGraph::DrawContext const& ctx, NodeGraph::UserContext* pUserContext ) override;
-        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override { outIDs.emplace_back( m_markerIDToMatch ); }
-        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override { if ( m_markerIDToMatch == oldID ) { NodeGraph::ScopedNodeModification snm( this ); m_markerIDToMatch = newID; } }
+        virtual void GetLogicAndEventIDs( TVector<StringID>& outIDs ) const override;
+        virtual void RenameLogicAndEventIDs( StringID oldID, StringID newID ) override;
 
     private:
 

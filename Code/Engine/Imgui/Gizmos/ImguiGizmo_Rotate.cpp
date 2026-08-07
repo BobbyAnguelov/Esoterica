@@ -311,7 +311,7 @@ namespace EE::ImGuiX
                 continue;
             }
 
-            pDrawList->AddPolyline( m_axes[d].m_pointsSS.data(), (int32_t) m_axes[d].m_pointsSS.size(), m_axes[d].m_color, 0, m_style.m_manipulatorThickness );
+            pDrawList->AddPolyline( m_axes[d].m_pointsSS.data(), (int32_t) m_axes[d].m_pointsSS.size(), m_axes[d].m_color, m_style.m_manipulatorThickness );
 
             if ( IsManipulating() )
             {
@@ -324,7 +324,7 @@ namespace EE::ImGuiX
 
         if ( m_activeManipulator == Manipulator::None || m_activeManipulator == Manipulator::RotateScreen )
         {
-            pDrawList->AddPolyline( m_screenManipulator.m_pointsSS.data(), (int32_t) m_screenManipulator.m_pointsSS.size(), m_screenManipulator.m_color, 0, m_style.m_screenManipulatorThickness );
+            pDrawList->AddPolyline( m_screenManipulator.m_pointsSS.data(), (int32_t) m_screenManipulator.m_pointsSS.size(), m_screenManipulator.m_color, m_style.m_screenManipulatorThickness );
 
             if ( IsManipulating() )
             {

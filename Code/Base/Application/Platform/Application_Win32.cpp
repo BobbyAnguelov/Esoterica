@@ -516,8 +516,8 @@ namespace EE
     void Win32Application::ReadWindowSettings()
     {
         FileSystem::Path const layoutIniFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + ".layout.ini";
-        IniFile layoutIni( layoutIniFilePath );
-        if ( !layoutIni.IsValid() )
+        IniFile layoutIni;
+        if ( !layoutIni.Load( layoutIniFilePath ) )
         {
             return;
         }
@@ -525,57 +525,38 @@ namespace EE
         //-------------------------------------------------------------------------
 
         int32_t v = 0;
-        if ( layoutIni.TryGetInt( "WindowSettings:Left", v ) )
-        {
-            m_windowRect.left = v;
-        }
-
-        if ( layoutIni.TryGetInt( "WindowSettings:Right", v ) )
-        {
-            m_windowRect.right = v;
-        }
-
-        if ( layoutIni.TryGetInt( "WindowSettings:Top", v ) )
-        {
-            m_windowRect.top = v;
-        }
-
-        if ( layoutIni.TryGetInt( "WindowSettings:Bottom", v ) )
-        {
-            m_windowRect.bottom = v;
-        }
+        m_windowRect.left = (int32_t) layoutIni.GetInt( "WindowSettings", "Left", m_windowRect.left );
+        m_windowRect.right = (int32_t) layoutIni.GetInt( "WindowSettings", "Right", m_windowRect.right );
+        m_windowRect.top = (int32_t) layoutIni.GetInt( "WindowSettings", "Top", m_windowRect.top );
+        m_windowRect.bottom = (int32_t) layoutIni.GetInt( "WindowSettings", "Bottom", m_windowRect.bottom );
 
         EE_ASSERT( ( m_windowRect.right - m_windowRect.left ) > 0 );
         EE_ASSERT( ( m_windowRect.bottom - m_windowRect.top ) > 0 );
 
         m_splashScreenStartPoint = { m_windowRect.left, m_windowRect.top };
 
-        layoutIni.TryGetBool( "WindowSettings:WasMaximized", m_wasMaximized );
+        m_wasMaximized = layoutIni.GetBool( "WindowSettings", "WasMaximized", m_wasMaximized );
     }
 
     void Win32Application::WriteWindowSettings()
     {
+        WINDOWPLACEMENT wndPlacement;
+        wndPlacement.length = sizeof( WINDOWPLACEMENT );
+        bool const result = GetWindowPlacement( m_windowHandle, &wndPlacement );
+
+        // We should always have a valid window handle when calling this function
+        EE_ASSERT( result );
+
+        // Save window rect
         IniFile layoutIni;
-        if ( layoutIni.IsValid() )
-        {
-            WINDOWPLACEMENT wndPlacement;
-            wndPlacement.length = sizeof( WINDOWPLACEMENT );
-            bool const result = GetWindowPlacement( m_windowHandle, &wndPlacement );
+        layoutIni.SetInt( "WindowSettings", "Left", wndPlacement.rcNormalPosition.left );
+        layoutIni.SetInt( "WindowSettings", "Right", wndPlacement.rcNormalPosition.right );
+        layoutIni.SetInt( "WindowSettings", "Top", wndPlacement.rcNormalPosition.top );
+        layoutIni.SetInt( "WindowSettings", "Bottom", wndPlacement.rcNormalPosition.bottom );
+        layoutIni.SetBool( "WindowSettings", "WasMaximized", wndPlacement.showCmd == SW_MAXIMIZE );
 
-            // We should always have a valid window handle when calling this function
-            EE_ASSERT( result );
-
-            // Save window rect
-            layoutIni.CreateSection( "WindowSettings" );
-            layoutIni.SetInt( "WindowSettings:Left", (int32_t) wndPlacement.rcNormalPosition.left );
-            layoutIni.SetInt( "WindowSettings:Right", (int32_t) wndPlacement.rcNormalPosition.right );
-            layoutIni.SetInt( "WindowSettings:Top", (int32_t) wndPlacement.rcNormalPosition.top );
-            layoutIni.SetInt( "WindowSettings:Bottom", (int32_t) wndPlacement.rcNormalPosition.bottom );
-            layoutIni.SetBool( "WindowSettings:WasMaximized", wndPlacement.showCmd == SW_MAXIMIZE );
-
-            FileSystem::Path const layoutIniFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + ".layout.ini";
-            layoutIni.SaveToFile( layoutIniFilePath );
-        }
+        FileSystem::Path const layoutIniFilePath = FileSystem::GetCurrentProcessPath() + m_applicationNameNoWhitespace + ".layout.ini";
+        layoutIni.Save( layoutIniFilePath );
     }
 
     //-------------------------------------------------------------------------

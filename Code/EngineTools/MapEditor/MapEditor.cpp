@@ -298,7 +298,7 @@ namespace EE::EntityModel
                 MapEditorMode const* pDefaultInstance = pEditModeTypeInfo->GetDefaultInstance<MapEditorMode>();
                 if ( ImGui::MenuItem( pDefaultInstance->GetName() ) )
                 {
-                    SwitchEditMode( pEditModeTypeInfo );
+                    SwitchEditMode( context, pEditModeTypeInfo );
                 }
             }
 
@@ -440,11 +440,6 @@ namespace EE::EntityModel
             }
         }
 
-        if ( !ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
-        {
-            return;
-        }
-
         if ( m_gizmo.IsManipulating() )
         {
             return;
@@ -452,60 +447,77 @@ namespace EE::EntityModel
 
         //-------------------------------------------------------------------------
 
-        PickingID pickingID = GetPickingID();
-        if ( !pickingID.IsSet() )
+        if ( ImGui::IsKeyPressed( ImGuiKey_Delete ) )
         {
+            TVector<Entity*> entitiesToDelete;
+            for ( auto& item : m_editorContext.GetSelection() )
+            {
+                if ( item.IsEntity() )
+                {
+                    entitiesToDelete.emplace_back( item.m_pEntity );
+                }
+            }
+
             m_editorContext.ClearSelection();
-            return;
+            m_editorContext.DeleteEntities( entitiesToDelete );
         }
-
-        //-------------------------------------------------------------------------
-
-        EntityID const pickedEntityID( pickingID.m_primaryID );
-        auto pEntity = m_pWorld->FindEntity( pickedEntityID );
-        if ( pEntity == nullptr )
+        else if ( ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
         {
-            m_editorContext.ClearSelection();
-            return;
-        }
-
-        //-------------------------------------------------------------------------
-
-        // If we have alt-held, select the individual component
-        if ( ImGui::GetIO().KeyAlt )
-        {
-            if ( pickingID.HasSecondaryID() )
+            PickingID pickingID = GetPickingID();
+            if ( !pickingID.IsSet() )
             {
-                ComponentID const pickedComponentID( pickingID.m_secondaryID );
-                auto pComponent = pEntity->FindComponent( pickedComponentID );
-                EE_ASSERT( pComponent != nullptr );
+                m_editorContext.ClearSelection();
+                return;
+            }
 
-                EntityEditorItem const item( pEntity, pComponent );
-                m_editorContext.SetSelection( item );
-            }
-            else
-            {
-                EntityEditorItem const item( pEntity );
-                m_editorContext.SetSelection( item );
-            }
-        }
-        // Else just select the entire entity
-        else if ( ImGui::GetIO().KeyShift || ImGui::GetIO().KeyCtrl )
-        {
-            EntityEditorItem selectedEntity( pEntity );
+            //-------------------------------------------------------------------------
 
-            if ( m_editorContext.IsSelected( selectedEntity ) )
+            EntityID const pickedEntityID( pickingID.m_primaryID );
+            auto pEntity = m_pWorld->FindEntity( pickedEntityID );
+            if ( pEntity == nullptr )
             {
-                m_editorContext.RemoveFromSelection( selectedEntity );
+                m_editorContext.ClearSelection();
+                return;
             }
-            else
+
+            //-------------------------------------------------------------------------
+
+            // If we have alt-held, select the individual component
+            if ( ImGui::GetIO().KeyAlt )
             {
-                m_editorContext.AddToSelection( selectedEntity );
+                if ( pickingID.HasSecondaryID() )
+                {
+                    ComponentID const pickedComponentID( pickingID.m_secondaryID );
+                    auto pComponent = pEntity->FindComponent( pickedComponentID );
+                    EE_ASSERT( pComponent != nullptr );
+
+                    EntityEditorItem const item( pEntity, pComponent );
+                    m_editorContext.SetSelection( item );
+                }
+                else
+                {
+                    EntityEditorItem const item( pEntity );
+                    m_editorContext.SetSelection( item );
+                }
             }
-        }
-        else // No modifier so just set selection
-        {
-            m_editorContext.SetSelection( pEntity );
+            // Else just select the entire entity
+            else if ( ImGui::GetIO().KeyShift || ImGui::GetIO().KeyCtrl )
+            {
+                EntityEditorItem selectedEntity( pEntity );
+
+                if ( m_editorContext.IsSelected( selectedEntity ) )
+                {
+                    m_editorContext.RemoveFromSelection( selectedEntity );
+                }
+                else
+                {
+                    m_editorContext.AddToSelection( selectedEntity );
+                }
+            }
+            else // No modifier so just set selection
+            {
+                m_editorContext.SetSelection( pEntity );
+            }
         }
     }
 
@@ -589,7 +601,7 @@ namespace EE::EntityModel
         }
     }
 
-    void MapEditor::SwitchEditMode( TypeSystem::TypeInfo const* pNewModeTypeInfo )
+    void MapEditor::SwitchEditMode( UpdateContext const& context, TypeSystem::TypeInfo const* pNewModeTypeInfo )
     {
         if ( m_pActiveEditMode != nullptr && pNewModeTypeInfo != nullptr && m_pActiveEditMode->GetTypeID() == pNewModeTypeInfo->m_ID )
         {
@@ -608,6 +620,15 @@ namespace EE::EntityModel
         {
             m_pActiveEditMode = Cast<MapEditorMode>( pNewModeTypeInfo->CreateType() );
             m_pActiveEditMode->Initialize( &m_editorContext );
+        }
+    }
+
+    void MapEditor::ClearEditMode()
+    {
+        if ( m_pActiveEditMode != nullptr )
+        {
+            m_pActiveEditMode->Shutdown();
+            EE::Delete( m_pActiveEditMode );
         }
     }
 }

@@ -68,9 +68,6 @@ namespace EE::FileSystem
 
     bool WriteFileToDisk( char const* pPath, void const* pData, size_t size, bool overwrite = true, bool flushToDisk = false )
     {
-        // FILE_FLAG_WRITE_THROUGH forces writes straight to disk, bypassing the
-        // intermediate OS cache — combine with flushToDisk for full durability control,
-        // or omit if you just want normal cached writes + optional explicit flush.
         DWORD flagsAndAttributes = FILE_ATTRIBUTE_NORMAL;
         HANDLE hFile = CreateFile( pPath, GENERIC_WRITE, 0, nullptr, overwrite ? CREATE_ALWAYS : CREATE_NEW, flagsAndAttributes, nullptr );
         if ( hFile == INVALID_HANDLE_VALUE )
@@ -84,7 +81,6 @@ namespace EE::FileSystem
         BYTE const* pWritePtr = static_cast<const BYTE*>( pData );
         size_t remainingBytes = size;
 
-        // WriteFile can write fewer bytes than requested in a single call, so loop until everything is written or an error occurs.
         while ( remainingBytes > 0 )
         {
             DWORD bytesToWrite = static_cast<DWORD>( remainingBytes > MAXDWORD ? MAXDWORD : remainingBytes );

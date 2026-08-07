@@ -1,5 +1,6 @@
 #pragma once
 #include "Base/_Module/API.h"
+#include "Base/Types/Containers_ForwardDecl.h"
 
 //-------------------------------------------------------------------------
 

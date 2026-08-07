@@ -167,6 +167,7 @@
     <ClCompile Include="Input\GameInput.cpp" />
     <ClCompile Include="Input\GameInputUpdaters.cpp" />
     <ClCompile Include="Input\Systems\WorldSystem_GameInput.cpp" />
+    <ClCompile Include="Navmesh\NavmeshPath.cpp" />
     <ClCompile Include="Navmesh\Settings\ViewportSettings_Navmesh.cpp" />
     <ClCompile Include="Physics\PhysicsTypes.cpp" />
     <ClCompile Include="Physics\Ragdoll\PhysicsRagdoll_Definition.cpp" />
@@ -398,6 +399,7 @@
     <ClInclude Include="Hitbox\ResourceLoaders\ResourceLoader_Hitbox.h" />
     <ClInclude Include="Input\Components\Component_GameInput.h" />
     <ClInclude Include="Input\Systems\WorldSystem_GameInput.h" />
+    <ClInclude Include="Navmesh\NavmeshPath.h" />
     <ClInclude Include="Physics\PhysicsCollisionSettings.h" />
     <ClInclude Include="Physics\PhysicsQuery.h" />
     <ClInclude Include="Physics\PhysicsTypes.h" />

@@ -7,4 +7,5 @@
 namespace EE::Embed
 {
     EE_BASE_API Blob DecompressEmbeddedFile( char const* pDataBase85, uint32_t decodedSize, uint32_t uncompressedSize );
+    EE_BASE_API void DecompressEmbeddedFile( char const* pDataBase85, uint32_t decodedSize, uint32_t uncompressedSize, Blob& outBlob );
 }

@@ -51,6 +51,10 @@ namespace EE::Render
         inline void SetNumColorAttributes( uint32_t numColorAttributes ) { m_numColorAttributes = numColorAttributes; }
         inline void SetNumSkinningAttributes( uint32_t numSkinningAttributes ) { m_numSkinningAttributes = numSkinningAttributes; }
 
+        inline uint32_t GetNumTextureCoordinateAttributes() const { return m_numTextureCoordinateAttributes; }
+        inline uint32_t GetNumColorAttributes() const { return m_numColorAttributes; }
+        inline uint32_t GetNumSkinningAttributes() const { return m_numSkinningAttributes; }
+
         inline size_t GetTextureCoordinateAttributesOffset() const { return sizeof( PositionAttribute ); }
         inline size_t GetColorAttributesOffset() const { return GetTextureCoordinateAttributesOffset() + m_numTextureCoordinateAttributes * sizeof( TextureCoordinateAttribute ); }
         inline size_t GetSkinningAttributesOffset() const { return GetColorAttributesOffset() + m_numColorAttributes * sizeof( ColorAttribute ); }

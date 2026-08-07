@@ -2,7 +2,6 @@
 
 #if EE_DEVELOPMENT_TOOLS
 #include "Base/Imgui/ImguiXNotifications.h"
-#include "Base/Render/RHI.h"
 #include "Base/Memory/Memory.h"
 #include "EASTL/sort.h"
 
@@ -12,12 +11,7 @@ namespace EE::ImGuiX
 {
     //-------------------------------------------------------------------------
 
-    EE_BASE_API ImTextureID GetImTextureID( Render::RHI::Sampler* pSampler, Render::RHI::Texture* pTexture )
-    {
-        Render::RHI::SamplerStateHandle samplerHandle = Render::RHI::GetSamplerStateHandle( pSampler );
-        Render::RHI::TextureHandle textureHandle = Render::RHI::GetTextureHandle( pTexture, Render::RHI::DescriptorTypeFlags::Texture, 0);
-        return ImTextureID_Pack( samplerHandle, textureHandle );
-    }
+    
 
     //-------------------------------------------------------------------------
     // General helpers
@@ -990,7 +984,7 @@ namespace EE::ImGuiX
             pWindow->DrawList->PathLineTo( ImVec2( center.x + Math::Cos( b ) * radius, center.y + Math::Sin( b ) * radius ) );
         }
 
-        pWindow->DrawList->PathStroke( color, false, thickness );
+        pWindow->DrawList->PathStroke( color, thickness );
 
         return buttonResult;
     }

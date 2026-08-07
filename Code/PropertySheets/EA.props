@@ -4,7 +4,7 @@
     <EE_EA_DIR>$(SolutionDir)Code\Base\ThirdParty\EA\</EE_EA_DIR>
     <EE_EABASE_DIR>$(EE_EA_DIR)EABase\</EE_EABASE_DIR>
     <EE_EASTL_DIR>$(EE_EA_DIR)EASTL\</EE_EASTL_DIR>
-    <EE_EASTL_USER_CONFIG_HEADER>%3C$(EE_EA_DIR)eastl_Esoterica.h%3E</EE_EASTL_USER_CONFIG_HEADER>
+    <EE_EASTL_USER_CONFIG_HEADER>"$(EE_EA_DIR)eastl_Esoterica.h"</EE_EASTL_USER_CONFIG_HEADER>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>

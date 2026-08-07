@@ -15,6 +15,10 @@
       "Command": "-map data://maps/aimprototype.map"
     },
     {
+      "Id": "14be4e41-511f-4c01-891c-2611a7e542d1",
+      "Command": "-map data://maps/navtest.map"
+    },
+    {
       "Id": "49c06ffe-e890-415d-9b67-38560969dd27",
       "Command": "-map data://maps/br_full.map"
     },

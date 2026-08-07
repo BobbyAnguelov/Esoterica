@@ -326,7 +326,7 @@ namespace EE::TypeSystem::Conversion
             {
                 case CoreTypeID::Bool:
                 {
-                    String lowerString = str;
+                    InlineString lowerString = str.c_str();
                     lowerString.make_lower();
                     *reinterpret_cast<bool*>( pValue ) = ( lowerString == "true" );
                 }

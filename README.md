@@ -14,6 +14,14 @@ We need to be clear that Esoterica is NOT an off the shelf game engine that you 
 
 Esoterica is not a product and so there wont be any formal releases or versions. As such, we are not looking for any feature requests, nor are we looking for large PR contributions. Any feature requests or large PR will be rejected. That said, please feel free to create issues for bugs, clearly broken/incomplete pieces of code or for general questions.
 
+## Level Editing / Tooling / Import Pipeline
+
+The level editing experience is intentionally barebones and rough. In our experience, level editing workflows and tools are incredibly subjective. There is no way to provide tools or workflows that will work for everyone. It will also go against the goal of Esoterica, which is to be a starting point for custom engine development. If a team wants to use Esoterica as a base we want to provide the simplest base for them to build whatever tooling they need for their team and their game.
+
+We are providing some tools in a more polished form like the animation tools and ragdoll editor. This is since we believe that this area is a significantly less subjective field as the problem is better defined and constrained. This makes it easier to build tooling and guide folks down a specific tooling path.
+
+The import pipeline is currently a bit rough from a front-end experience, this is being iterated and played with atm to see if we can find a balance between simplicity and the relatively painful importing other engines provide.
+
 ## Documentation
 
 As Esoterica is constantly being iterated and worked upon, it becomes hard to provide any documentation that isnt immediately out of date. Additionally, it becomes even less relevant for people forking it to build their own engine with. The code itself is heavily commented and written to be as readable as possible, this is how we intended to provide documentation moving forward.
@@ -57,6 +65,7 @@ More details can be found here: <https://www.esotericaengine.com/contribute>
 ## Requirements
 
 * Visual Studio 2026 (18.6.1+)
+* Windows 11
 * External Dependencies - Available from the releases section
 
 ## Building Esoterica

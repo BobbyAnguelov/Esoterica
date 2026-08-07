@@ -86,19 +86,20 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             uint pointIndex = pageIndex * 64 + groupThreadID;
             LightInstance_PointLight pointLight = pointLightBuffer[pointIndex];
 
-            float cullRadius = pointLight.m_maxRadius;
-
-            bool lightVisible = IsFrustumVisible( pointLight.m_lightPosition, cullRadius, viewPlanes );
+            float   cullRadius      = pointLight.m_maxRadius;
+            bool    lightVisible    = IsFrustumVisible( pointLight.m_lightPosition, cullRadius, viewPlanes );
             
             if ( lightVisible )
             {
                 float4 projectedAABB = 0.0.xxxx;
-                if ( renderView.ProjectBox( pointLight.m_lightPosition - cullRadius.xxx, pointLight.m_lightPosition + cullRadius.xxx, projectedAABB ) )
+
+                // if ( renderView.ProjectBox( pointLight.m_lightPosition - cullRadius.xxx, pointLight.m_lightPosition + cullRadius.xxx, projectedAABB ) )
+                if ( renderView.ProjectSphere( mul( renderView.m_viewMatrix, float4( pointLight.m_lightPosition, 1.0 ) ).xyz, cullRadius, projectedAABB ) )
                 {
                     float width = ( projectedAABB.z - projectedAABB.x ) * renderView.m_renderTargetSize.x;
                     float height = ( projectedAABB.w - projectedAABB.y ) * renderView.m_renderTargetSize.y;
                 
-                    if ( width < 2.0 || height < 2.0 )
+                    if ( width < 2.0 && height < 2.0 )
                     {
                         lightVisible = false;
                     }
@@ -114,7 +115,9 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             }
             
             if ( lightVisible )
-            {                    
+            {
+                //debugDraw.DrawOctahedron( pointLight.m_lightPosition, cullRadius, float3( 0, 1, 1 ), float3( 0, 0.7, 0.7 ) );
+
                 if ( groupThreadID < 32 )
                 {
                     const uint lightMaskLocal = 1U << groupThreadID;
@@ -139,24 +142,29 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             uint spotIndex = pageIndex * 64 + groupThreadID;
             LightInstance_SpotLight spotLight = spotLightBuffer[spotIndex];
 
-            float cullRadius = spotLight.m_maxRadius;
+            float   spotLength      = spotLight.m_maxRadius;
+            float3  spotDir         = normalize( spotLight.m_lightDirection );
+            float3  spotApex        = spotLight.m_lightPosition;
+            float   cosOuter        = spotLight.m_outerConeAngle;
+            float   sinOuter        = sqrt( 1.0 - cosOuter * cosOuter );
+            float   tanOuter        = sinOuter / cosOuter;
+            float   baseRadius      = spotLength * tanOuter;
 
-            // TODO: Conservative light culling, this is woefully suboptimal
-            bool lightVisible = IsFrustumVisible( spotLight.m_lightPosition, cullRadius, viewPlanes );
-            
+            bool    lightVisible    = IsFrustumVisible( spotApex, spotLength, viewPlanes );
+
             if ( lightVisible )
             {
                 float4 projectedAABB = 0.0.xxxx;
-                if ( renderView.ProjectBox( spotLight.m_lightPosition - cullRadius.xxx, spotLight.m_lightPosition + cullRadius.xxx, projectedAABB ) )
+                if ( renderView.ProjectSphere( mul( renderView.m_viewMatrix, float4( spotApex, 1.0 ) ).xyz, spotLength, projectedAABB ) )
                 {
                     float width = ( projectedAABB.z - projectedAABB.x ) * renderView.m_renderTargetSize.x;
                     float height = ( projectedAABB.w - projectedAABB.y ) * renderView.m_renderTargetSize.y;
                 
-                    if ( width < 2.0 || height < 2.0 )
+                    if ( width < 2.0 && height < 2.0 )
                     {
                         lightVisible = false;
                     }
-                    
+
                     float2 lightTileExtent = ( projectedAABB.zw - projectedAABB.xy ) * 0.5;
                     float2 lightTileCenter = projectedAABB.xy + lightTileExtent;
                     
@@ -165,10 +173,75 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
                         lightVisible = false;
                     }
                 }
+
+                //if ( lightVisible )
+                //{
+                //    float3 dbgColor = lerp( float3( 1.0, 0.3, 0.0 ), float3( 0.3, 0.5, 1.0 ), 0.5 );
+                //    debugDraw.DrawOctahedron( spotApex, spotLength, dbgColor, dbgColor * 0.6 );
+                //}
             }
-            
+
+            // March fixed-radius spheres from base to apex.
             if ( lightVisible )
-            {                    
+            {
+                bool    anyClipping     = false;
+                bool    anyOverlap      = false;
+                float   z               = spotLength;
+
+                uint    numSteps        = max( 1, uint( ceil( spotLength / baseRadius ) ) );
+
+                [loop]
+                for ( uint stepIndex = 0; stepIndex < numSteps; ++stepIndex )
+                {
+                    float3 sphereCenter = spotApex + spotDir * z;
+                    float3 viewCenter   = mul( renderView.m_viewMatrix, float4( sphereCenter, 1.0 ) ).xyz;
+
+                    float t = 1.0 - z / spotLength;
+
+                    //float3 dbgColor = lerp( float3( 1.0, 0.3, 0.0 ), float3( 0.3, 0.5, 1.0 ), t );
+                    //debugDraw.DrawOctahedron( sphereCenter, baseRadius, dbgColor, dbgColor * 0.6 );
+
+                    float4 projectedAABB = 0.0.xxxx;
+                    if ( renderView.ProjectSphere( viewCenter, baseRadius, projectedAABB ) )
+                    {
+                        float width  = ( projectedAABB.z - projectedAABB.x ) * renderView.m_renderTargetSize.x;
+                        float height = ( projectedAABB.w - projectedAABB.y ) * renderView.m_renderTargetSize.y;
+
+                        if ( width < 2.0 && height < 2.0 )
+                        {
+                            continue;
+                        }
+
+                        float2 tileExtent = ( projectedAABB.zw - projectedAABB.xy ) * 0.5;
+                        float2 tileCenter = projectedAABB.xy + tileExtent;
+
+                        if ( TilesOverlap( screenTileCenter, screenTileExtent, tileCenter, tileExtent ) )
+                        {
+                            anyOverlap = true;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        anyClipping = true;
+                    }
+
+                    z -= baseRadius;
+                }
+
+                lightVisible = anyOverlap || anyClipping;
+            }
+
+            if ( lightVisible )
+            {
+                //debugDraw.DrawCone
+                //(
+                //    spotLight.m_lightPosition, spotLight.m_lightDirection, spotLight.m_maxRadius,
+                //    spotLight.m_outerConeAngle,
+                //    float4( 1, 1, 0, 1 ), float4( 1, 0.5, 0, 1 ), float4( 0.9, 0.35, 0, 1 ),
+                //    float4( 0.6, 0.2, 0, 1 ), float4( 0.7, 0.25, 0, 1 )
+                //);
+
                 if ( groupThreadID < 32 )
                 {
                     const uint lightMaskLocal = 1U << groupThreadID;

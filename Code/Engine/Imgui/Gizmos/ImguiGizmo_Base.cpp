@@ -29,16 +29,6 @@ namespace EE::ImGuiX
 
         //-------------------------------------------------------------------------
 
-        if ( pOptionalLabel != nullptr )
-        {
-            ImDrawList* pDrawList = ImGui::GetWindowDrawList();
-            ImVec2 const textSize = ImGui::CalcTextSize( pOptionalLabel );
-            ImVec2 const textPos = ImVec2( ctx.m_positionSS ) + ImVec2( -textSize.x / 2, textSize.y / 2 );
-            pDrawList->AddText( textPos, Colors::White, pOptionalLabel );
-        }
-
-        //-------------------------------------------------------------------------
-
         bool const isVisible = viewport.GetViewVolume().Contains( positionWS );
         if ( isVisible )
         {
@@ -48,6 +38,14 @@ namespace EE::ImGuiX
                 UpdateHoverState( ctx );
             }
             DrawManipulators( ctx );
+
+            if ( pOptionalLabel != nullptr )
+            {
+                ImDrawList* pDrawList = ImGui::GetWindowDrawList();
+                ImVec2 const textSize = ImGui::CalcTextSize( pOptionalLabel );
+                ImVec2 const textPos = ImVec2( ctx.m_positionSS ) + ImVec2( -textSize.x / 2, textSize.y / 2 );
+                pDrawList->AddText( textPos, Colors::White, pOptionalLabel );
+            }
         }
 
         //-------------------------------------------------------------------------

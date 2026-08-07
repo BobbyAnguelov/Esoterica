@@ -122,6 +122,7 @@ namespace EE::Navmesh
 
         #if EE_ENABLE_NAVPOWER
         bfx::SetGlobalDebugFlag( pNavmeshWorldSystem->m_pInstance, bfx::BFX_DRAW_PLANNER_AREAS, true );
+        bfx::SetGlobalDebugFlag( pNavmeshWorldSystem->m_pInstance, bfx::BFX_DRAW_PLANNER_AREAS_SOLID, true );
         #endif
     }
 }

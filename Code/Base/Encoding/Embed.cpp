@@ -24,4 +24,19 @@ namespace EE::Embed
 
         return embeddedFileData;
     }
+
+    EE_BASE_API void DecompressEmbeddedFile( char const* pDataBase85, uint32_t decodedSize, uint32_t uncompressedSize, Blob& outBlob )
+    {
+        // Decode data
+        EE_ASSERT( decodedSize < ( 2 * 1024 * 1024 ) ); // Restrict for now
+        uint8_t* pDecodedData = EE_STACK_ARRAY_ALLOC( uint8_t, decodedSize );
+        Encoding::Base85::Decode( (uint8_t const*) pDataBase85, pDecodedData );
+
+        // Decompress data
+        outBlob.resize( uncompressedSize );
+        if ( lzav::lzav_decompress( pDecodedData, outBlob.data(), decodedSize, uncompressedSize ) < 0 )
+        {
+            EE_HALT();
+        }
+    }
 }

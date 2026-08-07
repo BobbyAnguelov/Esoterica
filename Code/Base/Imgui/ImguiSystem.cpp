@@ -6,11 +6,6 @@
 #include "MaterialDesignIcons.h"
 #include "Base/FileSystem/FileSystemUtils.h"
 #include "Base/ThirdParty/implot/implot.h"
-#include "Base/Fonts/Font_Roboto_Regular.h"
-#include "Base/Fonts/Font_Roboto_Italic.h"
-#include "Base/Fonts/Font_Roboto_Bold.h"
-#include "Base/Fonts/Font_Roboto_BoldItalic.h"
-#include "Base/Fonts/Font_MaterialDesignIcons.h"
 
 //-------------------------------------------------------------------------
 
@@ -91,13 +86,7 @@ namespace EE::ImGuiX
         // Decompress fonts
         //-------------------------------------------------------------------------
 
-        Blob const fontData_regular = Embed::Font_Roboto_Regular::GetFileData();
-        Blob const fontData_italic = Embed::Font_Roboto_Italic::GetFileData();
-        Blob const fontData_bold = Embed::Font_Roboto_Bold::GetFileData();
-        Blob const fontData_bolditalic = Embed::Font_Roboto_BoldItalic::GetFileData();
-
         ImWchar const icons_ranges[] = { EE_ICONRANGE_MIN, EE_ICONRANGE_MAX, 0 };
-        Blob const iconFontData = Embed::Font_MDI::GetFileData();
 
         // Base font configs
         //-------------------------------------------------------------------------
@@ -110,28 +99,28 @@ namespace EE::ImGuiX
         fontConfig.SizePixels = defaultFontSize;
 
         ImFontConfig iconFontConfig;
-        iconFontConfig.FontDataOwnedByAtlas = false;
+        iconFontConfig.FontDataOwnedByAtlas = false; 
         iconFontConfig.MergeMode = true;
         iconFontConfig.SizePixels = defaultFontSize;
         iconFontConfig.GlyphOffset = ImVec2( 0, 2 );
 
-        ImFont* pRegularFont = io.Fonts->AddFontFromMemoryTTF( (void*) fontData_regular.data(), (int32_t) fontData_regular.size(), defaultFontSize, &fontConfig);
-        io.Fonts->AddFontFromMemoryTTF( (void*) iconFontData.data(), (int32_t) iconFontData.size(), 0.0f, &iconFontConfig, icons_ranges );
+        ImFont* pRegularFont = io.Fonts->AddFontFromMemoryTTF( (void*) m_fontData_regular.data(), (int32_t) m_fontData_regular.size(), defaultFontSize, &fontConfig);
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig, icons_ranges );
         EE_ASSERT( pRegularFont->IsLoaded() );
         SystemFonts::s_fonts[(int32_t) FontType::Regular] = pRegularFont;
 
-        ImFont* pItalicFont = io.Fonts->AddFontFromMemoryTTF( (void*) fontData_italic.data(), (int32_t) fontData_italic.size(), defaultFontSize, &fontConfig );
-        io.Fonts->AddFontFromMemoryTTF( (void*) iconFontData.data(), (int32_t) iconFontData.size(), 0.0f, &iconFontConfig, icons_ranges );
+        ImFont* pItalicFont = io.Fonts->AddFontFromMemoryTTF( (void*) m_fontData_italic.data(), (int32_t) m_fontData_italic.size(), defaultFontSize, &fontConfig );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig, icons_ranges );
         EE_ASSERT( pItalicFont->IsLoaded() );
         SystemFonts::s_fonts[(int32_t) FontType::Italic] = pItalicFont;
 
-        ImFont* pBoldFont = io.Fonts->AddFontFromMemoryTTF( (void*) fontData_bold.data(), (int32_t) fontData_bold.size(), defaultFontSize, &fontConfig );
-        io.Fonts->AddFontFromMemoryTTF( (void*) iconFontData.data(), (int32_t) iconFontData.size(), 0.0f, &iconFontConfig );
+        ImFont* pBoldFont = io.Fonts->AddFontFromMemoryTTF( (void*) m_fontData_bold.data(), (int32_t) m_fontData_bold.size(), defaultFontSize, &fontConfig );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig );
         EE_ASSERT( pBoldFont->IsLoaded() );
         SystemFonts::s_fonts[(int32_t) FontType::Bold] = pBoldFont;
 
-        ImFont* pBoldItalicFont = io.Fonts->AddFontFromMemoryTTF( (void*) fontData_bolditalic.data(), (int32_t) fontData_bolditalic.size(), defaultFontSize, &fontConfig );
-        io.Fonts->AddFontFromMemoryTTF( (void*) iconFontData.data(), (int32_t) iconFontData.size(), 0.0f, &iconFontConfig );
+        ImFont* pBoldItalicFont = io.Fonts->AddFontFromMemoryTTF( (void*) m_fontData_bolditalic.data(), (int32_t) m_fontData_bolditalic.size(), defaultFontSize, &fontConfig );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig );
         EE_ASSERT( pBoldItalicFont->IsLoaded() );
         SystemFonts::s_fonts[(int32_t) FontType::BoldItalic] = pBoldItalicFont;
 

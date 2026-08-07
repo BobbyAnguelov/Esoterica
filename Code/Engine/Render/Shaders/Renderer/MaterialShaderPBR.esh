@@ -110,17 +110,22 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
     MaterialShaderInput  materialInput    = MaterialShaderInput::New( vertex, primitive, RootCBV.m_cameraPosition.xyz );
     MaterialShaderOutput materialOutput   = MaterialShaderMain( materialInput );
     
+    float3 triangleNormal = primitive.GetTriangleNormal();
     if ( !isFrontFace )
     {
         materialOutput.m_normal = -materialOutput.m_normal;
+        triangleNormal = -triangleNormal;
     }
     
-    PBR pbr = PBR::New( materialOutput.m_albedo,
-                        materialOutput.m_metalness,
-                        materialOutput.m_roughness,
-                        materialOutput.m_occlusion,
-                        materialOutput.m_normal,
-                        materialInput.m_view );
+    PBR pbr = PBR::New
+    (
+        materialOutput.m_albedo,
+        materialOutput.m_metalness,
+        materialOutput.m_roughness,
+        materialOutput.m_occlusion,
+        materialOutput.m_normal,
+        materialInput.m_view
+    );
       
     float  shadow = 1.0;
     float3 debugShadowColor = 0.0.xxx;
@@ -183,7 +188,7 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
                 if ( directionalLight.m_cascadedShadowIndex != 0xFFFF )
                 {
                     CascadedShadow cascadedShadow = cascadedShadowBuffer[directionalLight.m_cascadedShadowIndex];
-                    shadowDir = SampleShadow( cascadedShadow, directionalLight.m_lightDirection, vertex.m_worldPosition, vertex.m_clipPosition.z, materialInput.m_vertex.m_worldNormal, debugShadowColor );
+                    shadowDir = SampleShadow( cascadedShadow, directionalLight.m_lightDirection, vertex.m_worldPosition, vertex.m_clipPosition.z, triangleNormal, debugShadowColor );
 
                     #if EE_DEVELOPMENT_TOOLS
                         debugShadow = min( debugShadow, shadowDir );

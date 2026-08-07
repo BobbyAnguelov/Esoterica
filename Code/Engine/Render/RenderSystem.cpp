@@ -1036,7 +1036,14 @@ namespace EE::Render
     {
         ShaderTypes::Mesh& deviceMesh = meshUpdate.m_deviceMeshes[dstMesh];
 
-        deviceMesh.m_vertexStride = geometry.GetClusterVertexStride();
+        uint32_t meshVertexStride = geometry.GetClusterVertexStride();
+        uint32_t numSkinningAttributes = geometry.GetNumSkinningAttributes();
+
+        EE_ASSERT( meshVertexStride <= 256 );
+        EE_ASSERT( numSkinningAttributes <= 2 );
+
+        deviceMesh.m_vertexStride = meshVertexStride;
+        deviceMesh.m_numSkinningAttributes = numSkinningAttributes;
 
         AABB meshAABB = geometry.GetBounds().GetAABB();
         meshAABB.m_center.StoreFloat3( deviceMesh.m_aabbCenterLocal );

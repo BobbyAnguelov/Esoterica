@@ -250,8 +250,8 @@ namespace EE
         TypeSystem::Reflection::RegisterTypes( m_typeRegistry );
 
         FileSystem::Path const iniFilePath = FileSystem::GetCurrentProcessPath().Append( "Esoterica.ini" );
-        IniFile iniFile( iniFilePath );
-        if ( !iniFile.IsValid() )
+        IniFile iniFile;
+        if ( !iniFile.Load( iniFilePath ) )
         {
             InlineString const errorMessage( InlineString::CtorSprintf(), "Failed to load settings from INI file: %s", iniFilePath.c_str() );
             return FatalError( errorMessage.c_str() );

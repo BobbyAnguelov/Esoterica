@@ -2,7 +2,6 @@
 #include "EngineTools/Import/importedSkeleton.h"
 #include "EngineTools/Import/ImportedAnimation.h"
 #include "EngineTools/Import/ImportedMesh.h"
-#include "EngineTools/ThirdParty/ufbx/ufbx.h"
 
 //-------------------------------------------------------------------------
 // UFbx Helpers
@@ -10,59 +9,13 @@
 
 namespace EE::Import::UFbx
 {
-    inline static Matrix ToMatrix( ufbx_matrix const& f )
-    {
-        Matrix m
-        (
-            (float) f.cols[0].x, (float) f.cols[0].y, (float) f.cols[0].z, 0.0f,
-            (float) f.cols[1].x, (float) f.cols[1].y, (float) f.cols[1].z, 0.0f,
-            (float) f.cols[2].x, (float) f.cols[2].y, (float) f.cols[2].z, 0.0f,
-            (float) f.cols[3].x, (float) f.cols[3].y, (float) f.cols[3].z, 1.0f
-        );
+    Quaternion const SceneContext::s_correctiveYtoZ = Quaternion( EulerAngles( -90, 0, 0 ) );
 
-        return m;
-    }
-
-    inline static bool ToTransform( ufbx_matrix const& f, Transform& outTransform )
-    {
-        ufbx_transform const ft = ufbx_matrix_to_transform( &f );
-
-        Quaternion const Q( (float) ft.rotation.x, (float) ft.rotation.y, (float) ft.rotation.z, (float) ft.rotation.w );
-        Vector const T( (float) ft.translation.x, (float) ft.translation.y, (float) ft.translation.z, 0.0f );
-        Vector const S( (float) ft.scale.x, (float) ft.scale.y, (float) ft.scale.z, 1.0f );
-
-        bool const hasUniformScale = ( Math::IsNearEqual( S[0], S[1], Math::LargeEpsilon ) && Math::IsNearEqual( S[1], S[2], Math::LargeEpsilon ) );
-
-        outTransform = Transform( Q, T, (float) S[0] );
-        outTransform.SanitizeScaleValue();
-
-        return hasUniformScale;
-    }
-
-    inline static Float2 ToFloat2( ufbx_vec2 v ) { return Float2( (float) v.x, (float) v.y ); }
-    inline static Float2 ToFloat2( ufbx_vec3 v ) { return Float2( (float) v.x, (float) v.y ); }
-    inline static Float2 ToFloat2( ufbx_vec4 v ) { return Float2( (float) v.x, (float) v.y ); }
-
-    inline static Float3 ToFloat3( ufbx_vec2 v ) { return Float3( (float) v.x, (float) v.y, 0.0f ); }
-    inline static Float3 ToFloat3( ufbx_vec3 v ) { return Float3( (float) v.x, (float) v.y, (float) v.z ); }
-    inline static Float3 ToFloat3( ufbx_vec4 v ) { return Float3( (float) v.x, (float) v.y, (float) v.z ); }
-
-    inline static Float4 ToFloat4( ufbx_vec2 v ) { return Float4( (float) v.x, (float) v.y, 0.0f, 0.0f ); }
-    inline static Float4 ToFloat4( ufbx_vec3 v ) { return Float4( (float) v.x, (float) v.y, (float) v.z, 0.0f ); }
-    inline static Float4 ToFloat4( ufbx_vec4 v ) { return Float4( (float) v.x, (float) v.y, (float) v.z, (float) v.w ); }
-
-    inline static Quaternion ToQuat( ufbx_quat v ) { return Quaternion( (float) v.x, (float) v.y, (float) v.z, (float) v.w ); }
-
-    inline static bool CompareAxes( ufbx_coordinate_axes a, ufbx_coordinate_axes b )
-    {
-        return a.front == b.front && a.right == b.right && a.up == b.up;
-    };
-
-    static Quaternion const g_correctiveYtoZ( EulerAngles( -90, 0, 0 ) );
+    constinit static char const * const g_boneSkinImportDisallowedErrorMessage = "Invalid source file coordinate system, only right-handed y-up and z-up are supported for skeletal meshes, skeletons and animations!";
 
     //-------------------------------------------------------------------------
 
-    static ufbx_scene* CreateSceneFromSource( Source const& source, Log& log, bool sceneContainsBoneTransforms )
+    SceneContext::SceneContext( Source const& source )
     {
         ufbx_load_opts opts = { 0 };
         opts.target_axes = ufbx_axes_right_handed_z_up;
@@ -73,65 +26,34 @@ namespace EE::Import::UFbx
         opts.generate_missing_normals = true;
 
         ufbx_error error;
-        ufbx_scene* pScene = nullptr;
 
         if ( source.m_pFileData )
         {
-            pScene = ufbx_load_memory( source.m_pFileData->data(), source.m_pFileData->size(), &opts, &error );
+            m_pScene = ufbx_load_memory( source.m_pFileData->data(), source.m_pFileData->size(), &opts, &error );
         }
         else // Load from file
         {
-            pScene = ufbx_load_file( source.m_path.c_str(), &opts, &error );
+            m_pScene = ufbx_load_file( source.m_path.c_str(), &opts, &error );
         }
 
-        if ( pScene == nullptr )
+        if ( m_pScene == nullptr )
         {
-            log.LogError( "Failed to load FBX scene: %s", error.description.data );
+            m_error.sprintf( "Failed to load FBX scene: %s", error.description.data );
         }
 
-        if ( sceneContainsBoneTransforms )
+        bool const validSourceCoordinateSystem = CompareAxes( m_pScene->settings.axes, ufbx_axes_right_handed_y_up ) || CompareAxes( m_pScene->settings.axes, ufbx_axes_right_handed_z_up );
+        if ( !validSourceCoordinateSystem )
         {
-            bool const validSourceCoordinateSystem = CompareAxes( pScene->settings.axes, ufbx_axes_right_handed_y_up ) || CompareAxes( pScene->settings.axes, ufbx_axes_right_handed_z_up );
-            if ( !validSourceCoordinateSystem )
-            {
-                log.LogError( "Invalid source file coordinate system, only right-handed y-up and z-up are supported for skeletal meshes, skeletons and animations!" );
-                ufbx_free_scene( pScene );
-                pScene = nullptr;
-            }
-        }
-
-        return pScene;
-    }
-
-    static void DestroyScene( ufbx_scene*& pScene )
-    {
-        if ( pScene != nullptr )
-        {
-            ufbx_free_scene( pScene );
-            pScene = nullptr;
+            m_isBoneOrSkinImportAllowed = false;
         }
     }
 
-    //-------------------------------------------------------------------------
-
-    // This finds all the nodes of this type that are roots of a branch
-    static void FindAllRootNodes( ufbx_node* pCurrentNode, ufbx_element_type nodeType, TVector<ufbx_node*>& results )
+    SceneContext::~SceneContext()
     {
-        EE_ASSERT( pCurrentNode != nullptr );
-
-        // Return node or continue search
-        //-------------------------------------------------------------------------
-
-        if ( pCurrentNode->attrib_type == nodeType )
+        if ( m_pScene != nullptr )
         {
-            results.emplace_back( pCurrentNode );
-        }
-        else // Search children
-        {
-            for ( ufbx_node* pChildNode : pCurrentNode->children )
-            {
-                FindAllRootNodes( pChildNode, nodeType, results );
-            }
+            ufbx_free_scene( m_pScene );
+            m_pScene = nullptr;
         }
     }
 }
@@ -161,27 +83,33 @@ namespace EE::Import::UFbx
 
             TUniquePtr<Skeleton> pSkeleton( EE::New<FbxImportedSkeleton>() );
 
-            FbxImportedSkeleton* pImportedSkeleton = (FbxImportedSkeleton*) pSkeleton.get();
-            pImportedSkeleton->m_sourcePath = source.m_path;
+            SceneContext ctx( source );
 
-            //-------------------------------------------------------------------------
-
-            ufbx_scene* pScene = CreateSceneFromSource( source, *pImportedSkeleton, true );
-            if ( pScene == nullptr )
+            if ( !ctx.IsValid() )
             {
+                pSkeleton->LogError( ctx.GetErrorMessage().c_str() );
                 return pSkeleton;
             }
 
-            ReadSkeleton( pScene, skeletonRootBoneName, *pImportedSkeleton );
-            DestroyScene( pScene );
+            if ( !ctx.IsBoneOrSkinImportAllowed() )
+            {
+                pSkeleton->LogError( g_boneSkinImportDisallowedErrorMessage );
+                return pSkeleton;
+            }
 
+            //-------------------------------------------------------------------------
+
+            FbxImportedSkeleton* pImportedSkeleton = (FbxImportedSkeleton*) pSkeleton.get();
+            pImportedSkeleton->m_sourcePath = source.m_path;
+
+            ReadSkeleton( ctx.GetScene(), skeletonRootBoneName, *pImportedSkeleton );
             return pSkeleton;
         }
 
         static bool ReadSkeleton( ufbx_scene* pScene, String const& skeletonRootBoneName, FbxImportedSkeleton& importedSkeleton )
         {
             TVector<ufbx_node*> skeletonRootNodes;
-            FindAllRootNodes( pScene->root_node, ufbx_element_type::UFBX_ELEMENT_BONE, skeletonRootNodes );
+            FindAllRootNodes(pScene->root_node, ufbx_element_type::UFBX_ELEMENT_BONE, skeletonRootNodes);
 
             auto const numSkeletons = skeletonRootNodes.size();
             if ( numSkeletons == 0 )
@@ -242,7 +170,7 @@ namespace EE::Import::UFbx
                 for ( auto& bone : importedSkeleton.m_bones )
                 {
                     Quaternion rotation = bone.m_modelSpaceTransform.GetRotation();
-                    rotation = g_correctiveYtoZ * rotation;
+                    rotation = SceneContext::s_correctiveYtoZ * rotation;
                     bone.m_modelSpaceTransform.SetRotation( rotation );
                 }
             }
@@ -336,15 +264,28 @@ namespace EE::Import::UFbx
             EE_ASSERT( source.IsValid() && pPrimarySkeleton != nullptr && pPrimarySkeleton->IsValid() );
 
             TUniquePtr<Animation> pAnimation( EE::New<FbxImportedAnimation>( *pPrimarySkeleton ) );
+
+            SceneContext ctx( source );
+
+            if ( !ctx.IsValid() )
+            {
+                pAnimation->LogError( ctx.GetErrorMessage().c_str() );
+                return pAnimation;
+            }
+
+            if ( !ctx.IsBoneOrSkinImportAllowed() )
+            {
+                pAnimation->LogError( g_boneSkinImportDisallowedErrorMessage );
+                return pAnimation;
+            }
+
+            //-------------------------------------------------------------------------
+
+            auto pScene = ctx.GetScene();
+
             FbxImportedAnimation* pImportedAnimation = (FbxImportedAnimation*) pAnimation.get();
             pImportedAnimation->m_sourcePath = source.m_path;
             pImportedAnimation->m_samplingFrameRate = samplingFrameRate;
-
-            ufbx_scene* pScene = CreateSceneFromSource( source, *pImportedAnimation, true );
-            if ( pScene == nullptr )
-            {
-                return pAnimation;
-            }
 
             // Find the required anim stack
             //-------------------------------------------------------------------------
@@ -400,7 +341,6 @@ namespace EE::Import::UFbx
                 }
             }
 
-            DestroyScene( pScene );
             return pAnimation;
         }
 
@@ -537,7 +477,7 @@ namespace EE::Import::UFbx
                 {
                     for ( auto& transform : trackData.m_modelSpaceTransforms )
                     {
-                        Quaternion const rotation = g_correctiveYtoZ * transform.GetRotation();
+                        Quaternion const rotation = SceneContext::s_correctiveYtoZ * transform.GetRotation();
                         transform.SetRotation( rotation );
                     }
                 }
@@ -595,19 +535,24 @@ namespace EE::Import::UFbx
             EE_ASSERT( source.IsValid() );
 
             TUniquePtr<Mesh> pMesh( EE::New<FbxImportedMesh>() );
+
+            SceneContext ctx( source );
+
+            if ( !ctx.IsValid() )
+            {
+                pMesh->LogError( ctx.GetErrorMessage().c_str() );
+                return pMesh;
+            }
+
+            //-------------------------------------------------------------------------
+
             FbxImportedMesh* pImportedMesh = (FbxImportedMesh*) pMesh.get();
             pImportedMesh->m_sourcePath = source.m_path;
 
             //-------------------------------------------------------------------------
 
-            ufbx_scene* pScene = CreateSceneFromSource( source, *pImportedMesh, false );
-            if ( pScene == nullptr )
-            {
-                return pMesh;
-            }
-
+            ufbx_scene* pScene = ctx.GetScene();
             ReadAllSubmeshes( *pImportedMesh, pScene, meshesToInclude );
-            DestroyScene( pScene );
 
             if ( !pImportedMesh->HasErrors() )
             {
@@ -625,18 +570,30 @@ namespace EE::Import::UFbx
             EE_ASSERT( source.IsValid() );
 
             TUniquePtr<Mesh> pMesh( EE::New<FbxImportedMesh>() );
+
+            SceneContext ctx( source );
+
+            if ( !ctx.IsValid() )
+            {
+                pMesh->LogError( ctx.GetErrorMessage().c_str() );
+                return pMesh;
+            }
+
+            if ( !ctx.IsBoneOrSkinImportAllowed() )
+            {
+                pMesh->LogError( g_boneSkinImportDisallowedErrorMessage );
+                return pMesh;
+            }
+
+            //-------------------------------------------------------------------------
+
             FbxImportedMesh* pImportedMesh = (FbxImportedMesh*) pMesh.get();
             pImportedMesh->m_sourcePath = source.m_path;
             pImportedMesh->m_isSkeletalMesh = true;
 
             //-------------------------------------------------------------------------
 
-            ufbx_scene* pScene = CreateSceneFromSource( source, *pImportedMesh, true );
-            if ( pScene == nullptr )
-            {
-                return pMesh;
-            }
-
+            ufbx_scene* pScene = ctx.GetScene();
             ReadAllSubmeshes( *pImportedMesh, pScene, meshesToInclude );
 
             if ( !pImportedMesh->HasErrors() )
@@ -645,8 +602,6 @@ namespace EE::Import::UFbx
                 FbxImportedSkeleton& importedSkeleton = (FbxImportedSkeleton&) pImportedMesh->m_skeleton;
                 importedSkeleton.CalculateParentSpaceTransforms();
             }
-
-            DestroyScene( pScene );
 
             if ( !pImportedMesh->HasErrors() )
             {

@@ -99,10 +99,10 @@ namespace EE::Render
                         skinningAttribute1.m_boneIndices = Int4( InvalidIndex, InvalidIndex, InvalidIndex, InvalidIndex );
                         skinningAttribute1.m_boneWeights = Float4::Zero;
 
-                        for ( int32_t influenceIndex = 0; influenceIndex < Math::Min( numInfluences - 4, 0 ); ++influenceIndex )
+                        for ( int32_t influenceIndex = 4; influenceIndex < numInfluences; ++influenceIndex )
                         {
-                            skinningAttribute1.m_boneIndices[influenceIndex] = srcVertex.m_boneIndices[4 + influenceIndex];
-                            skinningAttribute1.m_boneWeights[influenceIndex] = srcVertex.m_boneWeights[4 + influenceIndex];
+                            skinningAttribute1.m_boneIndices[influenceIndex - 4] = srcVertex.m_boneIndices[influenceIndex];
+                            skinningAttribute1.m_boneWeights[influenceIndex - 4] = srcVertex.m_boneWeights[influenceIndex];
                         }
 
                         for ( uint32_t n = srcVertex.m_numBoneWeights; n < 4; n++ )
@@ -231,6 +231,17 @@ namespace EE::Render
 
             ConvertedMesh convertedMesh = ConvertMesh( *importedMesh );
 
+            // Validate vertex attributes, this is a temporary restriction that will be fixed soon
+            //-------------------------------------------------------------------------
+
+            for ( GeometryBuilder const& geometryBuilder : convertedMesh.m_geometryBuilders )
+            {
+                if ( geometryBuilder.GetNumSkinningAttributes() != convertedMesh.m_geometryBuilders[0].GetNumSkinningAttributes() )
+                {
+                    return ctx.LogError( "Imported mesh has different amount of skinning attributes per geometry, this is not supported yet." );
+                }
+            }
+
             // Generate LOD
             //-------------------------------------------------------------------------
 
@@ -238,8 +249,15 @@ namespace EE::Render
 
             for ( GeometryBuilder const& geometryBuilder : convertedMesh.m_geometryBuilders )
             {
+                if ( geometryBuilder.GetVertices().empty() || geometryBuilder.GetIndices().empty() )
+                {
+                    ctx.LogWarning( "Empty geometry skipped" );
+                    continue;
+                }
+
                 Geometry geometry = {};
-                geometry.SetVertexStride( uint32_t( convertedMesh.m_isSkeletalMesh ? sizeof( SkeletalMeshVertex ) : sizeof( StaticMeshVertex ) ) );
+                geometry.SetNumSkinningAttributes( geometryBuilder.GetNumSkinningAttributes() );
+                geometry.SetVertexStride( sizeof( StaticMeshVertex ) + geometryBuilder.GetNumSkinningAttributes() * sizeof( SkinningAttribute ) );
 
                 if ( lod.m_autoGenerateLOD )
                 {
@@ -262,6 +280,9 @@ namespace EE::Render
                         geometry.SetBounds( OBB( lodGeometryBuilder.ComputeAABB() ) ); // TODO: use real algorithm to find minimal bounding box, for now use AABB
 
                         isValidMeshData = true;
+
+                        EE_ASSERT( !geometry.m_clusterVertices.empty() );
+                        EE_ASSERT( !geometry.m_clusterTriangles.empty() );
                     }
                 }
                 else
@@ -270,10 +291,19 @@ namespace EE::Render
                     geometry.SetBounds( OBB( geometryBuilder.ComputeAABB() ) ); // TODO: use real algorithm to find minimal bounding box, for now use AABB
 
                     isValidMeshData = true;
+
+                    EE_ASSERT( !geometry.m_clusterVertices.empty() );
+                    EE_ASSERT( !geometry.m_clusterTriangles.empty() );
+
                 }
 
                 if ( isValidMeshData )
                 {
+                    if ( geometry.m_clusterVertices.empty() || geometry.m_clusterTriangles.empty() )
+                    {
+                        continue;
+                    }
+
                     mesh.m_geometry.emplace_back( eastl::move( geometry ) );
                 }
             }
@@ -284,17 +314,24 @@ namespace EE::Render
             {
                 for ( Import::Mesh::Submesh const& importedSubmesh : importedMesh->GetSubmeshes() )
                 {
+                    uint32_t const geometryIndex = uint32_t( mesh.m_geometryLODDistance.size() + importedSubmesh.m_geometryIdx );
+
+                    Geometry const& geometry = mesh.m_geometry[geometryIndex];
+                    if ( geometry.m_clusterVertices.empty() || geometry.m_clusterTriangles.empty() )
+                    {
+                        continue;
+                    }
+
                     Mesh::Submesh submesh = {};
                     submesh.m_ID = importedSubmesh.m_ID;
                     submesh.m_materialNameID = importedSubmesh.m_materialID;
-                    submesh.m_geometryIdx = uint32_t( mesh.m_geometryLODDistance.size() + importedSubmesh.m_geometryIdx );
+                    submesh.m_geometryIdx = geometryIndex;
                     submesh.m_lodMask = uint8_t( 1 ) << uint8_t( mesh.m_geometryLODDistance.size() );
 
                     mesh.m_submeshes.emplace_back( eastl::move( submesh ) );
                     mesh.m_submeshLocalTransforms.emplace_back( Matrix43( importedSubmesh.m_transform ) );
 
-                    Geometry const& geo = mesh.m_geometry[submesh.m_geometryIdx];
-                    AABB transformedAABB = geo.GetBounds().GetAABB().GetTransformed( importedSubmesh.m_transform );
+                    AABB transformedAABB = geometry.GetBounds().GetAABB().GetTransformed( importedSubmesh.m_transform );
 
                     if ( !combinedAABB.IsValid() )
                     {
@@ -428,7 +465,7 @@ namespace EE::Render
 
         if ( pResourceDescriptor->m_materialMappings.empty() )
         {
-            return ctx.LogError( "There are no material mappings set" );
+            ctx.LogWarning( "There are no material mappings set" );
         }
 
         // Reflect FBX data into runtime format

@@ -40,7 +40,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
 
     HLSL_STATIC_ASSERT( sizeof(StaticMeshVertex ) == 32, "Expected to be exactly 32 bytes" );
 
-    struct HLSL_ALIGN_STRUCT VertexBoneData
+    struct HLSL_ALIGN_STRUCT SkinningAttribute
     {
         int4                            m_boneIndices;
         float4                          m_boneWeights;
@@ -78,7 +78,10 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         float3                          m_aabbCenterLocal;
         float3                          m_aabbHalfExtentsLocal;
     
-        uint                            m_vertexStride;
+        uint                            m_numSkinningAttributes : 8;
+        uint                            m_vertexStride          : 8;             // TODO: Max vertex stride is 256 bytes, put an assert somewhere about it
+        uint                            m_padding               : 16;
+
         uint                            m_numBones;
     
         uint                            m_clusterOffset;

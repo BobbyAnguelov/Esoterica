@@ -812,13 +812,24 @@ namespace EE::Animation
 
         UpdateTaskSerializationContext();
 
-        // Record changes to external graph state
+        // Record changes to graph state
         //-------------------------------------------------------------------------
 
-        if ( IsRecording() && m_externalGraphStateChanged )
+        if ( IsRecording() )
         {
-            RecordGraphState( RecordedUpdateType::ExternalGraphChanged, GraphTimeInfo(), m_graphContext.m_worldTransform );
-            m_externalGraphStateChanged = false;
+            m_pRecording->m_timeStepRecordingCount++;
+
+            if ( m_pRecording->m_timeStepRecordingCount > GraphRecording::s_fullStateRecordingInterval )
+            {
+                RecordGraphState( RecordedUpdateType::FullState, GraphTimeInfo(), startWorldTransform );
+                m_pRecording->m_timeStepRecordingCount = 0;
+                m_externalGraphStateChanged = false;
+            }
+            else if ( m_externalGraphStateChanged )
+            {
+                RecordGraphState( RecordedUpdateType::ExternalGraphChanged, GraphTimeInfo(), startWorldTransform );
+                m_externalGraphStateChanged = false;
+            }
         }
 
         // Pre-Update
@@ -970,7 +981,9 @@ namespace EE::Animation
         // Record initial state
         //-------------------------------------------------------------------------
 
-        RecordGraphState( RecordedUpdateType::FirstRecording, GraphTimeInfo(), m_graphContext.m_worldTransform );
+        RecordGraphState( RecordedUpdateType::FullState, GraphTimeInfo(), m_graphContext.m_worldTransform );
+        pRecording->m_timeStepRecordingCount = 0;
+
     }
 
     void GraphInstance::StopRecording()
@@ -1116,6 +1129,7 @@ namespace EE::Animation
         };
 
         RecordedGraphUpdateData *pUpdateData = m_pRecording->m_recordedUpdateData.back();
+        pUpdateData->m_updateID = m_graphContext.m_updateID;
         RecordGraphTimingInfo( this, *pUpdateData );
 
         // Secondary Skeletons
@@ -1159,6 +1173,7 @@ namespace EE::Animation
         RecordedGraphUpdateData *pUpdateData = m_pRecording->CreateUpdateData();
         pUpdateData->m_updateType = updateType;
         pUpdateData->m_characterWorldTransform = worldTransform;
+        pUpdateData->m_updateID = m_graphContext.m_updateID;
 
         // Record Graph State
         //-------------------------------------------------------------------------
@@ -1172,50 +1187,44 @@ namespace EE::Animation
             RecordGraphNodeState( *pGraphState );
         }
 
-        // External Graphs
+        // External Poses/Graphs
         //-------------------------------------------------------------------------
 
-        if ( updateType == RecordedUpdateType::FirstRecording || updateType == RecordedUpdateType::ExternalGraphChanged )
+        for ( auto const &ep : m_pGraphDefinition->m_externalPoseSlots )
         {
-            // Record all external pose nodes
-            //-------------------------------------------------------------------------
+            /* auto pExternalPoseNode = reinterpret_cast<ExternalPoseNode *>( m_nodes[ep.m_nodeIdx] );
+             if ( pExternalPoseNode->IsPoseSet() )
+             {
+                 RecordedExternalPoseData *pEPD = pUpdateData->CreateExternalPoseData();
+                 pEPD->m_externalPoseNodeIdx = ep.m_nodeIdx;
+                 pEPD->m_slotID = ep.m_slotID;
 
-            for ( auto const &ep : m_pGraphDefinition->m_externalPoseSlots )
+                 pEPD->m_clipResourceID0 = ( pExternalPoseNode->m_poseData.m_pClip0 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip0->GetResourceID() : ResourceID();
+                 pEPD->m_startTime0 = pExternalPoseNode->m_poseData.m_startTime0;
+                 pEPD->m_endTime0 = pExternalPoseNode->m_poseData.m_endTime0;
+
+                 pEPD->m_clipResourceID1 = ( pExternalPoseNode->m_poseData.m_pClip1 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip1->GetResourceID() : ResourceID();
+                 pEPD->m_startTime1 = pExternalPoseNode->m_poseData.m_startTime1;
+                 pEPD->m_endTime1 = pExternalPoseNode->m_poseData.m_endTime1;
+
+                 pEPD->m_blendWeight = pExternalPoseNode->m_poseData.m_blendWeight;
+             }*/
+        }
+
+        // Record all external graph nodes
+        for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+        {
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[eg.m_nodeIdx] );
+            if ( pReferencedGraphNode->HasInstance() )
             {
-               /* auto pExternalPoseNode = reinterpret_cast<ExternalPoseNode *>( m_nodes[ep.m_nodeIdx] );
-                if ( pExternalPoseNode->IsPoseSet() )
-                {
-                    RecordedExternalPoseData *pEPD = pUpdateData->CreateExternalPoseData();
-                    pEPD->m_externalPoseNodeIdx = ep.m_nodeIdx;
-                    pEPD->m_slotID = ep.m_slotID;
+                RecordedExternalGraphData *pEGD = pUpdateData->CreateExternalGraphData();
+                pEGD->m_externalGraphNodeIdx = eg.m_nodeIdx;
+                pEGD->m_graphResourceID = pReferencedGraphNode->m_pGraphInstance->GetGraphDefinition()->GetResourceID();
+                pEGD->m_updateData.m_updateType = RecordedUpdateType::Unknown;
+                pEGD->m_updateData.m_recordedGraphStateIdx = (int32_t) m_pRecording->m_recordedGraphStates.size();
 
-                    pEPD->m_clipResourceID0 = ( pExternalPoseNode->m_poseData.m_pClip0 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip0->GetResourceID() : ResourceID();
-                    pEPD->m_startTime0 = pExternalPoseNode->m_poseData.m_startTime0;
-                    pEPD->m_endTime0 = pExternalPoseNode->m_poseData.m_endTime0;
-
-                    pEPD->m_clipResourceID1 = ( pExternalPoseNode->m_poseData.m_pClip1 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip1->GetResourceID() : ResourceID();
-                    pEPD->m_startTime1 = pExternalPoseNode->m_poseData.m_startTime1;
-                    pEPD->m_endTime1 = pExternalPoseNode->m_poseData.m_endTime1;
-
-                    pEPD->m_blendWeight = pExternalPoseNode->m_poseData.m_blendWeight;
-                }*/
-            }
-
-            // Record all external graph nodes
-            for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
-            {
-                auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode *>( m_nodes[eg.m_nodeIdx] );
-                if ( pReferencedGraphNode->HasInstance() )
-                {
-                    RecordedExternalGraphData *pEGD = pUpdateData->CreateExternalGraphData();
-                    pEGD->m_externalGraphNodeIdx = eg.m_nodeIdx;
-                    pEGD->m_graphResourceID = pReferencedGraphNode->m_pGraphInstance->GetGraphDefinition()->GetResourceID();
-                    pEGD->m_updateData.m_updateType = RecordedUpdateType::Unknown;
-                    pEGD->m_updateData.m_recordedGraphStateIdx = (int32_t) m_pRecording->m_recordedGraphStates.size();
-
-                    RecordedGraphState *pGraphState = m_pRecording->m_recordedGraphStates.emplace_back( EE::New<RecordedGraphState>() );
-                    pReferencedGraphNode->m_pGraphInstance->RecordGraphNodeState( *pGraphState );
-                }
+                RecordedGraphState *pGraphState = m_pRecording->m_recordedGraphStates.emplace_back( EE::New<RecordedGraphState>() );
+                pReferencedGraphNode->m_pGraphInstance->RecordGraphNodeState( *pGraphState );
             }
         }
     }
@@ -1260,7 +1269,7 @@ namespace EE::Animation
         // Should we restore the main graph state?
         //-------------------------------------------------------------------------
 
-        if ( updateData.m_updateType == RecordedUpdateType::FirstRecording || updateData.m_updateType == RecordedUpdateType::Reset )
+        if ( updateData.m_recordedGraphStateIdx != InvalidIndex )
         {
             auto pGraphState = recordedGraphStates[updateData.m_recordedGraphStateIdx];
             pGraphState->PrepareForReading();
@@ -1291,6 +1300,7 @@ namespace EE::Animation
     bool GraphInstance::RestoreRecordedGraphState( RecordedGraphState const &recordedState )
     {
         EE_ASSERT( !IsRecording() );
+        EE_ASSERT( m_graphContext.IsInitialized() );
         EE_ASSERT( recordedState.m_graphResourceID == m_pGraphDefinition->GetResourceID() );
         EE_ASSERT( recordedState.m_variationID == m_pGraphDefinition->m_variationID );
 

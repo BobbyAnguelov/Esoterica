@@ -165,8 +165,7 @@ namespace EE::Animation
             return false;
         }
 
-        EE_ASSERT( m_recordedUpdateData[0]->m_updateType == RecordedUpdateType::FirstRecording );
-        EE_ASSERT( m_recordedUpdateData[0]->m_recordedGraphStateIdx != -1 );
+        EE_ASSERT( m_recordedUpdateData[0]->m_recordedGraphStateIdx != InvalidIndex );
 
         TVector<ResourceID> graphResourceIDs;
         m_recordedGraphStates[m_recordedUpdateData[0]->m_recordedGraphStateIdx]->GetAllRecordedGraphResourceIDs( graphResourceIDs );
@@ -180,8 +179,7 @@ namespace EE::Animation
             return false;
         }
 
-        EE_ASSERT( m_recordedUpdateData[0]->m_updateType == RecordedUpdateType::FirstRecording );
-        EE_ASSERT( m_recordedUpdateData[0]->m_recordedGraphStateIdx != -1 );
+        EE_ASSERT( m_recordedUpdateData[0]->m_recordedGraphStateIdx != InvalidIndex );
 
         return m_recordedGraphStates[m_recordedUpdateData[0]->m_recordedGraphStateIdx]->m_isStandaloneGraph;
     }
@@ -296,6 +294,13 @@ namespace EE::Animation
         return m_pRecording->m_recordedUpdateData[m_currentViewedUpdateIdx]->m_deltaTime;
     }
 
+    int32_t GraphRecordingPlayer::GetGraphUpdateID() const
+    {
+        EE_ASSERT( IsPlaybackActive() && m_pRecording->HasRecordedData() );
+        EE_ASSERT( m_currentViewedUpdateIdx >= 0 && m_currentViewedUpdateIdx < m_pRecording->GetNumRecordedUpdates() );
+        return m_pRecording->m_recordedUpdateData[m_currentViewedUpdateIdx]->m_updateID;
+    }
+
     RecordedUpdateType GraphRecordingPlayer::GetUpdateType() const
     {
         EE_ASSERT( IsPlaybackActive() && m_pRecording->HasRecordedData() );
@@ -336,11 +341,35 @@ namespace EE::Animation
         return nullptr;
     }
 
-    GraphRecordingPlayer::StepResult GraphRecordingPlayer::StepRecording( int32_t steps )
+    GraphRecordingPlayer::Result GraphRecordingPlayer::GoToRecordedUpdate( int32_t targetRecordedUpdateIdx )
     {
         EE_ASSERT( IsPlaybackActive() && m_pRecording->HasRecordedData() );
+        EE_ASSERT( targetRecordedUpdateIdx >= 0 && targetRecordedUpdateIdx < m_pRecording->GetNumRecordedUpdates() );
+
+        if ( !m_pRecording->IsValidRecordedUpdateIndex( targetRecordedUpdateIdx ) )
+        {
+            return Result::Failure;
+        }
+
+        if ( targetRecordedUpdateIdx == m_currentViewedUpdateIdx )
+        {
+            return Result::Success;
+        }
+
+        // Reset graph instances one first update or when jumping around
+        //-------------------------------------------------------------------------
 
         bool hasExternalGraphStateChanged = false;
+
+        if ( m_currentViewedUpdateIdx == InvalidIndex || targetRecordedUpdateIdx != ( m_currentViewedUpdateIdx + 1 ) )
+        {
+            hasExternalGraphStateChanged = !m_externalGraphInstances.empty();
+            m_pPlaybackGraphInstance->DisconnectAllExternalGraphs();
+            m_pPlaybackGraphInstance->ResetGraphState();
+            DestroyCreatedExternalGraphInstances();
+        }
+
+        //-------------------------------------------------------------------------
 
         auto DisconnectGraphFromNode = [this, &hasExternalGraphStateChanged] ( GraphDefinition::ExternalGraphSlot const &eg )
         {
@@ -384,14 +413,31 @@ namespace EE::Animation
             return true;
         };
 
+        // Get the start and end indices
         //-------------------------------------------------------------------------
 
-        bool const isStartingFromBeginning = ( m_currentViewedUpdateIdx == 0 );
-        int32_t const startUpdateIdx = isStartingFromBeginning ? 0 : ( m_currentViewedUpdateIdx + 1 );
-        int32_t const endUpdateIdx = m_currentViewedUpdateIdx + steps;
-        EE_ASSERT( endUpdateIdx >= 0 && endUpdateIdx < m_pRecording->GetNumRecordedUpdates() );
+        // If we only need to step once, then do so
+        int32_t startUpdateIdx = 0;
+        if ( m_currentViewedUpdateIdx != InvalidIndex && ( targetRecordedUpdateIdx - m_currentViewedUpdateIdx ) == 1 )
+        {
+            startUpdateIdx = m_currentViewedUpdateIdx + 1;
+        }
+        else // Find the first full state recording from the end index
+        {
+            for ( int32_t i = targetRecordedUpdateIdx - 1; i >= 0; i-- )
+            {
+                if ( m_pRecording->m_recordedUpdateData[i]->m_updateType == RecordedUpdateType::FullState )
+                {
+                    startUpdateIdx = i;
+                    break;
+                }
+            }
+        }
 
-        for ( auto i = startUpdateIdx; i <= endUpdateIdx; i++ )
+        // Run the recording forward
+        //-------------------------------------------------------------------------
+
+        for ( auto i = startUpdateIdx; i <= targetRecordedUpdateIdx; i++ )
         {
             RecordedGraphUpdateData const *pUpdateData = m_pRecording->m_recordedUpdateData[i];
 
@@ -400,7 +446,7 @@ namespace EE::Animation
 
             if ( !m_pPlaybackGraphInstance->SetToRecordedState( *pUpdateData, m_pRecording->m_recordedGraphStates ) )
             {
-                return StepResult::Failure;
+                return Result::Failure;
             }
 
             // Manage external pose data
@@ -433,38 +479,54 @@ namespace EE::Animation
             TVector<GraphDefinition::ExternalGraphSlot> const &externalGraphSlots = pGraphDefinition->GetExternalGraphSlots();
 
             bool const hasExternalGraphData = !pUpdateData->m_externalGraphData.empty();
-            if ( ( hasExternalGraphData && pUpdateData->m_updateType == RecordedUpdateType::FirstRecording ) || pUpdateData->m_updateType == RecordedUpdateType::ExternalGraphChanged )
+            if ( ( hasExternalGraphData && pUpdateData->m_updateType == RecordedUpdateType::FullState ) || pUpdateData->m_updateType == RecordedUpdateType::ExternalGraphChanged )
             {
                 for ( GraphDefinition::ExternalGraphSlot const &eg : externalGraphSlots )
                 {
                     bool const isExternalSlotFilled = m_pPlaybackGraphInstance->IsExternalGraphSlotFilled( eg.m_slotID );
-                    auto const pExternalGraphData = pUpdateData->TryGetExternalGraphData( eg.m_nodeIdx );
+                    auto const pRecordedExternalGraphData = pUpdateData->TryGetExternalGraphData( eg.m_nodeIdx );
 
                     // We dont have external data but there is a graph connected, then disconnect it
-                    if ( pExternalGraphData == nullptr && isExternalSlotFilled )
+                    if ( pRecordedExternalGraphData == nullptr && isExternalSlotFilled )
                     {
                         DisconnectGraphFromNode( eg );
                     }
                     // We have external data but no connected graph, so connect a graph
-                    else if ( pExternalGraphData != nullptr && !isExternalSlotFilled )
+                    else if ( pRecordedExternalGraphData != nullptr && !isExternalSlotFilled )
                     {
-                        if ( !ConnectGraphToNode( pExternalGraphData, eg ) )
+                        if ( !ConnectGraphToNode( pRecordedExternalGraphData, eg ) )
                         {
-                            return StepResult::Failure;
+                            return Result::Failure;
                         }
                     }
                     // Both are set
-                    else if ( pExternalGraphData != nullptr && isExternalSlotFilled )
+                    else if ( pRecordedExternalGraphData != nullptr && isExternalSlotFilled )
                     {
                         // Ensure that the graph defs match what is expected
                         auto pReferenceNode = static_cast<ReferencedGraphNode*>( m_pPlaybackGraphInstance->m_nodes[eg.m_nodeIdx] );
-                        if ( pReferenceNode->GetGraphDefinition()->GetResourceID() != pExternalGraphData->m_graphResourceID )
+                        if ( pReferenceNode->GetGraphDefinition()->GetResourceID() != pRecordedExternalGraphData->m_graphResourceID )
                         {
                             DisconnectGraphFromNode( eg );
 
-                            if ( !ConnectGraphToNode( pExternalGraphData, eg ) )
+                            if ( !ConnectGraphToNode( pRecordedExternalGraphData, eg ) )
                             {
-                                return StepResult::Failure;
+                                return Result::Failure;
+                            }
+                        }
+                        else // Just restore the graph state here
+                        {
+                            auto pGraphState = m_pRecording->m_recordedGraphStates[pRecordedExternalGraphData->m_updateData.m_recordedGraphStateIdx];
+                            pGraphState->PrepareForReading();
+
+                            for ( size_t e = 0; e < m_externalGraphInstances.size(); e++ )
+                            {
+                                if ( m_externalGraphInstances[e].m_nodeIdx == eg.m_nodeIdx )
+                                {
+                                    if ( !m_externalGraphInstances[e].m_pInstance->RestoreRecordedGraphState( *pGraphState ) )
+                                    {
+                                        return Result::Failure;
+                                    }
+                                }
                             }
                         }
                     }
@@ -500,7 +562,7 @@ namespace EE::Animation
             // Update secondary skeletons
             //-------------------------------------------------------------------------
 
-            if ( i == endUpdateIdx )
+            if ( i == targetRecordedUpdateIdx )
             {
                 SecondarySkeletonList const secondarySkeletons = GetSecondarySkeletonsForUpdate( i );
                 m_pPlaybackGraphInstance->SetSecondarySkeletons( secondarySkeletons );
@@ -509,7 +571,7 @@ namespace EE::Animation
             // Evaluate the graph
             //-------------------------------------------------------------------------
 
-            if ( pUpdateData->m_updateType == RecordedUpdateType::Reset || pUpdateData->m_updateType == RecordedUpdateType::ExternalGraphChanged )
+            if ( pUpdateData->m_updateType == RecordedUpdateType::Reset )
             {
                 m_taskListTopologySize = m_taskListDataSize = 0;
             }
@@ -520,7 +582,7 @@ namespace EE::Animation
 
                 // Explicitly end root motion debug update for intermediate steps
                 #if EE_DEVELOPMENT_TOOLS
-                if ( i < ( steps - 1 ) )
+                if ( i != targetRecordedUpdateIdx )
                 {
                     RecordedGraphUpdateData const *pNextFrameData = m_pRecording->m_recordedUpdateData[i + 1];
                     m_pPlaybackGraphInstance->EndRootMotionDebuggerUpdate( pNextFrameData->m_characterWorldTransform );
@@ -532,7 +594,7 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
             // We need to evaluate the pose for a few updates before the desired end update since we need to ensure that the cached pose buffers are filled correctly
 
-            if ( i > ( endUpdateIdx - 2 ) )
+            if ( i > ( targetRecordedUpdateIdx - 2 ) )
             {
                 int32_t const nextFrameIdx = ( i < m_pRecording->GetNumRecordedUpdates() - 1 ) ? i + 1 : i;
                 RecordedGraphUpdateData const *pCurrentUpdateData = m_pRecording->m_recordedUpdateData[i];
@@ -551,60 +613,16 @@ namespace EE::Animation
             }
         }
 
-        return hasExternalGraphStateChanged ? StepResult::SuccessExternalGraphsChanged : StepResult::Success;
-    }
-
-    GraphRecordingPlayer::StepResult GraphRecordingPlayer::GoToRecordedUpdate( int32_t recordedUpdateIdx )
-    {
-        EE_ASSERT( IsPlaybackActive() && m_pRecording->HasRecordedData() );
-        EE_ASSERT( recordedUpdateIdx >= 0 && recordedUpdateIdx < m_pRecording->GetNumRecordedUpdates() );
-
-        if ( !m_pRecording->IsValidRecordedUpdateIndex( recordedUpdateIdx ) )
-        {
-            return StepResult::Failure;
-        }
-
-        if ( recordedUpdateIdx == m_currentViewedUpdateIdx )
-        {
-            return StepResult::Success;
-        }
-
-        // Step the state
-        //-------------------------------------------------------------------------
-
-        StepResult result = StepResult::Failure;
-
-        if ( m_currentViewedUpdateIdx != InvalidIndex && recordedUpdateIdx == ( m_currentViewedUpdateIdx + 1 ) )
-        {
-            StepRecording( 1 );
-        }
-        else // Re-evaluate the entire graph to the new index point
-        {
-            bool const hadExternalGraph = !m_externalGraphInstances.empty();
-
-            m_pPlaybackGraphInstance->DisconnectAllExternalGraphs();
-            m_pPlaybackGraphInstance->ResetGraphState();
-            DestroyCreatedExternalGraphInstances();
-
-            m_currentViewedUpdateIdx = 0;
-            StepRecording( recordedUpdateIdx );
-
-            if ( result == StepResult::Success && hadExternalGraph )
-            {
-                result = StepResult::SuccessExternalGraphsChanged;
-            }
-        }
-
-        m_currentViewedUpdateIdx = recordedUpdateIdx;
-
         // Set character world Transform
         //-------------------------------------------------------------------------
 
-        int32_t const nextFrameIdx = ( recordedUpdateIdx < m_pRecording->GetNumRecordedUpdates() - 1 ) ? recordedUpdateIdx + 1 : recordedUpdateIdx;
+        int32_t const nextFrameIdx = ( targetRecordedUpdateIdx < m_pRecording->GetNumRecordedUpdates() - 1 ) ? targetRecordedUpdateIdx + 1 : targetRecordedUpdateIdx;
         RecordedGraphUpdateData const *pNextUpdateData = m_pRecording->m_recordedUpdateData[nextFrameIdx];
         m_characterTransform = pNextUpdateData->m_characterWorldTransform;
 
-        return result;
+        m_currentViewedUpdateIdx = targetRecordedUpdateIdx;
+
+        return hasExternalGraphStateChanged ? Result::SuccessExternalGraphsChanged : Result::Success;
     }
 
     SecondarySkeletonList GraphRecordingPlayer::GetSecondarySkeletonsForUpdate( int32_t recordedUpdateIdx ) const

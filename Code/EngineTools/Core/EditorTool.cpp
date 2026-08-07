@@ -17,6 +17,7 @@
 #include "Engine/Physics/PhysicsWorld.h"
 #include "Engine/Imgui/ImguiOrientationGuide.h"
 #include "Base/TypeSystem/TypeRegistry.h"
+#include "Base/Imgui/ImguiTextureID.h"
 #include "Base/Resource/ResourceSystem.h"
 #include "Base/Serialization/TypeSerialization.h"
 #include <EASTL/sort.h>
@@ -949,7 +950,7 @@ namespace EE
             Render::ImGui_BackendUserData* pBackendUserData = static_cast<Render::ImGui_BackendUserData*>( ImGui::GetIO().BackendRendererUserData );
             EE_ASSERT( pBackendUserData != nullptr );
 
-            ImTextureID toolsRenderTarget = ImTextureID_Pack( Render::RHI::GetSamplerStateHandle( pBackendUserData->m_pRenderSystem->GetPointClampSampler() ), Render::RHI::GetTextureHandle( pRenderViewport->m_finalTexture, Render::RHI::DescriptorTypeFlags::Texture, 0 ) );
+            ImTextureID toolsRenderTarget = ImGuiX::ImTextureID_Pack( Render::RHI::GetSamplerStateHandle( pBackendUserData->m_pRenderSystem->GetPointClampSampler() ), Render::RHI::GetTextureHandle( pRenderViewport->m_finalTexture, Render::RHI::DescriptorTypeFlags::Texture, 0 ) );
             ImGui::Image( toolsRenderTarget, viewportSize );
         }
         else
@@ -968,7 +969,7 @@ namespace EE
             if ( mousePos.x != FLT_MAX && mousePos.y != FLT_MAX )
             {
                 pRenderViewport->m_lastKnownPickingMousePosition = mousePos;
-                pRenderViewport->m_lastKnownPickingPixelRadius = 50;
+                pRenderViewport->m_lastKnownPickingPixelRadius = 4;
                 m_pickingData = pRenderViewport->GetPickingData();
             }
         }

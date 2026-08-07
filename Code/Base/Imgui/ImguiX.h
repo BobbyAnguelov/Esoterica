@@ -12,7 +12,6 @@
 #include "Base/Types/BitFlags.h"
 #include "Base/Types/Function.h"
 #include "Base/Types/Arrays.h"
-#include "Base/Time/Time.h"
 
 //-------------------------------------------------------------------------
 // ImGui Extensions
@@ -513,12 +512,6 @@ namespace EE::ImGuiX
     EE_BASE_API void NotifySuccess( const char* format, ... );
     EE_BASE_API void NotifyWarning( const char* format, ... );
     EE_BASE_API void NotifyError( const char* format, ... );
-
-    //-------------------------------------------------------------------------
-    // Images
-    //-------------------------------------------------------------------------
-
-    EE_BASE_API ImTextureID GetImTextureID( Render::RHI::Sampler* pSampler, Render::RHI::Texture* pTexture );
 
     //-------------------------------------------------------------------------
     // Advanced widgets

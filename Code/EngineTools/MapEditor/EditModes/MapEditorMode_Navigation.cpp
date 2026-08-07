@@ -1,10 +1,17 @@
 #include "MapEditorMode_Navigation.h"
 #include "EngineTools/Entity/EntitySerializationTools.h"
 #include "Engine/Navmesh/Components/Component_Navmesh.h"
-#include "Engine/Entity/EntityMap.h"
+#include "Engine/Navmesh/NavmeshPath.h"
 #include "Engine/Navmesh/Settings/ViewportSettings_Navmesh.h"
+#include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
+#include "Engine/Entity/EntityMap.h"
+#include "Engine/Render/Components/Component_SkeletalMesh.h"
+#include "Engine/Animation/Components/Component_AnimationClipPlayer.h"
+#include "Engine/Animation/Systems/EntitySystem_Animation.h"
 #include "Base/Resource/ResourceSystem.h"
 #include "Base/FileSystem/FileSystem.h"
+#include "Base/Settings/IniFile.h"
+#include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------
 
@@ -27,6 +34,10 @@ namespace EE::Navmesh
             pViewportSettings->m_drawDebug = true;
             pViewportSettings->ShowAreas( pWorld );
         }
+
+        m_pWorldSystem = pEntityEditorContext->GetWorld()->GetWorldSystem<NavmeshWorldSystem>();
+
+        LoadTestSettingsFromIni();
     }
 
     void NavigationMapEditorMode::Shutdown()
@@ -45,6 +56,13 @@ namespace EE::Navmesh
             NavmeshViewportSettings* pViewportSettings = pViewport->GetViewportSettings<NavmeshViewportSettings>();
             pViewportSettings->m_drawDebug = false;
         }
+
+        if ( m_isInTestMode )
+        {
+            ShutdownTester();
+        }
+
+        EE_ASSERT( m_pTestEntity == nullptr );
 
         EntityModel::MapEditorMode::Shutdown();
     }
@@ -117,12 +135,46 @@ namespace EE::Navmesh
 
             if ( ImGui::BeginTabItem( "Tester" ) )
             {
+                if ( !m_isInTestMode )
+                {
+                    InitTester();
+                }
+
                 DrawTesterTab( context, isFocused );
 
                 ImGui::EndTabItem();
             }
+            else
+            {
+                if ( m_isInTestMode )
+                {
+                    ShutdownTester();
+                }
+            }
 
             ImGui::EndTabBar();
+        }
+    }
+
+    void NavigationMapEditorMode::DrawViewportOverlayElements( UpdateContext const& context, Viewport const* pViewport, bool isViewportHovered, bool isViewportFocused )
+    {
+        if ( m_isInTestMode )
+        {
+            m_pEntityEditorContext->ClearSelection();
+
+            ImGuiX::Gizmo::Result const startResult = m_startGizmo.Draw( m_startTransform.GetTranslation(), m_startTransform.GetRotation(), *pViewport, "Start" );
+            if ( startResult.IsManipulating() )
+            {
+                startResult.ApplyResult( m_startTransform );
+                m_pathNeedsUpdate = true;
+            }
+
+            ImGuiX::Gizmo::Result const endResult = m_endGizmo.Draw( m_endTransform.GetTranslation(), m_endTransform.GetRotation(), *pViewport, "End" );
+            if ( !startResult.IsManipulating() && endResult.IsManipulating() )
+            {
+                endResult.ApplyResult( m_endTransform );
+                m_pathNeedsUpdate = true;
+            }
         }
     }
 
@@ -262,7 +314,57 @@ namespace EE::Navmesh
 
     void NavigationMapEditorMode::DrawTesterTab( UpdateContext const& context, bool isFocused )
     {
+        if ( ImGui::Button( "Save to ini" ) )
+        {
+            SaveTestSettingsToIni();
+        }
 
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::Button( "Load from ini" ) )
+        {
+            LoadTestSettingsFromIni();
+        }
+
+        //-------------------------------------------------------------------------
+
+        if( m_pathNeedsUpdate )
+        {
+            ScopedTimer<PlatformClock> t( m_pathCalculationTime );
+            m_path = Path( m_pWorldSystem->GetSpaceHandle(), m_startTransform.GetTranslation(), m_endTransform.GetTranslation() );
+            m_pathNeedsUpdate = false;
+
+            m_pathFollower.FollowPath( &m_path );
+        }
+
+        ImGui::Text( "Path Calculation Time: %.4fms", m_pathCalculationTime.ToFloat() );
+        ImGui::Text( "Path Length: %.2fm", m_path.GetLength() );
+
+        //-------------------------------------------------------------------------
+
+        if ( m_path.IsValid() )
+        {
+            auto drawingCtx = GetDebugDrawContext();
+            m_path.DrawDebug( drawingCtx );
+        }
+
+        //-------------------------------------------------------------------------
+
+        Transform pathTransform = m_startTransform;
+
+        if ( m_pathFollower.IsValid() )
+        {
+            if ( m_pathFollower.IsAtTheEnd() )
+            {
+                m_pathFollower.FollowPath( &m_path );
+            }
+
+            float const animDistanceTravelled = m_pTestAnimComponent->GetRootMotionDelta().GetTranslation().GetLength3();
+            m_pathFollower.MoveAlongPath( animDistanceTravelled );
+            pathTransform = Transform( Quaternion::LookAt( m_pathFollower.GetDirection().GetNormalized2() ), m_pathFollower.GetPosition() );
+        }
+
+        m_pTestEntity->SetWorldTransform( pathTransform );
     }
 
     void NavigationMapEditorMode::UpdateAndDrawExtractBuildDataStage( UpdateContext const& context )
@@ -462,5 +564,84 @@ namespace EE::Navmesh
         {
             m_generationStage = GenerationStage::None;
         }
+    }
+
+    void NavigationMapEditorMode::InitTester()
+    {
+        auto pWorld = m_pEntityEditorContext->GetWorld();
+        auto pTransientMap = pWorld->GetPersistentMap();
+
+        EE_ASSERT( !m_isInTestMode );
+        EE_ASSERT( m_pTestEntity == nullptr && m_pTestMeshComponent == nullptr && m_pTestAnimComponent == nullptr );
+
+        m_pTestMeshComponent = EE::New<Render::SkeletalMeshComponent>( StringID( "Mesh Component" ) );
+        m_pTestMeshComponent->SetSkeleton( "data://packs/amplify/amplifyskeleton.skeleton" );
+        m_pTestMeshComponent->SetMesh( "data://packs/br/characters/sk_chr_mercenarymale_01.skelmesh" );
+
+        m_pTestAnimComponent = EE::New<Animation::AnimationClipPlayerComponent>( StringID( "Anim Component" ) );
+        m_pTestAnimComponent->SetAnimation( "data://packs/amplify/walk_fwd_v2.anim" );
+
+        m_pTestEntity = EE::New<Entity>( StringID( "Nav Test Character" ) );
+        m_pTestEntity->AddComponent( m_pTestMeshComponent );
+        m_pTestEntity->AddComponent( m_pTestAnimComponent );
+        m_pTestEntity->CreateSystem<Animation::AnimationSystem>();
+        pTransientMap->AddEntity( m_pTestEntity );
+
+        m_isInTestMode = true;
+        m_pathNeedsUpdate = true;
+    }
+
+    void NavigationMapEditorMode::ShutdownTester()
+    {
+        EE_ASSERT( m_isInTestMode );
+        EE_ASSERT( m_pTestEntity != nullptr && m_pTestMeshComponent != nullptr && m_pTestAnimComponent != nullptr );
+
+        auto pWorld = m_pEntityEditorContext->GetWorld();
+        auto pTransientMap = pWorld->GetPersistentMap();
+        pTransientMap->DestroyEntity( m_pTestEntity->GetID() );
+        m_pTestAnimComponent = nullptr;
+        m_pTestMeshComponent = nullptr;
+        m_pTestEntity = nullptr;
+        m_isInTestMode = false;
+    }
+
+    void NavigationMapEditorMode::SaveTestSettingsToIni()
+    {
+        IniFile ini;
+
+        String string;
+        TypeSystem::Conversion::ConvertNativeTypeToString( *m_pToolsContext->m_pTypeRegistry, TypeSystem::GetCoreTypeID( TypeSystem::CoreTypeID::Transform ), TypeSystem::TypeID(), (void*) &m_startTransform, string );
+        ini.SetString( "NavmeshTester", "Start", string.c_str() );
+
+        TypeSystem::Conversion::ConvertNativeTypeToString( *m_pToolsContext->m_pTypeRegistry, TypeSystem::GetCoreTypeID( TypeSystem::CoreTypeID::Transform ), TypeSystem::TypeID(), (void*) &m_endTransform, string );
+        ini.SetString( "NavmeshTester", "End", string.c_str() );
+
+        FileSystem::Path path = FileSystem::GetCurrentProcessPath();
+        path.AppendFilename( "EsotericaEditor.settings.ini" );
+        ini.Save( path );
+    }
+
+    void NavigationMapEditorMode::LoadTestSettingsFromIni()
+    {
+        FileSystem::Path path = FileSystem::GetCurrentProcessPath();
+        path.AppendFilename( "EsotericaEditor.settings.ini" );
+
+        IniFile ini;
+        if ( ini.Load( path ) )
+        {
+            String string = ini.GetString( "NavmeshTester", "Start" );
+            if ( !string.empty() )
+            {
+                TypeSystem::Conversion::ConvertStringToNativeType( *m_pToolsContext->m_pTypeRegistry, TypeSystem::GetCoreTypeID( TypeSystem::CoreTypeID::Transform ), TypeSystem::TypeID(), string, (void*) &m_startTransform );
+            }
+
+            string = ini.GetString( "NavmeshTester", "End" );
+            if ( !string.empty() )
+            {
+                TypeSystem::Conversion::ConvertStringToNativeType( *m_pToolsContext->m_pTypeRegistry, TypeSystem::GetCoreTypeID( TypeSystem::CoreTypeID::Transform ), TypeSystem::TypeID(), string, (void*) &m_endTransform );
+            }
+        }
+
+        m_pathNeedsUpdate = true;
     }
 }

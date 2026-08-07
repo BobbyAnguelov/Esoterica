@@ -1,6 +1,9 @@
 # Rendering
 
-Status: In progress
+Author: Kirill Bazhenov
+Status: Published
+Category: Guide
+Last edited time: July 21, 2026 10:57 PM
 Type: Guideline
 
 # Rendering — System Overview

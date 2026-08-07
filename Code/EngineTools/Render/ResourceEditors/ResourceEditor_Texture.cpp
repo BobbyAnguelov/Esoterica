@@ -3,6 +3,7 @@
 #include "Engine/Render/RenderSystem.h"
 #include "Engine/Render/Imgui/ImguiImageCache.h"
 #include "Engine/UpdateContext.h"
+#include "Base/Imgui/ImguiTextureID.h"
 
 //-------------------------------------------------------------------------
 

@@ -1,245 +1,153 @@
 #include "IniFile.h"
 #include "Base/FileSystem/FileSystemPath.h"
-#include "Base/ThirdParty/iniparser/iniparser.h"
+
+#if defined(_MSC_VER)
+#pragma warning( push )
+#pragma warning( disable : 4866 )
+#include "Base/ThirdParty/mINI/ini.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
-    IniFile::IniFile( FileSystem::Path const& filePath )
+    bool IniFile::Load( FileSystem::Path const& filePath )
     {
         EE_ASSERT( filePath.IsValid() );
-        m_pDictionary = iniparser_load( filePath.c_str() );
-    }
+        EE_ASSERT( filePath.IsFilePath() );
 
-    IniFile::IniFile()
-    {
-        m_pDictionary = dictionary_new( 0 );
-    }
+        m_sections.clear();
 
-    IniFile::IniFile( IniFile&& rhs )
-    {
-        if ( m_pDictionary != nullptr )
+        // Read File
+        //-------------------------------------------------------------------------
+
+        mINI::INIFile file( filePath.c_str() );
+        mINI::INIStructure ini;
+
+        if ( !file.read( ini ) )
         {
-            iniparser_freedict( m_pDictionary );
+            return false;
         }
 
-        m_pDictionary = rhs.m_pDictionary;
-        rhs.m_pDictionary = nullptr;
-    }
+        // Reflect Loaded INI
+        //-------------------------------------------------------------------------
 
-    IniFile& IniFile::operator=( IniFile&& rhs )
-    {
-        if ( m_pDictionary != nullptr )
+        for ( auto& section : ini )
         {
-            iniparser_freedict( m_pDictionary );
+            auto pSection = FindOrCreateSection( section.first.c_str() );
+
+            for ( auto& kv : section.second )
+            {
+                auto pKey = pSection->FindOrCreateKeyValue( kv.first.c_str() );
+                pKey->m_value = kv.second.c_str();
+            }
         }
 
-        m_pDictionary = rhs.m_pDictionary;
-        rhs.m_pDictionary = nullptr;
-
-        return *this;
+        return true;
     }
 
-    IniFile::~IniFile()
+    bool IniFile::Save( FileSystem::Path const& filePath ) const
     {
-        if ( m_pDictionary != nullptr )
+        mINI::INIFile file( filePath.c_str() );
+        mINI::INIStructure ini;
+
+        //-------------------------------------------------------------------------
+
+        for ( auto const& section : m_sections )
         {
-            iniparser_freedict( m_pDictionary );
-        }
-    }
-
-    bool IniFile::HasEntry( char const* key ) const
-    {
-        EE_ASSERT( IsValid() );
-        return iniparser_find_entry( m_pDictionary, key ) > 0;
-    }
-
-    bool IniFile::SaveToFile( FileSystem::Path const& filePath ) const
-    {
-        EE_ASSERT( IsValid() );
-
-        FILE* pFile;
-        pFile = fopen( filePath.c_str(), "w" );
-        bool const wasFileOpened = pFile != nullptr;
-        if ( wasFileOpened )
-        {
-            iniparser_dump_ini( m_pDictionary, pFile );
-            fclose( pFile );
-        }
-        return wasFileOpened;
-    }
-
-    bool IniFile::TryGetBool( char const* key, bool& outValue ) const
-    {
-        EE_ASSERT( IsValid() );
-
-        if ( HasEntry( key ) )
-        {
-            outValue = (bool) iniparser_getboolean( m_pDictionary, key, false );
-            return true;
+            for ( auto const& kv : section.m_kv )
+            {
+                ini[section.m_name.c_str()][kv.m_key.c_str()] = kv.m_value.c_str();
+            }
         }
 
-        return false;
+        //-------------------------------------------------------------------------
+
+        return file.write( ini, true );
     }
 
-    bool IniFile::TryGetInt( char const* key, int32_t& outValue ) const
+    bool IniFile::HasEntry( char const* pSectionName, char const* pKey ) const
     {
-        EE_ASSERT( IsValid() );
+        EE_ASSERT( pSectionName != nullptr );
+        EE_ASSERT( pKey != nullptr );
 
-        if ( HasEntry( key ) )
+        Section const* pSection = GetSection( pSectionName );
+        if ( pSection == nullptr )
         {
-            outValue = iniparser_getint( m_pDictionary, key, 0 );
-            return true;
+            return false;
         }
 
-        return false;
+        return pSection->HasKey( pKey );
     }
 
-    bool IniFile::TryGetUInt( char const* key, uint32_t& outValue ) const
-    {
-        EE_ASSERT( IsValid() );
+    //-------------------------------------------------------------------------
 
-        if ( HasEntry( key ) )
+    bool IniFile::GetBool( char const* pSectionName, char const* pKeyID, bool defaultValue ) const
+    {
+        auto pKey = GetKeyValue( pSectionName, pKeyID );
+        if ( pKey == nullptr )
         {
-            outValue = ( uint32_t) iniparser_getint( m_pDictionary, key, 0 );
-            return true;
+            return defaultValue;
         }
 
-        return false;
+        InlineString lowerString = pKey->m_value.c_str();
+        lowerString.make_lower();
+        return ( lowerString == "true" );
     }
 
-    bool IniFile::TryGetString( char const* key, String& outValue ) const
+    int64_t IniFile::GetInt( char const* pSectionName, char const* pKeyID, int64_t defaultValue ) const
     {
-        EE_ASSERT( IsValid() );
-
-        if ( HasEntry( key ) )
+        auto pKey = GetKeyValue( pSectionName, pKeyID );
+        if ( pKey == nullptr )
         {
-            outValue = iniparser_getstring( m_pDictionary, key, "" );
-            return true;
+            return defaultValue;
         }
 
-        return false;
+        return std::strtol( pKey->m_value.c_str(), nullptr, 0 );
     }
 
-    bool IniFile::TryGetFloat( char const* key, float& outValue ) const
+    float IniFile::GetFloat( char const* pSectionName, char const* pKeyID, float defaultValue ) const
     {
-        EE_ASSERT( IsValid() );
-
-        if ( HasEntry( key ) )
+        auto pKey = GetKeyValue( pSectionName, pKeyID );
+        if ( pKey == nullptr )
         {
-            outValue = ( float) iniparser_getdouble( m_pDictionary, key, 0.0f );
-            return true;
+            return defaultValue;
         }
 
-        return false;
+        return std::strtof( pKey->m_value.c_str(), nullptr );
     }
 
-    bool IniFile::GetBoolOrDefault( char const* key, bool defaultValue ) const
+    char const* IniFile::GetString( char const* pSectionName, char const* pKeyID, char const* pDefaultStr ) const
     {
-        EE_ASSERT( IsValid() );
-        return (bool) iniparser_getboolean( m_pDictionary, key, defaultValue );
+        auto pKey = GetKeyValue( pSectionName, pKeyID );
+        return ( pKey != nullptr ) ? pKey->m_value.c_str() : pDefaultStr;
     }
 
-    int32_t IniFile::GetIntOrDefault( char const* key, int32_t defaultValue ) const
+    //-------------------------------------------------------------------------
+
+    void IniFile::SetBool( char const* pSectionName, char const* pKeyID, bool value )
     {
-        EE_ASSERT( IsValid() );
-        return (int32_t) iniparser_getint( m_pDictionary, key, defaultValue );
+        auto pKV = FindOrCreateKeyValue( pSectionName, pKeyID );
+        pKV->m_value = value ? "true" : "false";
     }
 
-    uint32_t IniFile::GetUIntOrDefault( char const* key, uint32_t defaultValue ) const
+    void IniFile::SetInt( char const* pSectionName, char const* pKeyID, int64_t value )
     {
-        EE_ASSERT( IsValid() );
-        return (uint32_t) iniparser_getint( m_pDictionary, key, defaultValue );
+        auto pKV = FindOrCreateKeyValue( pSectionName, pKeyID );
+        pKV->m_value = eastl::to_string( value );
     }
 
-    String IniFile::GetStringOrDefault( char const* key, String const& defaultValue ) const
+    void IniFile::SetFloat( char const* pSectionName, char const* pKeyID, float value )
     {
-        EE_ASSERT( IsValid() );
-        return iniparser_getstring( m_pDictionary, key, defaultValue.c_str() );
+        auto pKV = FindOrCreateKeyValue( pSectionName, pKeyID );
+        pKV->m_value = eastl::to_string( value );
     }
 
-    String IniFile::GetStringOrDefault( char const* key, InlineString const& defaultValue ) const
+    void IniFile::SetString( char const* pSectionName, char const* pKeyID, char const* pString )
     {
-        EE_ASSERT( IsValid() );
-        return iniparser_getstring( m_pDictionary, key, defaultValue.c_str() );
-    }
-
-    String IniFile::GetStringOrDefault( char const* key, char const* pDefaultValue ) const
-    {
-        EE_ASSERT( IsValid() );
-        return iniparser_getstring( m_pDictionary, key, pDefaultValue );
-    }
-
-    InlineString IniFile::GetInlineStringOrDefault( char const* key, String const& defaultValue ) const
-    {
-        EE_ASSERT( IsValid() );
-        return iniparser_getstring( m_pDictionary, key, defaultValue.c_str() );
-    }
-
-    InlineString IniFile::GetInlineStringOrDefault( char const* key, InlineString const& defaultValue ) const
-    {
-        EE_ASSERT( IsValid() );
-        return iniparser_getstring( m_pDictionary, key, defaultValue.c_str() );
-    }
-
-    InlineString IniFile::GetInlineStringOrDefault( char const* key, char const* pDefaultValue ) const
-    {
-        EE_ASSERT( IsValid() );
-        return iniparser_getstring( m_pDictionary, key, pDefaultValue );
-    }
-
-    float IniFile::GetFloatOrDefault( char const* key, float defaultValue ) const
-    {
-        EE_ASSERT( IsValid() );
-        return (float) iniparser_getdouble( m_pDictionary, key, defaultValue );
-    }
-
-    void IniFile::CreateSection( char const* section )
-    {
-        EE_ASSERT( IsValid() );
-        iniparser_set( m_pDictionary, section, nullptr );
-    }
-
-    void IniFile::SetBool( char const* key, bool value )
-    {
-        EE_ASSERT( IsValid() );
-        iniparser_set( m_pDictionary, key, value ? "True" : "False" );
-    }
-
-    void IniFile::SetInt( char const* key, int32_t value )
-    {
-        EE_ASSERT( IsValid() );
-        char buffer[255];
-        Printf( buffer, 255, "%d", value );
-        iniparser_set( m_pDictionary, key, buffer );
-    }
-
-    void IniFile::SetUInt( char const* key, uint32_t value )
-    {
-        EE_ASSERT( IsValid() );
-        char buffer[255];
-        Printf( buffer, 255, "%d", value );
-        iniparser_set( m_pDictionary, key, buffer );
-    }
-
-    void IniFile::SetFloat( char const* key, float value )
-    {
-        EE_ASSERT( IsValid() );
-        char buffer[255];
-        Printf( buffer, 255, "%f", value );
-        iniparser_set( m_pDictionary, key, buffer );
-    }
-
-    void IniFile::SetString( char const* key, char const* pString )
-    {
-        EE_ASSERT( IsValid() );
-        iniparser_set( m_pDictionary, key, pString );
-    }
-
-    void IniFile::SetString( char const* key, String const& string )
-    {
-        EE_ASSERT( IsValid() );
-        iniparser_set( m_pDictionary, key, string.c_str() );
+        auto pKV = FindOrCreateKeyValue( pSectionName, pKeyID );
+        pKV->m_value = pString;
     }
 }
+
+#pragma warning( pop )
+#endif

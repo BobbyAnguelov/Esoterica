@@ -383,6 +383,131 @@ struct HLSL_ALIGN_STRUCT ShaderDebugDraw
     {
         DrawWireBox( center, halfExtent, float4( color, 1.0 ), thickness, depthTest );
     }
+
+    // Draws an octahedron wireframe representing a sphere of given radius
+    void DrawOctahedron( float3 center, float radius, float4 color, float4 diagonalColor, uniform bool depthTest = true )
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        float3 px = float3( radius, 0, 0 );
+        float3 py = float3( 0, radius, 0 );
+        float3 pz = float3( 0, 0, radius );
+
+        // 3 orthogonal axis lines
+        DrawLine( center - px, center + px, color, depthTest );
+        DrawLine( center - py, center + py, color, depthTest );
+        DrawLine( center - pz, center + pz, color, depthTest );
+
+        // 12 diagonal lines connecting the 6 cardinal endpoints
+        DrawLine( center + px, center + py, diagonalColor, depthTest );
+        DrawLine( center + px, center - py, diagonalColor, depthTest );
+        DrawLine( center + px, center + pz, diagonalColor, depthTest );
+        DrawLine( center + px, center - pz, diagonalColor, depthTest );
+
+        DrawLine( center - px, center + py, diagonalColor, depthTest );
+        DrawLine( center - px, center - py, diagonalColor, depthTest );
+        DrawLine( center - px, center + pz, diagonalColor, depthTest );
+        DrawLine( center - px, center - pz, diagonalColor, depthTest );
+
+        DrawLine( center + py, center + pz, diagonalColor, depthTest );
+        DrawLine( center + py, center - pz, diagonalColor, depthTest );
+        DrawLine( center - py, center + pz, diagonalColor, depthTest );
+        DrawLine( center - py, center - pz, diagonalColor, depthTest );
+        #endif
+    }
+
+    void DrawOctahedron( float3 center, float radius, float3 color, float3 diagonalColor, uniform bool depthTest = true )
+    {
+        DrawOctahedron( center, radius, float4( color, 1 ), float4( diagonalColor, 1 ), depthTest );
+    }
+
+    // Draws a cone wireframe given apex position, direction, length, and cos(half-angle).
+    // The cone angles are stored as cosine values (same convention as LightInstance_SpotLight).
+    void DrawCone
+    (
+        float3 apex, float3 direction, float length, float cosHalfAngle,
+        float4 axisColor, float4 boundaryColor, float4 diagonalBoundaryColor,
+        float4 ringColor, float4 crossColor, uniform bool depthTest = true 
+    )
+    {
+        #if EE_DEVELOPMENT_TOOLS
+        float3  dir         = normalize( direction );
+        float3  baseCenter  = apex + dir * length;
+        float3  midCenter   = apex + dir * length * 0.5;
+
+        // Perpendicular vectors
+        float3  perpA       = abs( dir.y ) < 0.999 ? normalize( cross( dir, float3( 0, 1, 0 ) ) ) : normalize( cross( dir, float3( 1, 0, 0 ) ) );
+        float3  perpB       = cross( dir, perpA );
+        float3  diag0       = ( perpA + perpB ) * 0.70710678;
+        float3  diag1       = ( perpA - perpB ) * 0.70710678;
+
+        float   sinHalf     = sqrt( 1.0 - cosHalfAngle * cosHalfAngle );
+        float   baseRadius  = length * sinHalf / cosHalfAngle;
+        float   midRadius   = baseRadius * 0.5;
+
+        // Axis line
+        DrawLine( apex, baseCenter, axisColor, depthTest );
+
+        // 8 boundary lines (4 cardinal + 4 diagonal)
+        DrawLine( apex, baseCenter + perpA * baseRadius, boundaryColor, depthTest );
+        DrawLine( apex, baseCenter - perpA * baseRadius, boundaryColor, depthTest );
+        DrawLine( apex, baseCenter + perpB * baseRadius, boundaryColor, depthTest );
+        DrawLine( apex, baseCenter - perpB * baseRadius, boundaryColor, depthTest );
+        DrawLine( apex, baseCenter + diag0 * baseRadius, diagonalBoundaryColor, depthTest );
+        DrawLine( apex, baseCenter - diag0 * baseRadius, diagonalBoundaryColor, depthTest );
+        DrawLine( apex, baseCenter + diag1 * baseRadius, diagonalBoundaryColor, depthTest );
+        DrawLine( apex, baseCenter - diag1 * baseRadius, diagonalBoundaryColor, depthTest );
+
+        // Helpers for octagon rings
+        float3 bA   = baseCenter + perpA * baseRadius;
+        float3 bD0  = baseCenter + diag0 * baseRadius;
+        float3 bB   = baseCenter + perpB * baseRadius;
+        float3 bD1n = baseCenter - diag1 * baseRadius;
+        float3 bnA  = baseCenter - perpA * baseRadius;
+        float3 bnD0 = baseCenter - diag0 * baseRadius;
+        float3 bnB  = baseCenter - perpB * baseRadius;
+        float3 bD1  = baseCenter + diag1 * baseRadius;
+
+        // Base octagon ring
+        DrawLine( bA,   bD0,  ringColor, depthTest );
+        DrawLine( bD0,  bB,   ringColor, depthTest );
+        DrawLine( bB,   bD1n, ringColor, depthTest );
+        DrawLine( bD1n, bnA,  ringColor, depthTest );
+        DrawLine( bnA,  bnD0, ringColor, depthTest );
+        DrawLine( bnD0, bnB,  ringColor, depthTest );
+        DrawLine( bnB,  bD1,  ringColor, depthTest );
+        DrawLine( bD1,  bA,   ringColor, depthTest );
+
+        // Base diameter crosses
+        DrawLine( bA,   bnA,  crossColor, depthTest );
+        DrawLine( bB,   bnB,  crossColor, depthTest );
+        DrawLine( bD0,  bnD0, crossColor, depthTest );
+        DrawLine( bD1n, bD1,  crossColor, depthTest );
+
+        // Midpoint ring + crosses
+        float3 mA   = midCenter + perpA * midRadius;
+        float3 mD0  = midCenter + diag0 * midRadius;
+        float3 mB   = midCenter + perpB * midRadius;
+        float3 mD1n = midCenter - diag1 * midRadius;
+        float3 mnA  = midCenter - perpA * midRadius;
+        float3 mnD0 = midCenter - diag0 * midRadius;
+        float3 mnB  = midCenter - perpB * midRadius;
+        float3 mD1  = midCenter + diag1 * midRadius;
+
+        DrawLine( mA,   mD0,  ringColor, depthTest );
+        DrawLine( mD0,  mB,   ringColor, depthTest );
+        DrawLine( mB,   mD1n, ringColor, depthTest );
+        DrawLine( mD1n, mnA,  ringColor, depthTest );
+        DrawLine( mnA,  mnD0, ringColor, depthTest );
+        DrawLine( mnD0, mnB,  ringColor, depthTest );
+        DrawLine( mnB,  mD1,  ringColor, depthTest );
+        DrawLine( mD1,  mA,   ringColor, depthTest );
+
+        DrawLine( mA,   mnA,  crossColor, depthTest );
+        DrawLine( mB,   mnB,  crossColor, depthTest );
+        DrawLine( mD0,  mnD0, crossColor, depthTest );
+        DrawLine( mD1n, mD1,  crossColor, depthTest );
+        #endif
+    }
 };
 
 ShaderDebugDraw InitializeShaderDebugDraw( BufferHandle shaderDebugDrawBufferHandle )

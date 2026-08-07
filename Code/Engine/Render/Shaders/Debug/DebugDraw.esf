@@ -85,7 +85,6 @@ void MS_main(
 
     float   pixelSize = min( mainCameraRenderView.m_renderTargetSize.z, mainCameraRenderView.m_renderTargetSize.w );
     float   aspectRatio = mainCameraRenderView.m_renderTargetSize.y / mainCameraRenderView.m_renderTargetSize.x;
-    float   pickingDistanceClipSpace = RootCBV.m_pickingInput.z * pixelSize;
     
     uint    commandAddress = ( dispatchThreadID + resourceTable.m_commandsOffset ) * sizeof( DebugDrawCommand_Raw );
     uint    basePrimitiveIndex = groupThreadID * 2;

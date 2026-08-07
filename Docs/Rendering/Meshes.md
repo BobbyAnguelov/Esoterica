@@ -10,7 +10,9 @@ Vertex positions are encoded as 16-bit unsigned offsets from a per-cluster ancho
 
 Normals are stored as 16-bit signed normalized values.
 
-Position and normal compress into 6 16-bit values, bringing the static mesh vertex size down to 32 bytes and skeletal mesh vertex size to 64 bytes:
+We support up to 8 bone influences for skinned meshes, they are added dynamically in increments of 4. Each of them adds 32 bytes of data per vertex.
+
+Vertex data is allocated contiguosly, shaders receive a dynamic vertex stride value and load attributes dynamically.
 
 ```cpp
 struct MeshCluster final
@@ -44,9 +46,8 @@ struct StaticMeshVertex final
     Float3 GetNormal() const;
 };
 
-struct SkeletalMeshVertex final
+struct SkinningAttribute final
 {
-    StaticMeshVertex m_vertex;
     Int4             m_boneIndices;
     Float4           m_boneWeights;
 };

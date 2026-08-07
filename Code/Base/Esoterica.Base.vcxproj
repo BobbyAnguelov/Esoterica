@@ -32,6 +32,7 @@
     <ClInclude Include="Imgui\ImguiCommandStack.h" />
     <ClInclude Include="Imgui\ImguiFilteredCombo.h" />
     <ClInclude Include="Imgui\ImguiTextBuffer.h" />
+    <ClInclude Include="Imgui\ImguiTextureID.h" />
     <ClInclude Include="Imgui\ImguiXNotifications.h" />
     <ClInclude Include="Input\Input.h" />
     <ClInclude Include="Logging\LogCategory.h" />
@@ -49,6 +50,7 @@
     <ClInclude Include="ThirdParty\EA\eastl_Esoterica_TrackedAllocator.h" />
     <ClInclude Include="ThirdParty\lzav\lzav.h" />
     <ClInclude Include="ThirdParty\lzav\lzav_estoerica.h" />
+    <ClInclude Include="ThirdParty\mINI\ini.h" />
     <ClInclude Include="ThirdParty\rapidhash\rapidhash.h" />
     <ClInclude Include="Types\Path.h" />
     <ClInclude Include="Utils\CommandLineParser.h" />
@@ -456,8 +458,6 @@
     <ClInclude Include="ThirdParty\EA\EABase\include\Common\EABase\nullptr.h" />
     <ClInclude Include="ThirdParty\EA\EABase\include\Common\EABase\version.h" />
     <ClInclude Include="ThirdParty\EA\eastl_Esoterica.h" />
-    <ClInclude Include="ThirdParty\iniparser\dictionary.h" />
-    <ClInclude Include="ThirdParty\iniparser\iniparser.h" />
     <ClInclude Include="ThirdParty\pcg\include\pcg_extras.hpp" />
     <ClInclude Include="ThirdParty\pcg\include\pcg_random.hpp" />
     <ClInclude Include="ThirdParty\pcg\include\pcg_uint128.hpp" />
@@ -500,6 +500,7 @@
     <ClCompile Include="Fonts\Font_Roboto_Italic.cpp" />
     <ClCompile Include="Fonts\Font_Roboto_Regular.cpp" />
     <ClCompile Include="Imgui\ImguiCurveEditor.cpp" />
+    <ClCompile Include="Imgui\ImguiTextureID.cpp" />
     <ClCompile Include="Imgui\ImguiXNotifications.cpp" />
     <ClCompile Include="Input\InputDevice.cpp" />
     <ClCompile Include="Input\Input.cpp" />
@@ -517,6 +518,7 @@
     <ClCompile Include="Network\Servers\NetworkServer_GNS.cpp" />
     <ClCompile Include="Render\HandleAllocator.cpp" />
     <ClCompile Include="Settings\Settings.cpp" />
+    <ClCompile Include="ThirdParty\implot\implot_demo.cpp" />
     <ClCompile Include="ThirdParty\mpack\mpack_esoterica.cpp" />
     <ClCompile Include="TypeSystem\PropertyMetadata.cpp" />
     <ClCompile Include="Types\Severity.cpp" />
@@ -528,7 +530,6 @@
     <ClCompile Include="Serialization\XmlSerialization.cpp" />
     <ClCompile Include="Settings\SettingsRegistry.cpp" />
     <ClCompile Include="ThirdParty\implot\implot.cpp" />
-    <ClCompile Include="ThirdParty\implot\implot_demo.cpp" />
     <ClCompile Include="ThirdParty\implot\implot_items.cpp" />
     <ClCompile Include="ThirdParty\pugixml\src\pugixml.cpp" />
     <ClCompile Include="TypeSystem\TypeInstance.cpp" />
@@ -614,8 +615,6 @@
     <ClCompile Include="ThirdParty\stb\stb_Esoterica.cpp" />
     <ClCompile Include="Threading\TaskSystem.cpp" />
     <ClCompile Include="ThirdParty\EA\eastl_Esoterica.cpp" />
-    <ClCompile Include="ThirdParty\iniparser\dictionary.c" />
-    <ClCompile Include="ThirdParty\iniparser\iniparser.c" />
     <ClCompile Include="ThirdParty\rpmalloc\rpmalloc.c" />
     <ClCompile Include="ThirdParty\D3D12MemoryAllocator\Common.cpp" />
     <ClCompile Include="ThirdParty\D3D12MemoryAllocator\D3D12MemAlloc.cpp" />
@@ -650,7 +649,6 @@
     <Natvis Include="ThirdParty\pugixml\scripts\natvis\pugixml_compact.natvis" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="ThirdParty\iniparser\LICENSE" />
     <Text Include="ThirdParty\stb\LICENSE" />
   </ItemGroup>
   <ItemGroup>

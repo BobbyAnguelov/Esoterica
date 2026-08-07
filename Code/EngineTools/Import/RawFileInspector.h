@@ -40,7 +40,7 @@ namespace EE::Import
 
     public:
 
-        DataPath                    m_sourceFile;
+        DataPath                        m_sourceFile;
         StringID                        m_nameID;
     };
 
@@ -88,23 +88,13 @@ namespace EE::Import
         EE_REFLECT_TYPE( ImportableAnimation );
 
         virtual char const* GetHeading() const override { return EE_ICON_RUN" Animations"; }
-        virtual int32_t GetNumExtraInfoColumns() const override { return 3; }
+        virtual int32_t GetNumExtraInfoColumns() const override { return 1; }
 
         virtual char const* GetExtraInfoColumnName( int32_t columnIdx ) const override 
         {
             if ( columnIdx == 0 )
             {
-                return "Frames";
-            }
-
-            if ( columnIdx == 1 )
-            {
                 return "Duration";
-            }
-
-            if ( columnIdx == 2 )
-            {
-                return "FPS";
             }
 
             return "";
@@ -116,18 +106,7 @@ namespace EE::Import
 
             if ( columnIdx == 0 )
             {
-                float const numFrames = m_duration.ToFloat() * m_frameRate;
-                return str.sprintf( "%.2f", numFrames, m_duration.ToFloat(), m_frameRate );
-            }
-
-            if ( columnIdx == 1 )
-            {
-                return str.sprintf( "%.2f", m_duration.ToFloat() );
-            }
-
-            if ( columnIdx == 2 )
-            {
-                return str.sprintf( "%.2f", m_frameRate );
+                str.sprintf( "%.2f", m_duration.ToFloat() );
             }
 
             return str;
@@ -136,7 +115,6 @@ namespace EE::Import
     public:
 
         Seconds                         m_duration = 0.0f;
-        float                           m_frameRate = 0.0f;
     };
 
     //-------------------------------------------------------------------------

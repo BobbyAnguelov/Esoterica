@@ -20,9 +20,9 @@ namespace EE::Navmesh
     // Type Conversion
     //-------------------------------------------------------------------------
 
-    EE_FORCE_INLINE Float3 FromBfx( bfx::Vector3 const& v )
+    EE_FORCE_INLINE Vector FromBfx( bfx::Vector3 const& v )
     {
-        return Float3( v.m_x, v.m_y, v.m_z );
+        return Vector( v.m_x, v.m_y, v.m_z );
     }
 
     EE_FORCE_INLINE Quaternion FromBfx( bfx::Quaternion const& v )

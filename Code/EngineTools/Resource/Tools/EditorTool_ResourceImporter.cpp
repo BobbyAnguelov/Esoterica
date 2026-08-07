@@ -299,6 +299,8 @@ namespace EE::Resource
         bool const      m_restrictToSkeletalMeshes = false;
     };
 
+    //-------------------------------------------------------------------------
+
     class SkeletalMeshSettings : public MeshImportSettings
     {
     public:
@@ -317,6 +319,8 @@ namespace EE::Resource
         bool                                        m_setupMaterials = true;
     };
 
+    //-------------------------------------------------------------------------
+
     class StaticMeshSettings : public MeshImportSettings
     {
     public:
@@ -333,6 +337,8 @@ namespace EE::Resource
 
         Render::StaticMeshResourceDescriptor m_descriptor;
     };
+
+    //-------------------------------------------------------------------------
 
     class CollisionMeshSettings : public TImportSettings<Physics::PhysicsCollisionMeshResourceDescriptor>
     {
