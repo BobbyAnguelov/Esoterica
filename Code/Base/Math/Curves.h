@@ -42,7 +42,7 @@ namespace EE::Math
 
     public:
 
-        inline bool IsValid() const { return m_segments.empty(); }
+        inline bool IsValid() const { return !m_segments.empty(); }
 
         inline int32_t GetNumSegments() const { return int32_t( m_segments.size() ); }
 

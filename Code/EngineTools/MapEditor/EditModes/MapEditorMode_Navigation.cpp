@@ -158,6 +158,7 @@ namespace EE::Navmesh
 
     void NavigationMapEditorMode::DrawViewportOverlayElements( UpdateContext const& context, Viewport const* pViewport, bool isViewportHovered, bool isViewportFocused )
     {
+        #if EE_ENABLE_NAVPOWER
         if ( m_isInTestMode )
         {
             m_pEntityEditorContext->ClearSelection();
@@ -176,10 +177,12 @@ namespace EE::Navmesh
                 m_pathNeedsUpdate = true;
             }
         }
+        #endif
     }
 
     void NavigationMapEditorMode::DrawNavmeshTab( UpdateContext const& context, bool isFocused )
     {
+        #if EE_ENABLE_NAVPOWER
         EntityModel::EntityMap* pEditedMap = m_pEntityEditorContext->GetEditedMap();
         ResourceID const navmeshResourceID = NavmeshData::GetNavmeshResourceIDForMap( pEditedMap->GetMapResourceID() );
 
@@ -310,10 +313,14 @@ namespace EE::Navmesh
                 }
             }
         }
+        #else
+        ImGui::Text( "Requires Navpower" );
+        #endif
     }
 
     void NavigationMapEditorMode::DrawTesterTab( UpdateContext const& context, bool isFocused )
     {
+        #if EE_ENABLE_NAVPOWER
         if ( ImGui::Button( "Save to ini" ) )
         {
             SaveTestSettingsToIni();
@@ -365,6 +372,9 @@ namespace EE::Navmesh
         }
 
         m_pTestEntity->SetWorldTransform( pathTransform );
+        #else
+        ImGui::Text( "Requires Navpower" );
+        #endif
     }
 
     void NavigationMapEditorMode::UpdateAndDrawExtractBuildDataStage( UpdateContext const& context )
@@ -568,6 +578,7 @@ namespace EE::Navmesh
 
     void NavigationMapEditorMode::InitTester()
     {
+        #if EE_ENABLE_NAVPOWER
         auto pWorld = m_pEntityEditorContext->GetWorld();
         auto pTransientMap = pWorld->GetPersistentMap();
 
@@ -589,10 +600,12 @@ namespace EE::Navmesh
 
         m_isInTestMode = true;
         m_pathNeedsUpdate = true;
+        #endif
     }
 
     void NavigationMapEditorMode::ShutdownTester()
     {
+        #if EE_ENABLE_NAVPOWER
         EE_ASSERT( m_isInTestMode );
         EE_ASSERT( m_pTestEntity != nullptr && m_pTestMeshComponent != nullptr && m_pTestAnimComponent != nullptr );
 
@@ -603,6 +616,7 @@ namespace EE::Navmesh
         m_pTestMeshComponent = nullptr;
         m_pTestEntity = nullptr;
         m_isInTestMode = false;
+        #endif
     }
 
     void NavigationMapEditorMode::SaveTestSettingsToIni()

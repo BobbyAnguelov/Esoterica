@@ -72,7 +72,7 @@ namespace EE::Navmesh
             EE_ASSERT( m_pathPtr.GetSegmentType( 0 ) == bfx::SURFACE_SEGMENT );
             bfx::SurfaceSegment* pSegment = m_pathPtr.GetSurfaceSegment( 0 );
             m_start = FromBfx( pSegment->GetStartPos() );
-            m_end = FromBfx( pSegment->GetStartPos() );
+            m_end = FromBfx( pSegment->GetEndPos() );
             m_length = m_end.GetDistance3( m_start );
             m_smoothedPath.emplace_back( m_start, m_end );
             return;
@@ -219,7 +219,7 @@ namespace EE::Navmesh
                 // If we can successfully skip the intermediate point, check the elevation difference, if that is within the threshold remove the intermediate point
                 if ( bfx::IsStraightLineReachable( startPoint.m_pushedPoint, startPoint.m_pushedPointArea, endPoint.m_pushedPoint, endPoint.m_pushedPointArea, m_pathSpec ) )
                 {
-                    Vector const elevationChangeVector = ( Vector( 1, 0, points[i + 2].m_pushedPoint.m_z - points[i + 1].m_pushedPoint.m_z ) ).GetNormalized3();
+                    Vector const elevationChangeVector = ( Vector( 1, 0, points[j - 1].m_pushedPoint.m_z - points[j].m_pushedPoint.m_z ) ).GetNormalized3();
                     Radians const elevationChangeAngle = Math::CalculateAngleBetweenUnitVectors( Vector::UnitX, elevationChangeVector );
                     if ( elevationChangeAngle < s_angleThresholdRadians )
                     {
@@ -242,7 +242,7 @@ namespace EE::Navmesh
         // We are already at the goal
         if ( points.size() == 1 )
         {
-            m_smoothedPath.emplace_back( m_start, m_start );
+            m_smoothedPath.emplace_back( m_start, m_end );
         }
         // Simple straight line path
         else if ( points.size() == 2 )

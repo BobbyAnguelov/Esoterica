@@ -2,7 +2,7 @@
 
 ![Esoterica Logo](Docs/img/EE_Logo.png)
 
-[Esoterica Engine](https://www.esotericaengine.com) is an MIT licensed prototype game engine framework. It’s intended for use either as a proprietary engine starter pack, a technology demonstrator, an educational tool or an R&D framework. The goal of Esoterica is to provide a solid and robust starting point for folks that are looking to build their own tech or transition off of existing tech. It provides a lot of the boring and time consuming boilerplate systems (reflection, serialization, resource management, math, etc...) as well as a tool framework allowing people to rapidly build their own tool/editors.
+[Esoterica Engine](https://www.esotericaengine.com) is an MIT licensed prototype game engine framework. It's intended for use either as a proprietary engine starter pack, a technology demonstrator, an educational tool or an R&D framework. The goal of Esoterica is to provide a solid and robust starting point for folks that are looking to build their own tech or transition off of existing tech. It provides a lot of the boring and time consuming boilerplate systems (reflection, serialization, resource management, math, etc...) as well as a tool framework allowing people to rapidly build their own tool/editors.
 
 We need to be clear that Esoterica is NOT an off the shelf game engine that you can just take and work with. It is intended for technical teams that have the ability to extend and build upon it.
 
@@ -18,9 +18,9 @@ Esoterica is not a product and so there wont be any formal releases or versions.
 
 The level editing experience is intentionally barebones and rough. In our experience, level editing workflows and tools are incredibly subjective. There is no way to provide tools or workflows that will work for everyone. It will also go against the goal of Esoterica, which is to be a starting point for custom engine development. If a team wants to use Esoterica as a base we want to provide the simplest base for them to build whatever tooling they need for their team and their game.
 
-We are providing some tools in a more polished form like the animation tools and ragdoll editor. This is since we believe that this area is a significantly less subjective field as the problem is better defined and constrained. This makes it easier to build tooling and guide folks down a specific tooling path.
+We are providing some tools in a more polished form like the animation tools and ragdoll editor. This is because we believe that this area is a significantly less subjective field as the problem is better defined and constrained. This makes it easier to build tooling and guide folks down a specific tooling path.
 
-The import pipeline is currently a bit rough from a front-end experience, this is being iterated and played with atm to see if we can find a balance between simplicity and the relatively painful importing other engines provide.
+The import pipeline is currently a bit rough from a front-end experience, this is being iterated and played with currently to see if we can find a balance between simplicity and the relatively painful importing other engines provide.
 
 ## Documentation
 
@@ -48,7 +48,7 @@ More details can be found here: <https://www.esotericaengine.com/contribute>
 * Compiler based resource system with hot-reloading
 * Modern bindless DX12 renderer - <https://docs.esotericaengine.com>
 * Hybrid Actor/ECS object model - <https://www.youtube.com/watch?v=jjEsB611kxs>
-* AAA quality high performance animation system - <https://www.youtube.com/watch?v=R-T3Mk5oDHI&t=5427s> - Used in multiple shipped games.
+* AAA quality high performance animation system - <https://www.youtube.com/watch?v=R-T3Mk5oDHI> - Used in multiple shipped games.
 * Box3D integration and basic ragdoll tooling
 * Basic editor infrastructure and tooling using DearImgui
 
