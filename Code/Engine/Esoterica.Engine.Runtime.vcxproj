@@ -475,7 +475,6 @@
     <ClInclude Include="Imgui\ImguiOrientationGuide.h" />
     <ClInclude Include="Input\GameInput.h" />
     <ClInclude Include="Input\GameInputUpdaters.h" />
-    <ClInclude Include="Navmesh\Components\Component_NavmeshTester.h" />
     <ClInclude Include="Navmesh\Settings\ViewportSettings_Navmesh.h" />
     <ClInclude Include="Physics\Settings\ViewportSettings_Physics.h" />
     <ClInclude Include="Physics\Physics.h" />

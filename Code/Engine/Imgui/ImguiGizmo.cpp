@@ -1,7 +1,4 @@
 #include "ImguiGizmo.h"
-#include "Base/Imgui/ImguiX.h"
-#include "Base/Math/MathUtils.h"
-#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 
@@ -145,7 +142,6 @@ namespace EE::ImGuiX
             }
         }
 
-        CoordinateSpace const coordinateSpace = GetCoordinateSystemSpace();
         m_mode = newMode;
 
         //-------------------------------------------------------------------------
@@ -155,21 +151,18 @@ namespace EE::ImGuiX
             case Mode::Translation:
             {
                 m_translationGizmo.Reset();
-                m_translationGizmo.SetCoordinateSystemSpace( coordinateSpace );
             }
             break;
 
             case Mode::Rotation:
             {
                 m_rotationGizmo.Reset();
-                m_rotationGizmo.SetCoordinateSystemSpace( coordinateSpace );
             }
             break;
 
             case Mode::Scale:
             {
                 m_scaleGizmo.Reset();
-                m_scaleGizmo.SetCoordinateSystemSpace( coordinateSpace );
                 m_scaleGizmo.SetNonUniformScaleAllowed( m_options.IsFlagSet( Options::AllowNonUniformScale ) );
             }
             break;
@@ -189,33 +182,50 @@ namespace EE::ImGuiX
             return;
         }
 
-        //-------------------------------------------------------------------------
-
-        if ( GetCoordinateSystemSpace() == space )
-        {
-            return;
-        }
-
-        //-------------------------------------------------------------------------
-
-        m_translationGizmo.SetCoordinateSystemSpace( space );
-        m_rotationGizmo.SetCoordinateSystemSpace( space );
-        m_scaleGizmo.SetCoordinateSystemSpace( space );
+        m_coordinateSystemSpace = space;
     }
 
-    Gizmo::Result Gizmo::Draw( Vector const& positionWS, Quaternion const& orientationWS, Viewport const& viewport, char const* pOptionalLabel )
+    Gizmo::Result Gizmo::UpdateAndDraw( Vector const& positionWS, Quaternion const& orientationWS, Viewport const& viewport, bool checkHotkeys )
     {
         Result result;
         result.m_delta = Vector::Zero;
         result.m_deltaType = ResultDeltaType::None;
 
+        // Hotkeys
         //-------------------------------------------------------------------------
+
+        if ( checkHotkeys )
+        {
+            if ( ImGui::IsKeyPressed( ImGuiKey_W ) )
+            {
+                SetMode( Mode::Translation );
+            }
+            else if ( ImGui::IsKeyPressed( ImGuiKey_E ) )
+            {
+                SetMode( Mode::Rotation );
+            }
+            else if ( ImGui::IsKeyPressed( ImGuiKey_R ) )
+            {
+                SetMode( Mode::Scale );
+            }
+            if ( ImGui::IsKeyPressed( ImGuiKey_Space ) )
+            {
+                SwitchToNextMode();
+            }
+        }
+
+        // Individual Gizmos
+        //-------------------------------------------------------------------------
+
+        char const* const pOptionalLabel = m_optionalLabel.empty() ? nullptr : m_optionalLabel.c_str();
 
         switch ( m_mode )
         {
             case Mode::Translation:
             {
                 //m_translationGizmo.EnableDebug( true );
+
+                m_translationGizmo.SetCoordinateSystemSpace( m_coordinateSystemSpace );
                 result.m_state = m_translationGizmo.UpdateAndDraw( positionWS, orientationWS, viewport, pOptionalLabel );
                 if ( m_translationGizmo.IsManipulating() )
                 {
@@ -228,6 +238,8 @@ namespace EE::ImGuiX
             case Mode::Rotation:
             {
                 //m_rotationGizmo.EnableDebug( true );
+
+                m_rotationGizmo.SetCoordinateSystemSpace( m_coordinateSystemSpace );
                 result.m_state = m_rotationGizmo.UpdateAndDraw( positionWS, orientationWS, viewport, pOptionalLabel );
                 if ( m_rotationGizmo.IsManipulating() )
                 {
@@ -246,6 +258,7 @@ namespace EE::ImGuiX
             {
                 //m_scaleGizmo.EnableDebug( true );
 
+                m_scaleGizmo.SetCoordinateSystemSpace( CoordinateSpace::Local ); // Non-uniform scaling in world space is kinda weird...
                 m_scaleGizmo.SetNonUniformScaleAllowed( m_options.IsFlagSet( Options::AllowNonUniformScale ) );
                 result.m_state = m_scaleGizmo.UpdateAndDraw( positionWS, orientationWS, viewport, pOptionalLabel );
                 if ( m_scaleGizmo.IsManipulating() )

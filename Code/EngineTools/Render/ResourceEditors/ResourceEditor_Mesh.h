@@ -136,7 +136,7 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         TVector<int32_t>                m_selectedSubmeshes;
-        TVector<TPair<int32_t, bool>>   m_submeshVisibility;
+        TVector<int16_t>                m_hiddenSubmeshes;
         TVector<ResourcePicker*>        m_materialPickers;
 
         //-------------------------------------------------------------------------

@@ -1341,7 +1341,7 @@ namespace EE
             m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, true );
             m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, pSelectedShape->m_type != HitboxShape::Type::Sphere );
 
-            auto const gizmoResult = m_gizmo.Draw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport );
+            auto const gizmoResult = m_gizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, isFocused );
             switch ( gizmoResult.m_state )
             {
                 case ImGuiX::GizmoState::StartedManipulating:
@@ -1366,22 +1366,6 @@ namespace EE
 
                 default:
                 break;
-            }
-
-            if ( isFocused )
-            {
-                if ( ImGui::IsKeyPressed( ImGuiKey_Space ) )
-                {
-                    m_gizmo.SwitchToNextMode();
-                    if ( m_gizmo.GetMode() == ImGuiX::Gizmo::Mode::Scale )
-                    {
-                        m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
-                    }
-                    else
-                    {
-                        m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::World );
-                    }
-                }
             }
         }
         else

@@ -7,6 +7,16 @@ namespace EE::ImGuiX
 {
     Color const GizmoBase::Style::s_axisColors[3] = { Colors::Red, Colors::Lime, Colors::DodgerBlue };
 
+    void GizmoBase::Style::SetScale( float scale )
+    {
+        Reset();
+
+        m_originCircleRadius *= scale;
+        m_axisLength *= scale;
+        m_lineThickness *= scale;
+        m_axisAdditionalHoverBorder *= scale;
+    }
+
     //-------------------------------------------------------------------------
 
     GizmoState GizmoBase::UpdateAndDraw( Vector const& positionWS, Quaternion const& rotationWS, Viewport const& viewport, char const* pOptionalLabel )
@@ -83,14 +93,10 @@ namespace EE::ImGuiX
 
     float GizmoBase::PixelHeightToWorldHeight( Context const& ctx, Vector const& position, float pixelHeight )
     {
+        Math::ViewVolume const& viewVolume = ctx.m_viewport.GetViewVolume();
         float const percentageOfScreenY = pixelHeight / ctx.m_viewport.GetDimensions().m_y;
-        return percentageOfScreenY * ctx.m_viewport.GetViewVolume().GetViewForwardVector().GetDot3( position - ctx.m_viewport.GetViewPosition() );
-    }
-
-    float GizmoBase::PixelWidthToWorldHeight( Context const& ctx, Vector const& position, float pixelWidth )
-    {
-        float const percentageOfScreenX = pixelWidth / ctx.m_viewport.GetDimensions().m_x;
-        return percentageOfScreenX * ctx.m_viewport.GetViewVolume().GetViewForwardVector().GetDot3( position - ctx.m_viewport.GetViewPosition() );
+        float const depth = viewVolume.GetViewForwardVector().GetDot3( position - ctx.m_viewport.GetViewPosition() );
+        return percentageOfScreenY * depth * ( 2.0f * Math::Tan( viewVolume.GetVerticalFOV().ToFloat() * 0.5f ) );
     }
 }
 #endif

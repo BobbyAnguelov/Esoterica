@@ -36,28 +36,11 @@ namespace EE
 
         if ( pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_LAlt ) || pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_RAlt ) )
         {
-
             m_mode = Mode::Orbit;
         }
         else
         {
             m_mode = Mode::FreeLook;
-        }
-
-        // Speed Update
-        //-------------------------------------------------------------------------
-
-        if ( pKeyboardMouse->IsHeldDown( Input::InputID::Mouse_Button5 ) )
-        {
-            if ( pKeyboardMouse->WasReleased( Input::InputID::Mouse_Middle ) )
-            {
-                ResetMoveSpeed();
-            }
-            else
-            {
-                float const wheelDelta = pKeyboardMouse->GetValue( Input::InputID::Mouse_WheelVertical );
-                AdjustMoveSpeed( wheelDelta );
-            }
         }
 
         //-------------------------------------------------------------------------
@@ -81,43 +64,73 @@ namespace EE
         // Position update
         //-------------------------------------------------------------------------
 
-        bool const fwdButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_W );
-        bool const backButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_S );
-        bool const leftButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_A );
-        bool const rightButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_D );
-
-        bool const isModifierDown = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_LCtrl ) || pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_RCtrl );
-        bool const needsPositionUpdate = !isModifierDown && ( fwdButton || backButton || leftButton || rightButton );
-
-        if ( needsPositionUpdate )
+        bool const isMoveModifierDown = pKeyboardMouse->IsHeldDown( Input::InputID::Mouse_Right );
+        if ( isMoveModifierDown )
         {
-            float LR = 0;
-            if ( leftButton ) { LR -= 1.0f; }
-            if ( rightButton ) { LR += 1.0f; }
+            // Adjust move speed
+            //-------------------------------------------------------------------------
 
-            float FB = 0;
-            if ( fwdButton ) { FB += 1.0f; }
-            if ( backButton ) { FB -= 1.0f; }
+            if ( pKeyboardMouse->WasReleased( Input::InputID::Mouse_Button5 ) )
+            {
+                ResetMoveSpeed();
+            }
+            else
+            {
+                float const wheelDelta = pKeyboardMouse->GetValue( Input::InputID::Mouse_WheelVertical );
+                AdjustMoveSpeed( wheelDelta );
+            }
 
-            MoveCamera( deltaTime, FB, LR, 0.0f );
-        }
+            // Move
+            //-------------------------------------------------------------------------
 
-        // Orientation update
-        //-------------------------------------------------------------------------
+            bool const fwdButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_W );
+            bool const backButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_S );
+            bool const leftButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_A );
+            bool const rightButton = pKeyboardMouse->IsHeldDown( Input::InputID::Keyboard_D );
 
-        if ( pKeyboardMouse->IsHeldDown( Input::InputID::Mouse_Right ) )
-        {
+            bool const needsPositionUpdate = ( fwdButton || backButton || leftButton || rightButton );
+            if ( needsPositionUpdate )
+            {
+                float LR = 0;
+                if ( leftButton ) { LR -= 1.0f; }
+                if ( rightButton ) { LR += 1.0f; }
+
+                float FB = 0;
+                if ( fwdButton ) { FB += 1.0f; }
+                if ( backButton ) { FB -= 1.0f; }
+
+                MoveCamera( deltaTime, FB, LR, 0.0f );
+            }
+
+            // Orient Camera
+            //-------------------------------------------------------------------------
+
             Vector const mouseDelta( pKeyboardMouse->GetMouseDelta() );
             Float2 const directionDelta = ( mouseDelta.GetNegated() * g_mouseSensitivityOrientation ).ToFloat2();
             OrientCamera( deltaTime, directionDelta.m_x, directionDelta.m_y );
             m_bIsManipulatingView = true;
         }
-        else if ( pKeyboardMouse->IsHeldDown( Input::InputID::Mouse_Middle ) )
+        else
         {
-            Vector const mouseDelta( pKeyboardMouse->GetMouseDelta() );
-            Float2 const directionDelta = ( mouseDelta * g_mouseSensitivityPan ).ToFloat2();
-            PanCamera( deltaTime, -directionDelta.m_x, directionDelta.m_y );
-            m_bIsManipulatingView = true;
+            // Zoom (move forward/backward)
+            //-------------------------------------------------------------------------
+
+            float const wheelDelta = pKeyboardMouse->GetValue( Input::InputID::Mouse_WheelVertical );
+            if ( wheelDelta != 0 )
+            {
+                MoveCamera( deltaTime, m_defaultMoveSpeed * wheelDelta, false, 0.0f );
+            }
+
+            // Pan Camera
+            //-------------------------------------------------------------------------
+
+            if ( pKeyboardMouse->IsHeldDown( Input::InputID::Mouse_Middle ) )
+            {
+                Vector const mouseDelta( pKeyboardMouse->GetMouseDelta() );
+                Float2 const directionDelta = ( mouseDelta * g_mouseSensitivityPan ).ToFloat2();
+                PanCamera( deltaTime, -directionDelta.m_x, directionDelta.m_y );
+                m_bIsManipulatingView = true;
+            }
         }
     }
 

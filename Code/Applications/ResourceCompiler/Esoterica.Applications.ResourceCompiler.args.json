@@ -11,6 +11,10 @@
       "Command": "-compile data://characters/ash/ash.skelmesh"
     },
     {
+      "Id": "aeb2cdc2-fa34-4ba0-808f-5bd2683c8231",
+      "Command": "-compile data://demo/render/bistro_v5_2/resourcedescriptors/textures/foliage_ivy_branches_basecolor_dds.texture"
+    },
+    {
       "Id": "a50b90b3-ebb6-4959-8549-225ff0358857",
       "Command": "-compile data://characters/ash/ash.skelmesh"
     },

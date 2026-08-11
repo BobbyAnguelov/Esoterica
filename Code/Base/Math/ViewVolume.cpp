@@ -240,6 +240,7 @@ namespace EE::Math
 
     ViewVolume::ViewVolume( float viewWidth, float aspectRatio, FloatRange depthRange, Matrix const& worldMatrix )
         : m_viewWidth( viewWidth )
+        , m_idealAspectRatio( aspectRatio )
         , m_aspectRatio( aspectRatio )
         , m_depthRange( depthRange )
         , m_type( ProjectionType::Orthographic )
@@ -250,10 +251,10 @@ namespace EE::Math
     }
 
     ViewVolume::ViewVolume( float aspectRatio, FloatRange depthRange, Radians horizontalFOV, Matrix const& worldMatrix )
-        : m_aspectRatio( aspectRatio )
-        , m_horizontalFOV( horizontalFOV )
+        : m_idealAspectRatio( aspectRatio )
+        , m_aspectRatio( aspectRatio )
+        , m_idealHorizontalFOV( horizontalFOV )
         , m_depthRange( depthRange )
-        , m_type( ProjectionType::Perspective )
     {
         EE_ASSERT( IsValid() );
         CalculateProjectionMatrix();
@@ -262,6 +263,7 @@ namespace EE::Math
 
     ViewVolume::ViewVolume( float viewWidth, float aspectRatio, FloatRange depthRange, Transform const& worldMatrix )
         : m_viewWidth( viewWidth )
+        , m_idealAspectRatio( aspectRatio )
         , m_aspectRatio( aspectRatio )
         , m_depthRange( depthRange )
         , m_type( ProjectionType::Orthographic )
@@ -272,10 +274,10 @@ namespace EE::Math
     }
 
     ViewVolume::ViewVolume( float aspectRatio, FloatRange depthRange, Radians horizontalFOV, Transform const& worldMatrix )
-        : m_aspectRatio( aspectRatio )
-        , m_horizontalFOV( horizontalFOV )
+        : m_idealAspectRatio( aspectRatio )
+        , m_aspectRatio( aspectRatio )
+        , m_idealHorizontalFOV( horizontalFOV )
         , m_depthRange( depthRange )
-        , m_type( ProjectionType::Perspective )
     {
         EE_ASSERT( IsValid() );
         CalculateProjectionMatrix();
@@ -291,7 +293,7 @@ namespace EE::Math
 
         if ( m_type == ProjectionType::Perspective )
         {
-            if ( Math::IsNearZero( (float) m_horizontalFOV ) )
+            if ( Math::IsNearZero( (float) m_idealHorizontalFOV ) )
             {
                 return false;
             }
@@ -330,10 +332,11 @@ namespace EE::Math
         UpdateInternals();
     }
 
-    void ViewVolume::SetHorizontalFOV( Radians FOV )
+    void ViewVolume::SetHorizontalFOV( Radians FOV, float idealAspectRatio )
     {
         EE_ASSERT( IsPerspective() && FOV > 0.0f );
-        m_horizontalFOV = FOV;
+        m_idealAspectRatio = idealAspectRatio;
+        m_idealHorizontalFOV = FOV;
         CalculateProjectionMatrix();
         UpdateInternals();
     }
@@ -348,6 +351,22 @@ namespace EE::Math
         }
         else
         {
+            // Calculate scaled FOV
+            m_horizontalFOV = m_idealHorizontalFOV;
+            if ( m_idealAspectRatio != m_aspectRatio )
+            {
+                // Keep the diagonal FOV fixed
+                float const halfWidth = Math::Tan( m_idealHorizontalFOV.ToFloat() / 2 );
+                float const halfHeight = halfWidth / m_idealAspectRatio;
+                float const diagonal = Math::Sqrt( Math::Sqr( halfWidth ) + Math::Sqr( halfHeight ) );
+
+                float const horizontalScale = diagonal / Math::Sqrt( Math::Sqr( m_aspectRatio ) + 1.0f );
+                float const scaledHalfWidth = m_aspectRatio * horizontalScale;
+
+                m_horizontalFOV = Radians( 2.0f * Math::ATan( scaledHalfWidth ) );
+            }
+
+            // Calculate perspective projection
             Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_horizontalFOV );
             m_projectionMatrix = CreatePerspectiveProjectionMatrix( (float) verticalFOV, m_aspectRatio, m_depthRange.m_begin, m_depthRange.m_end );
         }
@@ -355,7 +374,7 @@ namespace EE::Math
 
     OBB ViewVolume::GetOBB() const
     {
-        Radians const halfFOV = ( m_horizontalFOV / 2 );
+        Radians const halfFOV = ( m_idealHorizontalFOV / 2 );
         float const   volumeDepth = m_depthRange.GetLength();
 
         float const  halfX = Math::Tan( halfFOV.ToFloat() ) * m_depthRange.m_end;
@@ -394,7 +413,7 @@ namespace EE::Math
         Vector const fwdDir = GetViewForwardVector();
         Vector const centerNear = Vector::MultiplyAdd( fwdDir, Vector( m_depthRange.m_begin ), viewPosition );
 
-        Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_horizontalFOV );
+        Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_idealHorizontalFOV );
         float e = Math::Tan( (float) verticalFOV * 0.5f );
 
         Float2 dimensions;
@@ -410,7 +429,7 @@ namespace EE::Math
         Vector const fwdDir = GetViewForwardVector();
         Vector const centerFar = Vector::MultiplyAdd( fwdDir, Vector( m_depthRange.m_end ), viewPosition );
 
-        Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_horizontalFOV );
+        Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_idealHorizontalFOV );
         float e = Math::Tan( (float) verticalFOV * 0.5f );
 
         Float2 dimensions;
@@ -459,7 +478,7 @@ namespace EE::Math
             Vector const centerFar = Vector::MultiplyAdd( fwdDir, Vector( m_depthRange.m_end ), viewPosition );
 
             // Get projected viewport extents on near/far planes
-            Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_horizontalFOV );
+            Radians const verticalFOV = ConvertHorizontalToVerticalFOV( m_aspectRatio, m_idealHorizontalFOV );
             float e = Math::Tan( (float) verticalFOV * 0.5f );
             float extentUpNear = e * m_depthRange.m_begin;
             float extentRightNear = extentUpNear * m_aspectRatio;

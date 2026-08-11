@@ -163,14 +163,14 @@ namespace EE::Navmesh
         {
             m_pEntityEditorContext->ClearSelection();
 
-            ImGuiX::Gizmo::Result const startResult = m_startGizmo.Draw( m_startTransform.GetTranslation(), m_startTransform.GetRotation(), *pViewport, "Start" );
+            ImGuiX::Gizmo::Result const startResult = m_startGizmo.UpdateAndDraw( m_startTransform.GetTranslation(), m_startTransform.GetRotation(), *pViewport, isViewportFocused );
             if ( startResult.IsManipulating() )
             {
                 startResult.ApplyResult( m_startTransform );
                 m_pathNeedsUpdate = true;
             }
 
-            ImGuiX::Gizmo::Result const endResult = m_endGizmo.Draw( m_endTransform.GetTranslation(), m_endTransform.GetRotation(), *pViewport, "End" );
+            ImGuiX::Gizmo::Result const endResult = m_endGizmo.UpdateAndDraw( m_endTransform.GetTranslation(), m_endTransform.GetRotation(), *pViewport, isViewportFocused );
             if ( !startResult.IsManipulating() && endResult.IsManipulating() )
             {
                 endResult.ApplyResult( m_endTransform );
@@ -597,6 +597,12 @@ namespace EE::Navmesh
         m_pTestEntity->AddComponent( m_pTestAnimComponent );
         m_pTestEntity->CreateSystem<Animation::AnimationSystem>();
         pTransientMap->AddEntity( m_pTestEntity );
+
+        m_startGizmo.SetLabel( "Start" );
+        m_startGizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
+
+        m_endGizmo.SetLabel( "End" );
+        m_endGizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
 
         m_isInTestMode = true;
         m_pathNeedsUpdate = true;

@@ -154,6 +154,7 @@
     <ClCompile Include="Import\RawFileInspector.cpp" />
     <ClCompile Include="Core\Tools\EditorTool_SystemLog.cpp" />
     <ClCompile Include="Render\BulkUpdateOperations\BulkUpdateOperation_Render.cpp" />
+    <ClCompile Include="Render\PropertyGrid\PropertyGrid_SubmeshSettings.cpp" />
     <ClCompile Include="Render\PropertyGrid\PropertyGrid_Mesh.cpp" />
     <ClCompile Include="Render\ResourceDescriptors\ResourceDescriptor_RenderMaterial.cpp" />
     <ClCompile Include="Render\ResourceDescriptors\ResourceDescriptor_RenderMesh.cpp" />

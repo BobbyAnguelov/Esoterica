@@ -1385,9 +1385,6 @@
     <ClInclude Include="Navmesh\Settings\ViewportSettings_Navmesh.h">
       <Filter>Navmesh\Settings</Filter>
     </ClInclude>
-    <ClInclude Include="Navmesh\Components\Component_NavmeshTester.h">
-      <Filter>Navmesh\Components</Filter>
-    </ClInclude>
     <ClInclude Include="Navmesh\Components\Component_Navmesh.h">
       <Filter>Navmesh\Components</Filter>
     </ClInclude>

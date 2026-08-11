@@ -2,7 +2,6 @@
 #include "Base/Imgui/ImguiStyle.h"
 #include "Base/Math/MathUtils.h"
 #include "Base/Math/Intersection.h"
-#include "EASTL/sort.h"
 
 //-------------------------------------------------------------------------
 
@@ -11,28 +10,17 @@ namespace EE::ImGuiX
 {
     void RotationGizmo::Style::SetScale( float scale )
     {
-        *this = RotationGizmo::Style();
+        GizmoBase::Style::SetScale( scale );
 
-        m_manipulatorRadius *= scale;
-        m_manipulatorThickness *= scale;
-        m_axisAdditionalHoverBorder *= scale;
-        m_originCircleRadius *= scale;
-        m_originCircleOffset *= scale;
-        m_hoverDetectionDistance *= scale;
-        m_screenManipulatorThickness *= scale;
-        m_screenManipulatorOffset *= scale;
-        m_screenManipulationLineOffset *= scale;
-        m_trackballDeadZone *= scale;
         m_axisManipulatorDeadZone *= scale;
+        m_trackballDeadZone *= scale;
     }
 
     //-------------------------------------------------------------------------
 
     void RotationGizmo::SetupManipulators( Context const& ctx )
     {
-        float const scaleX = PixelWidthToWorldHeight( ctx, ctx.m_positionWS, m_style.m_manipulatorRadius );
-        float const scaleY = PixelHeightToWorldHeight( ctx, ctx.m_positionWS, m_style.m_manipulatorRadius );
-        Vector const axesScale( Math::Min( scaleX, scaleY ) );
+        Vector const axesScale( PixelHeightToWorldHeight( ctx, ctx.m_positionWS, m_style.m_axisLength ) );
 
         Quaternion const manipulatorOrientationWS = IsManipulating() ? m_manipulationStartRotationWS : ctx.m_rotationWS;
 
@@ -124,30 +112,39 @@ namespace EE::ImGuiX
             }
         }
 
-
-        // Screen rotation
+        // Screen/Trackball rotation
         //-------------------------------------------------------------------------
 
         m_screenManipulator.m_color = Style::s_defaultColor;
         m_screenManipulator.m_isHovered = ( m_activeManipulator == Manipulator::RotateScreen );
 
+        m_trackballManipulator.m_color = Style::s_trackballColor;
+        m_trackballManipulator.m_isHovered = ( m_activeManipulator == Manipulator::RotateTrackball );
+
         m_screenManipulator.m_pointsSS.clear();
+        m_trackballManipulator.m_pointsSS.clear();
+
         int32_t const numPoints = Math::CeilingToInt32( Math::TwoPi / Style::s_minAngleRadiansBetweenPoints );
         float const deltaAngleRadians = Math::TwoPi / ( numPoints - 1 );
+        Vector const drawRotationAxis = ( ctx.m_viewport.GetViewPosition() - ctx.m_positionWS ).GetNormalized3();
         for ( int32_t p = 0; p < numPoints; p++ )
         {
             Radians const angle( deltaAngleRadians * p );
-            Quaternion const rot( ( ctx.m_viewport.GetViewPosition() - ctx.m_positionWS ).GetNormalized3(), angle );
-            Vector const pointWS = rot.RotateVector( Vector::WorldUp * axesScale * 1.1f ) + ctx.m_positionWS;
-            m_screenManipulator.m_pointsSS.emplace_back( ctx.m_viewport.WorldSpaceToScreenSpace( pointWS ) );
-            maxDistanceFromOriginSS = Math::Max( maxDistanceFromOriginSS, ctx.m_positionSS.GetDistance2( m_screenManipulator.m_pointsSS.back() ) );
+            Quaternion const rot( drawRotationAxis, angle );
+
+            {
+                Vector const pointWS = rot.RotateVector( Vector::WorldUp * axesScale * m_style.m_trackBallSizeMultiplier ) + ctx.m_positionWS;
+                m_trackballManipulator.m_pointsSS.emplace_back( ctx.m_viewport.WorldSpaceToScreenSpace( pointWS ) );
+                maxDistanceFromOriginSS = Math::Max( maxDistanceFromOriginSS, ctx.m_positionSS.GetDistance2( m_trackballManipulator.m_pointsSS.back() ) );
+            }
+            
+            {
+                Vector const pointWS = rot.RotateVector( Vector::WorldUp * axesScale * m_style.m_screenManipulatorSizeMultiplier ) + ctx.m_positionWS;
+                m_screenManipulator.m_pointsSS.emplace_back( ctx.m_viewport.WorldSpaceToScreenSpace( pointWS ) );
+                maxDistanceFromOriginSS = Math::Max( maxDistanceFromOriginSS, ctx.m_positionSS.GetDistance2( m_screenManipulator.m_pointsSS.back() ) );
+            }
         }
 
-        // Trackball rotation
-        //-------------------------------------------------------------------------
-
-        m_trackballManipulator.m_color = Style::s_trackballColor;
-        m_trackballManipulator.m_isHovered = ( m_activeManipulator == Manipulator::RotateTrackball );
         m_trackballManipulator.m_manipulationRadius = maxDistanceFromOriginSS;
     }
 
@@ -170,7 +167,7 @@ namespace EE::ImGuiX
                 {
                     LineSegment ls( manipulator.m_pointsSS[i - 1], manipulator.m_pointsSS[i] );
                     float const distance = ls.GetDistanceToPoint( ctx.m_mousePositionSS );
-                    if ( Math::Abs( distance ) < m_style.m_hoverDetectionDistance )
+                    if ( Math::Abs( distance ) < m_style.GetHoverDetectionDistance() )
                     {
                         manipulator.m_isHovered = true;
                         numHoveredAxes++;
@@ -207,7 +204,7 @@ namespace EE::ImGuiX
                 {
                     LineSegment ls( m_screenManipulator.m_pointsSS[i - 1], m_screenManipulator.m_pointsSS[i] );
                     float const distance = ls.GetDistanceToPoint( ctx.m_mousePositionSS );
-                    if ( Math::Abs( distance ) < m_style.m_hoverDetectionDistance )
+                    if ( Math::Abs( distance ) < m_style.GetHoverDetectionDistance() )
                     {
                         m_screenManipulator.m_isHovered = true;
                         m_isAnyManipulatorHovered = true;
@@ -221,10 +218,10 @@ namespace EE::ImGuiX
 
             if ( !m_isAnyManipulatorHovered )
             {
-                for ( int32_t i = 1; i < (int32_t) m_screenManipulator.m_pointsSS.size(); i++ )
+                for ( int32_t i = 1; i < (int32_t) m_trackballManipulator.m_pointsSS.size(); i++ )
                 {
                     Float3 result;
-                    if ( Math::CalculateBarycentricCoordinates( ctx.m_mousePositionSS, ctx.m_positionSS, m_screenManipulator.m_pointsSS[i - 1], m_screenManipulator.m_pointsSS[i], result ) )
+                    if ( Math::CalculateBarycentricCoordinates( ctx.m_mousePositionSS, ctx.m_positionSS, m_trackballManipulator.m_pointsSS[i - 1], m_trackballManipulator.m_pointsSS[i], result ) )
                     {
                         m_trackballManipulator.m_isHovered = true;
                         m_isAnyManipulatorHovered = true;
@@ -247,14 +244,14 @@ namespace EE::ImGuiX
             {
                 if ( m_activeManipulator != axis.m_manipulator )
                 {
-                    axis.m_color = axis.m_color.GetScaledColor( Style::s_dimColorScale );
+                    axis.m_color = axis.m_color.GetScaledColor( ImGuiX::Style::s_dimColorScale );
                 }
             }
             else // Not manipulating
             {
-                if ( !axis.m_isHovered )
+                if ( axis.m_isHovered )
                 {
-                    axis.m_color = axis.m_color.GetScaledColor( Style::s_dimColorScale );
+                    axis.m_color = axis.m_color.GetScaledColor( ImGuiX::Style::s_brightColorScale );
                 }
             }
         };
@@ -263,9 +260,9 @@ namespace EE::ImGuiX
         {
             if ( !IsManipulating() )
             {
-                if ( !manipulator.m_isHovered )
+                if ( manipulator.m_isHovered )
                 {
-                    manipulator.m_color = manipulator.m_color.GetScaledColor( Style::s_dimColorScale );
+                    manipulator.m_color = manipulator.m_color.GetScaledColor( ImGuiX::Style::s_brightColorScale );
                 }
             }
         };
@@ -274,9 +271,9 @@ namespace EE::ImGuiX
         {
             if ( !IsManipulating() )
             {
-                if ( !manipulator.m_isHovered )
+                if ( manipulator.m_isHovered )
                 {
-                    manipulator.m_color = manipulator.m_color.GetScaledColor( Style::s_dimColorScale );
+                    manipulator.m_color = manipulator.m_color.GetScaledColor( ImGuiX::Style::s_brightColorScale );
                 }
             }
         };
@@ -292,7 +289,8 @@ namespace EE::ImGuiX
 
         if ( m_activeManipulator == Manipulator::None || m_activeManipulator == Manipulator::RotateTrackball )
         {
-            pDrawList->AddConvexPolyFilled( m_screenManipulator.m_pointsSS.data(), (int32_t) m_screenManipulator.m_pointsSS.size(), m_trackballManipulator.m_color );
+            pDrawList->AddConvexPolyFilled( m_trackballManipulator.m_pointsSS.data(), (int32_t) m_trackballManipulator.m_pointsSS.size(), m_trackballManipulator.m_color );
+            pDrawList->AddPolyline( m_trackballManipulator.m_pointsSS.data(), (int32_t) m_trackballManipulator.m_pointsSS.size(), m_trackballManipulator.m_color, m_style.m_lineThickness );
 
             if ( IsManipulating() )
             {
@@ -311,7 +309,7 @@ namespace EE::ImGuiX
                 continue;
             }
 
-            pDrawList->AddPolyline( m_axes[d].m_pointsSS.data(), (int32_t) m_axes[d].m_pointsSS.size(), m_axes[d].m_color, m_style.m_manipulatorThickness );
+            pDrawList->AddPolyline( m_axes[d].m_pointsSS.data(), (int32_t) m_axes[d].m_pointsSS.size(), m_axes[d].m_color, m_style.m_lineThickness );
 
             if ( IsManipulating() )
             {
@@ -324,7 +322,7 @@ namespace EE::ImGuiX
 
         if ( m_activeManipulator == Manipulator::None || m_activeManipulator == Manipulator::RotateScreen )
         {
-            pDrawList->AddPolyline( m_screenManipulator.m_pointsSS.data(), (int32_t) m_screenManipulator.m_pointsSS.size(), m_screenManipulator.m_color, m_style.m_screenManipulatorThickness );
+            pDrawList->AddPolyline( m_screenManipulator.m_pointsSS.data(), (int32_t) m_screenManipulator.m_pointsSS.size(), m_screenManipulator.m_color, m_style.m_lineThickness );
 
             if ( IsManipulating() )
             {
@@ -408,7 +406,8 @@ namespace EE::ImGuiX
             if ( m_screenManipulator.m_isHovered )
             {
                 m_activeManipulator = Manipulator::RotateScreen;
-                m_rotationAxis = ctx.m_viewDirectionWS;
+                m_rotationAxis = ( ctx.m_positionWS - ctx.m_viewport.GetViewPosition() ).GetNormalized3();
+                m_rotationPlane = Plane::FromNormalAndPoint( m_rotationAxis, ctx.m_positionWS );
                 m_manipulationStartMousePositionSS = ctx.m_mousePositionSS;
                 m_manipulationStartRotationWS = ctx.m_rotationWS;
                 m_previousRotationAngle = 0.0f;
@@ -564,7 +563,7 @@ namespace EE::ImGuiX
         pDrawList->AddText( textPos, Colors::HotPink, str.c_str() );
     }
 
-    Vector RotationGizmo::ProjectScreenSpacePositionOntoRotationPlane( Context const& ctx, Vector const &positionSS )
+    Vector RotationGizmo::ProjectScreenSpacePositionOntoRotationPlane( Context const& ctx, Vector const &positionSS ) const
     {
         EE_ASSERT( IsManipulating() );
 
@@ -605,7 +604,7 @@ namespace EE::ImGuiX
         int32_t const numPoints = Math::CeilingToInt32( deltaAngle.ToFloat() / Style::s_minAngleRadiansBetweenPoints );
         Radians const stepAngle = deltaAngle / numPoints;
 
-        Vector const axesScale( PixelHeightToWorldHeight( ctx, ctx.m_positionWS, m_style.m_manipulatorRadius ) );
+        Vector const axesScale( PixelHeightToWorldHeight( ctx, ctx.m_positionWS, m_style.m_axisLength ) );
 
         if ( numPoints > 0 )
         {
@@ -648,11 +647,28 @@ namespace EE::ImGuiX
         Radians const deltaAngle = Math::CalculateAngleBetweenVectors( vRef, vEnd );
         int32_t const numPoints = Math::CeilingToInt32( deltaAngle.ToFloat() / Style::s_minAngleRadiansBetweenPoints );
         Radians const stepAngle = deltaAngle / numPoints;
-        Vector const rotationAxis = Math::IsVectorToTheLeft( vRef, vEnd ) ? -Vector::UnitZ : Vector::UnitZ;
+        Vector const rotationAxis = Math::IsVectorToTheLeft( vRef, vEnd ) ? -m_rotationAxis : m_rotationAxis;
+
+        Vector const vRefWS = ( ProjectScreenSpacePositionOntoRotationPlane( ctx, m_manipulationStartMousePositionSS ) - ctx.m_positionWS ).GetNormalized3();
+        Vector const axesScale( PixelHeightToWorldHeight( ctx, ctx.m_positionWS, m_style.m_axisLength ) );
+        Vector const startVector = vRefWS * m_style.m_trackBallSizeMultiplier * axesScale;
+
+        pDrawList->AddLine( ctx.m_positionSS, ctx.m_viewport.WorldSpaceToScreenSpace( ctx.m_positionWS + startVector ), m_screenManipulator.m_color, 1 );
 
         if ( numPoints > 0 )
         {
-            pDrawList->AddConvexPolyFilled( m_screenManipulator.m_pointsSS.data(), (int32_t) m_screenManipulator.m_pointsSS.size(), m_screenManipulator.m_color.GetAlphaVersion( 0.75f ) );
+            TInlineVector<ImVec2, 190> points;
+            points.emplace_back( ctx.m_positionSS );
+
+            for ( int32_t i = 0; i < numPoints; i++ )
+            {
+                Quaternion rot( rotationAxis, stepAngle * i );
+                Vector const vPoint = ctx.m_viewport.WorldSpaceToScreenSpace( ctx.m_positionWS + rot.RotateVector( startVector ) );
+                points.emplace_back( vPoint );
+            }
+
+            pDrawList->AddConvexPolyFilled( points.data(), (int32_t) points.size(), m_screenManipulator.m_color.GetAlphaVersion( 0.75f ) );
+            pDrawList->AddPolyline( m_screenManipulator.m_pointsSS.data(), (int32_t) m_screenManipulator.m_pointsSS.size(), m_screenManipulator.m_color, m_style.m_lineThickness );
         }
     }
 
@@ -662,7 +678,6 @@ namespace EE::ImGuiX
         {
             return;
         }
-
         // Nothing to draw
     }
 }

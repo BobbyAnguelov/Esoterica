@@ -289,34 +289,17 @@ namespace EE::Render
         skinningProxy = {};
     }
 
-    void DeviceRenderWorld::QueueMeshInstanceInitialize
-    (
-        uint32_t                           instanceID,
-        uint32_t                           rootInstanceID,
-        Mesh const*                        pMesh,
-        TArrayView<TResourcePtr<Material>> materialOverrides
-    )
+    void DeviceRenderWorld::QueueMeshInstanceInitialize( uint32_t instanceID, uint32_t rootInstanceID, Mesh const* pMesh, TInlineVector<Material const*, 50> const& resolvedMaterials )
     {
         EE_ASSERT( rootInstanceID != ~0U );
 
         MeshHandle const& meshHandle = pMesh->GetMeshHandle();
 
         uint32_t const numSubmeshes = uint32_t( pMesh->GetNumSubmeshes() );
+        EE_ASSERT( resolvedMaterials.size() == numSubmeshes );
         for ( uint32_t submeshIdx = 0; submeshIdx < numSubmeshes; ++submeshIdx )
         {
-            // Resolve material override
-            Material const* pMaterial = pMesh->GetMaterial( submeshIdx );
-
-            if ( submeshIdx < materialOverrides.size() )
-            {
-                TResourcePtr<Material> const& overrideMaterial = materialOverrides[submeshIdx];
-                if ( overrideMaterial.IsLoaded() )
-                {
-                    EE_ASSERT( overrideMaterial->IsValid() );
-                    pMaterial = overrideMaterial.GetPtr();
-                }
-            }
-
+            Material const* pMaterial = resolvedMaterials[submeshIdx];
             if ( pMaterial == nullptr )
             {
                 EE_LOG_ERROR( LogCategory::Render, "DeviceRenderWorld", "Failed to resolve material for mesh %s, reverting to placeholder", pMesh->GetResourceID().c_str() );

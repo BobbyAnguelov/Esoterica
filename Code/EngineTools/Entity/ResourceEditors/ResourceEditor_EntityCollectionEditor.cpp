@@ -142,17 +142,6 @@ namespace EE::EntityModel
 
         m_editorContext.Update( context );
 
-        // Handle input
-        //-------------------------------------------------------------------------
-
-        if ( m_isViewportFocused || m_isViewportHovered )
-        {
-            if ( ImGui::IsKeyPressed( ImGuiKey_Space ) )
-            {
-                m_gizmo.SwitchToNextMode();
-            }
-        }
-
         //-------------------------------------------------------------------------
 
         if ( m_drawGrid )
@@ -221,7 +210,7 @@ namespace EE::EntityModel
         }
 
         Transform const& selectionTransform = m_editorContext.GetSpatialSelectionTransform();
-        auto const gizmoResult = m_gizmo.Draw( selectionTransform.GetTranslation(), selectionTransform.GetRotation(), *pViewport );
+        auto const gizmoResult = m_gizmo.UpdateAndDraw( selectionTransform.GetTranslation(), selectionTransform.GetRotation(), *pViewport, m_isViewportFocused || m_isViewportHovered );
         switch ( gizmoResult.m_state )
         {
             case ImGuiX::GizmoState::StartedManipulating:

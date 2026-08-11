@@ -53,7 +53,7 @@ namespace EE::Render
         void DeallocatePointLight( LightInstanceProxy&& lightInstanceProxy );
         void DeallocateSpotLight( LightInstanceProxy&& lightInstanceProxy );
 
-        void QueueMeshInstanceInitialize( uint32_t instanceID, uint32_t rootInstanceID, Mesh const* pMesh, TArrayView<TResourcePtr<Material>> materialOverrides );
+        void QueueMeshInstanceInitialize( uint32_t instanceID, uint32_t rootInstanceID, Mesh const* pMesh, TInlineVector<Material const*, 50> const& resolvedMaterials );
 
         // TODO: This is 2 functions for stupid reasons, need to refactor.
         // WorldSystem_Render has a dumb circular dependency when queueing instance initialize commands

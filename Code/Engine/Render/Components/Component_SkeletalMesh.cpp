@@ -236,7 +236,7 @@ namespace EE::Render
             uint32_t( m_meshInstanceProxy.m_instanceHandle.m_offset ),
             uint32_t( m_meshInstanceRootProxy.m_instanceHandle.m_offset ),
             GetMesh(),
-            m_materialOverrides
+            GetResolvedMaterials()
         );
 
         m_meshInstanceRootProxy.WriteRootTransform( GetWorldTransform(), GetWorldNonUniformScale() );

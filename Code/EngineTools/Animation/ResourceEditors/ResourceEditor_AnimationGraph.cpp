@@ -1641,16 +1641,6 @@ namespace EE::Animation
 
                 //-------------------------------------------------------------------------
 
-                if ( m_isViewportFocused )
-                {
-                    if ( ImGui::IsKeyPressed( ImGuiKey_Space ) )
-                    {
-                        m_gizmo.SwitchToNextMode();
-                    }
-                }
-
-                //-------------------------------------------------------------------------
-
                 auto SetParameterValue = [this] ( Transform const& newTransform )
                 {
                     if ( IsDebugging() )
@@ -1666,7 +1656,7 @@ namespace EE::Animation
                     }
                 };
 
-                auto const gizmoResult = m_gizmo.Draw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport );
+                auto const gizmoResult = m_gizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, m_isViewportFocused );
                 switch ( gizmoResult.m_state )
                 {
                     case ImGuiX::GizmoState::StartedManipulating:

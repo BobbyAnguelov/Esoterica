@@ -17,21 +17,19 @@ namespace EE::ImGuiX
 
         public:
 
+            inline float GetAxisArrowLength() const { return m_axisArrowThickness * 3; }
+
             virtual void Reset() override { *this = TranslationGizmo::Style(); }
             virtual void SetScale( float scale ) override;
 
         public:
 
-            float                           m_originCircleRadius = 4.0f;
-            float                           m_axisLength = 75.0f;
-            float                           m_axisThickness = 3.0f;
             float                           m_axisArrowThickness = 6.0f;
-            float                           m_axisAdditionalHoverBorder = 8.0f;
+            
             float                           m_axisPlaneManipulatorOffsetRatio = 0.5f;
             float                           m_axisPlaneManipulatorWidthRatio = 0.2f;
             float                           m_axisPlaneManipulatorBorderThickness = 1.0f;
             float                           m_axisOffsetFromOrigin = m_originCircleRadius * 3;
-            float                           m_hoverDetectionDistance = m_axisThickness + m_axisAdditionalHoverBorder;
             float                           m_minimumRequiredAreaForPlaneManipulators = 100;
         };
 

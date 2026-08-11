@@ -16,6 +16,7 @@
 #include "Engine/Physics/Components/Component_PhysicsCollisionMesh.h"
 #include "Engine/Physics/PhysicsWorld.h"
 #include "Engine/Imgui/ImguiOrientationGuide.h"
+#include "Engine/Imgui/ImguiGizmo.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Imgui/ImguiTextureID.h"
 #include "Base/Resource/ResourceSystem.h"
@@ -48,6 +49,8 @@ namespace EE
 
         return pRenderWindow;
     }
+
+    //-------------------------------------------------------------------------
 
     EditorTool::EditorTool( ToolsContext const* pToolsContext, String const& displayName, EntityWorld* pWorld )
         : m_pToolsContext( pToolsContext )
@@ -552,6 +555,17 @@ namespace EE
         }
     }
 
+    void EditorTool::DrawHelpTextSeparator( char const* pLabel ) const
+    {
+        ImGui::TableNextRow();
+
+        ImGui::TableNextColumn();
+        ImGui::SeparatorText( pLabel );
+
+        ImGui::TableNextColumn();
+        ImGui::SeparatorText( "");
+    }
+
     void EditorTool::DrawHelpTextRow( char const* pLabel, char const* pText ) const
     {
         ImGui::TableNextRow();
@@ -812,6 +826,15 @@ namespace EE
             ImGui::MenuItem( "Orbit (when available)", "alt" );
             ImGui::MenuItem( "Speed Control", "mouse 5 + wheel" );
 
+            ImGui::SeparatorText( "Info" );
+
+            Math::ViewVolume const& viewVolume = m_pCamera->GetViewVolume();
+
+            ImGui::Text( "Horizontal FOV: %f", viewVolume.GetHorizontalFOV().ToDegrees().ToFloat() );
+            ImGui::Text( "Ideal Horizontal FOV: %f", viewVolume.GetIdealHorizontalFOV().ToDegrees().ToFloat() );
+            ImGui::Text( "Aspect Ratio: %f", viewVolume.GetAspectRatio() );
+            ImGui::Text( "Ideal Aspect Ratio: %f", viewVolume.GetIdealAspectRatio() );
+
             ImGui::SeparatorText( "Speed" );
 
             ImGui::AlignTextToFramePadding();
@@ -833,10 +856,12 @@ namespace EE
 
             ImGui::SeparatorText( "Transform" );
 
+            Transform const& cameraWorldTransform = m_pCamera->GetWorldTransform();
+
+            ImGuiX::DrawTransformNoScale( cameraWorldTransform );
+
             if ( ImGui::MenuItem( EE_ICON_CONTENT_COPY" Copy Camera Transform" ) )
             {
-                Transform const& cameraWorldTransform = m_pCamera->GetWorldTransform();
-
                 String cameraTransformStr;
                 if ( TypeSystem::Conversion::ConvertNativeTypeToString( *m_pToolsContext->m_pTypeRegistry, TypeSystem::GetCoreTypeID( TypeSystem::CoreTypeID::Transform ), TypeSystem::TypeID(), &cameraWorldTransform, cameraTransformStr ) )
                 {
@@ -848,10 +873,10 @@ namespace EE
             {
                 String const cameraTransformStr = ImGui::GetClipboardText();
 
-                Transform cameraWorldTransform;
-                if ( TypeSystem::Conversion::ConvertStringToNativeType( *m_pToolsContext->m_pTypeRegistry, TypeSystem::GetCoreTypeID( TypeSystem::CoreTypeID::Transform ), TypeSystem::TypeID(), cameraTransformStr, &cameraWorldTransform ) )
+                Transform newCameraWorldTransform;
+                if ( TypeSystem::Conversion::ConvertStringToNativeType( *m_pToolsContext->m_pTypeRegistry, TypeSystem::GetCoreTypeID( TypeSystem::CoreTypeID::Transform ), TypeSystem::TypeID(), cameraTransformStr, &newCameraWorldTransform ) )
                 {
-                    m_pCamera->SetCameraWorldTransform( cameraWorldTransform );
+                    m_pCamera->SetCameraWorldTransform( newCameraWorldTransform );
                 }
             }
 

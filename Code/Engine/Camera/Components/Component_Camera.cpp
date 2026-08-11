@@ -7,7 +7,7 @@ namespace EE
     void CameraComponent::Initialize()
     {
         SpatialEntityComponent::Initialize();
-        m_viewVolume = Math::ViewVolume::CreatePerspective( Math::ViewVolume::AspectRatio_4_3, m_depthRange, Radians( m_horizontalFOV ), GetWorldTransform().ToMatrix() );
+        m_viewVolume = Math::ViewVolume::CreatePerspective( Math::ViewVolume::AspectRatio_16_9, m_depthRange, Radians( m_horizontalFOV ), GetWorldTransform().ToMatrix() );
     }
 
     void CameraComponent::SwitchToOrthographic( float viewWidth )

@@ -149,6 +149,9 @@ namespace EE::EntityModel
                 m_pWorld->UnloadMap( m_loadedMap );
             }
 
+            // Shutdown edit mode
+            ClearEditMode();
+
             // Load map
             m_loadedMap = mapToLoad;
             m_editedMapID = m_pWorld->LoadMap( m_loadedMap );
@@ -260,10 +263,34 @@ namespace EE::EntityModel
 
     void MapEditor::DrawHelpMenu() const
     {
-        DrawHelpTextRow( "Switch Gizmo Mode", "Spacebar" );
+        DrawHelpTextSeparator( "Objects" );
+
         DrawHelpTextRow( "Multi Select", "Ctrl/Shift + Left Click" );
         DrawHelpTextRow( "Directly Select Component", "Alt + Left Click" );
         DrawHelpTextRow( "Duplicate Selected Entities", "Alt + translate" );
+
+        //-------------------------------------------------------------------------
+
+        DrawHelpTextSeparator( "Gizmo" );
+
+        DrawHelpTextRow( "Switch Gizmo Mode", "Spacebar" );
+        DrawHelpTextRow( "Translate", "W" );
+        DrawHelpTextRow( "Rotate", "E" );
+        DrawHelpTextRow( "Scale", "R" );
+
+        //-------------------------------------------------------------------------
+
+        DrawHelpTextSeparator( "Camera" );
+
+        DrawHelpTextRow( "Zoom", "Mouse Wheel" );
+
+        DrawHelpTextRow( "Free-Look", "Hold Right Mouse" );
+        DrawHelpTextRow( "Free-Look Move", "Hold Right Mouse + WASD" );
+        DrawHelpTextRow( "Free-Look Move Speed", "Hold Right Mouse + Mouse Wheel" );
+        DrawHelpTextRow( "Free-Look Reset Move Speed", "Hold Right Mouse + Mouse 5" );
+
+        DrawHelpTextRow( "Orbit", "Hold Right Mouse + Alt" );
+        DrawHelpTextRow( "Orbit Distance", "Right Mouse + Alt + Mouse Wheel" );
     }
 
     void MapEditor::DrawToolbar( UpdateContext const& context )
@@ -384,13 +411,13 @@ namespace EE::EntityModel
             // Draw selection bounds
             //-------------------------------------------------------------------------
 
-            drawingCtx.DrawWireBox( m_editorContext.GetSpatialSelectionCombinedBounds(), Colors::Yellow, 3.0f );
+            drawingCtx.DrawWireBox( m_editorContext.GetSpatialSelectionCombinedBounds(), Colors::Yellow, 1.0f, DebugDrawLayer::World );
 
             if ( m_editorContext.GetSpatialSelectionBounds().size() > 1 )
             {
                 for ( OBB const& bounds : m_editorContext.GetSpatialSelectionBounds() )
                 {
-                    drawingCtx.DrawWireBox( bounds, Colors::Cyan, 1.0f );
+                    drawingCtx.DrawWireBox( bounds, Colors::Cyan, 1.0f, DebugDrawLayer::World );
                 }
             }
 
@@ -402,8 +429,10 @@ namespace EE::EntityModel
                 m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, m_editorContext.DoesSpatialSelectionSupportNonUniformScale() );
             }
 
+            bool const checkGizmoHotkeys = ( m_isViewportFocused || m_isViewportHovered ) && !ImGui::IsKeyDown( ImGuiKey_MouseRight ) && m_editorContext.HasSpatialSelection();
+
             Transform const& selectionTransform = m_editorContext.GetSpatialSelectionTransform();
-            auto const gizmoResult = m_gizmo.Draw( selectionTransform.GetTranslation(), selectionTransform.GetRotation(), *pViewport );
+            auto const gizmoResult = m_gizmo.UpdateAndDraw( selectionTransform.GetTranslation(), selectionTransform.GetRotation(), *pViewport, checkGizmoHotkeys );
             switch ( gizmoResult.m_state )
             {
                 case ImGuiX::GizmoState::StartedManipulating:
@@ -545,17 +574,6 @@ namespace EE::EntityModel
     void MapEditor::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
         m_editorContext.Update( context );
-
-        // Handle input
-        //-------------------------------------------------------------------------
-
-        if ( ( m_isViewportFocused || m_isViewportHovered ) && m_editorContext.HasSpatialSelection() )
-        {
-            if ( ImGui::IsKeyPressed( ImGuiKey_Space ) )
-            {
-                m_gizmo.SwitchToNextMode();
-            }
-        }
     }
 
     //-------------------------------------------------------------------------

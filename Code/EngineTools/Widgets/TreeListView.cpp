@@ -915,8 +915,55 @@ namespace EE
             return false;
         }
 
-        // Start Selection
+        // Multi-selection
         //-------------------------------------------------------------------------
+
+        auto ApplySelectionRequests = [this] ( ImGuiMultiSelectIO* pMSIO )
+        {
+            for ( ImGuiSelectionRequest const& req : pMSIO->Requests )
+            {
+                if ( req.Type == ImGuiSelectionRequestType_SetAll )
+                {
+                    // If we need to select all then just update the selection state for all unselected items
+                    if ( req.Selected )
+                    {
+                        m_selection.clear();
+
+                        for ( auto& vi : m_visualTree )
+                        {
+                            m_selection.emplace_back( vi.m_pItem );
+
+                            if ( !vi.m_pItem->m_isSelected )
+                            {
+                                vi.m_pItem->m_isSelected = true;
+                                vi.m_pItem->OnSelectionStateChanged();
+                            }
+                        }
+                    }
+                    else // Just clear the selection
+                    {
+                        ClearSelection();
+                    }
+                }
+                else if ( req.Type == ImGuiSelectionRequestType_SetRange )
+                {
+                    if ( req.Selected )
+                    {
+                        for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
+                        {
+                            AddToSelectionInternal( m_visualTree[i].m_pItem, false );
+                        }
+                    }
+                    else
+                    {
+                        for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
+                        {
+                            RemoveFromSelectionInternal( m_visualTree[i].m_pItem, false );
+                        }
+                    }
+                }
+            }
+        };
 
         TVector<TreeListViewItem*> previousSelection = m_selection;
 
@@ -925,9 +972,6 @@ namespace EE
         {
             selectionFlags |= ImGuiMultiSelectFlags_SingleSelect;
         }
-
-        int32_t const numVisualItems = (int32_t) m_visualTree.size();
-        ImGuiMultiSelectIO* msIO = ImGui::BeginMultiSelect( selectionFlags, -1, numVisualItems );
 
         // Draw table
         //-------------------------------------------------------------------------
@@ -948,11 +992,25 @@ namespace EE
         ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 2, 2 ) );
         if ( ImGui::BeginTable( "TreeViewTable", context.m_numExtraColumns + 1, tableFlags, ImVec2( ImGui::GetContentRegionAvail().x, -1 ) ) )
         {
+            // Row setup
+            //-------------------------------------------------------------------------
+
             ImGui::TableSetupColumn( "Label", ImGuiTableColumnFlags_WidthStretch );
+
             if ( context.m_setupExtraColumnHeadersFunction != nullptr )
             {
                 context.m_setupExtraColumnHeadersFunction();
             }
+
+            // Selection
+            //-------------------------------------------------------------------------
+
+            int32_t const numVisualItems = (int32_t) m_visualTree.size();
+            ImGuiMultiSelectIO* pMSIO = ImGui::BeginMultiSelect( selectionFlags, -1, numVisualItems );
+            ApplySelectionRequests( pMSIO );
+
+            // Draw contents
+            //-------------------------------------------------------------------------
 
             m_isDrawingTree = true;
 
@@ -983,59 +1041,18 @@ namespace EE
             }
             m_isDrawingTree = false;
 
+            // Selection
+            //-------------------------------------------------------------------------
+
+            pMSIO = ImGui::EndMultiSelect();
+            ApplySelectionRequests( pMSIO );
+
+            //-------------------------------------------------------------------------
+
             ImGui::EndTable();
         }
         ImGui::PopStyleVar();
         ImGui::PopID();
-
-        // Handle selection requests
-        //-------------------------------------------------------------------------
-
-        msIO = ImGui::EndMultiSelect();
-
-        for ( ImGuiSelectionRequest const& req : msIO->Requests )
-        {
-            if ( req.Type == ImGuiSelectionRequestType_SetAll )
-            {
-                // If we need to select all then just update the selection state for all unselected items
-                if ( req.Selected )
-                {
-                    m_selection.clear();
-
-                    for ( auto& vi : m_visualTree )
-                    {
-                        m_selection.emplace_back( vi.m_pItem );
-
-                        if ( !vi.m_pItem->m_isSelected )
-                        {
-                            vi.m_pItem->m_isSelected = true;
-                            vi.m_pItem->OnSelectionStateChanged();
-                        }
-                    }
-                }
-                else // Just clear the selection
-                {
-                    ClearSelection();
-                }
-            }
-            else if ( req.Type == ImGuiSelectionRequestType_SetRange )
-            {
-                if ( req.Selected )
-                {
-                    for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
-                    {
-                        AddToSelectionInternal( m_visualTree[i].m_pItem, false );
-                    }
-                }
-                else
-                {
-                    for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
-                    {
-                        RemoveFromSelectionInternal( m_visualTree[i].m_pItem, false );
-                    }
-                }
-            }
-        }
 
         // Handle input
         //-------------------------------------------------------------------------

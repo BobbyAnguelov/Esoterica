@@ -768,7 +768,7 @@ namespace EE::Animation
         {
             GraphTimeInfo graphTimeInfo;
             graphTimeInfo.m_baseUpdateRange = SyncTrackTimeRange( initTime );
-            RecordGraphState( RecordedUpdateType::Reset, graphTimeInfo, m_graphContext.m_worldTransform );
+            RecordGraphState( RecordedUpdateType::Reset, 0.0f, graphTimeInfo, m_graphContext.m_worldTransform );
         }
         #endif
 
@@ -821,14 +821,18 @@ namespace EE::Animation
 
             if ( m_pRecording->m_timeStepRecordingCount > GraphRecording::s_fullStateRecordingInterval )
             {
-                RecordGraphState( RecordedUpdateType::FullState, GraphTimeInfo(), startWorldTransform );
+                RecordGraphState( RecordedUpdateType::FullState, deltaTime, GraphTimeInfo(), startWorldTransform );
                 m_pRecording->m_timeStepRecordingCount = 0;
                 m_externalGraphStateChanged = false;
             }
             else if ( m_externalGraphStateChanged )
             {
-                RecordGraphState( RecordedUpdateType::ExternalGraphChanged, GraphTimeInfo(), startWorldTransform );
+                RecordGraphState( RecordedUpdateType::ExternalGraphChanged, deltaTime, GraphTimeInfo(), startWorldTransform );
                 m_externalGraphStateChanged = false;
+            }
+            else // Just record the timestep data
+            {
+                RecordPreGraphEvaluateState( RecordedUpdateType::TimeStep, deltaTime, startWorldTransform );
             }
         }
 
@@ -836,10 +840,6 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         m_graphContext.m_activeNodes.clear();
-
-        #if EE_DEVELOPMENT_TOOLS
-        RecordPreGraphEvaluateState( deltaTime, startWorldTransform );
-        #endif
 
         if ( m_isStandaloneGraphInstance )
         {
@@ -978,12 +978,9 @@ namespace EE::Animation
         m_pRecording->m_graphID = m_pGraphDefinition->GetResourceID();
         m_pRecording->m_variationID = m_pGraphDefinition->m_variationID;
 
-        // Record initial state
         //-------------------------------------------------------------------------
 
-        RecordGraphState( RecordedUpdateType::FullState, GraphTimeInfo(), m_graphContext.m_worldTransform );
-        pRecording->m_timeStepRecordingCount = 0;
-
+        m_pRecording->m_timeStepRecordingCount = GraphRecording::s_fullStateRecordingInterval;
     }
 
     void GraphInstance::StopRecording()
@@ -992,7 +989,7 @@ namespace EE::Animation
         m_pRecording = nullptr;
     }
 
-    void GraphInstance::RecordPreGraphEvaluateState( Seconds const deltaTime, Transform const& startWorldTransform )
+    void GraphInstance::RecordPreGraphEvaluateState( RecordedUpdateType updateType, Seconds const deltaTime, Transform const& startWorldTransform )
     {
         if ( m_pRecording == nullptr )
         {
@@ -1005,7 +1002,6 @@ namespace EE::Animation
         {
             outData.m_deltaTime = flDeltaTime;
             outData.m_characterWorldTransform = startWorldTransform;
-            outData.m_updateType = RecordedUpdateType::TimeStep;
 
             // Record control parameter values
             for ( auto i = 0; i < pInstance->GetNumControlParameters(); i++ )
@@ -1055,46 +1051,75 @@ namespace EE::Animation
             outData.m_updateRange.m_startTime = pInstance->m_pRootNode->GetSyncTrack().GetTime( pInstance->m_pRootNode->GetCurrentTime() );
         };
 
-        // Record time delta and world transform
-        RecordedGraphUpdateData *pUpdateData = m_pRecording->CreateUpdateData();
-        RecordGraphData( this, deltaTime, startWorldTransform, *pUpdateData );
-
-        // Record all external pose nodes
+        // Get the update data that we want to record into
         //-------------------------------------------------------------------------
 
-        for ( auto const &ep : m_pGraphDefinition->m_externalPoseSlots )
+        RecordedGraphUpdateData *pUpdateData = nullptr;
+
+        // Timestep
+        if ( updateType == RecordedUpdateType::TimeStep )
         {
-            auto pExternalPoseNode = reinterpret_cast<ExternalPoseNode *>( m_nodes[ep.m_nodeIdx] );
-            if ( pExternalPoseNode->IsPoseSet() )
-            {
-                /*RecordedExternalPoseData *pEPD = pUpdateData->CreateExternalPoseData();
-                pEPD->m_externalPoseNodeIdx = ep.m_nodeIdx;
-                pEPD->m_slotID = ep.m_slotID;
+            pUpdateData = m_pRecording->CreateUpdateData();
+            pUpdateData->m_updateType = RecordedUpdateType::TimeStep;
+        }
+        else // External/Reset/Full - so reuse the last created update as we have recorded the full graph state
+        {
+            EE_ASSERT( !m_pRecording->m_recordedUpdateData.empty() );
+            EE_ASSERT( m_pRecording->m_recordedUpdateData.back()->m_updateType != RecordedUpdateType::Unknown );
 
-                pEPD->m_clipResourceID0 = ( pExternalPoseNode->m_poseData.m_pClip0 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip0->GetResourceID() : ResourceID();
-                pEPD->m_startTime0 = pExternalPoseNode->m_poseData.m_startTime0;
-                pEPD->m_endTime0 = pExternalPoseNode->m_poseData.m_endTime0;
-
-                pEPD->m_clipResourceID1 = ( pExternalPoseNode->m_poseData.m_pClip1 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip1->GetResourceID() : ResourceID();
-                pEPD->m_startTime1 = pExternalPoseNode->m_poseData.m_startTime1;
-                pEPD->m_endTime1 = pExternalPoseNode->m_poseData.m_endTime1;
-
-                pEPD->m_blendWeight = pExternalPoseNode->m_poseData.m_blendWeight;*/
-            }
+            pUpdateData = m_pRecording->m_recordedUpdateData.back();
+            EE_ASSERT( pUpdateData->m_updateType == updateType );
         }
 
-        // Record all external graphs
+        EE_ASSERT( pUpdateData != nullptr );
+
+        // Record time delta and world transform
         //-------------------------------------------------------------------------
 
-        for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+        RecordGraphData( this, deltaTime, startWorldTransform, *pUpdateData );
+
+        // Record all external data
+        //-------------------------------------------------------------------------
+
+        if ( updateType == RecordedUpdateType::TimeStep )
         {
-            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode*>( m_nodes[eg.m_nodeIdx] );
-            if ( pReferencedGraphNode->HasInstance() )
+            // Record all external pose nodes
+            //-------------------------------------------------------------------------
+
+            for ( auto const &ep : m_pGraphDefinition->m_externalPoseSlots )
             {
-                RecordedExternalGraphData *pEGD = pUpdateData->CreateExternalGraphData();
-                pEGD->m_externalGraphNodeIdx = eg.m_nodeIdx;
-                pEGD->m_graphResourceID = pReferencedGraphNode->m_pGraphInstance->GetGraphDefinition()->GetResourceID();
-                RecordGraphData( pReferencedGraphNode->m_pGraphInstance, deltaTime, startWorldTransform, pEGD->m_updateData );
+                auto pExternalPoseNode = reinterpret_cast<ExternalPoseNode *>( m_nodes[ep.m_nodeIdx] );
+                if ( pExternalPoseNode->IsPoseSet() )
+                {
+                    /*RecordedExternalPoseData *pEPD = pUpdateData->CreateExternalPoseData();
+                    pEPD->m_externalPoseNodeIdx = ep.m_nodeIdx;
+                    pEPD->m_slotID = ep.m_slotID;
+
+                    pEPD->m_clipResourceID0 = ( pExternalPoseNode->m_poseData.m_pClip0 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip0->GetResourceID() : ResourceID();
+                    pEPD->m_startTime0 = pExternalPoseNode->m_poseData.m_startTime0;
+                    pEPD->m_endTime0 = pExternalPoseNode->m_poseData.m_endTime0;
+
+                    pEPD->m_clipResourceID1 = ( pExternalPoseNode->m_poseData.m_pClip1 != nullptr ) ? pExternalPoseNode->m_poseData.m_pClip1->GetResourceID() : ResourceID();
+                    pEPD->m_startTime1 = pExternalPoseNode->m_poseData.m_startTime1;
+                    pEPD->m_endTime1 = pExternalPoseNode->m_poseData.m_endTime1;
+
+                    pEPD->m_blendWeight = pExternalPoseNode->m_poseData.m_blendWeight;*/
+                }
+            }
+
+            // Record all external graphs
+            //-------------------------------------------------------------------------
+
+            for ( auto const &eg : m_pGraphDefinition->m_externalGraphSlots )
+            {
+                auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode*>( m_nodes[eg.m_nodeIdx] );
+                if ( pReferencedGraphNode->HasInstance() )
+                {
+                    RecordedExternalGraphData *pEGD = pUpdateData->CreateExternalGraphData();
+                    pEGD->m_externalGraphNodeIdx = eg.m_nodeIdx;
+                    pEGD->m_graphResourceID = pReferencedGraphNode->m_pGraphInstance->GetGraphDefinition()->GetResourceID();
+                    RecordGraphData( pReferencedGraphNode->m_pGraphInstance, deltaTime, startWorldTransform, pEGD->m_updateData );
+                }
             }
         }
     }
@@ -1165,7 +1190,7 @@ namespace EE::Animation
         RecordGraphNodeState( recordedState );
     }
 
-    void GraphInstance::RecordGraphState( RecordedUpdateType updateType, GraphTimeInfo const &timingInfo, Transform const& worldTransform )
+    void GraphInstance::RecordGraphState( RecordedUpdateType updateType, Seconds deltaTime, GraphTimeInfo const &timingInfo, Transform const& worldTransform )
     {
         EE_ASSERT( m_pRecording != nullptr );
         EE_ASSERT( updateType != RecordedUpdateType::Unknown && updateType != RecordedUpdateType::TimeStep );
@@ -1227,6 +1252,11 @@ namespace EE::Animation
                 pReferencedGraphNode->m_pGraphInstance->RecordGraphNodeState( *pGraphState );
             }
         }
+
+        // Record Pre-evaluate state
+        //-------------------------------------------------------------------------
+
+        RecordPreGraphEvaluateState( updateType, deltaTime, worldTransform );
     }
 
     void GraphInstance::RecordGraphNodeState( RecordedGraphState &recordedState )
@@ -1283,10 +1313,7 @@ namespace EE::Animation
         // Should we update parameters
         //-------------------------------------------------------------------------
 
-        if ( updateData.m_updateType == RecordedUpdateType::TimeStep )
-        {
-            RestoreRecordedGraphParameters( updateData );
-        }
+        RestoreRecordedGraphParameters( updateData );
 
         return true;
     }

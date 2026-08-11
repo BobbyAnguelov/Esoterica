@@ -455,6 +455,7 @@
     <ClCompile Include="Resource\Dialogs\EditorDialog_FileSystemAction.cpp" />
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TimeControlledAnimationClip.cpp" />
     <ClCompile Include="Core\Tools\EditorTool_SystemSettings.cpp" />
+    <ClCompile Include="Render\PropertyGrid\PropertyGrid_SubmeshSettings.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation\AnimationClipBrowser.h">

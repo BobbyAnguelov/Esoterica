@@ -52,6 +52,9 @@ namespace EE::Resource
         // Button Row
         //-------------------------------------------------------------------------
 
+        constinit static char const* buttonLabels[] = { "Import", "Import As" };
+        float const buttonWidth = Math::Max( ImGuiX::CalculateButtonWidth( buttonLabels[0] ), ImGuiX::CalculateButtonWidth( buttonLabels[1] ) ) + 32;
+
         bool wasDescriptorSuccessfullyCreated = false;
 
         ResourceDescriptor const* pDescriptor = GetDataFile();
@@ -59,7 +62,7 @@ namespace EE::Resource
         FileSystem::Path const defaultDescriptorFilePath = m_defaultDescriptorResourcePath.IsValid() ? m_defaultDescriptorResourcePath.GetFileSystemPath( m_pToolsContext->GetSourceDataDirectory() ) : FileSystem::Path();
 
         ImGui::BeginDisabled( !pDescriptor->IsValid() || !defaultDescriptorFilePath.IsValid() || defaultDescriptorFilePath.Exists() );
-        if ( ImGuiX::IconButtonColored(  EE_ICON_FILE_IMPORT, "Import", Colors::Green, Colors::White, Colors::White, ImVec2( 100, 0 ) ) )
+        if ( ImGuiX::IconButtonColored(  EE_ICON_FILE_IMPORT, buttonLabels[0], Colors::Green, Colors::White, Colors::White, ImVec2( buttonWidth, 0 ) ) )
         {
             if ( TrySaveDescriptorToDisk( defaultDescriptorFilePath ) )
             {
@@ -72,7 +75,7 @@ namespace EE::Resource
         ImGui::SameLine();
 
         ImGui::BeginDisabled( !pDescriptor->IsValid() || !m_defaultDescriptorResourcePath.IsValid() );
-        if ( ImGuiX::IconButtonColored( EE_ICON_FILE_IMPORT, "Import As", Colors::Green, Colors::White, Colors::White, ImVec2( 100, 0 ) ) )
+        if ( ImGuiX::IconButtonColored( EE_ICON_FILE_IMPORT, buttonLabels[1], Colors::Green, Colors::White, Colors::White, ImVec2( buttonWidth, 0 ) ) )
         {
             FileSystem::Path userSpecifiedDescriptorFilePath;
             if ( TryGetUserSpecifiedDescriptorPath( userSpecifiedDescriptorFilePath ) )

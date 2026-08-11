@@ -8,20 +8,20 @@
 
 namespace EE::Animation
 {
-    TwoBoneIKTask::TwoBoneIKTask( int8_t sourceTaskIdx, int32_t effectorBoneIdx, bool isTargetInWorldSpace, Target const& effectorTarget, IKBlendMode blendMode, float blendWeight, float referencePoseTwistWeight )
+    TwoBoneIKTask::TwoBoneIKTask( int8_t sourceTaskIdx, int32_t effectorBoneIdx, bool isTargetInWorldSpace, Target const& effectorTarget, IKBlendMode blendMode, float blendWeight, float chainRotationWeight )
         : PoseTask( TaskUpdateStage::Any, { sourceTaskIdx } )
         , m_effectorBoneIdx( effectorBoneIdx )
-        , m_referencePoseTwistWeight( referencePoseTwistWeight )
-        , m_target( effectorTarget )
+        , m_effectorTarget( effectorTarget )
         , m_blendMode( blendMode )
         , m_blendWeight( Math::Clamp( blendWeight, 0.0f, 1.0f ) )
         , m_isTargetInWorldSpace( isTargetInWorldSpace )
+        , m_chainRotationWeight( chainRotationWeight )
     {
         EE_ASSERT( sourceTaskIdx != InvalidIndex );
         EE_ASSERT( m_effectorBoneIdx != InvalidIndex );
-        EE_ASSERT( m_target.IsTargetSet() );
+        EE_ASSERT( m_effectorTarget.IsTargetSet() );
         EE_ASSERT( blendWeight > 0.0f && blendWeight <= 1.0f ); // Dont register an IK task with zero weight!
-        EE_ASSERT( m_referencePoseTwistWeight >= 0.0f && m_referencePoseTwistWeight <= 1.0f );
+        EE_ASSERT( m_chainRotationWeight >= 0.0f && m_chainRotationWeight <= 1.0f );
     }
 
     void TwoBoneIKTask::Execute( TaskContext const& context )
@@ -39,20 +39,24 @@ namespace EE::Animation
 
         if ( !m_isRunningFromDeserializedData )
         {
-            bool const bResult = m_target.TryGetTransform( pPose, m_targetTransform );
+            bool const bResult = m_effectorTarget.TryGetTransform( pPose, m_targetTransform );
             EE_ASSERT( bResult );
 
             // Get the effector index
-            if ( m_target.IsBoneTarget() )
+            if ( m_effectorTarget.IsBoneTarget() )
             {
-                m_targetBoneIdx = pSkeleton->GetBoneIndex( m_target.GetBoneID() );
+                m_targetBoneIdx = pSkeleton->GetBoneIndex( m_effectorTarget.GetBoneID() );
             }
 
             // Convert to character space
-            if ( !m_target.IsBoneTarget() && m_isTargetInWorldSpace )
+            if ( !m_effectorTarget.IsBoneTarget() && m_isTargetInWorldSpace )
             {
                 m_targetTransform = m_targetTransform * context.m_worldTransformInverse;
             }
+
+            // Check whether we need to fallback to loose precision
+            float const lengthSq = m_targetTransform.GetTranslation().GetLengthSquared3();
+            m_precision = GetPrecisionForDistanceSq( lengthSq );
         }
         else // Running with deserialized data
         {
@@ -66,7 +70,7 @@ namespace EE::Animation
         // Perform solve
         //-------------------------------------------------------------------------
 
-        TwoBoneSolver::Solve( *pPose, m_effectorBoneIdx, m_targetTransform, m_referencePoseTwistWeight, m_blendMode, m_blendWeight );
+        TwoBoneSolver::Solve( *pPose, m_effectorBoneIdx, m_targetTransform, m_chainRotationWeight, m_blendMode, m_blendWeight );
 
         MarkTaskComplete( context );
     }
@@ -80,7 +84,7 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         // Optimization for pure bone targets
-        if ( m_target.IsBoneTarget() && !m_target.HasOffsets() && m_targetBoneIdx != InvalidIndex )
+        if ( m_effectorTarget.IsBoneTarget() && !m_effectorTarget.HasOffsets() && m_targetBoneIdx != InvalidIndex )
         {
             serializer.WriteBool( true );
             serializer.WriteBoneIndex( m_targetBoneIdx );
@@ -88,13 +92,14 @@ namespace EE::Animation
         else
         {
             serializer.WriteBool( false );
+            serializer.WriteUInt( (uint8_t) m_precision, 2 );
             serializer.WriteRotation( m_targetTransform.GetRotation() );
-            serializer.WriteQuantizedTranslationForIK( m_targetTransform.GetTranslation(), s_quantizationRangeForTranslation );
+            serializer.WriteQuantizedTranslationForIK( m_targetTransform.GetTranslation(), GetQuantizationRange( m_precision ) );
         }
 
         //-------------------------------------------------------------------------
 
-        serializer.WriteNormalizedFloat8Bit( m_referencePoseTwistWeight );
+        serializer.WriteNormalizedFloat8Bit( m_chainRotationWeight );
 
         bool const hasBlendWeight = m_blendWeight != 1.0f;
         serializer.WriteBool( hasBlendWeight );
@@ -116,16 +121,18 @@ namespace EE::Animation
         {
             m_targetBoneIdx = serializer.ReadBoneIndex();
         }
-        else
+        else // Not a bone target
         {
+            m_precision = (Precision_t) serializer.ReadUInt( 2 );
+
             Quaternion const q = serializer.ReadRotation();
-            Vector const t = serializer.ReadQuantizedTranslationForIK( s_quantizationRangeForTranslation );
+            Vector const t = serializer.ReadQuantizedTranslationForIK( GetQuantizationRange( m_precision ) );
             m_targetTransform = Transform( q, t );
         }
 
         //-------------------------------------------------------------------------
 
-        m_referencePoseTwistWeight = serializer.ReadNormalizedFloat8Bit();
+        m_chainRotationWeight = serializer.ReadNormalizedFloat8Bit();
 
         bool const hasBlendWeight = serializer.ReadBool();
         if ( hasBlendWeight )

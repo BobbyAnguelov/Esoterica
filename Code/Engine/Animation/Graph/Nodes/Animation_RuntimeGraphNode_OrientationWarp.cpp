@@ -120,22 +120,38 @@ namespace EE::Animation
         RootMotionData const& originalRootMotion = pAnimation->GetRootMotion();
         EE_ASSERT( originalRootMotion.IsValid() );
 
-        Vector postWarpOriginalDirCS = originalRootMotion.m_transforms.back().GetTranslation() - originalRootMotion.GetTransform( FrameTime( warpEndFrame ) ).GetTranslation();
+        auto pNodeDefinition = GetDefinition<OrientationWarpNode>();
 
-        // If we dont have a valid direction just use the end orientation
-        if ( postWarpOriginalDirCS.IsNearZero3() )
+        Vector postWarpOriginalDirCS = Vector::Zero;
+
+        if ( pNodeDefinition->m_alignmentMode == AlignmentMode::MovementDirection )
         {
-            postWarpOriginalDirCS = originalRootMotion.back().GetRotation().RotateVector( Vector::WorldForward );
+            // Calculate the delta of the remaining root motion post warp, this is the section that we are going to be aligning to the new direction
+            postWarpOriginalDirCS = originalRootMotion.m_transforms.back().GetTranslation() - originalRootMotion.GetTransform( FrameTime( warpEndFrame ) ).GetTranslation();
+
+            // If we dont have a valid direction just use the end orientation
+            if ( postWarpOriginalDirCS.IsNearZero3() )
+            {
+                postWarpOriginalDirCS = originalRootMotion.back().GetRotation().RotateVector( Vector::WorldForward );
+            }
+            else
+            {
+                postWarpOriginalDirCS.Normalize2();
+            }
+        }
+        else if ( pNodeDefinition->m_alignmentMode == AlignmentMode::CharacterForward )
+        {
+            postWarpOriginalDirCS = originalRootMotion.m_transforms.back().GetRotation().RotateVector( Vector::WorldForward );
         }
         else
         {
-            postWarpOriginalDirCS.Normalize2();
+            EE_UNREACHABLE_CODE();
         }
 
         // Calculate the target direction we need to align to
+        EE_ASSERT( !postWarpOriginalDirCS.IsZero3() );
         Vector targetDirCS;
 
-        auto pNodeDefinition = GetDefinition<OrientationWarpNode>();
         if ( pNodeDefinition->m_isOffsetNode )
         {
             Radians const offset = m_pTargetValueNode->GetValue<float>( context ) * Math::DegreesToRadians;

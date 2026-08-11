@@ -26,15 +26,26 @@ namespace EE::ImGuiX
     protected:
 
         struct Style
-        {
+        { 
             static Color const s_axisColors[3];
 
         public:
 
             virtual ~Style() = default;
             virtual void Reset() = 0;
-            virtual void SetScale( float scale ) = 0;
+            virtual void SetScale( float scale );
+
+            inline float GetHoverDetectionDistance() const { return m_lineThickness + m_axisAdditionalHoverBorder; }
+
+        public:
+
+            float                           m_originCircleRadius = 4.0f;
+            float                           m_axisLength = 100.0f;
+            float                           m_lineThickness = 3.0f;
+            float                           m_axisAdditionalHoverBorder = 8.0f;
         };
+
+        //-------------------------------------------------------------------------
 
         struct Context
         {
@@ -84,7 +95,6 @@ namespace EE::ImGuiX
 
         float GetPixelLength( Context const& ctx, Vector const startWS, Vector const endWS );
         float PixelHeightToWorldHeight( Context const& ctx, Vector const& position, float pixelHeight );
-        float PixelWidthToWorldHeight( Context const& ctx, Vector const& position, float pixelWidth );
 
     protected:
 

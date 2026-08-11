@@ -21,6 +21,55 @@ namespace EE::Render
 
     public:
 
+        struct EE_ENGINE_API MaterialOverride : public IReflectedType
+        {
+            EE_REFLECT_TYPE( MaterialOverride );
+
+            MaterialOverride() = default;
+
+            MaterialOverride( int16_t submeshIdx, ResourceID const& materialID = ResourceID() )
+                : m_submeshIdx( submeshIdx )
+                , m_material( materialID )
+            {}
+
+            inline bool operator==( MaterialOverride const& rhs ) const
+            {
+                return m_submeshIdx == rhs.m_submeshIdx && m_material == rhs.m_material;
+            }
+
+        public:
+
+            EE_REFLECT();
+            int16_t                                 m_submeshIdx = InvalidIndex;
+
+            EE_REFLECT();
+            TResourcePtr<Material>                  m_material;
+        };
+
+        //-------------------------------------------------------------------------
+
+        struct EE_ENGINE_API SubmeshSettings : public IReflectedType
+        {
+            EE_REFLECT_TYPE( SubmeshSettings );
+
+            inline void Clear() { m_hiddenSubmeshes.clear(); m_materialOverrides.clear(); }
+
+            MaterialOverride* GetMaterialOverride( int16_t submeshIdx );
+            inline MaterialOverride const* GetMaterialOverride( int16_t submeshIdx ) const { return const_cast<SubmeshSettings*>( this )->GetMaterialOverride( submeshIdx ); }
+
+            bool operator==( SubmeshSettings const& rhs ) const;
+
+        public:
+
+            EE_REFLECT();
+            TVector<int16_t>                        m_hiddenSubmeshes;
+
+            EE_REFLECT( ShowAsStaticArray );
+            TVector<MaterialOverride>               m_materialOverrides;
+        };
+
+    public:
+
         inline MeshComponent() = default;
         inline MeshComponent( StringID name ) : SpatialEntityComponent( name ) {}
 
@@ -52,38 +101,34 @@ namespace EE::Render
         void SetVisible( bool visible );
 
         // Is a given submesh visible?
-        bool IsSubmeshVisible( int32_t submeshIdx ) const;
-
-        // Set all submesh visibility
-        void SetAllSubmeshVisibility( bool isVisible );
+        bool IsSubmeshVisible( int16_t submeshIdx ) const { return !VectorContains( m_submeshSettings.m_hiddenSubmeshes, submeshIdx ); }
 
         // Set an individual instances visibility
-        void SetSubmeshVisibility( int32_t submeshIdx, bool isVisible );
+        void SetSubmeshVisibility( int16_t submeshIdx, bool isVisible );
 
-        // Set visibility for several sections
-        void SetSubmeshVisibility( TVector<TPair<int32_t, bool>> const& visibility ) { SetSubmeshVisibility( visibility.data(), visibility.size() ); }
-
-        // Set visibility for several sections
-        template<size_t N>
-        void SetSubmeshVisibility( TInlineVector<TPair<int32_t, bool>, N> const& visibility ) { SetSubmeshVisibility( visibility.data(), visibility.size() ); }
+        // Bulk set submesh visibility
+        void SetSubmeshVisibility( TVector<int16_t> const& hiddenSubmeshes );
 
         // Materials
         //-------------------------------------------------------------------------
 
         // Do we have a material override set for a submesh
-        bool IsMaterialOverriden( int32_t submeshIdx ) const;
+        bool IsMaterialOverridden( int16_t submeshIdx ) const;
 
         // Get the material override for a given submesh
-        Material const* GetMaterialOverride( int32_t submeshIdx ) const;
+        Material const* GetMaterialOverride( int16_t submeshIdx ) const;
 
         // Get the material override resourceID for a submesh - returns invalid resource ID if not set
-        ResourceID GetMaterialOverrideResourceID( int32_t submeshIdx ) const;
+        ResourceID GetMaterialOverrideResourceID( int16_t submeshIdx ) const;
 
         // Set a material override for a submesh
-        void SetMaterialOverride( int32_t submeshIdx, ResourceID const& materialResourceID );
+        void SetMaterialOverride( int16_t submeshIdx, ResourceID const& materialResourceID );
 
         // Clear all material overrides
         void ClearMaterialOverrides();
+
+        // Get the final set of material for the loaded mesh
+        TInlineVector<Material const*, 50> GetResolvedMaterials() const;
 
         // LOD
         //-------------------------------------------------------------------------
@@ -105,26 +150,23 @@ namespace EE::Render
         uint32_t ComputeInstanceDataSizeInBytes( Mesh const* pMeshResource ) const;
         void WriteInstanceData( Mesh const* pMeshResource, HandleAllocator<uint32_t>::Handle meshInstanceHandle, HandleAllocator<uint32_t>::Handle bonesHandle, TArrayView<uint32_t> bufferData_WriteCombined ) const;
 
-        void SetSubmeshVisibility( TPair<int32_t, bool> const* pData, size_t size );
+        void ValidateAndFixSubmeshSettings();
 
     protected:
 
         EE_REFLECT();
         bool                                    m_componentHidden = false;
 
-        EE_REFLECT();
-        TVector<bool>                           m_submeshesHidden;
-
-        EE_REFLECT( ShowAsStaticArray );
-        TVector<TResourcePtr<Material>>         m_materialOverrides;
-
-        EE_REFLECT();
+        EE_REFLECT( Category = "Mesh" );
         TBitFlags<ViewLayer>                    m_viewLayers = TBitFlags<ViewLayer>( ViewLayer::ShadowMap, ViewLayer::ForwardShading );
 
-        EE_REFLECT();
+        EE_REFLECT( Category = "Mesh" );
         int32_t                                 m_forcedMinLOD = -1;
 
-        EE_REFLECT();
+        EE_REFLECT( Category = "Mesh" );
         int32_t                                 m_forcedLOD = -1;
+
+        EE_REFLECT( Category = "Submeshes" );
+        SubmeshSettings                         m_submeshSettings;
     };
 }

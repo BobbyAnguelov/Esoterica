@@ -1,6 +1,5 @@
 #include "Animation_ToolsGraphNode_OrientationWarp.h"
 #include "EngineTools/Animation/ToolsGraph/Animation_ToolsGraph_Compilation.h"
-#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_OrientationWarp.h"
 
 //-------------------------------------------------------------------------
 
@@ -91,6 +90,7 @@ namespace EE::Animation
 
             pDefinition->m_isOffsetRelativeToCharacter = ( m_offsetType == OffsetType::RelativeToCharacter );
             pDefinition->m_samplingMode = m_samplingMode;
+            pDefinition->m_alignmentMode = m_alignmentMode;
         }
         return pDefinition->m_nodeIdx;
     }

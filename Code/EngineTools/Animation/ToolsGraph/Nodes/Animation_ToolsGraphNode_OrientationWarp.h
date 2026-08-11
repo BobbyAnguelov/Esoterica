@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Animation_ToolsGraphNode.h"
-#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_TargetWarp.h"
+#include "Engine/Animation/Graph/Nodes/Animation_RuntimeGraphNode_OrientationWarp.h"
 
 //-------------------------------------------------------------------------
 
@@ -32,9 +32,16 @@ namespace EE::Animation
     private:
 
         // The coordinate space of the supplied offset
-        EE_REFLECT() OffsetType                        m_offsetType = OffsetType::RelativeToCharacter;
+        EE_REFLECT();
+        OffsetType                          m_offsetType = OffsetType::RelativeToCharacter;
 
         // The sampling mode for the warped motion
-        EE_REFLECT() RootMotionData::SamplingMode      m_samplingMode = RootMotionData::SamplingMode::WorldSpace;
+        EE_REFLECT();
+        RootMotionData::SamplingMode        m_samplingMode = RootMotionData::SamplingMode::WorldSpace;
+
+        // The direction that gets aligned to the desired direction.
+        EE_REFLECT();
+        OrientationWarpNode::AlignmentMode  m_alignmentMode = OrientationWarpNode::AlignmentMode::MovementDirection;
+
     };
 }

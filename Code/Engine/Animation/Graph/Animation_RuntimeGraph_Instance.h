@@ -520,11 +520,11 @@ namespace EE::Animation
         // Get the current active layer states
         void GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges ) const;
 
-        void RecordPreGraphEvaluateState( Seconds const deltaTime, Transform const& startWorldTransform );
+        void RecordPreGraphEvaluateState( RecordedUpdateType updateType, Seconds deltaTime, Transform const& startWorldTransform );
 
         void RecordPostGraphEvaluateState( SyncTrackTimeRange const* pRange );
 
-        void RecordGraphState( RecordedUpdateType updateType, GraphTimeInfo const& timingInfo, Transform const& worldTransform );
+        void RecordGraphState( RecordedUpdateType updateType, Seconds deltaTime, GraphTimeInfo const& timingInfo, Transform const& worldTransform );
 
         void RecordGraphNodeState( RecordedGraphState &recordedState );
 

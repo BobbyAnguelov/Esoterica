@@ -1067,7 +1067,7 @@ namespace EE::Resource
                         {
                             ImGui::AlignTextToFramePadding();
                             ImGui::SetNextItemWidth( -1 );
-                            ImGui::InputText( "##ID", const_cast<char*>( path.c_str() ), path.GetString().length(), ImGuiInputTextFlags_ReadOnly );
+                            ImGui::InputText( "##ID", const_cast<char*>( path.c_str() ), path.GetString().length() + 1, ImGuiInputTextFlags_ReadOnly );
                         }
 
                         ImGui::TableNextColumn();

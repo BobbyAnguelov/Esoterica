@@ -221,6 +221,12 @@ namespace EE::ImGuiX
                 continue;
             }
 
+            // HACK!!!! - TODO: fix this properly so we dont spawn 12 million toasts
+            if ( i > 10 )
+            {
+                continue;
+            }
+
             // Preparation
             //-------------------------------------------------------------------------
 

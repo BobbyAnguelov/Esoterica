@@ -33,7 +33,7 @@ namespace EE::Math
 
     public:
 
-        constexpr static float const AspectRatio_4_3 = 4.0f / 3.0f;
+        constexpr static float const AspectRatio_16_9 = 16.0f / 9.0f;
 
         enum class PlaneID
         {
@@ -133,11 +133,26 @@ namespace EE::Math
         // Set the depth range in world units
         void SetDepthRange( FloatRange depthRange );
 
-        // Get the aspect ratio (Horizontal/Vertical)
+        // Aspect Ratio and FOV
+        //-------------------------------------------------------------------------
+
+        // Set the actual view aspect ratio (Horizontal/Vertical)
         void SetAspectRatio( float aspectRatio );
 
-        // Set the horizontal FOV
-        void SetHorizontalFOV( Radians FOV );
+        // Get the current aspect ratio
+        inline float GetAspectRatio() const { return m_aspectRatio; }
+
+        // Get the ideal aspect ratio (this is used for FOV scaling)
+        inline float GetIdealAspectRatio() const { return m_idealAspectRatio; }
+
+        // Set the desired horizontal FOV, and the aspect ratio that the FOV is based on as the view-volume will scale the FOV based on the actual aspect ratio
+        void SetHorizontalFOV( Radians FOV, float idealAspectRatio = AspectRatio_16_9 );
+
+        // Get the horizontal FOV for this view volume
+        inline Radians GetHorizontalFOV() const { EE_ASSERT( IsPerspective() ); return m_horizontalFOV; }
+
+        // Get the horizontal FOV for this view volume (this is used for FOV scaling)
+        inline Radians GetIdealHorizontalFOV() const { EE_ASSERT( IsPerspective() ); return m_idealHorizontalFOV; }
 
         // Projection Info
         //-------------------------------------------------------------------------
@@ -146,10 +161,6 @@ namespace EE::Math
         inline bool IsOrthographic() const { return m_type == ProjectionType::Orthographic; }
 
         inline FloatRange GetDepthRange() const { return m_depthRange; }
-        inline float GetAspectRatio() const { return m_aspectRatio; }
-
-        // Get the horizontal FOV for this view volume
-        inline Radians GetHorizontalFOV() const { EE_ASSERT( IsPerspective() ); return m_horizontalFOV; }
 
         // Get the vertical FOV for this view volume
         Radians GetVerticalFOV() const;
@@ -236,8 +247,10 @@ namespace EE::Math
         Plane           m_viewPlanes[6];                        // Cached view planes for this volume
 
         float           m_viewWidth = 1.0f;                     // Only relevant for orthographic projections
-        float           m_aspectRatio = AspectRatio_4_3;
-        Radians         m_horizontalFOV = Radians( 0.0f );      // The horizontal field of view angle (only for perspective projection)
+        float           m_idealAspectRatio = AspectRatio_16_9;  // The aspect ratio that we base our FOV on
+        float           m_aspectRatio = AspectRatio_16_9;       // The current aspect ratio of the view (ideally this will match the ideal aspect ratio)
+        Radians         m_idealHorizontalFOV = Radians( 0.0f ); // The horizontal field of view angle (only for perspective projection)
+        Radians         m_horizontalFOV = Radians( 0.0f );      // The scaled FOV based on the horizontal FOV (only relevant if the FOV mode is scaled)
         FloatRange      m_depthRange = FloatRange( 0 );         // The distance from the volume origin of the near/far planes ( X = near plane, Y = far plane )
         ProjectionType  m_type = ProjectionType::Perspective;   // The projection type
     };

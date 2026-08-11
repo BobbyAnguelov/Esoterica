@@ -15,7 +15,7 @@ namespace EE::Animation
         struct EE_ENGINE_API Definition final : public PassthroughNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PassthroughNode::Definition, m_effectorBoneID, m_effectorTargetNodeIdx, m_enableNodeIdx, m_blendTime, m_blendMode, m_isTargetInWorldSpace, m_referencePoseTwistWeight );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PassthroughNode::Definition, m_effectorBoneID, m_effectorTargetNodeIdx, m_enableNodeIdx, m_blendTime, m_blendMode, m_isTargetInWorldSpace, m_chainRotationWeight );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -27,7 +27,7 @@ namespace EE::Animation
             Seconds         m_blendTime = 0.0f;
             IKBlendMode     m_blendMode = IKBlendMode::Effector;
             bool            m_isTargetInWorldSpace = false;
-            float           m_referencePoseTwistWeight = 0.0f;
+            float           m_chainRotationWeight = 0.0f;
         };
 
     public:

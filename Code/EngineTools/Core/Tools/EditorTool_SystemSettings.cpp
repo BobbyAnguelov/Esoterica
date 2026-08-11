@@ -50,6 +50,9 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
+        ImGui::PushItemFlag( ImGuiItemFlags_LiveEditOnInputText, false );
+        ImGui::PushItemFlag( ImGuiItemFlags_LiveEditOnInputScalar, false );
+
         if ( ImGui::BeginTable( "Settings", 3, ImGuiTableFlags_Resizable | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg, ImGui::GetContentRegionAvail() ) )
         {
             ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_WidthStretch );
@@ -67,6 +70,9 @@ namespace EE
 
             ImGui::EndTable();
         }
+
+        ImGui::PopItemFlag();
+        ImGui::PopItemFlag();
     }
 
     ImGuiX::TextBuffer* SystemSettingsEditorTool::GetScratchBuffer()

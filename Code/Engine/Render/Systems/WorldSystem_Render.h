@@ -54,8 +54,8 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        void AddMeshClusters( Mesh const* pMeshResource, TArrayView<TResourcePtr<Material> const> materialOverrides, TBitFlags<ViewLayer> viewLayers );
-        void RemoveMeshClusters( Mesh const* pMeshResource, TArrayView<TResourcePtr<Material> const> materialOverrides, TBitFlags<ViewLayer> viewLayers );
+        void AddMeshClusters( Mesh const* pMeshResource, TInlineVector<Material const*, 50> const& resolvedMaterials, TBitFlags<ViewLayer> viewLayers );
+        void RemoveMeshClusters( Mesh const* pMeshResource, TInlineVector<Material const*, 50> const& resolvedMaterials, TBitFlags<ViewLayer> viewLayers );
 
         //-------------------------------------------------------------------------
 

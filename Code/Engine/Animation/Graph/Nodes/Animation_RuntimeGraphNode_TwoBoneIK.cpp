@@ -25,6 +25,10 @@ namespace EE::Animation
         pNode->m_isValidSetup = true;
         if ( pNode->m_effectorBoneIdx == InvalidIndex )
         {
+            #if EE_DEVELOPMENT_TOOLS
+            context.LogWarning( "Cant find specified effector bone ID ('%s') for two bone IK", m_effectorBoneID.c_str() );
+            #endif
+
             pNode->m_isValidSetup = false;
         }
         else
@@ -134,7 +138,7 @@ namespace EE::Animation
                     if ( shouldRegisterTask )
                     {
                         auto pDefinition = GetDefinition<TwoBoneIKNode>();
-                        result.m_taskIdx = context.GetTaskSystem()->RegisterTask<TwoBoneIKTask>( GetNodePath( context ), result.m_taskIdx, m_effectorBoneIdx, pDefinition->m_isTargetInWorldSpace, effectorTarget, pDefinition->m_blendMode, weight, pDefinition->m_referencePoseTwistWeight );
+                        result.m_taskIdx = context.GetTaskSystem()->RegisterTask<TwoBoneIKTask>( GetNodePath( context ), result.m_taskIdx, m_effectorBoneIdx, pDefinition->m_isTargetInWorldSpace, effectorTarget, pDefinition->m_blendMode, weight, pDefinition->m_chainRotationWeight );
                     }
                 }
             }

@@ -128,7 +128,7 @@ namespace EE
         bool                                        m_isUpdateEnabled = true;
         bool                                        m_bIsManipulatingView = false;
 
-        float                                       m_defaultMoveSpeed = 5.0f;
+        float                                       m_defaultMoveSpeed = 10.0f;
         float                                       m_moveSpeed = m_defaultMoveSpeed;
 
         float                                       m_orbitDistance = 2.f;

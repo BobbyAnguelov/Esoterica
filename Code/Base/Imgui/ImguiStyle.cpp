@@ -27,7 +27,19 @@ namespace EE::ImGuiX
     Color const Style::s_axisColorZ = Colors::RoyalBlue;
     Color const Style::s_axisColorW = Colors::DarkOrange;
 
+    Color const Style::s_axisColorX_Dim = Style::s_axisColorX.GetScaledColor( s_dimColorScale );
+    Color const Style::s_axisColorY_Dim = Style::s_axisColorY.GetScaledColor( s_dimColorScale );
+    Color const Style::s_axisColorZ_Dim = Style::s_axisColorZ.GetScaledColor( s_dimColorScale );
+    Color const Style::s_axisColorW_Dim = Style::s_axisColorW.GetScaledColor( s_dimColorScale );
+
+    Color const Style::s_axisColorX_Bright = Style::s_axisColorX.GetScaledColor( s_brightColorScale );
+    Color const Style::s_axisColorY_Bright = Style::s_axisColorY.GetScaledColor( s_brightColorScale );
+    Color const Style::s_axisColorZ_Bright = Style::s_axisColorZ.GetScaledColor( s_brightColorScale );
+    Color const Style::s_axisColorW_Bright = Style::s_axisColorW.GetScaledColor( s_brightColorScale );
+
     Color const Style::s_axisColors[4] = { s_axisColorX, s_axisColorY, s_axisColorZ, s_axisColorW };
+    Color const Style::s_axisColors_Dim[4] = { s_axisColorX_Dim, s_axisColorY_Dim, s_axisColorZ_Dim, s_axisColorW_Dim };
+    Color const Style::s_axisColors_Bright[4] = { s_axisColorX_Bright, s_axisColorY_Bright, s_axisColorZ_Bright, s_axisColorW_Bright };
 
     //-------------------------------------------------------------------------
 
@@ -100,6 +112,7 @@ namespace EE::ImGuiX
         colors[ImGuiCol_ButtonActive] = s_colorGray1;
 
         colors[ImGuiCol_CheckMark] = s_colorAccent1;
+        colors[ImGuiCol_CheckboxSelectedBg] = s_colorGray8;
 
         colors[ImGuiCol_PlotLines] = s_colorAccent2;
         colors[ImGuiCol_PlotLinesHovered] = s_colorAccent1;

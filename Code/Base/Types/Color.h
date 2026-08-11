@@ -84,7 +84,7 @@ namespace EE
             return GetAlphaVersion( (uint8_t) floatAlpha );
         }
 
-        // Scale the color values with a multiplier
+        // Scale the color values with a multiplier (Doesnt affect alpha)
         inline void ScaleColor( float multiplier )
         {
             m_byteColor.m_r = (uint8_t) Math::Clamp( Math::RoundToInt32( float( m_byteColor.m_r ) * multiplier ), 0, 255 );

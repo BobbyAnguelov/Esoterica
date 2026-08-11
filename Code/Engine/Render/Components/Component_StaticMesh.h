@@ -84,7 +84,7 @@ namespace EE::Render
 
     private:
 
-        EE_REFLECT();
+        EE_REFLECT( Category = "Mesh" );
         TResourcePtr<StaticMesh>                        m_mesh;
 
         // A local scale that doesnt propagate but that can allow for non-uniform scaling of meshes

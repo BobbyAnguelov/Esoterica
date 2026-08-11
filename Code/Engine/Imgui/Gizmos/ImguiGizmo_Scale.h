@@ -21,13 +21,8 @@ namespace EE::ImGuiX
 
         public:
 
-            float                           m_originCircleRadius = 4.0f;
-            float                           m_axisLength = 100.0f;
-            float                           m_axisThickness = 3.0f;
-            float                           m_axisEndCapRadius = 6.0f;
-            float                           m_axisAdditionalHoverBorder = 8.0f;
+            float                           m_axisEndCapRadius = 5.0f;
             float                           m_axisOffsetFromOrigin = m_originCircleRadius * 3;
-            float                           m_hoverDetectionDistance = m_axisThickness + m_axisAdditionalHoverBorder;
         };
 
         enum class Manipulator

@@ -31,6 +31,11 @@ namespace EE
     {
         class CollisionMeshComponent;
     }
+
+    namespace ImGuiX 
+    {
+        class Gizmo;
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -363,6 +368,9 @@ namespace EE
 
         // Menu and Help
         //-------------------------------------------------------------------------
+
+        // Call this to draw a help menu row ( label + comes text )
+        void DrawHelpTextSeparator( char const* pLabel ) const;
 
         // Call this to draw a help menu row ( label + comes text )
         void DrawHelpTextRow( char const* pLabel, char const* pText ) const;

@@ -52,6 +52,6 @@ namespace EE::Animation
         IKBlendMode         m_blendMode = IKBlendMode::Effector;
 
         EE_REFLECT();
-        float               m_referencePoseTwistWeight = 0.0f;
+        float               m_chainRotationWeight = 0.0f;
     };
 }

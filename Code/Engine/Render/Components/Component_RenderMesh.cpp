@@ -6,17 +6,62 @@
 
 namespace EE::Render
 {
+    bool MeshComponent::SubmeshSettings::operator==( SubmeshSettings const& rhs ) const
+    {
+        if ( m_hiddenSubmeshes.size() != rhs.m_hiddenSubmeshes.size() )
+        {
+            return false;
+        }
+
+        if ( m_materialOverrides.size() != rhs.m_materialOverrides.size() )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
+        int32_t const numHidden = (int32_t) m_hiddenSubmeshes.size();
+        for ( int32_t i = 0; i < numHidden; i++ )
+        {
+            if ( m_hiddenSubmeshes[i] != rhs.m_hiddenSubmeshes[i] )
+            {
+                return false;
+            }
+        }
+
+        //-------------------------------------------------------------------------
+
+        int32_t const numOverrides = (int32_t) m_materialOverrides.size();
+        for ( int32_t i = 0; i < numOverrides; i++ )
+        {
+            if ( m_materialOverrides[i] != rhs.m_materialOverrides[i] )
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    MeshComponent::MaterialOverride* MeshComponent::SubmeshSettings::GetMaterialOverride( int16_t submeshIdx )
+    {
+        for ( auto& materialOverride : m_materialOverrides )
+        {
+            if ( materialOverride.m_submeshIdx == submeshIdx )
+            {
+                return &materialOverride;
+            }
+        }
+
+        return nullptr;
+    }
+
+    //-------------------------------------------------------------------------
+
     void MeshComponent::Initialize()
     {
         SpatialEntityComponent::Initialize();
-
-        if ( HasMeshResourceSet() )
-        {
-            auto pMesh = GetMeshResource();
-            EE_ASSERT( pMesh != nullptr );
-            m_submeshesHidden.resize( pMesh->GetNumSubmeshes() );
-            m_materialOverrides.resize( pMesh->GetNumSubmeshes() );
-        }
+        ValidateAndFixSubmeshSettings();
     }
 
     void MeshComponent::SetViewLayers( TBitFlags<ViewLayer> viewLayers )
@@ -48,6 +93,44 @@ namespace EE::Render
         return StringID();
     }
 
+    void MeshComponent::ValidateAndFixSubmeshSettings()
+    {
+        if ( !HasMeshResourceSet() )
+        {
+            m_submeshSettings.Clear();
+        }
+        else
+        {
+            if ( IsMeshLoaded() )
+            {
+                int32_t const numSubmeshes = GetMeshResource()->GetNumSubmeshes();
+
+                // Fill all resource IDs (and remove any invalid ones)
+                for ( int32_t i = int32_t( m_submeshSettings.m_materialOverrides.size() ) - 1; i >= 0; i-- )
+                {
+                    int16_t const submeshIdx = m_submeshSettings.m_materialOverrides[i].m_submeshIdx;
+                    if ( submeshIdx < 0 || submeshIdx >= numSubmeshes )
+                    {
+                        m_submeshSettings.m_materialOverrides.erase_unsorted( m_submeshSettings.m_materialOverrides.begin() + i );
+                    }
+                }
+
+                // Fill all visibility state
+                for ( int32_t i = int32_t( m_submeshSettings.m_hiddenSubmeshes.size() ) - 1; i >= 0; i-- )
+                {
+                    if ( m_submeshSettings.m_hiddenSubmeshes[i] < 0 || m_submeshSettings.m_hiddenSubmeshes[i] >= numSubmeshes )
+                    {
+                        m_submeshSettings.m_hiddenSubmeshes.erase_unsorted( m_submeshSettings.m_hiddenSubmeshes.begin() + i );
+                    }
+                }
+            }
+            else // Mesh not loaded
+            {
+                // Dont mess with the settings as we cannot validate anything...
+            }
+        }
+    }
+
     //-------------------------------------------------------------------------
 
     void MeshComponent::SetVisible( bool visible )
@@ -56,102 +139,82 @@ namespace EE::Render
         OnRenderInstanceDataUpdated();
     }
 
-    bool MeshComponent::IsSubmeshVisible( int32_t submeshIdx ) const
+    void MeshComponent::SetSubmeshVisibility( int16_t submeshIdx, bool isVisible )
     {
-        if ( submeshIdx >= 0 && submeshIdx >= m_submeshesHidden.size() )
+        EE_ASSERT( submeshIdx >= 0 );
+
+        if ( IsMeshLoaded() )
         {
-            return true;
+            EE_ASSERT( submeshIdx < int32_t( GetMeshResource()->GetNumSubmeshes() ) );
         }
 
-        return !m_submeshesHidden[submeshIdx];
-    }
+        //-------------------------------------------------------------------------
 
-    void MeshComponent::SetSubmeshVisibility( int32_t submeshIdx, bool isVisible )
-    {
-        EE_ASSERT( submeshIdx >= 0 && submeshIdx < int32_t( GetMeshResource()->GetNumSubmeshes() ) );
-
-        m_submeshesHidden.resize( GetMeshResource()->GetNumSubmeshes() );
-        m_submeshesHidden[submeshIdx] = !isVisible;
-
-        OnRenderInstanceDataUpdated();
-    }
-
-    void MeshComponent::SetSubmeshVisibility( TPair<int32_t, bool> const* pData, size_t size )
-    {
-        for ( size_t i = 0; i < size; i++ )
-        {
-            int32_t const instanceIdx = pData[i].first;
-            EE_ASSERT( instanceIdx < int32_t( GetMeshResource()->GetNumSubmeshes() ) );
-
-            m_submeshesHidden.resize( GetMeshResource()->GetNumSubmeshes() );
-            m_submeshesHidden[instanceIdx] = !pData[i].second;
-        }
-
-        OnRenderInstanceDataUpdated();
-    }
-
-    void MeshComponent::SetAllSubmeshVisibility( bool isVisible )
-    {
         if ( isVisible )
         {
-            m_submeshesHidden.clear();
+            m_submeshSettings.m_hiddenSubmeshes.erase_first( submeshIdx );
         }
         else
         {
-            m_submeshesHidden.resize( GetMeshResource()->GetNumSubmeshes() );
-            eastl::fill( m_submeshesHidden.begin(), m_submeshesHidden.end(), !isVisible );
+            VectorEmplaceBackUnique( m_submeshSettings.m_hiddenSubmeshes, submeshIdx );
         }
 
+        OnRenderInstanceDataUpdated();
+    }
+
+    void MeshComponent::SetSubmeshVisibility( TVector<int16_t> const& hiddenSubmeshes )
+    {
+        m_submeshSettings.m_hiddenSubmeshes = hiddenSubmeshes;
         OnRenderInstanceDataUpdated();
     }
 
     //-------------------------------------------------------------------------
 
-    bool MeshComponent::IsMaterialOverriden( int32_t submeshIdx ) const
+    bool MeshComponent::IsMaterialOverridden( int16_t submeshIdx ) const
     {
         EE_ASSERT( submeshIdx >= 0 );
-        if ( submeshIdx > m_materialOverrides.size() )
-        {
-            return false;
-        }
-
-        return m_materialOverrides[submeshIdx].IsSet();
+        return m_submeshSettings.GetMaterialOverride( submeshIdx ) != nullptr;
     }
 
-    Material const* MeshComponent::GetMaterialOverride( int32_t submeshIdx ) const
+    Material const* MeshComponent::GetMaterialOverride( int16_t submeshIdx ) const
     {
         EE_ASSERT( submeshIdx >= 0 );
-        if ( submeshIdx > m_materialOverrides.size() )
+        auto pOverride = m_submeshSettings.GetMaterialOverride( submeshIdx );
+        if ( pOverride == nullptr )
         {
             return nullptr;
         }
 
-        return m_materialOverrides[submeshIdx].IsLoaded() ? m_materialOverrides[submeshIdx].GetPtr() : nullptr;
+        return pOverride->m_material.IsLoaded() ? pOverride->m_material.GetPtr() : nullptr;
     }
 
-    ResourceID MeshComponent::GetMaterialOverrideResourceID( int32_t submeshIdx ) const
+    ResourceID MeshComponent::GetMaterialOverrideResourceID( int16_t submeshIdx ) const
     {
         EE_ASSERT( submeshIdx >= 0 );
-        if ( submeshIdx > m_materialOverrides.size() )
+        auto pOverride = m_submeshSettings.GetMaterialOverride( submeshIdx );
+        if ( pOverride == nullptr )
         {
             return ResourceID();
         }
 
-        return m_materialOverrides[submeshIdx].IsLoaded() ? m_materialOverrides[submeshIdx].GetResourceID() : ResourceID();
+        return pOverride->m_material.GetResourceID();
     }
 
-    void MeshComponent::SetMaterialOverride( int32_t submeshIdx, ResourceID const& materialResourceID )
+    void MeshComponent::SetMaterialOverride( int16_t submeshIdx, ResourceID const& materialResourceID )
     {
         EE_ASSERT( submeshIdx >= 0 );
 
         auto SetOverride = [this, submeshIdx, materialResourceID] ()
         {
-            if ( submeshIdx >= m_materialOverrides.size() )
+            auto pOverride = m_submeshSettings.GetMaterialOverride( submeshIdx );
+            if ( pOverride == nullptr )
             {
-                m_materialOverrides.resize( submeshIdx + 1 );
+                m_submeshSettings.m_materialOverrides.emplace_back( submeshIdx, materialResourceID );
             }
-
-            m_materialOverrides[submeshIdx] = materialResourceID;
+            else
+            {
+                pOverride->m_material = materialResourceID;
+            }
         };
 
         RequestRuntimeResourceChange( SetOverride );
@@ -159,17 +222,40 @@ namespace EE::Render
 
     void MeshComponent::ClearMaterialOverrides()
     {
-        EE_ASSERT( !IsInitialized() );
+        RequestRuntimeResourceChange( [this] () { m_submeshSettings.m_materialOverrides.clear(); } );
+    }
 
-        auto SetOverride = [this] ()
+    TInlineVector<Material const*, 50> MeshComponent::GetResolvedMaterials() const
+    {
+        TInlineVector<Material const*, 50> materials;
+
+        if ( !IsMeshLoaded() )
         {
-            for ( auto& materialSlot : m_materialOverrides )
-            {
-                materialSlot.Clear();
-            }
-        };
+            return materials;
+        }
 
-        RequestRuntimeResourceChange( SetOverride );
+        //-------------------------------------------------------------------------
+
+        auto pMesh = GetMeshResource();
+        EE_ASSERT( pMesh != nullptr );
+
+        int32_t const numSubmeshes = pMesh->GetNumSubmeshes();
+        materials.reserve( numSubmeshes );
+
+        for ( int16_t submeshIdx = 0; submeshIdx < numSubmeshes; submeshIdx++ )
+        {
+            auto pOverride = m_submeshSettings.GetMaterialOverride( submeshIdx );
+            if ( pOverride != nullptr )
+            {
+                materials.emplace_back( pOverride->m_material.IsLoaded() ? pOverride->m_material.GetPtr() : nullptr );
+            }
+            else // Use default material
+            {
+                materials.emplace_back( pMesh->GetMaterial( submeshIdx ) );
+            }
+        }
+
+        return materials;
     }
 
     //-------------------------------------------------------------------------
@@ -261,14 +347,7 @@ namespace EE::Render
         // Write per-instance data
         for ( uint32_t instanceIndex = 0; instanceIndex < meshInstanceRoot.m_numInstances; ++instanceIndex )
         {
-            // Resolve instance hidden
-            bool instanceHidden = false;
-            if ( instanceIndex < m_submeshesHidden.size() )
-            {
-                instanceHidden = m_submeshesHidden[instanceIndex];
-            }
-
-            // Write instance data.
+            bool const instanceHidden = VectorContains( m_submeshSettings.m_hiddenSubmeshes, (int16_t) instanceIndex );
             meshInstanceRoot.WriteInstanceHidden( bufferData_WriteCombined, instanceIndex, instanceHidden );
         }
 

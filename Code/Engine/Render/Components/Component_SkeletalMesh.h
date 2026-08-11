@@ -109,10 +109,10 @@ namespace EE::Render
 
     protected:
 
-        EE_REFLECT();
+        EE_REFLECT( Category = "Mesh" );
         TResourcePtr<SkeletalMesh>                      m_mesh;
 
-        EE_REFLECT();
+        EE_REFLECT( Category = "Animation" );
         TResourcePtr<Animation::Skeleton>               m_skeleton = nullptr;
 
         TVector<int32_t>                                m_animToMeshBoneMap;

@@ -60,19 +60,19 @@ namespace EE
         inline float GetAspectRatio() const { return m_viewVolume.GetAspectRatio(); }
 
         // Set the horizontal field of view
-        inline void SetHorizontalFOV( Radians FOV ) { m_viewVolume.SetHorizontalFOV( FOV ); }
+        inline void SetHorizontalFOV( Radians FOV, float idealAspectRatio = Math::ViewVolume::AspectRatio_16_9 ) { m_viewVolume.SetHorizontalFOV( FOV, idealAspectRatio ); }
 
-        // Set the vertical field of view
-        inline void GetHorizontalFOV( Radians FOV ) { m_viewVolume.GetHorizontalFOV(); }
+        // Get the vertical field of view
+        inline Radians GetHorizontalFOV() const { return m_viewVolume.GetHorizontalFOV(); }
 
-        // Set the vertical field of view
-        inline void GetVerticalFOV( Radians FOV ) { m_viewVolume.GetVerticalFOV(); }
+        // Get the vertical field of view
+        inline Radians GetVerticalFOV() const { return m_viewVolume.GetVerticalFOV(); }
 
         // Set the depth range of this camera in world units
         inline void SetDepthRange( FloatRange depthRange ) { m_viewVolume.SetDepthRange( depthRange ); }
 
         // Get the depth range of this camera
-        inline void GetDepthRange() const { m_viewVolume.GetDepthRange(); }
+        inline FloatRange GetDepthRange() const { return m_viewVolume.GetDepthRange(); }
 
     protected:
 

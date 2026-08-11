@@ -143,8 +143,7 @@ namespace EE::Render
                 EE_ASSERT( !pStaticMeshComponent->m_meshInstanceProxy.m_instanceHandle.IsValid() );
 
                 Mesh const* pStaticMesh = pStaticMeshComponent->GetMesh();
-
-                AddMeshClusters( pStaticMesh, pStaticMeshComponent->m_materialOverrides, pStaticMeshComponent->m_viewLayers );
+                AddMeshClusters( pStaticMesh, pStaticMeshComponent->GetResolvedMaterials(), pStaticMeshComponent->m_viewLayers );
 
                 uint32_t instanceDataSizeInBytes = pStaticMeshComponent->ComputeInstanceDataSizeInBytes();
 
@@ -175,8 +174,7 @@ namespace EE::Render
                 EE_ASSERT( !pSkeletalMeshComponent->m_skinningProxy.IsValid() );
 
                 SkeletalMesh const* pSkeletalMesh = pSkeletalMeshComponent->GetMesh();
-
-                AddMeshClusters( pSkeletalMesh, pSkeletalMeshComponent->m_materialOverrides, pSkeletalMeshComponent->m_viewLayers );
+                AddMeshClusters( pSkeletalMesh, pSkeletalMeshComponent->GetResolvedMaterials(), pSkeletalMeshComponent->m_viewLayers );
 
                 uint32_t instanceDataSizeInBytes = pSkeletalMeshComponent->ComputeInstanceDataSizeInBytes();
 
@@ -256,7 +254,7 @@ namespace EE::Render
             {
                 EE_ASSERT( pStaticMeshComponent->m_meshInstanceProxy.m_instanceHandle.IsValid() );
 
-                RemoveMeshClusters( pStaticMeshComponent->GetMesh(), pStaticMeshComponent->m_materialOverrides, pStaticMeshComponent->m_viewLayers );
+                RemoveMeshClusters( pStaticMeshComponent->GetMesh(), pStaticMeshComponent->GetResolvedMaterials(), pStaticMeshComponent->m_viewLayers );
 
                 m_staticMeshComponentInstanceUpdateQueue.Unbind( pStaticMeshComponent, pStaticMeshComponent->GetInstanceDataUpdateSignal() );
 
@@ -277,7 +275,7 @@ namespace EE::Render
                 EE_ASSERT( pSkeletalMeshComponent->m_meshInstanceProxy.IsValid() );
                 EE_ASSERT( pSkeletalMeshComponent->m_skinningProxy.IsValid() );
 
-                RemoveMeshClusters( pSkeletalMeshComponent->GetMesh(), pSkeletalMeshComponent->m_materialOverrides, pSkeletalMeshComponent->m_viewLayers );
+                RemoveMeshClusters( pSkeletalMeshComponent->GetMesh(), pSkeletalMeshComponent->GetResolvedMaterials(), pSkeletalMeshComponent->m_viewLayers );
 
                 m_skeletalMeshComponentInstanceUpdateQueue.Unbind( pSkeletalMeshComponent, pSkeletalMeshComponent->GetInstanceDataUpdateSignal() );
 
@@ -332,25 +330,16 @@ namespace EE::Render
         }
     }
 
-    void RenderWorldSystem::AddMeshClusters( Mesh const* pMeshResource, TArrayView<TResourcePtr<Material> const> materialOverrides, TBitFlags<ViewLayer> viewLayers )
+    void RenderWorldSystem::AddMeshClusters( Mesh const* pMeshResource, TInlineVector<Material const*, 50> const& resolvedMaterials, TBitFlags<ViewLayer> viewLayers )
     {
         int32_t const numSubmeshes = pMeshResource->GetNumSubmeshes();
+        EE_ASSERT( resolvedMaterials.size() == numSubmeshes );
+
         for ( int32_t submeshIdx = 0; submeshIdx < numSubmeshes; ++submeshIdx )
         {
             uint32_t const geometryIdx = pMeshResource->GetSubmeshGeometryIndex( submeshIdx );
 
-            // Resolve material override
-            Material const* pMaterial = pMeshResource->GetMaterial( submeshIdx );
-            if ( submeshIdx < materialOverrides.size() )
-            {
-                TResourcePtr<Material> const& overrideMaterial = materialOverrides[submeshIdx];
-                if ( overrideMaterial.IsLoaded() )
-                {
-                    EE_ASSERT( overrideMaterial->IsValid() );
-                    pMaterial = overrideMaterial.GetPtr();
-                }
-            }
-
+            Material const* pMaterial = resolvedMaterials[submeshIdx];
             if ( pMaterial == nullptr )
             {
                 pMaterial = m_pRenderSystem->GetPlaceholderMaterial();
@@ -375,25 +364,16 @@ namespace EE::Render
         }
     }
 
-    void RenderWorldSystem::RemoveMeshClusters( Mesh const* pMeshResource, TArrayView<TResourcePtr<Material> const> materialOverrides, TBitFlags<ViewLayer> viewLayers )
+    void RenderWorldSystem::RemoveMeshClusters( Mesh const* pMeshResource, TInlineVector<Material const*, 50> const& resolvedMaterials, TBitFlags<ViewLayer> viewLayers )
     {
         int32_t const numSubmeshes = pMeshResource->GetNumSubmeshes();
+        EE_ASSERT( resolvedMaterials.size() == numSubmeshes );
+
         for ( int32_t submeshIdx = 0; submeshIdx < pMeshResource->GetNumSubmeshes(); ++submeshIdx )
         {
             uint32_t const geometryIdx = pMeshResource->GetSubmeshGeometryIndex( submeshIdx );
 
-            // Resolve material override
-            Material const* pMaterial = pMeshResource->GetMaterial( submeshIdx );
-            if ( submeshIdx < materialOverrides.size() )
-            {
-                TResourcePtr<Material> const& overrideMaterial = materialOverrides[submeshIdx];
-                if ( overrideMaterial.IsLoaded() )
-                {
-                    EE_ASSERT( overrideMaterial->IsValid() );
-                    pMaterial = overrideMaterial.GetPtr();
-                }
-            }
-
+            Material const* pMaterial = resolvedMaterials[submeshIdx];
             if ( pMaterial == nullptr )
             {
                 pMaterial = m_pRenderSystem->GetPlaceholderMaterial();

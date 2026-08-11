@@ -98,7 +98,7 @@ namespace EE::Animation
             pDefinition->m_isTargetInWorldSpace = m_isTargetInWorldSpace;
             pDefinition->m_blendTime = Math::Max( pData->m_blendTime.ToFloat(), 0.0f);
             pDefinition->m_blendMode = m_blendMode;
-            pDefinition->m_referencePoseTwistWeight = m_referencePoseTwistWeight;
+            pDefinition->m_chainRotationWeight = m_chainRotationWeight;
         }
 
         return pDefinition->m_nodeIdx;

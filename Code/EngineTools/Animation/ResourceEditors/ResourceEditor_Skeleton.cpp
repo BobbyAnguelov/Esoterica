@@ -383,10 +383,6 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        ImGuiMultiSelectFlags const selectionFlags = ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_BoxSelect1d | ImGuiMultiSelectFlags_ClearOnClickVoid;
-        ImGuiMultiSelectIO* pMSIO = ImGui::BeginMultiSelect( selectionFlags, -1, numBones );
-        ApplySelectionRequests( pMSIO );
-
         static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody;
         if ( ImGui::BeginTable( "SkeletonTreeTable", 2, flags ) )
         {
@@ -406,13 +402,17 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
+            ImGuiMultiSelectFlags const selectionFlags = ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_BoxSelect1d | ImGuiMultiSelectFlags_ClearOnClickVoid;
+            ImGuiMultiSelectIO* pMSIO = ImGui::BeginMultiSelect( selectionFlags, -1, numBones );
+            ApplySelectionRequests( pMSIO );
+
             DrawSkeletonTreeRow( m_pSkeletonTreeRoot );
+
+            pMSIO = ImGui::EndMultiSelect();
+            ApplySelectionRequests( pMSIO );
 
             ImGui::EndTable();
         }
-
-        pMSIO = ImGui::EndMultiSelect();
-        ApplySelectionRequests( pMSIO );
     }
 
     void SkeletonEditor::CreateSkeletonTree()

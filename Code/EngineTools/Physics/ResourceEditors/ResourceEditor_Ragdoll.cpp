@@ -1460,7 +1460,7 @@ namespace EE::Physics
                     }
                 }
 
-                auto const gizmoResult = m_gizmo.Draw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport );
+                auto const gizmoResult = m_gizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, isFocused );
                 switch ( gizmoResult.m_state )
                 {
                     case ImGuiX::GizmoState::StartedManipulating:
@@ -1485,22 +1485,6 @@ namespace EE::Physics
 
                     default:
                     break;
-                }
-
-                if ( isFocused )
-                {
-                    if ( ImGui::IsKeyPressed( ImGuiKey_Space ) )
-                    {
-                        m_gizmo.SwitchToNextMode();
-                        if ( m_gizmo.GetMode() == ImGuiX::Gizmo::Mode::Scale )
-                        {
-                            m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
-                        }
-                        else
-                        {
-                            m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::World );
-                        }
-                    }
                 }
             }
             else
@@ -2009,7 +1993,7 @@ namespace EE::Physics
         auto drawingCtx = GetDebugDrawContext();
 
         Transform previewWorldTransform = m_pMeshComponent->GetWorldTransform();
-        auto const gizmoResult = m_gizmo.Draw( previewWorldTransform.GetTranslation(), previewWorldTransform.GetRotation(), *pViewport );
+        auto const gizmoResult = m_gizmo.UpdateAndDraw( previewWorldTransform.GetTranslation(), previewWorldTransform.GetRotation(), *pViewport );
         if ( gizmoResult.m_state == ImGuiX::GizmoState::Manipulating )
         {
             gizmoResult.ApplyResult( previewWorldTransform );

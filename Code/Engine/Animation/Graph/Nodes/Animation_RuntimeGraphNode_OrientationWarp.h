@@ -15,6 +15,14 @@ namespace EE::Animation
     {
     public:
 
+        enum class AlignmentMode : uint8_t
+        {
+            EE_REFLECT_ENUM
+
+            MovementDirection = 0,
+            CharacterForward,
+        };
+
         struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
@@ -26,6 +34,7 @@ namespace EE::Animation
             int16_t                         m_targetValueNodeIdx = InvalidIndex;
             bool                            m_isOffsetNode = false;
             bool                            m_isOffsetRelativeToCharacter = true;
+            AlignmentMode                   m_alignmentMode = AlignmentMode::MovementDirection;
             RootMotionData::SamplingMode    m_samplingMode = RootMotionData::SamplingMode::WorldSpace;
         };
 

@@ -13,7 +13,6 @@ namespace EE::ImGuiX
         {
             static inline Color const       s_defaultColor = EE::Colors::White;
             static inline Color const       s_trackballColor = EE::Colors::White.GetAlphaVersion( 0.45f );
-            constexpr static float const    s_dimColorScale = 0.75f;
             constexpr static float const    s_minAngleRadiansBetweenPoints = Math::DegreesToRadians * 1.0f;
             constexpr static float const    s_minAngleThresholdRadiansBetweenViewAndAxis = Math::DegreesToRadians * 10.0f;
 
@@ -24,17 +23,10 @@ namespace EE::ImGuiX
 
         public:
 
-            float                           m_manipulatorRadius = 105.0f;
-            float                           m_manipulatorThickness = 3.0f;
             float                           m_axisManipulatorDeadZone = 2.0f;
-            float                           m_axisAdditionalHoverBorder = 4.0f;
-            float                           m_originCircleRadius = 4.0f;
-            float                           m_originCircleOffset = m_originCircleRadius * 3;
-            float                           m_hoverDetectionDistance = m_manipulatorThickness + m_axisAdditionalHoverBorder;
-            float                           m_screenManipulatorThickness = 3.0f;
-            float                           m_screenManipulatorOffset = 8.0f;
-            float                           m_screenManipulationLineOffset = 4.0f;
             float                           m_trackballDeadZone = 8.0f;
+            float                           m_trackBallSizeMultiplier = 1.1f;
+            float                           m_screenManipulatorSizeMultiplier = 1.25f;
         };
 
         enum class Manipulator
@@ -66,6 +58,7 @@ namespace EE::ImGuiX
         {
             Color                           m_color = 0;
             bool                            m_isHovered = false;
+            TInlineVector<ImVec2, 60>       m_pointsSS;
             float                           m_manipulationRadius = 0.0f;
         };
 
@@ -98,7 +91,7 @@ namespace EE::ImGuiX
         void DrawScreenRotationManipulationVisualization( Context const& ctx );
         void DrawTrackballRotationManipulationVisualization( Context const& ctx );
 
-        Vector ProjectScreenSpacePositionOntoRotationPlane( Context const& ctx, Vector const &positionSS );
+        Vector ProjectScreenSpacePositionOntoRotationPlane( Context const& ctx, Vector const &positionSS ) const;
 
     private:
 

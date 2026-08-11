@@ -70,10 +70,13 @@ namespace EE::ImGuiX
         Gizmo();
         Gizmo( TBitFlags<Options> options );
 
-        Result Draw( Vector const& position, Quaternion const& orientation, Viewport const& viewport, char const* pOptionalLabel = nullptr );
+        Result UpdateAndDraw( Vector const& position, Quaternion const& orientation, Viewport const& viewport, bool checkHotkeys = false );
 
         void Reset();
         bool IsManipulating() const;
+
+        inline void SetLabel( char const* pOptionalLabel ) { m_optionalLabel = String( pOptionalLabel ); }
+        inline void ClearLabel() { m_optionalLabel.clear(); }
 
         inline void SetOption( Options option, bool isEnabled ) { m_options.SetFlag( option, isEnabled ); }
         inline void SetOptions( TBitFlags<Options> options) { m_options = options; }
@@ -83,9 +86,9 @@ namespace EE::ImGuiX
         void SwitchToNextMode();
 
         void SetCoordinateSystemSpace( CoordinateSpace space );
-        inline CoordinateSpace GetCoordinateSystemSpace() const { return GetActiveGizmo()->GetCoordinateSystemSpace(); }
-        inline bool IsInWorldSpace() const { return GetActiveGizmo()->GetCoordinateSystemSpace() == CoordinateSpace::World; }
-        inline bool IsInLocalSpace() const { return GetActiveGizmo()->GetCoordinateSystemSpace() == CoordinateSpace::Local; }
+        inline CoordinateSpace GetCoordinateSystemSpace() const { return m_coordinateSystemSpace; }
+        inline bool IsInWorldSpace() const { return m_coordinateSystemSpace == CoordinateSpace::World; }
+        inline bool IsInLocalSpace() const { return m_coordinateSystemSpace == CoordinateSpace::Local; }
 
     private:
 
@@ -97,6 +100,8 @@ namespace EE::ImGuiX
         Style                       m_style;
         TBitFlags<Options>          m_options;
         Mode                        m_mode = Mode::Translation;
+        String                      m_optionalLabel;
+        CoordinateSpace             m_coordinateSystemSpace = CoordinateSpace::World;
 
         // Manipulation state
         TranslationGizmo            m_translationGizmo;

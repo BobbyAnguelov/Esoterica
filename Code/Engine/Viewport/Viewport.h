@@ -151,7 +151,7 @@ namespace EE
     protected:
 
         UUID                                        m_ID = UUID::GenerateID();
-        Math::ViewVolume                            m_viewVolume = Math::ViewVolume::CreatePerspective( Math::ViewVolume::AspectRatio_4_3, FloatRange( 0.1f, 1000.0f ), 90.0f, Transform::Identity );
+        Math::ViewVolume                            m_viewVolume = Math::ViewVolume::CreatePerspective( Math::ViewVolume::AspectRatio_16_9, FloatRange( 0.1f, 1000.0f ), 90.0f, Transform::Identity );
         Float2                                      m_topLeftPosition = Float2( 0.0f );
         Float2                                      m_size = Float2( 0.0f );
 

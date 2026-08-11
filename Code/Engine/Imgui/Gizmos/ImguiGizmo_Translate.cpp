@@ -14,14 +14,11 @@ namespace EE::ImGuiX
     {
         *this = TranslationGizmo::Style();
 
-        m_axisLength *= scale;
-        m_axisThickness *= scale;
+        GizmoBase::Style::SetScale( scale );
+
         m_axisArrowThickness *= scale;
-        m_axisAdditionalHoverBorder *= scale;
         m_axisPlaneManipulatorBorderThickness *= scale;
-        m_originCircleRadius *= scale;
         m_axisOffsetFromOrigin *= scale;
-        m_hoverDetectionDistance *= scale;
         m_minimumRequiredAreaForPlaneManipulators *= scale;
     }
 
@@ -227,27 +224,30 @@ namespace EE::ImGuiX
         {
             int32_t numHoveredAxes = 0;
 
-            if ( !m_axes[0].m_axisStartSS.IsNearEqual3( m_axes[0].m_axisEndSS, m_style.m_hoverDetectionDistance ) )
+            float const hoverDetectionDistance = m_style.GetHoverDetectionDistance();
+            float const axisArrowLength = m_style.GetAxisArrowLength();
+
+            if ( !m_axes[0].m_axisStartSS.IsNearEqual3( m_axes[0].m_axisEndSS, hoverDetectionDistance ) )
             {
-                LineSegment const axisSegment( m_axes[0].m_axisStartSS, m_axes[0].m_axisEndSS );
+                LineSegment const axisSegment( m_axes[0].m_axisStartSS, m_axes[0].m_axisEndSS + ( m_axes[0].m_axisDirSS * axisArrowLength ) );
                 float const mouseToLineDistance = axisSegment.GetDistanceToPoint( ctx.m_mousePositionSS );
-                m_axes[0].m_isHovered = mouseToLineDistance < m_style.m_hoverDetectionDistance;
+                m_axes[0].m_isHovered = mouseToLineDistance < hoverDetectionDistance;
                 numHoveredAxes += uint8_t( m_axes[0].m_isHovered );
             }
 
-            if ( !m_axes[1].m_axisStartSS.IsNearEqual3( m_axes[1].m_axisEndSS, m_style.m_hoverDetectionDistance ) )
+            if ( !m_axes[1].m_axisStartSS.IsNearEqual3( m_axes[1].m_axisEndSS, hoverDetectionDistance ) )
             {
-                LineSegment const axisSegment( m_axes[1].m_axisStartSS, m_axes[1].m_axisEndSS );
+                LineSegment const axisSegment( m_axes[1].m_axisStartSS, m_axes[1].m_axisEndSS + ( m_axes[1].m_axisDirSS * axisArrowLength ) );
                 float const mouseToLineDistance = axisSegment.GetDistanceToPoint( ctx.m_mousePositionSS );
-                m_axes[1].m_isHovered = mouseToLineDistance < m_style.m_hoverDetectionDistance;
+                m_axes[1].m_isHovered = mouseToLineDistance < hoverDetectionDistance;
                 numHoveredAxes += uint8_t( m_axes[1].m_isHovered );
             }
 
-            if ( !m_axes[2].m_axisStartSS.IsNearEqual3( m_axes[2].m_axisEndSS, m_style.m_hoverDetectionDistance ) )
+            if ( !m_axes[2].m_axisStartSS.IsNearEqual3( m_axes[2].m_axisEndSS, hoverDetectionDistance ) )
             {
-                LineSegment const axisSegment( m_axes[2].m_axisStartSS, m_axes[2].m_axisEndSS );
+                LineSegment const axisSegment( m_axes[2].m_axisStartSS, m_axes[2].m_axisEndSS + ( m_axes[2].m_axisDirSS * axisArrowLength ) );
                 float const mouseToLineDistance = axisSegment.GetDistanceToPoint( ctx.m_mousePositionSS );
-                m_axes[2].m_isHovered = mouseToLineDistance < m_style.m_hoverDetectionDistance;
+                m_axes[2].m_isHovered = mouseToLineDistance < hoverDetectionDistance;
                 numHoveredAxes += uint8_t( m_axes[2].m_isHovered );
             }
 
@@ -420,23 +420,22 @@ namespace EE::ImGuiX
 
                 if ( shouldDrawManipulationAxis )
                 {
-                    pDrawList->AddLine( m_axes[d].m_axisStartInfSS, m_axes[d].m_axisEndInfSS, m_axes[d].m_color, m_style.m_axisThickness / 2.0f );
+                    pDrawList->AddLine( m_axes[d].m_axisStartInfSS, m_axes[d].m_axisEndInfSS, m_axes[d].m_color, m_style.m_lineThickness / 2.0f );
                 }
 
                 if ( m_axes[d].m_isFlipped )
                 {
-                    ImGuiX::DrawDashedLine( pDrawList, m_axes[d].m_axisStartSS, m_axes[d].m_axisEndSS, m_axes[d].m_color, m_style.m_axisThickness );
+                    ImGuiX::DrawDashedLine( pDrawList, m_axes[d].m_axisStartSS, m_axes[d].m_axisEndSS, m_axes[d].m_color, m_style.m_lineThickness );
                 }
                 else
                 {
-                    pDrawList->AddLine( m_axes[d].m_axisStartSS, m_axes[d].m_axisEndSS, m_axes[d].m_color, m_style.m_axisThickness );
+                    pDrawList->AddLine( m_axes[d].m_axisStartSS, m_axes[d].m_axisEndSS, m_axes[d].m_color, m_style.m_lineThickness );
                 }
 
                 // Draw axis caps
                 Vector const arrowBaseDirSS = m_axes[d].m_axisDirSS.Orthogonal2D();
 
-                float const arrowThickness = m_style.m_axisThickness * 2;
-                Vector T0 = Vector::MultiplyAdd( m_axes[d].m_axisDirSS, Vector( m_style.m_axisArrowThickness * 3 ), m_axes[d].m_axisEndSS );
+                Vector T0 = Vector::MultiplyAdd( m_axes[d].m_axisDirSS, Vector( m_style.GetAxisArrowLength() ), m_axes[d].m_axisEndSS );
                 Vector T1 = m_axes[d].m_axisEndSS - ( arrowBaseDirSS * m_style.m_axisArrowThickness );
                 Vector T2 = m_axes[d].m_axisEndSS + ( arrowBaseDirSS * m_style.m_axisArrowThickness );
 

@@ -464,32 +464,28 @@ namespace EE::Render
 
                 if ( m_selectedSubmeshes.empty() )
                 {
-                    if ( !m_submeshVisibility.empty() )
+                    if ( !m_hiddenSubmeshes.empty() )
                     {
-                        m_submeshVisibility.clear();
-                        m_pMeshComponent->SetAllSubmeshVisibility( true );
+                        m_hiddenSubmeshes.clear();
+                        m_pMeshComponent->SetSubmeshVisibility( m_hiddenSubmeshes );
                     }
                 }
                 else
                 {
-                    TVector<TPair<int32_t, bool>> visibility;
+                    TVector<int16_t> hiddenSubmeshes;
                     int32_t const numSubmeshes = pMesh->GetNumSubmeshes();
-                    for ( int32_t i = 0; i < numSubmeshes; i++ )
+                    for ( int16_t i = 0; i < numSubmeshes; i++ )
                     {
-                        if ( VectorContains( m_selectedSubmeshes, i ) )
+                        if ( !VectorContains( m_selectedSubmeshes, i ) )
                         {
-                            visibility.emplace_back( i, true );
-                        }
-                        else
-                        {
-                            visibility.emplace_back( i, false );
+                            hiddenSubmeshes.emplace_back( i );
                         }
                     }
 
-                    if ( m_submeshVisibility != visibility )
+                    if ( m_hiddenSubmeshes != hiddenSubmeshes )
                     {
-                        m_submeshVisibility.swap( visibility );
-                        m_pMeshComponent->SetSubmeshVisibility( m_submeshVisibility );
+                        m_hiddenSubmeshes.swap( hiddenSubmeshes );
+                        m_pMeshComponent->SetSubmeshVisibility( m_hiddenSubmeshes );
                     }
                 }
             }
@@ -1082,7 +1078,7 @@ namespace EE::Render
         {
             m_socketGizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
 
-            auto const gizmoResult = m_socketGizmo.Draw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport );
+            auto const gizmoResult = m_socketGizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, isFocused );
             switch ( gizmoResult.m_state )
             {
                 case ImGuiX::GizmoState::StartedManipulating:
@@ -1107,22 +1103,6 @@ namespace EE::Render
 
                 default:
                 break;
-            }
-
-            if ( isFocused )
-            {
-                if ( ImGui::IsKeyPressed( ImGuiKey_Space ) )
-                {
-                    m_socketGizmo.SwitchToNextMode();
-                    if ( m_socketGizmo.GetMode() == ImGuiX::Gizmo::Mode::Scale )
-                    {
-                        m_socketGizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
-                    }
-                    else
-                    {
-                        m_socketGizmo.SetCoordinateSystemSpace( CoordinateSpace::World );
-                    }
-                }
             }
         }
         else
@@ -1195,21 +1175,23 @@ namespace EE::Render
                 }
             };
 
-            ImGuiMultiSelectFlags const selectionFlags = ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_BoxSelect1d | ImGuiMultiSelectFlags_ClearOnClickVoid;
-            ImGuiMultiSelectIO* pMSIO = ImGui::BeginMultiSelect( selectionFlags, -1, numBones );
-            ApplySelectionRequests( pMSIO );
-
             ImVec2 const tableSize = ImGui::GetContentRegionAvail();
             static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY;
             if ( ImGui::BeginTable( "SkeletonTreeTable", 1, flags, tableSize ) )
             {
                 ImGui::TableSetupColumn( "Bone", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoResize );
+
+                ImGuiMultiSelectFlags const selectionFlags = ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_BoxSelect1d | ImGuiMultiSelectFlags_ClearOnClickVoid;
+                ImGuiMultiSelectIO* pMSIO = ImGui::BeginMultiSelect( selectionFlags, -1, numBones );
+                ApplySelectionRequests( pMSIO );
+
                 DrawSkeletonTreeRow( m_pSkeletonTreeRoot );
+
+                pMSIO = ImGui::EndMultiSelect();
+                ApplySelectionRequests( pMSIO );
+
                 ImGui::EndTable();
             }
-
-            pMSIO = ImGui::EndMultiSelect();
-            ApplySelectionRequests( pMSIO );
         }
         ImGui::EndChild();
 

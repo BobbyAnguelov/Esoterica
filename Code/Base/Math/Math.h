@@ -34,7 +34,7 @@ namespace EE
         EE_FORCE_INLINE float Cot( float value ) { return 1.0f / tanf( PiDivTwo - value ); }
 
         EE_FORCE_INLINE float Pow( float x, float y ) { return powf( x, y ); }
-        EE_FORCE_INLINE float Sqr( float value ) { return value * value; }
+        EE_FORCE_INLINE constexpr float Sqr( float value ) { return value * value; }
         EE_FORCE_INLINE float Sqrt( float value ) { return sqrtf( value ); }
 
         // Computes Euler's number (2.7182818...) raised to the given power N ( 2.7182818...^N )
