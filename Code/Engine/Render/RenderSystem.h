@@ -110,7 +110,6 @@ namespace EE::Render
         void UnregisterRenderWindow( Window* pRenderWindow );
 
         TArrayView<Window* const> GetRegisteredRenderWindows() const;
-        bool IsSingleRenderWindow() const;
 
     public:
 
@@ -224,7 +223,8 @@ namespace EE::Render
 
         TArray<RHI::CommandPool*, RHI::MaxPendingFrames>                        m_frameCommandPools = {};
         TArray<RHI::CommandBuffer*, RHI::MaxPendingFrames>                      m_frameCommandBuffers = {};
-        TArray<uint64_t, RHI::MaxPendingFrames>                                 m_frameSemaphores = {};
+        TArray<uint64_t, RHI::MaxPendingFrames>                                 m_frameSemaphoresGraphics = {};
+        TArray<uint64_t, RHI::MaxPendingFrames>                                 m_frameSemaphoresCompute = {};
         TArray<uint64_t, RHI::MaxPendingFrames>                                 m_resourceUpdateSemaphores = {};
 
         TArray<bool, RHI::MaxPendingFrames>                                     m_hasCopyBarriers = {};

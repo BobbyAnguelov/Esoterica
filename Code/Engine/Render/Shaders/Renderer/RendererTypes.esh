@@ -156,7 +156,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     // Global data per viewport
     //-------------------------------------------------------------------------------------------------------
 
-    struct HLSL_ALIGN_STRUCT GlobalParameters // THIS IS IN A CONSTANT BUFFER! 16-byte CBV alignment rules
+    struct HLSL_ALIGN_INDIRECT_ARGUMENT GlobalParameters // THIS IS IN A CONSTANT BUFFER! 16-byte CBV alignment rules
     {
     // 16-byte row
         float3                          m_cameraPosition;
@@ -211,9 +211,6 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         uint                            m_paddingRow7b;
 
     // 16-byte row
-        float4                          m_lightCullingTextureSize;
-
-    // 16-byte row
         uint                            m_directionalLightBuffer            : 16;
         uint                            m_directionalLightPageBuffer        : 16;
 
@@ -238,13 +235,18 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         uint                            m_paddingSpotLight1;
 
     // 16-byte row
-        uint                            m_LightCulling_BucketTexture        : 16;
-        uint                            m_paddingCulling                    : 16;
+        float                           m_lightCulling_MinCellSize;
+        
+        uint                            m_lightCulling_PointIndirection    : 16;
+        uint                            m_lightCulling_SpotIndirection     : 16;
 
-        uint                            m_lightCulling_NumBuckets;
-        uint                            m_paddingCulling0;
-        uint                            m_paddingCulling1;
+        uint                            m_lightCulling_padding0;
+        uint                            m_lightCulling_padding1;
     
+    // 16-byte row
+        uint64_t                        m_lightCulling_SpatialHashLow;
+        uint64_t                        m_lightCulling_SpatialHashHigh;
+
     // 16-byte row
         uint64_t                        m_instancePickingResultsBuffer;
         uint                            m_mainCameraRenderView;
@@ -259,7 +261,12 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         uint                            m_shaderDebugDrawBuffer             : 16;
     
         float                           m_radianceTextureMipLevels;
+        uint                            m_padding9;
+        uint                            m_padding10;
+    
+    // 16-byte row
         uint64_t                        m_deviceAddress; // Device address of this CBV, workaround for lack of HLSL buffer address support
+        uint64_t                        m_padding11;
     };
 
     // RootConstants
@@ -307,27 +314,19 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
 
     //-------------------------------------------------------------------------------------------------------
 
-    struct HLSL_ALIGN_STRUCT LightCullingRootConstants
-    {
-        CommonRootConstants                 m_commonRootConstants;
+    #define LightCulling_CullLightsRootSignature    EE_BEGIN_ROOT_SIGNATURE \
+                                                    "RootConstants( b0, num32BitConstants = 6, space = 0 )," \
+                                                    "CBV( b1, space = 0 )"
 
-        uint                                m_LightCulling_BucketTexture    : 16;
-        uint                                m_padding                       : 16;
-        
-        uint                                m_mainCameraRenderView;
-    };
-
-    struct HLSL_ALIGN_INDIRECT_ARGUMENT LightCullingArgument
+    struct HLSL_ALIGN_STRUCT LightCulling_CullLightsRootConstants
     {
-        LightCullingRootConstants           m_rootConstants;
-        uint64_t                            m_rootCBV;
-        uint3                               m_dispatchArguments;
+        uint                                m_cellLevel;
+        int                                 m_cellOffsetX;
+        int                                 m_cellOffsetY;
+        int                                 m_cellOffsetZ;
+        uint                                m_numLODs;
         uint                                m_padding;
     };
-
-    #define LightCullingRootSignature       EE_BEGIN_ROOT_SIGNATURE \
-                                            "RootConstants( b0, num32BitConstants = 8, space = 0 )," \
-                                            "CBV( b1, space = 0 )"
 
     //-------------------------------------------------------------------------------------------------------
 

@@ -58,8 +58,6 @@ namespace EE::Render
         RHI::DestroyTexture( pContextRHI, eastl::move( m_GTAO_EdgesTexture ) );
         RHI::DestroyTexture( pContextRHI, eastl::move( m_GTAO_PrefilterDepthTexture ) );
 
-        RHI::DestroyTexture( pContextRHI, eastl::move( m_LightCulling_BucketTexture ) );
-
         if ( !IsStandalone() )
         {
             RHI::DestroyTexture( pContextRHI, eastl::move( m_finalTexture ) );

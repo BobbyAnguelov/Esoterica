@@ -2585,17 +2585,16 @@ namespace EE::Render::RHI
     {
         Direct3D12Queue* pD3D12Queue = static_cast<Direct3D12Queue*>( pQueue );
 
-        UINT64 d3d12FenceValue = pD3D12Queue->m_fence->GetCompletedValue();
-
-        if ( d3d12FenceValue <= semaphore )
+        if ( semaphore == 0 )
         {
-            // D3D has a new warning: ID3D12Fence1::SetEventOnCompletion: Fence values can never be less than zero, so waiting for a fence value of zero will always be satisfied
-            // This happens on the first application frame and it is a correct behaviour to not wait on 0 fence value.
-            if ( semaphore >= 1 )
-            {
-                pD3D12Queue->m_fence->SetEventOnCompletion( semaphore - 1, pD3D12Queue->m_fenceEvent );
-                WaitForSingleObject( pD3D12Queue->m_fenceEvent, INFINITE );
-            }
+            return;
+        }
+
+        UINT64 d3d12FenceValue = pD3D12Queue->m_fence->GetCompletedValue();
+        if ( d3d12FenceValue < semaphore )
+        {
+            pD3D12Queue->m_fence->SetEventOnCompletion( semaphore, pD3D12Queue->m_fenceEvent );
+            WaitForSingleObject( pD3D12Queue->m_fenceEvent, INFINITE );
         }
     }
 
@@ -2608,9 +2607,11 @@ namespace EE::Render::RHI
 
         // D3D has a new warning: ID3D12Fence1::SetEventOnCompletion: Fence values can never be less than zero, so waiting for a fence value of zero will always be satisfied
         // This happens on the first application frame and it is a correct behaviour to not wait on 0 fence value.
-        if ( pD3D12QueueToWaitFor->m_fenceValue >= 1 )
+        if ( semaphore != 0 )
         {
-            HRESULT const result = pD3D12QueueThatWaits->m_queue->Wait( pD3D12QueueToWaitFor->m_fence.Get(), pD3D12QueueToWaitFor->m_fenceValue - 1 );
+            EE_ASSERT( semaphore < pD3D12QueueToWaitFor->m_fenceValue );
+
+            HRESULT const result = pD3D12QueueThatWaits->m_queue->Wait( pD3D12QueueToWaitFor->m_fence.Get(), semaphore );
             EE_ASSERT( SUCCEEDED( result ) );
         }
     }
@@ -2633,9 +2634,9 @@ namespace EE::Render::RHI
             pD3D12Queue->m_queue->ExecuteCommandLists( UINT( pD3D12Queue->m_submitCommandLists.size() ), pD3D12Queue->m_submitCommandLists.data() );
         }
 
-        uint64_t signalSemaphore = pD3D12Queue->m_fenceValue;
+        uint64_t signalSemaphore = pD3D12Queue->m_fenceValue++;
 
-        HRESULT const result = pD3D12Queue->m_queue->Signal( pD3D12Queue->m_fence.Get(), pD3D12Queue->m_fenceValue++ );
+        HRESULT const result = pD3D12Queue->m_queue->Signal( pD3D12Queue->m_fence.Get(), signalSemaphore );
         EE_ASSERT( SUCCEEDED( result ) );
 
         return signalSemaphore;

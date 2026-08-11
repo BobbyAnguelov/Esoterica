@@ -702,6 +702,9 @@
       <Filter>ThirdParty\meshoptimizer</Filter>
     </ClCompile>
     <ClCompile Include="Navmesh\NavmeshPath.cpp" />
+    <ClCompile Include="Render\Device\SpatialHash.cpp">
+      <Filter>Render\Device</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation\Graph\Nodes\Animation_RuntimeGraphNode_TimeControlledAnimationClip.h">
@@ -1479,6 +1482,9 @@
       <Filter>ThirdParty\meshoptimizer</Filter>
     </ClInclude>
     <ClInclude Include="Navmesh\NavmeshPath.h" />
+    <ClInclude Include="Render\Device\SpatialHash.h">
+      <Filter>Render\Device</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="ThirdParty\box3d\src\recording_ops.inl">
@@ -1604,9 +1610,6 @@
     <None Include="Render\Shaders\Renderer\InstanceCulling.esf">
       <Filter>Render\Shaders\Renderer</Filter>
     </None>
-    <None Include="Render\Shaders\Renderer\LightCulling.esf">
-      <Filter>Render\Shaders\Renderer</Filter>
-    </None>
     <None Include="Render\Shaders\Renderer\RendererSurfaceShaderLayout.esh">
       <Filter>Render\Shaders\Renderer</Filter>
     </None>
@@ -1639,6 +1642,12 @@
     </None>
     <None Include="Render\Shaders\Picking\InstancePickingResolve.esf">
       <Filter>Render\Shaders\Picking</Filter>
+    </None>
+    <None Include="Render\Shaders\SpatialHash.esh">
+      <Filter>Render\Shaders</Filter>
+    </None>
+    <None Include="Render\Shaders\Renderer\LightCulling_CullLights.esf">
+      <Filter>Render\Shaders\Renderer</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

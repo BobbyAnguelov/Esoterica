@@ -180,6 +180,7 @@
     <ClCompile Include="Render\DebugMesh\DebugMesh.cpp" />
     <ClCompile Include="Render\DebugMesh\DebugMeshRegistry.cpp" />
     <ClCompile Include="Render\Device\DeviceAppendBuffer.cpp" />
+    <ClCompile Include="Render\Device\SpatialHash.cpp" />
     <ClCompile Include="Render\RenderGeometry.cpp" />
     <ClCompile Include="Render\RenderGeometryBuilder.cpp" />
     <ClCompile Include="Render\RenderProxies.cpp" />
@@ -409,6 +410,7 @@
     <ClInclude Include="Render\DebugMesh\DebugMeshRegistry.h" />
     <ClInclude Include="Render\Device\DeviceAppendBuffer.h" />
     <ClInclude Include="Render\Device\DeviceResizeBuffer.h" />
+    <ClInclude Include="Render\Device\SpatialHash.h" />
     <ClInclude Include="Render\RenderAsyncResourceUpdate.h" />
     <ClInclude Include="Render\RenderGeometry.h" />
     <ClInclude Include="Render\RenderGeometryBuilder.h" />
@@ -599,7 +601,7 @@
     <None Include="Render\Shaders\Renderer\ClusterCulling.esf" />
     <None Include="Render\Shaders\Renderer\DefaultMeshShader.esh" />
     <None Include="Render\Shaders\Renderer\InstanceCulling.esf" />
-    <None Include="Render\Shaders\Renderer\LightCulling.esf" />
+    <None Include="Render\Shaders\Renderer\LightCulling_CullLights.esf" />
     <None Include="Render\Shaders\Renderer\RendererSurfaceShaderLayout.esh" />
     <None Include="Render\Shaders\Renderer\RendererTypes.esh" />
     <None Include="Render\Shaders\Renderer\ShadowMapSampling.esh" />
@@ -611,6 +613,7 @@
     <None Include="Render\Shaders\SMAA\SMAA_Configuration.esh" />
     <None Include="Render\Shaders\SMAA\SMAA_EdgeDetection.esf" />
     <None Include="Render\Shaders\SMAA\SMAA_NeighborhoodBlending.esf" />
+    <None Include="Render\Shaders\SpatialHash.esh" />
     <None Include="Render\Shaders\Transform.esh" />
     <None Include="ThirdParty\box3d\src\recording_ops.inl" />
   </ItemGroup>

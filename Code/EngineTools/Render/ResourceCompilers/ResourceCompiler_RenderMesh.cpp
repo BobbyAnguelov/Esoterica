@@ -312,9 +312,15 @@ namespace EE::Render
 
             if ( isValidMeshData )
             {
+                uint32_t geometryIndex = 0;
                 for ( Import::Mesh::Submesh const& importedSubmesh : importedMesh->GetSubmeshes() )
                 {
-                    uint32_t const geometryIndex = uint32_t( mesh.m_geometryLODDistance.size() + importedSubmesh.m_geometryIdx );
+                    // Need to account for empty geometries that are skipped earlier
+                    GeometryBuilder const& sourceGeometryBuilder = convertedMesh.m_geometryBuilders[geometryIndex];
+                    if ( sourceGeometryBuilder.GetVertices().empty() || sourceGeometryBuilder.GetIndices().empty() )
+                    {
+                        continue;
+                    }
 
                     Geometry const& geometry = mesh.m_geometry[geometryIndex];
                     if ( geometry.m_clusterVertices.empty() || geometry.m_clusterTriangles.empty() )
@@ -341,6 +347,8 @@ namespace EE::Render
                     {
                         combinedAABB = AABB::GetCombinedBox( transformedAABB, combinedAABB );
                     }
+
+                    geometryIndex++;
                 }
 
                 mesh.m_geometryLODDistance.push_back( lod.m_lodDistance );

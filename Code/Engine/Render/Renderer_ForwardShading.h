@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Engine/Render/Device/DeviceResizeBuffer.h"
+#include "Engine/Render/Device/SpatialHash.h"
 #include "Engine/Render/RenderPasses/RenderPass.h"
 #include "Engine/Render/RenderPasses/RenderPass_GlobalEnvironmentMap.h"
 #include "Engine/Render/RenderPasses/RenderPass_SMAA.h"
@@ -71,7 +72,7 @@ namespace EE::Render
 
         ComputeShader const*                                                m_pInstanceCullingShader = nullptr;
         ComputeShader const*                                                m_pClusterCullingShader = nullptr;
-        ComputeShader const*                                                m_pLightCullingShader = nullptr;
+        ComputeShader const*                                                m_pLightCulling_CullLightsShader = nullptr;
         ComputeShader const*                                                m_pBucketResolveShader = nullptr;
 
         DeviceBufferState                                                   m_instanceCulling_CounterBuffer = {};
@@ -79,6 +80,8 @@ namespace EE::Render
 
         DeviceBufferState                                                   m_clusterCulling_CounterBuffer = {};
         DeviceResizeBufferState                                             m_clusterCulling_ArgumentBuffer = {};
+
+        DeviceSpatialHash                                                   m_LightCulling_SpatialHash;
 
         TVector<CascadedShadowPass>                                         m_renderPass_CascadedShadows;
         ForwardShadingPass                                                  m_renderPass_ForwardShading;
@@ -89,6 +92,8 @@ namespace EE::Render
         PostProcessPass                                                     m_renderPass_PostProcess;
 
         DeviceResourceStates                                                m_resourceStates;
+
+        TArray<uint64_t, RHI::MaxPendingFrames>                             m_signalSemaphores_ShadingPass = {};
 
         #if EE_DEVELOPMENT_TOOLS
         ComputeShader const*                                                m_pInstancePickingResolveShader = nullptr;

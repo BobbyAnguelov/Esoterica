@@ -77,8 +77,6 @@ namespace EE::Render
         mutable DeviceTextureState                          m_GTAO_EdgesTexture = {};
         mutable DeviceTextureState                          m_GTAO_PrefilterDepthTexture = {};
 
-        mutable DeviceTextureState                          m_LightCulling_BucketTexture = {};
-
         mutable DeviceTextureState                          m_finalTexture = {};
 
         #if EE_DEVELOPMENT_TOOLS

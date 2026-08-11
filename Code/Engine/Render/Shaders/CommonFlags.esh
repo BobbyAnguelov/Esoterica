@@ -28,7 +28,10 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_ROUGHNESS                                 = 7;
     static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_AMBIENT_OCCLUSION                         = 8;
     static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_COMPLEXITY                          = 9;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_SSAO                                      = 10;
+    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_COLLISIONS                     = 10;
+    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_CELLS                          = 11;
+    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_PAYLOAD_COMPLEXITY             = 12;
+    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_SSAO                                      = 13;
 
     typedef uint RendererGlobalFlags;           // 6 bits required
     static const RendererGlobalFlags            RENDERER_GLOBAL_FLAG_NONE                                                   = 0U;

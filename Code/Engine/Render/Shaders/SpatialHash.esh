@@ -1,0 +1,220 @@
+#include "Base/Render/RHI.esh"
+
+#ifndef _SPATIAL_HASH_SHADER_ESH_
+#define _SPATIAL_HASH_SHADER_ESH_
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    // Camera-relative cell packing: 9 bits/axis + 5 bits level.
+    // Cell indices are relative to camera at origin, range [-256, 255] -> [0, 511].
+    //-------------------------------------------------------------------------
+
+    uint PackChecksum( int3 cellIndex, int level )
+    {
+        uint x = uint( cellIndex.x + 256 ) & 0x1FF;
+        uint y = uint( cellIndex.y + 256 ) & 0x1FF;
+        uint z = uint( cellIndex.z + 256 ) & 0x1FF;
+        uint l = uint( level ) & 0x1F;
+        return x | ( y << 9 ) | ( z << 18 ) | ( l << 27 );
+    }
+
+    int4 UnpackChecksum( uint checksum )
+    {
+        int x = int( ( checksum >>  0 ) & 0x1FF ) - 256;
+        int y = int( ( checksum >>  9 ) & 0x1FF ) - 256;
+        int z = int( ( checksum >> 18 ) & 0x1FF ) - 256;
+        int l = int( checksum >> 27 );
+        return int4( x, y, z, l );
+    }
+
+    // Based on: https://interplayoflight.wordpress.com/2025/11/23/spatial-hashing-for-raytraced-ambient-occlusion/
+    //-------------------------------------------------------------------------
+
+    static const uint SPATIAL_HASH_MAX_LOD_LEVELS = 6;  // hard maximum, packed into 5 spare checksum bits
+    static const uint SPATIAL_HASH_MAX_LOOKUPS = 12;
+
+    float CellSizeFromLevel( uint level, float baseCellSize )
+    {
+        return exp2( float( level ) ) * baseCellSize;
+    }
+
+#ifndef __cplusplus
+
+    BufferHandle GetSpatialHashKeysHandle( uint64_t handleLow )
+    {
+        return BufferHandle( handleLow & 0xFFFF );
+    }
+
+    BufferHandle GetSpatialHashPayloadsHandle( uint64_t handleLow )
+    {
+        return BufferHandle( ( handleLow >> 16 ) & 0xFFFF );
+    }
+
+    uint GetSpatialHashTableSize( uint64_t handleLow )
+    {
+        return 1u << ( uint( handleLow >> 32 ) & 0x1FU );
+    }
+
+    uint GetSpatialHashNumLODs( uint64_t handleLow )
+    {
+        return ( uint( handleLow >> 57 ) & 0x7U ) + 1;
+    }
+
+    uint GetSpatialHashBorderBits( uint64_t handleLow )
+    {
+        return uint( ( handleLow >> 37 ) & 0xFFFFFU ); // 20 bits: 5 LODs, 4 bits each
+    }
+
+    uint GetSpatialHashPayloadStride( uint64_t handleHigh )
+    {
+        return uint( handleHigh & 0xFFFFFFFF );
+    }
+
+    float GetSpatialHashBaseCellSize( uint64_t handleHigh )
+    {
+        return asfloat( uint( handleHigh >> 32 ) );
+    }
+
+    template<typename KeyBufferType, typename PayloadBufferType>
+    struct SpatialHashBase
+    {
+        KeyBufferType        m_keys;     // packed: x[8:0] | y[17:9] | z[26:18] | level[31:27]
+        PayloadBufferType    m_payloads;
+        uint                 m_tableSize;
+        uint                 m_payloadStride;
+        float                m_baseCellSize;
+        uint                 m_borderBits;
+        uint                 m_numLODs;
+
+        uint PCG( uint v )
+        {
+            uint state = v * 747796405u + 2891336453u;
+            uint word  = ( ( state >> ( ( state >> 28u ) + 4u ) ) ^ state ) * 277803737u;
+            return ( word >> 22u ) ^ word;
+        }
+
+        uint2 GetPayload( uint slotIndex, uint bucketIndex )
+        {
+            return m_payloads[ slotIndex * m_payloadStride + bucketIndex ];
+        }
+
+        bool LoadPayloadCell( float3 worldPos, float3 cameraPos, out uint slotIndex, out uint numCollisions, out uint checksum )
+        {
+            float3  relPos  = worldPos - cameraPos;
+            float   base    = m_baseCellSize;
+            int3    c0      = int3( floor( relPos / base ) );
+            uint    level   = m_numLODs - 1;
+            int3    ci      = c0 >> int( level );
+
+            // Precompute all LOD ranges from borders
+            int3 R0 = int3( -4, -4, -4 );
+            int3 R0max = int3( 3, 3, 3 );
+            
+            int3 R1 = R0;
+            int3 R1max = R0max;
+            int3 R2 = R0;
+            int3 R2max = R0max;
+            int3 R3 = R0;
+            int3 R3max = R0max;
+            int3 R4 = R0;
+            int3 R4max = R0max;
+
+            [unroll( SPATIAL_HASH_MAX_LOD_LEVELS )]
+            for ( int lod = int( m_numLODs - 1 ); lod > 0; --lod )
+            {
+                int border = int( ( m_borderBits >> ( ( uint( lod ) - 1 ) * 4 ) ) & 0xFU );
+                R0 = 2 * ( R0 + border );
+                R0max = 2 * ( R0max - border ) + 1;
+
+                if ( lod == 5 ) { R4 = R0; R4max = R0max; }
+                if ( lod == 4 ) { R3 = R0; R3max = R0max; }
+                if ( lod == 3 ) { R2 = R0; R2max = R0max; }
+                if ( lod == 2 ) { R1 = R0; R1max = R0max; }
+            }
+
+            // Check from finest to coarsest
+            if ( all( c0 >= R0 ) && all( c0 <= R0max ) )                { level = 0; ci = c0; }
+            else if ( all( c0 >> 1 >= R1 ) && all( c0 >> 1 <= R1max ) ) { level = 1; ci = c0 >> 1; }
+            else if ( all( c0 >> 2 >= R2 ) && all( c0 >> 2 <= R2max ) ) { level = 2; ci = c0 >> 2; }
+            else if ( all( c0 >> 3 >= R3 ) && all( c0 >> 3 <= R3max ) ) { level = 3; ci = c0 >> 3; }
+            else if ( all( c0 >> 4 >= R4 ) && all( c0 >> 4 <= R4max ) ) { level = 4; ci = c0 >> 4; }
+
+            return TryLookup( ci, level, slotIndex, numCollisions, checksum );
+        }
+
+        bool TryLookup( int3 cellIndex, int level, out uint slotIndex, out uint numCollisions, out uint checksum )
+        {
+            checksum = PackChecksum( cellIndex, level );
+            uint hashKey = PCG( level + PCG( uint( cellIndex.x ) + PCG( uint( cellIndex.y ) + PCG( uint( cellIndex.z ) ) ) ) );
+            uint mask = m_tableSize - 1;
+            uint slot = hashKey & mask;
+            [loop] for ( uint probe = 0; probe < SPATIAL_HASH_MAX_LOOKUPS; ++probe )
+            {
+                uint idx = ( slot + probe ) & mask;
+                uint val = m_keys[idx];
+                if ( val == 0 ) { slotIndex = ~0; numCollisions = probe + 1; checksum = 0; return false; }
+                if ( val == checksum ) { slotIndex = idx; numCollisions = probe + 1; return true; }
+            }
+            slotIndex = ~0u; numCollisions = m_tableSize; checksum = 0; return false;
+        }
+    };
+
+    //-------------------------------------------------------------------------
+
+    // Read-write variant for compute shader
+    struct SpatialHashRW : SpatialHashBase<RWBuffer<uint>, RWBuffer<uint2> >
+    {
+        uint FindOrInsert( int3 cellIndex, uint level, out bool newCellInserted )
+        {
+            uint checksum = PackChecksum( cellIndex, level );
+            uint hashKey = PCG( level + PCG( uint( cellIndex.x ) + PCG( uint( cellIndex.y ) + PCG( uint( cellIndex.z ) ) ) ) );
+            uint mask = m_tableSize - 1;
+            uint slot = hashKey & mask;
+            [loop] for ( uint probe = 0; probe < SPATIAL_HASH_MAX_LOOKUPS; ++probe )
+            {
+                uint idx = ( slot + probe ) & mask;
+                uint oldVal;
+                InterlockedCompareExchange( m_keys[idx], 0, checksum, oldVal );
+                if ( oldVal == 0 ) { newCellInserted = true; return idx; }
+                if ( oldVal == checksum ) { newCellInserted = false; return idx; }
+            }
+            newCellInserted = false;
+            return ~0;
+        }
+    };
+
+    // Read-only variant for pixel shader (SRV)
+    typedef SpatialHashBase<Buffer<uint>, Buffer<uint2> > SpatialHashRO;
+
+    //-------------------------------------------------------------------------
+
+    SpatialHashRW CreateSpatialHash( uint64_t handleLow, uint64_t handleHigh )
+    {
+        SpatialHashRW hash;
+        hash.m_keys             = GetRWBuffer( GetSpatialHashKeysHandle( handleLow ) );
+        hash.m_payloads         = GetRWBuffer( GetSpatialHashPayloadsHandle( handleLow ) );
+        hash.m_tableSize        = GetSpatialHashTableSize( handleLow );
+        hash.m_payloadStride    = GetSpatialHashPayloadStride( handleHigh );
+        hash.m_baseCellSize     = GetSpatialHashBaseCellSize( handleHigh );
+        hash.m_borderBits       = GetSpatialHashBorderBits( handleLow );
+        hash.m_numLODs          = GetSpatialHashNumLODs( handleLow );
+        return hash;
+    }
+
+    SpatialHashRO CreateSpatialHashRO( uint64_t handleLow, uint64_t handleHigh )
+    {
+        SpatialHashRO hash;
+        hash.m_keys             = GetBuffer( RWBufferToBuffer( GetSpatialHashKeysHandle( handleLow ) ) );
+        hash.m_payloads         = GetBuffer( RWBufferToBuffer( GetSpatialHashPayloadsHandle( handleLow ) ) );
+        hash.m_tableSize        = GetSpatialHashTableSize( handleLow );
+        hash.m_payloadStride    = GetSpatialHashPayloadStride( handleHigh );
+        hash.m_baseCellSize     = GetSpatialHashBaseCellSize( handleHigh );
+        hash.m_borderBits       = GetSpatialHashBorderBits( handleLow );
+        hash.m_numLODs          = GetSpatialHashNumLODs( handleLow );
+        return hash;
+    }
+#endif
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

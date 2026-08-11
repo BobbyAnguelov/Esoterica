@@ -318,7 +318,8 @@ namespace EE::Render
         EE_PROFILE_FUNCTION_RENDER();
         EE_ASSERT( m_internalStage[m_frameIndex] == InternalStage::None );
 
-        RHI::QueueHostWait( m_pGraphicsQueue, m_frameSemaphores[m_frameIndex] );
+        RHI::QueueHostWait( m_pGraphicsQueue, m_frameSemaphoresGraphics[m_frameIndex] );
+        RHI::QueueHostWait( m_pComputeQueue, m_frameSemaphoresCompute[m_frameIndex] );
     }
 
     void RenderSystem::StartResourceUpdates( bool wait )
@@ -922,7 +923,8 @@ namespace EE::Render
             RHI::QueueSubmit( m_pGraphicsQueue, { &pCommandBuffer, 1 } );
 
             // Present queue
-            m_frameSemaphores[m_frameIndex] = RHI::QueuePresent( m_pGraphicsQueue, pRenderWindow->GetSwapchain(), pRenderWindow->GetCurrentImageIndex() );
+            m_frameSemaphoresGraphics[m_frameIndex] = RHI::QueuePresent( m_pGraphicsQueue, pRenderWindow->GetSwapchain(), pRenderWindow->GetCurrentImageIndex() );
+            m_frameSemaphoresCompute[m_frameIndex] = RHI::QueueSubmit( m_pComputeQueue, {} );
         }
 
         m_frameIndex = ( m_frameIndex + 1 ) % RHI::MaxPendingFrames;
@@ -976,12 +978,6 @@ namespace EE::Render
     TArrayView<Window* const> RenderSystem::GetRegisteredRenderWindows() const
     {
         return m_registeredRenderWindows;
-    }
-
-    bool RenderSystem::IsSingleRenderWindow()const
-    {
-        EE_ASSERT( !m_registeredRenderWindows.empty() );
-        return m_registeredRenderWindows.size() == 1;
     }
 
     // Viewports

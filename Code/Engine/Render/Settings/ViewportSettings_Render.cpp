@@ -23,6 +23,9 @@ namespace EE::Render
         stateUpdated |= ImGui::RadioButton( "Render Roughness", &debugMode, int32_t( DebugVisualizationMode::Roughness ) );
         stateUpdated |= ImGui::RadioButton( "Render Ambient Occlusion", &debugMode, int32_t( DebugVisualizationMode::AmbientOcclusion ) );
         stateUpdated |= ImGui::RadioButton( "Render Light Complexity", &debugMode, int32_t( DebugVisualizationMode::LightComplexity ) );
+        stateUpdated |= ImGui::RadioButton( "Render Light Hash Collisions", &debugMode, int32_t( DebugVisualizationMode::LightHashCollisions ) );
+        stateUpdated |= ImGui::RadioButton( "Render Light Hash Cells", &debugMode, int32_t( DebugVisualizationMode::LightHashCells ) );
+        stateUpdated |= ImGui::RadioButton( "Render Light Hash Payload Complexity", &debugMode, int32_t( DebugVisualizationMode::LightHashPayloadComplexity ) );
         stateUpdated |= ImGui::RadioButton( "Render SSAO", &debugMode, int32_t( DebugVisualizationMode::SSAO ) );
 
         if ( stateUpdated )

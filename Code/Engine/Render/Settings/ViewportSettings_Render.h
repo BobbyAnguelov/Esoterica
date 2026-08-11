@@ -20,6 +20,9 @@ namespace EE::Render
         Roughness,
         AmbientOcclusion,
         LightComplexity,
+        LightHashCollisions,
+        LightHashCells,
+        LightHashPayloadComplexity,
         SSAO,
     };
 

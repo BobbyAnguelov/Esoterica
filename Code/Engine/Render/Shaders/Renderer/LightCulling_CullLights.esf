@@ -1,0 +1,291 @@
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/SpatialHash.esh"
+
+ESF_PARAMETER string ShaderType = "Compute";
+
+EE_DECLARE_ROOT_CONSTANTS( LightCulling_CullLightsRootConstants, b0, space0 );
+EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
+
+groupshared uint gsPointMask0;
+groupshared uint gsPointMask1;
+groupshared uint gsSpotMask0;
+groupshared uint gsSpotMask1;
+
+groupshared uint gsCellSlot;
+
+groupshared uint gsPointFirstPage;
+groupshared uint gsPointLastPage;
+
+groupshared uint gsSpotFirstPage;
+groupshared uint gsSpotLastPage;
+
+groupshared uint gsPageStart;
+groupshared uint gsPageEnd;
+
+groupshared uint gsParentSlot;
+groupshared uint gsParentHasLights;
+groupshared uint2 gsParentPayload0;
+groupshared uint2 gsParentPayload1;
+
+bool TestPointLightCell( float3 cellCenter, float3 cellHalfExtents, LightInstance_PointLight light )
+{
+    float3 closest = clamp( light.m_lightPosition, cellCenter - cellHalfExtents, cellCenter + cellHalfExtents );
+    float3 delta   = light.m_lightPosition - closest;
+    return dot( delta, delta ) < light.m_maxRadius * light.m_maxRadius;
+}
+
+// Based on: https://bartwronski.com/2017/04/13/cull-that-cone/
+//-------------------------------------------------------------------------
+
+bool TestConeVsSphere( float3 origin, float3 forward, float size, float cosAngle, float sinAngle, float4 testSphere )
+{
+    const float3 V = testSphere.xyz - origin;
+    const float  VlenSq = dot( V, V );
+    const float  V1len  = dot( V, forward );
+    const float  distanceClosestPoint = cosAngle * sqrt( VlenSq - V1len * V1len ) - V1len * sinAngle;
+
+    const bool angleCull = distanceClosestPoint > testSphere.w;
+    const bool frontCull = V1len >  testSphere.w + size;
+    const bool backCull  = V1len < -testSphere.w;
+
+    return !( angleCull || frontCull || backCull );
+}
+
+//-------------------------------------------------------------------------
+
+[RootSignature( LightCulling_CullLightsRootSignature )]
+[numthreads( 64, 1, 1 )]
+void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID, uint groupIndex : SV_GroupIndex )
+{
+    if ( groupThreadID == 0 )
+    {
+        gsPointMask0     = 0;
+        gsPointMask1     = 0;
+        gsSpotMask0      = 0;
+        gsSpotMask1      = 0;
+        gsCellSlot       = ~0U;
+        gsParentSlot     = ~0U;
+        gsParentHasLights = 0;
+        gsPointFirstPage = ~0U;
+        gsPointLastPage  = 0;
+        gsSpotFirstPage  = ~0U;
+        gsSpotLastPage   = 0;
+        gsPageStart      = 0;
+        gsPageEnd        = 0;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    SpatialHashRW hash      = CreateSpatialHash( RootCBV.m_lightCulling_SpatialHashLow, RootCBV.m_lightCulling_SpatialHashHigh );
+    uint          cellLevel = RootConstants.m_cellLevel;
+    bool          isRoot    = ( cellLevel == RootConstants.m_numLODs - 1 );
+
+    // Cell coordinate = groupID + offset (offset is minimum cell coordinate for this LOD's dispatch)
+    int3 cellCoord = int3( groupID ) + int3( RootConstants.m_cellOffsetX, RootConstants.m_cellOffsetY, RootConstants.m_cellOffsetZ );
+
+    if ( !isRoot && groupThreadID == 0 )
+    {
+        int3 parentCoord  = cellCoord >> 1;
+        int  parentLevel  = int( cellLevel ) + 1;
+        uint parentSlot, numCollisions, checksum;
+        if ( hash.TryLookup( parentCoord, parentLevel, parentSlot, numCollisions, checksum ) )
+        {
+            gsParentSlot = parentSlot;
+        }
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    // Parent scan: read metadata, compute merged page range, check for lights
+    if ( !isRoot && gsParentSlot != ~0U && groupThreadID == 0 )
+    {
+        uint2 pointLightPageRange = hash.GetPayload( gsParentSlot, 0 );
+        uint2 spotLightPageRange = hash.GetPayload( gsParentSlot, 1 );
+        gsParentHasLights = ( pointLightPageRange.y != 0 || spotLightPageRange.y != 0 ) ? 1u : 0;
+
+        uint rangeStart = ~0U;
+        uint rangeEnd = 0;
+        
+        if ( pointLightPageRange.y > 0 )    { rangeStart = min( rangeStart, pointLightPageRange.x ); rangeEnd = max( rangeEnd, pointLightPageRange.x + pointLightPageRange.y ); }
+        if ( spotLightPageRange.y > 0 )     { rangeStart = min( rangeStart, spotLightPageRange.x ); rangeEnd = max( rangeEnd, spotLightPageRange.x + spotLightPageRange.y ); }
+        if ( rangeStart > rangeEnd )        { rangeStart = 0; rangeEnd = 0; }
+        
+        gsPageStart = rangeStart;
+        gsPageEnd   = rangeEnd;
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    bool hasWork = isRoot || ( gsParentSlot != ~0U && gsParentHasLights != 0 );
+
+    float  cellSize        = CellSizeFromLevel( cellLevel, hash.m_baseCellSize );
+    float3 cellCenter      = ( float3( cellCoord ) + 0.5F ) * cellSize + RootCBV.m_cameraPosition;
+    float  cellRadius      = cellSize * 0.86602540378F;
+    float3 cellHalfExtents = cellSize * 0.5F;
+
+    //-------------------------------------------------------------------------
+
+    StructuredBuffer<LightInstance_PointLight>  pointLights     = GetBuffer( RootCBV.m_pointLightBuffer );
+    StructuredBuffer<LightInstance_SpotLight>   spotLights      = GetBuffer( RootCBV.m_spotLightBuffer );
+    Buffer<uint64_t>                            pointLightPages = GetBuffer( RootCBV.m_pointLightPageBuffer );
+    Buffer<uint64_t>                            spotLightPages  = GetBuffer( RootCBV.m_spotLightPageBuffer );
+
+    uint maxPages = max( RootCBV.m_numPointLightPages, RootCBV.m_numSpotLightPages );
+
+    if ( hasWork )
+    {
+        uint startPage = isRoot ? 0 : gsPageStart;
+        uint endPage   = isRoot ? maxPages : gsPageEnd;
+
+        for ( uint pageIndex = startPage; pageIndex < endPage; ++pageIndex )
+        {
+            if ( groupThreadID == 0 )
+            {
+                gsPointMask0 = 0;
+                gsPointMask1 = 0;
+                gsSpotMask0  = 0;
+                gsSpotMask1  = 0;
+            }
+
+            if ( !isRoot )
+            {
+                if ( groupThreadID == 0 )
+                {
+                    gsParentPayload0 = hash.GetPayload( gsParentSlot, 2 + pageIndex * 2 + 0 );
+                }
+                if ( groupThreadID == 32 )
+                {
+                    gsParentPayload1 = hash.GetPayload( gsParentSlot, 2 + pageIndex * 2 + 1 );
+                }
+            }
+
+            GroupMemoryBarrierWithGroupSync();
+
+            uint halfBucket = groupThreadID / 32;
+            uint bitInHalf  = groupThreadID & 31;
+            uint testBit    = 1u << bitInHalf;
+
+            uint2 parentPayload = uint2( 0, 0 );
+            if ( !isRoot )
+            {
+                parentPayload = ( halfBucket == 0 ) ? gsParentPayload0 : gsParentPayload1;
+            }
+
+            // Point lights
+            //-------------------------------------------------------------------------
+
+            if ( pageIndex < RootCBV.m_numPointLightPages )
+            {
+                uint64_t pageMask = pointLightPages[pageIndex];
+                bool     occupied = ( pageMask & ( 1ULL << groupThreadID ) ) != 0;
+                bool     inParent = isRoot || ( ( parentPayload.x & testBit ) != 0 );
+
+                bool inCell = false;
+                if( inParent && occupied )
+                {
+                    uint pointLightIdx = pageIndex * 64 + groupThreadID;
+                    inCell = TestPointLightCell( cellCenter, cellHalfExtents, pointLights[pointLightIdx] );
+                }
+
+                uint waveMask = WaveActiveBitOr( inCell ? testBit : 0 );
+                if ( WaveGetLaneIndex() == 0 && waveMask != 0 )
+                {
+                    if ( groupThreadID < 32 )
+                    {
+                        InterlockedOr( gsPointMask0, waveMask );
+                    }
+                    else
+                    {
+                        InterlockedOr( gsPointMask1, waveMask );
+                    }
+                }
+            }
+
+            // Spot lights
+            //-------------------------------------------------------------------------
+            if ( pageIndex < RootCBV.m_numSpotLightPages )
+            {
+                uint64_t pageMask = spotLightPages[pageIndex];
+                bool     occupied = ( pageMask & ( 1ULL << groupThreadID ) ) != 0;
+                bool     inParent = isRoot || ( ( parentPayload.y & testBit ) != 0 );
+
+                bool inCell = false;
+                if ( inParent && occupied )
+                {
+                    uint spotLightIndex = pageIndex * 64 + groupThreadID;
+                    LightInstance_SpotLight light = spotLights[spotLightIndex];
+
+                    float  sinAngle   = sqrt( saturate( 1.0F - light.m_outerConeAngle * light.m_outerConeAngle ) );
+                    float4 testSphere = float4( cellCenter, cellRadius );
+
+                    inCell = TestConeVsSphere( light.m_lightPosition, light.m_lightDirection, light.m_maxRadius, light.m_outerConeAngle, sinAngle, testSphere );
+                }
+
+                uint waveMask = WaveActiveBitOr( inCell ? testBit : 0 );
+                if ( WaveGetLaneIndex() == 0 && waveMask != 0 )
+                {
+                    if( groupThreadID < 32 )
+                    {
+                        InterlockedOr( gsSpotMask0, waveMask );
+                    }
+                    else
+                    {
+                        InterlockedOr( gsSpotMask1, waveMask );
+                    }
+                }
+            }
+
+            GroupMemoryBarrierWithGroupSync();
+
+            if ( groupThreadID == 0 )
+            {
+                if ( gsCellSlot == ~0U )
+                {
+                    bool newCell = false;
+                    gsCellSlot = hash.FindOrInsert( cellCoord, cellLevel, newCell );
+                }
+            }
+
+            GroupMemoryBarrierWithGroupSync();
+
+            // Track first/last non-zero page for cell metadata
+            if ( groupThreadID == 0 && gsCellSlot != ~0U )
+            {
+                uint baseBucket   = 2 + pageIndex * 2;
+                uint payloadIndex = gsCellSlot * hash.m_payloadStride + baseBucket;
+
+                hash.m_payloads[payloadIndex    ] = uint2( gsPointMask0, gsSpotMask0 );
+                hash.m_payloads[payloadIndex + 1] = uint2( gsPointMask1, gsSpotMask1 );
+
+                if ( ( gsPointMask0 | gsPointMask1 ) != 0 )
+                {
+                    if ( gsPointFirstPage == ~0U )
+                    {
+                        gsPointFirstPage = pageIndex;
+                    }
+                    gsPointLastPage = pageIndex;
+                }
+                if ( ( gsSpotMask0 | gsSpotMask1 ) != 0 )
+                {
+                    if ( gsSpotFirstPage == ~0U )
+                    {
+                        gsSpotFirstPage = pageIndex;
+                    }
+                    gsSpotLastPage = pageIndex;
+                }
+            }
+        }
+    }
+
+    GroupMemoryBarrierWithGroupSync();
+
+    // Write metadata to payload slots 0 (point) and 1 (spot)
+    if ( groupThreadID == 0 && gsCellSlot != ~0U )
+    {
+        uint numPointLights = ( gsPointFirstPage != ~0U ) ? ( gsPointLastPage - gsPointFirstPage + 1 ) : 0;
+        uint numSpotLights = ( gsSpotFirstPage  != ~0U ) ? ( gsSpotLastPage  - gsSpotFirstPage  + 1 ) : 0;
+
+        hash.m_payloads[gsCellSlot * hash.m_payloadStride    ] = uint2( gsPointFirstPage, numPointLights );
+        hash.m_payloads[gsCellSlot * hash.m_payloadStride + 1] = uint2( gsSpotFirstPage,  numSpotLights );
+    }
+}

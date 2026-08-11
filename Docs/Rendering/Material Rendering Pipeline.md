@@ -102,33 +102,17 @@ At the end of the pipeline each render pass receives a ready-to-use draw argumen
 
 ## Light and Decal Culling
 
-Lights and decals use tiled screen-space culling. The screen is split into fixed-size tiles (32×32 pixels by default, configurable). A compute shader culls lights per tile and produces a compacted light list. The pixel shader iterates the list with a scalarized bitscan loop.
+Lights and decals use a spatial hash for world-space culling.
 
-```mermaid
-stateDiagram-v2
-    classDef computeDispatch font-weight: bold, stroke-width: 2px, stroke: lightgray;
-    classDef meshDispatch font-weight: bold, stroke-width: 2px, stroke: lightgray;
+The world is partitioned into a 6-level LOD hierarchy -- the hash works with arbitrary spatial positions and any cell coordinate you feed it; it just happens to be camera-relative by default. The coarsest LOD spans the entire scene, finer LODs refine near the origin.
 
-    LightCulling:::computeDispatch
-    ClusterCulling:::computeDispatch
-    MaterialDispatch:::meshDispatch
+Unlike a dense grid, the hash stores only occupied cells -- empty space costs no memory, and the structure naturally conforms to complex world topology without extra cost.
 
-    ForEachRenderView1: For each render view
+Unlike screen-space tiling, the spatial hash supports arbitrary world-space lookups -- reflection passes and ray tracing shaders can query off-screen lights and decals.
 
-    ClusterCulling                                      --> ForEachRenderView1
+A compute shader tests each light against its cell, constrained by parent page ranges, and writes per-cell bitmasks into an open-addressing hash table. The culling pass runs on the async compute queue, overlapped with the depth prepass and the previous frame's post processing.
 
-    ForEachRenderView1                                  --> VisibleClustersShaderA : uint2
-    ForEachRenderView1                                  --> VisibleClustersShaderB : uint2
-    ForEachRenderView1                                  --> VisibleClustersShaderC : uint2
-
-    LightCulling                                        --> LightCullingBinsTexture
-
-    LightCullingBinsTexture                             --> MaterialDispatch
-
-    VisibleClustersShaderA                              --> MaterialDispatch
-    VisibleClustersShaderB                              --> MaterialDispatch
-    VisibleClustersShaderC                              --> MaterialDispatch
-```
+The pixel shader looks up its cell via `LoadPayloadCell` and iterates the compacted light list with a scalarized bitscan loop.
 
 ## Extending the Pipeline
 
