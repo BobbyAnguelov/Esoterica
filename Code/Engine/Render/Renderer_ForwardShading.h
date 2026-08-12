@@ -28,7 +28,7 @@ namespace EE::Render
     class RenderWorldSettings;
     class RenderSettings;
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     class ForwardShadingRenderer final
     {
@@ -42,17 +42,17 @@ namespace EE::Render
         void UpdateWorldDeviceResources( UpdateContext const& updateContext, EntityWorld* pWorld );
 
         void DispatchWorld( UpdateContext const& updateContext, RenderViewport const* pRenderViewport, EntityWorld* pWorld );
-        void DrawWorldToViewport( UpdateContext const& updateContext, RenderViewport const* pRenderViewport, EntityWorld const* pWorld );
+        uint64_t DrawWorldToViewport( UpdateContext const& updateContext, RenderViewport const* pRenderViewport, EntityWorld const* pWorld, uint64_t waitSemaphore );
 
     private:
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         uint64_t SubmitGraphicsCommandBuffer( RHI::CommandBuffer*&& pCommandBuffer );
         uint64_t SubmitComputeCommandBuffer( RHI::CommandBuffer*&& pCommandBuffer );
 
     private:
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         template <typename F>
         void ForEachRenderBucket( uint32_t numCascadedShadowPasses, F fn );
@@ -62,7 +62,7 @@ namespace EE::Render
 
     private:
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         RenderSystem*                                                       m_pRenderSystem = nullptr;
 
@@ -75,11 +75,11 @@ namespace EE::Render
         ComputeShader const*                                                m_pLightCulling_CullLightsShader = nullptr;
         ComputeShader const*                                                m_pBucketResolveShader = nullptr;
 
-        DeviceBufferState                                                   m_instanceCulling_CounterBuffer = {};
-        DeviceResizeBufferState                                             m_clusterCulling_ClusterBuffer = {};
+        RHI::Buffer*                                                        m_pInstanceCulling_CounterBuffer = nullptr;
+        DeviceResizeBuffer                                                  m_ClusterCulling_ClusterBuffer = {};
 
-        DeviceBufferState                                                   m_clusterCulling_CounterBuffer = {};
-        DeviceResizeBufferState                                             m_clusterCulling_ArgumentBuffer = {};
+        RHI::Buffer*                                                        m_pClusterCulling_CounterBuffer = {};
+        DeviceResizeBuffer                                                  m_ClusterCulling_ArgumentBuffer = {};
 
         DeviceSpatialHash                                                   m_LightCulling_SpatialHash;
 

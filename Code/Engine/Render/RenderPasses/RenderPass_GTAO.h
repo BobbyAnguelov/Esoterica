@@ -25,7 +25,7 @@ namespace EE::Render
         ComputeShader const*                            m_pPrefilterDepthComputeShader = nullptr;
         ComputeShader const*                            m_pDenoiseComputeShader = nullptr;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );
@@ -55,7 +55,7 @@ namespace EE::Render
                        RHI::CommandBuffer*      pCommandBuffer,
                        uint32_t                 frameIndex );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
     public:
 

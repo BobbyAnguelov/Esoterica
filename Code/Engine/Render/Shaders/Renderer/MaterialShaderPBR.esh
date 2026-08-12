@@ -84,6 +84,23 @@ MaterialShaderOutput MaterialShaderMain( in MaterialShaderInput materialInput );
 #define PS_DEVTOOLS_ARGS
 #endif
 
+uint firstbitlow64( uint64_t v )
+{
+    uint index = firstbitlow( uint( v & 0xFFFFFFFF ) );
+    if ( index != 0xFFFFFFFF )
+    {
+        return index;
+    }
+
+    index = firstbitlow( uint( v >> 32 ) );
+    if ( index != 0xFFFFFFFF )
+    {
+        return index + 32;
+    }
+
+    return -1;
+}
+
 [RootSignature( DrawRootSignature )]
 #ifdef PERMUTATION_DEPTH_ONLY
 void PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, PrimitiveOutput primitive PS_DEVTOOLS_ARGS )
@@ -97,7 +114,7 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
     StructuredBuffer<LightInstance_PointLight>          pointLightBuffer            = GetBuffer( RootCBV.m_pointLightBuffer );
     StructuredBuffer<LightInstance_SpotLight>           spotLightBuffer             = GetBuffer( RootCBV.m_spotLightBuffer );
 
-    Buffer<uint2>                                       directionalLightPageBuffer  = GetBuffer( RootCBV.m_directionalLightPageBuffer );
+    Buffer<uint64_t>                                    directionalLightPageBuffer  = GetBuffer( RootCBV.m_directionalLightPageBuffer );
 
     StructuredBuffer<CascadedShadow>    cascadedShadowBuffer        = GetBuffer( RootCBV.m_cascadedShadowBuffer );
 
@@ -106,7 +123,7 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
     SamplerState                        pointClampSampler           = GetPointClampSampler();
     SamplerState                        linearClampSampler          = GetLinearClampSampler();
     
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     MaterialShaderInput  materialInput    = MaterialShaderInput::New( vertex, primitive, RootCBV.m_cameraPosition.xyz );
     MaterialShaderOutput materialOutput   = MaterialShaderMain( materialInput );
@@ -132,14 +149,14 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
     float3 debugShadowColor = 0.0.xxx;
 
     #if EE_DEVELOPMENT_TOOLS
-            float3 debugDirectLight          = 0.0.xxx;
-            float3 debugEnvironmentMapLight  = 0.0.xxx;
-            float  debugShadow               = 1.0;
-            float  debugLightComplexity      = 0.0F;
-            float  debugSSAO                 = 1.0F;
+            float3 debugDirectLight                 = 0.0.xxx;
+            float3 debugEnvironmentMapLight         = 0.0.xxx;
+            float  debugShadow                      = 1.0;
+            float  debugLightComplexity             = 0.0F;
+            float  debugSSAO                        = 1.0F;
             uint   debugSpatialHashNumCollisions    = 0;
-            uint   debugSpatialHashCellChecksum      = 0;
-            uint   debugPayloadPages                 = 0;
+            uint   debugSpatialHashCellChecksum     = 0;
+            uint   debugPayloadPages                = 0;
         #endif
 
     float4 result = float4( 0.0.xxx, materialOutput.m_opacity );
@@ -171,48 +188,17 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
         result.rgb = IBL;
 
         // Directional lights - page buffer is uniform across all lanes, no wave ops needed
-        //-------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         for ( uint pageIdx = 0; pageIdx < RootCBV.m_numDirectionalLightPages; ++pageIdx )
         {
-            uint2 maskPair = directionalLightPageBuffer[pageIdx];
+            uint64_t mask = directionalLightPageBuffer[pageIdx];
 
-            [loop] while ( maskPair.x )
+            [loop] while ( mask )
             {
-                uint bit = firstbitlow( maskPair.x );
-                maskPair.x ^= ( 1U << bit );
+                uint bit = firstbitlow64( mask );
+                mask ^= ( 1U << bit );
 
                 LightInstance_DirectionalLight directionalLight = directionalLightBuffer[pageIdx * 64 + bit];
-
-                float3 lightDirection  = directionalLight.m_lightDirection;
-                float  shadowDir       = 1.0;
-
-                float3 lightColor = UnpackColor( directionalLight.m_packedTintedColor ).rgb * directionalLight.m_maxIntensity;
-
-                if ( directionalLight.m_cascadedShadowIndex != 0xFFFF )
-                {
-                    CascadedShadow cascadedShadow = cascadedShadowBuffer[directionalLight.m_cascadedShadowIndex];
-                    shadowDir = SampleShadow( cascadedShadow, directionalLight.m_lightDirection, vertex.m_worldPosition, vertex.m_clipPosition.z, triangleNormal, debugShadowColor );
-
-                    #if EE_DEVELOPMENT_TOOLS
-                        debugShadow = min( debugShadow, shadowDir );
-                    #endif
-                }
-
-                float3 directLight = pbr.ComputeDirectLight( lightColor, lightDirection ) * shadowDir;
-
-                #if EE_DEVELOPMENT_TOOLS
-                    debugDirectLight += directLight;
-                #endif
-
-                result.rgb += directLight;
-            }
-
-            [loop] while ( maskPair.y )
-            {
-                uint bit = firstbitlow( maskPair.y );
-                maskPair.y ^= ( 1U << bit );
-
-                LightInstance_DirectionalLight directionalLight = directionalLightBuffer[pageIdx * 64 + 32 + bit];
 
                 float3 lightDirection  = directionalLight.m_lightDirection;
                 float  shadowDir       = 1.0;
@@ -240,7 +226,7 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
         }
 
         // Point + Spot lights via spatial hash
-        //-------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         uint slotIndex;
         uint numCollisions;
@@ -252,35 +238,43 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
                 debugSpatialHashCellChecksum = checksum;
             #endif
 
-            uint2 pointLightPageRange = spatialHash.GetPayload( slotIndex, 0 );
-            uint2 spotLightPageRange  = spatialHash.GetPayload( slotIndex, 1 );
+            uint2 pointLightPageRange = spatialHash.LoadMetadata( slotIndex, 0 );
+            uint2 spotLightPageRange  = spatialHash.LoadMetadata( slotIndex, 1 );
 
             #if EE_DEVELOPMENT_TOOLS
                 debugPayloadPages = pointLightPageRange.y + spotLightPageRange.y;
             #endif
 
-            // Point lights
-            //-------------------------------------------------------------------------------------------
+            // Compute unified page range across both light types for linear memory access
+            //-------------------------------------------------------------------------
 
-            uint pointLightPageStart = WaveActiveMin( ( pointLightPageRange.y > 0 ) ? pointLightPageRange.x : ~0U );
-            uint pointLightPageEnd   = WaveActiveMax( ( pointLightPageRange.y > 0 ) ? ( pointLightPageRange.x + pointLightPageRange.y ) : 0 );
+            uint pageRangeStart = WaveActiveMin( min( ( pointLightPageRange.y > 0 ) ? pointLightPageRange.x : ~0U, ( spotLightPageRange.y  > 0 ) ? spotLightPageRange.x  : ~0U ) );
+            uint pageRangeEnd   = WaveActiveMax( max( ( pointLightPageRange.y > 0 ) ? ( pointLightPageRange.x + pointLightPageRange.y ) : 0, ( spotLightPageRange.y  > 0 ) ? ( spotLightPageRange.x  + spotLightPageRange.y  ) : 0 ) );
 
-            [loop] for ( uint pageIndex = pointLightPageStart; pageIndex < pointLightPageEnd; ++pageIndex )
+            [loop] for ( uint pageIndex = pageRangeStart; pageIndex < pageRangeEnd; ++pageIndex )
             {
-                uint baseBucket = 2 + pageIndex * 2;
-                bool hasPage = ( pageIndex >= pointLightPageRange.x ) && ( pageIndex < pointLightPageRange.x + pointLightPageRange.y );
+                bool hasPointPage = ( pageIndex >= pointLightPageRange.x ) && ( pageIndex < pointLightPageRange.x + pointLightPageRange.y );
+                bool hasSpotPage  = ( pageIndex >= spotLightPageRange.x  ) && ( pageIndex < spotLightPageRange.x  + spotLightPageRange.y  );
 
-                uint mask0 = WaveReadLaneFirst( WaveActiveBitOr( hasPage ? spatialHash.GetPayload( slotIndex, baseBucket ).x : 0 ) );
-                uint mask1 = WaveReadLaneFirst( WaveActiveBitOr( hasPage ? spatialHash.GetPayload( slotIndex, baseBucket + 1 ).x : 0 ) );
+                uint64_t2 payload = uint64_t2( 0, 0 );
+                if ( hasPointPage || hasSpotPage )
+                {
+                    payload = spatialHash.LoadPayload( slotIndex, pageIndex );
+                }
+
+                // Point lights
+                //-------------------------------------------------------------------------
+                
+                uint64_t pointLightMask = WaveReadLaneFirst( WaveActiveBitOr( hasPointPage ? payload.x : 0 ) );
 
                 #if EE_DEVELOPMENT_TOOLS
-                    debugLightComplexity += float( countbits( mask0 ) + countbits( mask1 ) );
+                    debugLightComplexity += float( countbits( pointLightMask ) );
                 #endif
 
-                [loop] while ( mask0 )
+                [loop] while ( pointLightMask )
                 {
-                    uint bit = firstbitlow( mask0 );
-                    mask0 ^= ( 1U << bit );
+                    uint bit = firstbitlow64( pointLightMask );
+                    pointLightMask ^= ( 1ULL << bit );
 
                     LightInstance_PointLight pointLight = pointLightBuffer[pageIndex * 64 + bit];
 
@@ -298,74 +292,21 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
                     result.rgb += directLight;
                 }
 
-                [loop] while ( mask1 )
-                {
-                    uint bit = firstbitlow( mask1 );
-                    mask1 ^= ( 1U << bit );
-
-                    LightInstance_PointLight pointLight = pointLightBuffer[pageIndex * 64 + 32 + bit];
-
-                    float3 lightVector      = pointLight.m_lightPosition - materialInput.m_vertex.m_worldPosition;
-                    float3 lightDirection   = normalize( lightVector );
-                    float  atten            = AttenuationNoCusp( length( lightVector ), pointLight.m_maxRadius, pointLight.m_maxIntensity, pointLight.m_falloff );
-                    float3 lightRadiance    = UnpackColor( pointLight.m_packedTintedColor ).rgb * atten;
-
-                    float3 directLight      = pbr.ComputeDirectLight( lightRadiance, lightDirection );
-
-                    #if EE_DEVELOPMENT_TOOLS
-                        debugDirectLight += directLight;
-                    #endif
-
-                    result.rgb += directLight;
-                }
-            }
-
-            // Spot lights
-            //-------------------------------------------------------------------------------------------
-            uint spotLightPageStart = WaveActiveMin( ( spotLightPageRange.y > 0 ) ? spotLightPageRange.x : ~0U );
-            uint spotLightPageEnd   = WaveActiveMax( ( spotLightPageRange.y > 0 ) ? ( spotLightPageRange.x + spotLightPageRange.y ) : 0 );
-
-            [loop] for ( uint pageIndex = spotLightPageStart; pageIndex < spotLightPageEnd; ++pageIndex )
-            {
-                uint baseBucket = 2 + pageIndex * 2;
-                bool hasPage = ( pageIndex >= spotLightPageRange.x ) && ( pageIndex < spotLightPageRange.x + spotLightPageRange.y );
-
-                uint mask0 = WaveReadLaneFirst( WaveActiveBitOr( hasPage ? spatialHash.GetPayload( slotIndex, baseBucket ).y : 0 ) );
-                uint mask1 = WaveReadLaneFirst( WaveActiveBitOr( hasPage ? spatialHash.GetPayload( slotIndex, baseBucket + 1 ).y : 0 ) );
+                // Spot lights
+                //-------------------------------------------------------------------------
+                
+                uint64_t spotLightMask = WaveReadLaneFirst( WaveActiveBitOr( hasSpotPage ? payload.y : 0 ) );
 
                 #if EE_DEVELOPMENT_TOOLS
-                    debugLightComplexity += float( ( countbits( mask0 ) + countbits( mask1 ) ) * 2 );
+                    debugLightComplexity += float( countbits( spotLightMask ) * 2 );
                 #endif
 
-                [loop] while ( mask0 )
+                [loop] while ( spotLightMask )
                 {
-                    uint bit = firstbitlow( mask0 );
-                    mask0 ^= ( 1U << bit );
+                    uint bit = firstbitlow64( spotLightMask );
+                    spotLightMask ^= ( 1ULL << bit );
 
                     LightInstance_SpotLight spotLight = spotLightBuffer[pageIndex * 64 + bit];
-
-                    float3  lightVector     = spotLight.m_lightPosition - materialInput.m_vertex.m_worldPosition;
-                    float3  lightDirection  = normalize( lightVector );
-                    float   cosTheta        = dot( lightDirection, -spotLight.m_lightDirection );
-                    float   coneAtten       = smoothstep( spotLight.m_outerConeAngle, spotLight.m_innerConeAngle, cosTheta );
-                    float   atten           = AttenuationNoCusp( length( lightVector ), spotLight.m_maxRadius, spotLight.m_maxIntensity, spotLight.m_falloff );
-                    float3  lightRadiance   = UnpackColor( spotLight.m_packedTintedColor ).rgb * atten * coneAtten;
-
-                    float3  directLight     = pbr.ComputeDirectLight( lightRadiance, lightDirection );
-
-                    #if EE_DEVELOPMENT_TOOLS
-                        debugDirectLight += directLight;
-                    #endif
-
-                    result.rgb += directLight;
-                }
-
-                [loop] while ( mask1 )
-                {
-                    uint bit = firstbitlow( mask1 );
-                    mask1 ^= ( 1U << bit );
-
-                    LightInstance_SpotLight spotLight = spotLightBuffer[pageIndex * 64 + 32 + bit];
 
                     float3  lightVector     = spotLight.m_lightPosition - materialInput.m_vertex.m_worldPosition;
                     float3  lightDirection  = normalize( lightVector );

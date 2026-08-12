@@ -16,7 +16,7 @@ namespace EE::Render
         RHI::DestroyPipeline( pContextRHI, eastl::move( m_pAlphaBlendPipeline ) );
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     TVector<ForwardShadingMaterialShaderPipelineBucket> ForwardShadingPass::InitializeMaterialShaderBuckets( RenderSystem* pRenderSystem )
     {
@@ -121,7 +121,7 @@ namespace EE::Render
         RHI::CmdSetRenderTargets( pCommandBuffer, {}, pDepthTexture, &depthOnlyLoadAction );
 
         // Depth only pass
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, "Forward Shading Depth Only Pass" );
 
@@ -139,9 +139,12 @@ namespace EE::Render
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
                 {
                     MaterialShaderRenderBucket const& renderBucket = renderViewBucket.m_opaqueBucket;
-                    RHI::CmdExecuteIndirect( pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
-                                             renderBucket.m_drawArgumentBuffer.m_buffer, 0,
-                                             renderBucket.m_drawCounterBuffer, 0 );
+                    RHI::CmdExecuteIndirect
+                    (
+                        pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
+                        renderBucket.m_drawArgumentBuffer.m_pBuffer, 0,
+                        renderBucket.m_pDrawCounterBuffer, 0
+                    );
                 }
             }
 
@@ -152,9 +155,12 @@ namespace EE::Render
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
                 {
                     MaterialShaderRenderBucket const& renderBucket = renderViewBucket.m_alphaTestBucket;
-                    RHI::CmdExecuteIndirect( pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
-                                             renderBucket.m_drawArgumentBuffer.m_buffer, 0,
-                                             renderBucket.m_drawCounterBuffer, 0 );
+                    RHI::CmdExecuteIndirect
+                    (
+                        pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
+                        renderBucket.m_drawArgumentBuffer.m_pBuffer, 0,
+                        renderBucket.m_pDrawCounterBuffer, 0
+                    );
                 }
             }
         }
@@ -170,7 +176,7 @@ namespace EE::Render
                                                                 RHI::CommandBuffer*                                             pCommandBuffer )
     {
         // Opaque Color pass
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         RHI::LoadAction opaqueColorLoadAction = {};
         opaqueColorLoadAction.m_loadActionsColor[0] = RHI::LoadActionType::Clear;
@@ -201,17 +207,23 @@ namespace EE::Render
 
                 RHI::CmdSetPipeline( pCommandBuffer, shaderPipelineBucket.m_pOpaquePipeline );
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
-                RHI::CmdExecuteIndirect( pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
-                                         renderViewBucket.m_opaqueBucket.m_drawArgumentBuffer.m_buffer, 0,
-                                         renderViewBucket.m_opaqueBucket.m_drawCounterBuffer, 0 );
-                RHI::CmdExecuteIndirect( pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
-                                         renderViewBucket.m_alphaTestBucket.m_drawArgumentBuffer.m_buffer, 0,
-                                         renderViewBucket.m_alphaTestBucket.m_drawCounterBuffer, 0 );
+                RHI::CmdExecuteIndirect
+                (
+                    pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
+                    renderViewBucket.m_opaqueBucket.m_drawArgumentBuffer.m_pBuffer, 0,
+                    renderViewBucket.m_opaqueBucket.m_pDrawCounterBuffer, 0
+                );
+                RHI::CmdExecuteIndirect
+                (
+                    pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
+                    renderViewBucket.m_alphaTestBucket.m_drawArgumentBuffer.m_pBuffer, 0,
+                    renderViewBucket.m_alphaTestBucket.m_pDrawCounterBuffer, 0
+                );
             }
         }
 
         // Alpha Blend Color pass
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         RHI::LoadAction alphaBlendColorLoadAction = {};
         alphaBlendColorLoadAction.m_loadActionsColor[0] = RHI::LoadActionType::Load;
@@ -233,9 +245,12 @@ namespace EE::Render
 
                 RHI::CmdSetPipeline( pCommandBuffer, shaderPipelineBucket.m_pDepthOnlyPipeline );
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
-                RHI::CmdExecuteIndirect( pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
-                                         renderViewBucket.m_alphaBlendBucket.m_drawArgumentBuffer.m_buffer, 0,
-                                         renderViewBucket.m_alphaBlendBucket.m_drawCounterBuffer, 0 );
+                RHI::CmdExecuteIndirect
+                (
+                    pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
+                    renderViewBucket.m_alphaBlendBucket.m_drawArgumentBuffer.m_pBuffer, 0,
+                    renderViewBucket.m_alphaBlendBucket.m_pDrawCounterBuffer, 0
+                );
             }
 
             {
@@ -244,9 +259,12 @@ namespace EE::Render
 
                 RHI::CmdSetPipeline( pCommandBuffer, shaderPipelineBucket.m_pAlphaBlendPipeline );
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
-                RHI::CmdExecuteIndirect( pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
-                                         renderViewBucket.m_alphaBlendBucket.m_drawArgumentBuffer.m_buffer, 0,
-                                         renderViewBucket.m_alphaBlendBucket.m_drawCounterBuffer, 0 );
+                RHI::CmdExecuteIndirect
+                (
+                    pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
+                    renderViewBucket.m_alphaBlendBucket.m_drawArgumentBuffer.m_pBuffer, 0,
+                    renderViewBucket.m_alphaBlendBucket.m_pDrawCounterBuffer, 0
+                );
             }
         }
     }
@@ -281,7 +299,7 @@ namespace EE::Render
         );
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void ForwardShadingPass::Initialize( RenderPassContext const& context )
     {
@@ -344,7 +362,7 @@ namespace EE::Render
                                             TArrayView<ShaderTypes::RenderView>                             dstRenderViews_WriteCombined ) const
     {
         // Copy render view data
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         Math::ViewVolume const& viewVolume = pRenderViewport->GetViewVolume();
         Float2 const viewSize = pRenderViewport->GetSize();

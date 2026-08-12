@@ -96,12 +96,12 @@ void MS_main
     
     AppendBuffer<PickingResult>         pickingResultsBuffer    = CreateAppendBuffer<PickingResult>( RootSRV[0].m_debugDrawPickingResultsBuffer );
     
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     
     MeshCluster                         cluster                 = clusterBuffer[RootConstants.m_clusterOffset + groupID];
     uint                                vertexStride            = sizeof( StaticMeshVertex );
     
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     uint numClusterVertices = min( cluster.m_numVertices, MAX_CLUSTER_VERTICES );
     uint numClusterTriangles = min( cluster.m_numTriangles, MAX_CLUSTER_TRIANGLES );
@@ -109,7 +109,7 @@ void MS_main
     SetMeshOutputCounts( numClusterVertices, numClusterTriangles );
     
     // Shade vertices
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
         
     float4 unpackedColorTint = UnpackColor( RootConstants.m_packedColorTint );
     

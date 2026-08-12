@@ -58,7 +58,7 @@ namespace EE::Render
         return true;
     }
 
-    //-------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     MaterialShader::MaterialShader( RHI::Context* pContextRHI, StringID shaderName, ByteCodeList const& stageByteCodes )
         : m_shaderName( shaderName )
@@ -155,7 +155,7 @@ namespace EE::Render
         RHI::DestroyCommandSignature( pContextRHI, eastl::move( m_pCommandSignature ) );
     }
 
-    //-------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     SurfaceShader::SurfaceShader( RHI::Context* pContextRHI, StringID shaderName, ByteCodeList const& stageByteCodes )
         : m_shaderName( shaderName )
@@ -225,7 +225,7 @@ namespace EE::Render
         RHI::DestroyCommandSignature( pContextRHI, eastl::move( m_pCommandSignatureMeshDispatch ) );
     }
 
-    //-------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     ComputeShader::ComputeShader( RHI::Context* pContextRHI, StringID shaderName, ByteCodeList const& stageByteCodes )
         : m_shaderName( shaderName )

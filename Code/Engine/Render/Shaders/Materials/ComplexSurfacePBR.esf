@@ -26,7 +26,7 @@ MaterialShaderOutput MaterialShaderMain( in MaterialShaderInput materialInput )
 
     float3x3                TBN                     = materialInput.ComputeTBN( materialInput.m_vertex.m_uv.xy );
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     float4 albedoSample             = customParameters.m_albedoTexture.Sample( customParameters.m_textureSamplerLinear, materialInput.m_vertex.m_uv.xy );
     materialOutput.m_albedo         = albedoSample.rgb;

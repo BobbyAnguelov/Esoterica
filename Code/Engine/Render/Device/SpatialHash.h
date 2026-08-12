@@ -26,8 +26,8 @@ namespace EE::Render
 
         String                      m_name;
 
-        DeviceResizeBufferState     m_keyBuffer = {};
-        DeviceResizeBufferState     m_payloadBuffer = {};
+        DeviceResizeBuffer          m_keyBuffer = {};
+        DeviceResizeBuffer          m_payloadBuffer = {};
 
         uint32_t                    m_tableSize = 1024;                             // power of 2
         uint32_t                    m_payloadStride = 0;
@@ -51,5 +51,10 @@ namespace EE::Render
             uint32_t numLODs, uint32_t const borderCells[MaxLODs],
             DeviceSpatialHashDispatchParameters outDispatches[MaxLODs]
         );
+
+        static uint32_t ComputePayloadStride( uint32_t numPointLightPages, uint32_t numSpotLightPages )
+        {
+            return 2 + 2 * Math::Max( numPointLightPages, numSpotLightPages ); // 2 metadata + 2 masks per page
+        }
     };
 }

@@ -25,7 +25,7 @@ namespace EE::Render
             renderView.Initialize( context.m_pRenderSystem, context.m_materialShaderPipelineBuckets.size() );
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         static StringID s_IrradianceFilteringShaderID = StringID( "IrradianceFiltering" );
         static StringID s_RadianceFilteringShaderID = StringID( "RadianceFiltering" );
@@ -89,7 +89,7 @@ namespace EE::Render
         RHI::DestroyTexture( pRenderSystem->GetContextRHI(), eastl::move( m_pDepthRenderTarget ) );
         RHI::DestroyTexture( pRenderSystem->GetContextRHI(), eastl::move( m_pDfgRenderTarget ) );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         RHI::DestroyPipeline( pRenderSystem->GetContextRHI(), eastl::move( m_pPipelineIrradianceFiltering ) );
         RHI::DestroyPipeline( pRenderSystem->GetContextRHI(), eastl::move( m_pPipelineRadianceFiltering ) );
@@ -184,7 +184,7 @@ namespace EE::Render
         mirrorMatrices[4] = mirrorMatrixX; // Positive Z
         mirrorMatrices[5] = mirrorMatrixX; // Negative Z
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // Capture cubemap first
 
         {
@@ -277,7 +277,7 @@ namespace EE::Render
 
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // Downsample cubemap
 
         {
@@ -324,7 +324,7 @@ namespace EE::Render
         }
 
         // Cubemap ready, irradiance filtering first
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         {
             EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, "Global Environment Map Irradiance Filtering" );
 
@@ -354,7 +354,7 @@ namespace EE::Render
         }
 
         // Irradiance ready, radiance filtering last
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         {
             EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, "Global Environment Map Radiance Filtering" );
             RHI::CmdSetPipeline( pCommandBuffer, m_pPipelineRadianceFiltering );

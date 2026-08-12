@@ -7,11 +7,11 @@
 
 #include "Engine/Render/Shaders/Renderer/WorldUpdate.esf"
 
-//-----------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 
 namespace EE::Render
 {
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     template<typename T>
     void DeviceRenderWorld::UpdateCommandsPool<T>::Initialize()
@@ -40,7 +40,7 @@ namespace EE::Render
         m_numUpdateCommands = 0;
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     uint32_t DeviceRenderWorld::GetSkinningTransformBufferCapacity() const
     {
@@ -336,7 +336,7 @@ namespace EE::Render
         uint32_t            frameIndex = pRenderSystem->GetFrameIndex();
         RHI::Context*       pContextRHI = pRenderSystem->GetContextRHI();
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         m_updatePool_MeshInstanceRoot.Update();
         m_updatePool_MeshInstance.Update();
@@ -345,7 +345,7 @@ namespace EE::Render
         m_updatePool_SpotLight.Update();
         m_updatePool_SkinningTransform.Update();
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_MeshInstanceTransformUpdate = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -373,7 +373,7 @@ namespace EE::Render
             UpdateBuffer_MeshInstanceTransformUpdate
         );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_DirectionalLightUpdate = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -435,7 +435,7 @@ namespace EE::Render
             UpdateBuffer_SpotLightUpdate
         );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_MeshInstanceRoot = [pRenderSystem] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -487,7 +487,7 @@ namespace EE::Render
             UpdateBuffer_MeshInstance
         );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_DirectionalLight = [pRenderSystem] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -564,7 +564,7 @@ namespace EE::Render
             UpdateBuffer_SpotLight
         );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_SkinningTransform = [pRenderSystem] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -591,7 +591,7 @@ namespace EE::Render
             UpdateBuffer_SkinningTransform
         );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_MeshInstancePage = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -615,7 +615,7 @@ namespace EE::Render
         );
 
         // Light page buffers
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_DirectionalLightPage = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -680,7 +680,7 @@ namespace EE::Render
             UpdateBuffer_SpotLightPage
         );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_SkinningTransforms = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -711,7 +711,7 @@ namespace EE::Render
         uint32_t            frameIndex = pRenderSystem->GetFrameIndex();
         RHI::Context*       pContextRHI = pRenderSystem->GetContextRHI();
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_MeshInstanceInitialize = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -744,7 +744,7 @@ namespace EE::Render
         EE_ASSERT( m_copyUpdateCommands_SpotLight.GetIsComplete() );
         EE_ASSERT( m_copyUpdateCommands_SkinningTransform.GetIsComplete() );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, "DeviceRenderWorld Update" );
 
@@ -757,7 +757,7 @@ namespace EE::Render
             hasTransformUpdateCommands = true;
 
             m_copyUpdateCommands_MeshInstance.m_pSrcMemory = m_updatePool_MeshInstance.m_memoryPool.GetData();
-            m_copyUpdateCommands_MeshInstance.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::MeshInstanceTransformUpdateCommand*>( m_updateBuffers_MeshInstance[frameIndex].m_buffer->m_pMappedAddress_WriteCombined );
+            m_copyUpdateCommands_MeshInstance.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::MeshInstanceTransformUpdateCommand*>( m_updateBuffers_MeshInstance[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
             m_copyUpdateCommands_MeshInstance.m_SetSize = m_updatePool_MeshInstance.m_numUpdateCommands;
             m_copyUpdateCommands_MeshInstance.m_MinRange = 1024;
 
@@ -769,7 +769,7 @@ namespace EE::Render
             hasTransformUpdateCommands = true;
 
             m_copyUpdateCommands_MeshInstanceRoot.m_pSrcMemory = m_updatePool_MeshInstanceRoot.m_memoryPool.GetData();
-            m_copyUpdateCommands_MeshInstanceRoot.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::MeshInstanceTransformUpdateCommand*>( m_updateBuffers_MeshInstanceRoot[frameIndex].m_buffer->m_pMappedAddress_WriteCombined );
+            m_copyUpdateCommands_MeshInstanceRoot.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::MeshInstanceTransformUpdateCommand*>( m_updateBuffers_MeshInstanceRoot[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
             m_copyUpdateCommands_MeshInstanceRoot.m_SetSize = m_updatePool_MeshInstanceRoot.m_numUpdateCommands;
             m_copyUpdateCommands_MeshInstanceRoot.m_MinRange = 1024;
 
@@ -781,7 +781,7 @@ namespace EE::Render
             hasTransformUpdateCommands = true;
 
             m_copyUpdateCommands_DirectionalLight.m_pSrcMemory = m_updatePool_DirectionalLight.m_memoryPool.GetData();
-            m_copyUpdateCommands_DirectionalLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::DirectionalLightUpdateCommand*>( m_updateBuffers_DirectionalLight[frameIndex].m_buffer->m_pMappedAddress_WriteCombined );
+            m_copyUpdateCommands_DirectionalLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::DirectionalLightUpdateCommand*>( m_updateBuffers_DirectionalLight[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
             m_copyUpdateCommands_DirectionalLight.m_SetSize = m_updatePool_DirectionalLight.m_numUpdateCommands;
             m_copyUpdateCommands_DirectionalLight.m_MinRange = 1024;
 
@@ -793,7 +793,7 @@ namespace EE::Render
             hasTransformUpdateCommands = true;
 
             m_copyUpdateCommands_PointLight.m_pSrcMemory = m_updatePool_PointLight.m_memoryPool.GetData();
-            m_copyUpdateCommands_PointLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::PointLightUpdateCommand*>( m_updateBuffers_PointLight[frameIndex].m_buffer->m_pMappedAddress_WriteCombined );
+            m_copyUpdateCommands_PointLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::PointLightUpdateCommand*>( m_updateBuffers_PointLight[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
             m_copyUpdateCommands_PointLight.m_SetSize = m_updatePool_PointLight.m_numUpdateCommands;
             m_copyUpdateCommands_PointLight.m_MinRange = 1024;
 
@@ -805,7 +805,7 @@ namespace EE::Render
             hasTransformUpdateCommands = true;
 
             m_copyUpdateCommands_SpotLight.m_pSrcMemory = m_updatePool_SpotLight.m_memoryPool.GetData();
-            m_copyUpdateCommands_SpotLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::SpotLightUpdateCommand*>( m_updateBuffers_SpotLight[frameIndex].m_buffer->m_pMappedAddress_WriteCombined );
+            m_copyUpdateCommands_SpotLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::SpotLightUpdateCommand*>( m_updateBuffers_SpotLight[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
             m_copyUpdateCommands_SpotLight.m_SetSize = m_updatePool_SpotLight.m_numUpdateCommands;
             m_copyUpdateCommands_SpotLight.m_MinRange = 1024;
 
@@ -817,7 +817,7 @@ namespace EE::Render
             hasTransformUpdateCommands = true;
 
             m_copyUpdateCommands_SkinningTransform.m_pSrcMemory = m_updatePool_SkinningTransform.m_memoryPool.GetData();
-            m_copyUpdateCommands_SkinningTransform.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::SkinningTransformUpdateCommand*>( m_updateBuffers_SkinningTransform[frameIndex].m_buffer->m_pMappedAddress_WriteCombined );
+            m_copyUpdateCommands_SkinningTransform.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::SkinningTransformUpdateCommand*>( m_updateBuffers_SkinningTransform[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
             m_copyUpdateCommands_SkinningTransform.m_SetSize = m_updatePool_SkinningTransform.m_numUpdateCommands;
             m_copyUpdateCommands_SkinningTransform.m_MinRange = 1024;
 
@@ -825,7 +825,7 @@ namespace EE::Render
         }
 
         // Dispatch constants
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         alignas( 32 ) ShaderTypes::WorldUpdateConstants worldUpdateConstants = {};
         worldUpdateConstants.m_numInitializeCommands_MeshInstance = uint32_t( m_initializeCommands_MeshInstance.size() );
@@ -839,14 +839,14 @@ namespace EE::Render
         Memory::CopyToWriteCombined( m_worldUpdateConstantBuffers[frameIndex]->m_pMappedAddress_WriteCombined, &worldUpdateConstants, sizeof( worldUpdateConstants ) );
 
         // Init dispatch
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( hasInitCommands )
         {
-            EE_ASSERT( ( m_initializeBuffers_MeshInstance[frameIndex].m_buffer->m_size / m_initializeBuffers_MeshInstance[frameIndex].m_buffer->m_stride ) >= m_initializeCommands_MeshInstance.size() );
+            EE_ASSERT( ( m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer->m_size / m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer->m_stride ) >= m_initializeCommands_MeshInstance.size() );
 
             m_copyInitializeCommands_MeshInstance.m_pSrcMemory = m_initializeCommands_MeshInstance.data();
-            m_copyInitializeCommands_MeshInstance.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::MeshInstanceInitializeCommand*>( m_initializeBuffers_MeshInstance[frameIndex].m_buffer->m_pMappedAddress_WriteCombined );
+            m_copyInitializeCommands_MeshInstance.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::MeshInstanceInitializeCommand*>( m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
             m_copyInitializeCommands_MeshInstance.m_SetSize = uint32_t( m_initializeCommands_MeshInstance.size() );
             m_copyInitializeCommands_MeshInstance.m_MinRange = 1024;
 
@@ -855,12 +855,12 @@ namespace EE::Render
             ShaderTypes::WorldUpdateResourceTableData worldUpdateResourceTable = {};
             worldUpdateResourceTable.m_mode = 0;
 
-            worldUpdateResourceTable.SetInitializeBuffer_MeshInstance( m_initializeBuffers_MeshInstance[frameIndex].m_buffer );
+            worldUpdateResourceTable.SetInitializeBuffer_MeshInstance( m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer );
 
-            worldUpdateResourceTable.SetMeshInstanceBuffer( m_meshInstanceBuffer.m_buffer );
-            worldUpdateResourceTable.SetDirectionalLightBuffer( m_directionalLightBuffer.m_buffer );
-            worldUpdateResourceTable.SetPointLightBuffer( m_pointLightBuffer.m_buffer );
-            worldUpdateResourceTable.SetSpotLightBuffer( m_spotLightBuffer.m_buffer );
+            worldUpdateResourceTable.SetMeshInstanceBuffer( m_meshInstanceBuffer.m_pBuffer );
+            worldUpdateResourceTable.SetDirectionalLightBuffer( m_directionalLightBuffer.m_pBuffer );
+            worldUpdateResourceTable.SetPointLightBuffer( m_pointLightBuffer.m_pBuffer );
+            worldUpdateResourceTable.SetSpotLightBuffer( m_spotLightBuffer.m_pBuffer );
 
             RHI::CmdSetPipeline( pCommandBuffer, m_pWorldUpdateShader->m_pPipeline );
             RHI::CmdSetRootConstants( pCommandBuffer, 0, &worldUpdateResourceTable, sizeof( worldUpdateResourceTable ) );
@@ -870,26 +870,26 @@ namespace EE::Render
         }
 
         // Transform update dispatch
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( hasTransformUpdateCommands )
         {
             ShaderTypes::WorldUpdateResourceTableData worldUpdateResourceTable = {};
             worldUpdateResourceTable.m_mode = 1;
 
-            worldUpdateResourceTable.SetUpdateBuffer_MeshInstanceRoot( m_updateBuffers_MeshInstanceRoot[frameIndex].m_buffer );
-            worldUpdateResourceTable.SetUpdateBuffer_MeshInstance( m_updateBuffers_MeshInstance[frameIndex].m_buffer );
-            worldUpdateResourceTable.SetUpdateBuffer_DirectionalLight( m_updateBuffers_DirectionalLight[frameIndex].m_buffer );
-            worldUpdateResourceTable.SetUpdateBuffer_PointLight( m_updateBuffers_PointLight[frameIndex].m_buffer );
-            worldUpdateResourceTable.SetUpdateBuffer_SpotLight( m_updateBuffers_SpotLight[frameIndex].m_buffer );
-            worldUpdateResourceTable.SetUpdateBuffer_SkinningTransform( m_updateBuffers_SkinningTransform[frameIndex].m_buffer );
+            worldUpdateResourceTable.SetUpdateBuffer_MeshInstanceRoot( m_updateBuffers_MeshInstanceRoot[frameIndex].m_pBuffer );
+            worldUpdateResourceTable.SetUpdateBuffer_MeshInstance( m_updateBuffers_MeshInstance[frameIndex].m_pBuffer );
+            worldUpdateResourceTable.SetUpdateBuffer_DirectionalLight( m_updateBuffers_DirectionalLight[frameIndex].m_pBuffer );
+            worldUpdateResourceTable.SetUpdateBuffer_PointLight( m_updateBuffers_PointLight[frameIndex].m_pBuffer );
+            worldUpdateResourceTable.SetUpdateBuffer_SpotLight( m_updateBuffers_SpotLight[frameIndex].m_pBuffer );
+            worldUpdateResourceTable.SetUpdateBuffer_SkinningTransform( m_updateBuffers_SkinningTransform[frameIndex].m_pBuffer );
 
-            worldUpdateResourceTable.SetSkinningTransformBuffer( m_skinningTransformBuffer.m_buffer );
-            worldUpdateResourceTable.SetMeshInstanceRootBuffer( m_meshInstanceRootBuffer.m_buffer );
-            worldUpdateResourceTable.SetMeshInstanceBuffer( m_meshInstanceBuffer.m_buffer );
-            worldUpdateResourceTable.SetDirectionalLightBuffer( m_directionalLightBuffer.m_buffer );
-            worldUpdateResourceTable.SetPointLightBuffer( m_pointLightBuffer.m_buffer );
-            worldUpdateResourceTable.SetSpotLightBuffer( m_spotLightBuffer.m_buffer );
+            worldUpdateResourceTable.SetSkinningTransformBuffer( m_skinningTransformBuffer.m_pBuffer );
+            worldUpdateResourceTable.SetMeshInstanceRootBuffer( m_meshInstanceRootBuffer.m_pBuffer );
+            worldUpdateResourceTable.SetMeshInstanceBuffer( m_meshInstanceBuffer.m_pBuffer );
+            worldUpdateResourceTable.SetDirectionalLightBuffer( m_directionalLightBuffer.m_pBuffer );
+            worldUpdateResourceTable.SetPointLightBuffer( m_pointLightBuffer.m_pBuffer );
+            worldUpdateResourceTable.SetSpotLightBuffer( m_spotLightBuffer.m_pBuffer );
 
             uint32_t maxNumUpdateCommands = Math::Max
             (
@@ -916,32 +916,32 @@ namespace EE::Render
             m_updatePool_SkinningTransform.Submit();
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         Memory::CopyToWriteCombined
         (
-            m_meshInstancePageBuffers[frameIndex].m_buffer->m_pMappedAddress_WriteCombined,
+            m_meshInstancePageBuffers[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined,
             m_meshInstanceHandleAllocator.GetPageData(),
             m_meshInstanceHandleAllocator.GetCapacityInPages() * sizeof( uint64_t )
         );
 
         Memory::CopyToWriteCombined
         (
-            m_directionalLightPageBuffers[frameIndex].m_buffer->m_pMappedAddress_WriteCombined,
+            m_directionalLightPageBuffers[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined,
             m_directionalLightHandleAllocator.GetPageData(),
             m_directionalLightHandleAllocator.GetCapacityInPages() * sizeof( uint64_t )
         );
 
         Memory::CopyToWriteCombined
         (
-            m_pointLightPageBuffers[frameIndex].m_buffer->m_pMappedAddress_WriteCombined,
+            m_pointLightPageBuffers[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined,
             m_pointLightHandleAllocator.GetPageData(),
             m_pointLightHandleAllocator.GetCapacityInPages() * sizeof( uint64_t )
         );
 
         Memory::CopyToWriteCombined
         (
-            m_spotLightPageBuffers[frameIndex].m_buffer->m_pMappedAddress_WriteCombined,
+            m_spotLightPageBuffers[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined,
             m_spotLightHandleAllocator.GetPageData(),
             m_spotLightHandleAllocator.GetCapacityInPages() * sizeof( uint64_t )
         );
@@ -952,7 +952,7 @@ namespace EE::Render
         uint32_t            frameIndex = pRenderSystem->GetFrameIndex();
         RHI::Context*       pContextRHI = pRenderSystem->GetContextRHI();
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         m_pTaskSystem->WaitForTask( &m_copyInitializeCommands_MeshInstance );
         m_pTaskSystem->WaitForTask( &m_copyUpdateCommands_MeshInstanceRoot );
@@ -969,56 +969,56 @@ namespace EE::Render
 
     RHI::BufferHandle DeviceRenderWorld::GetMeshInstancePageBufferHandle( uint32_t frameIndex ) const
     {
-        return RHI::GetBufferHandle( m_meshInstancePageBuffers[frameIndex].m_buffer, RHI::DescriptorTypeFlags::Buffer );
+        return RHI::GetBufferHandle( m_meshInstancePageBuffers[frameIndex].m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::BufferHandle DeviceRenderWorld::GetDirectionalLightPageBufferHandle( uint32_t frameIndex ) const
     {
-        return RHI::GetBufferHandle( m_directionalLightPageBuffers[frameIndex].m_buffer, RHI::DescriptorTypeFlags::Buffer );
+        return RHI::GetBufferHandle( m_directionalLightPageBuffers[frameIndex].m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::BufferHandle DeviceRenderWorld::GetPointLightPageBufferHandle( uint32_t frameIndex ) const
     {
-        return RHI::GetBufferHandle( m_pointLightPageBuffers[frameIndex].m_buffer, RHI::DescriptorTypeFlags::Buffer );
+        return RHI::GetBufferHandle( m_pointLightPageBuffers[frameIndex].m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::BufferHandle DeviceRenderWorld::GetSpotLightPageBufferHandle( uint32_t frameIndex ) const
     {
-        return RHI::GetBufferHandle( m_spotLightPageBuffers[frameIndex].m_buffer, RHI::DescriptorTypeFlags::Buffer );
+        return RHI::GetBufferHandle( m_spotLightPageBuffers[frameIndex].m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::BufferHandle DeviceRenderWorld::GetDirectionalLightBufferHandle() const
     {
-        return RHI::GetBufferHandle( m_directionalLightBuffer.m_buffer, RHI::DescriptorTypeFlags::Buffer );
+        return RHI::GetBufferHandle( m_directionalLightBuffer.m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::BufferHandle DeviceRenderWorld::GetPointLightBufferHandle() const
     {
-        return RHI::GetBufferHandle( m_pointLightBuffer.m_buffer, RHI::DescriptorTypeFlags::Buffer );
+        return RHI::GetBufferHandle( m_pointLightBuffer.m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::BufferHandle DeviceRenderWorld::GetSpotLightBufferHandle() const
     {
-        return RHI::GetBufferHandle( m_spotLightBuffer.m_buffer, RHI::DescriptorTypeFlags::Buffer );
+        return RHI::GetBufferHandle( m_spotLightBuffer.m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::BufferHandle DeviceRenderWorld::GetSkinningTransformBufferHandle() const
     {
-        return RHI::GetBufferHandle( m_skinningTransformBuffer.m_buffer, RHI::DescriptorTypeFlags::Buffer );
+        return RHI::GetBufferHandle( m_skinningTransformBuffer.m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::BufferHandle DeviceRenderWorld::GetMeshInstanceBufferHandle() const
     {
-        return RHI::GetBufferHandle( m_meshInstanceBuffer.m_buffer, RHI::DescriptorTypeFlags::Buffer );
+        return RHI::GetBufferHandle( m_meshInstanceBuffer.m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::BufferHandle DeviceRenderWorld::GetMeshInstanceRootBufferHandle() const
     {
-        return RHI::GetBufferHandle( m_meshInstanceRootBuffer.m_buffer, RHI::DescriptorTypeFlags::Buffer );
+        return RHI::GetBufferHandle( m_meshInstanceRootBuffer.m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::Buffer* DeviceRenderWorld::GetMeshInstanceRootBuffer() const
     {
-        return m_meshInstanceRootBuffer.m_buffer;
+        return m_meshInstanceRootBuffer.m_pBuffer;
     }
 }

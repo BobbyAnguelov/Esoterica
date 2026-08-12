@@ -143,7 +143,7 @@ namespace EE
     }
 
     // Copied from DirectXMath:
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     // Find the approximate minimum oriented bounding box containing a set of
     // points.  Exact computation of minimum oriented bounding box is possible but
     // is slower and requires a more complex algorithm.
@@ -155,7 +155,7 @@ namespace EE
     // best know algorithm is O(N^3) and is significantly more complex to implement.
     //
     // WARNING: this doesnt handle symmetric point clounds very well!!!!
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     OBB::OBB( Vector const* pPoints, uint32_t numPoints )
     {

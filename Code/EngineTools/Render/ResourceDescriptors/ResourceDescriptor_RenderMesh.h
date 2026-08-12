@@ -10,7 +10,7 @@
 
 namespace EE::Render
 {
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct EE_ENGINETOOLS_API MeshLODSettings final : public IReflectedType
     {
@@ -61,7 +61,7 @@ namespace EE::Render
         TVector<MeshLODSettings>        m_lodSettings;
     };
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct MeshMaterialMapping final : public IReflectedType
     {
@@ -82,7 +82,7 @@ namespace EE::Render
         TResourcePtr<Material>          m_material;
     };
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct MeshSocketDefinition final : public IReflectedType
     {
@@ -98,7 +98,7 @@ namespace EE::Render
         Transform                       m_offsetTransform;
     };
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct EE_ENGINETOOLS_API MeshResourceDescriptor : public Resource::ResourceDescriptor
     {
@@ -140,7 +140,7 @@ namespace EE::Render
         TDataFilePath<MeshGroup>        m_meshGroup;
     };
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct EE_ENGINETOOLS_API StaticMeshResourceDescriptor final : public MeshResourceDescriptor
     {
@@ -152,7 +152,7 @@ namespace EE::Render
         virtual char const* GetFriendlyName() const override final { return StaticMesh::s_friendlyName; }
     };
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct EE_ENGINETOOLS_API SkeletalMeshResourceDescriptor final : public MeshResourceDescriptor
     {

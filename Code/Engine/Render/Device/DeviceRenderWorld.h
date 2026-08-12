@@ -111,7 +111,7 @@ namespace EE::Render
             void Update();
             void Submit();
 
-            //-----------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
             eastl::atomic<uint32_t>                                                 m_counter = 0;
             uint64_t                                                                m_sequence = 0;
@@ -151,6 +151,7 @@ namespace EE::Render
         DeviceResizeBuffer                                                          m_pointLightBuffer = {};
         DeviceResizeBuffer                                                          m_spotLightBuffer = {};
         DeviceResizeBuffer                                                          m_skinningTransformBuffer = {};
+
         TArray<RHI::Buffer*, RHI::MaxPendingFrames>                                 m_worldUpdateConstantBuffers = {};
 
         HandleAllocator<uint32_t>                                                   m_meshInstanceRootHandleAllocator = {};

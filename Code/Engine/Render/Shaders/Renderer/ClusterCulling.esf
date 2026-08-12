@@ -45,7 +45,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID :  SV_GroupThreadID,
         ShaderParameters        shaderParameters                        = shaderDataBuffer.Load<ShaderParameters>( meshInstance.m_shaderParametersOffsetIn32ByteBlocks * 32 );
         bool                    isDoubleSided                           = ( shaderParameters.m_shaderFlags & EE_SHADER_FLAG_TWO_SIDED ) != 0;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         float3x4                meshInstanceTransform                   = meshInstance.ComputeWorldTransform( meshInstanceRoot );
         float4                  boundingSphere                          = cluster.GetBoundingSphere();
@@ -55,7 +55,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID :  SV_GroupThreadID,
         TransformAABB( meshInstanceTransform, boundingSphere.xyz, boundingSphere.www, clusterCenterGlobal, clusterExtentGlobal );
 
         // Cull clusters in all views
-        //-----------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         for ( uint renderViewIndex = 0; renderViewIndex < RootConstants.m_commonRootConstants.m_numRenderViews; ++renderViewIndex )
         {
@@ -92,7 +92,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID :  SV_GroupThreadID,
             RWBuffer<uint2>             clusterVisibleBuffer        = GetRWBuffer( NonUniformResourceIndex( renderBucket.m_clusterVisibleBuffer ) );
             
             // Cull cluster
-            //-----------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             
             bool visibleInThisView = true;
 

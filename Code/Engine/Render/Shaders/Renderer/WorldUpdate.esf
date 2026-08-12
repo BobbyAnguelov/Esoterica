@@ -64,7 +64,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
         resourceTable.m_meshInstanceBuffer[initializeCommand.m_instanceID] = instance;
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     
     if ( isTransformUpdateMode && dispatchThreadID.x < RootCBV.m_numUpdateCommands_MeshInstanceRoot )
     {

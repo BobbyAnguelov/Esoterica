@@ -5,8 +5,8 @@ namespace EE::Render
 {
     uint64_t DeviceAppendBufferBase::GetAppendBufferHandle() const
     {
-        RHI::BufferHandle counterBufferHandle = RHI::GetBufferHandle( m_deviceCounterBuffer, RHI::DescriptorTypeFlags::RWBuffer );
-        RHI::BufferHandle bufferHandle = RHI::GetBufferHandle( m_deviceBuffer, RHI::DescriptorTypeFlags::RWBuffer );
+        RHI::BufferHandle counterBufferHandle = RHI::GetBufferHandle( m_pDeviceCounterBuffer, RHI::DescriptorTypeFlags::RWBuffer );
+        RHI::BufferHandle bufferHandle = RHI::GetBufferHandle( m_pDeviceBuffer, RHI::DescriptorTypeFlags::RWBuffer );
 
         uint64_t result = 0;
 
@@ -19,7 +19,7 @@ namespace EE::Render
 
     void DeviceAppendBufferBase::Initialize( RHI::Context* pContextRHI, StringView name )
     {
-        EE_ASSERT( !m_deviceCounterBuffer );
+        EE_ASSERT( !m_pDeviceCounterBuffer );
         EE_ASSERT( m_bufferName.empty() || m_bufferName == name ); // Hotreload shenanigans
         EE_ASSERT( !name.empty() );
 
@@ -32,7 +32,7 @@ namespace EE::Render
         deviceCounterBufferParameters.m_descriptorTypes = RHI::DescriptorTypeFlags::RWBuffer;
         deviceCounterBufferParameters.m_debugName.sprintf( "AppendBuffer %s Device Counter", m_bufferName.c_str() );
 
-        m_deviceCounterBuffer = RHI::CreateBuffer( pContextRHI, deviceCounterBufferParameters );
+        m_pDeviceCounterBuffer = RHI::CreateBuffer( pContextRHI, deviceCounterBufferParameters );
 
         for ( uint32_t frameIndex = 0; frameIndex < RHI::MaxPendingFrames; ++frameIndex )
         {
@@ -49,8 +49,8 @@ namespace EE::Render
 
     void DeviceAppendBufferBase::Shutdown( RHI::Context* pContextRHI )
     {
-        RHI::DestroyBuffer( pContextRHI, eastl::move( m_deviceCounterBuffer ) );
-        RHI::DestroyBuffer( pContextRHI, eastl::move( m_deviceBuffer ) );
+        RHI::DestroyBuffer( pContextRHI, eastl::move( m_pDeviceCounterBuffer ) );
+        RHI::DestroyBuffer( pContextRHI, eastl::move( m_pDeviceBuffer ) );
 
         for ( uint32_t frameIndex = 0; frameIndex < RHI::MaxPendingFrames; ++frameIndex )
         {

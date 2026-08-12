@@ -17,7 +17,7 @@
 
 namespace EE::Render
 {
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void RenderSystem::Initialize( RenderSettings const& settings )
     {
@@ -63,7 +63,7 @@ namespace EE::Render
         m_pTransferQueue = RHI::CreateQueue( m_pContextRHI, transferQueueParameters );
 
         // Staging buffer and allocator
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         uint64_t stagingAllocatorSize = Math::RoundUpToNearestMultiple32( settings.m_stagingBufferSize, StagingBufferAlignment );
 
@@ -78,12 +78,12 @@ namespace EE::Render
         m_pStagingBuffer = RHI::CreateBuffer( m_pContextRHI, stagingBufferParameters );
 
         // Shaders
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         InitializeShaders();
 
         // Command buffers
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         for ( uint32_t frameIndex = 0; frameIndex < RHI::MaxPendingFrames; ++frameIndex )
         {
@@ -116,7 +116,7 @@ namespace EE::Render
         }
 
         // Common samplers
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         RHI::SamplerParameters samplerParameters = {};
 
@@ -160,7 +160,7 @@ namespace EE::Render
         }
 
         // Shaders
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         m_shaderDataAllocator.Initialize( 1 );
 
@@ -173,7 +173,7 @@ namespace EE::Render
         m_pShaderDataBuffer = RHI::CreateBuffer( m_pContextRHI, shaderDataBufferParameters );
 
         // Meshes
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         m_meshAllocator.Initialize( 1 );
 
@@ -336,7 +336,7 @@ namespace EE::Render
             WaitGraphicsQueueIdle();
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         RHI::CommandPool* pFrameCommandPool = m_frameCommandPools[m_frameIndex];
         RHI::ResetCommandPool( m_pContextRHI, pFrameCommandPool );
@@ -480,7 +480,7 @@ namespace EE::Render
         EE_PROFILE_FUNCTION_RENDER();
         EE_ASSERT( m_internalStage[m_frameIndex] == InternalStage::ResourceUpdate );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         RHI::CommandBuffer* pCommonCommandBuffer = m_frameCommandBuffers[m_frameIndex];
 
@@ -493,7 +493,7 @@ namespace EE::Render
 
         RHI::EndCommandBuffer( pCommonCommandBuffer );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         // Submit queue
         m_resourceUpdateSemaphores[m_frameIndex] = RHI::QueueSubmit( m_pGraphicsQueue, { &pCommonCommandBuffer, 1 } );
@@ -524,7 +524,7 @@ namespace EE::Render
 
         RHI::QueueHostWait( m_pTransferQueue, m_asyncTransferSemaphores[m_asyncTransferIndex] );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         RHI::CommandPool* pTransferCommandPool = m_asyncTransferCommandPools[m_asyncTransferIndex];
         RHI::ResetCommandPool( m_pContextRHI, pTransferCommandPool );
@@ -538,14 +538,14 @@ namespace EE::Render
         EE_PROFILE_FUNCTION_RENDER();
         EE_ASSERT( m_internalStage[m_frameIndex] == InternalStage::AsyncResourceUpdate );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( wait )
         {
             WaitTransferQueueIdle();
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
 
         RHI::CommandBuffer* pTransferCommandBuffer = m_asyncTransferCommandBuffers[m_asyncTransferIndex];
@@ -768,7 +768,7 @@ namespace EE::Render
 
         m_asyncTransferIndex = ( m_asyncTransferIndex + 1 ) % MaxPendingTransfers;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( wait )
         {
@@ -791,7 +791,7 @@ namespace EE::Render
         m_internalStage[m_frameIndex] = InternalStage::GraphicsUpdate;
         #endif
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         for ( Window* pRenderWindow : m_registeredRenderWindows )
         {
@@ -810,7 +810,7 @@ namespace EE::Render
         }
 
         // Resolve pending resource deletes
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         {
             Threading::ScopeLockWrite lock( m_resourceDeleteMutex );
 
@@ -960,7 +960,7 @@ namespace EE::Render
         RHI::WaitQueueIdle( m_pTransferQueue );
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void RenderSystem::RegisterRenderWindow( Window* pRenderWindow )
     {
@@ -981,7 +981,7 @@ namespace EE::Render
     }
 
     // Viewports
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     Viewport* RenderSystem::CreateViewport( Render::Window* pRenderWindow )
     {
@@ -1013,7 +1013,7 @@ namespace EE::Render
     }
 
     // Meshes
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     MeshUpdate RenderSystem::CreateMesh( size_t numMeshes, size_t numClustersForAllMeshes )
     {
@@ -1163,7 +1163,7 @@ namespace EE::Render
     }
 
     // Shaders
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     MaterialShader const* RenderSystem::FindMaterialShader( StringID const& shaderID ) const
     {
@@ -1243,7 +1243,7 @@ namespace EE::Render
     }
 
     // Shader data
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     ShaderDataHandle RenderSystem::CreateShaderData( uint32_t shaderDataSizeInBytes )
     {
@@ -1304,7 +1304,7 @@ namespace EE::Render
     }
 
     // Async resource updates
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     AsyncBufferUpdate* RenderSystem::CreateBufferAsync( RHI::BufferParameters const& bufferParameters )
     {

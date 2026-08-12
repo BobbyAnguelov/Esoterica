@@ -5,12 +5,11 @@
 
 namespace EE::Render
 {
-    template <typename T>
-    struct DeviceResizeBufferBase final
+    struct DeviceResizeBuffer final
     {
-        T                           m_buffer = {};
+        RHI::Buffer*    m_pBuffer = nullptr;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         void Initialize( RHI::Context* pContextRHI );
         void Shutdown( RHI::Context* pContextRHI );
@@ -19,35 +18,33 @@ namespace EE::Render
         void UpdateDeviceResources( size_t newBufferSize, F fn );
     };
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
-    template <typename T>
-    inline void DeviceResizeBufferBase<T>::Initialize( RHI::Context* pContextRHI )
+    inline void DeviceResizeBuffer::Initialize( RHI::Context* pContextRHI )
     {
         // Nothing
     }
 
-    template <typename T>
-    inline void DeviceResizeBufferBase<T>::Shutdown( RHI::Context* pContextRHI )
+    inline void DeviceResizeBuffer::Shutdown( RHI::Context* pContextRHI )
     {
-        RHI::DestroyBuffer( pContextRHI, eastl::move( m_buffer ) );
+        RHI::DestroyBuffer( pContextRHI, eastl::move( m_pBuffer ) );
     }
 
-    template <typename T> template<typename F>
-    inline void DeviceResizeBufferBase<T>::UpdateDeviceResources( size_t newBufferSize, F fn )
+    template<typename F>
+    inline void DeviceResizeBuffer::UpdateDeviceResources( size_t newBufferSize, F fn )
     {
         bool needNewBuffer = false;
 
-        if ( !m_buffer ) { needNewBuffer = true; }
+        if ( !m_pBuffer ) { needNewBuffer = true; }
 
-        if ( m_buffer )
+        if ( m_pBuffer )
         {
-            if ( m_buffer->m_size < newBufferSize )
+            if ( m_pBuffer->m_size < newBufferSize )
             {
                 needNewBuffer = true;
             }
 
-            size_t currentBufferSize = m_buffer->m_size;
+            size_t currentBufferSize = m_pBuffer->m_size;
             size_t sizeThreshold = ( newBufferSize / 3 ) * 2;
 
             if ( currentBufferSize > 4096 && currentBufferSize < sizeThreshold ) // Shrink if needed
@@ -58,12 +55,7 @@ namespace EE::Render
 
         if ( needNewBuffer )
         {
-            m_buffer = fn( eastl::move( m_buffer ), newBufferSize );
+            m_pBuffer = fn( eastl::move( m_pBuffer ), newBufferSize );
         }
     }
-
-    //-------------------------------------------------------------------------------------------------------
-
-    using DeviceResizeBuffer = DeviceResizeBufferBase<RHI::Buffer*>;
-    using DeviceResizeBufferState = DeviceResizeBufferBase<DeviceBufferState>;
 }

@@ -95,14 +95,13 @@ namespace EE::Reflection
                     {
                         stream
                             << "#ifdef __cplusplus\n"
-                            << "    void Set" << parameter.m_friendlyName.c_str() << "( DeviceResourceStates& states, TBitFlags<EE::Render::RHI::PipelineStage> stages, DeviceAppendBufferBase const& " << parameter.m_friendlyName.c_str() << " );\n"
+                            << "    void Set" << parameter.m_friendlyName.c_str() << "( DeviceAppendBufferBase const& " << parameter.m_friendlyName.c_str() << " );\n"
                             << "#endif\n";
                     }
                     else if ( parameter.m_type == "Buffer" || parameter.m_type == "StructuredBuffer" || parameter.m_type == "ByteAddressBuffer" )
                     {
                         stream
                             << "#ifdef __cplusplus\n"
-                            << "    void Set" << parameter.m_friendlyName.c_str() << "( DeviceResourceStates& states, TBitFlags<EE::Render::RHI::PipelineStage> stages, DeviceBufferState& " << parameter.m_friendlyName.c_str() << " );\n"
                             << "    void Set" << parameter.m_friendlyName.c_str() << "( EE::Render::RHI::Buffer* p" << parameter.m_friendlyName.c_str() << " );\n"
                             << "#endif\n";
                     }
@@ -110,7 +109,6 @@ namespace EE::Reflection
                     {
                         stream
                             << "#ifdef __cplusplus\n"
-                            << "    void Set" << parameter.m_friendlyName.c_str() << "( DeviceResourceStates& states, TBitFlags<EE::Render::RHI::PipelineStage> stages, DeviceBufferState& " << parameter.m_friendlyName.c_str() << " );\n"
                             << "    void Set" << parameter.m_friendlyName.c_str() << "( EE::Render::RHI::Buffer* p" << parameter.m_friendlyName.c_str() << " );\n"
                             << "#endif\n";
                     }
@@ -212,21 +210,14 @@ namespace EE::Reflection
                 if ( parameter.m_type == "AppendBuffer" || parameter.m_type == "RawAppendBuffer" )
                 {
                     stream
-                        << "void " << structName.c_str() << "Data::Set" << parameter.m_friendlyName.c_str() << "( DeviceResourceStates& states, TBitFlags<EE::Render::RHI::PipelineStage> stages, DeviceAppendBufferBase const& " << parameter.m_friendlyName.c_str() << " )\n"
+                        << "void " << structName.c_str() << "Data::Set" << parameter.m_friendlyName.c_str() << "( DeviceAppendBufferBase const& " << parameter.m_friendlyName.c_str() << " )\n"
                         << "{\n"
-                        << "    states.Writeable( " << parameter.m_friendlyName.c_str() << ".m_deviceCounterBuffer, stages, EE::Render::RHI::ResourceAccess::UnorderedAccess );\n"
-                        << "    states.Writeable( " << parameter.m_friendlyName.c_str() << ".m_deviceBuffer, stages, EE::Render::RHI::ResourceAccess::UnorderedAccess ) ;\n"
                         << "    Set" << parameter.m_friendlyName.c_str() << "( " << parameter.m_friendlyName.c_str() << ".GetAppendBufferHandle() );\n"
                         << "}\n";
                 }
                 else if ( parameter.m_type == "Buffer" || parameter.m_type == "StructuredBuffer" || parameter.m_type == "ByteAddressBuffer" )
                 {
                     stream
-                        << "void " << structName.c_str() << "Data::Set" << parameter.m_friendlyName.c_str() << "( DeviceResourceStates& states, TBitFlags<EE::Render::RHI::PipelineStage> stages, DeviceBufferState& " << parameter.m_friendlyName.c_str() << " )\n"
-                        << "{\n"
-                        << "    states.ReadOnly( " << parameter.m_friendlyName.c_str() << ", stages, EE::Render::RHI::ResourceAccess::ShaderResource );\n"
-                        << "    Set" << parameter.m_friendlyName.c_str() << "( EE::Render::RHI::GetBufferHandle( " << parameter.m_friendlyName.c_str() << ", RHI::DescriptorTypeFlags::Buffer ) );\n"
-                        << "}\n"
                         << "void " << structName.c_str() << "Data::Set" << parameter.m_friendlyName.c_str() << "( RHI::Buffer* p" << parameter.m_friendlyName.c_str() << " )\n"
                         << "{\n"
                         << "    Set" << parameter.m_friendlyName.c_str() << "( EE::Render::RHI::GetBufferHandle( p" << parameter.m_friendlyName.c_str() << ", RHI::DescriptorTypeFlags::Buffer ) );\n"
@@ -235,11 +226,6 @@ namespace EE::Reflection
                 else if ( parameter.m_type == "RWBuffer" || parameter.m_type == "RWStructuredBuffer" || parameter.m_type == "RWByteAddressBuffer" )
                 {
                     stream
-                        << "void " << structName.c_str() << "Data::Set" << parameter.m_friendlyName.c_str() << "( DeviceResourceStates& states, TBitFlags<EE::Render::RHI::PipelineStage> stages, DeviceBufferState& " << parameter.m_friendlyName.c_str() << " )\n"
-                        << "{\n"
-                        << "    states.Writeable( " << parameter.m_friendlyName.c_str() << ", stages, EE::Render::RHI::ResourceAccess::UnorderedAccess );\n"
-                        << "    Set" << parameter.m_friendlyName.c_str() << "( EE::Render::RHI::GetBufferHandle( " << parameter.m_friendlyName.c_str() << ", RHI::DescriptorTypeFlags::RWBuffer ) );\n"
-                        << "}\n"
                         << "void " << structName.c_str() << "Data::Set" << parameter.m_friendlyName.c_str() << "( RHI::Buffer* p" << parameter.m_friendlyName.c_str() << " )\n"
                         << "{\n"
                         << "    Set" << parameter.m_friendlyName.c_str() << "( EE::Render::RHI::GetBufferHandle( p" << parameter.m_friendlyName.c_str() << ", RHI::DescriptorTypeFlags::RWBuffer ) );\n"

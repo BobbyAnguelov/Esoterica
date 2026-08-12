@@ -86,16 +86,36 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         uint                 m_borderBits;
         uint                 m_numLODs;
 
+        //https://www.shadertoy.com/view/XlGcRh
         uint PCG( uint v )
         {
-            uint state = v * 747796405u + 2891336453u;
-            uint word  = ( ( state >> ( ( state >> 28u ) + 4u ) ) ^ state ) * 277803737u;
-            return ( word >> 22u ) ^ word;
+            uint state = v * 747796405U + 2891336453U;
+            uint word  = ( ( state >> ( ( state >> 28U ) + 4U ) ) ^ state ) * 277803737U;
+            return ( word >> 22U ) ^ word;
         }
 
-        uint2 GetPayload( uint slotIndex, uint bucketIndex )
+        uint64_t2 LoadPayload( uint slotIndex, uint pageIndex )
         {
-            return m_payloads[ slotIndex * m_payloadStride + bucketIndex ];
+            uint base = slotIndex * m_payloadStride + 2 + pageIndex * 2;
+            return uint64_t2( m_payloads[ base ], m_payloads[ base + 1 ] );
+        }
+
+        void StorePayload( uint slotIndex, uint pageIndex, uint64_t2 value )
+        {
+            uint base = slotIndex * m_payloadStride + 2 + pageIndex * 2;
+            m_payloads[ base ]     = value.x;
+            m_payloads[ base + 1 ] = value.y;
+        }
+
+        uint2 LoadMetadata( uint slotIndex, uint metaIndex )
+        {
+            uint64_t packed = m_payloads[ slotIndex * m_payloadStride + metaIndex ];
+            return uint2( uint( packed & 0xFFFFFFFF ), uint( packed >> 32 ) );
+        }
+
+        void StoreMetadata( uint slotIndex, uint metaIndex, uint2 value )
+        {
+            m_payloads[ slotIndex * m_payloadStride + metaIndex ] = uint64_t( value.x ) | ( uint64_t( value.y ) << 32 );
         }
 
         bool LoadPayloadCell( float3 worldPos, float3 cameraPos, out uint slotIndex, out uint numCollisions, out uint checksum )
@@ -162,7 +182,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     //-------------------------------------------------------------------------
 
     // Read-write variant for compute shader
-    struct SpatialHashRW : SpatialHashBase<RWBuffer<uint>, RWBuffer<uint2> >
+    struct SpatialHashRW : SpatialHashBase<RWBuffer<uint>, RWBuffer<uint64_t> >
     {
         uint FindOrInsert( int3 cellIndex, uint level, out bool newCellInserted )
         {
@@ -184,7 +204,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     };
 
     // Read-only variant for pixel shader (SRV)
-    typedef SpatialHashBase<Buffer<uint>, Buffer<uint2> > SpatialHashRO;
+    typedef SpatialHashBase<Buffer<uint>, Buffer<uint64_t> > SpatialHashRO;
 
     //-------------------------------------------------------------------------
 

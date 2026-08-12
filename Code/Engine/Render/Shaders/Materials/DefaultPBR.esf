@@ -19,7 +19,7 @@ MaterialShaderOutput MaterialShaderMain( in MaterialShaderInput materialInput )
     CustomParameters        customParameters        = LoadCustomParameters( shaderDataBuffer, materialInput.m_primitive.GetShaderParametersOffsetIn32ByteBlocks() );
     MaterialShaderOutput    materialOutput          = MaterialShaderOutput::New( materialInput );
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     float4 albedoSample             = customParameters.m_albedoTexture.Sample( customParameters.m_textureSamplerLinear, materialInput.m_vertex.m_uv.xy );
     materialOutput.m_albedo         = albedoSample.rgb;

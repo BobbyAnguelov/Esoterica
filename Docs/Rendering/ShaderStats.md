@@ -43,7 +43,7 @@
 | BucketResolve           | 17/256 | 32/104  | 93.36%      | 0.00/64.00Kb | 0Kb       |
 | ClusterCulling          | 38/256 | 60/104  | 85.16%      | 0.00/64.00Kb | 0Kb       |
 | InstanceCulling         | 38/256 | 76/104  | 85.16%      | 1.00/64.00Kb | 0Kb       |
-| LightCulling_CullLights | 32/256 | 64/104  | 87.50%      | 0.50/64.00Kb | 0Kb       |
+| LightCulling_CullLights | 29/256 | 58/104  | 88.67%      | 0.50/64.00Kb | 0Kb       |
 | WorldUpdate             | 19/256 | 28/104  | 92.58%      | 0.00/64.00Kb | 0Kb       |
 
 ## RDNA 3.5 (Radeon 8040S)
@@ -91,7 +91,7 @@
 | BucketResolve           | 17/256 | 32/104  | 93.36%      | 0.00/64.00Kb | 0Kb       |
 | ClusterCulling          | 40/256 | 56/104  | 84.38%      | 0.00/64.00Kb | 0Kb       |
 | InstanceCulling         | 40/256 | 74/104  | 84.38%      | 1.00/64.00Kb | 0Kb       |
-| LightCulling_CullLights | 25/256 | 66/104  | 90.23%      | 0.50/64.00Kb | 0Kb       |
+| LightCulling_CullLights | 22/256 | 62/104  | 91.41%      | 0.50/64.00Kb | 0Kb       |
 | WorldUpdate             | 19/256 | 28/104  | 92.58%      | 0.00/64.00Kb | 0Kb       |
 
 ## RDNA 4.0 (RX 9060)
@@ -139,5 +139,5 @@
 | BucketResolve           | 17/256 | 32/106  | 93.36%      | 0.00/0.00Kb | 0Kb       |
 | ClusterCulling          | 38/256 | 60/106  | 85.16%      | 0.00/0.00Kb | 0Kb       |
 | InstanceCulling         | 38/256 | 76/106  | 85.16%      | 0.78/1.00Kb | 0Kb       |
-| LightCulling_CullLights | 16/256 | 66/106  | 93.75%      | 0.14/0.50Kb | 0Kb       |
+| LightCulling_CullLights | 22/256 | 62/106  | 91.41%      | 0.11/0.50Kb | 0Kb       |
 | WorldUpdate             | 19/256 | 28/106  | 92.58%      | 0.00/0.00Kb | 0Kb       |

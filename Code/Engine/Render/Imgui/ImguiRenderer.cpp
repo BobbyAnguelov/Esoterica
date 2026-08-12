@@ -107,7 +107,7 @@ namespace EE::Render
         m_pRenderSystem = pRenderSystem;
         m_pPrimaryRenderWindow = pPrimaryRenderWindow;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         static StringID const            s_ImguiShaderID( "Imgui" );
         SurfaceShader const* pImguiShader = m_pRenderSystem->FindSurfaceShader( s_ImguiShaderID );
@@ -137,7 +137,7 @@ namespace EE::Render
 
         m_pPipeline = RHI::CreatePipeline( m_pRenderSystem->GetContextRHI(), graphicsPipelineParameters );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         for ( uint32_t frameIndex = 0; frameIndex < RHI::MaxPendingFrames; ++frameIndex )
         {
@@ -428,7 +428,7 @@ namespace EE::Render
 
             ShaderTypes::ImguiConstantBuffer alignas( 32 ) constantBufferData = {};
             std::memcpy( constantBufferData.m_projectionMatrix, mvp, sizeof( float ) * 16 );
-            constantBufferData.m_vertexBuffer = RHI::GetBufferHandle( m_vertexBuffers[frameIndex].m_buffer, RHI::DescriptorTypeFlags::Buffer );
+            constantBufferData.m_vertexBuffer = RHI::GetBufferHandle( m_vertexBuffers[frameIndex].m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
 
             Memory::CopyToWriteCombined( m_constantBuffers[frameIndex]->m_pMappedAddress_WriteCombined, &constantBufferData, sizeof( constantBufferData ) );
 
@@ -440,8 +440,8 @@ namespace EE::Render
                 m_pPrimaryRenderWindow->GetCurrentRenderTarget(),
                 m_pPipeline,
                 m_constantBuffers[frameIndex],
-                m_vertexBuffers[frameIndex].m_buffer,
-                m_indexBuffers[frameIndex].m_buffer,
+                m_vertexBuffers[frameIndex].m_pBuffer,
+                m_indexBuffers[frameIndex].m_pBuffer,
                 frameIndex,
                 clear,
                 state
@@ -490,7 +490,7 @@ namespace EE::Render
                 };
                 ShaderTypes::ImguiConstantBuffer alignas( 32 ) constantBufferData = {};
                 std::memcpy( constantBufferData.m_projectionMatrix, mvp, sizeof( float ) * 16 );
-                constantBufferData.m_vertexBuffer = RHI::GetBufferHandle( m_vertexBuffers[frameIndex].m_buffer, RHI::DescriptorTypeFlags::Buffer );
+                constantBufferData.m_vertexBuffer = RHI::GetBufferHandle( m_vertexBuffers[frameIndex].m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
 
                 Memory::CopyToWriteCombined( pUserData->m_constantBuffers[frameIndex]->m_pMappedAddress_WriteCombined, &constantBufferData, sizeof( constantBufferData ) );
 
@@ -502,8 +502,8 @@ namespace EE::Render
                     pUserData->m_renderWindow.GetCurrentRenderTarget(),
                     m_pPipeline,
                     pUserData->m_constantBuffers[frameIndex],
-                    m_vertexBuffers[frameIndex].m_buffer,
-                    m_indexBuffers[frameIndex].m_buffer,
+                    m_vertexBuffers[frameIndex].m_pBuffer,
+                    m_indexBuffers[frameIndex].m_pBuffer,
                     frameIndex,
                     true,
                     state

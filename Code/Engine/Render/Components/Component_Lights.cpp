@@ -118,7 +118,7 @@ namespace EE::Render
         m_lightInstanceProxy.WriteDirectionalLight( -GetLightDirection().ToFloat3(), GetMaxIntensity(), tintedColor, m_cascadedShadowIndex );
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void PointLightComponent::OnWorldTransformUpdated()
     {
@@ -131,7 +131,7 @@ namespace EE::Render
         m_lightInstanceProxy.WritePointLight( GetWorldTransform().GetTranslation(), GetMaxIntensity(), GetMaxRadius(), GetFalloff(), tintedColor, 0xFFFF );
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void SpotLightComponent::OnWorldTransformUpdated()
     {

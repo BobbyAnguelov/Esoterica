@@ -17,13 +17,13 @@ namespace EE::Render
     void MaterialShaderRenderBucket::Shutdown( RenderSystem* pRenderSystem )
     {
         RHI::DestroyBuffer( pRenderSystem->GetContextRHI(), eastl::move( m_clusterVisibleCounterBuffer ) );
-        RHI::DestroyBuffer( pRenderSystem->GetContextRHI(), eastl::move( m_drawCounterBuffer ) );
+        RHI::DestroyBuffer( pRenderSystem->GetContextRHI(), eastl::move( m_pDrawCounterBuffer ) );
 
         m_clusterVisibleBuffer.Shutdown( pRenderSystem->GetContextRHI() );
         m_drawArgumentBuffer.Shutdown( pRenderSystem->GetContextRHI() );
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void DeviceRenderViewBucket::Initialize( RenderSystem* pRenderSystem )
     {
@@ -39,7 +39,7 @@ namespace EE::Render
         m_alphaBlendBucket.Shutdown( pRenderSystem );
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void DeviceRenderView::Initialize( RenderSystem* pRenderSystem, size_t numMaterialShaderPipelineBuckets )
     {
@@ -79,11 +79,11 @@ namespace EE::Render
                 size_t const clusterVisibleBufferSizeWorstCase = clustersCapacity * sizeof( uint2 );
                 size_t const drawArgumentBufferSizeWorstCase = Math::IntegerDivideCeiling<uint32_t>( clustersCapacity, RHI::MaxDispatchSize ) * sizeof( ShaderTypes::DrawArgument );
 
-                //-------------------------------------------------------------------------------------------
+                //-------------------------------------------------------------------------
 
-                auto UpdateBuffer_ClusterVisible = [pRenderSystem, &renderBucket, renderBucketIndex] ( DeviceBufferState&& oldBuffer, size_t newBufferSize )
+                auto UpdateBuffer_ClusterVisible = [pRenderSystem, &renderBucket, renderBucketIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
                 {
-                    pRenderSystem->QueueResourceDelete( eastl::move( oldBuffer ) );
+                    pRenderSystem->QueueResourceDelete( eastl::move( pOldBuffer ) );
 
                     RHI::BufferParameters clusterVisibleBufferParameters = {};
                     clusterVisibleBufferParameters.m_bufferSize = newBufferSize;
@@ -96,9 +96,9 @@ namespace EE::Render
 
                 renderBucket.m_clusterVisibleBuffer.UpdateDeviceResources( clusterVisibleBufferSizeWorstCase, UpdateBuffer_ClusterVisible );
 
-                //-------------------------------------------------------------------------------------------
+                //-------------------------------------------------------------------------
 
-                if ( !renderBucket.m_drawCounterBuffer )
+                if ( !renderBucket.m_pDrawCounterBuffer )
                 {
                     RHI::BufferParameters countBufferParameters = {};
                     countBufferParameters.m_descriptorTypes = TBitFlags<RHI::DescriptorTypeFlags>( RHI::DescriptorTypeFlags::IndirectArgumentBuffer, RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer );
@@ -106,18 +106,18 @@ namespace EE::Render
                     countBufferParameters.m_format = RHI::DataFormat::R32_UInt;
                     countBufferParameters.m_debugName.sprintf( "%s DrawCounter Buffer %i", renderBucket.m_bucketName.c_str(), renderBucketIndex );
 
-                    renderBucket.m_drawCounterBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), countBufferParameters );
+                    renderBucket.m_pDrawCounterBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), countBufferParameters );
 
                     countBufferParameters.m_debugName.sprintf( "%s ClusterVisibleCounter Buffer %i", renderBucket.m_bucketName.c_str(), renderBucketIndex );
 
                     renderBucket.m_clusterVisibleCounterBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), countBufferParameters );
                 }
 
-                //-------------------------------------------------------------------------------------------
+                //-------------------------------------------------------------------------
 
-                auto UpdateBuffer_DrawArgument = [pRenderSystem, &renderBucket, renderBucketIndex] ( DeviceBufferState&& oldBuffer, size_t newBufferSize )
+                auto UpdateBuffer_DrawArgument = [pRenderSystem, &renderBucket, renderBucketIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
                 {
-                    pRenderSystem->QueueResourceDelete( eastl::move( oldBuffer ) );
+                    pRenderSystem->QueueResourceDelete( eastl::move( pOldBuffer ) );
 
                     RHI::BufferParameters drawArgumentBufferParameters = {};
                     drawArgumentBufferParameters.m_alignment = RHI::IndirectCommandAlignment;
@@ -131,7 +131,7 @@ namespace EE::Render
 
                 renderBucket.m_drawArgumentBuffer.UpdateDeviceResources( drawArgumentBufferSizeWorstCase, UpdateBuffer_DrawArgument );
 
-                //-------------------------------------------------------------------------------------------
+                //-------------------------------------------------------------------------
 
                 renderBucketIndex++;
             } );

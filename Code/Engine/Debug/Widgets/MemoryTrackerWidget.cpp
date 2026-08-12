@@ -467,7 +467,7 @@ namespace EE
             ImGui::TableHeadersRow();
 
             // Total row
-            //-----------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
             uint64_t numVisibleBytesTotal = 0;
             uint64_t numVisibleAllocsTotal = 0;
@@ -501,7 +501,7 @@ namespace EE
             ImGui::Text( "%llu", numVisibleAllocsTotal );
 
             // Pass 2: render
-            //-----------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
             entryIdx = 0;
             for ( size_t groupIndex = 0; groupIndex < m_groups.size(); groupIndex++ )
@@ -549,7 +549,7 @@ namespace EE
                     ImGui::TreeNodeEx( entry.m_pMemoryAllocator->GetName(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen );
 
                     // Bytes
-                    //---------------------------------------------------------
+                    //-------------------------------------------------------------------------
 
                     ImGui::TableNextColumn();
                     DrawFormattedBytes( numBytes );
@@ -567,7 +567,7 @@ namespace EE
                     }
 
                     // Allocs
-                    //---------------------------------------------------------
+                    //-------------------------------------------------------------------------
 
                     ImGui::TableNextColumn();
                     ImGui::Text( "%llu", numAllocs );
@@ -606,7 +606,7 @@ namespace EE
             ImGui::TableHeadersRow();
 
             // Merge-display buffers + textures sorted by size
-            //-----------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
             auto GetDeltas = []( EE::Render::RHI::ResourceAllocationStatistic const& stat,
                                   TVector<EE::Render::RHI::ResourceAllocationStatistic> const& snapshotStats,
@@ -669,7 +669,7 @@ namespace EE
                 ImGui::TreeNodeEx( m_gpuResourceLabel.c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_NoTreePushOnOpen );
 
                 // Bytes
-                //-------------------------------------------------------------
+                //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
                 DrawFormattedBytes( pStat->m_numBytes );
@@ -682,7 +682,7 @@ namespace EE
                     DrawDeltaBytesBadge( true, deltaBytes );
 
                 // Count
-                //-------------------------------------------------------------
+                //-------------------------------------------------------------------------
 
                 ImGui::TableNextColumn();
                 ImGui::Text( "%llu", pStat->m_numAllocations );

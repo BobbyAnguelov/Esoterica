@@ -92,7 +92,7 @@ namespace EE::Render
 
         lightDirection.SetW0();
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // Compute shadow matrix
         Matrix globalShadowMatrix = Matrix::Identity;
         {
@@ -119,7 +119,7 @@ namespace EE::Render
                 sizeof( globalShadowMatrix ) );
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // Compute splits
 
         TArray<float, NumShadowCascades> cascadeSplits = {};
@@ -145,7 +145,7 @@ namespace EE::Render
             cascadeSplits[split] = ( distance - depthRange.m_begin ) / zRange;
         }
 
-        //-------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // Begin rendering
 
         Float2 const viewTopLeft = Float2( 0.0F, 0.0F );
@@ -162,7 +162,7 @@ namespace EE::Render
 
         for ( uint32_t cascadeIndex = 0; cascadeIndex < NumShadowCascades; ++cascadeIndex )
         {
-            //---------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             // Compute splits
 
             float const previousSplitDistance = cascadeIndex ? cascadeSplits[cascadeIndex - 1] : minDistance;
@@ -200,7 +200,7 @@ namespace EE::Render
             Matrix shadowViewMatrix = Math::CreateLookAtMatrix( splitFrustumCenter, splitFrustumCenter - lightDirection, Vector::WorldUp );
             Matrix shadowViewProjectionMatrix = shadowViewMatrix * shadowProjectionMatrix;
 
-            //---------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             // Snap shadowmap to texel center
             Vector shadowOrigin = shadowViewProjectionMatrix.TransformVector4( Vector( 0.0F, 0.0F, 0.0F, 1.0F ) );
             shadowOrigin *= ShadowMapResolution * 0.5F;
@@ -216,7 +216,7 @@ namespace EE::Render
             Matrix shadowViewProjectionInverseMatrix = shadowViewProjectionMatrix.GetInverse();
 
             // Write render view data
-            //---------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
             alignas( 32 ) ShaderTypes::RenderView shadowRenderView = {};
             std::memcpy
@@ -252,7 +252,7 @@ namespace EE::Render
 
             Memory::CopyToWriteCombined( &dstRenderViews_WriteCombined[cascadeIndex], &shadowRenderView, sizeof( shadowRenderView ) );
 
-            //-------------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             // Write proxy data
 
             Matrix cascadeShadowMatrixInverse = ( shadowViewProjectionMatrix * textureScaleBiasMatrix ).GetInverse();
@@ -270,7 +270,7 @@ namespace EE::Render
             cascadeScale.Store( pOutCascadedShadow_WriteCombined->m_cascadeScales[cascadeIndex] );
 
             // Depth only pass
-            //---------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
             EE_ASSERT( !resourceStates.HasPendingBarriers() );
 
@@ -298,9 +298,12 @@ namespace EE::Render
                     RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
                     {
                         MaterialShaderRenderBucket const& renderBucket = renderViewBucket.m_opaqueBucket;
-                        RHI::CmdExecuteIndirect( pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
-                                                 renderBucket.m_drawArgumentBuffer.m_buffer, 0,
-                                                 renderBucket.m_drawCounterBuffer, 0 );
+                        RHI::CmdExecuteIndirect
+                        (
+                            pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
+                            renderBucket.m_drawArgumentBuffer.m_pBuffer, 0,
+                            renderBucket.m_pDrawCounterBuffer, 0
+                        );
                     }
                 }
 
@@ -311,9 +314,12 @@ namespace EE::Render
                     RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
                     {
                         MaterialShaderRenderBucket const& renderBucket = renderViewBucket.m_alphaTestBucket;
-                        RHI::CmdExecuteIndirect( pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
-                                                 renderBucket.m_drawArgumentBuffer.m_buffer, 0,
-                                                 renderBucket.m_drawCounterBuffer, 0 );
+                        RHI::CmdExecuteIndirect
+                        (
+                            pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
+                            renderBucket.m_drawArgumentBuffer.m_pBuffer, 0,
+                            renderBucket.m_pDrawCounterBuffer, 0
+                        );
                     }
                 }
             }

@@ -77,11 +77,11 @@ void MS_main(
     DebugDrawResourceTable              resourceTable           = CreateDebugDrawResourceTable( RootConstants );
     RenderView                          mainCameraRenderView    = resourceTable.m_renderViewBuffer[resourceTable.m_mainCameraRenderView];
     
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     SetMeshOutputCounts( 256, 128 );
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     float   pixelSize = min( mainCameraRenderView.m_renderTargetSize.z, mainCameraRenderView.m_renderTargetSize.w );
     float   aspectRatio = mainCameraRenderView.m_renderTargetSize.y / mainCameraRenderView.m_renderTargetSize.x;
@@ -157,7 +157,7 @@ void MS_main(
             outPrimitives[basePrimitiveIndex + 1] = primitiveOutput;
             
             // Picking
-            //-----------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             if ( pointCommand.m_hitTestID != ~0ULL )
             {
                 float hitDistance0 = 0.0;
@@ -182,7 +182,7 @@ void MS_main(
             }
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( commandFlags & DEBUG_DRAW_COMMAND_FLAG_LINE )
         {
@@ -266,7 +266,7 @@ void MS_main(
             outPrimitives[basePrimitiveIndex + 1] = primitiveOutput;
             
             // Picking
-            //-----------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             if ( lineCommand.m_hitTestID != ~0ULL )
             {
                 float hitDistance0 = 0.0;
@@ -291,7 +291,7 @@ void MS_main(
             }
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( commandFlags & DEBUG_DRAW_COMMAND_FLAG_TRIANGLE )
         {
@@ -340,7 +340,7 @@ void MS_main(
             outPrimitives[basePrimitiveIndex + 1] = primitiveOutput;
             
             // Picking
-            //-----------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             if ( triangleCommand.m_hitTestID != ~0ULL )
             {
                 float hitDistance = 0.0;
@@ -360,7 +360,7 @@ void MS_main(
             }
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( commandFlags & DEBUG_DRAW_COMMAND_FLAG_TEXT_LETTER )
         {
@@ -414,7 +414,7 @@ void MS_main(
             outPrimitives[basePrimitiveIndex + 1] = primitiveOutput;
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( commandFlags & DEBUG_DRAW_COMMAND_FLAG_TEXT_BOX )
         {
@@ -464,7 +464,7 @@ void MS_main(
             outPrimitives[basePrimitiveIndex + 1] = primitiveOutput;
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( commandFlags & DEBUG_DRAW_COMMAND_FLAG_SKIP )
         {

@@ -15,7 +15,7 @@ namespace EE::Render
         RHI::Pipeline*      m_pPipelineBlendingWeightCalculation = nullptr;
         RHI::Pipeline*      m_pPipelineNeighborhoodBlending = nullptr;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );

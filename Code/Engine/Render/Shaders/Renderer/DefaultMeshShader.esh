@@ -56,13 +56,13 @@ void MS_main
     
     ByteAddressBuffer                   shaderDataBuffer            = GetBuffer( RootCBV.m_shaderDataBuffer );
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     
     #if EE_DEVELOPMENT_TOOLS
     RWBuffer<uint>                      instancePickingDistancesBuffer = GetBuffer( RootCBV.m_instancePickingDistancesBuffer );
     #endif
     
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     uint numClusterVertices = min( cluster.m_numVertices, MAX_CLUSTER_VERTICES );
     uint numClusterTriangles = min( cluster.m_numTriangles, MAX_CLUSTER_TRIANGLES );
@@ -70,7 +70,7 @@ void MS_main
     SetMeshOutputCounts( numClusterVertices, numClusterTriangles );
 
     // Unpack cluster data
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
     
     uint                meshInstanceDataAddress;
     MeshInstanceRoot    meshInstanceRoot                        = meshInstance.LoadRoot( meshInstanceRootBuffer, meshInstanceDataAddress );
@@ -93,7 +93,7 @@ void MS_main
     }
 
     // Shade vertices
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     float3x4    meshInstanceTransform   = meshInstance.ComputeWorldTransform( meshInstanceRoot );
     

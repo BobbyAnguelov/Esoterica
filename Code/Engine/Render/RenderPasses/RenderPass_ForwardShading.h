@@ -32,7 +32,7 @@ namespace EE::Render
     {
         DeviceRenderView                            m_renderView;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         static TVector<ForwardShadingMaterialShaderPipelineBucket> InitializeMaterialShaderBuckets( RenderSystem* pRenderSystem );
 
@@ -63,7 +63,7 @@ namespace EE::Render
                                                RHI::Texture*                                                    pDepthTexture,
                                                RHI::CommandBuffer*                                              pCommandBuffer );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );

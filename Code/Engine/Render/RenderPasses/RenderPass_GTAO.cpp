@@ -57,7 +57,7 @@ namespace EE::Render
         uint32_t            frameIndex = pRenderSystem->GetFrameIndex();
         RHI::Context*       pContextRHI = pRenderSystem->GetContextRHI();
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         uint32_t fullResolutionWidth = pRenderViewport->m_ForwardShading_DepthTexture->m_width;
         uint32_t fullResolutionHeight = pRenderViewport->m_ForwardShading_DepthTexture->m_height;
@@ -171,7 +171,7 @@ namespace EE::Render
             pRenderViewport->m_GTAO_parametersBuffers[frameIndex] = RHI::CreateBuffer( pContextRHI, gtaoBufferParameters );
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // GTAO per frame data
 
         Math::ViewVolume const& viewVolume = pRenderViewport->GetViewVolume();
@@ -352,7 +352,7 @@ namespace EE::Render
 
         rootConstants.m_finalApply = 0;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // Pass 0
         {
             EE_ASSERT( !resourceStates.HasPendingBarriers() );
@@ -367,7 +367,7 @@ namespace EE::Render
             RHI::CmdDispatchCompute( pCommandBuffer, ( depthWidth + 7 ) / 8, ( depthHeight + 7 ) / 8, 1 );
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // Pass 1
         {
             EE_ASSERT( !resourceStates.HasPendingBarriers() );
@@ -381,7 +381,7 @@ namespace EE::Render
             RHI::CmdDispatchCompute( pCommandBuffer, ( depthWidth + 7 ) / 8, ( depthHeight + 7 ) / 8, 1 );
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // Final pass
         {
             EE_ASSERT( !resourceStates.HasPendingBarriers() );

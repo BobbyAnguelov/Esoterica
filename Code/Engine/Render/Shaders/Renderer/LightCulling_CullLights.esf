@@ -6,10 +6,8 @@ ESF_PARAMETER string ShaderType = "Compute";
 EE_DECLARE_ROOT_CONSTANTS( LightCulling_CullLightsRootConstants, b0, space0 );
 EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
 
-groupshared uint gsPointMask0;
-groupshared uint gsPointMask1;
-groupshared uint gsSpotMask0;
-groupshared uint gsSpotMask1;
+groupshared uint64_t gsPointMask;
+groupshared uint64_t gsSpotMask;
 
 groupshared uint gsCellSlot;
 
@@ -24,8 +22,7 @@ groupshared uint gsPageEnd;
 
 groupshared uint gsParentSlot;
 groupshared uint gsParentHasLights;
-groupshared uint2 gsParentPayload0;
-groupshared uint2 gsParentPayload1;
+groupshared uint64_t2 gsParentPayload;
 
 bool TestPointLightCell( float3 cellCenter, float3 cellHalfExtents, LightInstance_PointLight light )
 {
@@ -59,19 +56,17 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 {
     if ( groupThreadID == 0 )
     {
-        gsPointMask0     = 0;
-        gsPointMask1     = 0;
-        gsSpotMask0      = 0;
-        gsSpotMask1      = 0;
-        gsCellSlot       = ~0U;
-        gsParentSlot     = ~0U;
-        gsParentHasLights = 0;
-        gsPointFirstPage = ~0U;
-        gsPointLastPage  = 0;
-        gsSpotFirstPage  = ~0U;
-        gsSpotLastPage   = 0;
-        gsPageStart      = 0;
-        gsPageEnd        = 0;
+        gsPointMask         = 0;
+        gsSpotMask          = 0;
+        gsCellSlot          = ~0U;
+        gsParentSlot        = ~0U;
+        gsParentHasLights   = 0;
+        gsPointFirstPage    = ~0U;
+        gsPointLastPage     = 0;
+        gsSpotFirstPage     = ~0U;
+        gsSpotLastPage      = 0;
+        gsPageStart         = 0;
+        gsPageEnd           = 0;
     }
 
     GroupMemoryBarrierWithGroupSync();
@@ -99,8 +94,8 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     // Parent scan: read metadata, compute merged page range, check for lights
     if ( !isRoot && gsParentSlot != ~0U && groupThreadID == 0 )
     {
-        uint2 pointLightPageRange = hash.GetPayload( gsParentSlot, 0 );
-        uint2 spotLightPageRange = hash.GetPayload( gsParentSlot, 1 );
+        uint2 pointLightPageRange = hash.LoadMetadata( gsParentSlot, 0 );
+        uint2 spotLightPageRange  = hash.LoadMetadata( gsParentSlot, 1 );
         gsParentHasLights = ( pointLightPageRange.y != 0 || spotLightPageRange.y != 0 ) ? 1u : 0;
 
         uint rangeStart = ~0U;
@@ -141,35 +136,25 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         {
             if ( groupThreadID == 0 )
             {
-                gsPointMask0 = 0;
-                gsPointMask1 = 0;
-                gsSpotMask0  = 0;
-                gsSpotMask1  = 0;
+                gsPointMask = 0;
+                gsSpotMask  = 0;
             }
 
             if ( !isRoot )
             {
                 if ( groupThreadID == 0 )
                 {
-                    gsParentPayload0 = hash.GetPayload( gsParentSlot, 2 + pageIndex * 2 + 0 );
-                }
-                if ( groupThreadID == 32 )
-                {
-                    gsParentPayload1 = hash.GetPayload( gsParentSlot, 2 + pageIndex * 2 + 1 );
+                    gsParentPayload = hash.LoadPayload( gsParentSlot, pageIndex );
                 }
             }
 
             GroupMemoryBarrierWithGroupSync();
 
-            uint halfBucket = groupThreadID / 32;
-            uint bitInHalf  = groupThreadID & 31;
-            uint testBit    = 1u << bitInHalf;
+            uint64_t testBit = 1ULL << groupThreadID;
 
-            uint2 parentPayload = uint2( 0, 0 );
+            uint64_t2 parentPayload = uint64_t2( 0, 0 );
             if ( !isRoot )
-            {
-                parentPayload = ( halfBucket == 0 ) ? gsParentPayload0 : gsParentPayload1;
-            }
+                parentPayload = gsParentPayload;
 
             // Point lights
             //-------------------------------------------------------------------------
@@ -177,7 +162,7 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             if ( pageIndex < RootCBV.m_numPointLightPages )
             {
                 uint64_t pageMask = pointLightPages[pageIndex];
-                bool     occupied = ( pageMask & ( 1ULL << groupThreadID ) ) != 0;
+                bool     occupied = ( pageMask & testBit ) != 0;
                 bool     inParent = isRoot || ( ( parentPayload.x & testBit ) != 0 );
 
                 bool inCell = false;
@@ -187,17 +172,10 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
                     inCell = TestPointLightCell( cellCenter, cellHalfExtents, pointLights[pointLightIdx] );
                 }
 
-                uint waveMask = WaveActiveBitOr( inCell ? testBit : 0 );
-                if ( WaveGetLaneIndex() == 0 && waveMask != 0 )
+                uint64_t waveMask = WaveActiveBitOr( inCell ? testBit : 0 );
+                if ( WaveIsFirstLane() && waveMask != 0 )
                 {
-                    if ( groupThreadID < 32 )
-                    {
-                        InterlockedOr( gsPointMask0, waveMask );
-                    }
-                    else
-                    {
-                        InterlockedOr( gsPointMask1, waveMask );
-                    }
+                    InterlockedOr( gsPointMask, waveMask );
                 }
             }
 
@@ -206,7 +184,7 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             if ( pageIndex < RootCBV.m_numSpotLightPages )
             {
                 uint64_t pageMask = spotLightPages[pageIndex];
-                bool     occupied = ( pageMask & ( 1ULL << groupThreadID ) ) != 0;
+                bool     occupied = ( pageMask & testBit ) != 0;
                 bool     inParent = isRoot || ( ( parentPayload.y & testBit ) != 0 );
 
                 bool inCell = false;
@@ -221,17 +199,10 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
                     inCell = TestConeVsSphere( light.m_lightPosition, light.m_lightDirection, light.m_maxRadius, light.m_outerConeAngle, sinAngle, testSphere );
                 }
 
-                uint waveMask = WaveActiveBitOr( inCell ? testBit : 0 );
-                if ( WaveGetLaneIndex() == 0 && waveMask != 0 )
+                uint64_t waveMask = WaveActiveBitOr( inCell ? testBit : 0 );
+                if ( WaveIsFirstLane() && waveMask != 0 )
                 {
-                    if( groupThreadID < 32 )
-                    {
-                        InterlockedOr( gsSpotMask0, waveMask );
-                    }
-                    else
-                    {
-                        InterlockedOr( gsSpotMask1, waveMask );
-                    }
+                    InterlockedOr( gsSpotMask, waveMask );
                 }
             }
 
@@ -251,27 +222,26 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             // Track first/last non-zero page for cell metadata
             if ( groupThreadID == 0 && gsCellSlot != ~0U )
             {
-                uint baseBucket   = 2 + pageIndex * 2;
-                uint payloadIndex = gsCellSlot * hash.m_payloadStride + baseBucket;
+                hash.StorePayload( gsCellSlot, pageIndex, uint64_t2( gsPointMask, gsSpotMask ) );
 
-                hash.m_payloads[payloadIndex    ] = uint2( gsPointMask0, gsSpotMask0 );
-                hash.m_payloads[payloadIndex + 1] = uint2( gsPointMask1, gsSpotMask1 );
-
-                if ( ( gsPointMask0 | gsPointMask1 ) != 0 )
+                if ( ( gsPointMask | gsSpotMask ) != 0 )
                 {
-                    if ( gsPointFirstPage == ~0U )
+                    if ( gsPointMask != 0 )
                     {
-                        gsPointFirstPage = pageIndex;
+                        if ( gsPointFirstPage == ~0U )
+                        {
+                            gsPointFirstPage = pageIndex;
+                        }
+                        gsPointLastPage = pageIndex;
                     }
-                    gsPointLastPage = pageIndex;
-                }
-                if ( ( gsSpotMask0 | gsSpotMask1 ) != 0 )
-                {
-                    if ( gsSpotFirstPage == ~0U )
+                    if ( gsSpotMask != 0 )
                     {
-                        gsSpotFirstPage = pageIndex;
+                        if ( gsSpotFirstPage == ~0U )
+                        {
+                            gsSpotFirstPage = pageIndex;
+                        }
+                        gsSpotLastPage = pageIndex;
                     }
-                    gsSpotLastPage = pageIndex;
                 }
             }
         }
@@ -279,13 +249,13 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 
     GroupMemoryBarrierWithGroupSync();
 
-    // Write metadata to payload slots 0 (point) and 1 (spot)
+    // Write metadata to payload
     if ( groupThreadID == 0 && gsCellSlot != ~0U )
     {
         uint numPointLights = ( gsPointFirstPage != ~0U ) ? ( gsPointLastPage - gsPointFirstPage + 1 ) : 0;
-        uint numSpotLights = ( gsSpotFirstPage  != ~0U ) ? ( gsSpotLastPage  - gsSpotFirstPage  + 1 ) : 0;
+        uint numSpotLights  = ( gsSpotFirstPage  != ~0U ) ? ( gsSpotLastPage  - gsSpotFirstPage  + 1 ) : 0;
 
-        hash.m_payloads[gsCellSlot * hash.m_payloadStride    ] = uint2( gsPointFirstPage, numPointLights );
-        hash.m_payloads[gsCellSlot * hash.m_payloadStride + 1] = uint2( gsSpotFirstPage,  numSpotLights );
+        hash.StoreMetadata( gsCellSlot, 0, uint2( gsPointFirstPage, numPointLights ) );
+        hash.StoreMetadata( gsCellSlot, 1, uint2( gsSpotFirstPage,  numSpotLights ) );
     }
 }

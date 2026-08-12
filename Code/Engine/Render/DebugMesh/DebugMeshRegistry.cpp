@@ -153,14 +153,14 @@ namespace EE::Render
 
         geometryBuilder.Optimize();
 
-        //---------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         Geometry geometry = {};
         geometry.SetVertexStride( sizeof( StaticMeshVertex ) );
         geometry.SetBounds( OBB( geometryBuilder.ComputeAABB() ) );
         geometryBuilder.BuildAndAppendGeometry( geometry );
 
-        //---------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         auto CopyClustersMemory = [&geometry] ( uint8_t* pDstMemory_WriteCombined, size_t dstSize )
         {
             Memory::CopyToWriteCombined( pDstMemory_WriteCombined, geometry.GetClusterVertices().data(), dstSize );
@@ -173,7 +173,7 @@ namespace EE::Render
 
         registeredMesh.m_pClusterVertexBuffer = m_pRenderSystem->QueueBufferCreate( CopyClustersMemory, clusterVertexBufferParameters );
 
-        //---------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         auto CopyTrianglesMemory = [&geometry] ( uint8_t* pDstMemory_WriteCombined, size_t dstSize )
         {
             Memory::CopyToWriteCombined( pDstMemory_WriteCombined, geometry.GetClusterTriangles().data(), dstSize );
@@ -186,7 +186,7 @@ namespace EE::Render
 
         registeredMesh.m_pClusterTriangleBuffer = m_pRenderSystem->QueueBufferCreate( CopyTrianglesMemory, clusterTriangleBufferParameters );
 
-        //---------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         MeshUpdate meshUpdate = m_pRenderSystem->CreateMesh( 1, geometry.GetNumClusters() );
 
         registeredMesh.m_meshHandle = meshUpdate.m_meshHandle;

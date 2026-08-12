@@ -672,6 +672,7 @@ namespace EE
 
                     // Render all worlds to their corresponding viewports
                     bool needSwapchainClear = true;
+                    uint64_t worldSemaphore = 0;
                     for ( EntityWorld* pWorld : m_pEntityWorldManager->GetWorlds() )
                     {
                         // TODO: Hacky, need a way for dispatching stuff that is shared between viewports
@@ -698,7 +699,7 @@ namespace EE
                             }
 
                             m_pForwardShadingRenderer->UpdateViewportDeviceResources( m_updateContext, pRenderViewport, pWorld );
-                            m_pForwardShadingRenderer->DrawWorldToViewport( m_updateContext, pRenderViewport, pWorld );
+                            worldSemaphore = m_pForwardShadingRenderer->DrawWorldToViewport( m_updateContext, pRenderViewport, pWorld, worldSemaphore );
                         }
                     }
 

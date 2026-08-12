@@ -1563,7 +1563,7 @@ namespace EE::Render::RHI
     using TextureHandle = GenericResourceHandle;
     using AccelerationStructureHandle = GenericResourceHandle;
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     EE_BASE_API Context* CreateContext( ContextParameters const& parameters );
     EE_BASE_API void DestroyContext( Context*&& context );

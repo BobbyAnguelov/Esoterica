@@ -4,13 +4,13 @@
 #include "Engine/Entity/EntityWorldSystemSignal.h"
 #include "Engine/Render/RenderMesh.h"
 
-//-----------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 
 namespace EE::Render
 {
     class DeviceRenderWorld;
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     class EE_ENGINE_API StaticMeshComponent final : public MeshComponent
     {
@@ -23,12 +23,12 @@ namespace EE::Render
         using MeshComponent::MeshComponent;
 
         // Local Scale
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         virtual bool SupportsNonUniformScale() const override { return true; }
 
         // Mesh Data
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         virtual bool HasMeshResourceSet() const override{ return m_mesh.IsSet(); }
 
@@ -45,7 +45,7 @@ namespace EE::Render
             return m_mesh.GetPtr();
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         inline TEntityWorldSystemSignal<StaticMeshComponent>* GetInstanceDataUpdateSignal() { return &m_instanceDataUpdateSignal; }
 
@@ -67,7 +67,7 @@ namespace EE::Render
 
         virtual Float3* GetNonUniformScaleForEdit() override { return &m_nonUniformScale; }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         inline uint32_t ComputeInstanceDataSizeInBytes()
         {
@@ -91,12 +91,12 @@ namespace EE::Render
         EE_REFLECT();
         Float3                                          m_nonUniformScale = Float3::One;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         TEntityWorldSystemSignal<StaticMeshComponent>   m_instanceDataUpdateSignal;
 
         // Internal renderer data
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         MeshInstanceProxy                               m_meshInstanceRootProxy = {};
         MeshInstanceProxy                               m_meshInstanceProxy = {};

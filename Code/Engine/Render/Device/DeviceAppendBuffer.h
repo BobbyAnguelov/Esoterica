@@ -17,15 +17,15 @@ namespace EE::Render
 
         // TODO: Bunch of mutable stuff here, we don't have/need multithreaded command buffer recording right now so it's a later problem.
         // Renderer is recording very small command buffers so it's not a performance issue, all culling work is done on the GPU.
-        mutable DeviceBufferState                                   m_deviceCounterBuffer = {};
-        mutable DeviceBufferState                                   m_deviceBuffer = {};
+        RHI::Buffer*                                                m_pDeviceCounterBuffer = nullptr;
+        RHI::Buffer*                                                m_pDeviceBuffer = nullptr;
 
-        mutable TArray<DeviceBufferState, RHI::MaxPendingFrames>    m_hostCounterBuffers = {};
-        mutable TArray<DeviceBufferState, RHI::MaxPendingFrames>    m_hostBuffers = {};
+        TArray<RHI::Buffer*, RHI::MaxPendingFrames>                 m_hostCounterBuffers = {};
+        TArray<RHI::Buffer*, RHI::MaxPendingFrames>                 m_hostBuffers = {};
 
         uint32_t                                                    m_maxBufferSize = 1;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         void Initialize( RHI::Context* pContextRHI, StringView name );
         void Shutdown( RHI::Context* pContextRHI );
@@ -40,16 +40,16 @@ namespace EE::Render
             TAlignedVector<T>
         >                                                           m_bufferData;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         void UpdateBuffers( RenderSystem* pRenderSystem, uint32_t frameIndex, size_t stride, TBitFlags<RHI::DescriptorTypeFlags> descriptorTypeFlags );
 
-        void Clear( DeviceResourceStates& states, RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
-        void CopyResults( DeviceResourceStates& states, RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
-        void Barrier( DeviceResourceStates& states, RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
+        void Clear( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
+        void CopyResults( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
+        void Barrier( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
     };
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     template <typename T>
     inline void DeviceAppendBuffer<T>::UpdateBuffers( RenderSystem* pRenderSystem, uint32_t frameIndex, size_t stride, TBitFlags<RHI::DescriptorTypeFlags> descriptorTypeFlags )
@@ -62,7 +62,7 @@ namespace EE::Render
 
         size_t maxBufferSizeInBytes = m_maxBufferSize * stride;
 
-        if ( !m_deviceBuffer || m_deviceBuffer->m_size < maxBufferSizeInBytes )
+        if ( !m_pDeviceBuffer || m_pDeviceBuffer->m_size < maxBufferSizeInBytes )
         {
             RHI::BufferParameters bufferParameters = {};
             bufferParameters.m_bufferSize = maxBufferSizeInBytes;
@@ -70,8 +70,8 @@ namespace EE::Render
             bufferParameters.m_descriptorTypes = descriptorTypeFlags;
             bufferParameters.m_debugName.sprintf( "AppendBuffer %s Device Buffer", m_bufferName.c_str() );
 
-            pRenderSystem->QueueResourceDelete( eastl::move( m_deviceBuffer ) );
-            m_deviceBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), bufferParameters );
+            pRenderSystem->QueueResourceDelete( eastl::move( m_pDeviceBuffer ) );
+            m_pDeviceBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), bufferParameters );
         }
 
         uint32_t resultsCounter = *reinterpret_cast<uint32_t*>( m_hostCounterBuffers[frameIndex]->m_pMappedAddress_WriteCombined );
@@ -106,46 +106,35 @@ namespace EE::Render
     }
 
     template <typename T>
-    inline void DeviceAppendBuffer<T>::Clear( DeviceResourceStates& states, RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const
+    inline void DeviceAppendBuffer<T>::Clear( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const
     {
-        states.Writeable( m_deviceCounterBuffer, RHI::PipelineStage::All, RHI::ResourceAccess::UnorderedAccess );
-        states.FlushBarriers( pCommandBuffer );
-
-        RHI::CmdClearBuffer( pCommandBuffer, m_deviceCounterBuffer, 0 );
+        RHI::CmdClearBuffer( pCommandBuffer, m_pDeviceCounterBuffer, 0 );
     }
 
     template <typename T>
-    inline void DeviceAppendBuffer<T>::CopyResults( DeviceResourceStates& states, RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const
+    inline void DeviceAppendBuffer<T>::CopyResults( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const
     {
-        states.ReadOnly( m_deviceCounterBuffer, RHI::PipelineStage::Copy, RHI::ResourceAccess::CopySource );
-        states.Writeable( m_hostCounterBuffers[frameIndex], RHI::PipelineStage::Copy, RHI::ResourceAccess::CopyDestination );
-
+        RHI::CmdBarrier( pCommandBuffer, m_pDeviceCounterBuffer, RHI::PipelineStage::AllShader, RHI::PipelineStage::Copy, RHI::ResourceAccess::UnorderedAccess, RHI::ResourceAccess::CopySource );
         if constexpr ( !eastl::is_same_v<T, void> )
         {
-            states.ReadOnly( m_deviceBuffer, RHI::PipelineStage::Copy, RHI::ResourceAccess::CopySource );
-            states.Writeable( m_hostBuffers[frameIndex], RHI::PipelineStage::Copy, RHI::ResourceAccess::CopyDestination );
+            RHI::CmdBarrier( pCommandBuffer, m_pDeviceBuffer, RHI::PipelineStage::AllShader, RHI::PipelineStage::Copy, RHI::ResourceAccess::UnorderedAccess, RHI::ResourceAccess::CopySource );
         }
 
-        states.FlushBarriers( pCommandBuffer );
-
-        RHI::CmdCopyBuffer( pCommandBuffer, m_hostCounterBuffers[frameIndex], 0, m_deviceCounterBuffer, 0, m_deviceCounterBuffer->m_size );
+        RHI::CmdCopyBuffer( pCommandBuffer, m_hostCounterBuffers[frameIndex], 0, m_pDeviceCounterBuffer, 0, m_pDeviceCounterBuffer->m_size );
 
         if constexpr ( !eastl::is_same_v<T, void> )
         {
-            RHI::CmdCopyBuffer( pCommandBuffer, m_hostBuffers[frameIndex], 0, m_deviceBuffer, 0, m_deviceBuffer->m_size );
+            RHI::CmdCopyBuffer( pCommandBuffer, m_hostBuffers[frameIndex], 0, m_pDeviceBuffer, 0, m_pDeviceBuffer->m_size );
         }
     }
 
     template <typename T>
-    inline void DeviceAppendBuffer<T>::Barrier( DeviceResourceStates& states, RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const
+    inline void DeviceAppendBuffer<T>::Barrier( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const
     {
-        states.ReadOnly( m_hostCounterBuffers[frameIndex], RHI::PipelineStage::All, RHI::ResourceAccess::Common );
-
+        RHI::CmdBarrier( pCommandBuffer, m_pDeviceCounterBuffer, RHI::PipelineStage::Copy, RHI::PipelineStage::AllShader, RHI::ResourceAccess::CopySource, RHI::ResourceAccess::UnorderedAccess );
         if constexpr ( !eastl::is_same_v<T, void> )
         {
-            states.ReadOnly( m_hostBuffers[frameIndex], RHI::PipelineStage::All, RHI::ResourceAccess::Common );
+            RHI::CmdBarrier( pCommandBuffer, m_pDeviceBuffer, RHI::PipelineStage::Copy, RHI::PipelineStage::AllShader, RHI::ResourceAccess::CopySource, RHI::ResourceAccess::UnorderedAccess );
         }
-
-        states.FlushBarriers( pCommandBuffer );
     }
 }

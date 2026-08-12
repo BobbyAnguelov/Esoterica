@@ -2406,7 +2406,7 @@ namespace EE::Render::RHI
         }
         #endif
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         pD3D12Context->m_hostSamplerDescriptorAllocator.Shutdown();
         pD3D12Context->m_hostResourceDescriptorAllocator.Shutdown();

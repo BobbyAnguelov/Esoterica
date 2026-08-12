@@ -143,7 +143,7 @@ namespace EE::Render
     private:
 
         // Internal renderer data
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         MeshInstanceProxy                               m_meshInstanceRootProxy = {};
         MeshInstanceProxy                               m_meshInstanceProxy = {};

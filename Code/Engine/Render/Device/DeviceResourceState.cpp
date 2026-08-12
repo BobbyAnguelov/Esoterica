@@ -5,54 +5,6 @@ namespace EE::Render
 {
     void DeviceResourceStates::FlushBarriers( RHI::CommandBuffer* pCommandBuffer )
     {
-        for ( Buffer const& buffer : m_pendingBufferStates )
-        {
-            EE_ASSERT( buffer.m_pBufferState->m_currentSync.IsAnyFlagSet() );
-            EE_ASSERT( buffer.m_pBufferState->m_currentAccess.IsAnyFlagSet() );
-
-            TBitFlags<RHI::PipelineStage> destinationSync = buffer.m_bufferSync;
-            TBitFlags<RHI::ResourceAccess> destinationAccess = buffer.m_bufferAccess;
-
-            EE_ASSERT( destinationSync.IsAnyFlagSet() );
-            EE_ASSERT( destinationAccess.IsAnyFlagSet() );
-
-            bool writeable = destinationAccess & RHI::ResourceAccessFlags_AllWriteable;
-
-            if ( writeable ||
-                 destinationAccess != buffer.m_pBufferState->m_currentAccess ||
-                 destinationSync != buffer.m_pBufferState->m_currentSync )
-            {
-                RHI::CmdBarrier( pCommandBuffer, buffer.m_pBufferState->m_pBuffer,
-                                 buffer.m_pBufferState->m_currentSync, destinationSync,
-                                 buffer.m_pBufferState->m_currentAccess, destinationAccess );
-
-                buffer.m_pBufferState->m_currentSync.AppendFlags( destinationSync );
-                //buffer.m_pBufferState->m_currentSync.ClearFlag( RHI::PipelineStage::Copy );
-
-                buffer.m_pBufferState->m_currentAccess.AppendFlags( destinationAccess );
-                buffer.m_pBufferState->m_currentAccess.ClearFlags( RHI::ResourceAccessFlags_AllWriteable );
-
-                // HACK: Some resources are only in IndirectArgument access, they don't need to sync compute shader stages.
-                // This is not general purpose, once we have code that needs general purpose stage pruning we can do that.
-                if ( buffer.m_pBufferState->m_currentAccess == TBitFlags<RHI::ResourceAccess>( RHI::ResourceAccess::IndirectArgument ) )
-                {
-                    buffer.m_pBufferState->m_currentSync.ClearFlag( RHI::PipelineStage::ComputeShader );
-                }
-
-                // HACK: Another hack, clear shader stages if resource was used as copy source.
-                if ( buffer.m_pBufferState->m_currentSync.IsFlagSet( RHI::PipelineStage::Copy ) )
-                {
-                    buffer.m_pBufferState->m_currentSync.ClearFlags( RHI::PipelineStageFlags_AllShader );
-                }
-            }
-
-            if ( writeable )
-            {
-                buffer.m_pBufferState->m_currentSync = destinationSync;
-                buffer.m_pBufferState->m_currentAccess = destinationAccess;
-            }
-        }
-
         for ( Texture const& texture : m_pendingTextureStates )
         {
             EE_ASSERT( texture.m_pTextureState->m_currentSync.IsAnyFlagSet() );
@@ -96,16 +48,15 @@ namespace EE::Render
             }
         }
 
-        m_pendingBufferStates.clear();
         m_pendingTextureStates.clear();
     }
 
     bool DeviceResourceStates::HasPendingBarriers() const
     {
-        return !m_pendingBufferStates.empty() || !m_pendingTextureStates.empty();
+        return !m_pendingTextureStates.empty();
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     static void ValidateReadOnlyAccess( TBitFlags<RHI::PipelineStage> sync, TBitFlags<RHI::ResourceAccess> access )
     {
@@ -125,15 +76,6 @@ namespace EE::Render
         EE_ASSERT( sync == TBitFlags<RHI::PipelineStage>( RHI::PipelineStage::All ) || sync.AreAnyFlagsSet( RHI::PipelineStage::AllShader, RHI::PipelineStage::ComputeShader, RHI::PipelineStage::NonPixelShader, RHI::PipelineStage::PixelShader, RHI::PipelineStage::Draw, RHI::PipelineStage::Copy ) );
     }
 
-    void DeviceResourceStates::ReadOnly( DeviceBufferState& buffer, TBitFlags<RHI::PipelineStage> sync, TBitFlags<RHI::ResourceAccess> access )
-    {
-        EE_ASSERT( buffer.m_pBuffer );
-
-        ValidateReadOnlyAccess( sync, access );
-
-        m_pendingBufferStates.emplace_back( &buffer, sync, access );
-    }
-
     void DeviceResourceStates::ReadOnly( DeviceTextureState& texture, TBitFlags<RHI::PipelineStage> sync, TBitFlags<RHI::ResourceAccess> access, RHI::TextureState state )
     {
         EE_ASSERT( texture.m_pTexture );
@@ -148,15 +90,6 @@ namespace EE::Render
         EE_ASSERT( state != RHI::TextureState::UnorderedAccess );
 
         m_pendingTextureStates.emplace_back( &texture, sync, access, state );
-    }
-
-    void DeviceResourceStates::Writeable( DeviceBufferState& buffer, TBitFlags<RHI::PipelineStage> sync, TBitFlags<RHI::ResourceAccess> access )
-    {
-        EE_ASSERT( buffer.m_pBuffer );
-
-        ValidateWriteableAccess( sync, access );
-
-        m_pendingBufferStates.emplace_back( &buffer, sync, access );
     }
 
     void DeviceResourceStates::Writeable( DeviceTextureState& texture, TBitFlags<RHI::PipelineStage> sync, TBitFlags<RHI::ResourceAccess> access, RHI::TextureState state )

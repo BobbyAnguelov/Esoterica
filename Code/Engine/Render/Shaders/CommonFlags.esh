@@ -6,7 +6,7 @@
 EE_BEGIN_SHADER_TYPES_NAMESPACE
 
     // Common renderer flags
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     typedef uint RendererDebugFlags;            // 6 bits required
     static const RendererDebugFlags             RENDERER_DEBUG_FLAG_NONE                                                    = 0U;

@@ -94,17 +94,17 @@ namespace EE::Render
             EE_ASSERT( numItems );
 
             // Allocate ID
-            //------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             typename HandleAllocator<H>::Handle handle = m_handleAllocator.Allocate( numItems );
             EE_ASSERT( handle.IsValid() );
 
             // Commit virtual memory if neededv
-            //------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             size_t requiredMemoryComitted = m_handleAllocator.GetCapacityInPages() * 64;
             m_memoryPool.Commit( requiredMemoryComitted );
 
             // Construct the items and return the handle
-            //------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             Handle result = {};
             result.m_handle = handle;
             result.m_data = TArrayView( m_memoryPool.GetData() + handle.m_offset, numItems );
@@ -126,11 +126,11 @@ namespace EE::Render
             EE_ASSERT( handle.m_data.data() >= m_memoryPool.GetData() && handle.m_data.data() <= ( m_memoryPool.GetData() + m_memoryPool.GetPageMemoryComitted() ) );
 
             // Deallocate base handle
-            //------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             m_handleAllocator.Deallocate( eastl::move( handle.m_handle ) );
 
             // Destruct items
-            //------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             if constexpr ( !std::is_trivially_destructible_v<T> )
             {
                 for ( T& item : handle.m_data )

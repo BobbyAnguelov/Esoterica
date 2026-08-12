@@ -47,7 +47,7 @@ namespace EE::Render
 
             dstGeometryBuilder.InitializeVertexFormat();
 
-            //---------------------------------------
+            //-------------------------------------------------------------------------
 
             dstGeometryBuilder.SetIndices( srcMeshPart.m_indices, srcMeshPart.m_clockwiseWinding );
             dstGeometryBuilder.SetNumVertices( srcMeshPart.m_vertices.size() );
@@ -65,7 +65,7 @@ namespace EE::Render
                 dstGeometryBuilder.SetTextureCoordinateAttribute( vertexIndex, 1, uv1 );
 
                 // Bone influences and skeletal mesh data
-                //-----------------------------------------------------------------------------------------------------
+                //-------------------------------------------------------------------------
 
                 if ( importedMesh.IsSkeletalMesh() )
                 {

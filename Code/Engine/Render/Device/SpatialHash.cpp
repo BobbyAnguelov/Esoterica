@@ -6,7 +6,7 @@ namespace EE::Render
 {
     void DeviceSpatialHash::Initialize( RHI::Context* pContextRHI, StringView name, uint32_t tableSize, uint32_t payloadStride )
     {
-        EE_ASSERT( !m_keyBuffer.m_buffer );
+        EE_ASSERT( !m_keyBuffer.m_pBuffer );
         EE_ASSERT( !name.empty() );
 
         tableSize = Math::GetUpperPowerOfTwo( Math::Max( tableSize, 1U ) );
@@ -29,9 +29,9 @@ namespace EE::Render
     {
         m_payloadStride = payloadStride;
 
-        m_keyBuffer.UpdateDeviceResources( m_tableSize * sizeof( uint32_t ), [this, pRenderSystem] ( DeviceBufferState&& oldBuffer, size_t newSize )
+        m_keyBuffer.UpdateDeviceResources( m_tableSize * sizeof( uint32_t ), [this, pRenderSystem] ( RHI::Buffer* && pOldBuffer, size_t newSize )
         {
-            pRenderSystem->QueueResourceDelete( eastl::move( oldBuffer ) );
+            pRenderSystem->QueueResourceDelete( eastl::move( pOldBuffer ) );
 
             RHI::BufferParameters keyBufferParameters = {};
             keyBufferParameters.m_bufferSize = newSize;
@@ -41,9 +41,9 @@ namespace EE::Render
             return RHI::CreateBuffer( pRenderSystem->GetContextRHI(), keyBufferParameters );
         } );
 
-        m_payloadBuffer.UpdateDeviceResources( m_tableSize * payloadStride * 2 * sizeof( uint32_t ), [this, pRenderSystem] ( DeviceBufferState&& oldBuffer, size_t newSize )
+        m_payloadBuffer.UpdateDeviceResources( m_tableSize * payloadStride * sizeof( uint64_t ), [this, pRenderSystem] ( RHI::Buffer* && pOldBuffer, size_t newSize )
         {
-            pRenderSystem->QueueResourceDelete( eastl::move( oldBuffer ) );
+            pRenderSystem->QueueResourceDelete( eastl::move( pOldBuffer ) );
 
             RHI::BufferParameters payloadBufferParameters = {};
             payloadBufferParameters.m_bufferSize = newSize;
@@ -56,14 +56,14 @@ namespace EE::Render
 
     void DeviceSpatialHash::Clear( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex )
     {
-        RHI::CmdClearBuffer( pCommandBuffer, m_keyBuffer.m_buffer, 0 );
+        RHI::CmdClearBuffer( pCommandBuffer, m_keyBuffer.m_pBuffer, 0 );
     }
 
     uint64_t DeviceSpatialHash::GetPackedHandleLow() const
     {
         uint64_t handle = 0;
-        handle |= uint64_t( RHI::GetBufferHandle( m_keyBuffer.m_buffer, RHI::DescriptorTypeFlags::RWBuffer ) ) & 0xFFFF;
-        handle |= ( uint64_t( RHI::GetBufferHandle( m_payloadBuffer.m_buffer, RHI::DescriptorTypeFlags::RWBuffer ) ) & 0xFFFF ) << 16;
+        handle |= uint64_t( RHI::GetBufferHandle( m_keyBuffer.m_pBuffer, RHI::DescriptorTypeFlags::RWBuffer ) ) & 0xFFFF;
+        handle |= ( uint64_t( RHI::GetBufferHandle( m_payloadBuffer.m_pBuffer, RHI::DescriptorTypeFlags::RWBuffer ) ) & 0xFFFF ) << 16;
 
         // log2(tableSize) in 5 bits (max tableSize = 2^31)
         uint32_t log2Size = 0;
@@ -105,7 +105,7 @@ namespace EE::Render
 
         // Logical 8x8x8 grid drives subdivision and lookup matching
         int32_t logicalMin[3] = { -4, -4, -4 };
-        int32_t logicalMax[3] = {  3,  3,  3 };
+        int32_t logicalMax[3] = { 3,  3,  3 };
 
         // Physical dispatch starts from the actual root dimensions
         int32_t physicalMin[3] = {};
@@ -122,7 +122,7 @@ namespace EE::Render
             for ( int index = 0; index < 3; ++index )
             {
                 outDispatches[lod].m_dispatchOffset[index] = physicalMin[index];
-                outDispatches[lod].m_dispatchSize[index]   = uint32_t( physicalMax[index] - physicalMin[index] + 1 );
+                outDispatches[lod].m_dispatchSize[index] = uint32_t( physicalMax[index] - physicalMin[index] + 1 );
             }
 
             if ( lod > 0 )

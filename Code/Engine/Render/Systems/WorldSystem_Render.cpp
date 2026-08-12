@@ -58,7 +58,7 @@ namespace EE::Render
                 return PickingID();
             };
 
-            //-----------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
             for ( PickingResult const& result : buffer.m_bufferData )
             {
@@ -405,7 +405,7 @@ namespace EE::Render
         m_deviceRenderWorld.UpdateDeviceResources_BeforeInstanceInitialize( m_pRenderSystem );
 
         // InstanceUpdate StaticMesh
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         {
             TEntityMessageQueue<StaticMeshComponent>::Message staticMeshComponentMessage = {};
             while ( m_staticMeshComponentInstanceUpdateQueue.Dequeue( staticMeshComponentMessage ) )
@@ -436,7 +436,7 @@ namespace EE::Render
         }
 
         // InstanceUpdate SkeletalMesh
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         {
             TEntityMessageQueue<SkeletalMeshComponent>::Message skeletalMeshComponentMessage = {};
             while ( m_skeletalMeshComponentInstanceUpdateQueue.Dequeue( skeletalMeshComponentMessage ) )

@@ -31,7 +31,7 @@ namespace EE::Reflection
         return friendlyName;
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     ReflectedShader::CompiledData::CompiledData( String const& ID, uint8_t const* pData, size_t dataSize )
         : m_ID( ID )

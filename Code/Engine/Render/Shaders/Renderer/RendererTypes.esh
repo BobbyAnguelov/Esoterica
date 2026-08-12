@@ -9,7 +9,7 @@
 EE_BEGIN_SHADER_TYPES_NAMESPACE
 
     // Rendering passes and internal stuff
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct HLSL_ALIGN_STRUCT RenderView
     {
@@ -154,7 +154,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     };
 
     // Global data per viewport
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct HLSL_ALIGN_INDIRECT_ARGUMENT GlobalParameters // THIS IS IN A CONSTANT BUFFER! 16-byte CBV alignment rules
     {
@@ -270,7 +270,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     };
 
     // RootConstants
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct HLSL_ALIGN_STRUCT CommonRootConstants
     {    
@@ -290,7 +290,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
                                             "RootConstants( b0, num32BitConstants = 4, space = 0 )," \
                                             "CBV( b1, space = 0 )"
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct HLSL_ALIGN_STRUCT ClusterCullingRootConstants
     {
@@ -312,7 +312,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
                                             "RootConstants( b0, num32BitConstants = 12, space = 0 )," \
                                             "CBV( b1, space = 0 )"
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     #define LightCulling_CullLightsRootSignature    EE_BEGIN_ROOT_SIGNATURE \
                                                     "RootConstants( b0, num32BitConstants = 6, space = 0 )," \
@@ -328,7 +328,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         uint                                m_padding;
     };
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct HLSL_ALIGN_STRUCT BucketResolveRootConstants
     {
@@ -365,7 +365,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
                                         "CBV( b1, space = 0 )"
 
     // Shadows
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct HLSL_ALIGN_STRUCT CascadedShadow
     {
@@ -385,7 +385,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     };
 
     // Lights
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     struct HLSL_ALIGN_STRUCT LightInstance_DirectionalLight
     {
@@ -440,7 +440,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
 
 EE_END_SHADER_TYPES_NAMESPACE
 
-//-----------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 
 #ifndef __cplusplus
 

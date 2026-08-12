@@ -15,10 +15,10 @@ namespace EE::Render
     struct MaterialShaderRenderBucket
     {
         StringID                m_bucketName;
-        DeviceBufferState       m_clusterVisibleCounterBuffer = {};
-        DeviceResizeBufferState m_clusterVisibleBuffer = {};
-        DeviceBufferState       m_drawCounterBuffer = {};
-        DeviceResizeBufferState m_drawArgumentBuffer = {};
+        RHI::Buffer*            m_clusterVisibleCounterBuffer = nullptr;
+        DeviceResizeBuffer      m_clusterVisibleBuffer = {};
+        RHI::Buffer*            m_pDrawCounterBuffer = nullptr;
+        DeviceResizeBuffer      m_drawArgumentBuffer = {};
 
         void Initialize( RenderSystem* pRenderSystem );
         void Shutdown( RenderSystem* pRenderSystem );

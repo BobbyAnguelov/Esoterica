@@ -277,7 +277,7 @@ namespace EE::Render
         Material const*                                                         m_pPlaceholderMaterial = nullptr;
     };
 
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     template<typename ...RHIResourceList>
     inline void RenderSystem::QueueResourceDelete( RHIResourceList && ...resourcesRHI )
@@ -298,12 +298,12 @@ namespace EE::Render
                 using ResourceType = eastl::decay_t<decltype( resource )>;
 
                 static_assert( eastl::is_same_v<ResourceType, RHI::Buffer*> || eastl::is_same_v<ResourceType, RHI::Texture*> ||
-                               eastl::is_same_v<ResourceType, DeviceBufferState> || eastl::is_same_v<ResourceType, DeviceTextureState> ||
+                               eastl::is_same_v<ResourceType, DeviceTextureState> ||
                                eastl::is_same_v<ResourceType, TPair<MeshHandle, ClustersHandle>> ||
                                eastl::is_same_v<ResourceType, ShaderDataHandle> || eastl::is_same_v<ResourceType, MaterialShaderParametersInstance>,
                                "Unsupported resource type" );
 
-                if constexpr ( eastl::is_same_v<ResourceType, RHI::Buffer*> || eastl::is_same_v<ResourceType, DeviceBufferState> )
+                if constexpr ( eastl::is_same_v<ResourceType, RHI::Buffer*> )
                 {
                     m_resourceDeleteQueue_Buffer.emplace_back( eastl::forward<decltype( resource )>( resource ), RHI::MaxPendingFrames );
                 }

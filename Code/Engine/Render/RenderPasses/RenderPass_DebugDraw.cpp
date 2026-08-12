@@ -451,7 +451,7 @@ namespace EE::Render
         return pDstCommand_WriteCombined;
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     static_assert( sizeof( PointCommand ) == sizeof( ShaderTypes::DebugDrawPointCommand ) );
     static_assert( sizeof( LineCommand ) == sizeof( ShaderTypes::DebugDrawLineCommand ) );
@@ -465,7 +465,7 @@ namespace EE::Render
     static_assert( ( sizeof( LineCommand ) % 16 ) == 0 );
     static_assert( ( sizeof( TriangleCommand ) % 16 ) == 0 );
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void DebugDrawRenderPass::Initialize( RenderPassContext const& context )
     {
@@ -541,7 +541,7 @@ namespace EE::Render
         m_pTransparentDepthOnNoWriteColorPipeline = RHI::CreatePipeline( pContextRHI, transparentDepthOnColorNoWritePipelineParameters );
         m_pTransparentDepthOffPipeline = RHI::CreatePipeline( pContextRHI, transparentDepthOffPipelineParameters );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         RHI::MeshPipelineParameters transparentDepthOnDepthPipelineParameters_Mesh = transparentDepthOnDepthPipelineParameters;
         transparentDepthOnDepthPipelineParameters_Mesh.m_pRootSignature = m_pDebugDrawMeshShader->m_pRootSignature;
@@ -564,7 +564,7 @@ namespace EE::Render
         m_pTransparentDepthOnNoWriteColorPipeline_Mesh = RHI::CreatePipeline( pContextRHI, transparentDepthOnColorNoWritePipelineParameters_Mesh );
         m_pTransparentDepthOffPipeline_Mesh = RHI::CreatePipeline( pContextRHI, transparentDepthOffPipelineParameters_Mesh );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         TArray<TInlineString<256>, NUM_DEPTH_TEST_BUCKETS> argumentBufferNames =
         {
@@ -599,7 +599,7 @@ namespace EE::Render
             DepthTestBucket& depthBucket = m_depthBuckets[bucketIndex];
             depthBucket.m_pickingSortPriority = pickingSortPriorities[bucketIndex];
 
-            if ( !depthBucket.m_argumentBuffer )
+            if ( !depthBucket.m_pArgumentBuffer )
             {
                 RHI::BufferParameters debugArgumentBufferParameters = {};
                 debugArgumentBufferParameters.m_bufferSize = sizeof( ShaderTypes::DebugDrawArgument );
@@ -607,7 +607,7 @@ namespace EE::Render
                 debugArgumentBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::IndirectArgumentBuffer, RHI::DescriptorTypeFlags::RWBuffer );
                 debugArgumentBufferParameters.m_debugName = argumentBufferNames[bucketIndex];
 
-                depthBucket.m_argumentBuffer = RHI::CreateBuffer( pContextRHI, debugArgumentBufferParameters );
+                depthBucket.m_pArgumentBuffer = RHI::CreateBuffer( pContextRHI, debugArgumentBufferParameters );
 
                 depthBucket.m_commandsBuffer.Initialize( pContextRHI, commandsBufferNames[bucketIndex] );
             }
@@ -628,7 +628,7 @@ namespace EE::Render
         RHI::DestroyPipeline( pRenderSystem->GetContextRHI(), eastl::move( m_pTransparentDepthOnNoWriteColorPipeline_Mesh ) );
         RHI::DestroyPipeline( pRenderSystem->GetContextRHI(), eastl::move( m_pTransparentDepthOffPipeline_Mesh ) );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         m_frameCommandBuffer.Clear();
 
@@ -637,7 +637,7 @@ namespace EE::Render
 
         for ( DepthTestBucket& depthBucket : m_depthBuckets )
         {
-            RHI::DestroyBuffer( pRenderSystem->GetContextRHI(), eastl::move( depthBucket.m_argumentBuffer ) );
+            RHI::DestroyBuffer( pRenderSystem->GetContextRHI(), eastl::move( depthBucket.m_pArgumentBuffer ) );
 
             depthBucket.m_commandsBuffer.Shutdown( pRenderSystem->GetContextRHI() );
         }
@@ -654,7 +654,7 @@ namespace EE::Render
         RHI::Context*       pContextRHI = pRenderSystem->GetContextRHI();
 
         // Fonts
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( !m_fontCacheTextures[0] || !m_fontCacheTextures[1] )
         {
@@ -662,7 +662,7 @@ namespace EE::Render
             fontBitmapData.resize( s_gDebugFontResolution * s_gDebugFontResolution );
 
             // Regular font
-            //---------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
             Blob const fontBlob = Embed::Font_RobotoMono_Regular::GetFileData();
 
@@ -721,7 +721,7 @@ namespace EE::Render
         uint32_t            frameIndex = pRenderSystem->GetFrameIndex();
         RHI::Context*       pContextRHI = pRenderSystem->GetContextRHI();
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         // Reset the frame buffer for a new frame, flush old commands and only keep ones with a valid TTL
         m_frameCommandBuffer.Reset( deltaTime );
@@ -730,7 +730,7 @@ namespace EE::Render
         pDebugDrawingSystem->ReflectFrameCommandBuffer( m_frameCommandBuffer );
         pRenderViewport->GetDebugDrawSystem()->ReflectFrameCommandBuffer( m_frameCommandBuffer );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         Int2 textureSize = pRenderViewport->GetSize();
         uint32_t textureWidth = uint32_t( textureSize.m_x );
@@ -750,7 +750,7 @@ namespace EE::Render
             pRenderViewport->m_DebugDraw_DepthTexture = RHI::CreateTexture( pRenderSystem->GetContextRHI(), depthParameters );
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto ComputeNumCommands = [] ( CommandBuffer const& commandBuffer )
         {
@@ -803,7 +803,7 @@ namespace EE::Render
             uint32_t( m_frameCommandBuffer.m_transparentDepthSeparateWrite.m_meshCommands.size() );
 
         // Shader debug
-        //----------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         if ( !pRenderViewport->m_shaderDebugDrawBuffers[frameIndex] )
         {
@@ -819,7 +819,7 @@ namespace EE::Render
         }
 
         // Debug buffers
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_DebugCommands = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -855,7 +855,7 @@ namespace EE::Render
             pRenderViewport->m_debugParametersBuffers[frameIndex] = RHI::CreateBuffer( pContextRHI, debugParameters );
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_DebugMeshTransform = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -878,7 +878,7 @@ namespace EE::Render
             UpdateBuffer_DebugMeshTransform
         );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         auto UpdateBuffer_DebugMeshArgument = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
         {
@@ -914,16 +914,16 @@ namespace EE::Render
         }
 
         // Picking and debug buffers
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
-        ForEachBucket( [pRenderSystem, frameIndex] ( DeviceBufferState& argumentBuffer, DeviceAppendBuffer<void>& commandsBuffer )
+        ForEachBucket( [pRenderSystem, frameIndex] ( RHI::Buffer* pArgumentBuffer, DeviceAppendBuffer<void>& commandsBuffer )
         {
             commandsBuffer.UpdateBuffers( pRenderSystem, frameIndex, sizeof( ShaderTypes::DebugDrawCommand_Raw ), TBitFlags<RHI::DescriptorTypeFlags>( RHI::DescriptorTypeFlags::Raw, RHI::DescriptorTypeFlags::RWBuffer ) );
         } );
 
         pRenderViewport->m_debugDrawPickingResultsBuffer.UpdateBuffers( pRenderSystem, frameIndex, sizeof( ShaderTypes::PickingResult ), RHI::DescriptorTypeFlags::RWBuffer );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         Math::ViewVolume const& viewVolume = pRenderViewport->GetViewVolume();
 
@@ -944,11 +944,11 @@ namespace EE::Render
         Memory::CopyToWriteCombined( pRenderViewport->m_debugParametersBuffers[frameIndex]->m_pMappedAddress_WriteCombined, &debugDrawParameters, sizeof( ShaderTypes::DebugDrawParameters ) );
     }
 
-    void DebugDrawRenderPass::ClearBuffers( DeviceResourceStates& resourceStates, RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex )
+    void DebugDrawRenderPass::ClearBuffers( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex )
     {
-        ForEachBucket( [&resourceStates, pCommandBuffer, frameIndex] ( DeviceBufferState& argumentBuffer, DeviceAppendBuffer<void>& commandsBuffer )
+        ForEachBucket( [pCommandBuffer, frameIndex] ( RHI::Buffer* pArgumentBuffer, DeviceAppendBuffer<void>& commandsBuffer )
         {
-            commandsBuffer.Clear( resourceStates, pCommandBuffer, frameIndex );
+            commandsBuffer.Clear( pCommandBuffer, frameIndex );
         } );
     }
 
@@ -983,23 +983,23 @@ namespace EE::Render
                 RHI::GetTextureHandle( m_fontCacheTextures[1], RHI::DescriptorTypeFlags::Texture, 0 ),
             };
 
-            ShaderTypes::DebugDrawCommand_Raw* pDstCommands_WriteCombined = reinterpret_cast<ShaderTypes::DebugDrawCommand_Raw*>( pRenderViewport->m_debugCommandsBuffers[frameIndex].m_buffer->m_pMappedAddress_WriteCombined );
-            ShaderTypes::DebugDrawCommand_Raw const* pDstCommandsEnd_WriteCombined = pDstCommands_WriteCombined + ( pRenderViewport->m_debugCommandsBuffers[frameIndex].m_buffer->m_size / pRenderViewport->m_debugCommandsBuffers[frameIndex].m_buffer->m_stride );
+            ShaderTypes::DebugDrawCommand_Raw* pDstCommands_WriteCombined = reinterpret_cast<ShaderTypes::DebugDrawCommand_Raw*>( pRenderViewport->m_debugCommandsBuffers[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
+            ShaderTypes::DebugDrawCommand_Raw const* pDstCommandsEnd_WriteCombined = pDstCommands_WriteCombined + ( pRenderViewport->m_debugCommandsBuffers[frameIndex].m_pBuffer->m_size / pRenderViewport->m_debugCommandsBuffers[frameIndex].m_pBuffer->m_stride );
 
-            ShaderTypes::DebugDrawMeshArgument* pDstMeshArguments_WriteCombined = reinterpret_cast<ShaderTypes::DebugDrawMeshArgument*>( pRenderViewport->m_meshArgumentBuffers[frameIndex].m_buffer->m_pMappedAddress_WriteCombined );
-            ShaderTypes::DebugDrawMeshParameters* pDstMeshParameters_WriteCombined = reinterpret_cast<ShaderTypes::DebugDrawMeshParameters*>( pRenderViewport->m_meshParametersBuffers[frameIndex].m_buffer->m_pMappedAddress_WriteCombined );
+            ShaderTypes::DebugDrawMeshArgument* pDstMeshArguments_WriteCombined = reinterpret_cast<ShaderTypes::DebugDrawMeshArgument*>( pRenderViewport->m_meshArgumentBuffers[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
+            ShaderTypes::DebugDrawMeshParameters* pDstMeshParameters_WriteCombined = reinterpret_cast<ShaderTypes::DebugDrawMeshParameters*>( pRenderViewport->m_meshParametersBuffers[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
 
-            ShaderTypes::DebugDrawMeshArgument const* pDstMeshArgumentsEnd_WriteCombined = pDstMeshArguments_WriteCombined + ( pRenderViewport->m_meshArgumentBuffers[frameIndex].m_buffer->m_size / pRenderViewport->m_meshArgumentBuffers[frameIndex].m_buffer->m_stride );
-            ShaderTypes::DebugDrawMeshParameters const* pDstMeshParametersEnd_WriteCombined = pDstMeshParameters_WriteCombined + ( pRenderViewport->m_meshParametersBuffers[frameIndex].m_buffer->m_size / pRenderViewport->m_meshParametersBuffers[frameIndex].m_buffer->m_stride );
+            ShaderTypes::DebugDrawMeshArgument const* pDstMeshArgumentsEnd_WriteCombined = pDstMeshArguments_WriteCombined + ( pRenderViewport->m_meshArgumentBuffers[frameIndex].m_pBuffer->m_size / pRenderViewport->m_meshArgumentBuffers[frameIndex].m_pBuffer->m_stride );
+            ShaderTypes::DebugDrawMeshParameters const* pDstMeshParametersEnd_WriteCombined = pDstMeshParameters_WriteCombined + ( pRenderViewport->m_meshParametersBuffers[frameIndex].m_pBuffer->m_size / pRenderViewport->m_meshParametersBuffers[frameIndex].m_pBuffer->m_stride );
 
             uint32_t* pDstMeshArgumentCounter_WriteCombined = reinterpret_cast<uint32_t*>( pRenderViewport->m_meshArgumentCounterBuffers[frameIndex]->m_pMappedAddress_WriteCombined );
             uint32_t const* pDstMeshArgumentCounterEnd_WriteCombined = pDstMeshArgumentCounter_WriteCombined + NUM_DEPTH_TEST_BUCKETS;
 
-            uint64_t dstParametersDeviceAddress = pRenderViewport->m_meshParametersBuffers[frameIndex].m_buffer->m_deviceAddress;
+            uint64_t dstParametersDeviceAddress = pRenderViewport->m_meshParametersBuffers[frameIndex].m_pBuffer->m_deviceAddress;
             uint32_t dstBucketIndex = 0;
 
             // TODO: All these writes can be done in parallel, if this ever shows up in the CPU profiler just offload them to worker 
-            //-----------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
             auto CopyCommands =
                 [
@@ -1019,7 +1019,7 @@ namespace EE::Render
                 ] ( CommandBuffer const& commandBuffer )
             {
                 // Regular commands
-                //-------------------------------------------------------------
+                //-------------------------------------------------------------------------
 
                 EE_ASSERT( ( pDstCommands_WriteCombined + commandBuffer.m_pointCommands.size() ) <= pDstCommandsEnd_WriteCombined );
                 Memory::CopyToWriteCombined
@@ -1054,7 +1054,7 @@ namespace EE::Render
                 EE_ASSERT( pDstCommands_WriteCombined <= pDstCommandsEnd_WriteCombined );
 
                 // Mesh commands
-                //-----------------------------------------------------------------
+                //-------------------------------------------------------------------------
 
                 uint32_t numValidMeshCommands = 0;
                 for ( MeshCommand const& meshCommand : commandBuffer.m_meshCommands )
@@ -1113,21 +1113,23 @@ namespace EE::Render
                 dstBucketIndex++;
             };
 
-            //-----------------------------------------------------------------
+            //-------------------------------------------------------------------------
 
             CopyCommands( m_frameCommandBuffer.m_transparentDepthOnWrite );
             CopyCommands( m_frameCommandBuffer.m_transparentDepthOnNoWrite );
             CopyCommands( m_frameCommandBuffer.m_transparentDepthSeparateWrite );
         }
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, "Debug Draw" );
 
-        pRenderViewport->m_debugDrawPickingResultsBuffer.Clear( resourceStates, pCommandBuffer, frameIndex );
+        pRenderViewport->m_debugDrawPickingResultsBuffer.Clear( pCommandBuffer, frameIndex );
+
+        RHI::CmdBarrier( pCommandBuffer, RHI::PipelineStage::ComputeShader, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess, RHI::ResourceAccess::UnorderedAccess );
 
         // Setup shader debug drawing
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         ShaderTypes::ShaderDebugDrawBuffer* pDstShaderDebugDrawBuffer_WriteCombined = reinterpret_cast<ShaderTypes::ShaderDebugDrawBuffer*>( pRenderViewport->m_shaderDebugDrawBuffers[frameIndex]->m_pMappedAddress_WriteCombined );
 
@@ -1135,7 +1137,7 @@ namespace EE::Render
         pDstShaderDebugDrawBuffer_WriteCombined->m_debugDrawCommandsBuffer_TransparentDepthOff = m_depthBuckets[DEPTH_TEST_SEPARATE_WRITE].m_commandsBuffer.GetAppendBufferHandle();
 
         ShaderTypes::DebugDrawResourceTableData debugDrawRootConstant = {};
-        debugDrawRootConstant.SetDebugDrawCommandsBuffer( RHI::GetBufferHandle( pRenderViewport->m_debugCommandsBuffers[frameIndex].m_buffer, RHI::DescriptorTypeFlags::Buffer ) );
+        debugDrawRootConstant.SetDebugDrawCommandsBuffer( RHI::GetBufferHandle( pRenderViewport->m_debugCommandsBuffers[frameIndex].m_pBuffer, RHI::DescriptorTypeFlags::Buffer ) );
         debugDrawRootConstant.SetRenderViewBuffer( renderViewBuffer );
 
         debugDrawRootConstant.SetPickingResultsBuffer( pRenderViewport->m_debugDrawPickingResultsBuffer.GetAppendBufferHandle() );
@@ -1144,15 +1146,15 @@ namespace EE::Render
         debugDrawRootConstant.m_commandsOffset = 0;
 
         // Copy debug draw counts to debug draw arguments
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         ShaderTypes::DebugDrawResolveResourceTableData debugDrawResolveRootConstant = {};
 
         EE_ASSERT( !resourceStates.HasPendingBarriers() );
-        debugDrawResolveRootConstant.SetCommandsBuffer_TransparentDepthOn( resourceStates, RHI::PipelineStage::ComputeShader, m_depthBuckets[DEPTH_TEST_ON].m_commandsBuffer );
-        debugDrawResolveRootConstant.SetCommandsBuffer_TransparentDepthOff( resourceStates, RHI::PipelineStage::ComputeShader, m_depthBuckets[DEPTH_TEST_SEPARATE_WRITE].m_commandsBuffer );
-        debugDrawResolveRootConstant.SetArgumentBuffer_TransparentDepthOn( resourceStates, RHI::PipelineStage::ComputeShader, m_depthBuckets[DEPTH_TEST_ON].m_argumentBuffer );
-        debugDrawResolveRootConstant.SetArgumentBuffer_TransparentDepthOff( resourceStates, RHI::PipelineStage::ComputeShader, m_depthBuckets[DEPTH_TEST_SEPARATE_WRITE].m_argumentBuffer );
+        debugDrawResolveRootConstant.SetCommandsBuffer_TransparentDepthOn( m_depthBuckets[DEPTH_TEST_ON].m_commandsBuffer );
+        debugDrawResolveRootConstant.SetCommandsBuffer_TransparentDepthOff( m_depthBuckets[DEPTH_TEST_SEPARATE_WRITE].m_commandsBuffer );
+        debugDrawResolveRootConstant.SetArgumentBuffer_TransparentDepthOn( m_depthBuckets[DEPTH_TEST_ON].m_pArgumentBuffer );
+        debugDrawResolveRootConstant.SetArgumentBuffer_TransparentDepthOff( m_depthBuckets[DEPTH_TEST_SEPARATE_WRITE].m_pArgumentBuffer );
         resourceStates.FlushBarriers( pCommandBuffer );
 
         debugDrawResolveRootConstant.SetRenderViewBuffer( renderViewBuffer );
@@ -1164,15 +1166,16 @@ namespace EE::Render
         RHI::CmdSetRootConstants( pCommandBuffer, 0, &debugDrawResolveRootConstant, sizeof( debugDrawResolveRootConstant ) );
         RHI::CmdDispatchCompute( pCommandBuffer, 1, 1, 1 );
 
+        RHI::CmdBarrier( pCommandBuffer, RHI::PipelineStage::ComputeShader, RHI::PipelineStage::AllShader, RHI::ResourceAccess::UnorderedAccess, RHI::ResourceAccess::ShaderResource );
+
         EE_ASSERT( !resourceStates.HasPendingBarriers() );
         for ( DepthTestBucket& bucket : m_depthBuckets )
         {
-            resourceStates.ReadOnly( bucket.m_commandsBuffer.m_deviceBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::ShaderResource );
-            resourceStates.ReadOnly( bucket.m_argumentBuffer, RHI::PipelineStage::ExecuteIndirect, RHI::ResourceAccess::IndirectArgument );
+            RHI::CmdBarrier( pCommandBuffer, bucket.m_pArgumentBuffer, RHI::PipelineStage::ComputeShader, RHI::PipelineStage::ExecuteIndirect, RHI::ResourceAccess::UnorderedAccess, RHI::ResourceAccess::IndirectArgument );
         }
         resourceStates.FlushBarriers( pCommandBuffer );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         // TODO: This part is a bit gnarly and will be refactored once debug meshes are finalized.
         // Lambda MODIFIES debugDrawRootConstant, meshCommandsOffset and meshCounterOffset - it needs to write updated offset for debug commands!
@@ -1189,23 +1192,22 @@ namespace EE::Render
             EE_PROFILE_SCOPE_RENDER( "DrawDebugCommands" );
             EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, pScopeName );
 
+            EE_ASSERT( !resourceStates.HasPendingBarriers() );
+
+            RHI::CmdBarrier( pCommandBuffer, RHI::PipelineStage::AllShader, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess, RHI::ResourceAccess::UnorderedAccess );
+
             debugDrawRootConstant.m_numDebugDrawCommands = numCommands;
             debugDrawRootConstant.m_pickingSortPriority = bucket.m_pickingSortPriority;
 
             // Transparent depth on - 2 passes, depth only to write depth followed by alpha blended pass with depth equals
-            //---------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             if ( numMeshCommands )
             {
-                EE_ASSERT( !resourceStates.HasPendingBarriers() );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceCounterBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.FlushBarriers( pCommandBuffer );
-
                 RHI::CmdSetPipeline( pCommandBuffer, m_pTransparentDepthOnDepthPipeline_Mesh );
                 RHI::CmdExecuteIndirect
                 (
                     pCommandBuffer, m_pDebugDrawMeshShader->m_pCommandSignatureMeshDispatch, numMeshCommands,
-                    pRenderViewport->m_meshArgumentBuffers[frameIndex].m_buffer, meshCommandsOffset * sizeof( ShaderTypes::DebugDrawMeshArgument ),
+                    pRenderViewport->m_meshArgumentBuffers[frameIndex].m_pBuffer, meshCommandsOffset * sizeof( ShaderTypes::DebugDrawMeshArgument ),
                     pRenderViewport->m_meshArgumentCounterBuffers[frameIndex], meshCounterOffset * sizeof( uint32_t )
                 );
             }
@@ -1216,35 +1218,20 @@ namespace EE::Render
 
             if ( numCommands )
             {
-                EE_ASSERT( !resourceStates.HasPendingBarriers() );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceCounterBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.FlushBarriers( pCommandBuffer );
-
                 RHI::CmdDispatchMesh( pCommandBuffer, ( numCommands + 63 ) / 64, 1, 1 );
             }
 
-            EE_ASSERT( !resourceStates.HasPendingBarriers() );
-            resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-            resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceCounterBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-            resourceStates.FlushBarriers( pCommandBuffer );
-
-            RHI::CmdExecuteIndirect( pCommandBuffer, m_pDebugDrawShader->m_pCommandSignatureMeshDispatch, 1, bucket.m_argumentBuffer, 0, nullptr, 0 );
+            RHI::CmdExecuteIndirect( pCommandBuffer, m_pDebugDrawShader->m_pCommandSignatureMeshDispatch, 1, bucket.m_pArgumentBuffer, 0, nullptr, 0 );
 
             // Color pass
-            //---------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             if ( numMeshCommands )
             {
-                EE_ASSERT( !resourceStates.HasPendingBarriers() );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceCounterBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.FlushBarriers( pCommandBuffer );
-
                 RHI::CmdSetPipeline( pCommandBuffer, m_pTransparentDepthOnColorPipeline_Mesh );
                 RHI::CmdExecuteIndirect
                 (
                     pCommandBuffer, m_pDebugDrawMeshShader->m_pCommandSignatureMeshDispatch, numMeshCommands,
-                    pRenderViewport->m_meshArgumentBuffers[frameIndex].m_buffer, meshCommandsOffset * sizeof( ShaderTypes::DebugDrawMeshArgument ),
+                    pRenderViewport->m_meshArgumentBuffers[frameIndex].m_pBuffer, meshCommandsOffset * sizeof( ShaderTypes::DebugDrawMeshArgument ),
                     pRenderViewport->m_meshArgumentCounterBuffers[frameIndex], meshCounterOffset * sizeof( uint32_t )
                 );
             }
@@ -1255,23 +1242,13 @@ namespace EE::Render
 
             if ( numCommands )
             {
-                EE_ASSERT( !resourceStates.HasPendingBarriers() );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceCounterBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.FlushBarriers( pCommandBuffer );
-
                 RHI::CmdDispatchMesh( pCommandBuffer, ( numCommands + 63 ) / 64, 1, 1 );
             }
 
-            EE_ASSERT( !resourceStates.HasPendingBarriers() );
-            resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-            resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceCounterBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-            resourceStates.FlushBarriers( pCommandBuffer );
-
-            RHI::CmdExecuteIndirect( pCommandBuffer, m_pDebugDrawShader->m_pCommandSignatureMeshDispatch, 1, bucket.m_argumentBuffer, 0, nullptr, 0 );
+            RHI::CmdExecuteIndirect( pCommandBuffer, m_pDebugDrawShader->m_pCommandSignatureMeshDispatch, 1, bucket.m_pArgumentBuffer, 0, nullptr, 0 );
 
             // Update offsets
-            //---------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             debugDrawRootConstant.m_commandsOffset += numCommands;
             meshCommandsOffset += numMeshCommands;
             meshCounterOffset++;
@@ -1292,22 +1269,21 @@ namespace EE::Render
             EE_PROFILE_SCOPE_RENDER( "DrawDebugCommands" );
             EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, pScopeName );
 
+            EE_ASSERT( !resourceStates.HasPendingBarriers() );
+
+            RHI::CmdBarrier( pCommandBuffer, RHI::PipelineStage::AllShader, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess, RHI::ResourceAccess::UnorderedAccess );
+
             debugDrawRootConstant.m_numDebugDrawCommands = numCommands;
 
             // Color pass
-            //---------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             if ( numMeshCommands )
             {
-                EE_ASSERT( !resourceStates.HasPendingBarriers() );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceCounterBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.FlushBarriers( pCommandBuffer );
-
                 RHI::CmdSetPipeline( pCommandBuffer, m_pTransparentDepthOnNoWriteColorPipeline_Mesh );
                 RHI::CmdExecuteIndirect
                 (
                     pCommandBuffer, m_pDebugDrawMeshShader->m_pCommandSignatureMeshDispatch, numMeshCommands,
-                    pRenderViewport->m_meshArgumentBuffers[frameIndex].m_buffer, meshCommandsOffset * sizeof( ShaderTypes::DebugDrawMeshArgument ),
+                    pRenderViewport->m_meshArgumentBuffers[frameIndex].m_pBuffer, meshCommandsOffset * sizeof( ShaderTypes::DebugDrawMeshArgument ),
                     pRenderViewport->m_meshArgumentCounterBuffers[frameIndex], meshCounterOffset * sizeof( uint32_t )
                 );
             }
@@ -1318,23 +1294,13 @@ namespace EE::Render
 
             if ( numCommands )
             {
-                EE_ASSERT( !resourceStates.HasPendingBarriers() );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceCounterBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-                resourceStates.FlushBarriers( pCommandBuffer );
-
                 RHI::CmdDispatchMesh( pCommandBuffer, ( numCommands + 63 ) / 64, 1, 1 );
             }
 
-            EE_ASSERT( !resourceStates.HasPendingBarriers() );
-            resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-            resourceStates.Writeable( pRenderViewport->m_debugDrawPickingResultsBuffer.m_deviceCounterBuffer, RHI::PipelineStage::NonPixelShader, RHI::ResourceAccess::UnorderedAccess );
-            resourceStates.FlushBarriers( pCommandBuffer );
-
-            RHI::CmdExecuteIndirect( pCommandBuffer, m_pDebugDrawShader->m_pCommandSignatureMeshDispatch, 1, bucket.m_argumentBuffer, 0, nullptr, 0 );
+            RHI::CmdExecuteIndirect( pCommandBuffer, m_pDebugDrawShader->m_pCommandSignatureMeshDispatch, 1, bucket.m_pArgumentBuffer, 0, nullptr, 0 );
 
             // Update offsets
-            //---------------------------------------------------------------------------------------------------
+            //-------------------------------------------------------------------------
             debugDrawRootConstant.m_commandsOffset += numCommands;
             meshCommandsOffset += numMeshCommands;
             meshCounterOffset++;
@@ -1400,20 +1366,14 @@ namespace EE::Render
         );
 
         // Copy picking results
-        pRenderViewport->m_debugDrawPickingResultsBuffer.CopyResults( resourceStates, pCommandBuffer, frameIndex );
+        pRenderViewport->m_debugDrawPickingResultsBuffer.CopyResults( pCommandBuffer, frameIndex );
+        pRenderViewport->m_debugDrawPickingResultsBuffer.Barrier( pCommandBuffer, frameIndex );
 
         // Copy shader debug draw results
-        ForEachBucket( [&resourceStates, pCommandBuffer, frameIndex] ( DeviceBufferState& argumentBuffer, DeviceAppendBuffer<void>& commandsBuffer )
+        ForEachBucket( [pCommandBuffer, frameIndex] ( RHI::Buffer* pArgumentBuffer, DeviceAppendBuffer<void>& commandsBuffer )
         {
-            commandsBuffer.CopyResults( resourceStates, pCommandBuffer, frameIndex );
-        } );
-
-        // Final barriers
-        pRenderViewport->m_debugDrawPickingResultsBuffer.Barrier( resourceStates, pCommandBuffer, frameIndex );
-
-        ForEachBucket( [&resourceStates, pCommandBuffer, frameIndex] ( DeviceBufferState& argumentBuffer, DeviceAppendBuffer<void>& commandsBuffer )
-        {
-            commandsBuffer.Barrier( resourceStates, pCommandBuffer, frameIndex );
+            commandsBuffer.CopyResults( pCommandBuffer, frameIndex );
+            commandsBuffer.Barrier( pCommandBuffer, frameIndex );
         } );
     }
 }

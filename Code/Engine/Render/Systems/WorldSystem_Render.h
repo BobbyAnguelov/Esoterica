@@ -12,7 +12,7 @@
 #include "Base/Systems.h"
 #include "Base/Types/IDVector.h"
 
-//-----------------------------------------------------------------------------------------------------------
+//-------------------------------------------------------------------------
 
 namespace EE::Render
 {
@@ -29,7 +29,7 @@ namespace EE::Render
     class RenderSystem;
     class RenderViewport;
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     class EE_ENGINE_API RenderWorldSystem final : public EntityWorldSystem
     {
@@ -45,7 +45,7 @@ namespace EE::Render
     private:
 
         // Entity System
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         virtual void InitializeSystem( SystemRegistry const& systemRegistry ) override final;
         virtual void ShutdownSystem() override final;
@@ -67,7 +67,7 @@ namespace EE::Render
 
     private:
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         TaskSystem*                                                         m_pTaskSystem = nullptr;
         RenderSystem*                                                       m_pRenderSystem = nullptr;

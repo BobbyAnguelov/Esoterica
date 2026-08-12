@@ -58,7 +58,7 @@ namespace EE::Render
         virtual void OnWorldTransformUpdated() override;
 
         // Internal renderer data
-        //---------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         uint16_t                                            m_cascadedShadowIndex = 0xFFFF;
         LightInstanceProxy                                  m_lightInstanceProxy = {};
@@ -90,7 +90,7 @@ namespace EE::Render
         float                                               m_falloff = 2.0F;       // Decay rate
 
         // Internal renderer data
-        //---------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         LightInstanceProxy                                  m_lightInstanceProxy = {};
     };
@@ -132,7 +132,7 @@ namespace EE::Render
     private:
 
         // Internal renderer data
-        //---------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         LightInstanceProxy                              m_lightInstanceProxy = {};
     };

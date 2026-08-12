@@ -24,7 +24,7 @@ namespace EE::Render
         transformMatrix.GetRow( 3 ).StoreFloat3( dst + 9 );
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void MeshInstanceProxy::WriteRootTransform( Transform const& worldTransform, Float3 worldNonUniformScale )
     {
@@ -72,7 +72,7 @@ namespace EE::Render
         }
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void LightInstanceProxy::WriteDirectionalLight( Float3 lightDirection, float maxIntensity, Color tintedColor, uint16_t cascadedShadowIndex )
     {
@@ -153,7 +153,7 @@ namespace EE::Render
         *( pDstLightUpdateCommand + m_dstTransformUpdateIndex ) = lightUpdateCommand;
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     static_assert( sizeof( Transform ) == sizeof( ShaderTypes::SkinningTransform ) );
 

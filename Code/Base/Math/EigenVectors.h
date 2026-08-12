@@ -51,7 +51,7 @@ namespace EE::Math
         return true;
     }
 
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     inline Vector CalculateEigenVector( float m11, float m12, float m13, float m22, float m23, float m33, float e )
     {
@@ -130,7 +130,7 @@ namespace EE::Math
         return vTmp.GetNormalized3();
     }
 
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     inline bool CalculateEigenVectors( float m11, float m12, float m13, float m22, float m23, float m33, float e1, float e2, float e3, Vector& V1, Vector& V2, Vector& V3 ) noexcept
     {
@@ -229,7 +229,7 @@ namespace EE::Math
         return true;
     }
 
-    //-----------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     inline bool CalculateEigenVectorsFromCovarianceMatrix( float Cxx, float Cyy, float Czz, float Cxy, float Cxz, float Cyz, Vector& V1, Vector& V2, Vector& V3 )
     {

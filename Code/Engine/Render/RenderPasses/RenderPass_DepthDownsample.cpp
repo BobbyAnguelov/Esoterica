@@ -83,7 +83,7 @@ namespace EE::Render
         RHI::LoadAction loadAction = {};
         loadAction.m_loadActionsColor[0] = RHI::LoadActionType::Clear;
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // 1x -> 2x
 
         EE_ASSERT( !resourceStates.HasPendingBarriers() );
@@ -103,7 +103,7 @@ namespace EE::Render
         RHI::CmdSetRootConstants( pCommandBuffer, 0, &rootConstants, sizeof( rootConstants ) );
         RHI::CmdDraw( pCommandBuffer, 3, 0 );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // 2x -> 4x
 
         EE_ASSERT( !resourceStates.HasPendingBarriers() );
@@ -119,7 +119,7 @@ namespace EE::Render
         RHI::CmdSetRootConstants( pCommandBuffer, 0, &rootConstants, sizeof( rootConstants ) );
         RHI::CmdDraw( pCommandBuffer, 3, 0 );
 
-        //---------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         // 4x -> 8x
         EE_ASSERT( !resourceStates.HasPendingBarriers() );
         resourceStates.ReadOnly( pRenderViewport->m_DepthDownsample4, RHI::PipelineStage::PixelShader, RHI::ResourceAccess::ShaderResource, RHI::TextureState::ShaderResource );

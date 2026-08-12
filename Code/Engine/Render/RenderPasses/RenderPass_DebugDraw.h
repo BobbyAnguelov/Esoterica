@@ -25,7 +25,7 @@ namespace EE::Render
 
         ~DebugDrawRenderPass() { EE_ASSERT( m_pDebugMeshRegistry == nullptr ); }
 
-        //---------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );
@@ -36,7 +36,7 @@ namespace EE::Render
                                             DebugDrawSystem* pDebugDrawingSystem, Seconds const deltaTime,
                                             RenderViewport* pRenderViewport );
 
-        void ClearBuffers( DeviceResourceStates& resourceStates, RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex );
+        void ClearBuffers( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex );
 
         void DrawToViewport( RenderViewport const*          pRenderViewport,
                              DeviceRenderWorld const&       deviceRenderWorld,
@@ -53,7 +53,7 @@ namespace EE::Render
         {
             for ( DepthTestBucket& bucket : m_depthBuckets )
             {
-                fn( bucket.m_argumentBuffer, bucket.m_commandsBuffer );
+                fn( bucket.m_pArgumentBuffer, bucket.m_commandsBuffer );
             }
         }
 
@@ -70,7 +70,7 @@ namespace EE::Render
 
     public:
 
-        //---------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         enum DepthTestBucketID
         {
@@ -84,13 +84,13 @@ namespace EE::Render
         struct DepthTestBucket
         {
             uint32_t                                    m_pickingSortPriority = 0;
-            DeviceBufferState                           m_argumentBuffer = {};
+            RHI::Buffer*                                m_pArgumentBuffer = nullptr;
             DeviceAppendBuffer<void>                    m_commandsBuffer = {};
         };
 
     private:
 
-        //---------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         RenderSettings const*                           m_pRenderSettings = nullptr;
         DebugMeshRegistry*                              m_pDebugMeshRegistry = nullptr;

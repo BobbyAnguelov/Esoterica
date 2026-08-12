@@ -26,7 +26,7 @@ namespace EE::Render
         m_vertices.resize( numVertices * m_vertexStride );
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     void GeometryBuilder::SetPositionAttribute( size_t vertexIndex, PositionAttribute const& positionAttribute )
     {
@@ -175,7 +175,7 @@ namespace EE::Render
         return false;
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     bool GeometryBuilder::Simplify( float normalsWeight, float uvWeight, float targetAttributeError, uint32_t targetTriangleCount, float targetTrianglePercentage )
     {
@@ -290,7 +290,7 @@ namespace EE::Render
         }
     }
 
-    //-------------------------------------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
     AABB GeometryBuilder::ComputeAABB() const
     {
@@ -329,7 +329,7 @@ namespace EE::Render
         uint32_t sectionBaseVertex = 0;
 
         // Generate clusters
-        //-------------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         size_t const meshletUpperBound = meshopt_buildMeshletsBound( m_indices.size(), Geometry::MaxClusterVertices, Geometry::MaxClusterTriangles );
 
@@ -368,7 +368,7 @@ namespace EE::Render
         meshNumClusters += uint32_t( numMeshlets );
 
         // Optimize and compute exponent
-        //---------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
 
         int32_t const MinExponent = -20;
         int32_t const OffsetBits = 16;
@@ -407,7 +407,7 @@ namespace EE::Render
         float const vertexScale = ldexpf( 1.0F, compressedVertexExponent );
 
         // Quantize and serialize clusters
-        //---------------------------------------------------------------------------------------------------------
+        //-------------------------------------------------------------------------
         for ( size_t meshletIndex = 0; meshletIndex < numMeshlets; ++meshletIndex )
         {
             meshopt_Meshlet const& meshlet = tempMeshlets[meshletIndex];
