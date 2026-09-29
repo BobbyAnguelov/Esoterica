@@ -120,7 +120,7 @@ namespace EE::Reflection
                             << "    void Set" << parameter.m_friendlyName.c_str() << "( EE::Render::RHI::Texture* p" << parameter.m_friendlyName.c_str() << " );\n"
                             << "#endif\n";
                     }
-                    else if ( parameter.m_type == "RWTexture1D" || parameter.m_type == "RWTexture2D" || parameter.m_type == "RWTexture3D" || parameter.m_type == "RWTextureCube" )
+                    else if ( parameter.m_type == "RWTexture1D" || parameter.m_type == "RWTexture2D" || parameter.m_type == "RWTexture2DArray" || parameter.m_type == "RWTexture3D" || parameter.m_type == "RWTextureCube" )
                     {
                         stream
                             << "#ifdef __cplusplus\n"
@@ -246,7 +246,7 @@ namespace EE::Reflection
                         << "    Set" << parameter.m_friendlyName.c_str() << "( EE::Render::RHI::GetTextureHandle( p" << parameter.m_friendlyName.c_str() << ", RHI::DescriptorTypeFlags::Texture, 0 ) );\n"
                         << "}\n";
                 }
-                else if ( parameter.m_type == "RWTexture1D" || parameter.m_type == "RWTexture2D" || parameter.m_type == "RWTexture3D" || parameter.m_type == "RWTextureCube" )
+                else if ( parameter.m_type == "RWTexture1D" || parameter.m_type == "RWTexture2D" || parameter.m_type == "RWTexture2DArray" || parameter.m_type == "RWTexture3D" || parameter.m_type == "RWTextureCube" )
                 {
                     stream
                         << "void " << structName.c_str() << "Data::Set" << parameter.m_friendlyName.c_str() << "( DeviceResourceStates& states, TBitFlags<EE::Render::RHI::PipelineStage> stages, DeviceTextureState& " << parameter.m_friendlyName.c_str() << ", uint32_t mipLevel )\n"

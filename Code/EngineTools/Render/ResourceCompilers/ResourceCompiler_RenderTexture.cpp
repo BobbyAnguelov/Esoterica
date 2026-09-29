@@ -70,6 +70,8 @@ namespace EE::Render
         }
     }
 
+    //-------------------------------------------------------------------------
+
     TextureCompiler::TextureCompiler()
         : Resource::Compiler( "TextureCompiler" )
     {
@@ -338,14 +340,9 @@ namespace EE::Render
         // Run texture compression
         //-------------------------------------------------------------------------
 
-        uint32_t textureMipLevels = RHI::ComputeTextureMipLevels( sourceSurfaces[0].m_width, sourceSurfaces[0].m_height, uint32_t( sourceSurfaces.size() ) );
-        if ( !pTextureGroup->m_mipSettings.m_generateMipmaps )
-        {
-            textureMipLevels = 1;
-        }
-
         TVector<uint8_t> compressedData;
         RHI::DataFormat compressedFormat = RHI::DataFormat::Undefined;
+        uint32_t textureMipLevels = 1;
 
         Milliseconds compressionTime;
         {
@@ -501,6 +498,19 @@ namespace EE::Render
                 break;
             }
 
+            // How long the chain is depends on the format the type above chose: a
+            // block-compressed texture stops at a whole block, an uncompressed one
+            // runs to 1x1. Both are computed here rather than before the switch,
+            // because before the switch the format is not known yet.
+            textureMipLevels = isCompressed
+                             ? RHI::ComputeBlockCompressedMipLevels( sourceSurfaces[0].m_width, sourceSurfaces[0].m_height, uint32_t( sourceSurfaces.size() ) )
+                             : RHI::ComputeUncompressedMipLevels( sourceSurfaces[0].m_width, sourceSurfaces[0].m_height, uint32_t( sourceSurfaces.size() ) );
+
+            if ( !pTextureGroup->m_mipSettings.m_generateMipmaps )
+            {
+                textureMipLevels = 1;
+            }
+
             if ( !isCompressed && textureMipLevels == 1 )
             {
                 // No need to run CTT, just memcpy the data directly
@@ -517,13 +527,11 @@ namespace EE::Render
             else
             {
                 ctt_image* pImage = ctt_image_create( sourceSurfaces.size() == 1 ? CTT_TEXTURE_KIND_TEXTURE2D : CTT_TEXTURE_KIND_TEXTURE3D );
+
                 for ( SurfaceRGBA const& sourceSurface : sourceSurfaces )
                 {
-                    size_t layer = 0;
-                    ctt_image_add_layer( pImage, &layer );
-
-                    uint32_t surfaceRowStride = sourceSurface.m_width * pixelStride;
-                    uint32_t surfaceSliceStride = sourceSurface.m_height * surfaceRowStride;
+                    uint32_t const surfaceRowStride = sourceSurface.m_width * pixelStride;
+                    uint32_t const surfaceSliceStride = sourceSurface.m_height * surfaceRowStride;
 
                     ctt_surface* pSurface = ctt_surface_create
                     (
@@ -532,6 +540,8 @@ namespace EE::Render
                         cttSourceFormat, cttSourceColorSpace, cttAlphaMode
                     );
 
+                    size_t layer = 0;
+                    ctt_image_add_layer( pImage, &layer );
                     ctt_image_push_mip( pImage, layer, pSurface );
                 }
 
@@ -552,7 +562,26 @@ namespace EE::Render
                 convertSettings.mipmap = textureMipLevels > 0;
                 convertSettings.mipmap_count.present = true;
                 convertSettings.mipmap_count.value = textureMipLevels;
-                convertSettings.mipmap_filter = CTT_MIPMAP_FILTER_LANCZOS3;
+                switch ( pTextureGroup->m_mipSettings.m_mipmapFilter )
+                {
+                    case TextureGroupMipSettings::MipFilter::LinearDownscale:
+                    {
+                        convertSettings.mipmap_filter = CTT_MIPMAP_FILTER_TRIANGLE;
+                    }
+                    break;
+
+                    case TextureGroupMipSettings::MipFilter::EnvironmentMapConvolution:
+                    {
+                        convertSettings.mipmap_filter = CTT_MIPMAP_FILTER_LANCZOS3;
+                    }
+                    break;
+
+                    default:
+                    {
+                        convertSettings.mipmap_filter = CTT_MIPMAP_FILTER_LANCZOS3;
+                    }
+                    break;
+                }
                 convertSettings.quality = CTT_QUALITY_BASIC;
 
                 ctt_pipeline_output* pOutput = nullptr;

@@ -48,16 +48,7 @@ namespace EE::Render
         EE_PROFILE_FUNCTION_RENDER();
 
         Math::ViewVolume const& viewVolume = viewport.GetViewVolume();
-
-        Matrix reverseZ
-        (
-            Vector( 1.0f, 0.0f, 0.0f, 0.0f ),
-            Vector( 0.0f, 1.0f, 0.0f, 0.0f ),
-            Vector( 0.0f, 0.0f, -1.0f, 0.0f ),
-            Vector( 0.0f, 0.0f, 1.0f, 1.0f )
-        );
-
-        Matrix viewProjectionMatrix = viewVolume.GetViewMatrix() * ( viewVolume.GetProjectionMatrix() * reverseZ );
+        Matrix viewProjectionMatrix = viewVolume.GetViewMatrix() * ( viewVolume.GetProjectionMatrix() * Matrix::ReverseZ );
 
         for ( TextCommand const& textCommand : textCommands )
         {
@@ -254,58 +245,63 @@ namespace EE::Render
         return pDstCommand_WriteCombined;
     }
 
-    static ShaderTypes::DebugDrawCommand_Raw* WriteTextsOutline(
+    static ShaderTypes::DebugDrawCommand_Raw* WriteTextsOutline
+    (
         ShaderTypes::DebugDrawCommand_Raw*          pDstCommand_WriteCombined,
         ShaderTypes::DebugDrawCommand_Raw const*    pDstCommandEnd_WriteCombined,
         TArray<TVector<uint8_t>, 2>&                fontCaches,
         TArray<RHI::TextureHandle, 2>               fontTextureHandles,
         Float2                                      fontPixelSize,
         Viewport const&                             viewport,
-        TArrayView<TextCommand const>      textCommands )
+        TArrayView<TextCommand const>               textCommands 
+    )
     {
         EE_PROFILE_FUNCTION_RENDER();
 
-        pDstCommand_WriteCombined = WriteTexts( pDstCommand_WriteCombined,
-                                                pDstCommandEnd_WriteCombined,
-                                                fontCaches,
-                                                fontTextureHandles,
-                                                Float2( 1.0F, 1.0F ),
-                                                fontPixelSize,
-                                                Float4( 0.0F, 0.0F, 0.0F, 1.0F ),
-                                                viewport,
-                                                true,
-                                                textCommands );
-        pDstCommand_WriteCombined = WriteTexts( pDstCommand_WriteCombined,
-                                                pDstCommandEnd_WriteCombined,
-                                                fontCaches,
-                                                fontTextureHandles,
-                                                Float2::Zero,
-                                                fontPixelSize,
-                                                Float4::One,
-                                                viewport,
-                                                false,
-                                                textCommands );
+        pDstCommand_WriteCombined = WriteTexts
+        (
+            pDstCommand_WriteCombined,
+            pDstCommandEnd_WriteCombined,
+            fontCaches,
+            fontTextureHandles,
+            Float2( 1.0F, 1.0F ),
+            fontPixelSize,
+            Float4( 0.0F, 0.0F, 0.0F, 1.0F ),
+            viewport,
+            true,
+            textCommands
+        );
+
+        pDstCommand_WriteCombined = WriteTexts
+        (
+            pDstCommand_WriteCombined,
+            pDstCommandEnd_WriteCombined,
+            fontCaches,
+            fontTextureHandles,
+            Float2::Zero,
+            fontPixelSize,
+            Float4::One,
+            viewport,
+            false,
+            textCommands
+        );
         return pDstCommand_WriteCombined;
     }
 
-    static ShaderTypes::DebugDrawCommand_Raw* WriteTextBoxes(
+    static ShaderTypes::DebugDrawCommand_Raw* WriteTextBoxes
+    (
         ShaderTypes::DebugDrawCommand_Raw*          pDstCommand_WriteCombined,
         ShaderTypes::DebugDrawCommand_Raw const*    pDstCommandEnd_WriteCombined,
         TArray<TVector<uint8_t>, 2>&                fontCaches,
         Float2                                      fontPixelSize,
         Viewport const&                             viewport,
-        TArrayView<TextCommand const>      textCommands )
+        TArrayView<TextCommand const>               textCommands 
+    )
     {
         EE_PROFILE_FUNCTION_RENDER();
 
         Math::ViewVolume const& viewVolume = viewport.GetViewVolume();
-
-        Matrix reverseZ( Vector( 1.0f, 0.0f, 0.0f, 0.0f ),
-                         Vector( 0.0f, 1.0f, 0.0f, 0.0f ),
-                         Vector( 0.0f, 0.0f, -1.0f, 0.0f ),
-                         Vector( 0.0f, 0.0f, 1.0f, 1.0f ) );
-
-        Matrix viewProjectionMatrix = viewVolume.GetViewMatrix() * ( viewVolume.GetProjectionMatrix() * reverseZ );
+        Matrix viewProjectionMatrix = viewVolume.GetViewMatrix() * ( viewVolume.GetProjectionMatrix() * Matrix::ReverseZ );
 
         for ( TextCommand const& textCommand : textCommands )
         {
@@ -657,28 +653,28 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        TArray<TInlineString<256>, NUM_DEPTH_TEST_BUCKETS> argumentBufferNames =
+        TArray<TInlineString<256>, s_numDepthTestBuckets> argumentBufferNames =
         {
             "RenderPass_DebugDraw DebugArgumentBuffer Transparent DepthOn NoWrite",
             "RenderPass_DebugDraw DebugArgumentBuffer Transparent DepthOn Write",
             "RenderPass_DebugDraw DebugArgumentBuffer Transparent DepthSeparate Write",
         };
 
-        TArray<TInlineString<256>, NUM_DEPTH_TEST_BUCKETS> counterBufferNames =
+        TArray<TInlineString<256>, s_numDepthTestBuckets> counterBufferNames =
         {
             "RenderPass_DebugDraw DebugCounterBuffer Transparent DepthOn NoWrite",
             "RenderPass_DebugDraw DebugCounterBuffer Transparent DepthOn Write",
             "RenderPass_DebugDraw DebugCounterBuffer Transparent DepthSeparate Write",
         };
 
-        TArray<TInlineString<256>, NUM_DEPTH_TEST_BUCKETS> commandsBufferNames =
+        TArray<TInlineString<256>, s_numDepthTestBuckets> commandsBufferNames =
         {
             "RenderPass_DebugDraw DebugCommandsBuffer Transparent DepthOn NoWrite",
             "RenderPass_DebugDraw DebugCommandsBuffer Transparent DepthOn Write",
             "RenderPass_DebugDraw DebugCommandsBuffer Transparent DepthSeparate Write",
         };
 
-        TArray<uint32_t, NUM_DEPTH_TEST_BUCKETS> pickingSortPriorities =
+        TArray<uint32_t, s_numDepthTestBuckets> pickingSortPriorities =
         {
             400,
             600,
@@ -695,7 +691,7 @@ namespace EE::Render
                 RHI::BufferParameters debugArgumentBufferParameters = {};
                 debugArgumentBufferParameters.m_bufferSize = sizeof( ShaderTypes::DebugDrawArgument );
                 debugArgumentBufferParameters.m_bufferStride = sizeof( ShaderTypes::DebugDrawArgument );
-                debugArgumentBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::IndirectArgumentBuffer, RHI::DescriptorTypeFlags::RWBuffer );
+                debugArgumentBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::IndirectArgumentBuffer, RHI::DescriptorTypeFlags::RWBuffer };
                 debugArgumentBufferParameters.m_debugName = argumentBufferNames[bucketIndex];
 
                 depthBucket.m_pArgumentBuffer = RHI::CreateBuffer( pContextRHI, debugArgumentBufferParameters );
@@ -837,7 +833,7 @@ namespace EE::Render
             depthParameters.m_width = textureWidth;
             depthParameters.m_height = textureHeight;
             depthParameters.m_format = RHI::DataFormat::D32_SFloat;
-            depthParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::RenderTarget );
+            depthParameters.m_descriptorTypes = RHI::DescriptorTypeFlags::RenderTarget;
             depthParameters.m_debugName.sprintf( "DebugDraw Separate Depth Target %dx%d", textureWidth, textureHeight );
 
             pRenderViewport->m_debugDraw_depthTexture = RHI::CreateTexture( pRenderSystem->GetContextRHI(), depthParameters );
@@ -964,7 +960,7 @@ namespace EE::Render
             RHI::BufferParameters commandsBufferParameters = {};
             commandsBufferParameters.m_bufferSize = newBufferSize;
             commandsBufferParameters.m_bufferStride = sizeof( ShaderTypes::DebugDrawCommand_Raw );
-            commandsBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw );
+            commandsBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw };
             commandsBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
             commandsBufferParameters.m_debugName.sprintf( "RenderPass_DebugDraw DebugCommands Buffer %i", frameIndex );
             commandsBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
@@ -985,7 +981,7 @@ namespace EE::Render
             RHI::BufferParameters commandsBufferParameters = {};
             commandsBufferParameters.m_bufferSize = newBufferSize;
             commandsBufferParameters.m_bufferStride = sizeof( ShaderTypes::DebugDrawCommand_Raw );
-            commandsBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw );
+            commandsBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw };
             commandsBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
             commandsBufferParameters.m_debugName.sprintf( "RenderPass_DebugDraw DebugCommandsOutline Buffer %i", frameIndex );
             commandsBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
@@ -1118,7 +1114,7 @@ namespace EE::Render
         if ( !pRenderViewport->m_meshArgumentCounterBuffers[frameIndex] )
         {
             RHI::BufferParameters counterBufferParameters = {};
-            counterBufferParameters.m_bufferSize = NUM_DEPTH_TEST_BUCKETS * sizeof( uint32_t );
+            counterBufferParameters.m_bufferSize = s_numDepthTestBuckets * sizeof( uint32_t );
             counterBufferParameters.m_bufferStride = sizeof( uint32_t );
             counterBufferParameters.m_flags.SetMultipleFlags( RHI::BufferFlags::NoDescriptors, RHI::BufferFlags::PersistentMap );
             counterBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
@@ -1186,7 +1182,7 @@ namespace EE::Render
         m_fontPixelSize = Float2( 1.0F / pRenderViewport->GetDimensions().m_x, 1.0F / pRenderViewport->GetDimensions().m_y );
         m_fontPixelSize.m_x *= viewVolume.GetAspectRatio();
 
-        TArray<uint32_t, NUM_DEPTH_TEST_BUCKETS> numValidMeshCommandsPerBucket = {};
+        TArray<uint32_t, s_numDepthTestBuckets> numValidMeshCommandsPerBucket = {};
 
         if ( !m_frameCommandBuffer.IsEmpty() )
         {
@@ -1208,7 +1204,7 @@ namespace EE::Render
             ShaderTypes::DebugDrawMeshParameters const* pDstMeshParametersEnd_WriteCombined = pDstMeshParameters_WriteCombined + ( pRenderViewport->m_meshParametersBuffers[frameIndex].m_pBuffer->m_size / pRenderViewport->m_meshParametersBuffers[frameIndex].m_pBuffer->m_stride );
 
             uint32_t* pDstMeshArgumentCounter_WriteCombined = reinterpret_cast<uint32_t*>( pRenderViewport->m_meshArgumentCounterBuffers[frameIndex]->m_pMappedAddress_WriteCombined );
-            uint32_t const* pDstMeshArgumentCounterEnd_WriteCombined = pDstMeshArgumentCounter_WriteCombined + NUM_DEPTH_TEST_BUCKETS;
+            uint32_t const* pDstMeshArgumentCounterEnd_WriteCombined = pDstMeshArgumentCounter_WriteCombined + s_numDepthTestBuckets;
 
             uint64_t dstParametersDeviceAddress = pRenderViewport->m_meshParametersBuffers[frameIndex].m_pBuffer->m_deviceAddress;
             uint32_t dstBucketIndex = 0;

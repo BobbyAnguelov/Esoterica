@@ -10,7 +10,7 @@ namespace EE
 {
     namespace
     {
-        constexpr static uint32_t const g_numCircleVertices = 16;
+        constexpr static uint32_t const g_numCircleVertices = 48;
         static_assert( ( g_numCircleVertices % 4 ) == 0 );
         static bool g_circleVerticesInitialized = false;
         static Float4 g_circleVerticesXUp[g_numCircleVertices];

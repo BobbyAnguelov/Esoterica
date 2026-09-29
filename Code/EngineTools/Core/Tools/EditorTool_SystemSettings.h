@@ -41,7 +41,7 @@ namespace EE
 
     private:
 
-        ImGuiX::FilterWidget            m_globalSettingsFilterWidget;
+        ImGuiX::FilterData              m_filter;
         SettingsRegistry*               m_pSettingsRegistry = nullptr;
         bool                            m_isVisible = false;
         TVector<ImGuiX::TextBuffer*>    m_scratchBuffers;

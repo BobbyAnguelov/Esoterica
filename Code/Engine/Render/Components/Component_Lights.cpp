@@ -1,6 +1,8 @@
 
 #include "Component_Lights.h"
-#include "Engine/Render/Device/DeviceRenderWorld.h"
+#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Base/Render/RHI.h"
+#include "Base/Math/ViewVolume.h"
 
 namespace EE::Render
 {
@@ -107,15 +109,9 @@ namespace EE::Render
         return Color( Float4( result.r, result.g, result.b, 1.0F ) );
     }
 
-    void DirectionalLightComponent::OnWorldTransformUpdated()
+    Color DirectionalLightComponent::GetTintedColor() const
     {
-        if ( !m_lightInstanceProxy.IsValid() )
-        {
-            return;
-        }
-
-        Color tintedColor = ColorTemperatureToRGB( GetTemperature(), GetTint() );
-        m_lightInstanceProxy.WriteDirectionalLight( -GetLightDirection().ToFloat3(), GetMaxIntensity(), tintedColor, m_cascadedShadowIndex );
+        return ColorTemperatureToRGB( GetTemperature(), GetTint() );
     }
 
     //-------------------------------------------------------------------------
@@ -127,8 +123,30 @@ namespace EE::Render
             return;
         }
 
-        Color tintedColor = ColorTemperatureToRGB( GetTemperature(), GetTint() );
-        m_lightInstanceProxy.WritePointLight( GetWorldTransform().GetTranslation(), GetMaxIntensity(), GetMaxRadius(), GetFalloff(), tintedColor, 0xFFFF );
+        Color const tintedColor = ColorTemperatureToRGB( GetTemperature(), GetTint() );
+
+        if ( m_renderViewProxy.IsValid() )
+        {
+            m_renderViewProxy.StartRenderViewWrite();
+            m_renderViewProxy.WritePointLightShadowRenderView( 0, GetWorldTransform().GetTranslation(), GetMaxRadius(), m_shadowMapResolution );
+            m_renderViewProxy.SubmitRenderViewWrite();
+        }
+
+        m_lightInstanceProxy.WritePointLight( GetWorldTransform().GetTranslation(), GetMaxIntensity(), GetMaxRadius(), GetFalloff(), tintedColor );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void PointLightComponent::SetMaxRadius( float maxRadius )
+    {
+        m_maxRadius = Math::Max( maxRadius, 0.01F );
+        OnWorldTransformUpdated();
+    }
+
+    void PointLightComponent::SetFalloff( float falloff )
+    {
+        m_falloff = Math::Max( falloff, 0.0F );
+        OnWorldTransformUpdated();
     }
 
     //-------------------------------------------------------------------------
@@ -144,7 +162,48 @@ namespace EE::Render
         float outerCos = Math::Cos( beamHalfAngle );
         float innerCos = Math::Cos( beamHalfAngle * ( 1.0F - Math::Clamp( GetBlend(), 0.0F, 1.0F ) ) );
 
-        Color tintedColor = ColorTemperatureToRGB( GetTemperature(), GetTint() );
-        m_lightInstanceProxy.WriteSpotLight( GetWorldTransform().GetTranslation(), -GetLightDirection().ToFloat3(), GetMaxIntensity(), GetMaxRadius(), GetFalloff(), tintedColor, innerCos, outerCos, 0xFFFF );
+        Color const tintedColor = ColorTemperatureToRGB( GetTemperature(), GetTint() );
+        Vector const beamDirection = -GetLightDirection();
+
+        Matrix shadowViewProjectionMatrix = Matrix::Identity;
+
+        if ( m_renderViewProxy.IsValid() )
+        {
+            Vector const viewPosition = GetWorldTransform().GetTranslation();
+
+            m_renderViewProxy.StartRenderViewWrite();
+            shadowViewProjectionMatrix = m_renderViewProxy.WriteSpotLightShadowRenderView( 0, viewPosition, beamDirection, beamHalfAngle, GetMaxRadius(), m_shadowMapResolution );
+            m_renderViewProxy.SubmitRenderViewWrite();
+        }
+
+        m_lightInstanceProxy.WriteSpotLight( GetWorldTransform().GetTranslation(), beamDirection.ToFloat3(), GetMaxIntensity(), GetMaxRadius(), GetFalloff(), tintedColor, innerCos, outerCos, shadowViewProjectionMatrix );
+    }
+
+    void SpotLightComponent::SetBeamAngle( Degrees beamAngle )
+    {
+        // The cone is undefined at a half angle of 90 degrees and 0 degrees, cap them at reasonable ranges
+        static constexpr float const MinBeamAngle = 1.0F;
+        static constexpr float const MaxBeamAngle = 178.0F;
+
+        m_beamAngle = Degrees( Math::Clamp( beamAngle.ToFloat(), MinBeamAngle, MaxBeamAngle ) );
+        OnWorldTransformUpdated();
+    }
+
+    void SpotLightComponent::SetBlend( float blend )
+    {
+        m_blend = Math::Clamp( blend, 0.0F, 1.0F );
+        OnWorldTransformUpdated();
+    }
+
+    void SpotLightComponent::SetMaxRadius( float maxRadius )
+    {
+        m_maxRadius = Math::Max( maxRadius, 0.01F );
+        OnWorldTransformUpdated();
+    }
+
+    void SpotLightComponent::SetFalloff( float falloff )
+    {
+        m_falloff = Math::Max( falloff, 0.0F );
+        OnWorldTransformUpdated();
     }
 }

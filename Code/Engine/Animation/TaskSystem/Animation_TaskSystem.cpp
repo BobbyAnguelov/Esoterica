@@ -64,7 +64,7 @@ namespace EE::Animation
         EE::Delete( m_pPreviousFinalPoseBuffer );
     }
 
-    void TaskSystem::Reset()
+    void TaskSystem::ResetInternal( bool resetForNewUpdate )
     {
         for ( auto pTask : m_tasks )
         {
@@ -72,21 +72,29 @@ namespace EE::Animation
         }
 
         m_tasks.clear();
-        m_posePool.Reset();
+
+        if ( resetForNewUpdate )
+        {
+            m_posePool.ResetForNewUpdate();
+        }
+        else
+        {
+            m_posePool.Reset();
+        }
+
         m_needsUpdate = false;
         m_hasPhysicsDependency = false;
         m_executionTime = 0.0f;
 
+        if ( resetForNewUpdate )
+        {
+            eastl::swap( m_pFinalPoseBuffer, m_pPreviousFinalPoseBuffer );
+            m_executionTime = 0.0f;
+        }
+
         #if EE_DEVELOPMENT_TOOLS
         m_log.clear();
         #endif
-    }
-
-    void TaskSystem::ResetForNewUpdate()
-    {
-        Reset();
-        eastl::swap( m_pFinalPoseBuffer, m_pPreviousFinalPoseBuffer );
-        m_executionTime = 0.0f;
     }
 
     //-------------------------------------------------------------------------
@@ -358,20 +366,21 @@ namespace EE::Animation
         return m_posePool.IsValidCachedPose( cachedPoseID );
     }
 
-    PoseBuffer* TaskSystem::GetCachedPose( CachedPoseID cachedPoseID )
-    {
-        return m_posePool.GetCachedPoseBuffer( cachedPoseID );
-    }
-
     CachedPoseID TaskSystem::CreateCachedPose()
     {
         return m_posePool.CreateCachedPoseBuffer();
     }
 
-    #if EE_DEVELOPMENT_TOOLS
-    void TaskSystem::EnsureCachedPoseExists( CachedPoseID cachedPoseID )
+    CachedPoseID TaskSystem::CreatePersistentCachedPose()
     {
-        m_posePool.GetOrCreateCachedPoseBuffer( cachedPoseID );
+        return m_posePool.CreatePersistentCachedPoseBuffer();
+    }
+
+    #if EE_DEVELOPMENT_TOOLS
+    void TaskSystem::RestoreCachedPoseBuffer( CachedPoseID cachedPoseID )
+    {
+        EE_ASSERT( cachedPoseID.IsValid() );
+        m_posePool.CreateBufferForSpecificID( cachedPoseID );
     }
     #endif
 

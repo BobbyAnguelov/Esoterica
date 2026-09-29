@@ -193,7 +193,7 @@ namespace EE
         virtual OBB CalculateLocalBounds() const 
         {
             EE_DEVELOPMENT_TOOLS_ONLY( EE_ASSERT( m_boundsValidationGuard ) );
-            return OBB( Vector::Zero, Vector::Half );
+            return OBB( Vector::Zero, Vector::Zero );
         }
 
         // Updates the local and world bounds for this component

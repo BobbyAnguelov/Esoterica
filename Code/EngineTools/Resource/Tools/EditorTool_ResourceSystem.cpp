@@ -57,7 +57,8 @@ namespace EE::Resource
         // Filter
         //-------------------------------------------------------------------------
 
-        m_filter.UpdateAndDraw();
+        ImGui::SetNextItemWidth( -1 );
+        ImGuiX::InputFilterText( m_filter );
 
         // Draw Resource List
         //-------------------------------------------------------------------------

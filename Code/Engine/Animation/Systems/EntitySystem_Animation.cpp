@@ -244,7 +244,7 @@ namespace EE::Animation
     {
         for ( auto pMeshComponent : m_meshComponents )
         {
-            if ( !pMeshComponent->HasMeshResourceSet() )
+            if ( !pMeshComponent->HasMeshResourceSet() || !pMeshComponent->HasSkeletonResourceSet() )
             {
                 continue;
             }

@@ -30,6 +30,7 @@ namespace EE
     public:
 
         static Matrix const Identity;
+        static Matrix const ReverseZ;
 
     public:
 

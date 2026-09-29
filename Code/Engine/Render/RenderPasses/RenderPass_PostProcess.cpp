@@ -56,7 +56,7 @@ namespace EE::Render
             finalTextureParameters.m_width = textureWidth;
             finalTextureParameters.m_height = textureHeight;
             finalTextureParameters.m_format = RHI::DataFormat::RGBA8_sRGB;
-            finalTextureParameters.m_descriptorTypes = TBitFlags<RHI::DescriptorTypeFlags>( RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture );
+            finalTextureParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture };
             finalTextureParameters.m_debugName.sprintf( "Viewport Final Texture %dx%d", textureWidth, textureHeight );
 
             pRenderViewport->m_finalTexture = RHI::CreateTexture( pRenderSystem->GetContextRHI(), finalTextureParameters );

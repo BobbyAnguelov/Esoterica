@@ -127,6 +127,7 @@ Easiest way to get started, is just set the "Esoterica.Applications.Editor" as t
 * TonyMcMapFace
 * GTAO
 * FidelityFX Parallel Sort
+* SHforHLSL
 
 These middleware packages are also integrated but require a license to use (so they are disabled by default)
 

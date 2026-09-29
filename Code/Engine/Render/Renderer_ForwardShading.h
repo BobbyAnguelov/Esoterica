@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "Engine/Render/ActiveRenderView.h"
 #include "Engine/Render/Device/DeviceResizeBuffer.h"
 #include "Engine/Render/Device/SpatialHash.h"
 #include "Engine/Render/RenderPasses/RenderPass.h"
@@ -10,6 +11,7 @@
 #include "Engine/Render/RenderPasses/RenderPass_PostProcess.h"
 #include "Engine/Render/RenderPasses/RenderPass_ForwardShading.h"
 #include "Engine/Render/RenderPasses/RenderPass_CascadedShadow.h"
+#include "Engine/Render/RenderPasses/RenderPass_PunctualShadow.h"
 #include "Engine/Render/RenderPasses/RenderPass_DepthDownsample.h"
 #include "Engine/Render/RenderPasses/RenderPass_DebugDraw.h"
 #include "Engine/Render/RenderPasses/RenderPass_EditorOutline.h"
@@ -33,6 +35,11 @@ namespace EE::Render
 
     struct ShaderCullingBucket
     {
+        void Initialize( RHI::Context* pContextRHI, char const* pShaderName );
+        void Shutdown( RHI::Context* pContextRHI );
+
+        //-------------------------------------------------------------------------
+
         DeviceResizeBuffer                                                  m_instanceVisibilityBuffer = {};
         DeviceResizeBuffer                                                  m_clusterCullingWorkBuffer = {};
         DeviceResizeBuffer                                                  m_cullingArgumentBuffer = {};
@@ -42,9 +49,6 @@ namespace EE::Render
         RHI::Buffer*                                                        m_pDrawClusterCountersBuffer = nullptr;
         RHI::Buffer*                                                        m_pDrawClusterScatterOffsetsBuffer = nullptr;
         RHI::Buffer*                                                        m_pDrawClusterBaseOffsetsBuffer = nullptr;
-
-        void Initialize( RHI::Context* pContextRHI, const char* shaderName );
-        void Shutdown( RHI::Context* pContextRHI );
     };
 
     //-------------------------------------------------------------------------
@@ -70,17 +74,11 @@ namespace EE::Render
         uint64_t SubmitGraphicsCommandBuffer( RHI::CommandBuffer*&& pCommandBuffer );
         uint64_t SubmitComputeCommandBuffer( RHI::CommandBuffer*&& pCommandBuffer );
 
-    private:
-
-        //-------------------------------------------------------------------------
-
         template <typename F>
-        void ForEachRenderBucket( uint32_t numCascadedShadowPasses, bool includeEditorOutline, F fn );
+        void ForEachRenderBucket( ActiveRenderViewList const& activeRenderViewList, F fn );
 
         template <typename F>
         void ForEachRenderPass( F fn );
-
-    private:
 
         //-------------------------------------------------------------------------
 
@@ -88,8 +86,13 @@ namespace EE::Render
 
         RenderSettings const*                                               m_pRenderGlobalSettings = nullptr;
 
+        RHI::Buffer*                                                        m_pProbeTableBuffer = nullptr;
+        RHI::Texture*                                                       m_pDFGTexture = nullptr;
+
         TVector<ForwardShadingMaterialShaderPipelineBucket>                 m_materialShaderPipelineBuckets;
         TVector<ShaderCullingBucket>                                        m_shaderCullingBuckets;
+
+        //-------------------------------------------------------------------------
 
         ComputeShader const*                                                m_pInstanceCullingShader = nullptr;
         ComputeShader const*                                                m_pCullingCompactionShader = nullptr;
@@ -97,28 +100,33 @@ namespace EE::Render
         ComputeShader const*                                                m_pDrawCompactionShader = nullptr;
         ComputeShader const*                                                m_pClusterCullingShader = nullptr;
         ComputeShader const*                                                m_pDrawArgumentGenerationShader = nullptr;
-        ComputeShader const*                                                m_pLightCulling_CullLightsShader = nullptr;
+        ComputeShader const*                                                m_pLightCulling_cullLightsShader = nullptr;
 
-        DeviceSpatialHash                                                   m_LightCulling_SpatialHash;
+        DeviceSpatialHash                                                   m_lightCulling_spatialHash;
 
-        TVector<CascadedShadowPass>                                         m_renderPass_CascadedShadows;
-        ForwardShadingPass                                                  m_renderPass_ForwardShading;
-        GlobalEnvironmentMapPass                                            m_renderPass_GlobalEnvironmentMap;
+        //-------------------------------------------------------------------------
+
+        CascadedShadowPass                                                  m_renderPass_cascadedShadows;
+        PunctualShadowPass                                                  m_renderPass_punctualShadows;
+        ForwardShadingPass                                                  m_renderPass_forwardShading;
+        GlobalEnvironmentMapPass                                            m_renderPass_globalEnvironmentMap;
         SMAAPass                                                            m_renderPass_SMAA;
         GTAOPass                                                            m_renderPass_GTAO;
-        DepthDownsamplePass                                                 m_renderPass_DepthDownsample;
-        PostProcessPass                                                     m_renderPass_PostProcess;
+        DepthDownsamplePass                                                 m_renderPass_depthDownsample;
+        PostProcessPass                                                     m_renderPass_postProcess;
+
+        //-------------------------------------------------------------------------
 
         DeviceResourceStates                                                m_resourceStates;
 
-        TArray<uint64_t, RHI::MaxPendingFrames>                             m_signalSemaphores_WorldUpdate = {};
-        TArray<uint64_t, RHI::MaxPendingFrames>                             m_signalSemaphores_ShadingPass = {};
+        TArray<uint64_t, RHI::MaxPendingFrames>                             m_signalSemaphores_worldUpdate = {};
+        TArray<uint64_t, RHI::MaxPendingFrames>                             m_signalSemaphores_shadingPass = {};
 
         #if EE_DEVELOPMENT_TOOLS
         ComputeShader const*                                                m_pInstancePickingResolveShader = nullptr;
 
-        DebugDrawRenderPass                                                 m_renderPass_DebugDraw;
-        EditorOutlineRenderPass                                             m_renderPass_EditorOutline;
+        DebugDrawRenderPass                                                 m_renderPass_debugDraw;
+        EditorOutlineRenderPass                                             m_renderPass_editorOutline;
         #endif
     };
 }

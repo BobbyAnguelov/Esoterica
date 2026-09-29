@@ -1,6 +1,6 @@
 #pragma once
-#include "Base/Imgui/ImguiX.h"
 #include "Base/Time/Timers.h"
+#include "Base/Imgui/ImguiFilter.h"
 #include "Base/Resource/ResourceID.h"
 
 //-------------------------------------------------------------------------
@@ -40,7 +40,7 @@ namespace EE::Animation
 
         ToolsContext const*             m_pToolsContext = nullptr;
         ResourceID                      m_skeleton;
-        ImGuiX::FilterWidget            m_filter;
+        ImGuiX::FilterData              m_filter;
         TVector<ResourceID>             m_clips;
         TVector<ResourceID>             m_filteredClips;
         Timer<PlatformClock>            m_refreshTimer;

@@ -4,6 +4,7 @@
 #include "EngineTools/Entity/EntityEditor/EntityEditor_Context.h"
 #include "EngineTools/Entity/EntityEditor/EntityEditor_Outliner.h"
 #include "EngineTools/Entity/EntityEditor/EntityEditor_EntityInspector.h"
+#include "EngineTools/Entity/EntityEditor/EntityEditor_ComponentTools.h"
 #include "EngineTools/Core/EditorTool.h"
 #include "Engine/Imgui/ImguiGizmo.h"
 
@@ -110,6 +111,8 @@ namespace EE::EntityModel
 
         TEvent<UpdateContext const&>                    m_requestStartGamePreview;
         TEvent<UpdateContext const&>                    m_requestStopGamePreview;
+
+        ComponentToolsManager*                          m_pComponentToolsManager = nullptr;
 
         ImGuiX::Gizmo                                   m_gizmo;
 

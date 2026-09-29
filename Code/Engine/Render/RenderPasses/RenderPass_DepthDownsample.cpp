@@ -56,7 +56,7 @@ namespace EE::Render
 
             RHI::TextureParameters depthTextureParameters = {};
             depthTextureParameters.m_format = RHI::DataFormat::R32_SFloat;
-            depthTextureParameters.m_descriptorTypes = TBitFlags<RHI::DescriptorTypeFlags>( RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture );
+            depthTextureParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture };
 
             depthTextureParameters.m_width = depthDownsampleWidth2;
             depthTextureParameters.m_height = depthDownsampleHeight2;

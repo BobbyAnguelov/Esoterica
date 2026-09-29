@@ -1,8 +1,10 @@
 #pragma once
 #include "EngineTools/_Module/API.h"
-#include "Base/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiFilter.h"
 #include "Base/Resource/ResourceID.h"
 #include "Base/Utils/GlobalRegistryBase.h"
+#include "Base/Imgui/ImguiTextBuffer.h"
+#include "Base/Imgui/ImguiInputs.h"
 
 //-------------------------------------------------------------------------
 
@@ -28,17 +30,20 @@ namespace EE
         DataPickerBase( ToolsContext const& toolsContext );
         virtual ~DataPickerBase() = default;
 
+        // Set whether this picker should draw in a compact mode or in the full version
+        void SetCompactMode( bool isCompact ) { m_isCompact = isCompact; }
+
         // Update the widget and draws it, returns true if the path was updated
         bool UpdateAndDraw();
 
         // Set the path
-        virtual void SetDataPath( DataPath const& path ) = 0;
+        void SetDataPath( DataPath const& path );
 
         // Get the resource path that was set
-        virtual DataPath const& GetDataPath() const = 0;
+        DataPath const& GetDataPath() const { return m_path; }
 
         // Clear the set path
-        virtual void Clear() { SetDataPath( DataPath() ); }
+        virtual void Clear();
 
         // Get the height of the widget
         inline float GetHeight() const { return m_height; }
@@ -55,31 +60,38 @@ namespace EE
         virtual bool ValidateDataPath( DataPath const& path ) = 0;
 
         // Check if the currently set data path is valid, and the file pointed to exists
-        virtual bool ValidateCurrentlySetPath() { return ValidateDataPath( GetDataPath() ); }
-
-        // Generate the set of valid resource options
-        virtual void GenerateOptionsList() = 0;
-
-        // Generate the set of filtered options
-        virtual void GenerateFilteredOptionList();
-
-        // Try to update the resourceID from a paste operation - returns true if the value was updated
-        bool TryUpdatePathFromClipboard();
+        bool ValidateCurrentlySetPath();
 
         // Try to update the resourceID from a drag and drop operation - returns true if the value was updated
         bool TryUpdatePathFromDragAndDrop();
 
+    private:
+
+        DataPickerBase( DataPickerBase const& ) = delete;
+        DataPickerBase( DataPickerBase&& ) = delete;
+        DataPickerBase& operator=( DataPickerBase const& ) = delete;
+        DataPickerBase& operator=( DataPickerBase&& ) = delete;
+
+        virtual void GenerateDataPathOptions() = 0;
+
+        // Generate the set of options
+        void GenerateOptionsList( TVector<ImGuiX::OptionData::Option>& outOptions );
+
+        // Return true if it actually modifies the path
+        bool UpdateDataPathFromString( String const& str );
+
     protected:
 
         ToolsContext const&                                     m_toolsContext;
-        ImGuiX::FilterWidget                                    m_filterWidget;
-        TVector<DataPath>                                       m_generatedOptions;
-        TVector<DataPath>                                       m_filteredOptions;
-        TVector<char>                                           m_tempBuffer;
+        DataPath                                                m_path;
+
+        ImGuiX::OptionData                                      m_optionData;
+        TVector<DataPath>                                       m_dataPathOptions;
+
+        ImGuiX::TextBuffer                                      m_buffer;
         float                                                   m_height = 0;
-        bool                                                    m_isPopupOpen = false;
-        bool                                                    m_shouldOpenDropDown = false;
         bool                                                    m_showDependenciesButton = false;
+        bool                                                    m_isCompact = false;
     };
 
     //-------------------------------------------------------------------------
@@ -95,20 +107,16 @@ namespace EE
         // Set the type of resource we wish to select
         void SetRequiredDataFileType( TypeSystem::TypeID typeID );
 
-        virtual void SetDataPath( DataPath const& path ) override;
-        virtual DataPath const& GetDataPath() const override { return m_path; }
-
     private:
 
         virtual bool ValidateDataPath( DataPath const& path ) override;
-        virtual void GenerateOptionsList() override;
+        virtual void GenerateDataPathOptions() override;
 
     private:
 
         TypeSystem::TypeID                                      m_fileTypeID; // The type of file we should pick from
         TypeSystem::DataFileInfo const*                         m_pDataFileInfo = nullptr; // Only set when we have a valid resource type ID
         FileSystem::Extension                                   m_requiredExtension;
-        DataPath                                                m_path;
     };
 
     //-------------------------------------------------------------------------
@@ -142,32 +150,28 @@ namespace EE
         void SetRequiredResourceType( ResourceTypeID resourceTypeID );
 
         // Set a custom filter for the generated options
-        void SetCustomResourceFilter( TFunction<bool( Resource::ResourceDescriptor const* )>&& filter );
+        void SetCustomResourceFilter( TFunction<bool( Resource::ResourceDescriptor const* )>&& filter ) { m_customResourceFilter = eastl::move( filter ); }
 
         // Clear any set custom filter
-        void ClearCustomResourceFilter();
+        void ClearCustomResourceFilter() { m_customResourceFilter = nullptr; }
 
         // Set the path
         void SetResourceID( ResourceID const& resourceID );
 
         // Get the resource path that was set
-        inline ResourceID const& GetResourceID() const { return m_resourceID; }
-
-        virtual void SetDataPath( DataPath const& path ) override;
-        virtual DataPath const& GetDataPath() const override { return m_resourceID.GetDataPath(); }
+        inline ResourceID GetResourceID() const { return m_path.IsValid() ? ResourceID( m_path ) : ResourceID(); }
 
     private:
 
         virtual TInlineString<7> GetPreviewLabel() const override;
         virtual Color GetPreviewColor() const override;
         virtual bool ValidateDataPath( DataPath const& path ) override;
-        virtual void GenerateOptionsList() override;
+        virtual void GenerateDataPathOptions() override;
 
     private:
 
         ResourceTypeID                                              m_resourceTypeID; // The type of resource we should pick from
         TypeSystem::ResourceInfo const*                             m_pResourceTypeInfo = nullptr; // Only set when we have a valid resource type ID
-        ResourceID                                                  m_resourceID;
         TFunction<bool( Resource::ResourceDescriptor const* )>      m_customResourceFilter;
         OptionProvider*                                             m_pCustomOptionProvider = nullptr;
     };

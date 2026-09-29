@@ -21,13 +21,14 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint groupID : SV_GroupID, 
     }
 
     StructuredBuffer<MeshInstance>              meshInstanceBuffer          = GetBuffer( RootConstants.m_instanceBuffer );
-    Buffer<uint64_t>                            meshInstancePageBuffer      = GetBuffer( RootConstants.m_instancePageBuffer );
+    StructuredBuffer<uint64_t>                  meshInstancePageBuffer      = GetBuffer( RootConstants.m_instancePageBuffer );
     StructuredBuffer<MeshInstanceRoot>          meshInstanceRootBuffer      = GetBuffer( RootCBV.m_meshInstanceRootBuffer );
     StructuredBuffer<RenderView>                renderViewBuffer            = GetBuffer( RootCBV.m_renderViewBuffer );
+    StructuredBuffer<uint16_t>                  renderViewIndirectionBuffer = GetBuffer( RootCBV.m_renderViewIndirectionBuffer );
     RWStructuredBuffer<uint64_t>                instanceVisibilityBuffer    = GetRWBuffer( RootConstants.m_instanceVisibilityBuffer );
 
     #if EE_DEVELOPMENT_TOOLS
-    Buffer<uint64_t>                            meshInstanceRootOutlineBuffer = GetBuffer( RootCBV.m_meshInstanceRootOutlineBuffer );
+    StructuredBuffer<uint64_t>                  meshInstanceRootOutlineBuffer = GetBuffer( RootCBV.m_meshInstanceRootOutlineBuffer );
     #endif
 
     //-------------------------------------------------------------------------
@@ -92,10 +93,10 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint groupID : SV_GroupID, 
                 float3 aabbMinWorld = aabbCenterWorld - aabbHalfExtentsWorld;
                 float3 aabbMaxWorld = aabbCenterWorld + aabbHalfExtentsWorld;
 
-                // Cull the instance in all views
-                for ( uint renderViewIndex = 0; renderViewIndex < RootCBV.m_numRenderViews; ++renderViewIndex )
+                // Cull the instance in all active views
+                for ( uint renderViewIndex = 0; renderViewIndex < RootCBV.m_numActiveRenderViews; ++renderViewIndex )
                 {
-                    RenderView renderView = renderViewBuffer[renderViewIndex];
+                    RenderView renderView = renderViewBuffer[renderViewIndirectionBuffer[renderViewIndex]];
 
                     float4 viewPlanes[6];
                     renderView.ComputeViewPlanes( viewPlanes );
@@ -116,10 +117,19 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint groupID : SV_GroupID, 
                         }
                     }
 
-                    bool visibleInThisView = IsFrustumVisible( aabbCenterWorld + worldPositionOffset, aabbHalfExtentsWorld, viewPlanes );
+                    bool visibleInThisView;
+                    if ( ( renderView.m_renderViewFlags & RENDER_VIEW_FLAG_SHADOW_FACE ) != 0 )
+                    {
+                        visibleInThisView = IsSphereVisible( aabbCenterWorld + worldPositionOffset, aabbHalfExtentsWorld, renderView.m_shadowLightSphere.xyz, renderView.m_shadowLightSphere.w );
+                    }
+                    else
+                    {
+                        visibleInThisView = IsFrustumVisible( aabbCenterWorld + worldPositionOffset, aabbHalfExtentsWorld, viewPlanes );
+                    }
 
                     if ( visibleInThisView )
                     {
+                    #if 0 // TODO: This causes a lot of issues with punctual shadows
                         float4 projectedAABB = 0.0.xxxx;
                         if ( renderView.ProjectBox( aabbMinWorld + worldPositionOffset, aabbMaxWorld + worldPositionOffset, projectedAABB ) )
                         {
@@ -132,6 +142,7 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint groupID : SV_GroupID, 
                                 visibleInThisView = false;
                             }
                         }
+                    #endif
                     }
 
                     if ( visibleInThisView )
@@ -150,7 +161,7 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint groupID : SV_GroupID, 
                     if ( ( meshInstanceRootOutlinePage & meshInstanceRootOutlineMask ) == 0 )
                     {
                         uint const outlineViewIndex = RootCBV.m_editorOutlineRenderViewIndex;
-                        if ( outlineViewIndex < RootCBV.m_numRenderViews )
+                        if ( outlineViewIndex < RootCBV.m_numActiveRenderViews )
                         {
                             viewMask &= ~( 1ULL << outlineViewIndex );
                         }

@@ -157,17 +157,17 @@ When a resource is created, it allocates `N` handles. For each handle a correspo
 
 The table below shows which HLSL type results from each flag combination:
 
-| Resource | `DescriptorTypeFlags` | HLSL type                                                                        |
-| -------- | --------------------- | -------------------------------------------------------------------------------- |
-| Sampler  | `Sampler`             | `SamplerState`                                                                   |
-| Texture  | `Texture`             | `Texture2D<T>`, `Texture3D<T>`, etc. (and multisample variants)                  |
-| Texture  | `TextureCube`         | `TextureCube<T>`, `TextureCubeArray<T>`                                          |
-| Texture  | `RWTexture`           | `RWTexture2D<T>`, `RWTexture3D<T>`, etc.                                         |
-| Buffer   | `Buffer`              | `Buffer<T>` if `m_format` is set, `StructuredBuffer<T>` if `m_stride` is set     |
-| Buffer   | `ConstantBuffer`      | `ConstantBuffer<T>`                                                              |
-| Buffer   | `RWBuffer`            | `RWBuffer<T>` if `m_format` is set, `RWStructuredBuffer<T>` if `m_stride` is set |
-| Buffer   | `Buffer` + `Raw`      | `ByteAddressBuffer`                                                              |
-| Buffer   | `RWBuffer` + `Raw`    | `RWByteAddressBuffer`                                                            |
+| Resource | `DescriptorTypeFlags` | HLSL type                                                       |
+| -------- | --------------------- | --------------------------------------------------------------- |
+| Sampler  | `Sampler`             | `SamplerState`                                                  |
+| Texture  | `Texture`             | `Texture2D<T>`, `Texture3D<T>`, etc. (and multisample variants) |
+| Texture  | `TextureCube`         | `TextureCube<T>`, `TextureCubeArray<T>`                         |
+| Texture  | `RWTexture`           | `RWTexture2D<T>`, `RWTexture3D<T>`, etc.                        |
+| Buffer   | `Buffer`              | `StructuredBuffer<T>`                                           |
+| Buffer   | `ConstantBuffer`      | `ConstantBuffer<T>`                                             |
+| Buffer   | `RWBuffer`            | `RWStructuredBuffer<T>`                                         |
+| Buffer   | `Buffer` + `Raw`      | `ByteAddressBuffer`                                             |
+| Buffer   | `RWBuffer` + `Raw`    | `RWByteAddressBuffer`                                           |
 
 `IndexBuffer`, `IndirectArgumentBuffer`, `RootConstant` and `RenderTarget` are also valid descriptor types, but they are not directly shader-visible — the table above covers only the types a shader sees in HLSL.
 
@@ -175,9 +175,10 @@ Sampler handles always map to `SamplerState` — there is only one sampler type.
 
 For buffers, the HLSL type is determined by `BufferParameters`:
 
-- If `m_format` is set — typed `Buffer<T>` where `T` is a built-in HLSL type (`int`, `uint`, `float3`, etc., not a struct).
-- If `m_stride` is set — `StructuredBuffer<T>` where `T` is a user-defined struct.
-- If the `Raw` flag is set — `ByteAddressBuffer` (overrides both `m_format` and `m_stride`).
+- If `m_stride` is set (and the `Raw` flag is not set) — `StructuredBuffer<T>` / `RWStructuredBuffer<T>` where `T` is a user-defined struct or built-in type.
+- If the `Raw` flag is set — `ByteAddressBuffer` / `RWByteAddressBuffer`. Use this for buffers that need `CmdClearBuffer` or that hold arbitrary/raw data rather than a single struct.
+
+Typed texel buffers (`Buffer<T>` / `RWBuffer<T>`) are not supported - use structured or raw buffers instead.
 
 For textures, the HLSL type is determined by `DescriptorTypeFlags` and the texture dimensions in `TextureParameters`:
 
@@ -289,11 +290,10 @@ Multi-GPU is not used by the engine at the moment — consider it untested, here
 ## Quirks and gotchas
 
 - Shader bytecode is stored compressed, not as raw DXIL. The RHI decompresses it at load time — the doc says "consumed directly" in the sense that no compilation step runs.
-- `ComputeTextureMipLevels` returns the number of mips down to a 4×4 minimum, not 1×1. The lowest mip is always at least 4×4.
+- Mip chain length is two functions, because a block-compressed texture and an uncompressed one do not have the same chain.
 - The engine currently does not use per-queue texture states.
 - Texture states can optionally be **per-queue** — `GraphicsQueueShaderResource`, `ComputeQueueShaderResource`, and so on — but this is not a hard requirement.
 - Some pipeline stages and access flags are restricted to specific queue types — using the wrong stage or access flag on a given queue is an error.
-- If a texture has mipmaps, the size of the lowest possible mip level is 4x4
 
 ## Backend Implementation
 

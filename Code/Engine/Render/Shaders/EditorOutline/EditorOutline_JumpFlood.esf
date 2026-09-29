@@ -38,35 +38,67 @@ float2 PS_main( FullscreenTriangleVertexOutput input ) : SV_Target
 
     neighborSeed = resourceTable.m_inputTexture.SampleLevel( pointSampler, input.m_uv + float2( -1.0, 0.0 ) * resourceTable.m_screenSize.zw * resourceTable.m_stepSize, 0 ).xy;
     neighborDistance = length( round( neighborSeed * EditorOutline_SeedCoordinateScale ) - input.m_position.xy );
-    if ( neighborDistance < bestDistance ) { bestDistance = neighborDistance; bestSeed = neighborSeed; }
+    if ( neighborDistance < bestDistance )
+    {
+        bestDistance = neighborDistance;
+        bestSeed = neighborSeed;
+    }
 
     neighborSeed = resourceTable.m_inputTexture.SampleLevel( pointSampler, input.m_uv + float2( 1.0, 0.0 ) * resourceTable.m_screenSize.zw * resourceTable.m_stepSize, 0 ).xy;
     neighborDistance = length( round( neighborSeed * EditorOutline_SeedCoordinateScale ) - input.m_position.xy );
-    if ( neighborDistance < bestDistance ) { bestDistance = neighborDistance; bestSeed = neighborSeed; }
+    if ( neighborDistance < bestDistance )
+    {
+        bestDistance = neighborDistance;
+        bestSeed = neighborSeed;
+    }
 
     neighborSeed = resourceTable.m_inputTexture.SampleLevel( pointSampler, input.m_uv + float2( 0.0, -1.0 ) * resourceTable.m_screenSize.zw * resourceTable.m_stepSize, 0 ).xy;
     neighborDistance = length( round( neighborSeed * EditorOutline_SeedCoordinateScale ) - input.m_position.xy );
-    if ( neighborDistance < bestDistance ) { bestDistance = neighborDistance; bestSeed = neighborSeed; }
+    if ( neighborDistance < bestDistance )
+    {
+        bestDistance = neighborDistance;
+        bestSeed = neighborSeed;
+    }
 
     neighborSeed = resourceTable.m_inputTexture.SampleLevel( pointSampler, input.m_uv + float2( 0.0, 1.0 ) * resourceTable.m_screenSize.zw * resourceTable.m_stepSize, 0 ).xy;
     neighborDistance = length( round( neighborSeed * EditorOutline_SeedCoordinateScale ) - input.m_position.xy );
-    if ( neighborDistance < bestDistance ) { bestDistance = neighborDistance; bestSeed = neighborSeed; }
+    if ( neighborDistance < bestDistance )
+    {
+        bestDistance = neighborDistance;
+        bestSeed = neighborSeed;
+    }
 
     neighborSeed = resourceTable.m_inputTexture.SampleLevel( pointSampler, input.m_uv + float2( -1.0, -1.0 ) * resourceTable.m_screenSize.zw * resourceTable.m_stepSize, 0 ).xy;
     neighborDistance = length( round( neighborSeed * EditorOutline_SeedCoordinateScale ) - input.m_position.xy );
-    if ( neighborDistance < bestDistance ) { bestDistance = neighborDistance; bestSeed = neighborSeed; }
+    if ( neighborDistance < bestDistance )
+    {
+        bestDistance = neighborDistance;
+        bestSeed = neighborSeed;
+    }
 
     neighborSeed = resourceTable.m_inputTexture.SampleLevel( pointSampler, input.m_uv + float2( 1.0, -1.0 ) * resourceTable.m_screenSize.zw * resourceTable.m_stepSize, 0 ).xy;
     neighborDistance = length( round( neighborSeed * EditorOutline_SeedCoordinateScale ) - input.m_position.xy );
-    if ( neighborDistance < bestDistance ) { bestDistance = neighborDistance; bestSeed = neighborSeed; }
+    if ( neighborDistance < bestDistance )
+    {
+        bestDistance = neighborDistance;
+        bestSeed = neighborSeed;
+    }
 
     neighborSeed = resourceTable.m_inputTexture.SampleLevel( pointSampler, input.m_uv + float2( -1.0, 1.0 ) * resourceTable.m_screenSize.zw * resourceTable.m_stepSize, 0 ).xy;
     neighborDistance = length( round( neighborSeed * EditorOutline_SeedCoordinateScale ) - input.m_position.xy );
-    if ( neighborDistance < bestDistance ) { bestDistance = neighborDistance; bestSeed = neighborSeed; }
+    if ( neighborDistance < bestDistance )
+    {
+        bestDistance = neighborDistance;
+        bestSeed = neighborSeed;
+    }
 
     neighborSeed = resourceTable.m_inputTexture.SampleLevel( pointSampler, input.m_uv + float2( 1.0, 1.0 ) * resourceTable.m_screenSize.zw * resourceTable.m_stepSize, 0 ).xy;
     neighborDistance = length( round( neighborSeed * EditorOutline_SeedCoordinateScale ) - input.m_position.xy );
-    if ( neighborDistance < bestDistance ) { bestDistance = neighborDistance; bestSeed = neighborSeed; }
+    if ( neighborDistance < bestDistance )
+    {
+        bestDistance = neighborDistance;
+        bestSeed = neighborSeed;
+    }
 
     return bestSeed;
 }

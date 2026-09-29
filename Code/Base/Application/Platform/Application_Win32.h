@@ -6,6 +6,7 @@
 #include "Base/Types/String.h"
 #include "Base/Math/Math.h"
 #include "Base/Types/BitFlags.h"
+#include "Base/FileSystem/FileSystem.h"
 #include <windows.h>
 
 #if EE_ENABLE_LPP
@@ -96,15 +97,6 @@ namespace EE
 
         virtual void LivePP_PreReload() {}
         virtual void LivePP_PostReload() {}
-
-        // This needs to be inlined so that it is called from the application module and can automatically enable all imported modules
-        EE_FORCE_INLINE void LivePP_EnableModules()
-        {
-            if ( lpp::LppIsValidSynchronizedAgent( &m_agent ) && m_agent.EnableModule )
-            {
-                m_agent.EnableModule( lpp::LppGetCurrentModulePath(), lpp::LPP_MODULES_OPTION_ALL_IMPORT_MODULES, nullptr, nullptr );
-            }
-        }
         #endif
 
     private:

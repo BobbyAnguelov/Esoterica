@@ -902,7 +902,8 @@ namespace EE::Physics
         // Draw list
         //-------------------------------------------------------------------------
 
-        m_selfCollisionFilter.UpdateAndDraw();
+        ImGui::SetNextItemWidth( -1 );
+        ImGuiX::InputFilterText( m_selfCollisionFilter );
 
         ImGui::PushStyleVar( ImGuiStyleVar_CellPadding, ImVec2( 16, 2 ) );
         if ( ImGui::BeginTable( "PT", 3, ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders, ImGui::GetContentRegionAvail() ) )

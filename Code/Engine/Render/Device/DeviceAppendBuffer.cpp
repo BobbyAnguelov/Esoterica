@@ -28,8 +28,7 @@ namespace EE::Render
         RHI::BufferParameters deviceCounterBufferParameters = {};
         deviceCounterBufferParameters.m_bufferSize = sizeof( uint32_t );
         deviceCounterBufferParameters.m_bufferStride = sizeof( uint32_t );
-        deviceCounterBufferParameters.m_format = RHI::DataFormat::R32_UInt;
-        deviceCounterBufferParameters.m_descriptorTypes = RHI::DescriptorTypeFlags::RWBuffer;
+        deviceCounterBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::RWBuffer, RHI::DescriptorTypeFlags::Raw };
         deviceCounterBufferParameters.m_debugName.sprintf( "AppendBuffer %s Device Counter", m_bufferName.c_str() );
 
         m_pDeviceCounterBuffer = RHI::CreateBuffer( pContextRHI, deviceCounterBufferParameters );

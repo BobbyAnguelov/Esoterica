@@ -1,8 +1,9 @@
 #pragma once
 #include "EngineTools/Core/DialogManager.h"
 #include "Engine/Render/Imgui/ImguiImageCache.h"
-#include "Base/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiFilter.h"
 #include "Base/Imgui/ImguiTextBuffer.h"
+#include "Base/Imgui/ImguiAppTitlebar.h"
 #include "Base/Math/Rectangle.h"
 #include "Base/Types/Event.h"
 
@@ -69,7 +70,7 @@ namespace EE::Resource
 
         ImGuiX::ImageCache*                             m_pImageCache = nullptr;
         ImGuiX::ImageInfo                               m_resourceServerIcon;
-        ImGuiX::FilterWidget                            m_requestsFilter;
+        ImGuiX::FilterData                              m_requestsFilter;
 
         mutable ImGuiX::TextBuffer                      m_compilationLogBuffer;
         bool                                            m_compilationLogBufferFilled = false;

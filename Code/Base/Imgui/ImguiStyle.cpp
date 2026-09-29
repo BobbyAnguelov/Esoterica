@@ -92,7 +92,7 @@ namespace EE::ImGuiX
         colors[ImGuiCol_SeparatorHovered] = s_colorGray1;
         colors[ImGuiCol_SeparatorActive] = s_colorGray0;
 
-        colors[ImGuiCol_NavCursor] = s_colorGray1;
+        colors[ImGuiCol_NavCursor] = Colors::Transparent;
         colors[ImGuiCol_DockingPreview] = s_colorGray1;
 
         colors[ImGuiCol_ScrollbarBg] = s_colorGray6;

@@ -9,6 +9,7 @@
 
 #include "Base/Resource/ResourcePtr.h"
 #include "Base/Render/RHI.h"
+#include "Base/Math/ViewVolume.h"
 #include "Base/Systems.h"
 #include "Base/Types/IDVector.h"
 
@@ -34,7 +35,7 @@ namespace EE::Render
     class EE_ENGINE_API RenderWorldSystem final : public EntityWorldSystem
     {
         friend class ForwardShadingRenderer;
-        friend class RenderDebugView;
+        friend class RenderViewport;
 
     public:
 
@@ -73,9 +74,12 @@ namespace EE::Render
         RHI::BufferHandle GetMeshInstanceRootOutlineBufferHandle() const;
         #endif
 
-        RHI::TextureHandle GetRadianceTextureHandle() const;
-        float GetRadianceTextureMipLevels() const;
-        RHI::TextureHandle GetIrradianceTextureHandle() const;
+    private:
+
+        // Internal renderer stuff
+        //-------------------------------------------------------------------------
+
+        void UpdateDirectionalLightShadows( Math::ViewVolume const& viewVolume );
 
     private:
 
@@ -89,9 +93,9 @@ namespace EE::Render
         TIDVector<ComponentID, StaticMeshComponent const*>                  m_staticMeshComponents;
         TIDVector<ComponentID, SkeletalMeshComponent const*>                m_skeletalMeshComponents;
         TIDVector<ComponentID, PCGComponent const*>                         m_pcgComponents;
-        TIDVector<ComponentID, DirectionalLightComponent const*>            m_directionalLightComponents;
-        TIDVector<ComponentID, PointLightComponent const*>                  m_pointLightComponents;
-        TIDVector<ComponentID, SpotLightComponent const*>                   m_spotLightComponents;
+        TIDVector<ComponentID, DirectionalLightComponent*>                  m_directionalLightComponents;
+        TIDVector<ComponentID, PointLightComponent*>                        m_pointLightComponents;
+        TIDVector<ComponentID, SpotLightComponent*>                         m_spotLightComponents;
 
         TEntityMessageQueue<StaticMeshComponent>                            m_staticMeshComponentInstanceUpdateQueue;
         TEntityMessageQueue<SkeletalMeshComponent>                          m_skeletalMeshComponentInstanceUpdateQueue;
@@ -102,11 +106,5 @@ namespace EE::Render
         bool                                                                m_meshInstanceRootOutlineNeedUpdate = false;
         TVector<ComponentID>                                                m_outlinedComponents;
         #endif
-
-        uint32_t                                                            m_numShadowCastingDirectionalLights = 0;
-
-        bool                                                                m_needUpdateGlobalEnvironmentMap = true;
-        RHI::Texture*                                                       m_pRadianceTexture = nullptr;
-        RHI::Texture*                                                       m_pIrradianceTexture = nullptr;
     };
 }

@@ -1,14 +1,128 @@
 #include "UITest.h"
-#include "Base/Imgui/ImguiX.h"
 #include "EngineTools/Core/SystemDialogs.h"
 #include "EngineTools/Core/ToolsContext.h"
+#include "Engine/Render/RenderMaterial.h"
 #include "Base/TypeSystem/ResourceInfo.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
 namespace EE
 {
-    static void DrawFonts()
+    UITest::UITest( ToolsContext* pContext )
+        : m_pContext( pContext )
+        , m_picker( *pContext, Render::Material::GetStaticResourceTypeID() )
+        , m_compactPicker( *pContext, Render::Material::GetStaticResourceTypeID() )
+        , m_buffer( 8 )
+    {
+        m_compactPicker.SetCompactMode( true );
+
+        //-------------------------------------------------------------------------
+
+        TVector<ImGuiX::OptionData::Option> const choices =
+        {
+            ImGuiX::OptionData::Option( "catnip" ),
+            ImGuiX::OptionData::Option( "cats" ),
+            ImGuiX::OptionData::Option( "carrots" ),
+            ImGuiX::OptionData::Option( "dogs" ),
+            ImGuiX::OptionData::Option( "ducks" ),
+            ImGuiX::OptionData::Option( "rabbits" ),
+            ImGuiX::OptionData::Option( "ragu" ),
+            ImGuiX::OptionData::Option( "turtles" ),
+            ImGuiX::OptionData::Option( "catnip2", "2" ),
+            ImGuiX::OptionData::Option( "cats2", "2" ),
+            ImGuiX::OptionData::Option( "carrots2", "2" ),
+            ImGuiX::OptionData::Option( "dogs2", "2" ),
+            ImGuiX::OptionData::Option( "ducks2", "2" ),
+            ImGuiX::OptionData::Option( "rabbits2", "2" ),
+            ImGuiX::OptionData::Option( "ragu2", "2" ),
+            ImGuiX::OptionData::Option( "turtles2", "2" ),
+            ImGuiX::OptionData::Option( "catnip3", "3" ),
+            ImGuiX::OptionData::Option( "cats3", "3" ),
+            ImGuiX::OptionData::Option( "carrots3", "3" ),
+            ImGuiX::OptionData::Option( "dogs3", "3" ),
+            ImGuiX::OptionData::Option( "ducks3", "3" ),
+            ImGuiX::OptionData::Option( "rabbits3", "3" ),
+            ImGuiX::OptionData::Option( "ragu3", "3" ),
+            ImGuiX::OptionData::Option( "turtles3", "3" ),
+            ImGuiX::OptionData::Option( "catnip4", "4" ),
+            ImGuiX::OptionData::Option( "cats4", "4" ),
+            ImGuiX::OptionData::Option( "carrots4", "4" ),
+            ImGuiX::OptionData::Option( "dogs4", "4" ),
+            ImGuiX::OptionData::Option( "ducks4", "4" ),
+            ImGuiX::OptionData::Option( "rabbits4", "4" ),
+            ImGuiX::OptionData::Option( "ragu4" , "4" ),
+            ImGuiX::OptionData::Option( "turtles4" , "4" ),
+        };
+
+        m_optionData0.SetOptions( choices );
+
+        auto OptionProvider = [] ( TVector<ImGuiX::OptionData::Option>& options )
+        {
+            options =
+            {
+                ImGuiX::OptionData::Option( "moo" ),
+                ImGuiX::OptionData::Option( "cow", "Animals" ),
+                ImGuiX::OptionData::Option( "woof" ),
+                ImGuiX::OptionData::Option( "Dog", "Animals" ),
+            };
+        };
+
+        m_optionData1.SetOptionProvider( OptionProvider );
+
+        //-------------------------------------------------------------------------
+
+        m_comboData0.m_options.emplace_back( "A", "Alpha" );
+        m_comboData0.m_options.emplace_back( "B", "Alpha" );
+        m_comboData0.m_options.emplace_back( "C", "Alpha" );
+
+        m_comboData0.m_options.emplace_back( "1", "Numeric" );
+        m_comboData0.m_options.emplace_back( "2", "Numeric" );
+        m_comboData0.m_options.emplace_back( "3", "Numeric" );
+
+        //-------------------------------------------------------------------------
+
+        auto DrawPreviewFn = [] ( ImGuiX::OptionData const* pData, ImGuiX::OptionData::Option const* pSelectedOption )
+        {
+            if ( pSelectedOption != nullptr )
+            {
+                ImGui::PushStyleColor( ImGuiCol_Text, Color( (uint32_t) pSelectedOption->m_userData ) );
+                ImGui::TextUnformatted( pSelectedOption->m_text.c_str() );
+                ImGui::PopStyleColor();
+            }
+        };
+
+        auto DrawFilteredOptionFn = [] ( ImGuiX::OptionData const* pData, int32_t nfilteredIdx )
+        {
+            ImGuiX::OptionData::Option const& filteredOption = pData->m_filteredOptions[nfilteredIdx];
+            EE_ASSERT( filteredOption.IsValid() );
+
+            bool isSelected = false;
+
+            ImGui::PushID( nfilteredIdx );
+            ImGui::PushStyleColor( ImGuiCol_Text, Color( (uint32_t) filteredOption.m_userData ) );
+            isSelected = ImGui::Selectable( filteredOption.m_text.c_str() );
+            ImGui::PopStyleColor();
+            ImGui::PopID();
+
+            return isSelected;
+        };
+
+        m_comboData1.m_drawPreviewFunc = DrawPreviewFn;
+        m_comboData1.m_drawFilteredOptionFunc = DrawFilteredOptionFn;
+
+        m_comboData1.m_options.emplace_back( "A", "Alpha", Colors::Red.ToUInt32() );
+        m_comboData1.m_options.emplace_back( "B", "Alpha", Colors::Green.ToUInt32() );
+        m_comboData1.m_options.emplace_back( "C", "Alpha", Colors::Blue.ToUInt32() );
+
+        m_comboData1.m_options.emplace_back( "1", "Numeric", Colors::Teal.ToUInt32() );
+        m_comboData1.m_options.emplace_back( "2", "Numeric", Colors::Cyan.ToUInt32() );
+        m_comboData1.m_options.emplace_back( "3", "Numeric", Colors::Magenta.ToUInt32() );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void UITest::DrawFonts()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Fonts" ) )
@@ -102,7 +216,7 @@ namespace EE
         }
     }
 
-    static void DrawIconsInButtons()
+    void UITest::DrawIconsInButtons()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Icons In Buttons" ) )
@@ -142,7 +256,7 @@ namespace EE
         }
     }
 
-    static void DrawButtonsWithCalculatedWidth()
+    void UITest::DrawButtonsWithCalculatedWidth()
     {
         if ( ImGui::CollapsingHeader( "Buttons with Calculated Widths" ) )
         {
@@ -175,7 +289,7 @@ namespace EE
         }
     }
 
-    static void DrawSeparators()
+    void UITest::DrawSeparators()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Separators" ) )
@@ -206,7 +320,7 @@ namespace EE
         }
     }
 
-    static void DrawColoredButtons()
+    void UITest::DrawColoredButtons()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Colored Buttons" ) )
@@ -238,7 +352,7 @@ namespace EE
         }
     }
 
-    static void DrawTooltips()
+    void UITest::DrawTooltips()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Tooltips" ) )
@@ -251,7 +365,7 @@ namespace EE
         }
     }
 
-    static void DrawDropDownButtons()
+    void UITest::DrawDropDownButtons()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Drop Down Buttons" ) )
@@ -270,7 +384,7 @@ namespace EE
         }
     }
 
-    static void DrawComboButtons()
+    void UITest::DrawComboButtons()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Combo Buttons" ) )
@@ -290,7 +404,7 @@ namespace EE
         }
     }
 
-    static void DrawToggleButtons()
+    void UITest::DrawToggleButtons()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Toggle Buttons" ) )
@@ -304,28 +418,12 @@ namespace EE
         }
     }
 
-    static void DrawInputText()
+    void UITest::DrawInputText()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Input Text" ) )
         {
-            auto TestCombo = []
-            {
-                ImGui::Text( "Test" );
-            };
-
             static char buffer[255];
-
-            ImGuiX::InputTextCombo( "ITC0", buffer, 255, TestCombo );
-
-            ImGui::SetNextItemWidth( 200 );
-            ImGuiX::InputTextCombo( "ITC1", buffer, 255, TestCombo );
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth( 200 );
-            ImGuiX::InputTextCombo( "ITC2", buffer, 255, TestCombo );
-
-            ImGui::SetNextItemWidth( -1 );
-            ImGuiX::InputTextCombo( "ITC3", buffer, 255, TestCombo );
 
             //-------------------------------------------------------------------------
 
@@ -339,17 +437,51 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
-            ImGuiX::InputTextComboWithClearButton( "ITCCB0", "width: 0", buffer, 255, TestCombo );
+            auto Callback = [] ( ImGuiInputTextCallbackData* pData ) -> int
+            {
+                UITest* pCtx = (UITest*) pData->UserData;
+
+                if ( pData->EventFlag == ImGuiInputTextFlags_CallbackResize )
+                {
+                    pCtx->m_buffer.Resize( pData->BufTextLen );
+                    pData->Buf = pCtx->m_buffer.Data();
+                }
+
+                return 0;
+            };
 
             ImGui::SetNextItemWidth( 200 );
-            ImGuiX::InputTextComboWithClearButton( "ITCCB1", "width: 200", buffer, 255, TestCombo );
+            ImGuiX::InputTextWithOptions( "ITWO0", m_buffer.Data(), m_buffer.Size(), &m_optionData0, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_EnterReturnsTrue, Callback, this );
 
             ImGui::SetNextItemWidth( -1 );
-            ImGuiX::InputTextComboWithClearButton( "ITCCB2", "width: -1 ", buffer, 255, TestCombo );
+            ImGuiX::InputTextWithOptions( "ITWO1", buffer, 255, &m_optionData1 );
         }
     }
 
-    static void DrawIconButtons()
+    void UITest::DrawInputCombo()
+    {
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Input Combo" ) )
+        {
+            UUID selectedID0 = m_comboData0.FindItemIDByText( m_selectedValue0 );
+            ImGui::SetNextItemWidth( 350 );
+            if ( ImGuiX::ComboWithFilter( "CMB0", &m_comboData0, selectedID0 ) )
+            {
+                auto pOption = m_comboData0.TryGetOption( selectedID0 );
+                m_selectedValue0 = ( pOption != nullptr ) ? pOption->m_text : "";
+            }
+
+            UUID selectedID1 = m_comboData1.FindItemIDByText( m_selectedValue1 );
+            ImGui::SetNextItemWidth( -1 );
+            if ( ImGuiX::ComboWithFilter( "CMB1", &m_comboData1, selectedID1 ) )
+            {
+                auto pOption = m_comboData1.TryGetOption( selectedID1 );
+                m_selectedValue1 = ( pOption != nullptr ) ? pOption->m_text : "";
+            }
+        }
+    }
+
+    void UITest::DrawIconButtons()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Icon Buttons" ) )
@@ -366,11 +498,11 @@ namespace EE
 
             ImGuiX::IconButton( EE_ICON_HOME, "Home (160,80) C", Colors::Maroon, ImVec2( 160, 40 ), true );
 
-            ImGuiX::IconButton( EE_ICON_HOME, "", Colors::PaleGoldenRod, ImVec2( 160, 40 ) );
+            ImGuiX::IconButton( EE_ICON_HOME, "##01", Colors::PaleGoldenRod, ImVec2( 160, 40 ) );
 
             ImGui::SameLine();
 
-            ImGuiX::IconButton( EE_ICON_HOME, "", Colors::LightPink, ImVec2( 160, 40 ), true );
+            ImGuiX::IconButton( EE_ICON_HOME, "##02", Colors::LightPink, ImVec2( 160, 40 ), true );
 
             ImGuiX::IconButton( EE_ICON_MOVIE_PLAY, "Play (280,80) Center", Colors::LightPink, ImVec2( 280, 80 ), true );
 
@@ -381,7 +513,7 @@ namespace EE
 
     }
 
-    static void DrawNumericEditors()
+    void UITest::DrawNumericEditors()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Numeric Editors/Helpers" ) )
@@ -418,8 +550,20 @@ namespace EE
         }
     }
 
-    static void DrawSpinnersAndAnimated()
+    void UITest::DrawSpinnersAndAnimated()
     {
+        //-------------------------------------------------------------------------
+
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Animated" ) )
+        {
+            ImGuiX::DrawFlashingText( EE_ICON_ALERT, Colors::Red );
+            ImGui::SameLine();
+            ImGuiX::DrawFlashingText( EE_ICON_ALERT_CIRCLE_OUTLINE, Colors::Yellow, 2.5f );
+            ImGui::SameLine();
+            ImGuiX::DrawFlashingText( EE_ICON_ALERT_CIRCLE_OUTLINE, Colors::Pink, 0.5f );
+        }
+
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Spinners" ) )
         {
@@ -437,19 +581,9 @@ namespace EE
             ImGui::Text( "Fill Remaining Space" );
             ImGuiX::DrawSpinner( "S3", Colors::Blue, -1, 5 );
         }
-
-        //-------------------------------------------------------------------------
-
-        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
-        if ( ImGui::CollapsingHeader( "Animated" ) )
-        {
-            ImGuiX::DrawFlashingText( EE_ICON_ALERT, Colors::Red );
-            ImGuiX::DrawFlashingText( EE_ICON_ALERT_CIRCLE_OUTLINE, Colors::Yellow, 2.5f );
-            ImGuiX::DrawFlashingText( EE_ICON_ALERT_CIRCLE_OUTLINE, Colors::Pink, 0.5f );
-        }
     }
 
-    static void DrawColorHelpers()
+    void UITest::DrawColorHelpers()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Color Helpers" ) )
@@ -477,7 +611,61 @@ namespace EE
         }
     }
 
-    static void DrawHeadersAndSeparators()
+    void UITest::DrawColorCategories()
+    {
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Category Colors" ) )
+        {
+            static TVector<StringID> const IDs = 
+            { 
+                StringID( "Apple" ),
+                StringID( "Banana" ),
+                StringID( "Cherry" ),
+                StringID( "Kiwi" ),
+                StringID( "Mango" ),
+                StringID( "Orange" ),
+                StringID( "Pear" ),
+                StringID( "Pineapple" ),
+                StringID( "Strawberry" ),
+                StringID( "Watermelon" )
+            };
+
+            ImGui::SeparatorText( "Category Color" );
+
+            for ( size_t i = 0; i < IDs.size(); i++ )
+            {
+                ImGui::TextColored( Color::GetCategorizedColor( (int32_t) i ), IDs[i].c_str() );
+            }
+
+            ImGui::SeparatorText( "Generated Colors" );
+
+            TVector<Color> colors;
+            Color::GenerateColors( (int32_t) IDs.size(), colors );
+
+            for ( size_t i = 0; i < IDs.size(); i++ )
+            {
+                ImGui::TextColored( colors[i], IDs[i].c_str() );
+            }
+        }
+    }
+
+    void UITest::DrawResourceColors()
+    {
+        ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
+        if ( ImGui::CollapsingHeader( "Resource Colors" ) )
+        {
+            THashMap<ResourceTypeID, TypeSystem::ResourceInfo*> const& resourceTypes = m_pContext->m_pTypeRegistry->GetRegisteredResourceTypes();
+            for ( auto const& resourceTypePair : resourceTypes )
+            {
+                TypeSystem::ResourceInfo const* pResourceInfo = resourceTypePair.second;
+                ImGui::ColorButton( pResourceInfo->m_friendlyName.c_str(), pResourceInfo->m_color.ToFloat4() );
+                ImGui::SameLine();
+                ImGui::Text( pResourceInfo->m_friendlyName.c_str() );
+            }
+        }
+    }
+
+    void UITest::DrawHeadersAndSeparators()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Headers/Separators" ) )
@@ -489,7 +677,7 @@ namespace EE
         }
     }
 
-    static void DrawLayoutWidgets()
+    void UITest::DrawLayoutWidgets()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Layout Widgets" ) )
@@ -563,19 +751,22 @@ namespace EE
         }
     }
 
-    static void DrawSpecialWidgets()
+    void UITest::DrawSpecialWidgets()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Severity Icons" ) )
         {
             ImGuiX::DrawSeverityIcon( Severity::Info );
+            ImGui::SameLine();
             ImGuiX::DrawSeverityIcon( Severity::Warning );
+            ImGui::SameLine();
             ImGuiX::DrawSeverityIcon( Severity::Error );
+            ImGui::SameLine();
             ImGuiX::DrawSeverityIcon( Severity::FatalError );
         }
     }
 
-    static void DrawMessageBoxTests()
+    void UITest::DrawMessageBoxTests()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "Message Boxes" ) )
@@ -597,14 +788,14 @@ namespace EE
         }
     }
 
-    static void DrawDialogTests( ToolsContext* pContext )
+    void UITest::DrawDialogTests()
     {
         ImGui::SetNextItemOpen( true, ImGuiCond_FirstUseEver );
         if ( ImGui::CollapsingHeader( "File Dialogs" ) )
         {
             if ( ImGui::Button( EE_ICON_FOLDER" Pick Folder" ) )
             {
-                FileDialog::Result result = FileDialog::SelectFolder( pContext->GetSourceDataDirectory() );
+                FileDialog::Result result = FileDialog::SelectFolder( m_pContext->GetSourceDataDirectory() );
                 if ( result )
                 {
                     MessageDialog::Info( "Info", "Folder Selected: %s", result.m_filePaths[0].c_str() );
@@ -673,21 +864,16 @@ namespace EE
         }
     }
 
-    static void DrawResourceColors( ToolsContext* pContext )
+    void UITest::DrawResourcePickers()
     {
-        THashMap<ResourceTypeID, TypeSystem::ResourceInfo*> const& resourceTypes = pContext->m_pTypeRegistry->GetRegisteredResourceTypes();
-        for ( auto const& resourceTypePair : resourceTypes )
-        {
-            TypeSystem::ResourceInfo const* pResourceInfo = resourceTypePair.second;
-            ImGui::ColorButton( pResourceInfo->m_friendlyName.c_str(), pResourceInfo->m_color.ToFloat4() );
-            ImGui::SameLine();
-            ImGui::Text( pResourceInfo->m_friendlyName.c_str() );
-        }
+        m_picker.UpdateAndDraw();
+
+        m_compactPicker.UpdateAndDraw();
     }
 
     //-------------------------------------------------------------------------
 
-    void DrawUITestWindow( ToolsContext* pContext, bool* pIsWindowOpen )
+    void UITest::DrawWindow( bool* pIsWindowOpen )
     {
         if ( ImGui::Begin( "UI Test", pIsWindowOpen, ImGuiWindowFlags_HorizontalScrollbar ) )
         {
@@ -698,11 +884,16 @@ namespace EE
                     DrawFonts();
                     DrawSeparators();
                     DrawTooltips();
+                    DrawSpecialWidgets();
+                    DrawSpinnersAndAnimated();
+
+                    ImGui::EndTabItem();
+                }
+
+                if ( ImGui::BeginTabItem( "Layout" ) )
+                {
                     DrawHeadersAndSeparators();
                     DrawLayoutWidgets();
-                    DrawSpecialWidgets();
-                    DrawColorHelpers();
-                    DrawSpinnersAndAnimated();
 
                     ImGui::EndTabItem();
                 }
@@ -723,6 +914,7 @@ namespace EE
                 if ( ImGui::BeginTabItem( "Inputs" ) )
                 {
                     DrawInputText();
+                    DrawInputCombo();
                     DrawNumericEditors();
 
                     ImGui::EndTabItem();
@@ -731,14 +923,26 @@ namespace EE
                 if ( ImGui::BeginTabItem( "Dialogs" ) )
                 {
                     DrawMessageBoxTests();
-                    DrawDialogTests( pContext );
+                    DrawDialogTests();
 
                     ImGui::EndTabItem();
                 }
 
-                if ( ImGui::BeginTabItem( "Resources" ) )
+                if ( ImGui::BeginTabItem( "Colors" ) )
                 {
-                    DrawResourceColors( pContext );
+                    DrawColorHelpers();
+
+                    DrawColorCategories();
+
+                    DrawResourceColors();
+
+                    ImGui::EndTabItem();
+                }
+
+                if ( ImGui::BeginTabItem( "Advanced" ) )
+                {
+                    DrawResourcePickers();
+
                     ImGui::EndTabItem();
                 }
 

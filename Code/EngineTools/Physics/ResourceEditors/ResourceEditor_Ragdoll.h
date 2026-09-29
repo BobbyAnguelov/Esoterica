@@ -202,7 +202,7 @@ namespace EE::Physics
         EventBindingID                                  m_postEditEventBindingID;
 
         ImGuiX::CommandStack                            m_commandStack;
-        ImGuiX::FilterWidget                            m_selfCollisionFilter;
+        ImGuiX::FilterData                              m_selfCollisionFilter;
 
         // Preview
         ResourcePicker                                  m_animPicker;

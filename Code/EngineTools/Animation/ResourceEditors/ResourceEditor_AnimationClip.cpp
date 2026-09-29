@@ -654,7 +654,7 @@ namespace EE::Animation
 
     void AnimationClipEditor::DrawBoneInfoWindow( UpdateContext const& context, bool isFocused )
     {
-        if ( !IsResourceLoaded() )
+        if ( !IsResourceLoaded() || !m_pAnimationComponent->IsInitialized() )
         {
             return;
         }
@@ -662,6 +662,7 @@ namespace EE::Animation
         AnimationClip const* pAnimation = m_editedResource.GetPtr();
         Skeleton const* pSkeleton = pAnimation->GetSkeleton();
         Pose const* pPose = m_pAnimationComponent->GetPrimaryPose();
+        EE_ASSERT( pPose != nullptr );
 
         if ( ImGui::BeginTable( "BoneTreeTable", 3, ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY, ImGui::GetContentRegionAvail() ) )
         {

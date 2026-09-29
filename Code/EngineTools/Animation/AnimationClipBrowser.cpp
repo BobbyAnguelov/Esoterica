@@ -89,7 +89,8 @@ namespace EE::Animation
         // Filter clips
         //-------------------------------------------------------------------------
 
-        if ( m_filter.UpdateAndDraw() )
+        ImGui::SetNextItemWidth( -1 );
+        if ( ImGuiX::InputFilterText( m_filter ) )
         {
             UpdateFilter();
         }

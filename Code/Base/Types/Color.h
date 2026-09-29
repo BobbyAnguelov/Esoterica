@@ -38,6 +38,42 @@ namespace EE
         // Evaluate a gradient from yellow = 0 and red = 1
         static Color EvaluateYellowRedGradient( float weight, bool useDistinctColorForZero = true );
 
+        // Get a color from Hue, Saturation and Lightness
+        static Color FromHSL( float h, float s, float l, float a = 1.0f )
+        {
+            auto Channel = [&] ( float n )
+            {
+                float const amp = s * Math::Min( l, 1.0f - l );
+                float k = Math::FModF( n + ( h / 30.0f ), 12.0f );
+                if ( k < 0.0f ) { k += 12.0f; }
+                return l - amp * Math::Max( -1.0f, Math::Min( Math::Min( k - 3.0f, 9.0f - k ), 1.0f ) );
+            };
+
+            return Color( Float4( Channel( 0.0f ), Channel( 8.0f ), Channel( 4.0f ), a ) );
+        }
+
+        // Get a color from Hue, Saturation and Value
+        static Color FromHSV( float h, float s, float v, float a = 1.0f )
+        {
+            auto Channel = [&] ( float n )
+            {
+                float k = Math::FModF( n + ( h / 60.0f ), 6.0f );
+                if ( k < 0.0f ) { k += 6.0f; }
+                return v - v * s * Math::Max( 0.0f, Math::Min( Math::Min( k, 4.0f - k ), 1.0f ) );
+            };
+
+            return Color( Float4( Channel( 5.0f ), Channel( 3.0f ), Channel( 1.0f ), a ) );
+        }
+
+
+        // Get a color from a set
+        static Color GetCategorizedColor( int32_t categoryIdx, float saturation = 0.7f, float lightness = 0.6f );
+        static inline Color GetCategorizedColor( size_t categoryIdx, float saturation = 0.7f, float lightness = 0.6f ) { return GetCategorizedColor( (int32_t) categoryIdx, saturation, lightness ); }
+
+        // Generate a set of unique'ish colors
+        static void GenerateColors( int32_t numColors, TVector<Color>& outColors );
+        static inline void GenerateColors( size_t numColors, TVector<Color>& outColors ) { return GenerateColors( (int32_t) numColors, outColors ); }
+
     public:
 
         // Default color is transparent

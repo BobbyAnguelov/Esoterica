@@ -143,6 +143,29 @@ namespace EE::Render
         }
 
         template <typename Fn>
+        inline void ForEachAllocatedItem( Fn fn )
+        {
+            for ( uint32_t pageIndex = 0; pageIndex < GetNumPages(); ++pageIndex )
+            {
+                uint64_t pageMask = GetPageData()[pageIndex];
+                T* pItemData = GetData() + pageIndex * GetNumItemsPerPage();
+
+                if ( pageMask )
+                {
+                    for ( uint64_t itemIndex = 0; itemIndex < GetNumItemsPerPage(); ++itemIndex )
+                    {
+                        uint64_t itemMask = 1ULL << itemIndex;
+
+                        if ( pageMask & itemMask )
+                        {
+                            fn( pItemData + itemIndex, pageIndex * GetNumItemsPerPage() + itemIndex );
+                        }
+                    }
+                }
+            }
+        }
+
+        template <typename Fn>
         inline void ForEachAllocatedItem( Fn fn ) const
         {
             for ( uint32_t pageIndex = 0; pageIndex < GetNumPages(); ++pageIndex )
@@ -158,7 +181,7 @@ namespace EE::Render
 
                         if ( pageMask & itemMask )
                         {
-                            fn( pItemData + itemIndex );
+                            fn( pItemData + itemIndex, pageIndex * GetNumItemsPerPage() + itemIndex );
                         }
                     }
                 }

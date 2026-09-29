@@ -3,7 +3,7 @@
 Author: Kirill Bazhenov
 Status: Published
 Category: Guide
-Last edited time: July 21, 2026 10:57 PM
+Last edited time: September 24, 2026 7:06 PM
 Type: Guideline
 
 # Rendering — System Overview
@@ -44,5 +44,7 @@ We make a few deliberate bets to hit those goals:
 [HandleAllocator](Rendering/HandleAllocator.md)
 
 [AppendBuffer](Rendering/AppendBuffer.md)
+
+[Point Light Shadows](Rendering/Point%20Light%20Shadows.md)
 
 [ShaderStats](Rendering/ShaderStats.md)

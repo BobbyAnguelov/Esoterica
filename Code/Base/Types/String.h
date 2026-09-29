@@ -343,6 +343,12 @@ namespace EE
         EE_FORCE_INLINE int32_t Stricmp( char const* pStr0, char const* pStr1 ) { return CompareInsensitive( pStr0, pStr1 ); }
         EE_FORCE_INLINE int32_t Stricmp( char const* pStr0, char const* pStr1, size_t n ) { return CompareInsensitive( pStr0, pStr1, n ); }
 
+        template<typename T>
+        inline bool SortComparison_CaseInsensitive( T const& a, T const& b )
+        {
+            return a.comparei( b ) < 0;
+        }
+
         // Hex Helpers
         //-------------------------------------------------------------------------
 

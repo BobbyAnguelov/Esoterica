@@ -1,5 +1,6 @@
 #include "RenderViewport.h"
-#include "RenderViewport.h"
+#include "Engine/Render/Device/DeviceRenderWorld.h"
+#include "Engine/Render/Systems/WorldSystem_Render.h"
 #include "Base/Render/RHI.h"
 #include "Base/Render/RenderWindow.h"
 
@@ -17,10 +18,12 @@ namespace EE::Render
         return Viewport::IsValid();
     }
 
-    void RenderViewport::Initialize( RHI::Context* pContextRHI, Render::Window* pWindow )
+    void RenderViewport::Initialize( RenderSystem* pRenderSystem, RenderWorldSystem* pRenderWorldSystem, Render::Window* pWindow )
     {
         EE_ASSERT( pWindow != nullptr && pWindow->IsValid() );
         UpdateRenderWindow( pWindow );
+
+        RHI::Context* pContextRHI = pRenderSystem->GetContextRHI();
 
         #if EE_DEVELOPMENT_TOOLS
         m_instancePickingDistancesBuffer.Initialize( pContextRHI, true );
@@ -38,10 +41,19 @@ namespace EE::Render
             m_meshArgumentBuffers[frameIndex].Initialize( pContextRHI, true );
         }
         #endif
+
+        m_mainRenderViewProxy = pRenderWorldSystem->m_deviceRenderWorld.AllocateRenderViews( DeviceRenderViewType::Main, 1 );
+        m_globalEnvironmentMapRenderViewProxy = pRenderWorldSystem->m_deviceRenderWorld.AllocateRenderViews( DeviceRenderViewType::GlobalEnvironmentMap, g_NumGlobalEnvironmentMapViews );
+
+        #if EE_DEVELOPMENT_TOOLS
+        m_editorOutlineRenderViewProxy = pRenderWorldSystem->m_deviceRenderWorld.AllocateRenderViews( DeviceRenderViewType::EditorOutline, 1 );
+        #endif
     }
 
-    void RenderViewport::Shutdown( RHI::Context* pContextRHI )
+    void RenderViewport::Shutdown( RenderSystem* pRenderSystem, RenderWorldSystem* pRenderWorldSystem )
     {
+        RHI::Context* const pContextRHI = pRenderSystem->GetContextRHI();
+
         RHI::DestroyTexture( pContextRHI, eastl::move( m_forwardShading_colorTexture ) );
         RHI::DestroyTexture( pContextRHI, eastl::move( m_forwardShading_depthTexture ) );
 
@@ -69,12 +81,17 @@ namespace EE::Render
         for ( uint32_t frameIndex = 0; frameIndex < RHI::MaxPendingFrames; ++frameIndex )
         {
             RHI::DestroyBuffer( pContextRHI, eastl::move( m_globalParametersBuffers[frameIndex] ) );
-            RHI::DestroyBuffer( pContextRHI, eastl::move( m_renderViewBuffers[frameIndex] ) );
             RHI::DestroyBuffer( pContextRHI, eastl::move( m_renderBucketBuffers[frameIndex] ) );
-            RHI::DestroyBuffer( pContextRHI, eastl::move( m_cascadedShadowBuffers[frameIndex] ) );
+            RHI::DestroyBuffer( pContextRHI, eastl::move( m_renderViewIndirectionBuffers[frameIndex] ) );
 
             RHI::DestroyBuffer( pContextRHI, eastl::move( m_GTAO_parametersBuffers[frameIndex] ) );
         }
+
+        for ( ActiveRenderView& activeRenderView : m_activeRenderViews )
+        {
+            activeRenderView.Shutdown( pRenderSystem );
+        }
+        m_activeRenderViews.clear();
 
         #if EE_DEVELOPMENT_TOOLS
         for ( uint32_t frameIndex = 0; frameIndex < RHI::MaxPendingFrames; ++frameIndex )
@@ -99,8 +116,15 @@ namespace EE::Render
 
         RHI::DestroyTexture( pContextRHI, eastl::move( m_editorOutline_depthTexture ) );
         RHI::DestroyTexture( pContextRHI, eastl::move( m_editorOutline_idTexture ) );
-        RHI::DestroyTexture( pContextRHI, eastl::move( m_editorOutline_JFA_Texture0 ) );
-        RHI::DestroyTexture( pContextRHI, eastl::move( m_editorOutline_JFA_Texture1 ) );
+        RHI::DestroyTexture( pContextRHI, eastl::move( m_editorOutline_JFA_texture0 ) );
+        RHI::DestroyTexture( pContextRHI, eastl::move( m_editorOutline_JFA_texture1 ) );
+        #endif
+
+        pRenderWorldSystem->m_deviceRenderWorld.DeallocateRenderViews( eastl::move( m_mainRenderViewProxy ) );
+        pRenderWorldSystem->m_deviceRenderWorld.DeallocateRenderViews( eastl::move( m_globalEnvironmentMapRenderViewProxy ) );
+
+        #if EE_DEVELOPMENT_TOOLS
+        pRenderWorldSystem->m_deviceRenderWorld.DeallocateRenderViews( eastl::move( m_editorOutlineRenderViewProxy ) );
         #endif
     }
 
@@ -124,4 +148,5 @@ namespace EE::Render
         m_size = windowSize;
         m_viewVolume = Math::ViewVolume::CreatePerspective( aspectRatio, FloatRange( 0.1f, 1000.0f ), 90.0f, Transform::Identity );
     }
+
 }

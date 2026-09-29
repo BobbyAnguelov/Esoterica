@@ -2,6 +2,8 @@
 #include "Base/Render/PageAllocator.h"
 #include "Base/Types/Arrays.h"
 #include "Base/Types/Color.h"
+#include "Base/Math/Matrix.h"
+#include "Base/Math/ViewVolume.h"
 #include "EASTL/atomic.h"
 
 //-------------------------------------------------------------------------
@@ -15,17 +17,23 @@ namespace EE
 namespace EE::Render
 {
     class Material;
+    struct DeviceRenderView;
 
     namespace ShaderTypes
     {
         struct Transform;
         struct SkinningTransform;
+        struct LightInstance_DirectionalLight;
         struct DirectionalLightUpdateCommand;
-        struct PointLightUpdateCommand;
-        struct SpotLightUpdateCommand;
+        struct PointLightInitializeCommand;
+        struct PointLightTransformUpdateCommand;
+        struct SpotLightInitializeCommand;
+        struct SpotLightTransformUpdateCommand;
         struct SkinningTransformUpdateCommand;
         struct MeshInstanceTransformUpdateCommand;
         struct MeshInstanceRootUpdateCommand;
+        struct RenderView;
+        struct RenderViewUpdateCommand;
     }
 
     //-------------------------------------------------------------------------
@@ -82,9 +90,9 @@ namespace EE::Render
 
     struct LightInstanceProxy final
     {
-        void WriteDirectionalLight( Float3 lightDirection, float maxIntensity, Color tintedColor, uint16_t cascadedShadowIndex );
-        void WritePointLight( Float3 lightPosition, float maxIntensity, float maxRadius, float falloff, Color tintedColor, uint16_t shadowMapHandle );
-        void WriteSpotLight( Float3 lightPosition, Float3 lightDirection, float maxIntensity, float maxRadius, float falloff, Color tintedColor, float innerConeAngle, float outerConeAngle, uint16_t shadowMapHandle );
+        void WriteDirectionalLight( ShaderTypes::LightInstance_DirectionalLight const& light );
+        void WritePointLight( Float3 lightPosition, float maxIntensity, float maxRadius, float falloff, Color tintedColor );
+        void WriteSpotLight( Float3 lightPosition, Float3 lightDirection, float maxIntensity, float maxRadius, float falloff, Color tintedColor, float innerConeAngle, float outerConeAngle, Matrix const& shadowViewProjectionMatrix );
 
         inline bool IsValid() const { return m_instanceHandle.IsValid(); }
 
@@ -116,5 +124,41 @@ namespace EE::Render
         uint64_t                                                                m_dstTransformUpdateSequence = ~0ULL;
         uint32_t                                                                m_dstTransformUpdateIndex = ~0U;
         HandleAllocator<uint32_t>::Handle                                       m_bonesHandle = {};
+    };
+
+    //-------------------------------------------------------------------------
+
+    struct RenderViewProxy final
+    {
+        void StartRenderViewWrite();
+        void WriteRenderView( uint32_t viewIndex, Math::ViewVolume const& viewVolume, Float2 renderTargetSize, uint32_t renderViewFlags );
+        void WritePointLightShadowRenderView( uint32_t viewIndex, Vector const& viewPosition, float maxRadius, uint32_t resolution );
+        Matrix WriteSpotLightShadowRenderView( uint32_t viewIndex, Vector const& viewPosition, Vector const& beamDirection, float halfAngleRadians, float maxRadius, uint32_t resolution );
+        void WriteCascadedShadowRenderView( uint32_t viewIndex, Matrix const& viewMatrix, Matrix const& projectionMatrix, float znear, uint32_t resolution );
+        void WriteGlobalEnvironmentMapRenderView( uint32_t viewIndex, Vector const& viewPosition, float znear, float zfar, uint32_t resolution );
+        void SubmitRenderViewWrite() const;
+
+        inline bool IsValid() const { return m_renderViewHandle.m_handle.IsValid(); }
+
+        inline uint32_t GetNumRenderViews() const { return m_renderViewHandle.m_handle.m_size; }
+        inline uint32_t GetBaseRenderViewIndex() const { return m_renderViewHandle.m_handle.m_offset; }
+
+        DeviceRenderView& GetRenderView( uint32_t viewIndex );
+        DeviceRenderView const& GetRenderView( uint32_t viewIndex ) const;
+
+        //-------------------------------------------------------------------------
+
+        eastl::atomic<uint32_t>*                                                m_pUpdateCounter = nullptr;
+        uint64_t const*                                                         m_pUpdateSequence = nullptr;
+        ShaderTypes::RenderViewUpdateCommand*                                   m_pDstUpdateCommands = nullptr; // TODO: Need a workaround for platforms that don't support virtual memory. Can use PageAllocator<T> handle for that.
+
+        uint64_t                                                                m_dstUpdateSequence = ~0ULL;
+        uint32_t                                                                m_dstUpdateIndex = ~0U;
+        uint32_t                                                                m_numWrittenRenderViews = 0;
+        PageAllocator<DeviceRenderView, uint16_t>::Handle                       m_renderViewHandle = {};
+
+    private:
+
+        void WriteRenderView( uint32_t viewIndex, ShaderTypes::RenderView const& renderView );
     };
 }

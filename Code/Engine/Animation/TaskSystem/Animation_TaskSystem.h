@@ -45,8 +45,8 @@ namespace EE::Animation
         TaskSystem( Skeleton const* pSkeleton );
         ~TaskSystem();
 
-        void Reset();
-        void ResetForNewUpdate();
+        void Reset() { ResetInternal( false ); }
+        void ResetForNewUpdate() { ResetInternal( true ); }
 
         // Get the actual final character transform for this frame
         Transform const& GetCharacterWorldTransform() const { return m_taskContext.m_worldTransform; }
@@ -128,8 +128,8 @@ namespace EE::Animation
         // Create storage for a cached pose - returns the ID for the cached pose storage
         CachedPoseID CreateCachedPose();
 
-        // Get a cached pose buffer
-        PoseBuffer* GetCachedPose( CachedPoseID cachedPoseID );
+        // Create persistent storage for a cached pose - this pose will never be released so use with caution - returns the ID for the cached pose storage
+        CachedPoseID CreatePersistentCachedPose();
 
         // Destroy an allocated cached pose buffer - frees the ID to be reused
         void DestroyCachedPose( CachedPoseID cachedPoseID );
@@ -142,7 +142,7 @@ namespace EE::Animation
 
         #if EE_DEVELOPMENT_TOOLS
         // Ensure that we have a valid cached pose buffer with the given ID. Needed for restoring from a recorded state
-        void EnsureCachedPoseExists( CachedPoseID cachedPoseID );
+        void RestoreCachedPoseBuffer( CachedPoseID cachedPoseID );
         #endif
 
         // Task Registration
@@ -202,6 +202,7 @@ namespace EE::Animation
 
     private:
 
+        void ResetInternal( bool resetForNewUpdate );
         bool AddTaskChainToPrePhysicsList( int8_t taskIdx );
         void ExecuteTasks();
 

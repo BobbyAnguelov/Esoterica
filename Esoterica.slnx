@@ -84,7 +84,7 @@
     <File Path="Code/Esoterica.natvis" />
   </Folder>
   <Folder Name="/7. Docs/">
-    <File Path="Docs/docs/CodingGuidelines.md" />
+    <File Path="Docs/CodingGuidelines.md" />
     <File Path="Docs/Rendering.md" />
     <File Path="LICENSE.md" />
     <File Path="README.md" />

@@ -5,73 +5,91 @@
 #include "Engine/Render/Shaders/CommonSamplers.esh"
 #include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
 
-float3 ComputeShadowNormalOffset( float dotNL, float3 normal, float2 texelSize )
+float3 ComputeShadowNormalOffset( float dotNL, float3 normal, float2 texelWorldSize, float offsetScale )
 {
-    const float OffsetScale = 2.0;
-    return OffsetScale * saturate( 1.0 - dotNL ) * texelSize.x * normal;
+    return offsetScale * saturate( 1.0 - dotNL ) * texelWorldSize.x * normal;
 }
 
-float SampleShadowCascade( CascadedShadow cascadedShadow, Texture2DArray shadowTexture, SamplerComparisonState shadowSampler, float3 shadowPosition, uint cascadeIndex )
+void ComputeShadowFilterTaps( float2 shadowUV, float2 texelSize, out float2 baseUV, out float2 tap0, out float2 tap1, out float4 tapWeights )
 {
-    shadowPosition += cascadedShadow.m_cascadeOffsets[cascadeIndex].xyz;
-    shadowPosition *= cascadedShadow.m_cascadeScales[cascadeIndex].xyz;
+    float2 const uvInTexels = shadowUV / texelSize;
 
-    // TODO: Low settings
-    // return shadowTexture.SampleCmpLevelZero( shadowSampler, float3( shadowPosition.xy, cascadeIndex ), shadowPosition.z );
+    float2 base = floor( uvInTexels + 0.5.xx );
+    float2 const st = uvInTexels + 0.5.xx - base;
 
-    float2 uv = shadowPosition.xy * cascadedShadow.m_cascadeSize.xy;
+    baseUV = ( base - 0.5.xx ) * texelSize;
 
-    float2 baseUV = floor( uv + 0.5.xx );
-    float2 st = uv + 0.5.xx - baseUV;
+    float const uw0 = ( 3.0 - 2.0 * st.x );
+    float const uw1 = ( 1.0 + 2.0 * st.x );
+    float const vw0 = ( 3.0 - 2.0 * st.y );
+    float const vw1 = ( 1.0 + 2.0 * st.y );
 
-    baseUV -= 0.5.xx;
-    baseUV *= cascadedShadow.m_cascadeSize.zw;
+    float const u0 = ( 2.0 - st.x ) / uw0 - 1.0;
+    float const u1 = st.x / uw1 + 1.0;
+    float const v0 = ( 2.0 - st.y ) / vw0 - 1.0;
+    float const v1 = st.y / vw1 + 1.0;
 
+    tap0 = float2( u0, v0 ) * texelSize;
+    tap1 = float2( u1, v1 ) * texelSize;
+
+    tapWeights = float4( uw0 * vw0, uw1 * vw0, uw0 * vw1, uw1 * vw1 );
+}
+
+//-------------------------------------------------------------------------
+
+float SampleShadowCascade( LightInstance_DirectionalLight light, Texture2DArray shadowTexture, SamplerComparisonState shadowSampler, float3 shadowPosition, uint cascadeIndex )
+{
+    shadowPosition += light.m_cascadeOffsets[cascadeIndex].xyz;
+    shadowPosition *= light.m_cascadeScales[cascadeIndex].xyz;
+
+    float2 baseUV;
+    float2 tap0;
+    float2 tap1;
+    float4 tapWeights;
+    ComputeShadowFilterTaps( shadowPosition.xy, light.m_cascadeSize.zw, baseUV, tap0, tap1, tapWeights );
+
+    float const referenceDepth = shadowPosition.z + RootCBV.m_directionalShadowDepthBias;
+    
     float shadow = 0.0;
 
-    float uw0 = ( 3.0 - 2.0 * st.x );
-    float uw1 = ( 1.0 + 2.0 * st.x );
-
-    float u0 = ( 2.0 - st.x ) / uw0 - 1.0;
-    float u1 = st.x / uw1 + 1;
-
-    float vw0 = ( 3.0 - 2.0 * st.y );
-    float vw1 = ( 1.0 + 2.0 * st.y );
-
-    float v0 = ( 2.0 - st.y ) / vw0 - 1.0;
-    float v1 = st.y / vw1 + 1.0;
-
-    const float ShadowBias = 0.0015;
-    float referenceDepth = shadowPosition.z + ShadowBias;
-    
-    shadow += uw0 * vw0 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u0, v0 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), referenceDepth );
-    shadow += uw1 * vw0 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u1, v0 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), referenceDepth );
-    shadow += uw0 * vw1 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u0, v1 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), referenceDepth );
-    shadow += uw1 * vw1 * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( u1, v1 ) * cascadedShadow.m_cascadeSize.zw, cascadeIndex ), referenceDepth );
+    shadow += tapWeights.x * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( tap0.x, tap0.y ), cascadeIndex ), referenceDepth );
+    shadow += tapWeights.y * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( tap1.x, tap0.y ), cascadeIndex ), referenceDepth );
+    shadow += tapWeights.z * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( tap0.x, tap1.y ), cascadeIndex ), referenceDepth );
+    shadow += tapWeights.w * shadowTexture.SampleCmpLevelZero( shadowSampler, float3( baseUV + float2( tap1.x, tap1.y ), cascadeIndex ), referenceDepth );
 
     return shadow * ( 1.0 / 16.0 );
 }
 
 // triangleNormal should be the triangle's true geometric normal (e.g. cross(edge0, edge1)), this is computed by default in the mesh shader.
 // It can be the vertex normal, but this will have worse results for meshes that have edited normals for artistic reasons.
-float SampleShadow( CascadedShadow cascadedShadow, float3 lightDirection, float3 worldSpacePosition, float depth, float3 triangleNormal, out float3 debugShadowColor )
+float SampleDirectionalLightShadow( LightInstance_DirectionalLight light, float3 worldSpacePosition, float3 triangleNormal, out float3 debugShadowColor )
 {
-    SamplerComparisonState  shadowSampler = GetLinearClampCompareSampler();
-    Texture2DArray          shadowTexture = GetTexture( cascadedShadow.m_shadowCascades );
+    if ( light.m_cascadeSize.z <= 0.0 )
+    {
+        return 1.0;
+    }
 
-    float3 projectedPosition = mul( cascadedShadow.m_shadowMatrix, float4( worldSpacePosition, 1.0 ) ).xyz;
+    SamplerComparisonState  shadowSampler = GetLinearClampCompareSampler();
+    Texture2DArray          shadowTexture = GetTexture( light.m_shadowCascades );
+
+    float3 projectedPosition = mul( light.m_shadowMatrix, float4( worldSpacePosition, 1.0 ) ).xyz;
 
     uint cascade = 3;
 
     [unroll] for ( int cascadeIndex = 3; cascadeIndex >= 0; --cascadeIndex )
     {
-        float3 cascadePosition = projectedPosition + cascadedShadow.m_cascadeOffsets[cascadeIndex].xyz;
-        cascadePosition *= cascadedShadow.m_cascadeScales[cascadeIndex].xyz;
+        float3 cascadePosition = projectedPosition + light.m_cascadeOffsets[cascadeIndex].xyz;
+        cascadePosition *= light.m_cascadeScales[cascadeIndex].xyz;
         cascadePosition = abs( cascadePosition - 0.5.xxx );
         [flatten] if ( all( cascadePosition <= 0.5.xxx) )
         {
             cascade = cascadeIndex;
         }
+    }
+
+    if ( abs( light.m_cascadeScales[cascade].z ) <= 0.0 )
+    {
+        return 1.0;
     }
 
     #if EE_DEVELOPMENT_TOOLS
@@ -85,33 +103,36 @@ float SampleShadow( CascadedShadow cascadedShadow, float3 lightDirection, float3
         debugShadowColor = DebugCascadeColors[cascade];
     #endif
 
-    float dotNL = saturate( dot( triangleNormal, lightDirection ) );
-    float3 normalOffset = ComputeShadowNormalOffset( dotNL, triangleNormal, cascadedShadow.m_cascadeSize.zw ) / abs( cascadedShadow.m_cascadeScales[cascade].z );
+    float dotNL = saturate( dot( triangleNormal, light.m_lightDirection ) );
+
+    float const cascadeTexelWorldSize = light.m_cascadeTexelWorldSize[cascade];
+    float3 const normalOffset = ComputeShadowNormalOffset( dotNL, triangleNormal, cascadeTexelWorldSize.xx, RootCBV.m_directionalShadowNormalOffsetScale );
 
     float3 samplePosition = worldSpacePosition + normalOffset;
-    float3 shadowPosition = mul( cascadedShadow.m_shadowMatrix, float4( samplePosition, 1.0 ) ).xyz;
+    float3 shadowPosition = mul( light.m_shadowMatrix, float4( samplePosition, 1.0 ) ).xyz;
 
-    float shadow = SampleShadowCascade( cascadedShadow, shadowTexture, shadowSampler, shadowPosition, cascade );
+    float shadow = SampleShadowCascade( light, shadowTexture, shadowSampler, shadowPosition, cascade );
 
     // Blend cascades
     // TODO: Toggle off on lower settings
     const float BlendThreshold = 0.1;
 
-    float3 cascadePosition = projectedPosition + cascadedShadow.m_cascadeOffsets[cascade].xyz;
-    cascadePosition *= cascadedShadow.m_cascadeScales[cascade].xyz;
+    float3 cascadePosition = projectedPosition + light.m_cascadeOffsets[cascade].xyz;
+    cascadePosition *= light.m_cascadeScales[cascade].xyz;
     cascadePosition = abs( cascadePosition * 2.0 - 1.0.xxx );
 
     float distanceToEdge = 1.0 - max( max( cascadePosition.x, cascadePosition.y ), cascadePosition.z );
-    [branch] if ( distanceToEdge < BlendThreshold && cascade != 3 )
+    [branch] if ( distanceToEdge < BlendThreshold && cascade != 3 && abs( light.m_cascadeScales[cascade + 1].z ) > 0.0 )
     {
         uint nextCascade = cascade + 1;
-        float3 nextNormalOffset = ComputeShadowNormalOffset( dotNL, triangleNormal, cascadedShadow.m_cascadeSize.zw ) / abs( cascadedShadow.m_cascadeScales[nextCascade].z );
+        float const nextCascadeTexelWorldSize = light.m_cascadeTexelWorldSize[nextCascade];
+        float3 const nextNormalOffset = ComputeShadowNormalOffset( dotNL, triangleNormal, nextCascadeTexelWorldSize.xx, RootCBV.m_directionalShadowNormalOffsetScale );
 
         float3 nextSamplePosition = worldSpacePosition + nextNormalOffset;
-        float3 nextShadowPosition = mul( cascadedShadow.m_shadowMatrix, float4( nextSamplePosition, 1.0 ) ).xyz;
+        float3 nextShadowPosition = mul( light.m_shadowMatrix, float4( nextSamplePosition, 1.0 ) ).xyz;
 
         float blend = smoothstep( 0.0, BlendThreshold, distanceToEdge );
-        float nextShadow = SampleShadowCascade( cascadedShadow, shadowTexture, shadowSampler, nextShadowPosition, nextCascade );
+        float nextShadow = SampleShadowCascade( light, shadowTexture, shadowSampler, nextShadowPosition, nextCascade );
         shadow = lerp( nextShadow, shadow, blend );
         
         #if EE_DEVELOPMENT_TOOLS
@@ -120,6 +141,161 @@ float SampleShadow( CascadedShadow cascadedShadow, float3 lightDirection, float3
     }
 
     return shadow;
+}
+
+//-------------------------------------------------------------------------
+
+float ComputePunctualShadowReferenceDepth( float axisDistance, float nearPlane, float farPlane, float worldBias )
+{
+    float const sampleDepth = clamp( axisDistance - worldBias, nearPlane, farPlane );
+    return nearPlane * ( farPlane - sampleDepth ) / ( sampleDepth * ( farPlane - nearPlane ) );
+}
+
+float2 SignNotZero( float2 value )
+{
+    return float2( ( value.x >= 0.0 ) ? 1.0 : -1.0, ( value.y >= 0.0 ) ? 1.0 : -1.0 );
+}
+
+float2 ComputeOctahedralShadowCoordinates( float3 lightVector )
+{
+    float3 const direction = normalize( lightVector );
+    float const  L1        = abs( direction.x ) + abs( direction.y ) + abs( direction.z );
+
+    float2 p = direction.xy / L1;
+
+    if ( direction.z < 0.0 )
+    {
+        p = ( 1.0 - abs( p.yx ) ) * SignNotZero( p );
+    }
+
+    return p * 0.5 + 0.5;
+}
+
+float3 ComputeOctahedralShadowFaceSigns( float2 uv )
+{
+    float2 const p = uv * 2.0 - 1.0;
+
+    return float3
+    (
+        ( p.x < 0.0 ) ? -1.0 : 1.0,
+        ( p.y < 0.0 ) ? -1.0 : 1.0,
+        ( ( abs( p.x ) + abs( p.y ) ) <= 1.0 ) ? 1.0 : -1.0
+    );
+}
+
+float SampleOctahedralShadowTap( Texture2D<float> shadowTexture, SamplerComparisonState shadowSampler, float2 uv, float3 lightVector, float nearPlane, float farPlane, float worldBias )
+{
+    float3 const faceSigns      = ComputeOctahedralShadowFaceSigns( uv );
+    float const  axisDistance   = dot( lightVector, faceSigns * g_OctahedralShadowInverseSqrt3 );
+    float const  referenceDepth = ComputePunctualShadowReferenceDepth( axisDistance, nearPlane, farPlane, worldBias );
+
+    return shadowTexture.SampleCmpLevelZero( shadowSampler, uv, referenceDepth );
+}
+
+float SamplePointLightShadow( LightInstance_PointLight pointLight, float3 worldSpacePosition, float3 triangleNormal )
+{
+    Texture2D<float>        shadowTexture = GetTexture( pointLight.m_shadowMapHandle );
+    SamplerComparisonState  shadowSampler = GetLinearClampCompareSampler();
+
+    float3 const    lightVector         = worldSpacePosition - pointLight.m_lightPosition;
+
+    float const     nearPlane           = PunctualShadowNearPlane( pointLight.m_maxRadius );
+    float const     farPlane            = PunctualShadowFarPlane( pointLight.m_maxRadius );
+    float2 const    uv                  = ComputeOctahedralShadowCoordinates( lightVector );
+
+    float3 const    receiverFaceSigns   = ComputeOctahedralShadowFaceSigns( uv );
+    float3 const    receiverFaceNormal  = receiverFaceSigns * g_OctahedralShadowInverseSqrt3;
+    float const     sampleDistance      = dot( lightVector, receiverFaceNormal );
+
+    if ( sampleDistance <= 0.0 || sampleDistance >= farPlane )
+    {
+        return 1.0;
+    }
+
+    float const pointShadowResolution   = ldexp( 1.0, pointLight.m_shadowResolutionBits );
+    float const texelWorldSize          = sampleDistance * PunctualShadowTexelSize( g_OctahedralShadowHalfFOVTangent, pointShadowResolution );
+
+    // The lookup has to be rebuilt from the offset receiver, not just the reference depth.
+    float3 const normalOffset           = ComputeShadowNormalOffset( saturate( dot( triangleNormal, -normalize( lightVector ) ) ), triangleNormal, texelWorldSize.xx, RootCBV.m_pointShadowNormalOffsetScale );
+    float3 const samplePosition         = worldSpacePosition + normalOffset;
+    float3 const sampleLightVector      = samplePosition - pointLight.m_lightPosition;
+    float2 const sampleUV               = ComputeOctahedralShadowCoordinates( sampleLightVector );
+
+    float const worldDepthBias          = RootCBV.m_pointShadowDepthBias * texelWorldSize;
+    float2 const texelSize              = 1.0.xx / max( 1.0, pointShadowResolution );
+
+    float2 baseUV;
+    float2 tap0;
+    float2 tap1;
+    float4 tapWeights;
+    ComputeShadowFilterTaps( sampleUV, texelSize, baseUV, tap0, tap1, tapWeights );
+
+    float shadow = 0.0;
+
+    shadow += tapWeights.x * SampleOctahedralShadowTap( shadowTexture, shadowSampler, baseUV + float2( tap0.x, tap0.y ), sampleLightVector, nearPlane, farPlane, worldDepthBias );
+    shadow += tapWeights.y * SampleOctahedralShadowTap( shadowTexture, shadowSampler, baseUV + float2( tap1.x, tap0.y ), sampleLightVector, nearPlane, farPlane, worldDepthBias );
+    shadow += tapWeights.z * SampleOctahedralShadowTap( shadowTexture, shadowSampler, baseUV + float2( tap0.x, tap1.y ), sampleLightVector, nearPlane, farPlane, worldDepthBias );
+    shadow += tapWeights.w * SampleOctahedralShadowTap( shadowTexture, shadowSampler, baseUV + float2( tap1.x, tap1.y ), sampleLightVector, nearPlane, farPlane, worldDepthBias );
+
+    return shadow * ( 1.0 / 16.0 );
+}
+
+//-------------------------------------------------------------------------
+
+float SampleSpotLightShadow( LightInstance_SpotLight spotLight, float3 worldSpacePosition, float3 triangleNormal )
+{
+    Texture2D<float>        shadowTexture = GetTexture( spotLight.m_shadowMapHandle );
+    SamplerComparisonState  shadowSampler = GetLinearClampCompareSampler();
+
+    float3 const lightVector = worldSpacePosition - spotLight.m_lightPosition;
+    float const beamDistance = dot( lightVector, spotLight.m_lightDirection );
+
+    if ( beamDistance <= 0.0 ) // Behind the light
+    {
+        return 1.0;
+    }
+
+    float const     spotShadowResolution    = ldexp( 1.0, spotLight.m_shadowResolutionBits );
+    float const     texelWorldSize          = beamDistance * PunctualShadowTexelSize( spotLight.m_shadowTangent, spotShadowResolution );
+    float3 const    normalOffset            = ComputeShadowNormalOffset( dot( triangleNormal, -spotLight.m_lightDirection ), triangleNormal, texelWorldSize.xx, RootCBV.m_spotShadowNormalOffsetScale );
+
+    float3 const    samplePosition          = worldSpacePosition + normalOffset;
+    float const     sampleDistance          = dot( samplePosition - spotLight.m_lightPosition, spotLight.m_lightDirection );
+
+    float const     nearPlane               = PunctualShadowNearPlane( spotLight.m_maxRadius );
+    float const     farPlane                = PunctualShadowFarPlane( spotLight.m_maxRadius );
+
+    if ( sampleDistance >= farPlane )
+    {
+        return 1.0;
+    }
+
+    float4 const shadowPosition     = mul( spotLight.m_shadowMatrix, float4( samplePosition, 1.0 ) );
+    float2 const shadowUV           = float2( shadowPosition.x, -shadowPosition.y ) / shadowPosition.w * 0.5 + 0.5.xx;
+
+    if ( any( shadowUV < 0.0.xx ) || any( shadowUV > 1.0.xx ) )
+    {
+        return 1.0;
+    }
+
+    float const     worldDepthBias  = RootCBV.m_spotShadowDepthBias * texelWorldSize;
+    float const     referenceDepth  = ComputePunctualShadowReferenceDepth( sampleDistance, nearPlane, farPlane, worldDepthBias );
+    float2 const    texelSize       = 1.0.xx / max( 1.0, spotShadowResolution );
+
+    float2 baseUV;
+    float2 tap0;
+    float2 tap1;
+    float4 tapWeights;
+    ComputeShadowFilterTaps( shadowUV, texelSize, baseUV, tap0, tap1, tapWeights );
+
+    float shadow = 0.0;
+
+    shadow += tapWeights.x * shadowTexture.SampleCmpLevelZero( shadowSampler, baseUV + float2( tap0.x, tap0.y ), referenceDepth );
+    shadow += tapWeights.y * shadowTexture.SampleCmpLevelZero( shadowSampler, baseUV + float2( tap1.x, tap0.y ), referenceDepth );
+    shadow += tapWeights.z * shadowTexture.SampleCmpLevelZero( shadowSampler, baseUV + float2( tap0.x, tap1.y ), referenceDepth );
+    shadow += tapWeights.w * shadowTexture.SampleCmpLevelZero( shadowSampler, baseUV + float2( tap1.x, tap1.y ), referenceDepth );
+
+    return shadow * ( 1.0 / 16.0 );
 }
 
 #endif

@@ -37,7 +37,7 @@ namespace EE::Render
         virtual char const* GetFriendlyName() const override { return "Rendering"; }
         virtual void DrawMenu( EntityWorld* pWorld ) override;
 
-    public:
+        //-------------------------------------------------------------------------
 
         DebugVisualizationMode      m_visualizationMode = DebugVisualizationMode::None;
         bool                        m_showWireframe = false;

@@ -85,13 +85,25 @@ namespace EE::Animation
         // Sampled Event
         //-------------------------------------------------------------------------
 
+        // This is the source path of the graph node that emitted the event (all events from the same node will have the same source path)
         SourcePath const& GetSourcePath() const { return m_sourcePath; }
 
+        // This is a unique identifier for each event that combines the source path with event specific information to provide a stable and unique ID for any event
+        inline uint64_t GetUniqueID() const { return m_uniqueID; }
+
+        // Is this an animation event i.e. coming from a clip
         inline bool IsAnimationEvent() const { return !m_isGraphEvent; }
+
+        // Is this a graph event i.e. coming directly from a node
         inline bool IsGraphEvent() const { return m_isGraphEvent; }
 
+        // Is this event from the currently active branch i.e. the branch that we are in. Inactive branches are branches that we are leaving
         inline bool IsFromActiveBranch() const { return m_isFromActiveBranch; }
+
+        // Has this event been explicitly marked as ignored by a node?
         inline bool IsIgnored() const { return m_isIgnored; }
+
+        // What is the overall weight of the event (affected by blends and transitions)
         inline float GetWeight() const { return m_weight; }
 
         // Animation Events

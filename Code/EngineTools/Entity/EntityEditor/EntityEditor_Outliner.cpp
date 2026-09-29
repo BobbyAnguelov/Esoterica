@@ -664,7 +664,8 @@ namespace EE::EntityModel
 
                 {
                     ImGui::SameLine();
-                    if ( m_filter.UpdateAndDraw() )
+                    ImGui::SetNextItemWidth( -1 );
+                    if ( ImGuiX::InputFilterText( m_filter ) )
                     {
                         auto UpdateVisibility = [this] ( TreeListViewItem const* pItem ) -> bool
                         {

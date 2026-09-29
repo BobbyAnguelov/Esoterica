@@ -434,6 +434,10 @@ namespace EE::Render::RHI
             case ViewDimension::Texture2DMultisample: return D3D12_DSV_DIMENSION_TEXTURE2DMS;
             case ViewDimension::Texture2DMultisampleArray: return D3D12_DSV_DIMENSION_TEXTURE2DMSARRAY;
 
+                // There is no cube depth stencil view dimension, a cube is six slices of a 2D array
+            case ViewDimension::TextureCube:
+            case ViewDimension::TextureCubeArray: return D3D12_DSV_DIMENSION_TEXTURE2DARRAY;
+
                 // Special case - invalid format
             default:
             {
@@ -456,7 +460,10 @@ namespace EE::Render::RHI
             case ViewDimension::Texture2DMultisample: return D3D12_RTV_DIMENSION_TEXTURE2DMS;
             case ViewDimension::Texture2DMultisampleArray: return D3D12_RTV_DIMENSION_TEXTURE2DMSARRAY;
             case ViewDimension::Texture3D: return D3D12_RTV_DIMENSION_TEXTURE3D;
-            case ViewDimension::TextureCube: return D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
+
+                // There is no cube depth stencil view dimension, a cube is six slices of a 2D array
+            case ViewDimension::TextureCube:
+            case ViewDimension::TextureCubeArray: return D3D12_RTV_DIMENSION_TEXTURE2DARRAY;
 
                 // Special case - invalid format
             default:
@@ -477,13 +484,16 @@ namespace EE::Render::RHI
             case ViewDimension::Texture1DArray: return D3D12_UAV_DIMENSION_TEXTURE1DARRAY;
             case ViewDimension::Texture2D: return D3D12_UAV_DIMENSION_TEXTURE2D;
             case ViewDimension::Texture2DArray: return D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+
+                // There is no cube UAV dimension, a cube is six slices of a 2D array
+            case ViewDimension::TextureCube:
+            case ViewDimension::TextureCubeArray: return D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+
             case ViewDimension::Texture3D: return D3D12_UAV_DIMENSION_TEXTURE3D;
 
                 // Special case - invalid format
             case ViewDimension::Texture2DMultisample:
             case ViewDimension::Texture2DMultisampleArray:
-            case ViewDimension::TextureCube:
-            case ViewDimension::TextureCubeArray:
             case ViewDimension::AccelerationStructure:
             default:
             {
@@ -1158,9 +1168,6 @@ namespace EE::Render::RHI
     template<typename T, D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type>
     struct alignas( void* ) D3D12PipelineStreamSubobject
     {
-        D3D12_PIPELINE_STATE_SUBOBJECT_TYPE m_subobjectType = Type;
-        T                                   m_subobject = {};
-
         EE_FORCE_INLINE D3D12PipelineStreamSubobject& operator=( T const& i ) noexcept
         {
             m_subobject = i;
@@ -1171,6 +1178,11 @@ namespace EE::Render::RHI
         EE_FORCE_INLINE          operator T&( ) noexcept { return m_subobject; }
         EE_FORCE_INLINE T*       operator&() noexcept { return &m_subobject; }
         EE_FORCE_INLINE T const* operator&() const noexcept { return &m_subobject; }
+
+        //-------------------------------------------------------------------------
+
+        D3D12_PIPELINE_STATE_SUBOBJECT_TYPE m_subobjectType = Type;
+        T                                   m_subobject = {};
     };
 
     #pragma warning( push )
@@ -1200,6 +1212,17 @@ namespace EE::Render::RHI
 
     struct DescriptorAllocator final
     {
+        void Initialize( ID3D12Device* pD3D12Device, D3D12_DESCRIPTOR_HEAP_DESC const& heapDesc );
+        void Shutdown();
+
+        DescriptorHandle AllocateDescriptors( uint32_t numDescriptors, char const* pResourceName );
+        void FreeDescriptors( DescriptorHandle&& handle );
+
+        D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHostHandle( uint64_t handle ) const;
+        D3D12_GPU_DESCRIPTOR_HANDLE DescriptorDeviceHandle( uint64_t handle ) const;
+
+        //-------------------------------------------------------------------------
+
         ComPtr<ID3D12DescriptorHeap>                            m_heap = {};
         D3D12_DESCRIPTOR_HEAP_TYPE                              m_heapType = {};
 
@@ -1214,15 +1237,6 @@ namespace EE::Render::RHI
 
         uint32_t                                                m_numDescriptors = 0;
         uint32_t                                                m_descriptorSize = 0;
-
-        void Initialize( ID3D12Device* pD3D12Device, D3D12_DESCRIPTOR_HEAP_DESC const& heapDesc );
-        void Shutdown();
-
-        DescriptorHandle AllocateDescriptors( uint32_t numDescriptors, char const* pResourceName );
-        void FreeDescriptors( DescriptorHandle&& handle );
-
-        D3D12_CPU_DESCRIPTOR_HANDLE DescriptorHostHandle( uint64_t handle ) const;
-        D3D12_GPU_DESCRIPTOR_HANDLE DescriptorDeviceHandle( uint64_t handle ) const;
     };
 
     void DescriptorAllocator::Initialize( ID3D12Device* pD3D12Device, D3D12_DESCRIPTOR_HEAP_DESC const& heapDesc )
@@ -1293,6 +1307,10 @@ namespace EE::Render::RHI
 
     struct Direct3D12Queue final : Queue
     {
+        virtual ~Direct3D12Queue();
+
+        //-------------------------------------------------------------------------
+
         #ifdef ENABLE_VERBOSE_MEMORY_LEAK_DEBUG
         PageAllocator<Direct3D12Queue>::Handle                  m_allocatorHandle = {};
         #endif
@@ -1304,8 +1322,6 @@ namespace EE::Render::RHI
         uint64_t                                                m_fenceValue = 0;
 
         TVector<ID3D12CommandList*>                             m_submitCommandLists{ Memory::Allocators::g_RHI };
-
-        virtual ~Direct3D12Queue();
     };
 
     Direct3D12Queue::~Direct3D12Queue()
@@ -1335,6 +1351,11 @@ namespace EE::Render::RHI
 
     struct Direct3D12Texture final : Texture
     {
+        GenericResourceHandle ResourceDescriptorHandle( DescriptorTypeFlags descriptorType, uint32_t uavMipLevel ) const;
+        D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetDescriptorHandle( uint32_t arrayLayer, uint32_t mipLevel ) const;
+
+        //-------------------------------------------------------------------------
+
         #ifdef ENABLE_VERBOSE_MEMORY_LEAK_DEBUG
         PageAllocator<Direct3D12Texture>::Handle                m_allocatorHandle = {};
         #endif
@@ -1349,9 +1370,6 @@ namespace EE::Render::RHI
         DescriptorHandle                                        m_renderTargetDescriptorHandles = {};
         int8_t                                                  m_uavDescriptorOffset = -1;
         TVector<D3D12_SUBRESOURCE_FOOTPRINT>                    m_footprints{ Memory::Allocators::g_RHI };
-
-        GenericResourceHandle ResourceDescriptorHandle( DescriptorTypeFlags descriptorType, uint32_t uavMipLevel ) const;
-        D3D12_CPU_DESCRIPTOR_HANDLE RenderTargetDescriptorHandle( uint32_t arrayLayer, uint32_t mipLevel ) const;
     };
 
     GenericResourceHandle Direct3D12Texture::ResourceDescriptorHandle( DescriptorTypeFlags descriptorType, uint32_t uavMipLevel ) const
@@ -1378,7 +1396,7 @@ namespace EE::Render::RHI
             default:
             {
                 EE_ASSERT( false );
-                return InvalidResourceHandle;
+                return g_invalidResourceHandle;
             }
         }
     }
@@ -1502,6 +1520,13 @@ namespace EE::Render::RHI
             Closed
         };
 
+        void ResetRootSignature( PipelineType pipelineType, Direct3D12RootSignature* pD3D12RootSignature );
+        void ResetPipeline( Direct3D12Pipeline* pD3D12Pipeline );
+
+        void FlushBarriers();
+
+        //-------------------------------------------------------------------------
+
         #ifdef ENABLE_VERBOSE_MEMORY_LEAK_DEBUG
         PageAllocator<Direct3D12CommandBuffer>::Handle          m_allocatorHandle = {};
         #endif
@@ -1526,11 +1551,6 @@ namespace EE::Render::RHI
 
         float                                                   m_currentDebugMarkerColorValue = 0.5F;
         int32_t                                                 m_debugMarkerScopeCounter = 0;
-
-        void ResetRootSignature( PipelineType pipelineType, Direct3D12RootSignature* pD3D12RootSignature );
-        void ResetPipeline( Direct3D12Pipeline* pD3D12Pipeline );
-
-        void FlushBarriers();
     };
 
     void Direct3D12CommandBuffer::ResetRootSignature( PipelineType pipelineType, Direct3D12RootSignature* pD3D12RootSignature )
@@ -1660,6 +1680,16 @@ namespace EE::Render::RHI
             uint64_t m_numBytes = 0;
         };
 
+        UINT NodeMask( uint32_t nodeIndex ) const;
+        UINT SharedNodeMask() const;
+
+        template <typename T>
+        T* CreateObject();
+
+        template <typename T>
+        void DestroyObject( T*&& pObject );
+
+        //-------------------------------------------------------------------------
 
         DescriptorAllocator                                     m_hostSamplerDescriptorAllocator = {};
         DescriptorAllocator                                     m_hostResourceDescriptorAllocator = {};
@@ -1707,15 +1737,6 @@ namespace EE::Render::RHI
         // Per-descriptor-type allocation statistics
         THashMap<TBitFlags<DescriptorTypeFlags>, ResourceAllocStats>    m_bufferStats{ Memory::Allocators::g_RHI };
         THashMap<TBitFlags<DescriptorTypeFlags>, ResourceAllocStats>    m_textureStats{ Memory::Allocators::g_RHI };
-
-        UINT NodeMask( uint32_t nodeIndex ) const;
-        UINT SharedNodeMask() const;
-
-        template <typename T>
-        T* CreateObject();
-
-        template <typename T>
-        void DestroyObject( T*&& pObject );
     };
 
     UINT Direct3D12Context::NodeMask( uint32_t nodeIndex ) const
@@ -2306,6 +2327,19 @@ namespace EE::Render::RHI
 
             if ( pD3D12Context->m_debugValidation )
             {
+                // Filter out some messages that are not useful
+                D3D12_MESSAGE_ID d3d12IgnoreMessages[] =
+                {
+                    D3D12_MESSAGE_ID_NON_OPTIMAL_BARRIER_ONLY_EXECUTE_COMMAND_LISTS
+                };
+
+                D3D12_INFO_QUEUE_FILTER d3d12InfoQueueFilter = {};
+                d3d12InfoQueueFilter.DenyList.pIDList = d3d12IgnoreMessages;
+                d3d12InfoQueueFilter.DenyList.NumIDs = _countof( d3d12IgnoreMessages );
+
+                result = pD3D12Context->m_debugValidation->AddStorageFilterEntries( &d3d12InfoQueueFilter );
+                EE_ASSERT( SUCCEEDED( result ) );
+
                 if ( parameters.m_enablePix && PIXIsAttachedForGpuCapture() )
                 {
                     // Don't ignore corruptions, this is fatal
@@ -2342,12 +2376,6 @@ namespace EE::Render::RHI
                             }
 
                             EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/D3D12", pDescription );
-                            return;
-                        }
-
-                        // Filter out some warnings that aren't useful
-                        if ( id == D3D12_MESSAGE_ID_NON_OPTIMAL_BARRIER_ONLY_EXECUTE_COMMAND_LISTS )
-                        {
                             return;
                         }
 
@@ -2434,7 +2462,7 @@ namespace EE::Render::RHI
 
         pD3D12Context->m_deviceCapabilities.m_hdr = true;
 
-        for ( uint32_t formatIndex = 0; formatIndex < NumDataFormats; ++formatIndex )
+        for ( uint32_t formatIndex = 0; formatIndex < g_numDataFormats; ++formatIndex )
         {
             DXGI_FORMAT dxgiFormat = DXGIFormat( DataFormat( formatIndex ) );
             if ( dxgiFormat == DXGI_FORMAT_UNKNOWN )
@@ -2564,59 +2592,59 @@ namespace EE::Render::RHI
         #ifdef ENABLE_VERBOSE_MEMORY_LEAK_DEBUG
         if ( pD3D12Context )
         {
-            pD3D12Context->m_queueAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_queueAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::Queue 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_swapchainAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_swapchainAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::Swapchain 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_commandPoolAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_commandPoolAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::CommandPool 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_commandBufferAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_commandBufferAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::CommandBuffer 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_commandSignatureAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_commandSignatureAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::CommandSignature 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_accelerationStructureAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_accelerationStructureAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::AccelerationStructure 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_bufferAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_bufferAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::Buffer 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_textureAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_textureAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::Texture 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_samplerAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_samplerAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::Sampler 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_shaderAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_shaderAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::Shader 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_rootSignatureAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_rootSignatureAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::RootSignature 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_pipelineCacheAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_pipelineCacheAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::PipelineCache 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_pipelineAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_pipelineAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::Pipeline 0x%p", pD3D12Object );
             } );
-            pD3D12Context->m_queryPoolAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object )
+            pD3D12Context->m_queryPoolAllocator.ForEachAllocatedItem( [] ( auto const* pD3D12Object, size_t d3d12ObjectIndex )
             {
                 EE_LOG_FATAL_ERROR( LogCategory::Render, "RHI/Context", "Memory leak detected: RHI::QueryPool 0x%p", pD3D12Object );
             } );
@@ -3537,7 +3565,7 @@ namespace EE::Render::RHI
             pD3D12CounterBuffer = static_cast<Direct3D12Buffer const*>( pCounterBuffer )->m_resource.Get();
         }
 
-        bool strideValid = ( pD3D12IndirectBuffer->m_stride % IndirectCommandAlignment ) == 0;
+        bool strideValid = ( pD3D12IndirectBuffer->m_stride % g_indirectCommandAlignment ) == 0;
         EE_ASSERT( strideValid );
         EE_ASSERT( ( pD3D12IndirectBuffer->m_stride == pD3D12CommandSignature->m_stride ) );
 
@@ -4220,7 +4248,7 @@ namespace EE::Render::RHI
         pD3D12AccelerationStructure->m_scratchBuffer = CreateBuffer( pD3D12Context, scratchBufferParameters );
 
         BufferParameters topLevelStructureBufferParameters = {};
-        topLevelStructureBufferParameters.m_descriptorTypes.SetMultipleFlags( DescriptorTypeFlags::RWBuffer, DescriptorTypeFlags::Raw );
+        topLevelStructureBufferParameters.m_descriptorTypes = { DescriptorTypeFlags::RWBuffer, DescriptorTypeFlags::Raw };
         topLevelStructureBufferParameters.m_memoryType = ResourceMemoryType::DeviceLocal;
         topLevelStructureBufferParameters.m_bufferSize = d3d12TopLevelPrebuild.ResultDataMaxSizeInBytes;
         topLevelStructureBufferParameters.m_bufferStride = sizeof( UINT32 );
@@ -4267,17 +4295,8 @@ namespace EE::Render::RHI
         EE_ASSERT( allocationSize );
 
         uint64_t bufferStride = parameters.m_bufferStride;
-        if ( parameters.m_format != DataFormat::Undefined )
-        {
-            bufferStride = FormatBlockBitSize( parameters.m_format ) / 8;
-        }
-
         if ( parameters.m_descriptorTypes.IsFlagSet( RHI::DescriptorTypeFlags::Raw ) )
         {
-            EE_ASSERT( parameters.m_format == DataFormat::Undefined ||
-                       parameters.m_format == DataFormat::R32_UInt ||
-                       parameters.m_format == DataFormat::R32_SInt ||
-                       parameters.m_format == DataFormat::R32_SFloat );
             bufferStride = sizeof( UINT );
         }
 
@@ -4333,6 +4352,12 @@ namespace EE::Render::RHI
         {
             descriptorTypes = {};
         }
+
+        if ( descriptorTypes.AreAnyFlagsSet( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer ) )
+        {
+            EE_ASSERT( bufferStride != 0 );
+        }
+
 
         // TODO: Implement multi-GPU support in D3D12MA
         // if ( d3d12Context->deviceMode == DeviceMode::Linked )
@@ -4417,16 +4442,11 @@ namespace EE::Render::RHI
                 d3d12ShaderResourceViewDesc.Buffer.NumElements = UINT( numElements );
                 d3d12ShaderResourceViewDesc.Buffer.StructureByteStride = UINT( bufferStride );
                 d3d12ShaderResourceViewDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
-                d3d12ShaderResourceViewDesc.Format = DXGIFormat( parameters.m_format );
 
                 if ( descriptorTypes.IsFlagSet( DescriptorTypeFlags::Raw ) )
                 {
                     d3d12ShaderResourceViewDesc.Format = DXGI_FORMAT_R32_TYPELESS;
                     d3d12ShaderResourceViewDesc.Buffer.Flags |= D3D12_BUFFER_SRV_FLAG_RAW;
-                }
-
-                if ( d3d12ShaderResourceViewDesc.Format != DXGI_FORMAT_UNKNOWN )
-                {
                     d3d12ShaderResourceViewDesc.Buffer.StructureByteStride = 0;
                 }
 
@@ -4459,16 +4479,6 @@ namespace EE::Render::RHI
                 {
                     d3d12UnorderedAccessViewDesc.Format = DXGI_FORMAT_R32_TYPELESS;
                     d3d12UnorderedAccessViewDesc.Buffer.Flags |= D3D12_BUFFER_UAV_FLAG_RAW;
-                }
-                else if ( parameters.m_format != DataFormat::Undefined )
-                {
-                    EE_ASSERT( pD3D12Context->m_deviceCapabilities.m_canShaderWriteTo[size_t( parameters.m_format )] );
-
-                    d3d12UnorderedAccessViewDesc.Format = DXGIFormat( parameters.m_format );
-                }
-
-                if ( d3d12UnorderedAccessViewDesc.Format != DXGI_FORMAT_UNKNOWN )
-                {
                     d3d12UnorderedAccessViewDesc.Buffer.StructureByteStride = 0;
                 }
 
@@ -4602,7 +4612,7 @@ namespace EE::Render::RHI
             default:
             {
                 EE_ASSERT( false );
-                return InvalidResourceHandle;
+                return g_invalidResourceHandle;
             }
         }
     }
@@ -5250,6 +5260,7 @@ namespace EE::Render::RHI
             descriptorReflection.m_descriptorTypeFlags = shaderResource.m_descriptorTypeFlags;
             descriptorReflection.m_viewDimension = shaderResource.m_viewDimension;
             descriptorReflection.m_numConstants = shaderResource.m_numConstants;
+            descriptorReflection.m_registerIndex = shaderResource.m_registerIndex;
             descriptorReflection.m_parameterIndex = int32_t( d3d12RootParameters.size() );
             descriptorReflection.m_setIndex = int32_t( shaderResource.m_setIndex );
 

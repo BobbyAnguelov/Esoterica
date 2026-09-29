@@ -19,6 +19,10 @@ namespace EE::Render
 {
     struct EE_ENGINE_API MeshStatistics final
     {
+        void Accumulate( MeshStatistics const& src );
+
+        //-------------------------------------------------------------------------
+
         EE_SERIALIZE
         (
             m_numVertices, m_numTriangles, m_numClusters,
@@ -71,10 +75,6 @@ namespace EE::Render
 
         float                           m_minimumCompressionAccuracy = 0.0F;
         float                           m_averageCompressionAccuracy = 0.0F;
-
-        //-------------------------------------------------------------------------
-
-        void Accumulate( MeshStatistics const& src );
     };
 
     //-------------------------------------------------------------------------
@@ -114,12 +114,9 @@ namespace EE::Render
             Transform                   m_offset;
         };
 
+    protected:
+
         constexpr static int32_t const s_sharedMeshVersion = 28;
-
-    private:
-
-        // Internal resource loader data
-        //-------------------------------------------------------------------------
 
         struct ResourceUpdateState
         {
@@ -216,8 +213,6 @@ namespace EE::Render
         TVector<MeshStatistics>             m_statisticsPerLOD;
         uint32_t                            m_numLODs;
 
-    private:
-
         TVector<ResourceUpdateState>        m_meshBuffersState;
     };
 
@@ -234,9 +229,10 @@ namespace EE::Render
     class EE_ENGINE_API SkeletalMesh final : public Mesh
     {
         friend class MeshLoader;
+        friend class MeshCompiler;
 
-        EE_RESOURCE( "skelmesh", "Skeletal Mesh", Colors::LightCoral, s_sharedMeshVersion + 32, false );
-        EE_SERIALIZE( EE_SERIALIZE_BASE( Mesh ), m_boneIDs, m_parentBoneIndices, m_bindPose, m_inverseBindPose );
+        EE_RESOURCE( "skelmesh", "Skeletal Mesh", Colors::LightCoral, s_sharedMeshVersion + 33, false );
+        EE_SERIALIZE( EE_SERIALIZE_BASE( Mesh ), m_boneIDs, m_parentBoneIndices, m_parentSpaceBindPose, m_modelSpaceBindPose, m_modelSpaceInverseBindPose );
 
     public:
 
@@ -263,10 +259,7 @@ namespace EE::Render
             return m_boneIDs[idx];
         }
 
-        inline TVector<StringID>& GetBoneIDs() { return m_boneIDs; }
         inline TVector<StringID> const& GetBoneIDs() const { return m_boneIDs; }
-
-        inline TVector<int32_t>& GetParentBoneIndices() { return m_parentBoneIndices; }
         inline TVector<int32_t> const& GetParentBoneIndices() const { return m_parentBoneIndices; }
 
         // Returns whether the specified bone is an direct descendant of the specified parent bone
@@ -276,22 +269,26 @@ namespace EE::Render
         bool IsChildBoneOf( int32_t parentBoneIdx, int32_t childBoneIdx ) const;
 
         // Bind Poses
-        inline TVector<Transform>& GetBindPose() { return m_bindPose; }
-        inline TVector<Transform>& GetInverseBindPose() { return m_inverseBindPose; }
+        inline TVector<Transform> const& GetParentSpaceBindPose() const { return m_parentSpaceBindPose; }
+        inline TVector<Transform> const& GetModelSpaceBindPose() const { return m_modelSpaceBindPose; }
+        inline TVector<Transform> const& GetModelSpaceInverseBindPose() const { return m_modelSpaceInverseBindPose; }
 
-        inline TVector<Transform> const& GetBindPose() const { return m_bindPose; }
-        inline TVector<Transform> const& GetInverseBindPose() const { return m_inverseBindPose; }
-
-        EE_FORCE_INLINE Transform const& GetBindPoseTransform( int32_t idx ) const
+        EE_FORCE_INLINE Transform const& GetParentSpaceBindPoseTransform( int32_t idx ) const
         {
-            EE_ASSERT( idx >= 0 && idx < m_bindPose.size() );
-            return m_bindPose[idx];
+            EE_ASSERT( idx >= 0 && idx < m_parentSpaceBindPose.size() );
+            return m_parentSpaceBindPose[idx];
         }
 
-        EE_FORCE_INLINE Transform const& GetInverseBindPoseTransform( int32_t idx ) const
+        EE_FORCE_INLINE Transform const& GetModelSpaceBindPoseTransform( int32_t idx ) const
         {
-            EE_ASSERT( idx >= 0 && idx < m_inverseBindPose.size() );
-            return m_inverseBindPose[idx];
+            EE_ASSERT( idx >= 0 && idx < m_modelSpaceBindPose.size() );
+            return m_modelSpaceBindPose[idx];
+        }
+
+        EE_FORCE_INLINE Transform const& GetModelSpaceInverseBindPoseTransform( int32_t idx ) const
+        {
+            EE_ASSERT( idx >= 0 && idx < m_modelSpaceInverseBindPose.size() );
+            return m_modelSpaceInverseBindPose[idx];
         }
 
         // Debug
@@ -303,7 +300,8 @@ namespace EE::Render
 
         TVector<StringID>               m_boneIDs;
         TVector<int32_t>                m_parentBoneIndices;
-        TVector<Transform>              m_bindPose; // Note: bind pose is in global space
-        TVector<Transform>              m_inverseBindPose;
+        TVector<Transform>              m_parentSpaceBindPose;
+        TVector<Transform>              m_modelSpaceBindPose;
+        TVector<Transform>              m_modelSpaceInverseBindPose;
     };
 }

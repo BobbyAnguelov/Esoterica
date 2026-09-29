@@ -29,6 +29,8 @@ namespace EE::Render
         EE_REFLECT( Category = "Misc" );
         Color                   m_editorOutlineColor = Color( 255, 153, 51 );
 
+        //-------------------------------------------------------------------------
+
         EE_REFLECT( Category = "Light Culling" );
         float                   m_lightCullingMinCellSize = 4.0F;
 
@@ -42,7 +44,7 @@ namespace EE::Render
         uint32_t                m_lightCullingInitialDispatchZ = 2;
 
         EE_REFLECT( Category = "Light Culling" );
-        uint32_t                m_spatialHashTableSize = 100000; // rounded to next power of 2
+        uint32_t                m_spatialHashTableSize = 100000;                    // rounded to next power of 2
 
         EE_REFLECT( Category = "Light Culling" );
         uint32_t                m_spatialHashBorderLOD1 = 3;
@@ -62,8 +64,39 @@ namespace EE::Render
         EE_REFLECT( Category = "Light Culling" );
         uint32_t                m_spatialHashNumLODs = 5;
 
+        //-------------------------------------------------------------------------
+
+        EE_REFLECT( Category = "Shadows" );
+        uint32_t                m_cascadedShadowResolution = 4096;                  // TODO: This should be per-light setting eventually
+
+        EE_REFLECT( Category = "Shadows" );
+        uint32_t                m_pointShadowResolution = 512;                      // TODO: This should be per-light setting eventually
+
+        EE_REFLECT( Category = "Shadows" );
+        uint32_t                m_spotShadowResolution = 256;                       // TODO: This should be per-light setting eventually
+
+        EE_REFLECT( Category = "Shadows" );
+        float                   m_directionalShadowNormalOffsetScale = 2.0F;
+
+        EE_REFLECT( Category = "Shadows" );
+        float                   m_directionalShadowDepthBias = 0.0015F;
+
+        EE_REFLECT( Category = "Shadows" );
+        float                   m_spotShadowNormalOffsetScale = 2.0F;
+
+        EE_REFLECT( Category = "Shadows" );
+        float                   m_spotShadowDepthBias = 1.0F;                       // World space, in shadow texels
+
+        EE_REFLECT( Category = "Shadows" );
+        float                   m_pointShadowNormalOffsetScale = 2.0F;
+
+        EE_REFLECT( Category = "Shadows" );
+        float                   m_pointShadowDepthBias = 1.0F;                      // World space, in shadow texels
+
+        //-------------------------------------------------------------------------
+
         EE_REFLECT( Category = "Render" );
-        bool                    m_enableSMAA = true; // TODO: This should be world setting
+        bool                    m_enableSMAA = true;                                // TODO: This should be world setting
 
         EE_REFLECT( Category = "Render" );
         bool                    m_enableSSAO = true;
@@ -72,10 +105,9 @@ namespace EE::Render
         bool                    m_enableSSAOLowResolution = false;
 
         EE_REFLECT( Category = "Render" );
-        uint32_t                m_cascadedShadowResolution = 4096; // TODO: This should be world setting
-
-        EE_REFLECT( Category = "Render" );
         bool                    m_enableAsyncCompute = true;
+
+        //-------------------------------------------------------------------------
 
         EE_REFLECT( Category = "RHI" );
         bool                    m_enableHostValidation = false;

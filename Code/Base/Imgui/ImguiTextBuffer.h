@@ -38,10 +38,17 @@ namespace EE::ImGuiX
 
         inline void Fill( char const* pStr )
         {
-            size_t const strLength = strlen( pStr );
-            m_buffer.resize( Math::Max( m_buffer.size(), strLength + 1 ) );
-            Memory::MemsetZero( m_buffer.data(), m_buffer.size() );
-            memcpy( m_buffer.data(), pStr, strLength );
+            if ( pStr != nullptr )
+            {
+                size_t const strLength = strlen( pStr );
+                m_buffer.resize( Math::Max( m_buffer.size(), strLength + 1 ) );
+                Memory::MemsetZero( m_buffer.data(), m_buffer.size() );
+                memcpy( m_buffer.data(), pStr, strLength );
+            }
+            else
+            {
+                Memory::MemsetZero( m_buffer.data(), m_buffer.size() );
+            }
         }
 
         inline void Append( String const& str )
@@ -75,6 +82,12 @@ namespace EE::ImGuiX
             memcpy( m_buffer.data() + currentContentsLength, pStr, strLength );
         }
 
+        inline void Resize( size_t newSize )
+        {
+            m_buffer.resize( Math::Max( m_buffer.size(), newSize + 1 ) );
+            m_buffer.back() = 0;
+        }
+
         inline void Clear( size_t size = s_defaultBufferSize )
         {
             m_buffer.resize( Math::Max( m_buffer.size(), size_t( size ) ) );
@@ -87,7 +100,7 @@ namespace EE::ImGuiX
         inline char* Data() { return m_buffer.data(); }
         inline char const* Data() const { return m_buffer.data(); }
 
-        inline bool Empty() const { return m_buffer.empty(); }
+        inline bool Empty() const { return StringView( m_buffer.data() ).empty(); }
 
         inline size_t Size() const { return m_buffer.size(); }
 

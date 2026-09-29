@@ -60,20 +60,61 @@ struct HLSL_ALIGN_STRUCT MeshInstanceRootUpdateCommand
 
 HLSL_STATIC_ASSERT( sizeof( MeshInstanceRootUpdateCommand ) == 64, "Expected exactly 64 bytes" );
 
-struct HLSL_ALIGN_STRUCT DirectionalLightUpdateCommand
+//-------------------------------------------------------------------------
+
+
+struct HLSL_ALIGN_STRUCT RenderViewUpdateCommand
 {
-    uint                    m_instanceID;
-    float                   m_maxIntensity;
-    float3                  m_lightDirection;
-    uint                    m_packedTintedColor;
-    uint16_t                m_cascadedShadowIndex;
-    uint16_t                m_padding;
+    RenderView              m_renderView;
+    uint                    m_deviceRenderViewIndex;
     uint                    m_padding0;
+    uint                    m_padding1;
+    uint                    m_padding2;
 };
 
-HLSL_STATIC_ASSERT( sizeof( DirectionalLightUpdateCommand ) == 32, "Expected exactly 32 bytes" );
+HLSL_STATIC_ASSERT( sizeof( RenderViewUpdateCommand ) == 384, "Expected exactly 384 bytes" );
+HLSL_STATIC_ASSERT( ( sizeof( RenderViewUpdateCommand ) % 32 ) == 0, "Write combined copies need 32 byte aligned elements" );
 
-struct HLSL_ALIGN_STRUCT PointLightUpdateCommand
+//-------------------------------------------------------------------------
+
+struct HLSL_ALIGN_STRUCT DirectionalLightUpdateCommand
+{
+    uint                                m_instanceID;
+    uint                                m_padding0;
+    uint                                m_padding1;
+    uint                                m_padding2;
+    
+    float                               m_maxIntensity;         // Peak intensity (no distance falloff for directional)
+
+    float3                              m_lightDirection;       // Towards the light
+    uint                                m_packedTintedColor;    // RGBA8888 = KelvinToRGB(temperature) + tint, use UnpackColor()
+
+    TextureHandle                       m_shadowCascades;
+    uint16_t                            m_padding3;
+    uint                                m_padding4;
+    uint                                m_padding5;
+
+    float4x4                            m_shadowMatrix;
+
+    float4                              m_cascadeOffsets[4];
+    float4                              m_cascadeScales[4];
+    float4                              m_cascadeSize;
+};
+
+HLSL_STATIC_ASSERT( sizeof( DirectionalLightUpdateCommand ) == 256, "Expected exactly 256 bytes" );
+
+//-------------------------------------------------------------------------
+
+struct HLSL_ALIGN_STRUCT PointLightInitializeCommand
+{
+    uint                    m_instanceID;
+    uint16_t                m_shadowMapHandle;
+    uint16_t                m_shadowResolutionBits;
+};
+
+HLSL_STATIC_ASSERT( sizeof( PointLightInitializeCommand ) == 8, "Expected exactly 8 bytes" );
+
+struct HLSL_ALIGN_STRUCT PointLightTransformUpdateCommand
 {
     uint                    m_instanceID;
     float                   m_maxIntensity;
@@ -81,25 +122,27 @@ struct HLSL_ALIGN_STRUCT PointLightUpdateCommand
     float                   m_maxRadius;
     float                   m_falloff;
     uint                    m_packedTintedColor;
-    uint16_t                m_shadowMapHandle;
-    uint16_t                m_padding;
-    uint                    m_padding0;
-    uint                    m_padding1;
-    uint                    m_padding2;
-    uint                    m_padding3;
-    uint                    m_padding4;
-    uint                    m_padding5;
-    uint                    m_padding6; // waaaaaste
 };
 
-HLSL_STATIC_ASSERT( sizeof( PointLightUpdateCommand ) == 64, "Expected exactly 64 bytes" );
+HLSL_STATIC_ASSERT( sizeof( PointLightTransformUpdateCommand ) == 32, "Expected exactly 32 bytes" );
 
-struct HLSL_ALIGN_STRUCT SpotLightUpdateCommand
+//-------------------------------------------------------------------------
+
+struct HLSL_ALIGN_STRUCT SpotLightInitializeCommand
+{
+    uint                    m_instanceID;
+    uint16_t                m_shadowMapHandle;
+    uint16_t                m_shadowResolutionBits;
+};
+
+HLSL_STATIC_ASSERT( sizeof( SpotLightInitializeCommand ) == 8, "Expected exactly 8 bytes" );
+
+struct HLSL_ALIGN_STRUCT SpotLightTransformUpdateCommand
 {
     uint                    m_instanceID;
     float                   m_maxIntensity;
-    uint16_t                m_shadowMapHandle;
     uint16_t                m_paddingFlags;
+    uint16_t                m_padding0;
     float3                  m_lightPosition;
     float3                  m_lightDirection;
     float                   m_maxRadius;
@@ -107,11 +150,15 @@ struct HLSL_ALIGN_STRUCT SpotLightUpdateCommand
     float                   m_innerConeAngle;
     float                   m_outerConeAngle;
     uint                    m_packedTintedColor;
-    uint                    m_padding0;
     uint                    m_padding1;
+    uint                    m_padding2;
+
+    float4x4                m_shadowMatrix;
 };
 
-HLSL_STATIC_ASSERT( sizeof( SpotLightUpdateCommand ) == 64, "Expected exactly 64 bytes" );
+HLSL_STATIC_ASSERT( sizeof( SpotLightTransformUpdateCommand ) == 128, "Expected exactly 128 bytes" );
+
+//-------------------------------------------------------------------------
 
 struct HLSL_ALIGN_STRUCT SkinningTransformUpdateCommand
 {
@@ -138,7 +185,10 @@ struct HLSL_ALIGN_STRUCT SkinningTransformUpdateCommand
         EE::Quaternion rotation = transform.GetRotation();
         EE_ASSERT( rotation.IsNormalized() );
 
-        if ( rotation.GetW() < 0.0F ) { rotation.Conjugate(); }
+        if ( rotation.GetW() < 0.0F )
+        {
+            rotation.Conjugate();
+        }
     
         m_compressedData0[0] = rotation.GetX();
         m_compressedData0[1] = rotation.GetY();
@@ -150,16 +200,23 @@ struct HLSL_ALIGN_STRUCT SkinningTransformUpdateCommand
     #endif
 };
 
+//-------------------------------------------------------------------------
+
 struct HLSL_ALIGN_STRUCT WorldUpdateConstants
 {
     uint                    m_numInitializeCommands_MeshInstance;
+    uint                    m_numInitializeCommands_PointLight;
+    uint                    m_numInitializeCommands_SpotLight;
+
     uint                    m_numUpdateCommands_MeshInstanceRoot;
     uint                    m_numUpdateCommands_MeshInstance;
     uint                    m_numUpdateCommands_DirectionalLight;
     uint                    m_numUpdateCommands_PointLight;
     uint                    m_numUpdateCommands_SpotLight;
     uint                    m_numUpdateCommands_SkinningTransform;
-    uint                    m_padding;
+    uint                    m_numUpdateCommands_RenderView;
+
+    uint2                   m_padding;
 };
 
 EE_END_SHADER_TYPES_NAMESPACE

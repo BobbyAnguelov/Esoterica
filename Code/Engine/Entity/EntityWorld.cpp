@@ -1,6 +1,8 @@
 #include "EntityWorld.h"
 #include "EntityWorldUpdateContext.h"
 #include "Engine/Render/RenderSystem.h"
+#include "Engine/Render/RenderViewport.h"
+#include "Engine/Render/Systems/WorldSystem_Render.h"
 #include "Engine/Camera/Systems/WorldSystem_Camera.h"
 #include "Engine/Camera/Components/Component_Camera.h"
 #include "Base/Resource/ResourceSystem.h"
@@ -189,8 +191,10 @@ namespace EE
         EE_ASSERT( m_pRenderSystem != nullptr );
         EE_ASSERT( pRenderWindow != nullptr );
 
-        Viewport* pViewport = m_pRenderSystem->CreateViewport( pRenderWindow );
+        Render::RenderViewport* pViewport = m_pRenderSystem->CreateRenderViewport( pRenderWindow );
         m_viewports.emplace_back( pViewport );
+
+        pViewport->Initialize( m_pRenderSystem, GetWorldSystem<Render::RenderWorldSystem>(), pRenderWindow );
 
         #if EE_DEVELOPMENT_TOOLS
         pViewport->CreateViewportSettings( *m_pTypeRegistry );
@@ -212,7 +216,11 @@ namespace EE
                 #endif
 
                 m_pRenderSystem->WaitAllQueuesIdle();
-                m_pRenderSystem->DestroyViewport( pViewport );
+
+                Render::RenderViewport* pRenderViewport = static_cast<Render::RenderViewport*>( pViewport );
+                pRenderViewport->Shutdown( m_pRenderSystem, GetWorldSystem<Render::RenderWorldSystem>() );
+
+                m_pRenderSystem->DestroyRenderViewport( pRenderViewport );
                 m_viewports.erase_unsorted( m_viewports.begin() + i );
                 return;
             }

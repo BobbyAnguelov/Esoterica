@@ -2,6 +2,7 @@
 
 #include "Base/Render/RHI.h"
 #include "Base/Types/Arrays.h"
+#include "Engine/Render/ActiveRenderView.h"
 #include "Engine/Render/Device/DeviceRenderView.h"
 #include "Engine/Render/RenderPasses/RenderPass.h"
 
@@ -9,12 +10,6 @@
 
 namespace EE::Render
 {
-    namespace ShaderTypes
-    {
-        struct RenderView;
-        struct CascadedShadow;
-    }
-
     class DeviceRenderWorld;
     class RenderSettings;
     class RenderViewport;
@@ -25,35 +20,25 @@ namespace EE::Render
 
     struct CascadedShadowPass
     {
-        static constexpr uint32_t                           NumShadowCascades = 4;
-
     public:
 
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );
 
-        void UpdateDeviceResources( RenderSystem* pRenderSystem, DeviceRenderWorld const& deviceRenderWorld );
-
-        void UpdateRenderViews
-        (
-            RenderViewport const*                                          pRenderViewport,
-            Vector                                                         lightDirection,
-            ShaderTypes::CascadedShadow*                                   pOutCascadedShadow_WriteCombined,
-            TArrayView<ShaderTypes::RenderView>                            dstRenderViews_WriteCombined
-        ) const;
+        void BarrierWriteable( DeviceRenderWorld const& deviceRenderWorld, ActiveRenderViewList const& activeRenderViewList, DeviceResourceStates& resourceStates ) const;
+        void BarrierReadOnly( DeviceRenderWorld const& deviceRenderWorld, ActiveRenderViewList const& activeRenderViewList, DeviceResourceStates& resourceStates ) const;
 
         void DrawShadowCascades
         (
-            TArrayView<ForwardShadingMaterialShaderPipelineBucket const>   materialShaderPipelineBuckets,
-            RenderViewport const*                                          pRenderViewport,
-            DeviceResourceStates&                                          resourceStates,
-            RHI::CommandBuffer*                                            pCommandBuffer
-        );
+            TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderPipelineBuckets,
+            ActiveRenderViewList const&                                     activeRenderViewList,
+            DeviceRenderWorld const&                                        deviceRenderWorld,
+            DeviceResourceStates&                                           resourceStates,
+            RHI::CommandBuffer*                                             pCommandBuffer
+        ) const;
 
-    public:
+        //-------------------------------------------------------------------------
 
-        TArray<DeviceRenderView, NumShadowCascades>         m_renderViews;
-        DeviceTextureState                                  m_depthTargetArray = {};
         RenderSettings const*                               m_pRenderSettings = nullptr;
     };
 }

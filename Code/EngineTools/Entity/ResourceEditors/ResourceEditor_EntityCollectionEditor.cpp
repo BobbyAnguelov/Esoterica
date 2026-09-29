@@ -2,6 +2,7 @@
 #include "EngineTools/Entity/EntityEditor/EntityEditor_Utils.h"
 #include "EngineTools/Entity/EntitySerializationTools.h"
 #include "EngineTools/Entity/ResourceDescriptors/ResourceDescriptor_EntityCollection.h"
+#include "EngineTools/Entity/Systems/WorldSystem_ComponentTools.h"
 #include "Engine/UpdateContext.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Base/Threading/TaskSystem.h"
@@ -45,10 +46,17 @@ namespace EE::EntityModel
 
         LoadResource( &m_collection );
         m_collectionInstantiated = false;
+
+        auto pComponentToolsSystem = m_pWorld->GetWorldSystem<ComponentToolsSystem>();
+        m_pComponentToolsManager = pComponentToolsSystem->GetToolsManager();
+        m_pComponentToolsManager->Initialize( m_editorContext );
     }
 
     void EntityCollectionEditor::Shutdown( UpdateContext const& context )
     {
+        m_pComponentToolsManager->Shutdown();
+        m_pComponentToolsManager = nullptr;
+
         if ( m_collection.IsLoaded() )
         {
             UnloadResource( &m_collection );
@@ -58,6 +66,8 @@ namespace EE::EntityModel
 
         EditorTool::Shutdown( context );
     }
+
+    //-------------------------------------------------------------------------
 
     void EntityCollectionEditor::SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
@@ -148,6 +158,7 @@ namespace EE::EntityModel
         }
 
         m_editorContext.Update( context );
+        m_pComponentToolsManager->Update();
 
         //-------------------------------------------------------------------------
 
@@ -183,49 +194,60 @@ namespace EE::EntityModel
 
     void EntityCollectionEditor::DrawViewportUI( UpdateContext const& context, Viewport const* pViewport, bool isFocused )
     {
+        // Component Editors
+        //-------------------------------------------------------------------------
+
+        if ( !m_gizmo.IsManipulating() )
+        {
+            m_pComponentToolsManager->DrawViewportEditors( pViewport, isFocused );
+        }
+
         // Update Gizmo
         //-------------------------------------------------------------------------
 
-        if ( m_gizmo.GetMode() == ImGuiX::Gizmo::Mode::Scale )
+        if ( m_editorContext.HasSpatialSelection() && !m_pComponentToolsManager->IsManipulatingComponentEditor() )
         {
-            m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, m_editorContext.DoesSpatialSelectionSupportNonUniformScale() );
-        }
-
-        Transform const& selectionTransform = m_editorContext.GetSpatialSelectionTransform();
-        bool const checkGizmoHotkeys = !IsManipulatingCamera() && ( m_isViewportFocused || m_isViewportHovered ) && m_editorContext.HasSpatialSelection();
-        auto const gizmoResult = m_gizmo.UpdateAndDraw( selectionTransform.GetTranslation(), selectionTransform.GetRotation(), *pViewport, checkGizmoHotkeys );
-
-        if ( IsManipulatingCamera() )
-        {
-            if ( m_editorContext.IsManipulatingSpatialSelection() )
+            if ( m_gizmo.GetMode() == ImGuiX::Gizmo::Mode::Scale )
             {
-                m_editorContext.EndManipulatingSpatialSelection( gizmoResult );
+                m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, m_editorContext.DoesSpatialSelectionSupportNonUniformScale() );
             }
-        }
-        else // Apply gizmo results
-        {
-            switch ( gizmoResult.m_state )
+
+            Transform const& selectionTransform = m_editorContext.GetSpatialSelectionTransform();
+            bool const checkGizmoHotkeys = !IsManipulatingCamera() && ( m_isViewportFocused || m_isViewportHovered ) && m_editorContext.HasSpatialSelection();
+            auto const gizmoResult = m_gizmo.UpdateAndDraw( selectionTransform.GetTranslation(), selectionTransform.GetRotation(), *pViewport, checkGizmoHotkeys );
+
+            if ( IsManipulatingCamera() )
             {
-                case ImGuiX::GizmoState::StartedManipulating:
-                {
-                    m_editorContext.BeginManipulatingSpatialSelection( gizmoResult, ImGui::GetIO().KeyAlt );
-                }
-                break;
-
-                case ImGuiX::GizmoState::Manipulating:
-                {
-                    m_editorContext.ManipulateSpatialSelection( gizmoResult );
-                }
-                break;
-
-                case ImGuiX::GizmoState::StoppedManipulating:
+                if ( m_editorContext.IsManipulatingSpatialSelection() )
                 {
                     m_editorContext.EndManipulatingSpatialSelection( gizmoResult );
                 }
-                break;
+            }
+            else // Apply gizmo results
+            {
+                switch ( gizmoResult.m_state )
+                {
+                    case ImGuiX::GizmoState::StartedManipulating:
+                    {
+                        m_editorContext.BeginManipulatingSpatialSelection( gizmoResult, ImGui::GetIO().KeyAlt );
+                    }
+                    break;
 
-                default:
-                break;
+                    case ImGuiX::GizmoState::Manipulating:
+                    {
+                        m_editorContext.ManipulateSpatialSelection( gizmoResult );
+                    }
+                    break;
+
+                    case ImGuiX::GizmoState::StoppedManipulating:
+                    {
+                        m_editorContext.EndManipulatingSpatialSelection( gizmoResult );
+                    }
+                    break;
+
+                    default:
+                    break;
+                }
             }
         }
     }
@@ -254,6 +276,11 @@ namespace EE::EntityModel
     void EntityCollectionEditor::HandleViewportInteractions()
     {
         if ( !ImGui::IsMouseClicked( ImGuiMouseButton_Left ) )
+        {
+            return;
+        }
+
+        if ( m_pComponentToolsManager->IsManipulatingComponentEditor() )
         {
             return;
         }

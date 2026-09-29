@@ -52,7 +52,7 @@ namespace EE::Render
             TVector<StoredMaterialParameter<Matrix>>                        m_matrices;
         };
 
-    private:
+        //-------------------------------------------------------------------------
 
         StringID                            m_shaderID;
         MaterialParameterStorage            m_parameterStorage;
@@ -60,8 +60,6 @@ namespace EE::Render
         // Not serialized - need to resolve at runtime
         int32_t                             m_shaderIndex = -1;
         MaterialShaderParametersInstance    m_shaderParametersInstance;
-
-    private:
 
         AsyncMaterialParametersUpdate*      m_pMaterialParametersUpdate = nullptr;
     };

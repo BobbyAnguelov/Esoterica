@@ -83,7 +83,7 @@ namespace EE::Render
             resultTextureParameters.m_width = depthWidth;
             resultTextureParameters.m_height = depthHeight;
             resultTextureParameters.m_format = RHI::DataFormat::R16_SFloat;
-            resultTextureParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::RWTexture );
+            resultTextureParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Texture, RHI::DescriptorTypeFlags::RWTexture };
             resultTextureParameters.m_debugName = "GTAO Result Noisy 0";
 
             pRenderViewport->m_GTAO_resultTextureNoisy0 = RHI::CreateTexture( pContextRHI, resultTextureParameters );
@@ -107,7 +107,7 @@ namespace EE::Render
             resultTextureParameters.m_width = fullResolutionWidth;
             resultTextureParameters.m_height = fullResolutionHeight;
             resultTextureParameters.m_format = RHI::DataFormat::R16_SFloat;
-            resultTextureParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Texture, RHI::DescriptorTypeFlags::RWTexture );
+            resultTextureParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Texture, RHI::DescriptorTypeFlags::RWTexture };
             resultTextureParameters.m_debugName = "GTAO Result";
 
             if ( m_enableLowResolution )
@@ -137,7 +137,7 @@ namespace EE::Render
             prefilterDepthTextureParameters.m_height = depthHeight;
             prefilterDepthTextureParameters.m_mipLevels = 5;
             prefilterDepthTextureParameters.m_format = RHI::DataFormat::R32_SFloat;
-            prefilterDepthTextureParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::RWTexture );
+            prefilterDepthTextureParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Texture, RHI::DescriptorTypeFlags::RWTexture };
             prefilterDepthTextureParameters.m_debugName = "GTAO Prefilter Depth";
 
             pRenderViewport->m_GTAO_prefilterDepthTexture = RHI::CreateTexture( pContextRHI, prefilterDepthTextureParameters );
@@ -151,7 +151,7 @@ namespace EE::Render
             edgesTextureParameters.m_width = depthWidth;
             edgesTextureParameters.m_height = depthHeight;
             edgesTextureParameters.m_format = RHI::DataFormat::R8_UNorm;
-            edgesTextureParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::RWTexture );
+            edgesTextureParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Texture, RHI::DescriptorTypeFlags::RWTexture };
             edgesTextureParameters.m_debugName = "GTAO Edges Texture";
 
             pRenderViewport->m_GTAO_edgesTexture = RHI::CreateTexture( pContextRHI, edgesTextureParameters );

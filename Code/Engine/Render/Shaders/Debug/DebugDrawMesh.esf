@@ -139,7 +139,10 @@ void MS_main
             vertexColor = UnpackColor( meshBuffer.Load<VertexColorAttribute>( attributeBaseAddress + cluster.GetVertexColorOffset( 0, groupThreadID ) ) );
         }
 
-        if ( flipWinding ) { vertexNormal = -vertexNormal; }
+        if ( flipWinding )
+        {
+            vertexNormal = -vertexNormal;
+        }
     
         precise float3 worldPosition = mul( RootSRV[0].m_transform, float4( vertexPosition, 1.0 ) ).xyz;
         float3 worldNormal = mul( Adjugate( RootSRV[0].m_transform ), vertexNormal );

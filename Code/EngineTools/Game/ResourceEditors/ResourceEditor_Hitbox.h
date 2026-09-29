@@ -145,7 +145,7 @@ namespace EE
         SocketInfo*                                     m_pSocketTreeRoot = nullptr;
 
         ResourcePicker                                  m_setupResourcePicker;
-        ImGuiX::FilterWidget                            m_socketFilter;
+        ImGuiX::FilterData                              m_socketFilter;
         UUID                                            m_selectedItemID;
         bool                                            m_isolateSelected = true;
 

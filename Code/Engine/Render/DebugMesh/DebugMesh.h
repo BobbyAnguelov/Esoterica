@@ -16,7 +16,7 @@ namespace EE::Render
             Vertex() = default;
             Vertex( Vector const& pos, Vector const& normal = Vector::UnitZ, Color color = Colors::White ) : m_pos( pos ), m_normal( normal ), m_color( color ) {}
 
-        public:
+            //-------------------------------------------------------------------------
 
             Vector  m_pos;
             Vector  m_normal;

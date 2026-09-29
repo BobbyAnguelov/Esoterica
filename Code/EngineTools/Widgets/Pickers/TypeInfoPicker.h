@@ -2,7 +2,7 @@
 
 #include "EngineTools/_Module/API.h"
 #include "Base/TypeSystem/TypeID.h"
-#include "Base/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiFilter.h"
 #include "Base/Imgui/ImguiTextBuffer.h"
 
 //-------------------------------------------------------------------------
@@ -67,7 +67,7 @@ namespace EE
         ToolsContext const&                                         m_toolsContext;
         TypeSystem::TypeID                                          m_baseClassTypeID;
         TypeSystem::TypeInfo const*                                 m_pSelectedTypeInfo = nullptr;
-        ImGuiX::FilterWidget                                        m_filterWidget;
+        ImGuiX::FilterData                                          m_filter;
         TVector<Option>                                             m_generatedOptions;
         TVector<Option>                                             m_filteredOptions;
         ImGuiX::TextBuffer                                          m_typeInfoLabel;

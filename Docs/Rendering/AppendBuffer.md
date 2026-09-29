@@ -16,16 +16,16 @@ For best-effort systems, this is acceptable.
 
 Two shader-side variants, both wrapping an atomic counter buffer and a data buffer:
 
-| Variant           | Counter          | Data buffer             |
-| ----------------- | ---------------- | ----------------------- |
-| `AppendBuffer<T>` | `RWBuffer<uint>` | `RWStructuredBuffer<T>` |
-| `RawAppendBuffer` | `RWBuffer<uint>` | `RWByteAddressBuffer`   |
+| Variant           | Counter               | Data buffer             |
+| ----------------- | --------------------- | ----------------------- |
+| `AppendBuffer<T>` | `RWByteAddressBuffer` | `RWStructuredBuffer<T>` |
+| `RawAppendBuffer` | `RWByteAddressBuffer` | `RWByteAddressBuffer`   |
 
 The only write path is `TryAppend`. It calls `InterlockedAdd` on the counter to claim the next slot, then writes if the index is within capacity.
 
 On overflow we silently drop the write without any fallbacks or error reports. `TryAppend` returns `false` for API consistency, but in practice we ignore it.
 
-A subsequent pass that reads the counter must bounds-check: `m_counterBuffer[0]` counts all attempted writes, including those past capacity. The valid element count is `min( m_counterBuffer[0], m_capacity )`. When the data drives indirect dispatches, `CmdExecuteIndirect` handles this clamping — pass the counter as the counter buffer argument and `m_maxBufferSize` as `maxNumCommands`.
+A subsequent pass that reads the counter must bounds-check: `m_counterBuffer.Load( 0 )` counts all attempted writes, including those past capacity. The valid element count is `min( m_counterBuffer.Load( 0 ), m_capacity )`. When the data drives indirect dispatches, `CmdExecuteIndirect` handles this clamping — pass the counter as the counter buffer argument and `m_maxBufferSize` as `maxNumCommands`.
 
 ## Handle encoding
 

@@ -354,7 +354,8 @@ namespace EE::Resource
                 ImGuiX::DropDownIconButton( EE_ICON_FILTER, "##Resource Filters", DrawFiltersMenu, ImGuiX::Style::s_colorText, ImVec2( ImGuiX::Style::s_iconButtonWidth, 0 ) );
 
                 ImGui::SameLine();
-                m_filterUpdated |= m_filter.UpdateAndDraw();
+                ImGui::SetNextItemWidth( -1 );
+                m_filterUpdated |= ImGuiX::InputFilterText( m_filter );
 
                 DrawResourceTypeFilterRow( context );
 

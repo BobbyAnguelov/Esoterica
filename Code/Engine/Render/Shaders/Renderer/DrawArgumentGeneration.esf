@@ -12,20 +12,20 @@ EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
 [numthreads( 64, 1, 1 )]
 void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, uint3 dispatchThreadID : SV_DispatchThreadID )
 {
-    Buffer<uint>                    drawClusterCountersBuffer       = GetBuffer( RootConstants.m_drawClusterCountersBuffer );
-    RWBuffer<uint>                  drawClusterBaseOffsetsBuffer    = GetRWBuffer( RootConstants.m_drawClusterBaseOffsetsBuffer );
+    ByteAddressBuffer               drawClusterCountersBuffer       = GetBuffer( RootConstants.m_drawClusterCountersBuffer );
+    RWStructuredBuffer<uint>        drawClusterBaseOffsetsBuffer    = GetRWBuffer( RootConstants.m_drawClusterBaseOffsetsBuffer );
     StructuredBuffer<RenderBucket>  renderBucketBuffer              = GetBuffer( RootCBV.m_renderBucketBuffer );
 
     //-------------------------------------------------------------------------
 
     if ( groupThreadID == 0 )
     {
-        const uint numRenderViews = RootCBV.m_numRenderViews;
+        const uint numActiveRenderViews = RootCBV.m_numActiveRenderViews;
 
         uint runningOffset = 0;
-        for ( uint listIndex = 0; listIndex < numRenderViews * EE_NUM_RENDER_BUCKETS_PER_SHADER_PER_VIEW; ++listIndex )
+        for ( uint listIndex = 0; listIndex < numActiveRenderViews * EE_NUM_RENDER_BUCKETS_PER_SHADER_PER_VIEW; ++listIndex )
         {
-            const uint numDrawClusters = drawClusterCountersBuffer[listIndex];
+            const uint numDrawClusters = drawClusterCountersBuffer.Load( listIndex * 4 );
 
             drawClusterBaseOffsetsBuffer[listIndex] = runningOffset;
             runningOffset += numDrawClusters;
@@ -42,14 +42,20 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
 
             const RenderBucket renderBucket = renderBucketBuffer[bucketBase + bucket];
 
-            RWBuffer<uint> drawArgumentCounter = GetRWBuffer( NonUniformResourceIndex( renderBucket.m_drawCounterBuffer ) );
+            StructuredBuffer<RenderView> renderViewBuffer            = GetBuffer( RootCBV.m_renderViewBuffer );
+            StructuredBuffer<uint16_t>   renderViewIndirectionBuffer = GetBuffer( RootCBV.m_renderViewIndirectionBuffer );
+
+            const RenderView renderView = renderViewBuffer[renderViewIndirectionBuffer[viewIndex]];
+            const uint numFaces = ( ( renderView.m_renderViewFlags & RENDER_VIEW_FLAG_SHADOW_FACE ) != 0 ) ? g_OctahedralShadowNumFaces : 1;
+
+            RWByteAddressBuffer drawArgumentCounter = GetRWBuffer( NonUniformResourceIndex( renderBucket.m_drawCounterBuffer ) );
             RWStructuredBuffer<DrawArgument> drawArgumentBuffer = GetRWBuffer( NonUniformResourceIndex( renderBucket.m_drawArgumentBuffer ) );
 
             const uint numArguments = ( numDrawClusters + RHI_MAX_DISPATCH_SIZE - 1 ) / RHI_MAX_DISPATCH_SIZE;
             for ( uint argumentIndex = 0; argumentIndex < numArguments; ++argumentIndex )
             {
                 uint drawArgumentIndex = 0;
-                InterlockedAdd( drawArgumentCounter[0], 1, drawArgumentIndex );
+                drawArgumentCounter.InterlockedAdd( 0, 1, drawArgumentIndex );
 
                 DrawArgument drawArgument = ( DrawArgument )0;
                 drawArgument.m_rootConstants.m_drawClusterBufferOffset     = drawClusterBaseOffsetsBuffer[listIndex] + argumentIndex * RHI_MAX_DISPATCH_SIZE;
@@ -58,7 +64,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
                 drawArgument.m_rootConstants.m_clusterToInstanceBuffer     = RootConstants.m_clusterToInstanceBuffer;
                 drawArgument.m_rootConstants.m_instanceBuffer              = RootConstants.m_instanceBuffer;
                 drawArgument.m_rootCBV                                     = RootCBV.m_deviceAddress;
-                drawArgument.m_dispatchArguments                           = uint3( min( numDrawClusters - argumentIndex * RHI_MAX_DISPATCH_SIZE, RHI_MAX_DISPATCH_SIZE ), 1, 1 );
+                drawArgument.m_dispatchArguments                           = uint3( min( numDrawClusters - argumentIndex * RHI_MAX_DISPATCH_SIZE, RHI_MAX_DISPATCH_SIZE ), numFaces, 1 );
 
                 drawArgumentBuffer[drawArgumentIndex] = drawArgument;
             }

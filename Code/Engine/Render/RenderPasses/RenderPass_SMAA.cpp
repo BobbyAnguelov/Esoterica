@@ -96,7 +96,7 @@ namespace EE::Render
             edgesTextureParameters.m_width = textureWidth;
             edgesTextureParameters.m_height = textureHeight;
             edgesTextureParameters.m_format = RHI::DataFormat::RGBA8_UNorm;
-            edgesTextureParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture );
+            edgesTextureParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture };
             edgesTextureParameters.m_debugName.sprintf( "SMAA Edges Target %dx%d", textureWidth, textureHeight );
 
             pRenderViewport->m_SMAA_edgesTexture = RHI::CreateTexture( pRenderSystem->GetContextRHI(), edgesTextureParameters );

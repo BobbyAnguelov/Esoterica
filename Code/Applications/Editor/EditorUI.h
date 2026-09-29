@@ -3,11 +3,10 @@
 #include "EngineTools/FileSystem/DataFileRegistry.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "EngineTools/Core/DialogManager.h"
+#include "EngineTools/Core/Test/UITest.h"
 #include "Engine/ToolsUI/ToolsUI.h"
-#include "Engine/Debug/Widgets/FrameLimiterWidget.h"
-#include "Engine/Debug/Widgets/PerformanceStatsWidget.h"
-
 #include "Engine/Render/Imgui/ImguiImageCache.h"
+#include "Base/Imgui/ImguiAppTitlebar.h"
 
 //-------------------------------------------------------------------------
 
@@ -227,6 +226,7 @@ namespace EE
         float                                           m_resourceBrowserViewWidth = 150;
 
         // Tools
+        UITest*                                         m_pUITester = nullptr;
         TVector<EditorTool*>                            m_editorTools;
         mutable TVector<ToolOperation>                  m_toolOperations;
         void*                                           m_pLastActiveTool = nullptr;

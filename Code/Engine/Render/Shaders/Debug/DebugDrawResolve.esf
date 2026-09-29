@@ -69,12 +69,12 @@ void CS_main()
     argument.m_rootCBV = resourceTable.m_debugParametersBufferAddress;
         
     argument.m_resourceTable.SetDebugDrawCommandsBuffer( GetAppendBufferDataHandle( RootConstants.GetCommandsBuffer_TransparentDepthOn() ) );
-    argument.m_resourceTable.m_numDebugDrawCommands = resourceTable.CommandsBuffer_TransparentDepthOn.m_counterBuffer[0];
+    argument.m_resourceTable.m_numDebugDrawCommands = resourceTable.CommandsBuffer_TransparentDepthOn.m_counterBuffer.Load( 0 );
     argument.m_dispatchArguments = uint3( ( min( argument.m_resourceTable.m_numDebugDrawCommands, argument.m_resourceTable.m_numDebugDrawCommands ) + 63 ) / 64, 1, 1 );
     resourceTable.ArgumentBuffer_TransparentDepthOn[0] = argument;
     
     argument.m_resourceTable.SetDebugDrawCommandsBuffer( GetAppendBufferDataHandle( RootConstants.GetCommandsBuffer_TransparentDepthOff() ) );
-    argument.m_resourceTable.m_numDebugDrawCommands = resourceTable.CommandsBuffer_TransparentDepthOff.m_counterBuffer[0];
+    argument.m_resourceTable.m_numDebugDrawCommands = resourceTable.CommandsBuffer_TransparentDepthOff.m_counterBuffer.Load( 0 );
     argument.m_dispatchArguments = uint3( ( min( argument.m_resourceTable.m_numDebugDrawCommands, argument.m_resourceTable.m_numDebugDrawCommands ) + 63 ) / 64, 1, 1 );
     resourceTable.ArgumentBuffer_TransparentDepthOff[0] = argument;
 }

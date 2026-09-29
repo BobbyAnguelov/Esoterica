@@ -135,7 +135,8 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        TVector<int32_t>                m_selectedSubmeshes;
+        TVector<StringID>               m_uniqueMaterialNames;
+        TVector<int16_t>                m_selectedSubmeshes;
         TVector<int16_t>                m_hiddenSubmeshes;
         TVector<ResourcePicker*>        m_materialPickers;
 

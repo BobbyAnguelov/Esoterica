@@ -66,14 +66,14 @@ namespace EE::Render
         // Staging buffer and allocator
         //-------------------------------------------------------------------------
 
-        uint64_t stagingAllocatorSize = Math::RoundUpToNearestMultiple32( settings.m_stagingBufferSize, StagingBufferAlignment );
+        uint64_t stagingAllocatorSize = Math::RoundUpToNearestMultiple32( settings.m_stagingBufferSize, s_stagingBufferAlignment );
 
         RHI::BufferParameters stagingBufferParameters = {};
         stagingBufferParameters.m_bufferSize = stagingAllocatorSize;
         stagingBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
         stagingBufferParameters.m_nodeIndex = m_pTransferQueue->m_nodeIndex;
         stagingBufferParameters.m_queueType = RHI::QueueType::Transfer;
-        stagingBufferParameters.m_flags.SetMultipleFlags( RHI::BufferFlags::NoDescriptors, RHI::BufferFlags::PersistentMap, RHI::BufferFlags::SubAllocations );
+        stagingBufferParameters.m_flags = { RHI::BufferFlags::NoDescriptors, RHI::BufferFlags::PersistentMap, RHI::BufferFlags::SubAllocations };
         stagingBufferParameters.m_debugName = "StagingBuffer";
 
         m_pStagingBuffer = RHI::CreateBuffer( m_pContextRHI, stagingBufferParameters );
@@ -116,7 +116,7 @@ namespace EE::Render
             m_frameComputeCommandBuffers[frameIndex] = RHI::CreateCommandBuffer( m_pContextRHI, commandBufferParameters );
         }
 
-        for ( uint32_t asyncTransferIndex = 0; asyncTransferIndex < MaxPendingTransfers; ++asyncTransferIndex )
+        for ( uint32_t asyncTransferIndex = 0; asyncTransferIndex < s_maxPendingTransfers; ++asyncTransferIndex )
         {
             RHI::CommandPoolParameters commandPoolParameters = {};
             commandPoolParameters.m_pQueue = m_pTransferQueue;
@@ -187,7 +187,7 @@ namespace EE::Render
         // Pre-allocate shader data buffer
         RHI::BufferParameters shaderDataBufferParameters = {};
         shaderDataBufferParameters.m_bufferSize = m_shaderDataAllocator.GetCapacityInBytes();
-        shaderDataBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw );
+        shaderDataBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw };
         shaderDataBufferParameters.m_debugName = "System_Renderer ShaderDataBuffer";
 
         m_pShaderDataBuffer = RHI::CreateBuffer( m_pContextRHI, shaderDataBufferParameters );
@@ -206,7 +206,7 @@ namespace EE::Render
             RHI::DestroyCommandBuffer( m_pContextRHI, eastl::move( m_frameComputeCommandBuffers[frameIndex] ) );
         }
 
-        for ( uint32_t asyncTransferIndex = 0; asyncTransferIndex < MaxPendingTransfers; ++asyncTransferIndex )
+        for ( uint32_t asyncTransferIndex = 0; asyncTransferIndex < s_maxPendingTransfers; ++asyncTransferIndex )
         {
             RHI::DestroyCommandPool( m_pContextRHI, eastl::move( m_asyncTransferCommandPools[asyncTransferIndex] ) );
             RHI::DestroyCommandBuffer( m_pContextRHI, eastl::move( m_asyncTransferCommandBuffers[asyncTransferIndex] ) );
@@ -269,6 +269,18 @@ namespace EE::Render
             EE::Delete( pTextureUpdate );
         }
         m_asyncTextureUpdateQueue.clear();
+
+        for ( AsyncShaderDataUpdate* pShaderDataUpdate : m_asyncShaderDataUpdateQueue )
+        {
+            EE::Delete( pShaderDataUpdate );
+        }
+        m_asyncShaderDataUpdateQueue.clear();
+
+        for ( AsyncMaterialParametersUpdate* pMaterialParametersUpdate : m_asyncMaterialParametersUpdateQueue )
+        {
+            EE::Delete( pMaterialParametersUpdate );
+        }
+        m_asyncMaterialParametersUpdateQueue.clear();
 
         RHI::DestroyBuffer( m_pContextRHI, eastl::move( m_pStagingBuffer ) );
 
@@ -537,7 +549,7 @@ namespace EE::Render
                         EE_ASSERT( !pBufferUpdate->m_stagingAllocation.IsValid() );
 
                         // TODO: Handle UMA for async buffer updates
-                        RHI::BufferSubAllocation stagingAllocation = RHI::BufferSubAllocate( m_pStagingBuffer, pBufferUpdate->m_bufferParameters.m_bufferSize, StagingBufferAlignment );
+                        RHI::BufferSubAllocation stagingAllocation = RHI::BufferSubAllocate( m_pStagingBuffer, pBufferUpdate->m_bufferParameters.m_bufferSize, s_stagingBufferAlignment );
                         if ( !stagingAllocation.IsValid() )
                         {
                             continue;
@@ -640,7 +652,7 @@ namespace EE::Render
 
                         EE_ASSERT( !pTextureUpdate->m_stagingAllocation.IsValid() );
 
-                        RHI::BufferSubAllocation stagingAllocation = RHI::BufferSubAllocate( m_pStagingBuffer, sizeInBytes, StagingBufferAlignment );
+                        RHI::BufferSubAllocation stagingAllocation = RHI::BufferSubAllocate( m_pStagingBuffer, sizeInBytes, s_stagingBufferAlignment );
                         if ( !stagingAllocation.IsValid() )
                         {
                             continue;
@@ -732,7 +744,7 @@ namespace EE::Render
         // Submit queue
         m_asyncTransferSemaphores[m_asyncTransferIndex] = RHI::QueueSubmit( m_pContextRHI, m_pTransferQueue, { &pTransferCommandBuffer, 1 } );
 
-        m_asyncTransferIndex = ( m_asyncTransferIndex + 1 ) % MaxPendingTransfers;
+        m_asyncTransferIndex = ( m_asyncTransferIndex + 1 ) % s_maxPendingTransfers;
 
         //-------------------------------------------------------------------------
 
@@ -939,25 +951,21 @@ namespace EE::Render
     // Viewports
     //-------------------------------------------------------------------------
 
-    Viewport* RenderSystem::CreateViewport( Render::Window* pRenderWindow )
+    RenderViewport* RenderSystem::CreateRenderViewport( Render::Window* pRenderWindow )
     {
         EE_ASSERT( pRenderWindow != nullptr );
 
         RenderViewport* pRenderViewport = EE::New<RenderViewport>();
-        pRenderViewport->Initialize( GetContextRHI(), pRenderWindow );
         m_renderViewports.emplace_back( pRenderViewport );
         return pRenderViewport;
     }
 
-    void RenderSystem::DestroyViewport( Viewport* pViewport )
+    void RenderSystem::DestroyRenderViewport( RenderViewport* pRenderViewport )
     {
         for ( int32_t i = int32_t( m_renderViewports.size() ) - 1; i >= 0; i-- )
         {
-            if ( m_renderViewports[i] == pViewport )
+            if ( m_renderViewports[i] == pRenderViewport )
             {
-                RenderViewport* pRenderViewport = static_cast<RenderViewport*>( pViewport );
-                pRenderViewport->Shutdown( GetContextRHI() );
-
                 EE::Delete( pRenderViewport );
 
                 m_renderViewports.erase_unsorted( m_renderViewports.begin() + i );
@@ -1084,7 +1092,7 @@ namespace EE::Render
 
             RHI::BufferParameters bufferParameters = {};
             bufferParameters.m_bufferSize = shaderDataBufferSize;
-            bufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw );
+            bufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw };
             bufferParameters.m_debugName = "System_Renderer ShaderDataBuffer";
 
             auto CopyBufferMemory = [pShaderDataMemory, shaderDataBufferSize] ( uint8_t* pDstMemory_WriteCombined, size_t dstSize )

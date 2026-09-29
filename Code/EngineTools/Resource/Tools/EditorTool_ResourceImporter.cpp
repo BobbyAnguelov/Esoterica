@@ -915,7 +915,8 @@ namespace EE::Resource
         float const availableWidth = ImGui::GetContentRegionAvail().x;
         float const filterWidth = availableWidth - ( 2 * ( ImGuiX::Style::s_iconButtonWidth + ImGui::GetStyle().ItemSpacing.x ) );
 
-        if ( m_filter.UpdateAndDraw( filterWidth ) )
+        ImGui::SetNextItemWidth( filterWidth );
+        if ( ImGuiX::InputFilterText( m_filter ) )
         {
             shouldUpdateVisibility = true;
 

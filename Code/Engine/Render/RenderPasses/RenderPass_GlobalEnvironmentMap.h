@@ -2,8 +2,14 @@
 #pragma once
 
 #include "Engine/Render/Shaders/EngineShader.h"
+#include "Engine/Render/ActiveRenderView.h"
 #include "Engine/Render/Device/DeviceRenderView.h"
 #include "Engine/Render/RenderPasses/RenderPass.h"
+
+namespace EE
+{
+    class EntityWorld;
+}
 
 namespace EE::Render
 {
@@ -12,12 +18,13 @@ namespace EE::Render
         struct RenderView;
     }
 
+    class DeviceRenderWorld;
+    class RenderViewport;
+
+    //-------------------------------------------------------------------------
+
     class GlobalEnvironmentMapPass final
     {
-    public:
-
-        static constexpr uint32_t                   NumRenderViews = 6;
-
     public:
 
         //-------------------------------------------------------------------------
@@ -25,51 +32,34 @@ namespace EE::Render
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );
 
-        void UpdateDeviceResources
-        (
-            RenderSystem*                                               pRenderSystem,
-            TArrayView<ForwardShadingMaterialShaderPipelineBucket>      materialShaderPipelineBuckets,
-            DeviceRenderWorld const&                                    deviceRenderWorld
-        );
+        void UpdateWorldDeviceResources( EntityWorld* pWorld );
+        void UpdateViewportDeviceResources( RenderSystem* pRenderSystem, RenderViewport* pRenderViewport );
 
-        void DrawAndFilterGlobalEnvironmentMap
+        void CaptureGlobalEnvironmentMap
         (
             TArrayView<ForwardShadingMaterialShaderPipelineBucket>      materialShaderPipelineBuckets,
+            ActiveRenderViewList const&                                 activeRenderViewList,
+            DeviceRenderWorld const&                                    deviceRenderWorld,
+            RenderViewport const*                                       pRenderViewport,
             RHI::Buffer*                                                pGlobalParametersBuffer,
-            RHI::CommandBuffer*                                         pCommandBuffer,
-            RHI::Texture*                                               pRadianceRenderTarget,
-            RHI::Texture*                                               pIrradianceRenderTarget,
-            RHI::BufferHandle                                           renderViewBufferHandle,
-            uint32_t                                                    renderViewOffset
+            RHI::CommandBuffer*                                         pCommandBuffer
         ) const;
 
-        void UpdateRenderViews( TArrayView<ShaderTypes::RenderView> dstRenderViews ) const;
-
-        void UpdateDeviceResources_DFG( RHI::Context* pContextRHI );
-        void PrecomputeDFG( RHI::CommandBuffer* pCommandBuffer );
-
-        RHI::TextureHandle GetDFGTextureHandle() const;
-        RHI::TextureHandle GetCaptureTextureHandle() const;
-
-    public:
-
-        //-------------------------------------------------------------------------
-
-        TArray<DeviceRenderView, NumRenderViews>    m_renderViews;
+        void FilterEnvironmentMap
+        (
+            DeviceRenderWorld const&                                    deviceRenderWorld,
+            RenderViewport const*                                       pRenderViewport,
+            RHI::CommandBuffer*                                         pCommandBuffer,
+            RHI::Buffer*                                                pProbeTableBuffer
+        ) const;
 
     private:
 
         //-------------------------------------------------------------------------
 
-        bool                                        m_dfgUpdateNeeded = true;
-
-        RHI::Texture*                               m_pCaptureRenderTarget = nullptr;
-        RHI::Texture*                               m_pDepthRenderTarget = nullptr;
-        RHI::Texture*                               m_pDfgRenderTarget = nullptr;
-
-        RHI::Pipeline*                              m_pPipelineIrradianceFiltering = nullptr;
-        RHI::Pipeline*                              m_pPipelineRadianceFiltering = nullptr;
-        RHI::Pipeline*                              m_pPipelinePrecomputeDFG = nullptr;
         RHI::Pipeline*                              m_pPipelineCubemapDownsample = nullptr;
+
+        ComputeShader const*                        m_pIrradianceSHProjectShader = nullptr;
+        ComputeShader const*                        m_pProbeTableRadianceShader = nullptr;
     };
 }

@@ -45,6 +45,9 @@ namespace EE::Render
 
     private:
 
+        static constexpr uint32_t s_maxPendingTransfers = RHI::MaxPendingFrames * 2;
+        static constexpr uint64_t s_stagingBufferAlignment = 32;
+
         #if EE_DEVELOPMENT_TOOLS
         enum class InternalStage
         {
@@ -87,6 +90,8 @@ namespace EE::Render
         inline RHI::Queue* GetGraphicsQueue() { return m_pGraphicsQueue; }
         inline RHI::Queue* GetComputeQueue() { return m_pComputeQueue; }
 
+        inline RenderSettings const* GetRenderSettings() const { return m_pRenderSettings; }
+
         inline RHI::Sampler* GetPointWrapSampler() const { return m_commonSamplers[COMMON_SAMPLER_POINT_WRAP]; }
         inline RHI::Sampler* GetLinearWrapSampler() const { return m_commonSamplers[COMMON_SAMPLER_LINEAR_WRAP]; }
         inline RHI::Sampler* GetPointClampSampler() const { return m_commonSamplers[COMMON_SAMPLER_POINT_CLAMP]; }
@@ -118,8 +123,8 @@ namespace EE::Render
         // Viewports
         //-------------------------------------------------------------------------
 
-        Viewport* CreateViewport( Render::Window* pRenderWindow );
-        void DestroyViewport( Viewport* pViewport );
+        RenderViewport* CreateRenderViewport( Render::Window* pRenderWindow );
+        void DestroyRenderViewport( RenderViewport* pViewport );
 
     public:
 
@@ -142,9 +147,6 @@ namespace EE::Render
 
         template<typename F>
         void QueueTextureUpdate( F copyFn, RHI::Texture* pDstTexture, RHI::TextureCopyRegion const& dstRegion, uint32_t numMipLevels, uint32_t numArraySlices, RHI::TextureState dstTextureState );
-
-        // Meshes
-        //-------------------------------------------------------------------------
 
         // Shaders
         //-------------------------------------------------------------------------
@@ -188,10 +190,7 @@ namespace EE::Render
 
     private:
 
-        static constexpr uint32_t MaxPendingTransfers = RHI::MaxPendingFrames * 2;
-        static constexpr uint64_t StagingBufferAlignment = 32;
-
-    private:
+        //-------------------------------------------------------------------------
 
         RHI::Context*                                                           m_pContextRHI = nullptr;
         RHI::Queue*                                                             m_pGraphicsQueue = nullptr;
@@ -212,9 +211,9 @@ namespace EE::Render
         // Transfer queue stuff
         RHI::Buffer*                                                            m_pStagingBuffer = nullptr;
 
-        TArray<RHI::CommandPool*, MaxPendingTransfers>                          m_asyncTransferCommandPools = {};
-        TArray<RHI::CommandBuffer*, MaxPendingTransfers>                        m_asyncTransferCommandBuffers = {};
-        TArray<uint64_t, MaxPendingTransfers>                                   m_asyncTransferSemaphores = {};
+        TArray<RHI::CommandPool*, s_maxPendingTransfers>                        m_asyncTransferCommandPools = {};
+        TArray<RHI::CommandBuffer*, s_maxPendingTransfers>                      m_asyncTransferCommandBuffers = {};
+        TArray<uint64_t, s_maxPendingTransfers>                                 m_asyncTransferSemaphores = {};
 
         TArray<RHI::CommandPool*, RHI::MaxPendingFrames>                        m_frameCommandPools = {};
         TArray<RHI::CommandBuffer*, RHI::MaxPendingFrames>                      m_frameCommandBuffers = {};
@@ -349,7 +348,7 @@ namespace EE::Render
 
             RHI::CommandBuffer* pCommandBuffer = submitResourceUpdatesOnComputeQueue ? m_frameComputeCommandBuffers[m_frameIndex] : m_frameCommandBuffers[m_frameIndex];
 
-            RHI::BufferSubAllocation stagingAllocation = RHI::BufferSubAllocate( m_pStagingBuffer, dstSize, StagingBufferAlignment );
+            RHI::BufferSubAllocation stagingAllocation = RHI::BufferSubAllocate( m_pStagingBuffer, dstSize, s_stagingBufferAlignment );
             if ( !stagingAllocation.IsValid() )
             {
                 //EE_LOG_MESSAGE( LogCategory::Render, "DeviceResourceUpdate", "Allocating extra staging buffer for buffer update: %.2fMb", float( pDstBuffer->m_size ) / ( 1024.0F * 1024.0F ) );
@@ -483,7 +482,7 @@ namespace EE::Render
 
         RHI::Buffer* pExtraStagingBuffer = nullptr;
 
-        RHI::BufferSubAllocation stagingAllocation = RHI::BufferSubAllocate( m_pStagingBuffer, sizeInBytes, StagingBufferAlignment );
+        RHI::BufferSubAllocation stagingAllocation = RHI::BufferSubAllocate( m_pStagingBuffer, sizeInBytes, s_stagingBufferAlignment );
         if ( !stagingAllocation.IsValid() )
         {
             // TODO: Figure out why we need to alloc for the entire texture, validation layers are complaining.

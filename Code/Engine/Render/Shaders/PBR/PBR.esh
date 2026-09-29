@@ -5,48 +5,9 @@
 #include "Base/Render/RHI.esh"
 #include "Engine/Render/Shaders/CommonSamplers.esh"
 
+#include "Engine/Render/Shaders/SH/SH.esh"
+
 static const float PI = 3.14159265358979323846;
-
-// http://holger.dammertz.org/stuff/notes_HammersleyOnHemisphere.html
-float RadicalInverseVDC( uint bits )
-{
-    bits = ( bits << 16 ) | ( bits >> 16 );
-    bits = ( ( bits & 0x55555555 ) << 1 ) | ( ( bits & 0xAAAAAAAA ) >> 1 );
-    bits = ( ( bits & 0x33333333 ) << 2 ) | ( ( bits & 0xCCCCCCCC ) >> 2 );
-    bits = ( ( bits & 0x0F0F0F0F ) << 4 ) | ( ( bits & 0xF0F0F0F0 ) >> 4 );
-    bits = ( ( bits & 0x00FF00FF ) << 8 ) | ( ( bits & 0xFF00FF00 ) >> 8 );
-
-    return float( bits ) * 2.3283064365386963e-10; // / 0x100000000
-}
-
-float2 Hammersley( uint sample, uint sampleCount )
-{
-    return float2( float( sample ) / float( sampleCount ), RadicalInverseVDC( sample ) );
-}
-
-float3 ImportanceSampleGGX( float2 Xi, float3 normal, float roughness )
-{
-    float   a         = roughness * roughness;
-    float   phi       = 2.0 * PI * Xi.x;
-    float   cosTheta  = sqrt( ( 1.0 - Xi.y ) / ( 1.0 + ( a * a - 1.0 ) * Xi.y ) );
-    float   sinTheta  = sqrt( 1.0 - cosTheta * cosTheta );
-    float3  h         = float3( cos( phi ) * sinTheta, sin( phi ) * sinTheta, cosTheta );
-
-    float3  up;
-    if ( abs( normal.z ) < 0.999 )
-    {
-        up = float3( 0.0, 0.0, 1.0 );
-    }
-    else
-    {
-        up = float3( 1.0, 0.0, 0.0 );
-    }
-
-    float3 tangent      = normalize( cross( up, normal ) );
-    float3 bitangent    = normalize( cross( normal, tangent ) );
-
-    return normalize( tangent * h.x + bitangent * h.y + normal * h.z );
-}
 
 float GeometrySchlickBeckmann( float dp, float k )
 {
@@ -64,7 +25,7 @@ float DistributionGGX( float3 normal, float3 H, float roughness4 )
 }
 
 float GeometrySmith( float dotNV, float dotNL, float roughness05 )
-{    
+{
     return GeometrySchlickBeckmann( dotNV, roughness05 ) * GeometrySchlickBeckmann( dotNL, roughness05 );
 }
 
@@ -78,7 +39,10 @@ float AttenuationNoCusp( float distance, float radius, float maxIntensity, float
 {
     float s = distance / radius;
 
-    if ( s >= 1.0 ) return 0.0;
+    if ( s >= 1.0 )
+    {
+        return 0.0;
+    }
 
     float s2 = Square( s );
 
@@ -90,7 +54,10 @@ float AttenuationCusp( float distance, float radius, float maxIntensity, float f
 {
     float s = distance / radius;
 
-    if ( s >= 1.0 ) return 0.0;
+    if ( s >= 1.0 )
+    {
+        return 0.0;
+    }
 
     float s2 = Square( s );
 
@@ -128,8 +95,8 @@ struct PBR
         pbr.m_normal                    = normal;
         pbr.m_dotNV                     = saturate( dot( pbr.m_normal, pbr.m_view ) );
         pbr.m_reflection                = reflect( -pbr.m_view, pbr.m_normal );
-        pbr.m_metalness                  = metalness;
-        pbr.m_inverseMetalness           = 1.0 - pbr.m_metalness;
+        pbr.m_metalness                 = metalness;
+        pbr.m_inverseMetalness          = 1.0 - pbr.m_metalness;
         pbr.m_roughness                 = roughness;
         pbr.m_roughness05               = roughness * 0.5;
         pbr.m_roughness2                = roughness * roughness;
@@ -149,18 +116,21 @@ struct PBR
         return F0 + ( max( 1.0.xxx - m_roughness.xxx, F0 ) - F0 ) * pow( saturate( 1.0 - m_dotNV ), 5.0 );
     }
     
-    float3 ComputeIBL( Texture2D dfgTexture, TextureCube radianceTexture, float radianceMipLevels, TextureCube irradianceTexture )
+    float3 ComputeIBL( StructuredBuffer<SH::L2_RGB> shCoefficients, Texture2D dfgTexture, TextureCube radianceTexture, float radianceMipLevels )
     {
         SamplerState linearClampSampler = GetLinearClampSampler();
         SamplerState linearWrapSampler  = GetLinearWrapSampler();
     
-        float2  dfg                 = dfgTexture.SampleLevel( linearClampSampler, float2( m_dotNV, m_roughness ), 0.0 ).xy;
-        float3  irradiance          = irradianceTexture.SampleLevel( linearWrapSampler, m_normal, 0.0 ).rgb;
-        float3  radiance            = radianceTexture.SampleLevel( linearWrapSampler, m_reflection, m_roughness * radianceMipLevels ).rgb;
-        float3  F                   = FresnelSchlickRoughness( m_dotNV );
+        float2  dfg             = dfgTexture.SampleLevel( linearClampSampler, float2( m_dotNV, m_roughness ), 0.0 ).xy;
+        
+        float3  irradiance      = max( SH::CalculateIrradiance( shCoefficients[0], m_normal ) * ( 1.0 / SH::Pi ), 0.0.xxx );
+
+        float   radianceLevel   = m_roughness * ( radianceMipLevels - 1.0 );
+        float3  radiance        = radianceTexture.SampleLevel( linearWrapSampler, m_reflection, radianceLevel ).rgb;
+        float3  F               = FresnelSchlickRoughness( m_dotNV );
     
-        float3  diffuse             = ( 1.0.xxx - F ) * m_inverseMetalness * irradiance * m_albedo * m_occlusion;
-        float3  specular            = radiance * ( F * dfg.x + dfg.y ) * m_specularOcclusion;
+        float3  diffuse         = ( 1.0.xxx - F ) * m_inverseMetalness * irradiance * m_albedo * m_occlusion;
+        float3  specular        = radiance * ( F * dfg.x + dfg.y ) * m_specularOcclusion;
     
         return diffuse + specular;
     }

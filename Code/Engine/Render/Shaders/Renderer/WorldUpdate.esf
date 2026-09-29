@@ -13,15 +13,19 @@ ESF_RESOURCE_TABLE struct WorldUpdateResourceTable
     RWStructuredBuffer<LightInstance_PointLight>                m_pointLightBuffer;
     RWStructuredBuffer<LightInstance_SpotLight>                 m_spotLightBuffer;
     RWStructuredBuffer<SkinningTransform>                       m_skinningTransformBuffer;
+    RWStructuredBuffer<RenderView>                              m_renderViewBuffer;
     
     StructuredBuffer<MeshInstanceInitializeCommand>             m_initializeBuffer_MeshInstance;
+    StructuredBuffer<PointLightInitializeCommand>               m_initializeBuffer_PointLight;
+    StructuredBuffer<SpotLightInitializeCommand>                m_initializeBuffer_SpotLight;
     
     StructuredBuffer<MeshInstanceRootUpdateCommand>             m_updateBuffer_MeshInstanceRoot;
     StructuredBuffer<MeshInstanceTransformUpdateCommand>        m_updateBuffer_MeshInstance;
     StructuredBuffer<SkinningTransformUpdateCommand>            m_updateBuffer_SkinningTransform;
     StructuredBuffer<DirectionalLightUpdateCommand>             m_updateBuffer_DirectionalLight;
-    StructuredBuffer<PointLightUpdateCommand>                   m_updateBuffer_PointLight;
-    StructuredBuffer<SpotLightUpdateCommand>                    m_updateBuffer_SpotLight;
+    StructuredBuffer<PointLightTransformUpdateCommand>          m_updateBuffer_PointLight;
+    StructuredBuffer<SpotLightTransformUpdateCommand>           m_updateBuffer_SpotLight;
+    StructuredBuffer<RenderViewUpdateCommand>                   m_updateBuffer_RenderView;
 };
 #endif
 
@@ -64,6 +68,30 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
         meshInstanceBuffer[initializeCommand.m_instanceID] = instance;
     }
 
+    if ( isInitMode && dispatchThreadID.x < RootCBV.m_numInitializeCommands_PointLight )
+    {
+        PointLightInitializeCommand initializeCommand = resourceTable.m_initializeBuffer_PointLight[dispatchThreadID.x];
+
+        LightInstance_PointLight light = ( LightInstance_PointLight )0;
+
+        light.m_shadowMapHandle    = initializeCommand.m_shadowMapHandle;
+        light.m_shadowResolutionBits = initializeCommand.m_shadowResolutionBits;
+
+        resourceTable.m_pointLightBuffer[initializeCommand.m_instanceID] = light;
+    }
+
+    if ( isInitMode && dispatchThreadID.x < RootCBV.m_numInitializeCommands_SpotLight )
+    {
+        SpotLightInitializeCommand initializeCommand = resourceTable.m_initializeBuffer_SpotLight[dispatchThreadID.x];
+
+        LightInstance_SpotLight light = ( LightInstance_SpotLight )0;
+
+        light.m_shadowMapHandle    = initializeCommand.m_shadowMapHandle;
+        light.m_shadowResolutionBits = initializeCommand.m_shadowResolutionBits;
+
+        resourceTable.m_spotLightBuffer[initializeCommand.m_instanceID] = light;
+    }
+
     //-------------------------------------------------------------------------
     
     if ( isTransformUpdateMode && dispatchThreadID.x < RootCBV.m_numUpdateCommands_MeshInstanceRoot )
@@ -102,21 +130,44 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
     if ( isTransformUpdateMode && dispatchThreadID.x < RootCBV.m_numUpdateCommands_DirectionalLight )
     {
         DirectionalLightUpdateCommand updateCommand = resourceTable.m_updateBuffer_DirectionalLight[dispatchThreadID.x];
-        uint instanceID = updateCommand.m_instanceID;
 
-        LightInstance_DirectionalLight light = resourceTable.m_directionalLightBuffer[instanceID];
-
+        LightInstance_DirectionalLight light = ( LightInstance_DirectionalLight )0;
+        
         light.m_maxIntensity            = updateCommand.m_maxIntensity;
         light.m_lightDirection          = updateCommand.m_lightDirection;
         light.m_packedTintedColor       = updateCommand.m_packedTintedColor;
-        light.m_cascadedShadowIndex     = updateCommand.m_cascadedShadowIndex;
+        light.m_shadowCascades          = updateCommand.m_shadowCascades;
+        light.m_shadowMatrix            = updateCommand.m_shadowMatrix;
+        light.m_cascadeOffsets[0]       = updateCommand.m_cascadeOffsets[0];
+        light.m_cascadeOffsets[1]       = updateCommand.m_cascadeOffsets[1];
+        light.m_cascadeOffsets[2]       = updateCommand.m_cascadeOffsets[2];
+        light.m_cascadeOffsets[3]       = updateCommand.m_cascadeOffsets[3];
+        light.m_cascadeScales[0]        = updateCommand.m_cascadeScales[0];
+        light.m_cascadeScales[1]        = updateCommand.m_cascadeScales[1];
+        light.m_cascadeScales[2]        = updateCommand.m_cascadeScales[2];
+        light.m_cascadeScales[3]        = updateCommand.m_cascadeScales[3];
+        light.m_cascadeSize             = updateCommand.m_cascadeSize;
 
-        resourceTable.m_directionalLightBuffer[instanceID] = light;
+        [unroll]
+        for ( uint cascadeIndex = 0; cascadeIndex < 4; ++cascadeIndex )
+        {
+            float const cascadeWorldSize = abs( light.m_cascadeScales[cascadeIndex].x ) * light.m_cascadeSize.x;
+            light.m_cascadeTexelWorldSize[cascadeIndex] = ( cascadeWorldSize > 0.0 ) ? ( 1.0 / cascadeWorldSize ) : 0.0;
+        }
+
+        resourceTable.m_directionalLightBuffer[updateCommand.m_instanceID] = light;
+    }
+
+    if ( isTransformUpdateMode && dispatchThreadID.x < RootCBV.m_numUpdateCommands_RenderView )
+    {
+        RenderViewUpdateCommand updateCommand = resourceTable.m_updateBuffer_RenderView[dispatchThreadID.x];
+
+        resourceTable.m_renderViewBuffer[updateCommand.m_deviceRenderViewIndex] = updateCommand.m_renderView;
     }
 
     if ( isTransformUpdateMode && dispatchThreadID.x < RootCBV.m_numUpdateCommands_PointLight )
     {
-        PointLightUpdateCommand updateCommand = resourceTable.m_updateBuffer_PointLight[dispatchThreadID.x];
+        PointLightTransformUpdateCommand updateCommand = resourceTable.m_updateBuffer_PointLight[dispatchThreadID.x];
         uint instanceID = updateCommand.m_instanceID;
 
         LightInstance_PointLight light = resourceTable.m_pointLightBuffer[instanceID];
@@ -126,14 +177,13 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
         light.m_maxRadius               = updateCommand.m_maxRadius;
         light.m_falloff                 = updateCommand.m_falloff;
         light.m_packedTintedColor       = updateCommand.m_packedTintedColor;
-        light.m_shadowMapHandle         = updateCommand.m_shadowMapHandle;
 
         resourceTable.m_pointLightBuffer[instanceID] = light;
     }
 
     if ( isTransformUpdateMode && dispatchThreadID.x < RootCBV.m_numUpdateCommands_SpotLight )
     {
-        SpotLightUpdateCommand updateCommand = resourceTable.m_updateBuffer_SpotLight[dispatchThreadID.x];
+        SpotLightTransformUpdateCommand updateCommand = resourceTable.m_updateBuffer_SpotLight[dispatchThreadID.x];
         uint instanceID = updateCommand.m_instanceID;
 
         LightInstance_SpotLight light = resourceTable.m_spotLightBuffer[instanceID];
@@ -146,7 +196,10 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
         light.m_innerConeAngle          = updateCommand.m_innerConeAngle;
         light.m_outerConeAngle          = updateCommand.m_outerConeAngle;
         light.m_packedTintedColor       = updateCommand.m_packedTintedColor;
-        light.m_shadowMapHandle         = updateCommand.m_shadowMapHandle;
+        light.m_shadowMatrix            = updateCommand.m_shadowMatrix;
+
+        float const spotBeamCosine  = max( light.m_outerConeAngle, 1.0e-4 );
+        light.m_shadowTangent       = sqrt( max( 1.0 - spotBeamCosine * spotBeamCosine, 0.0 ) ) / spotBeamCosine;
 
         resourceTable.m_spotLightBuffer[instanceID] = light;
     }

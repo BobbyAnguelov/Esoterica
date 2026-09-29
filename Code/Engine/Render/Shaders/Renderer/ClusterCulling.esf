@@ -23,10 +23,11 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
     StructuredBuffer<ClusterToInstance>         clusterToInstanceBuffer     = GetBuffer( RootConstants.m_clusterToInstanceBuffer );
     StructuredBuffer<MeshInstance>              meshInstanceBuffer          = GetBuffer( RootConstants.m_instanceBuffer );
     StructuredBuffer<uint64_t>                  instanceVisibilityBuffer    = GetBuffer( RootConstants.m_instanceVisibilityBuffer );
-    RWBuffer<uint>                              drawClusterCountersBuffer   = GetRWBuffer( RootConstants.m_drawClusterCountersBuffer );
+    RWByteAddressBuffer                         drawClusterCountersBuffer   = GetRWBuffer( RootConstants.m_drawClusterCountersBuffer );
     ByteAddressBuffer                           shaderDataBuffer            = GetBuffer( RootCBV.m_shaderDataBuffer );
     StructuredBuffer<MeshInstanceRoot>          meshInstanceRootBuffer      = GetBuffer( RootCBV.m_meshInstanceRootBuffer );
     StructuredBuffer<RenderView>                renderViewBuffer            = GetBuffer( RootCBV.m_renderViewBuffer );
+    StructuredBuffer<uint16_t>                  renderViewIndirectionBuffer = GetBuffer( RootCBV.m_renderViewIndirectionBuffer );
 
     const uint                                  clusterIndex                = cullingWorkBuffer[workEntryIndex].m_clusterIndex;
     const ClusterToInstance                     clusterToInstance           = clusterToInstanceBuffer[clusterIndex];
@@ -73,7 +74,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
     //-------------------------------------------------------------------------
 
     uint64_t clusterMask = 0;
-    for ( uint viewIndex = 0; viewIndex < RootCBV.m_numRenderViews; ++viewIndex )
+    for ( uint viewIndex = 0; viewIndex < RootCBV.m_numActiveRenderViews; ++viewIndex )
     {
         if ( ( instanceMask & ( 1ULL << viewIndex ) ) == 0 )
         {
@@ -84,15 +85,23 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
 
         if ( !isSkinned )
         {
-            const RenderView renderView = renderViewBuffer[viewIndex];
+            const RenderView renderView = renderViewBuffer[renderViewIndirectionBuffer[viewIndex]];
 
             float4 viewPlanes[6];
             renderView.ComputeViewPlanes( viewPlanes );
 
-            visibleInThisView = IsFrustumVisible( clusterCenterGlobal, clusterExtentGlobal, viewPlanes );
+            if ( ( renderView.m_renderViewFlags & RENDER_VIEW_FLAG_SHADOW_FACE ) != 0 )
+            {
+                visibleInThisView = IsSphereVisible( clusterCenterGlobal, clusterExtentGlobal, renderView.m_shadowLightSphere.xyz, renderView.m_shadowLightSphere.w );
+            }
+            else
+            {
+                visibleInThisView = IsFrustumVisible( clusterCenterGlobal, clusterExtentGlobal, viewPlanes );
+            }
 
             if ( visibleInThisView )
             {
+            #if 0 // TODO: This causes a lot of issues with punctual shadows
                 float4 projectedAABB = 0.0.xxxx;
                 if ( renderView.ProjectBox( clusterCenterGlobal, clusterExtentGlobal, projectedAABB ) )
                 {
@@ -105,6 +114,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
                         visibleInThisView = false;
                     }
                 }
+            #endif
             }
         }
 
@@ -121,14 +131,14 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
         const ShaderParameters shaderParameters = shaderDataBuffer.Load<ShaderParameters>( meshInstance.m_shaderParametersOffsetIn32ByteBlocks * 32 );
         const uint             baseBucket       = GetBucketTypeForView( shaderParameters, false );
 
-        for ( uint viewIndex = 0; viewIndex < RootCBV.m_numRenderViews; ++viewIndex )
+        for ( uint viewIndex = 0; viewIndex < RootCBV.m_numActiveRenderViews; ++viewIndex )
         {
             if ( clusterMask & ( 1ULL << viewIndex ) )
             {
-                const bool depthOnlyView = ( renderViewBuffer[viewIndex].m_renderViewFlags & RENDER_VIEW_FLAG_DEPTH_ONLY ) != 0;
+                const bool depthOnlyView = ( renderViewBuffer[renderViewIndirectionBuffer[viewIndex]].m_renderViewFlags & RENDER_VIEW_FLAG_DEPTH_ONLY ) != 0;
                 const uint bucket = ( depthOnlyView && baseBucket == 2 ) ? 0 : baseBucket;
 
-                InterlockedAdd( drawClusterCountersBuffer[viewIndex * EE_NUM_RENDER_BUCKETS_PER_SHADER_PER_VIEW + bucket], 1 );
+                drawClusterCountersBuffer.InterlockedAdd( ( viewIndex * EE_NUM_RENDER_BUCKETS_PER_SHADER_PER_VIEW + bucket ) * 4, 1 );
             }
         }
     }

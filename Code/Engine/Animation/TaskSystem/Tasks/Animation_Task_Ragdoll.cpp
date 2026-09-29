@@ -51,8 +51,9 @@ namespace EE::Animation
         if ( context.m_dependencies.empty() )
         {
             auto pResultBuffer = GetNewPoseBuffer( context );
+            pResultBuffer->ResetPose( Pose::Init::ReferencePose );
+
             auto pPrimaryPose = pResultBuffer->GetPrimaryPose();
-            pPrimaryPose->CalculateModelSpaceTransforms();
             m_pRagdoll->GetPose( context.m_worldTransform, pPrimaryPose );
         }
         else // Potentially blend the poses
@@ -64,7 +65,6 @@ namespace EE::Animation
             // Overwrite it with the physics pose
             if ( Math::IsNearEqual( m_physicsBlendWeight, 1.0f, Math::LargeEpsilon ) )
             {
-                pPrimaryPose->CalculateModelSpaceTransforms();
                 m_pRagdoll->GetPose( context.m_worldTransform, pPrimaryPose );
             }
             else if ( m_physicsBlendWeight > Math::LargeEpsilon )
@@ -73,10 +73,10 @@ namespace EE::Animation
                 PoseBuffer* pTempBuffer = nullptr;
                 int8_t const tmpBufferIdx = GetTemporaryPoseBuffer( context, pTempBuffer );
                 EE_ASSERT( pTempBuffer != nullptr );
-                Pose* pTempPrimaryPose = pTempBuffer->GetPrimaryPose();
-                pTempPrimaryPose->CalculateModelSpaceTransforms();
+                pResultBuffer->ResetPose( Pose::Init::ReferencePose );
 
                 // Get the ragdoll pose and blend it with the animation pose
+                Pose* pTempPrimaryPose = pTempBuffer->GetPrimaryPose();
                 m_pRagdoll->GetPose( context.m_worldTransform, pTempPrimaryPose );
                 Animation::Blender::ParentSpaceBlend( context.m_skeletonLOD, pPrimaryPose, pTempPrimaryPose, m_physicsBlendWeight, nullptr, pPrimaryPose );
 

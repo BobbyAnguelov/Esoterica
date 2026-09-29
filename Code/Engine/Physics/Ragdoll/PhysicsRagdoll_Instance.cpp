@@ -397,7 +397,6 @@ namespace EE::Physics
     {
         EE_ASSERT( IsValid() );
         EE_ASSERT( pPose->GetSkeleton()->GetResourceID() == m_pDefinition->m_skeleton.GetResourceID() );
-        EE_ASSERT( pPose->HasModelSpaceTransforms() );
 
         // Get the ragdoll body transforms
         //-------------------------------------------------------------------------
@@ -419,26 +418,26 @@ namespace EE::Physics
 
         Animation::Skeleton const* pSkeleton = pPose->GetSkeleton();
         int32_t const numBones = pPose->GetNumBones();
-        m_globalBoneTransforms.resize( numBones );
+        m_modelSpaceBoneTransforms.resize( numBones );
         for ( int32_t boneIdx = 0; boneIdx < numBones; boneIdx++ )
         {
             int32_t const bodyIdx = m_pDefinition->m_boneToBodyMap[boneIdx];
             if ( bodyIdx != InvalidIndex )
             {
                 Transform const boneWorldTranform = m_pDefinition->m_bodies[bodyIdx].m_inverseOffsetTransform * bodyTransforms[bodyIdx];
-                m_globalBoneTransforms[boneIdx] = Transform::Delta( worldTransform, boneWorldTranform );
+                m_modelSpaceBoneTransforms[boneIdx] = Transform::Delta( worldTransform, boneWorldTranform );
             }
             else
             {
                 if ( boneIdx == 0 )
                 {
-                    m_globalBoneTransforms[boneIdx] = pPose->GetParentSpaceTransform( boneIdx );
+                    m_modelSpaceBoneTransforms[boneIdx] = pPose->GetParentSpaceTransform( boneIdx );
                 }
                 else [[likely]]
                 { 
                     int32_t const parentBoneIdx = pSkeleton->GetParentBoneIndex( boneIdx );
                     EE_ASSERT( parentBoneIdx != InvalidIndex );
-                    m_globalBoneTransforms[boneIdx] = pPose->GetParentSpaceTransform( boneIdx ) * m_globalBoneTransforms[parentBoneIdx];
+                    m_modelSpaceBoneTransforms[boneIdx] = pPose->GetParentSpaceTransform( boneIdx ) * m_modelSpaceBoneTransforms[parentBoneIdx];
                 }
             }
         }
@@ -451,14 +450,16 @@ namespace EE::Physics
             int32_t const parentBoneIdx = m_pDefinition->m_skeleton->GetParentBoneIndex( i );
             if ( parentBoneIdx != InvalidIndex )
             {
-                Transform const boneLocalTransform = Transform::Delta( m_globalBoneTransforms[parentBoneIdx], m_globalBoneTransforms[i] );
+                Transform const boneLocalTransform = Transform::Delta( m_modelSpaceBoneTransforms[parentBoneIdx], m_modelSpaceBoneTransforms[i] );
                 pPose->SetTransform( i, boneLocalTransform );
             }
             else
             {
-                pPose->SetTransform( i, m_globalBoneTransforms[i] );
+                pPose->SetTransform( i, m_modelSpaceBoneTransforms[i] );
             }
         }
+
+        pPose->ClearModelSpaceTransforms();
 
         return true;
     }

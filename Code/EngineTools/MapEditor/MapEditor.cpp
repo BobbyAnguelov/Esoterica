@@ -7,6 +7,7 @@
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Base/FileSystem/FileSystem.h"
+#include "EngineTools/Entity/Systems/WorldSystem_ComponentTools.h"
 
 //-------------------------------------------------------------------------
 
@@ -43,13 +44,22 @@ namespace EE::EntityModel
         CreateToolWindow( "Edit Mode", [this] ( UpdateContext const& context, bool isFocused ) { DrawEditModeWindow( context, isFocused ); }, ImVec2( -1, -1 ) );
 
         SetCameraSpeed( 15.0f );
+
+        auto pComponentToolsSystem = m_pWorld->GetWorldSystem<ComponentToolsSystem>();
+        m_pComponentToolsManager = pComponentToolsSystem->GetToolsManager();
+        m_pComponentToolsManager->Initialize( m_editorContext );
     }
 
     void MapEditor::Shutdown( UpdateContext const& context )
     {
+        m_pComponentToolsManager->Shutdown();
+        m_pComponentToolsManager = nullptr;
+
         ClearEditMode();
         EditorTool::Shutdown( context );
     }
+
+    //-------------------------------------------------------------------------
 
     void MapEditor::SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const
     {
@@ -407,10 +417,20 @@ namespace EE::EntityModel
             }
         }
 
+        // Component Tools
+        //-------------------------------------------------------------------------
+
+        m_pComponentToolsManager->DrawViewportWidgets( pViewport, isFocused );
+
+        if ( !m_gizmo.IsManipulating() )
+        {
+            m_pComponentToolsManager->DrawViewportEditors( pViewport, isFocused );
+        }
+
         // Selection and Manipulation
         //-------------------------------------------------------------------------
 
-        if ( m_editorContext.HasSpatialSelection() )
+        if ( m_editorContext.HasSpatialSelection() && !m_pComponentToolsManager->IsManipulatingComponentEditor() )
         {
             // Update Gizmo
             //-------------------------------------------------------------------------
@@ -468,6 +488,11 @@ namespace EE::EntityModel
             {
                 return;
             }
+        }
+
+        if ( m_pComponentToolsManager->IsManipulatingComponentEditor() )
+        {
+            return;
         }
 
         if ( m_gizmo.IsManipulating() )
@@ -575,6 +600,7 @@ namespace EE::EntityModel
     void MapEditor::Update( UpdateContext const& context, bool isVisible, bool isFocused )
     {
         m_editorContext.Update( context );
+        m_pComponentToolsManager->Update();
     }
 
     //-------------------------------------------------------------------------

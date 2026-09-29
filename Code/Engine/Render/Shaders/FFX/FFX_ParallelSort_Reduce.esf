@@ -1,8 +1,6 @@
 #ifndef __cplusplus
-#define RWStructuredBuffer RWBuffer
 #define FFX_HLSL
 #include "FFX_ParallelSort.esh"
-#undef RWStructuredBuffer
 #endif
 
 #include "Base/Render/RHI.esh"
@@ -10,8 +8,8 @@
 #ifndef __cplusplus
 ESF_RESOURCE_TABLE struct FFX_ParallelSort_ReduceResourceTable
 {
-    RWBuffer<uint>  m_sumTable;
-    RWBuffer<uint>  m_reduceTable;
+    RWStructuredBuffer<uint>  m_sumTable;
+    RWStructuredBuffer<uint>  m_reduceTable;
 };
 #endif
 

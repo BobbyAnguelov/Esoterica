@@ -57,9 +57,20 @@ namespace EE::Render
     #if EE_DEVELOPMENT_TOOLS
     void StaticMeshComponent::PostPropertyEdit( TypeSystem::PropertyInfo const* pPropertyEdited )
     {
-        if ( Math::IsNearZero( m_nonUniformScale.m_x ) ) m_nonUniformScale.m_x = 0.001f;
-        if ( Math::IsNearZero( m_nonUniformScale.m_y ) ) m_nonUniformScale.m_y = 0.001f;
-        if ( Math::IsNearZero( m_nonUniformScale.m_z ) ) m_nonUniformScale.m_z = 0.001f;
+        if ( Math::IsNearZero( m_nonUniformScale.m_x ) )
+        {
+            m_nonUniformScale.m_x = 0.001f;
+        }
+
+        if ( Math::IsNearZero( m_nonUniformScale.m_y ) )
+        {
+            m_nonUniformScale.m_y = 0.001f;
+        }
+
+        if ( Math::IsNearZero( m_nonUniformScale.m_z ) )
+        {
+            m_nonUniformScale.m_z = 0.001f;
+        }
 
         MeshComponent::PostPropertyEdit( pPropertyEdited );
     }

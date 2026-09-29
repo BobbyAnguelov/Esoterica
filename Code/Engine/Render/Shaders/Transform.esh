@@ -86,7 +86,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
             float3 newMin = corners[0];
             float3 newMax = corners[0];
 
-            for (int cornerIndex = 1; cornerIndex < 8; ++cornerIndex )
+            for ( int cornerIndex = 1; cornerIndex < 8; ++cornerIndex )
             {
                 newMin = min( newMin, corners[cornerIndex] );
                 newMax = max( newMax, corners[cornerIndex] );

@@ -451,9 +451,11 @@ namespace EE::NodeGraph
         if ( m_modificationCount == 0 )
         {
             // Only call events on properly deserialized graphs
-            if ( GetRootGraph() != nullptr  )
+            auto pRootGraph = GetRootGraph();
+            if ( pRootGraph != nullptr )
             {
                 PreModify();
+                s_onBeginRootGraphModification.Execute( pRootGraph );
             }
         }
 
@@ -473,9 +475,11 @@ namespace EE::NodeGraph
         if ( m_modificationCount == 1 )
         {
             // Only call events on properly deserialized graphs
-            if ( GetRootGraph() != nullptr )
+            auto pRootGraph = GetRootGraph();
+            if ( pRootGraph != nullptr )
             {
                 PostModify();
+                s_onEndRootGraphModification.Execute( pRootGraph );
             }
         }
 

@@ -38,35 +38,59 @@ float2 PS_main( FullscreenTriangleVertexOutput input ) : SV_Target
 
     neighborPixel = clamp( centerPixel + int2( -1, 0 ), int2( 0, 0 ), int2( textureSize ) - 1 );
     neighborObjectID = resourceTable.m_objectIDTexture.Load( uint3( uint2( neighborPixel ), 0 ) ).x;
-    if ( neighborObjectID != centerObjectID ) { return input.m_position.xy / EditorOutline_SeedCoordinateScale; }
+    if ( neighborObjectID != centerObjectID )
+    {
+        return input.m_position.xy / EditorOutline_SeedCoordinateScale;
+    }
 
     neighborPixel = clamp( centerPixel + int2( 1, 0 ), int2( 0, 0 ), int2( textureSize ) - 1 );
     neighborObjectID = resourceTable.m_objectIDTexture.Load( uint3( uint2( neighborPixel ), 0 ) ).x;
-    if ( neighborObjectID != centerObjectID ) { return input.m_position.xy / EditorOutline_SeedCoordinateScale; }
+    if ( neighborObjectID != centerObjectID )
+    {
+        return input.m_position.xy / EditorOutline_SeedCoordinateScale;
+    }
 
     neighborPixel = clamp( centerPixel + int2( 0, -1 ), int2( 0, 0 ), int2( textureSize ) - 1 );
     neighborObjectID = resourceTable.m_objectIDTexture.Load( uint3( uint2( neighborPixel ), 0 ) ).x;
-    if ( neighborObjectID != centerObjectID ) { return input.m_position.xy / EditorOutline_SeedCoordinateScale; }
+    if ( neighborObjectID != centerObjectID )
+    {
+        return input.m_position.xy / EditorOutline_SeedCoordinateScale;
+    }
 
     neighborPixel = clamp( centerPixel + int2( 0, 1 ), int2( 0, 0 ), int2( textureSize ) - 1 );
     neighborObjectID = resourceTable.m_objectIDTexture.Load( uint3( uint2( neighborPixel ), 0 ) ).x;
-    if ( neighborObjectID != centerObjectID ) { return input.m_position.xy / EditorOutline_SeedCoordinateScale; }
+    if ( neighborObjectID != centerObjectID )
+    {
+        return input.m_position.xy / EditorOutline_SeedCoordinateScale;
+    }
 
     neighborPixel = clamp( centerPixel + int2( -1, -1 ), int2( 0, 0 ), int2( textureSize ) - 1 );
     neighborObjectID = resourceTable.m_objectIDTexture.Load( uint3( uint2( neighborPixel ), 0 ) ).x;
-    if ( neighborObjectID != centerObjectID ) { return input.m_position.xy / EditorOutline_SeedCoordinateScale; }
+    if ( neighborObjectID != centerObjectID )
+    {
+        return input.m_position.xy / EditorOutline_SeedCoordinateScale;
+    }
 
     neighborPixel = clamp( centerPixel + int2( 1, -1 ), int2( 0, 0 ), int2( textureSize ) - 1 );
     neighborObjectID = resourceTable.m_objectIDTexture.Load( uint3( uint2( neighborPixel ), 0 ) ).x;
-    if ( neighborObjectID != centerObjectID ) { return input.m_position.xy / EditorOutline_SeedCoordinateScale; }
+    if ( neighborObjectID != centerObjectID )
+    {
+        return input.m_position.xy / EditorOutline_SeedCoordinateScale;
+    }
 
     neighborPixel = clamp( centerPixel + int2( -1, 1 ), int2( 0, 0 ), int2( textureSize ) - 1 );
     neighborObjectID = resourceTable.m_objectIDTexture.Load( uint3( uint2( neighborPixel ), 0 ) ).x;
-    if ( neighborObjectID != centerObjectID ) { return input.m_position.xy / EditorOutline_SeedCoordinateScale; }
+    if ( neighborObjectID != centerObjectID )
+    {
+        return input.m_position.xy / EditorOutline_SeedCoordinateScale;
+    }
 
     neighborPixel = clamp( centerPixel + int2( 1, 1 ), int2( 0, 0 ), int2( textureSize ) - 1 );
     neighborObjectID = resourceTable.m_objectIDTexture.Load( uint3( uint2( neighborPixel ), 0 ) ).x;
-    if ( neighborObjectID != centerObjectID ) { return input.m_position.xy / EditorOutline_SeedCoordinateScale; }
+    if ( neighborObjectID != centerObjectID )
+    {
+        return input.m_position.xy / EditorOutline_SeedCoordinateScale;
+    }
 
     return float2( 1.0, 1.0 );
 }

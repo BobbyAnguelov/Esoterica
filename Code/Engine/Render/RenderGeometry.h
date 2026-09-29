@@ -17,12 +17,113 @@ namespace EE::Render
 
         // Optimal cluster sizes: https://zeux.io/2023/01/16/meshlet-size-tradeoffs/
         // These have to match the corresponding macros in the shader code!
-        static constexpr uint32_t       MaxVerticesPerCluster = 64;
-        static constexpr uint32_t       MaxTrianglesPerCluster = 64;
+        static constexpr uint32_t       s_maxVerticesPerCluster = 64;
+        static constexpr uint32_t       s_maxTrianglesPerCluster = 64;
 
-        static constexpr uint32_t       TriangleIndexBits = 6;
+        static constexpr uint32_t       s_triangleIndexBits = 6;
 
-    public:
+        //-------------------------------------------------------------------------
+
+        inline static void WriteBits( uint8_t* pData, uint32_t bitOffset, uint32_t numBits, uint32_t value )
+        {
+            EE_ASSERT( numBits >= 1 && numBits <= 16 );
+            EE_ASSERT( value < ( 1U << numBits ) );
+
+            uint32_t const byteAddress = ( bitOffset / 32 ) * sizeof( uint32_t );
+            uint32_t const shift = bitOffset % 32;
+
+            uint64_t bits = 0;
+            memcpy( &bits, pData + byteAddress, sizeof( bits ) );
+
+            uint64_t const mask = ( ( 1ULL << numBits ) - 1ULL ) << shift;
+            bits = ( bits & ~mask ) | ( uint64_t( value ) << shift );
+
+            memcpy( pData + byteAddress, &bits, sizeof( bits ) );
+        }
+
+        inline static uint32_t ReadBits( uint8_t const* pData, uint32_t bitOffset, uint32_t numBits )
+        {
+            EE_ASSERT( numBits >= 1 && numBits <= 16 );
+
+            uint32_t const byteAddress = ( bitOffset / 32 ) * sizeof( uint32_t );
+            uint32_t const shift = bitOffset % 32;
+
+            uint64_t bits = 0;
+            memcpy( &bits, pData + byteAddress, sizeof( bits ) );
+
+            return uint32_t( bits >> shift ) & ( ( 1U << numBits ) - 1U );
+        }
+
+        inline static uint32_t GetNumBitsRequired( uint32_t value )
+        {
+            return 32 - _lzcnt_u32( value );
+        }
+
+        inline static void PackPositionBits( uint8_t* pDstPositionBits, uint32_t vertexIndex, Int3 value, uint32_t numBitsX, uint32_t numBitsY, uint32_t numBitsZ )
+        {
+            uint32_t const bitsPerVertex = numBitsX + numBitsY + numBitsZ;
+            uint32_t const bitOffset = vertexIndex * bitsPerVertex;
+
+            WriteBits( pDstPositionBits, bitOffset, numBitsX, uint32_t( value.m_x ) );
+            WriteBits( pDstPositionBits, bitOffset + numBitsX, numBitsY, uint32_t( value.m_y ) );
+            WriteBits( pDstPositionBits, bitOffset + numBitsX + numBitsY, numBitsZ, uint32_t( value.m_z ) );
+        }
+
+        inline static Int3 UnpackPositionBits( uint8_t const* pPositionBits, uint32_t vertexIndex, uint32_t numBitsX, uint32_t numBitsY, uint32_t numBitsZ )
+        {
+            uint32_t const bitsPerVertex = numBitsX + numBitsY + numBitsZ;
+            uint32_t const bitOffset = vertexIndex * bitsPerVertex;
+
+            Int3 value;
+            value.m_x = int32_t( ReadBits( pPositionBits, bitOffset, numBitsX ) );
+            value.m_y = int32_t( ReadBits( pPositionBits, bitOffset + numBitsX, numBitsY ) );
+            value.m_z = int32_t( ReadBits( pPositionBits, bitOffset + numBitsX + numBitsY, numBitsZ ) );
+            return value;
+        }
+
+        inline static uint32_t GetTriangleDataSize( uint32_t numTriangles )
+        {
+            EE_ASSERT( numTriangles >= 1 );
+
+            uint32_t const dataSize = ( numTriangles * 3 * s_triangleIndexBits + 31 ) / 32 * sizeof( uint32_t );
+            uint32_t const dataSizeWithPadding = ( ( numTriangles - 1 ) * 3 * s_triangleIndexBits / 32 ) * sizeof( uint32_t ) + sizeof( uint64_t );
+
+            return Math::Max( dataSize, dataSizeWithPadding );
+        }
+
+        inline static void PackTriangleBits( uint8_t* pTriangleData, uint32_t triangleIndex, uint16_t vertex0, uint16_t vertex1, uint16_t vertex2 )
+        {
+            EE_ASSERT( vertex0 < s_maxVerticesPerCluster && vertex1 < s_maxVerticesPerCluster && vertex2 < s_maxVerticesPerCluster );
+
+            uint32_t const packed = vertex0 | ( uint32_t( vertex1 ) << 6 ) | ( uint32_t( vertex2 ) << 12 );
+            uint32_t const bitOffset = triangleIndex * 3 * s_triangleIndexBits;
+            uint32_t const byteAddress = ( bitOffset / 32 ) * sizeof( uint32_t );
+            uint32_t const shift = bitOffset % 32;
+
+            uint64_t bits = 0;
+            memcpy( &bits, pTriangleData + byteAddress, sizeof( bits ) );
+
+            uint64_t const mask = ( ( 1ULL << ( 3 * s_triangleIndexBits ) ) - 1ULL ) << shift;
+            bits = ( bits & ~mask ) | ( uint64_t( packed ) << shift );
+
+            memcpy( pTriangleData + byteAddress, &bits, sizeof( bits ) );
+        }
+
+        inline static void UnpackTriangleBits( uint8_t const* pTriangleData, uint32_t triangleIndex, uint16_t& outIndex0, uint16_t& outIndex1, uint16_t& outIndex2 )
+        {
+            uint32_t const bitOffset = triangleIndex * 3 * s_triangleIndexBits;
+            uint32_t const byteAddress = ( bitOffset / 32 ) * sizeof( uint32_t );
+            uint32_t const shift = bitOffset % 32;
+
+            uint64_t bits = 0;
+            memcpy( &bits, pTriangleData + byteAddress, sizeof( bits ) );
+
+            uint32_t const packed = uint32_t( bits >> shift );
+
+            outIndex0 = uint16_t( packed & 0x3F );
+            outIndex1 = uint16_t( ( packed >> 6 ) & 0x3F );
+            outIndex2 = uint16_t( ( packed >> 12 ) & 0x3F );
+        }
 
         //-------------------------------------------------------------------------
 
@@ -78,7 +179,7 @@ namespace EE::Render
 
         inline void SetNumVertices( uint32_t numVertices )
         {
-            EE_ASSERT( numVertices >= 1 && numVertices <= MaxVerticesPerCluster );
+            EE_ASSERT( numVertices >= 1 && numVertices <= s_maxVerticesPerCluster );
             m_numVertices = numVertices - 1;
         }
 
@@ -86,7 +187,7 @@ namespace EE::Render
 
         inline void SetNumTriangles( uint32_t numTriangles )
         {
-            EE_ASSERT( numTriangles >= 1 && numTriangles <= MaxTrianglesPerCluster );
+            EE_ASSERT( numTriangles >= 1 && numTriangles <= s_maxTrianglesPerCluster );
             m_numTriangles = numTriangles - 1;
         }
 
@@ -248,108 +349,9 @@ namespace EE::Render
             return GetSkinningOffset() + m_numSkinningAttributes * ( m_numVertices + 1 ) * uint32_t( sizeof( SkinningAttribute ) );
         }
 
-        inline static void WriteBits( uint8_t* pData, uint32_t bitOffset, uint32_t numBits, uint32_t value )
-        {
-            EE_ASSERT( numBits >= 1 && numBits <= 16 );
-            EE_ASSERT( value < ( 1U << numBits ) );
-
-            uint32_t const byteAddress = ( bitOffset / 32 ) * sizeof( uint32_t );
-            uint32_t const shift = bitOffset % 32;
-
-            uint64_t bits = 0;
-            memcpy( &bits, pData + byteAddress, sizeof( bits ) );
-
-            uint64_t const mask = ( ( 1ULL << numBits ) - 1ULL ) << shift;
-            bits = ( bits & ~mask ) | ( uint64_t( value ) << shift );
-
-            memcpy( pData + byteAddress, &bits, sizeof( bits ) );
-        }
-
-        inline static uint32_t ReadBits( uint8_t const* pData, uint32_t bitOffset, uint32_t numBits )
-        {
-            EE_ASSERT( numBits >= 1 && numBits <= 16 );
-
-            uint32_t const byteAddress = ( bitOffset / 32 ) * sizeof( uint32_t );
-            uint32_t const shift = bitOffset % 32;
-
-            uint64_t bits = 0;
-            memcpy( &bits, pData + byteAddress, sizeof( bits ) );
-
-            return uint32_t( bits >> shift ) & ( ( 1U << numBits ) - 1U );
-        }
-
-        inline static uint32_t GetNumBitsRequired( uint32_t value )
-        {
-            return 32 - _lzcnt_u32( value );
-        }
-
-        inline static void PackPositionBits( uint8_t* pDstPositionBits, uint32_t vertexIndex, Int3 value, uint32_t numBitsX, uint32_t numBitsY, uint32_t numBitsZ )
-        {
-            uint32_t const bitsPerVertex = numBitsX + numBitsY + numBitsZ;
-            uint32_t const bitOffset = vertexIndex * bitsPerVertex;
-
-            WriteBits( pDstPositionBits, bitOffset, numBitsX, uint32_t( value.m_x ) );
-            WriteBits( pDstPositionBits, bitOffset + numBitsX, numBitsY, uint32_t( value.m_y ) );
-            WriteBits( pDstPositionBits, bitOffset + numBitsX + numBitsY, numBitsZ, uint32_t( value.m_z ) );
-        }
-
-        inline static Int3 UnpackPositionBits( uint8_t const* pPositionBits, uint32_t vertexIndex, uint32_t numBitsX, uint32_t numBitsY, uint32_t numBitsZ )
-        {
-            uint32_t const bitsPerVertex = numBitsX + numBitsY + numBitsZ;
-            uint32_t const bitOffset = vertexIndex * bitsPerVertex;
-
-            Int3 value;
-            value.m_x = int32_t( ReadBits( pPositionBits, bitOffset, numBitsX ) );
-            value.m_y = int32_t( ReadBits( pPositionBits, bitOffset + numBitsX, numBitsY ) );
-            value.m_z = int32_t( ReadBits( pPositionBits, bitOffset + numBitsX + numBitsY, numBitsZ ) );
-            return value;
-        }
-
-        inline static uint32_t GetTriangleDataSize( uint32_t numTriangles )
-        {
-            EE_ASSERT( numTriangles >= 1 );
-
-            uint32_t const dataSize = ( numTriangles * 3 * TriangleIndexBits + 31 ) / 32 * sizeof( uint32_t );
-            uint32_t const dataSizeWithPadding = ( ( numTriangles - 1 ) * 3 * TriangleIndexBits / 32 ) * sizeof( uint32_t ) + sizeof( uint64_t );
-
-            return Math::Max( dataSize, dataSizeWithPadding );
-        }
-
-        inline static void PackTriangleBits( uint8_t* pTriangleData, uint32_t triangleIndex, uint16_t vertex0, uint16_t vertex1, uint16_t vertex2 )
-        {
-            EE_ASSERT( vertex0 < MaxVerticesPerCluster && vertex1 < MaxVerticesPerCluster && vertex2 < MaxVerticesPerCluster );
-
-            uint32_t const packed = vertex0 | ( uint32_t( vertex1 ) << 6 ) | ( uint32_t( vertex2 ) << 12 );
-            uint32_t const bitOffset = triangleIndex * 3 * TriangleIndexBits;
-            uint32_t const byteAddress = ( bitOffset / 32 ) * sizeof( uint32_t );
-            uint32_t const shift = bitOffset % 32;
-
-            uint64_t bits = 0;
-            memcpy( &bits, pTriangleData + byteAddress, sizeof( bits ) );
-
-            uint64_t const mask = ( ( 1ULL << ( 3 * TriangleIndexBits ) ) - 1ULL ) << shift;
-            bits = ( bits & ~mask ) | ( uint64_t( packed ) << shift );
-
-            memcpy( pTriangleData + byteAddress, &bits, sizeof( bits ) );
-        }
-
-        inline static void UnpackTriangleBits( uint8_t const* pTriangleData, uint32_t triangleIndex, uint16_t& outIndex0, uint16_t& outIndex1, uint16_t& outIndex2 )
-        {
-            uint32_t const bitOffset = triangleIndex * 3 * TriangleIndexBits;
-            uint32_t const byteAddress = ( bitOffset / 32 ) * sizeof( uint32_t );
-            uint32_t const shift = bitOffset % 32;
-
-            uint64_t bits = 0;
-            memcpy( &bits, pTriangleData + byteAddress, sizeof( bits ) );
-
-            uint32_t const packed = uint32_t( bits >> shift );
-
-            outIndex0 = uint16_t( packed & 0x3F );
-            outIndex1 = uint16_t( ( packed >> 6 ) & 0x3F );
-            outIndex2 = uint16_t( ( packed >> 12 ) & 0x3F );
-        }
-
     private:
+
+        //-------------------------------------------------------------------------
 
         int32_t                         m_anchorX : 24 = 0;
         uint32_t                        m_numVertices : 6 = 0;                  // Stored as ( count - 1 ), max 64 vertices per cluster, hard limit
@@ -394,14 +396,12 @@ namespace EE::Render
     {
     public:
 
-        static constexpr size_t         MaxMeshVertices = UINT32_MAX;
-        static constexpr size_t         MaxMeshTriangles = UINT32_MAX;
+        static constexpr size_t         s_maxMeshVertices = UINT32_MAX;
+        static constexpr size_t         s_maxMeshTriangles = UINT32_MAX;
 
         //-------------------------------------------------------------------------
 
         EE_SERIALIZE( m_bounds, m_meshData );
-
-    public:
 
         // Bounds
         //-------------------------------------------------------------------------
@@ -532,8 +532,6 @@ namespace EE::Render
                 }
             }
         }
-
-    public:
 
         //-------------------------------------------------------------------------
 

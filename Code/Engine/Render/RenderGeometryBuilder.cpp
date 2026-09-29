@@ -327,11 +327,11 @@ namespace EE::Render
         // Generate clusters
         //-------------------------------------------------------------------------
 
-        size_t const meshletUpperBound = meshopt_buildMeshletsBound( m_indices.size(), MeshCluster::MaxVerticesPerCluster, MeshCluster::MaxTrianglesPerCluster );
+        size_t const meshletUpperBound = meshopt_buildMeshletsBound( m_indices.size(), MeshCluster::s_maxVerticesPerCluster, MeshCluster::s_maxTrianglesPerCluster );
 
         tempMeshlets.resize( meshletUpperBound );
-        tempMeshletVertices.resize( meshletUpperBound * MeshCluster::MaxTrianglesPerCluster );
-        tempMeshletTriangles.resize( meshletUpperBound * MeshCluster::MaxTrianglesPerCluster * 3 );
+        tempMeshletVertices.resize( meshletUpperBound * MeshCluster::s_maxTrianglesPerCluster );
+        tempMeshletTriangles.resize( meshletUpperBound * MeshCluster::s_maxTrianglesPerCluster * 3 );
 
         size_t const numMeshlets = meshopt_buildMeshletsSpatial
         (
@@ -343,9 +343,9 @@ namespace EE::Render
             reinterpret_cast<float const*>( m_vertices.data() ),
             m_vertices.size() / m_vertexStride,
             m_vertexStride,
-            MeshCluster::MaxVerticesPerCluster,
-            MeshCluster::MaxTrianglesPerCluster,
-            MeshCluster::MaxTrianglesPerCluster,
+            MeshCluster::s_maxVerticesPerCluster,
+            MeshCluster::s_maxTrianglesPerCluster,
+            MeshCluster::s_maxTrianglesPerCluster,
             1.0F
         );
 
@@ -477,8 +477,8 @@ namespace EE::Render
             EE_ASSERT( numPositionBitsX <= 16 && numPositionBitsY <= 16 && nymPositionBitsZ <= 16 );
 
             EE_ASSERT( clusterBaseOffset + ( meshletIndex + 1 ) * sizeof( MeshCluster ) <= packedMeshData.size() );
-            EE_ASSERT( meshlet.vertex_count > 0 && meshlet.vertex_count <= MeshCluster::MaxVerticesPerCluster );
-            EE_ASSERT( meshlet.triangle_count > 0 && meshlet.triangle_count <= MeshCluster::MaxTrianglesPerCluster );
+            EE_ASSERT( meshlet.vertex_count > 0 && meshlet.vertex_count <= MeshCluster::s_maxVerticesPerCluster );
+            EE_ASSERT( meshlet.triangle_count > 0 && meshlet.triangle_count <= MeshCluster::s_maxTrianglesPerCluster );
             EE_ASSERT( meshlet.vertex_offset + meshlet.vertex_count <= tempMeshletVertices.size() );
             EE_ASSERT( meshlet.triangle_offset + meshlet.triangle_count * 3 <= tempMeshletTriangles.size() );
 

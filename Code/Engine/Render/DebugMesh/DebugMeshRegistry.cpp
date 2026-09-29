@@ -162,7 +162,7 @@ namespace EE::Render
 
         RHI::BufferParameters meshBufferParameters = {};
         meshBufferParameters.m_bufferSize = geometry.GetMeshData().size();
-        meshBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw );
+        meshBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw };
         meshBufferParameters.m_debugName.sprintf( "DebugMesh %s", registeredMesh.m_name.c_str() );
 
         registeredMesh.m_pMeshBuffer = m_pRenderSystem->QueueBufferCreate( CopyMeshMemory, meshBufferParameters );

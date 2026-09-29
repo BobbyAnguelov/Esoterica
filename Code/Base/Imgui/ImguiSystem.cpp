@@ -11,6 +11,7 @@
 
 #if _WIN32
 #include "Base/ThirdParty/imgui/misc/freetype/imgui_freetype.h"
+#include "EsotericaIcons.h"
 #endif
 
 //-------------------------------------------------------------------------
@@ -86,7 +87,8 @@ namespace EE::ImGuiX
         // Decompress fonts
         //-------------------------------------------------------------------------
 
-        ImWchar const icons_ranges[] = { EE_ICONRANGE_MIN, EE_ICONRANGE_MAX, 0 };
+        ImWchar const iconRangeMDI[] = { EE_ICONRANGE_MDI_MIN, EE_ICONRANGE_MDI_MAX, 0 };
+        ImWchar const iconRangeEsoterica[] = { EE_ICONRANGE_ESOTERICA_MIN, EE_ICONRANGE_ESOTERICA_MAX, 0 };
 
         // Base font configs
         //-------------------------------------------------------------------------
@@ -104,23 +106,34 @@ namespace EE::ImGuiX
         iconFontConfig.SizePixels = defaultFontSize;
         iconFontConfig.GlyphOffset = ImVec2( 0, 2 );
 
+        ImFontConfig esotericaFontConfig;
+        esotericaFontConfig.FontDataOwnedByAtlas = false;
+        esotericaFontConfig.MergeMode = true;
+        esotericaFontConfig.SizePixels = defaultFontSize;
+        esotericaFontConfig.GlyphOffset = ImVec2( 0, 2 );
+        esotericaFontConfig.FontLoaderFlags = ImGuiFreeTypeLoaderFlags_LoadColor;
+
         ImFont* pRegularFont = io.Fonts->AddFontFromMemoryTTF( (void*) m_fontData_regular.data(), (int32_t) m_fontData_regular.size(), defaultFontSize, &fontConfig);
-        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig, icons_ranges );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig, iconRangeMDI );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_esotericaFontData.data(), (int32_t) m_esotericaFontData.size(), 0.0f, &esotericaFontConfig, iconRangeEsoterica );
         EE_ASSERT( pRegularFont->IsLoaded() );
         SystemFonts::s_fonts[(int32_t) FontType::Regular] = pRegularFont;
 
         ImFont* pItalicFont = io.Fonts->AddFontFromMemoryTTF( (void*) m_fontData_italic.data(), (int32_t) m_fontData_italic.size(), defaultFontSize, &fontConfig );
-        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig, icons_ranges );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig, iconRangeMDI );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_esotericaFontData.data(), (int32_t) m_esotericaFontData.size(), 0.0f, &esotericaFontConfig, iconRangeEsoterica );
         EE_ASSERT( pItalicFont->IsLoaded() );
         SystemFonts::s_fonts[(int32_t) FontType::Italic] = pItalicFont;
 
         ImFont* pBoldFont = io.Fonts->AddFontFromMemoryTTF( (void*) m_fontData_bold.data(), (int32_t) m_fontData_bold.size(), defaultFontSize, &fontConfig );
-        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig, iconRangeMDI );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_esotericaFontData.data(), (int32_t) m_esotericaFontData.size(), 0.0f, &esotericaFontConfig, iconRangeEsoterica );
         EE_ASSERT( pBoldFont->IsLoaded() );
         SystemFonts::s_fonts[(int32_t) FontType::Bold] = pBoldFont;
 
         ImFont* pBoldItalicFont = io.Fonts->AddFontFromMemoryTTF( (void*) m_fontData_bolditalic.data(), (int32_t) m_fontData_bolditalic.size(), defaultFontSize, &fontConfig );
-        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_iconFontData.data(), (int32_t) m_iconFontData.size(), 0.0f, &iconFontConfig, iconRangeMDI );
+        io.Fonts->AddFontFromMemoryTTF( (void*) m_esotericaFontData.data(), (int32_t) m_esotericaFontData.size(), 0.0f, &esotericaFontConfig, iconRangeEsoterica );
         EE_ASSERT( pBoldItalicFont->IsLoaded() );
         SystemFonts::s_fonts[(int32_t) FontType::BoldItalic] = pBoldItalicFont;
 

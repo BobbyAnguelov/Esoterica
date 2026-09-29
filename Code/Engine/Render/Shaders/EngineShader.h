@@ -44,13 +44,15 @@ namespace EE::Render
 
     struct MaterialShaderParameterHandle
     {
-        uint32_t                                        m_parameterStrideInBytes = 0;
-        uint32_t                                        m_parameterOffsetInBytes = 0;
-
         inline bool IsValid() const
         {
             return m_parameterStrideInBytes != 0;
         }
+
+        //-------------------------------------------------------------------------
+
+        uint32_t                                        m_parameterStrideInBytes = 0;
+        uint32_t                                        m_parameterOffsetInBytes = 0;
     };
 
     class MaterialShaderParametersInstance
@@ -179,14 +181,12 @@ namespace EE::Render
             PS_OutlineID
         };
 
-    public:
-
         MaterialShader() = default;
         MaterialShader( RHI::Context* pContextRHI, StringID shaderName, ByteCodeList const& stageByteCodes );
 
         void Shutdown( RHI::Context* pContextRHI );
 
-    public:
+        //-------------------------------------------------------------------------
 
         StringID                                        m_shaderName;
         bool                                            m_allowBufferWritesInPixelShader = false;
@@ -214,7 +214,7 @@ namespace EE::Render
 
         void Shutdown( RHI::Context* pContextRHI );
 
-    public:
+        //-------------------------------------------------------------------------
 
         StringID                                        m_shaderName;
         RHI::RootSignature*                             m_pRootSignature = nullptr;

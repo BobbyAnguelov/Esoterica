@@ -349,7 +349,8 @@ namespace EE
             DrawBar( "Virtual", totalVirtual, m_snapshotVirtualMemory, totalMax, ImVec4( 0.4f, 0.5f, 0.9f, 1.0f ) );
         }
 
-        m_filterWidget.UpdateAndDraw( halfWidth - ImGui::GetStyle().WindowPadding.x * 2 );
+        ImGui::SetNextItemWidth( halfWidth - ImGui::GetStyle().WindowPadding.x * 2 );
+        ImGuiX::InputFilterText( m_filter );
 
         ImGui::EndGroup();
         ImGui::SameLine();
@@ -480,8 +481,11 @@ namespace EE
                 for ( ; idx < groupEnd; idx++ )
                 {
                     Entry const& entry = m_entries[idx];
-                    if ( m_filterWidget.HasFilterSet() && !m_filterWidget.MatchesFilter( entry.m_pMemoryAllocator->GetName() ) )
+                    if ( m_filter.HasFilterSet() && !m_filter.MatchesFilter( entry.m_pMemoryAllocator->GetName() ) )
+                    {
                         continue;
+                    }
+
                     numVisibleBytesTotal += entry.m_pMemoryAllocator->GetNumBytes();
                     numVisibleAllocsTotal += entry.m_pMemoryAllocator->GetNumAllocations();
                 }
@@ -538,8 +542,10 @@ namespace EE
                 for ( ; entryIdx < groupEnd; entryIdx++ )
                 {
                     Entry const& entry = m_entries[entryIdx];
-                    if ( m_filterWidget.HasFilterSet() && !m_filterWidget.MatchesFilter( entry.m_pMemoryAllocator->GetName() ) )
+                    if ( m_filter.HasFilterSet() && !m_filter.MatchesFilter( entry.m_pMemoryAllocator->GetName() ) )
+                    {
                         continue;
+                    }
 
                     uint64_t const numBytes = entry.m_pMemoryAllocator->GetNumBytes();
                     uint64_t const numAllocs = entry.m_pMemoryAllocator->GetNumAllocations();
@@ -580,7 +586,9 @@ namespace EE
                 }
 
                 if ( inTreeNode )
+                {
                     ImGui::TreePop();
+                }
             }
 
             ImGui::EndTable();
@@ -662,7 +670,9 @@ namespace EE
                 int64_t deltaBytes = 0;
                 int64_t deltaCount = 0;
                 if ( m_hasSnapshot )
+                {
                     GetDeltas( *pStat, *pSnapshotStats, deltaBytes, deltaCount );
+                }
 
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
@@ -678,8 +688,11 @@ namespace EE
                     ImGui::SameLine( 0, 0 );
                     ImGui::TextDisabled( " (%.1f%%)", 100.0 * double( pStat->m_numBytes ) / double( totalTrackedGpuBytes ) );
                 }
+
                 if ( m_hasSnapshot && deltaBytes != 0 )
+                {
                     DrawDeltaBytesBadge( true, deltaBytes );
+                }
 
                 // Count
                 //-------------------------------------------------------------------------
@@ -687,7 +700,9 @@ namespace EE
                 ImGui::TableNextColumn();
                 ImGui::Text( "%llu", pStat->m_numAllocations );
                 if ( m_hasSnapshot && deltaCount != 0 )
+                {
                     DrawDeltaCountBadge( true, deltaCount );
+                }
             }
 
             ImGui::EndTable();

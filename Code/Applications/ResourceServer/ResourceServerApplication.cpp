@@ -229,7 +229,6 @@ namespace EE
     {
         #if EE_ENABLE_LPP
         LivePP_CreateAgent();
-        LivePP_EnableModules();
         #endif
 
         m_busyOverlayIcon = LoadIcon( m_pInstance, MAKEINTRESOURCE( IDI_RESOURCESERVER_BUSYOVERLAY ) );

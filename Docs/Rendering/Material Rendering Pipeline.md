@@ -1,6 +1,6 @@
 # Material Rendering Pipeline
 
-The material rendering pipeline is a fully GPU-driven path for opaque and transparent triangle meshes. Frustum culling, cluster compaction, cluster culling, and indirect draw argument generation all run in compute shaders — there is no per-instance work on the CPU.
+The material rendering pipeline is a fully GPU-driven path for opaque and transparent triangle meshes. Frustum culling, occlusion culling, cluster culling, and indirect draw argument generation all run in compute shaders — there is no per-instance work on the CPU.
 
 The pipeline produces ready-to-use indirect draw argument buffers for each shader and render view.
 
@@ -38,11 +38,11 @@ Each render pass executes its draw argument buffers with the per-bucket counters
 
 Lights and decals use a spatial hash for world-space culling.
 
-The world is partitioned into a 6-level LOD hierarchy -- the hash works with arbitrary spatial positions and any cell coordinate you feed it; it just happens to be camera-relative by default. The coarsest LOD spans the entire scene, finer LODs refine near the origin.
+The world is partitioned into a 6-level LOD hierarchy — the hash works with arbitrary spatial positions and any cell coordinate you feed it; it just happens to be camera-relative by default. The coarsest LOD spans the entire scene, finer LODs refine near the origin.
 
-Unlike a dense grid, the hash stores only occupied cells -- empty space costs no memory, and the structure naturally conforms to complex world topology without extra cost.
+Unlike a dense grid, the hash stores only occupied cells — empty space costs no memory, and the structure naturally conforms to complex world topology without extra cost.
 
-Unlike screen-space tiling, the spatial hash supports arbitrary world-space lookups -- reflection passes and ray tracing shaders can query off-screen lights and decals.
+Unlike screen-space tiling, the spatial hash supports arbitrary world-space lookups — reflection passes and ray tracing shaders can query off-screen lights and decals.
 
 A compute shader tests each light against its cell, constrained by parent page ranges, and writes per-cell bitmasks into an open-addressing hash table. The culling pass runs on the async compute queue, overlapped with the depth prepass and the previous frame's post processing.
 

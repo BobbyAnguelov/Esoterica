@@ -22,17 +22,21 @@ namespace EE::Render
 
     struct EE_ENGINE_API DeviceSpatialHash
     {
-        static constexpr uint32_t   MaxLODs = 6;   // hard maximum, must match SPATIAL_HASH_MAX_LOD_LEVELS in SpatialHash.esh
+        static constexpr uint32_t   s_maxLODs = 6;   // hard maximum, must match g_maxLodLevels in SpatialHash.esh
 
-        String                      m_name;
+        //-------------------------------------------------------------------------
 
-        DeviceResizeBuffer          m_keyBuffer = {};
-        DeviceResizeBuffer          m_payloadBuffer = {};
+        static void ComputeDispatchParameters
+        (
+            uint32_t rootDispatchX, uint32_t rootDispatchY, uint32_t rootDispatchZ,
+            uint32_t numLODs, uint32_t const borderCells[s_maxLODs],
+            DeviceSpatialHashDispatchParameters outDispatches[s_maxLODs]
+        );
 
-        uint32_t                    m_tableSize = 1024;                             // power of 2
-        uint32_t                    m_payloadStride = 0;
-        uint32_t                    m_numLODs = MaxLODs;
-        uint32_t                    m_borderCells[MaxLODs] = { 0, 1, 1, 1, 2, 2 };  // 4 bits each, runtime configurable
+        static uint32_t ComputePayloadStride( uint32_t numPointLightPages, uint32_t numSpotLightPages )
+        {
+            return 2 + 2 * Math::Max( numPointLightPages, numSpotLightPages ); // 2 metadata + 2 masks per page
+        }
 
         //-------------------------------------------------------------------------
 
@@ -45,16 +49,16 @@ namespace EE::Render
         uint64_t GetPackedHandleLow() const;
         uint64_t GetPackedHandleHigh( float baseCellSize ) const;
 
-        static void ComputeDispatchParameters
-        (
-            uint32_t rootDispatchX, uint32_t rootDispatchY, uint32_t rootDispatchZ,
-            uint32_t numLODs, uint32_t const borderCells[MaxLODs],
-            DeviceSpatialHashDispatchParameters outDispatches[MaxLODs]
-        );
+        //-------------------------------------------------------------------------
 
-        static uint32_t ComputePayloadStride( uint32_t numPointLightPages, uint32_t numSpotLightPages )
-        {
-            return 2 + 2 * Math::Max( numPointLightPages, numSpotLightPages ); // 2 metadata + 2 masks per page
-        }
+        String                      m_name;
+
+        DeviceResizeBuffer          m_keyBuffer = {};
+        DeviceResizeBuffer          m_payloadBuffer = {};
+
+        uint32_t                    m_tableSize = 1024;                             // power of 2
+        uint32_t                    m_payloadStride = 0;
+        uint32_t                    m_numLODs = s_maxLODs;
+        uint32_t                    m_borderCells[s_maxLODs] = { 0, 1, 1, 1, 2, 2 };  // 4 bits each, runtime configurable
     };
 }

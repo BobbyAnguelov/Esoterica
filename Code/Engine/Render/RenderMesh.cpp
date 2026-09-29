@@ -90,7 +90,7 @@ namespace EE::Render
 
     bool SkeletalMesh::IsValid() const
     {
-        return Mesh::IsValid() && ( m_boneIDs.size() == m_parentBoneIndices.size() ) && ( m_boneIDs.size() == m_bindPose.size() );
+        return Mesh::IsValid() && ( m_boneIDs.size() == m_parentBoneIndices.size() ) && ( m_boneIDs.size() == m_modelSpaceBindPose.size() ) && ( m_boneIDs.size() == m_parentSpaceBindPose.size() ) && ( m_boneIDs.size() == m_modelSpaceInverseBindPose.size() );
     }
 
     int32_t SkeletalMesh::GetBoneIndex( StringID const& boneID ) const
@@ -134,16 +134,16 @@ namespace EE::Render
     {
         auto const numBones = GetNumBones();
 
-        Transform boneWorldTransform = m_bindPose[0] * worldTransform;
+        Transform boneWorldTransform = m_modelSpaceBindPose[0] * worldTransform;
         drawingContext.DrawBox( boneWorldTransform, Float3( 0.005f ), Colors::Orange );
         drawingContext.DrawAxis( boneWorldTransform, 0.05f );
 
         for ( auto i = 1; i < numBones; i++ )
         {
-            boneWorldTransform = m_bindPose[i] * worldTransform;
+            boneWorldTransform = m_modelSpaceBindPose[i] * worldTransform;
 
             auto const parentBoneIdx = GetParentBoneIndex( i );
-            Transform const parentBoneWorldTransform = m_bindPose[parentBoneIdx] * worldTransform;
+            Transform const parentBoneWorldTransform = m_modelSpaceBindPose[parentBoneIdx] * worldTransform;
 
             drawingContext.DrawLine( parentBoneWorldTransform.GetTranslation(), boneWorldTransform.GetTranslation(), Colors::Orange );
             drawingContext.DrawBox( boneWorldTransform, Float3( 0.005f ), Colors::Orange );

@@ -1,9 +1,7 @@
 #ifndef __cplusplus
-#define RWStructuredBuffer RWBuffer
 #define kRS_ValueCopy
 #define FFX_HLSL
 #include "FFX_ParallelSort.esh"
-#undef RWStructuredBuffer
 #endif
 
 #include "Base/Render/RHI.esh"
@@ -11,11 +9,11 @@
 #ifndef __cplusplus
 ESF_RESOURCE_TABLE struct FFX_ParallelSort_ScatterPayloadResourceTable
 {
-    RWBuffer<uint>  m_srcBuffer;
-    RWBuffer<uint>  m_dstBuffer;
-    RWBuffer<uint>  m_sumTable;
-    RWBuffer<uint>  m_srcPayload;
-    RWBuffer<uint>  m_dstPayload;
+    RWStructuredBuffer<uint>  m_srcBuffer;
+    RWStructuredBuffer<uint>  m_dstBuffer;
+    RWStructuredBuffer<uint>  m_sumTable;
+    RWStructuredBuffer<uint>  m_srcPayload;
+    RWStructuredBuffer<uint>  m_dstPayload;
     uint            m_shiftBit;
 };
 #endif

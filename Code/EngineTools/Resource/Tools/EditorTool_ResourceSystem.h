@@ -31,7 +31,7 @@ namespace EE::Resource
 
     private:
 
-        ImGuiX::FilterWidget                m_filter;
+        ImGuiX::FilterData                  m_filter;
         ResourceID                          m_selectedResourceID;
         TVector<ResourceRecord const*>      m_cachedRecords;
         int32_t                             m_sortedColumnIdx = InvalidIndex;

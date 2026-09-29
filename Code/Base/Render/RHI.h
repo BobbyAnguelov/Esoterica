@@ -183,10 +183,10 @@ namespace EE::Render::RHI
         ASTC_12x12_UNorm,
         ASTC_12x12_sRGB,
     };
-    static constexpr uint32_t NumDataFormats = static_cast<size_t>( DataFormat::ASTC_12x12_sRGB ) + 1;
+    static constexpr uint32_t g_numDataFormats = static_cast<size_t>( DataFormat::ASTC_12x12_sRGB ) + 1;
 
-    static const uint32_t BufferAlignment = 4;
-    static const uint32_t IndirectCommandAlignment = 16;
+    static const uint32_t g_bufferAlignment = 4;
+    static const uint32_t g_indirectCommandAlignment = 16;
 
     enum struct ResourceMemoryType
     {
@@ -452,7 +452,7 @@ namespace EE::Render::RHI
         TextureCubeArray,
         AccelerationStructure,
     };
-    static constexpr uint32_t NumViewDimensions = static_cast<size_t>( ViewDimension::AccelerationStructure ) + 1;
+    static constexpr uint32_t g_numViewDimensions = static_cast<size_t>( ViewDimension::AccelerationStructure ) + 1;
 
     enum struct SamplerRange
     {
@@ -566,9 +566,9 @@ namespace EE::Render::RHI
         bool                                                m_rasterizerOrderViews = false;
         bool                                                m_breadcrumbs = false;
         bool                                                m_hdr = false;
-        TArray<bool, NumDataFormats>                        m_canShaderReadFrom = {};
-        TArray<bool, NumDataFormats>                        m_canShaderWriteTo = {};
-        TArray<bool, NumDataFormats>                        m_canRenderTargetWriteTo = {};
+        TArray<bool, g_numDataFormats>                      m_canShaderReadFrom = {};
+        TArray<bool, g_numDataFormats>                      m_canShaderWriteTo = {};
+        TArray<bool, g_numDataFormats>                      m_canRenderTargetWriteTo = {};
     };
 
     struct ResourceAllocationStatistic
@@ -580,10 +580,12 @@ namespace EE::Render::RHI
 
     struct BufferSubAllocation
     {
+        inline bool IsValid() const { return m_offset != ~0ULL; }
+
+        //-------------------------------------------------------------------------
+
         uint64_t                        m_offset = ~0ULL;
         uint64_t                        m_internal = ~0ULL;
-
-        inline bool IsValid() const { return m_offset != ~0ULL; }
     };
 
     struct EE_BASE_API GenericResource
@@ -699,6 +701,7 @@ namespace EE::Render::RHI
         TBitFlags<DescriptorTypeFlags>                      m_descriptorTypeFlags = {};
         ViewDimension                                       m_viewDimension = ViewDimension::Undefined;
         uint32_t                                            m_numConstants = 0;
+        uint32_t                                            m_registerIndex = 0;
         int32_t                                             m_parameterIndex = 0;
         int32_t                                             m_setIndex = 0;
     };
@@ -881,6 +884,11 @@ namespace EE::Render::RHI
 
     struct TextureCopyRegion
     {
+        // Very common operation when iterating mip levels and array slices
+        TextureCopyRegion SkipTo( uint32_t newMipLevel, uint32_t newArrayLayer ) const;
+
+        //-------------------------------------------------------------------------
+
         uint32_t                                m_x = 0;
         uint32_t                                m_width = 1;
 
@@ -892,9 +900,6 @@ namespace EE::Render::RHI
 
         uint32_t                                m_mipLevel = 0;
         uint32_t                                m_arrayLayer = 0;
-
-        // Very common operation when iterating mip levels and array slices
-        TextureCopyRegion SkipTo( uint32_t newMipLevel, uint32_t newArrayLayer ) const;
     };
 
     inline TextureCopyRegion TextureCopyRegion::SkipTo( uint32_t newMipLevel, uint32_t newArrayLayer ) const
@@ -1134,11 +1139,10 @@ namespace EE::Render::RHI
         uint64_t                                            m_bufferSize = 0;
         uint64_t                                            m_bufferStride = 0;
         uint64_t                                            m_firstElement = 0;
-        uint32_t                                            m_alignment = BufferAlignment;
+        uint32_t                                            m_alignment = g_bufferAlignment;
         ResourceMemoryType                                  m_memoryType = ResourceMemoryType::DeviceLocal;
         TBitFlags<BufferFlags>                              m_flags = {};
         QueueType                                           m_queueType = QueueType::Graphics;
-        DataFormat                                          m_format = DataFormat::Undefined;
         TBitFlags<DescriptorTypeFlags>                      m_descriptorTypes = DescriptorTypeFlags::Buffer;
         Buffer*                                             m_pCounterBuffer = nullptr;
         uint32_t                                            m_nodeIndex = 0;
@@ -1333,7 +1337,7 @@ namespace EE::Render::RHI
     inline bool IsCompressedFormat( DataFormat format )
     {
         uint32_t formatU32 = uint32_t( format );
-        EE_ASSERT( formatU32 > uint32_t( DataFormat::Undefined ) && formatU32 < NumDataFormats );
+        EE_ASSERT( formatU32 > uint32_t( DataFormat::Undefined ) && formatU32 < g_numDataFormats );
         return formatU32 >= uint32_t( DataFormat::DXBC1_RGB_UNorm );
     }
 
@@ -1535,29 +1539,41 @@ namespace EE::Render::RHI
         return ( height + blockHeight - 1 ) / blockHeight;
     }
 
-    inline uint32_t ComputeTextureMipLevels( uint32_t width, uint32_t height, uint32_t depth )
+    inline uint32_t ComputeUncompressedMipLevels( uint32_t width, uint32_t height, uint32_t depth )
     {
-        // Formula is log2(min(width, height, depth)) + 1 - 2, for integers this happens to be MSB of the value.
-        // We don't want the lowest mip level to be smaller than 4x4 so we subtract 2 mip levels from the result.
+        EE_ASSERT( width != 0 && height != 0 && depth != 0 );
 
-        uint32_t numMipLevels = 0;
+        return Math::GetMostSignificantBit( Math::Max( Math::Max( width, height ), depth ) ) + 1;
+    }
+
+    inline uint32_t ComputeBlockCompressedMipLevels( uint32_t width, uint32_t height, uint32_t depth )
+    {
+        EE_ASSERT( width != 0 && height != 0 && depth != 0 );
+
+        uint32_t fullLevels = 0;
+
         if ( depth > 1 )
         {
-            numMipLevels = Math::GetMostSignificantBit( Math::Min( width, Math::Min( height, depth ) ) );
+            fullLevels = Math::GetMostSignificantBit( Math::Min( Math::Min( width, height ), depth ) ) + 1;
         }
         else if ( height > 1 )
         {
-            numMipLevels = Math::GetMostSignificantBit( Math::Min( width, height ) );
+            fullLevels = Math::GetMostSignificantBit( Math::Min( width, height ) ) + 1;
+        }
+        else if ( width > 1 )
+        {
+            fullLevels = Math::GetMostSignificantBit( width ) + 1;
         }
         else
         {
-            numMipLevels = Math::GetMostSignificantBit( width );
+            EE_ASSERT( false );
         }
-        return numMipLevels + 1 - 2;
+
+        return ( fullLevels > 2 ) ? ( fullLevels - 2 ) : 1;
     }
 
     using GenericResourceHandle = uint16_t;
-    static constexpr GenericResourceHandle InvalidResourceHandle = UINT16_MAX;
+    static constexpr GenericResourceHandle g_invalidResourceHandle = UINT16_MAX;
 
     using SamplerStateHandle = GenericResourceHandle;
     using BufferHandle = GenericResourceHandle;
@@ -1691,8 +1707,6 @@ namespace EE::Render::RHI
 
     struct CommandBufferMarkerScope
     {
-        RHI::CommandBuffer*                                 m_pCommandBuffer = nullptr;
-
         inline CommandBufferMarkerScope( RHI::CommandBuffer* pCommandBuffer, char const* pName ) : m_pCommandBuffer( pCommandBuffer )
         {
             CmdBeginDebugMarker( m_pCommandBuffer, pName );
@@ -1702,6 +1716,10 @@ namespace EE::Render::RHI
         {
             CmdEndDebugMarker( m_pCommandBuffer );
         }
+
+        //-------------------------------------------------------------------------
+
+        RHI::CommandBuffer*                                 m_pCommandBuffer = nullptr;
     };
 
     #if !EE_SHIPPING

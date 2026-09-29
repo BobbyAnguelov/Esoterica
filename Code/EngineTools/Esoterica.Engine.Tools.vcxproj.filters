@@ -456,6 +456,9 @@
     <ClCompile Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TimeControlledAnimationClip.cpp" />
     <ClCompile Include="Core\Tools\EditorTool_SystemSettings.cpp" />
     <ClCompile Include="Render\PropertyGrid\PropertyGrid_SubmeshSettings.cpp" />
+    <ClCompile Include="Render\ComponentTools\ComponentTools_Light.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_ComponentTools.cpp" />
+    <ClCompile Include="Entity\Systems\WorldSystem_ComponentTools.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Animation\AnimationClipBrowser.h">
@@ -948,6 +951,8 @@
     <ClInclude Include="Resource\Dialogs\EditorDialog_FileSystemAction.h" />
     <ClInclude Include="Animation\ToolsGraph\Nodes\Animation_ToolsGraphNode_TimeControlledAnimationClip.h" />
     <ClInclude Include="Core\Tools\EditorTool_SystemSettings.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_ComponentTools.h" />
+    <ClInclude Include="Entity\Systems\WorldSystem_ComponentTools.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="Animation">

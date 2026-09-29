@@ -46,7 +46,8 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        m_globalSettingsFilterWidget.UpdateAndDraw();
+        ImGui::SetNextItemWidth( -1 );
+        ImGuiX::InputFilterText( m_filter );
 
         //-------------------------------------------------------------------------
 
@@ -96,7 +97,7 @@ namespace EE
     {
         auto FilterFunc = [this] ( CategoryItem<TypeSystem::PropertyInfo const*> const& item )
         {
-            return m_globalSettingsFilterWidget.MatchesFilter( item.m_fullPath );
+            return m_filter.MatchesFilter( item.m_fullPath );
         };
 
         InlineString const categoryLabel( category.m_name.empty() ? pSettings->GetSectionName() : category.m_name.c_str() );
@@ -117,7 +118,7 @@ namespace EE
 
             for ( auto const& item : category.m_items )
             {
-                if ( m_globalSettingsFilterWidget.MatchesFilter( item.m_fullPath ) )
+                if ( m_filter.MatchesFilter( item.m_fullPath ) )
                 {
                     DrawSettingsRow( pSettings, item.m_data );
                 }

@@ -256,7 +256,7 @@ namespace EE
 
                 //-------------------------------------------------------------------------
 
-                bool const entryMatchesFilter = m_filterWidget.MatchesFilter( entry.m_category.c_str() ) || m_filterWidget.MatchesFilter( entry.m_message ) || m_filterWidget.MatchesFilter( entry.m_sourceInfoStr );
+                bool const entryMatchesFilter = m_filter.MatchesFilter( entry.m_category.c_str() ) || m_filter.MatchesFilter( entry.m_message ) || m_filter.MatchesFilter( entry.m_sourceInfoStr );
                 if ( entryMatchesFilter )
                 {
                     m_filteredEntries.emplace_back( entry );
@@ -380,7 +380,8 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        if ( m_filterWidget.UpdateAndDraw( filterTextWidth ) )
+        ImGui::SetNextItemWidth( filterTextWidth );
+        if ( ImGuiX::InputFilterText( m_filter ) )
         {
             shouldUpdateFilteredList = true;
         }

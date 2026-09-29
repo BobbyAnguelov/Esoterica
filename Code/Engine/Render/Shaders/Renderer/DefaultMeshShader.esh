@@ -20,11 +20,11 @@ groupshared uint gsIntersectionDistanceMin;
 [OutputTopology( "triangle" )]
 void MS_main
 ( 
-    uint                            groupThreadID   : SV_GroupThreadID, 
-    uint                            groupID         : SV_GroupID,
-    out indices     uint3           outTriangles[MAX_CLUSTER_TRIANGLES],
-    out primitives  PrimitiveOutput outPrimitives[MAX_CLUSTER_TRIANGLES],
-    out vertices    VertexOutput    outVertices[MAX_CLUSTER_VERTICES] 
+    uint                                groupThreadID   : SV_GroupThreadID, 
+    uint3                               groupID         : SV_GroupID,
+    out indices     uint3               outTriangles[MAX_CLUSTER_TRIANGLES],
+    out primitives  PrimitiveOutput     outPrimitives[MAX_CLUSTER_TRIANGLES],
+    out vertices    MeshVertexOutput    outVertices[MAX_CLUSTER_VERTICES] 
 )
 {
     #if EE_DEVELOPMENT_TOOLS
@@ -36,6 +36,7 @@ void MS_main
     #endif
     
     StructuredBuffer<RenderView>        renderViewBuffer            = GetBuffer( RootCBV.m_renderViewBuffer );
+    StructuredBuffer<uint16_t>          renderViewIndirectionBuffer = GetBuffer( RootCBV.m_renderViewIndirectionBuffer );
     StructuredBuffer<MeshInstance>      meshInstanceBuffer          = GetBuffer( RootConstants.m_instanceBuffer );
     StructuredBuffer<MeshInstanceRoot>  meshInstanceRootBuffer      = GetBuffer( RootCBV.m_meshInstanceRootBuffer );
     StructuredBuffer<SkinningTransform> skinningTransformBuffer     = GetBuffer( RootCBV.m_skinningTransformBuffer ); 
@@ -43,12 +44,15 @@ void MS_main
     StructuredBuffer<ClusterToInstance> clusterToInstanceBuffer     = GetBuffer( RootConstants.m_clusterToInstanceBuffer );
     StructuredBuffer<uint>              drawClusterBuffer           = GetBuffer( RootConstants.m_drawClusterBuffer );
 
-    const ClusterToInstance             clusterToInstance           = clusterToInstanceBuffer[drawClusterBuffer[RootConstants.m_drawClusterBufferOffset + groupID]];
+    const ClusterToInstance             clusterToInstance           = clusterToInstanceBuffer[drawClusterBuffer[RootConstants.m_drawClusterBufferOffset + groupID.x]];
     const uint                          instanceIndex               = clusterToInstance.m_instanceIndex;
     const uint                          clusterOffset               = clusterToInstance.m_clusterOffset;
     
     const MeshInstance                  meshInstance                = meshInstanceBuffer[instanceIndex];
-    const RenderView                    renderView                  = renderViewBuffer[RootConstants.m_renderViewIndex];
+    const RenderView                    renderView                  = renderViewBuffer[renderViewIndirectionBuffer[RootConstants.m_renderViewIndex]];
+
+    const bool                          isShadowFace                = ( renderView.m_renderViewFlags & RENDER_VIEW_FLAG_SHADOW_FACE ) != 0;
+    const uint                          shadowFaceIndex             = groupID.y;
     
     ByteAddressBuffer                   meshBuffer                  = GetBuffer( NonUniformResourceIndex( meshInstance.m_meshBuffer ) );
     const uint                          clusterAddress              = GetMeshClusterAddress( clusterOffset );
@@ -59,24 +63,31 @@ void MS_main
     //-------------------------------------------------------------------------
     
     #if EE_DEVELOPMENT_TOOLS
-    RWBuffer<uint>                      instancePickingDistancesBuffer = GetBuffer( RootCBV.m_instancePickingDistancesBuffer );
+    RWByteAddressBuffer                 instancePickingDistancesBuffer = GetBuffer( RootCBV.m_instancePickingDistancesBuffer );
     #endif
     
     //-------------------------------------------------------------------------
 
     uint numClusterVertices = min( cluster.m_numVertices + 1, MAX_CLUSTER_VERTICES );
     uint numClusterTriangles = min( cluster.m_numTriangles + 1, MAX_CLUSTER_TRIANGLES );
-        
+
     SetMeshOutputCounts( numClusterVertices, numClusterTriangles );
 
     // Unpack cluster data
     //-------------------------------------------------------------------------
     
-    MeshInstanceRoot    meshInstanceRoot    = meshInstance.LoadRoot( meshInstanceRootBuffer );
+    MeshInstanceRoot    meshInstanceRoot        = meshInstance.LoadRoot( meshInstanceRootBuffer );
+    float3x4            meshInstanceTransform   = meshInstance.ComputeWorldTransform( meshInstanceRoot );
 
-    ShaderParameters    shaderParameters    = shaderDataBuffer.Load<ShaderParameters>( meshInstance.m_shaderParametersOffsetIn32ByteBlocks * 32 );
-    bool                isDoubleSided       = ( shaderParameters.m_shaderFlags & EE_SHADER_FLAG_TWO_SIDED ) != 0;
-    RendererGlobalFlags rendererGlobalFlags = RootCBV.m_rendererGlobalFlags;
+    ShaderParameters    shaderParameters        = shaderDataBuffer.Load<ShaderParameters>( meshInstance.m_shaderParametersOffsetIn32ByteBlocks * 32 );
+    bool                isDoubleSided           = ( shaderParameters.m_shaderFlags & EE_SHADER_FLAG_TWO_SIDED ) != 0;
+    RendererGlobalFlags rendererGlobalFlags     = RootCBV.m_rendererGlobalFlags;
+
+    // Shadow map views must not evaluate lighting, when alpha test is enabled this runs the full pixel shader.
+    if ( ( renderView.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_SHADOW_MAP ) != 0 )
+    {
+        rendererGlobalFlags |= RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING;
+    }
     
     // Special case - global environment map view shouldn't compute lighting
     float3 worldPositionOffset = 0.0.xxx;
@@ -94,8 +105,6 @@ void MS_main
     // Shade vertices
     //-------------------------------------------------------------------------
 
-    float3x4    meshInstanceTransform   = meshInstance.ComputeWorldTransform( meshInstanceRoot );
-    
     // TODO: Compute winding during culling pass
     bool        flipWinding             = determinant( ( float3x3 )meshInstanceTransform ) < 0.0;
     
@@ -159,12 +168,37 @@ void MS_main
             localNormal = normalize( skinnedNormal );
         }
         
-        if ( flipWinding ) { localNormal = -localNormal; }
+        if ( flipWinding )
+        {
+            localNormal = -localNormal;
+        }
         
         precise float3 worldPosition = mul( meshInstanceRoot.m_rootTransform, float4( localPosition, 1.0 ) ).xyz + worldPositionOffset;
-        precise float4 clipPosition  = mul( renderView.m_viewProjectionMatrix, float4( worldPosition, 1.0 ) );
-        
-        VertexOutput output;
+        precise float4 clipPosition;
+
+        MeshVertexOutput output;
+        if ( isShadowFace )
+        {
+            float3 const lightPosition      = renderView.m_shadowLightSphere.xyz;
+            float const shadowNearPlane     = PunctualShadowNearPlane( renderView.m_shadowLightSphere.w );
+            float const shadowFarPlane      = PunctualShadowFarPlane( renderView.m_shadowLightSphere.w );
+
+            clipPosition = ProjectOctahedralShadowFacePosition( shadowFaceIndex, lightPosition, worldPosition, shadowNearPlane, shadowFarPlane );
+
+            float3 const clipDistances      = ComputeOctahedralShadowClipDistances( shadowFaceIndex, lightPosition, worldPosition );
+            output.m_clipDistance0          = clipDistances.x;
+            output.m_clipDistance1          = clipDistances.y;
+            output.m_clipDistance2          = clipDistances.z;
+        }
+        else
+        {
+            clipPosition = mul( renderView.m_viewProjectionMatrix, float4( worldPosition, 1.0 ) );
+
+            output.m_clipDistance0 = 1.0;
+            output.m_clipDistance1 = 1.0;
+            output.m_clipDistance2 = 1.0;
+        }
+
         output.m_clipPosition   = clipPosition;
         output.m_worldPosition  = worldPosition;
         output.m_worldNormal    = normalize( mul( Adjugate( meshInstanceRoot.m_rootTransform ), localNormal ) );
@@ -174,9 +208,9 @@ void MS_main
         //#define DEBUG_CLUSTERS
         #ifdef DEBUG_CLUSTERS
         output.m_color = float4(
-            float( groupID & 1 ),
-            float( groupID & 3 ) / 4,
-            float( groupID & 7 ) / 8,
+            float( groupID.x & 1 ),
+            float( groupID.x & 3 ) / 4,
+            float( groupID.x & 7 ) / 8,
             1.0 );
         #endif
 
@@ -248,7 +282,7 @@ void MS_main
 
     if ( ( groupThreadID == 0 ) && ( gsNumIntersections > 0 ) )
     {
-        InterlockedMin( instancePickingDistancesBuffer[meshInstance.m_meshInstanceRootIndex], gsIntersectionDistanceMin );
+        instancePickingDistancesBuffer.InterlockedMin( meshInstance.m_meshInstanceRootIndex * 4, gsIntersectionDistanceMin );
     }
     #endif
 }

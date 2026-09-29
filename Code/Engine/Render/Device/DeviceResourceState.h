@@ -35,6 +35,8 @@ namespace EE::Render
             other.m_currentState = RHI::TextureState::ShaderResource;
         }
 
+        inline bool IsValid() const { return m_pTexture != nullptr; }
+
         inline DeviceTextureState& operator=( DeviceTextureState&& other ) noexcept
         {
             if ( this != &other )
@@ -89,8 +91,6 @@ namespace EE::Render
             TBitFlags<RHI::ResourceAccess>      m_textureAccess = {};
             RHI::TextureState                   m_textureState = {};
         };
-
-    public:
 
         void FlushBarriers( RHI::CommandBuffer* pCommandBuffer );
         bool HasPendingBarriers() const;

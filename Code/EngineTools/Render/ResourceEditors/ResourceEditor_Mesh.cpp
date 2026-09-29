@@ -231,22 +231,37 @@ namespace EE::Render
 
     void MeshEditor::OnResourceLoadCompleted( Resource::ResourcePtr* pResourcePtr )
     {
-        if ( pResourcePtr == &m_editedResource && IsResourceLoaded() )
+        if ( pResourcePtr == &m_editedResource )
         {
             ClearAllSelections();
+            m_uniqueMaterialNames.clear();
+            m_hiddenSubmeshes.clear();
 
-            auto pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
-            if ( pMeshDescriptor->FixUpMaterialMappings( m_editedResource.GetPtr<Mesh>() ) )
+            //-------------------------------------------------------------------------
+
+            if ( IsResourceLoaded() )
             {
-                MarkDirty();
-            }
+                auto pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
+                if ( pMeshDescriptor->FixUpMaterialMappings( m_editedResource.GetPtr<Mesh>() ) )
+                {
+                    MarkDirty();
+                }
 
-            if ( m_isViewingSkeletalMesh )
-            {
-                CreateSkeletonTree();
-            }
+                if ( m_isViewingSkeletalMesh )
+                {
+                    CreateSkeletonTree();
+                }
 
-            CreatePreviewEntity();
+                Mesh const* pMesh = m_editedResource.GetPtr<Mesh>();
+                int32_t const numSubmeshes = pMesh->GetNumSubmeshes();
+                for ( int16_t submeshIdx = 0; submeshIdx < numSubmeshes; submeshIdx++ )
+                {
+                    auto const& submesh = pMesh->GetSubmesh( submeshIdx );
+                    VectorEmplaceBackUnique( m_uniqueMaterialNames, submesh.m_materialNameID );
+                }
+
+                CreatePreviewEntity();
+            }
         }
     }
 
@@ -460,34 +475,7 @@ namespace EE::Render
 
             if ( m_pMeshComponent != nullptr && m_pMeshComponent->IsMeshLoaded() )
             {
-                MeshResourceDescriptor* pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
-
-                if ( m_selectedSubmeshes.empty() )
-                {
-                    if ( !m_hiddenSubmeshes.empty() )
-                    {
-                        m_hiddenSubmeshes.clear();
-                        m_pMeshComponent->SetSubmeshVisibility( m_hiddenSubmeshes );
-                    }
-                }
-                else
-                {
-                    TVector<int16_t> hiddenSubmeshes;
-                    int32_t const numSubmeshes = pMesh->GetNumSubmeshes();
-                    for ( int16_t i = 0; i < numSubmeshes; i++ )
-                    {
-                        if ( !VectorContains( m_selectedSubmeshes, i ) )
-                        {
-                            hiddenSubmeshes.emplace_back( i );
-                        }
-                    }
-
-                    if ( m_hiddenSubmeshes != hiddenSubmeshes )
-                    {
-                        m_hiddenSubmeshes.swap( hiddenSubmeshes );
-                        m_pMeshComponent->SetSubmeshVisibility( m_hiddenSubmeshes );
-                    }
-                }
+                m_pMeshComponent->SetSubmeshVisibility( m_hiddenSubmeshes );
             }
 
             // Skeletal Mesh
@@ -514,7 +502,7 @@ namespace EE::Render
                     int32_t const selectedBoneIdx = pSkelMesh->GetBoneIndex( selectedBoneID );
                     if ( selectedBoneIdx != InvalidIndex )
                     {
-                        Transform const& globalBoneTransform = pSkelMesh->GetBindPose()[selectedBoneIdx];
+                        Transform const& globalBoneTransform = pSkelMesh->GetModelSpaceBindPoseTransform( selectedBoneIdx );
                         drawingContext.DrawAxis( globalBoneTransform, 0.25f, 3.0f );
 
                         Vector textLocation = globalBoneTransform.GetTranslation();
@@ -588,7 +576,7 @@ namespace EE::Render
                 return Transform::Identity;
             }
 
-            return socketDef.m_offsetTransform * pSkelMesh->GetBindPoseTransform( boneIdx );
+            return socketDef.m_offsetTransform * pSkelMesh->GetModelSpaceBindPoseTransform( boneIdx );
         }
 
         return socketDef.m_offsetTransform;
@@ -616,7 +604,7 @@ namespace EE::Render
             }
 
             ScopedDataFileModification sm( this );
-            socketDef.m_offsetTransform = transform * pSkelMesh->GetBindPoseTransform( boneIdx ).GetInverse();
+            socketDef.m_offsetTransform = transform * pSkelMesh->GetModelSpaceBindPoseTransform( boneIdx ).GetInverse();
         }
         else
         {
@@ -742,6 +730,8 @@ namespace EE::Render
         Mesh const* pMesh = m_editedResource.GetPtr<Mesh>();
         int32_t const numSubmeshes = pMesh->GetNumSubmeshes();
 
+        //-------------------------------------------------------------------------
+
         while ( m_materialPickers.size() < numSubmeshes )
         {
             m_materialPickers.emplace_back( EE::New<ResourcePicker>( *m_pToolsContext, Material::GetStaticResourceTypeID() ) );
@@ -750,130 +740,195 @@ namespace EE::Render
         EE_ASSERT( pMeshDescriptor->m_materialMappings.size() == numSubmeshes );
         for ( size_t i = 0; i < numSubmeshes; i++ )
         {
+            m_materialPickers[i]->SetCompactMode( true );
             m_materialPickers[i]->SetResourceID( pMeshDescriptor->m_materialMappings[i].m_material.GetResourceID() );
         }
 
         //-------------------------------------------------------------------------
 
-        float totalLabelWidth = 0;
+        auto ApplySelectionRequests = [this, numSubmeshes] ( ImGuiMultiSelectIO* pMSIO )
         {
-            ImGuiX::ScopedFont const sf( ImGuiX::FontType::Bold, 36 );
-            totalLabelWidth = ImGui::CalcTextSize( "00 " ).x;
+            for ( ImGuiSelectionRequest const& req : pMSIO->Requests )
+            {
+                if ( req.Type == ImGuiSelectionRequestType_SetAll )
+                {
+                    m_selectedSubmeshes.clear();
+
+                    if ( req.Selected )
+                    {
+                        for ( int16_t i = 0; i < numSubmeshes; i++ )
+                        {
+                            m_selectedSubmeshes.emplace_back( i );
+                        }
+                    }
+                }
+                else if ( req.Type == ImGuiSelectionRequestType_SetRange )
+                {
+                    if ( req.Selected )
+                    {
+                        for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
+                        {
+                            VectorEmplaceBackUnique( m_selectedSubmeshes, int16_t( i ) );
+                        }
+                    }
+                    else
+                    {
+                        for ( int64_t i = req.RangeFirstItem; i <= req.RangeLastItem; i++ )
+                        {
+                            m_selectedSubmeshes.erase_first_unsorted( int16_t( i ) );
+                        }
+                    }
+                }
+            }
+        };
+
+        constexpr float const lodItemSpacingX = 1;
+        float const pickerHeight = ( ImGui::GetFrameHeight() * 2 ) + ImGui::GetStyle().ItemSpacing.y;
+        float lodWidth = 0;
+        {
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::Medium );
+            lodWidth = ( ImGui::CalcTextSize( EE_ICON_NUMERIC_3_CIRCLE ).x + lodItemSpacingX ) * 8;
         }
 
-        ImGuiStyle const& style = ImGui::GetStyle();
-        InlineString str;
-
-        //-------------------------------------------------------------------------
-
-        for ( int32_t submeshIdx = 0; submeshIdx < numSubmeshes; submeshIdx++ )
+        static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable;
+        if ( ImGui::BeginTable( "SubMeshTable", 5, flags, ImGui::GetContentRegionAvail() - ImVec2( 0, pickerHeight ) ) )
         {
-            auto const& submesh = pMesh->GetSubmesh( submeshIdx );
-            auto& materialMapping = pMeshDescriptor->m_materialMappings[submeshIdx];
+            ImGui::TableSetupColumn( "", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize | ImGuiTableColumnFlags_NoSort, 40.0f );
+            ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "LOD", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize | ImGuiTableColumnFlags_NoSort, lodWidth );
+            ImGui::TableSetupColumn( "Material Name", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
+            ImGui::TableSetupColumn( "Resource", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort );
 
-            InlineString childWindowName( InlineString::CtorSprintf(), "SM%d", submeshIdx );
+            ImGui::TableSetupScrollFreeze( 0, 1 );
 
-            float const windowHeight = m_materialPickers[submeshIdx]->GetHeight() + ImGui::GetFrameHeight() * 3 + style.WindowPadding.y;
-            ImGui::PushStyleVar( ImGuiStyleVar_ChildRounding, 4 );
-            ImGui::PushStyleColor( ImGuiCol_ChildBg, ImGuiX::Style::s_colorGray2 );
-            if ( ImGui::BeginChild( childWindowName.c_str(), ImVec2( -1, windowHeight ), ImGuiChildFlags_AlwaysUseWindowPadding, ImGuiWindowFlags_NoDecoration ) )
+            //-------------------------------------------------------------------------
+
+            ImGui::TableHeadersRow();
+
+            //-------------------------------------------------------------------------
+
+            ImGuiMultiSelectFlags const selectionFlags = ImGuiMultiSelectFlags_ClearOnEscape | ImGuiMultiSelectFlags_BoxSelect1d | ImGuiMultiSelectFlags_ClearOnClickVoid;
+            ImGuiMultiSelectIO* pMSIO = ImGui::BeginMultiSelect( selectionFlags, -1, numSubmeshes );
+            ApplySelectionRequests( pMSIO );
+
+            bool toggleVisibilityForAllSelected = false;
+            bool selectedVisible = false;
+
+            for ( int16_t submeshIdx = 0; submeshIdx < numSubmeshes; submeshIdx++ )
             {
+                ImGui::PushID( submeshIdx );
+
+                auto const& submesh = pMesh->GetSubmesh( submeshIdx );
+                auto& materialMapping = pMeshDescriptor->m_materialMappings[submeshIdx];
+
                 bool isSelected = VectorContains( m_selectedSubmeshes, submeshIdx );
 
-                // Draw label
                 //-------------------------------------------------------------------------
 
-                {
-                    str.sprintf( "%d", submeshIdx );
-                    ImGuiX::ScopedFont const sf( ImGuiX::FontType::Bold, 36 );
-                    ImVec2 const labelSize = ImGui::CalcTextSize( str.c_str() );
-                    float const offsetX = Math::Max( 0.0f, ( totalLabelWidth - labelSize.x ) / 2 );
-                    float const offsetY = Math::Max( 0.0f, ( ImGui::GetContentRegionAvail().y - labelSize.y ) / 2 + style.WindowPadding.y );
-                    auto pDrawList = ImGui::GetWindowDrawList();
-                    pDrawList->AddRectFilled( ImGui::GetWindowPos(), ImGui::GetWindowPos() + ImVec2( totalLabelWidth, windowHeight ), isSelected ? Colors::MediumSeaGreen : Colors::SlateGray, 4 );
-                    pDrawList->AddText( ImGui::GetWindowPos() + ImVec2( offsetX, offsetY ), ImGuiX::Style::s_colorText, str.c_str() );
-                }
-
-                // Details
-                //-------------------------------------------------------------------------
-
-                ImGui::Indent( totalLabelWidth );
-                ImGui::Text( EE_ICON_CUBE_OUTLINE" %s", submesh.m_ID.c_str() );
-                ImGuiX::TextTooltip( "Source Mesh Node: %s", submesh.m_ID.c_str() );
-                ImGui::Text( EE_ICON_PALETTE" %s", submesh.m_materialNameID.c_str() );
-                ImGuiX::TextTooltip( "Source Material Name: %s", submesh.m_materialNameID.c_str() );
-
-                // LOD and Isolate
-                //-------------------------------------------------------------------------
-
-                bool isRelevantForLOD = false;
-
-                ImGui::AlignTextToFramePadding();
-                ImGui::Text( "LOD:" );
-                ImGui::SameLine();
-
-                isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 0 ) ) != 0;
-                ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_0_CIRCLE );
-                ImGui::SameLine();
-
-                isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 1 ) ) != 0;
-                ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_1_CIRCLE );
-                ImGui::SameLine();
-
-                isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 2 ) ) != 0;
-                ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_2_CIRCLE );
-                ImGui::SameLine();
-
-                isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 3 ) ) != 0;
-                ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_3_CIRCLE );
-                ImGui::SameLine();
-
-                isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 4 ) ) != 0;
-                ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_4_CIRCLE );
-                ImGui::SameLine();
-
-                isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 5 ) ) != 0;
-                ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_5_CIRCLE );
-                ImGui::SameLine();
-
-                isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 6 ) ) != 0;
-                ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_6_CIRCLE );
-                ImGui::SameLine();
-
-                isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 7 ) ) != 0;
-                ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_7_CIRCLE );
-
-                ImVec2 buttonWidth( 100, 0 );
-                ImGui::SameLine();
-                ImGui::Dummy( ImVec2( ImGui::GetContentRegionAvail().x - buttonWidth.x - style.ItemSpacing.x, 0 ) );
-                ImGui::SameLine();
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
 
                 ImGuiX::ToggleButtonSettings settings;
                 settings.m_pOnIcon = EE_ICON_EYE_OUTLINE;
                 settings.m_pOffIcon = EE_ICON_EYE_OFF_OUTLINE;
-                settings.m_pOnLabel = "Visible";
-                settings.m_pOffLabel = "Hidden";
+                settings.m_pOnLabel = "";
+                settings.m_pOffLabel = "";
                 settings.m_onBackgroundColor = Colors::MediumSeaGreen;
-                settings.m_offBackgroundColor = m_selectedSubmeshes.empty() ? Colors::SlateGray : Colors::PaleVioletRed;
+                settings.m_offBackgroundColor = Colors::PaleVioletRed;
                 settings.m_onForegroundColor = Colors::Black;
                 settings.m_offForegroundColor = Colors::Black;
                 settings.m_onIconColor = Colors::White;
                 settings.m_offIconColor = Colors::White;
                 settings.m_isFlatButton = false;
 
-                if ( ImGuiX::ToggleButtonEx( settings, isSelected, buttonWidth ) )
+                bool isVisible = !VectorContains( m_hiddenSubmeshes, submeshIdx );
+                if ( ImGuiX::ToggleButtonEx( settings, isVisible ) )
                 {
-                    if ( isSelected )
+                    if ( m_selectedSubmeshes.size() > 1 )
                     {
-                        VectorEmplaceBackUnique( m_selectedSubmeshes, submeshIdx );
+                        toggleVisibilityForAllSelected = true;
+                        selectedVisible = isVisible;
                     }
                     else
                     {
-                        m_selectedSubmeshes.erase_first_unsorted( submeshIdx );
+                        if ( isVisible )
+                        {
+                            m_hiddenSubmeshes.erase_first_unsorted( submeshIdx );
+                        }
+                        else
+                        {
+                            VectorEmplaceBackUnique( m_hiddenSubmeshes, submeshIdx );
+                        }
                     }
                 }
 
+                // Name
                 //-------------------------------------------------------------------------
+
+                InlineString name( InlineString::CtorSprintf(), "%d. %s", submeshIdx, submesh.m_ID.c_str() );
+
+                ImGui::TableNextColumn();
+
+                ImGui::SetNextItemSelectionUserData( submeshIdx );
+                ImGui::Selectable( name.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns );
+
+                // LOD
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+
+                bool isRelevantForLOD = false;
+
+                ImGui::AlignTextToFramePadding();
+
+                {
+                    ImGuiX::ScopedFont const sf( ImGuiX::Font::Medium );
+                    ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( lodItemSpacingX, 0 ) );
+
+                    isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 0 ) ) != 0;
+                    ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_0_CIRCLE );
+                    ImGui::SameLine();
+
+                    isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 1 ) ) != 0;
+                    ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_1_CIRCLE );
+                    ImGui::SameLine();
+
+                    isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 2 ) ) != 0;
+                    ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_2_CIRCLE );
+                    ImGui::SameLine();
+
+                    isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 3 ) ) != 0;
+                    ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_3_CIRCLE );
+                    ImGui::SameLine();
+
+                    isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 4 ) ) != 0;
+                    ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_4_CIRCLE );
+                    ImGui::SameLine();
+
+                    isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 5 ) ) != 0;
+                    ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_5_CIRCLE );
+                    ImGui::SameLine();
+
+                    isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 6 ) ) != 0;
+                    ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_6_CIRCLE );
+                    ImGui::SameLine();
+
+                    isRelevantForLOD = ( submesh.m_lodMask & ( 1 << 7 ) ) != 0;
+                    ImGui::TextColored( isRelevantForLOD ? Colors::Lime : ImGuiX::Style::s_colorText, EE_ICON_NUMERIC_7_CIRCLE );
+
+                    ImGui::PopStyleVar();
+                }
+
+                // Material Name
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
+                ImGui::TextColored( Color::GetCategorizedColor( VectorFindIndex( m_uniqueMaterialNames, submesh.m_materialNameID ) ), submesh.m_materialNameID.c_str() );
+
+                // Material Resource
+                //-------------------------------------------------------------------------
+
+                ImGui::TableNextColumn();
 
                 if ( m_materialPickers[submeshIdx]->UpdateAndDraw() )
                 {
@@ -881,11 +936,32 @@ namespace EE::Render
                     pMeshDescriptor->m_materialMappings[submeshIdx].m_material = m_materialPickers[submeshIdx]->GetResourceID();
                 }
 
-                ImGui::Unindent( totalLabelWidth );
+                ImGui::PopID();
             }
-            ImGui::EndChild();
-            ImGui::PopStyleColor();
-            ImGui::PopStyleVar();
+
+            pMSIO = ImGui::EndMultiSelect();
+            ApplySelectionRequests( pMSIO );
+
+            //-------------------------------------------------------------------------
+
+            if ( toggleVisibilityForAllSelected )
+            {
+                if ( !selectedVisible )
+                {
+                    m_hiddenSubmeshes = m_selectedSubmeshes;
+                }
+                else
+                {
+                    for ( int16_t submeshIdx : m_selectedSubmeshes )
+                    {
+                        m_hiddenSubmeshes.erase_first_unsorted( submeshIdx );
+                    }
+                }
+
+                toggleVisibilityForAllSelected = false;
+            }
+
+            ImGui::EndTable();
         }
     }
 
@@ -1222,7 +1298,7 @@ namespace EE::Render
                 {
                     int32_t const selectedBoneIdx = pSkeletalMesh->GetBoneIndex( boneID );
                     EE_ASSERT( selectedBoneIdx != InvalidIndex );
-                    Transform const& bindPoseBoneTransform = pSkeletalMesh->GetBindPose()[selectedBoneIdx];
+                    Transform const& bindPoseBoneTransform = pSkeletalMesh->GetModelSpaceBindPoseTransform( selectedBoneIdx );
 
                     ImGui::TableNextRow();
 

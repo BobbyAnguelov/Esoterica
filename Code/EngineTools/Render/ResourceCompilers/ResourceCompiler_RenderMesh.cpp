@@ -120,8 +120,8 @@ namespace EE::Render
             totalTriangleCount += srcMeshPart.GetNumTriangles();
         }
 
-        EE_ASSERT( totalVertexCount < Geometry::MaxMeshVertices );
-        EE_ASSERT( totalTriangleCount < Geometry::MaxMeshTriangles );
+        EE_ASSERT( totalVertexCount < Geometry::s_maxMeshVertices );
+        EE_ASSERT( totalTriangleCount < Geometry::s_maxMeshTriangles );
 
         for ( GeometryBuilder& geometryBuilder : convertedMesh.m_geometryBuilders )
         {
@@ -201,7 +201,7 @@ namespace EE::Render
             // Cluster utilization ( vertex slots )
             //-------------------------------------------------------------------------
 
-            float const utilization = float( cluster.GetNumVertices() ) / float( MeshCluster::MaxVerticesPerCluster );
+            float const utilization = float( cluster.GetNumVertices() ) / float( MeshCluster::s_maxVerticesPerCluster );
             clusterUtilizations.push_back( utilization );
             stats.m_minimumClusterUtilization = Math::Min( stats.m_minimumClusterUtilization, utilization );
             stats.m_maximumClusterUtilization = Math::Max( stats.m_maximumClusterUtilization, utilization );
@@ -348,10 +348,11 @@ namespace EE::Render
                     auto const numBones = skeleton.GetNumBones();
                     for ( size_t boneIndex = 0; boneIndex < numBones; ++boneIndex )
                     {
-                        pSkeletalMesh->GetBoneIDs().push_back( boneData[boneIndex].m_name );
-                        pSkeletalMesh->GetParentBoneIndices().push_back( boneData[boneIndex].m_parentBoneIdx );
-                        pSkeletalMesh->GetBindPose().push_back( boneData[boneIndex].m_modelSpaceTransform );
-                        pSkeletalMesh->GetInverseBindPose().push_back( boneData[boneIndex].m_modelSpaceTransform.GetInverse() );
+                        pSkeletalMesh->m_boneIDs.push_back( boneData[boneIndex].m_name );
+                        pSkeletalMesh->m_parentBoneIndices.push_back( boneData[boneIndex].m_parentBoneIdx );
+                        pSkeletalMesh->m_parentSpaceBindPose.push_back( boneData[boneIndex].m_parentSpaceTransform );
+                        pSkeletalMesh->m_modelSpaceBindPose.push_back( boneData[boneIndex].m_modelSpaceTransform );
+                        pSkeletalMesh->m_modelSpaceInverseBindPose.push_back( boneData[boneIndex].m_modelSpaceTransform.GetInverse() );
                     }
                 }
             }

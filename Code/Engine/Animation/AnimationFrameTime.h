@@ -59,11 +59,6 @@ namespace EE::Animation
         inline FrameTime operator-( int32_t const& RHS ) const;
         inline FrameTime& operator-=( int32_t const& RHS );
 
-        FrameTime operator+( Percentage const& RHS ) const;
-        FrameTime& operator+=( Percentage const& RHS );
-        FrameTime operator-( Percentage const& RHS ) const;
-        FrameTime& operator-=( Percentage const& RHS );
-
         inline bool operator <( FrameTime const &rhs ) const;
         inline bool operator <=( FrameTime const &rhs ) const;
         inline bool operator >( FrameTime const &rhs ) const;

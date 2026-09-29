@@ -17,7 +17,7 @@ namespace EE
             EE_ASSERT( pSelectedTypeInfo->IsDerivedFrom( m_baseClassTypeID ) );
         }
 
-        m_filterWidget.SetFilterHelpText( "Filter Types" );
+        m_filter.SetFilterHelpText( "Filter Types" );
 
         //-------------------------------------------------------------------------
 
@@ -68,8 +68,13 @@ namespace EE
             bool shouldUpdateNavID = false;
             if ( m_isComboOpen )
             {
-                float const cursorPosYPreFilter = ImGui::GetCursorPosY();
-                if ( m_filterWidget.UpdateAndDraw( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
+                if ( ImGui::IsWindowAppearing() )
+                {
+                    ImGui::SetKeyboardFocusHere();
+                }
+
+                ImGui::SetNextItemWidth( -1 );
+                if ( ImGuiX::InputFilterText( m_filter ) )
                 {
                     GenerateFilteredOptionList();
                 }
@@ -198,13 +203,13 @@ namespace EE
 
     void TypeInfoPicker::GenerateFilteredOptionList()
     {
-        if ( m_filterWidget.HasFilterSet() )
+        if ( m_filter.HasFilterSet() )
         {
             m_filteredOptions.clear();
 
             for ( Option const& option : m_generatedOptions )
             {
-                if ( m_filterWidget.MatchesFilter( option.m_filterableData ) )
+                if ( m_filter.MatchesFilter( option.m_filterableData ) )
                 {
                     m_filteredOptions.emplace_back( option );
                 }

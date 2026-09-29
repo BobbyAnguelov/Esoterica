@@ -176,7 +176,7 @@ namespace EE
         TypeSystem::TypeInfo const*                                 m_pTypeInfo = nullptr;
         IReflectedType*                                             m_pTypeInstance = nullptr;
         bool                                                        m_isDirty = false;
-        ImGuiX::FilterWidget                                        m_filterWidget;
+        ImGuiX::FilterData                                          m_filter;
 
         float                                                       m_scrollPosY = 0;
         bool                                                        m_restoreScrollPosY = false;

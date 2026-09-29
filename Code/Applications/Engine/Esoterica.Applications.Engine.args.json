@@ -3,6 +3,10 @@
   "Id": "8778c386-a74a-4545-8297-ce68639d4ade",
   "Items": [
     {
+      "Id": "44192d69-811f-4c78-96e8-1f0008e484d6",
+      "Command": "-map data://users/kirill/maps/LightsStressTest.map"
+    },
+    {
       "Id": "6fec2bd2-2b95-42e7-8f29-45d698851e2f",
       "Command": "-map data://demo/render/pbr/pbrdemo.map"
     },

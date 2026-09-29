@@ -27,13 +27,15 @@ namespace EE::Render
 
         struct PositionAttribute final
         {
-            Float3              m_position = Float3::Zero;
-            Float3              m_normal = Float3::Zero;
-
             inline PositionAttribute() = default;
             inline PositionAttribute( Float3 position, Float3 normal ) : m_position( position ), m_normal( normal ) {}
             inline PositionAttribute( Float4 position, Float4 normal ) : m_position( position ), m_normal( normal ) {}
             inline PositionAttribute( Vector position, Vector normal ) : m_position( position.ToFloat3() ), m_normal( normal.ToFloat3() ) {}
+
+            //-------------------------------------------------------------------------
+
+            Float3              m_position = Float3::Zero;
+            Float3              m_normal = Float3::Zero;
         };
 
         using TextureCoordinateAttribute = Float2;

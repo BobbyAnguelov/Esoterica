@@ -2,6 +2,7 @@
 
 #include "EntityEditor_Context.h"
 #include "Base/Imgui/ImguiCommandStack.h"
+#include "Base/Imgui/ImguiFilter.h"
 #include "EngineTools/Widgets/TreeListView.h"
 #include "EngineTools/PropertyGrid/PropertyGrid.h"
 
@@ -88,7 +89,7 @@ namespace EE::EntityModel
         InternalState                                   m_state = InternalState::NeedsRebuild;
 
         ImGuiX::CommandStack                            m_commandStack;
-        ImGuiX::FilterWidget                            m_filter;
+        ImGuiX::FilterData                              m_filter;
         TreeListView                                    m_treeView;
         TreeListViewContext                             m_treeContext;
 
@@ -99,7 +100,7 @@ namespace EE::EntityModel
         EventBindingID                                  m_preEditPropertyBindingID;
         EventBindingID                                  m_postEditPropertyBindingID;
 
-        ImGuiX::FilterWidget                            m_componentContextMenufilter;
-        ImGuiX::FilterWidget                            m_systemContextMenufilter;
+        ImGuiX::FilterData                              m_componentContextMenufilter;
+        ImGuiX::FilterData                              m_systemContextMenufilter;
     };
 }

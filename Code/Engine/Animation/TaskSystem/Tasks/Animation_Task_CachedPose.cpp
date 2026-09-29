@@ -25,7 +25,7 @@ namespace EE::Animation
         PoseBuffer* pCachedPoseBuffer = nullptr;
         if ( m_isDeserializedTask )
         {
-            pCachedPoseBuffer = context.m_posePool.GetOrCreateCachedPoseBuffer( m_cachedPoseID, true );
+            pCachedPoseBuffer = context.m_posePool.GetOrCreateTemporaryBufferForSpecificID( m_cachedPoseID );
         }
         else [[likely]]
         {

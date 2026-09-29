@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -186,6 +186,7 @@
     <ClCompile Include="Render\RenderGeometryBuilder.cpp" />
     <ClCompile Include="Render\RenderMesh.cpp" />
     <ClCompile Include="Render\RenderProxies.cpp" />
+    <ClCompile Include="Render\ActiveRenderView.cpp" />
     <ClCompile Include="Render\Settings\ViewportSettings_Render.cpp" />
     <ClCompile Include="Render\Device\DeviceRenderView.cpp" />
     <ClCompile Include="Render\Device\DeviceRenderWorld.cpp" />
@@ -193,6 +194,7 @@
     <ClCompile Include="Render\Renderer_ForwardShading.cpp" />
     <ClCompile Include="Render\Device\DeviceResourceState.cpp" />
     <ClCompile Include="Render\RenderPasses\RenderPass_CascadedShadow.cpp" />
+    <ClCompile Include="Render\RenderPasses\RenderPass_PunctualShadow.cpp" />
     <ClCompile Include="Render\RenderPasses\RenderPass_DebugDraw.cpp" />
     <ClCompile Include="Render\RenderPasses\RenderPass_DepthDownsample.cpp" />
     <ClCompile Include="Render\RenderPasses\RenderPass_EditorOutline.cpp" />
@@ -201,6 +203,8 @@
     <ClCompile Include="Render\RenderPasses\RenderPass_PostProcess.cpp" />
     <ClCompile Include="Render\RenderPasses\RenderPass_SMAA.cpp" />
     <ClCompile Include="Render\RenderPasses\RenderPass_GTAO.cpp" />
+    <ClCompile Include="Render\ProbeTables\DFGTable_Esoterica.cpp" />
+    <ClCompile Include="Render\ProbeTables\ProbeTable_GGX_Esoterica_Cube.cpp" />
     <ClCompile Include="Render\RenderViewport.cpp" />
     <ClCompile Include="Render\Shaders\EngineShader.cpp" />
     <ClCompile Include="Render\Imgui\ImguiRenderer.cpp" />
@@ -494,6 +498,7 @@
     <ClInclude Include="Render\Renderer_ForwardShading.h" />
     <ClInclude Include="Render\RenderPasses\RenderPass.h" />
     <ClInclude Include="Render\RenderPasses\RenderPass_CascadedShadow.h" />
+    <ClInclude Include="Render\RenderPasses\RenderPass_PunctualShadow.h" />
     <ClInclude Include="Render\RenderPasses\RenderPass_DebugDraw.h" />
     <ClInclude Include="Render\RenderPasses\RenderPass_ForwardShading.h" />
     <ClInclude Include="Render\RenderPasses\RenderPass_GlobalEnvironmentMap.h" />
@@ -504,8 +509,11 @@
     <ClInclude Include="Render\RenderMaterial.h" />
     <ClInclude Include="Render\RenderMesh.h" />
     <ClInclude Include="Render\RenderTexture.h" />
+    <ClInclude Include="Render\ProbeTables\DFGTable_Esoterica.h" />
+    <ClInclude Include="Render\ProbeTables\ProbeTable_GGX_Esoterica_Cube.h" />
     <ClInclude Include="Render\Shaders\EngineShader.h" />
     <ClInclude Include="Render\RenderProxies.h" />
+    <ClInclude Include="Render\ActiveRenderView.h" />
     <ClInclude Include="Render\Imgui\ImguiRenderer.h" />
     <ClInclude Include="Render\RenderSystem.h" />
     <ClInclude Include="Viewport\Viewport.h" />
@@ -601,15 +609,15 @@
     <None Include="Render\Shaders\MeshInstance.esh" />
     <None Include="Render\Shaders\OIT\OIT.esh" />
     <None Include="Render\Shaders\OIT\OITResolve.esf" />
+    <None Include="Render\Shaders\PBR\ProbeTableShape.esh" />
     <None Include="Render\Shaders\Picking\InstancePickingResolve.esf" />
     <None Include="Render\Shaders\Picking\Picking.esh" />
     <None Include="Render\Shaders\CommonSamplers.esh" />
     <None Include="Render\Shaders\EngineShader.esh" />
     <None Include="Render\Shaders\PBR\CubemapDownsample.esf" />
-    <None Include="Render\Shaders\PBR\IrradianceFiltering.esf" />
+    <None Include="Render\Shaders\PBR\IrradianceSHProject.esf" />
     <None Include="Render\Shaders\PBR\PBR.esh" />
-    <None Include="Render\Shaders\PBR\PrecomputeDFG.esf" />
-    <None Include="Render\Shaders\PBR\RadianceFiltering.esf" />
+    <None Include="Render\Shaders\PBR\ProbeTableRadiance.esf" />
     <None Include="Render\Shaders\PostProcess.esf" />
     <None Include="Render\Shaders\Imgui.esf" />
     <None Include="Render\Shaders\Renderer\CullingCompaction.esf" />
@@ -627,6 +635,7 @@
     <None Include="Render\Shaders\Renderer\MaterialShaderPBR.esh" />
     <None Include="Render\Shaders\Renderer\WorldUpdate.esf" />
     <None Include="Render\Shaders\Renderer\WorldUpdate.esh" />
+    <None Include="Render\Shaders\SH\SH.esh" />
     <None Include="Render\Shaders\SMAA\SMAA.esh" />
     <None Include="Render\Shaders\SMAA\SMAA_BlendingWeightCalculation.esf" />
     <None Include="Render\Shaders\SMAA\SMAA_Configuration.esh" />

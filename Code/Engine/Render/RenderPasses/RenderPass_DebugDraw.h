@@ -81,8 +81,6 @@ namespace EE::Render
             m_pDebugMeshRegistry = nullptr;
         }
 
-    public:
-
         //-------------------------------------------------------------------------
 
         enum DepthTestBucketID
@@ -92,7 +90,7 @@ namespace EE::Render
             DEPTH_TEST_SEPARATE_WRITE,
         };
 
-        static constexpr uint32_t NUM_DEPTH_TEST_BUCKETS = 3;
+        static constexpr uint32_t s_numDepthTestBuckets = 3;
 
         struct DepthTestBucket
         {
@@ -132,7 +130,7 @@ namespace EE::Render
 
         Float2                                          m_fontPixelSize = Float2::Zero;
 
-        TArray<DepthTestBucket, NUM_DEPTH_TEST_BUCKETS> m_depthBuckets = {};
+        TArray<DepthTestBucket, s_numDepthTestBuckets>  m_depthBuckets = {};
     };
 }
 #endif

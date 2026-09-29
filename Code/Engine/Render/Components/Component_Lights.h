@@ -3,6 +3,7 @@
 #include "Engine/_Module/API.h"
 #include "Engine/Entity/EntitySpatialComponent.h"
 #include "Engine/Entity/EntityWorldSystemSignal.h"
+#include "Engine/Render/Device/DeviceRenderView.h"
 #include "Engine/Render/RenderProxies.h"
 #include "Base/Types/Color.h"
 
@@ -11,12 +12,12 @@
 namespace EE::Render
 {
     class RenderWorldSystem;
-    class DeviceRenderWorld;
+
+    //-------------------------------------------------------------------------
 
     class EE_ENGINE_API LightComponent : public SpatialEntityComponent
     {
         EE_ENTITY_COMPONENT( LightComponent );
-        friend class RenderDebugView;
 
     public:
 
@@ -38,7 +39,7 @@ namespace EE::Render
         Color                                               m_tint = Color( 255, 255, 255, 0 );     // Artistic color tint
 
         EE_REFLECT();
-        bool                                                m_shadowed = false;
+        bool                                                m_shadowed = true;
     };
 
     //-------------------------------------------------------------------------
@@ -46,21 +47,22 @@ namespace EE::Render
     class EE_ENGINE_API DirectionalLightComponent : public LightComponent
     {
         EE_ENTITY_COMPONENT( DirectionalLightComponent );
-        friend class RenderDebugView;
         friend class RenderWorldSystem;
 
     public:
 
         inline Vector GetLightDirection() const { return GetWorldTransform().GetForwardVector(); }
 
-    protected:
+        Color GetTintedColor() const;
 
-        virtual void OnWorldTransformUpdated() override;
+    protected:
 
         // Internal renderer data
         //-------------------------------------------------------------------------
 
-        uint16_t                                            m_cascadedShadowIndex = 0xFFFF;
+        RenderViewProxy                                     m_cascadedShadowRenderViewProxy = {};
+        uint32_t                                            m_shadowMapResolution = 0;
+
         LightInstanceProxy                                  m_lightInstanceProxy = {};
     };
 
@@ -69,13 +71,15 @@ namespace EE::Render
     class EE_ENGINE_API PointLightComponent : public LightComponent
     {
         EE_ENTITY_COMPONENT( PointLightComponent );
-        friend class RenderDebugView;
         friend class RenderWorldSystem;
 
     public:
 
         inline float GetMaxRadius() const { return m_maxRadius; }
         inline float GetFalloff() const { return m_falloff; }
+
+        void SetMaxRadius( float maxRadius );
+        void SetFalloff( float falloff );
 
     protected:
 
@@ -92,6 +96,10 @@ namespace EE::Render
         // Internal renderer data
         //-------------------------------------------------------------------------
 
+        RenderViewProxy                                     m_renderViewProxy = {};
+        uint16_t                                            m_shadowMapHandle = RHI::g_invalidResourceHandle;
+        uint32_t                                            m_shadowMapResolution = 0;
+
         LightInstanceProxy                                  m_lightInstanceProxy = {};
     };
 
@@ -100,7 +108,6 @@ namespace EE::Render
     class EE_ENGINE_API SpotLightComponent : public LightComponent
     {
         EE_ENTITY_COMPONENT( SpotLightComponent );
-        friend class RenderDebugView;
         friend class RenderWorldSystem;
 
     public:
@@ -110,6 +117,11 @@ namespace EE::Render
         inline float GetMaxRadius() const { return m_maxRadius; }
         inline float GetFalloff() const { return m_falloff; }
         inline Vector GetLightDirection() const { return GetWorldTransform().GetForwardVector(); }
+
+        void SetBeamAngle( Degrees beamAngle );
+        void SetBlend( float blend );
+        void SetMaxRadius( float maxRadius );
+        void SetFalloff( float falloff );
 
     protected:
 
@@ -129,10 +141,12 @@ namespace EE::Render
         EE_REFLECT();
         float                                           m_falloff = 2.0F;          // Decay rate
 
-    private:
-
         // Internal renderer data
         //-------------------------------------------------------------------------
+
+        RenderViewProxy                                 m_renderViewProxy = {};
+        uint16_t                                        m_shadowMapHandle = RHI::g_invalidResourceHandle;
+        uint32_t                                        m_shadowMapResolution = 0;
 
         LightInstanceProxy                              m_lightInstanceProxy = {};
     };

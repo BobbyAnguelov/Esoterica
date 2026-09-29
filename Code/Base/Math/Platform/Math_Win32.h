@@ -15,7 +15,7 @@ namespace EE::Math
         //-------------------------------------------------------------------------
 
         unsigned long index = 0;
-        _BitScanReverse64( &index, (unsigned long) value );
+        _BitScanReverse64( &index, value );
         return index;
     }
 }

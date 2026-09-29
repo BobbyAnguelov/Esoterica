@@ -18,11 +18,11 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
         return;
     }
 
-    Buffer<uint>                                workCounterBuffer               = GetBuffer( RootConstants.m_workCounterBuffer );
+    ByteAddressBuffer                           workCounterBuffer               = GetBuffer( RootConstants.m_workCounterBuffer );
     RWStructuredBuffer<ClusterCullingArgument>  cullingArgumentBuffer           = GetRWBuffer( RootConstants.m_cullingArgumentBuffer );
     RWStructuredBuffer<DrawCompactionArgument>  drawCompactionArgumentBuffer    = GetRWBuffer( RootConstants.m_drawCompactionArgumentBuffer );
 
-    uint const numWorkEntriesTotal = workCounterBuffer[0];
+    uint const numWorkEntriesTotal = workCounterBuffer.Load( 0 );
     uint const numWorkEntriesPerArgument = RHI_MAX_DISPATCH_SIZE * 128;
 
     uint const workBufferOffset = argumentIndex * numWorkEntriesPerArgument;

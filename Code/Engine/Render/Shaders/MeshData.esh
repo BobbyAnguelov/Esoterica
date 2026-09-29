@@ -262,7 +262,7 @@ EE_END_SHADER_TYPES_NAMESPACE
     //     [ uv0/uv1: numVertices * sizeof( TextureCoordinateAttribute ) ]
     //     [ color0: numVertices * sizeof( VertexColorAttribute ) ]
     //     [ skinning: numSkinning * numVertices * sizeof( SkinningAttribute ) ]
-    //     [ triangle bits: numTriangles * 3 * TRIANGLE_INDEX_BITS, padded for the last 64-bit window ]
+    //     [ triangle bits: numTriangles * 3 * TRIANGLE_INDEX_BITS, padded for the last 64-bit load ]
 
     uint GetMeshClusterAddress( uint clusterIndex )
     {
@@ -288,13 +288,27 @@ EE_END_SHADER_TYPES_NAMESPACE
         uint const bitsX = cluster.GetNumPositionBitsX();
         uint const bitsY = cluster.GetNumPositionBitsY();
         uint const bitsZ = cluster.GetNumPositionBitsZ();
+        uint const bitsPerVertex = bitsX + bitsY + bitsZ;
 
-        uint const bitOffset = vertexIndex * ( bitsX + bitsY + bitsZ ) + cluster.GetDataOffsetInBytes() * 8;
+        uint const bitOffset = vertexIndex * bitsPerVertex + cluster.GetDataOffsetInBytes() * 8;
+        uint const byteAddress = ( bitOffset / 32 ) * sizeof( uint );
+        uint const shift = bitOffset & 31;
+
+        uint64_t bits = meshBuffer.Load( byteAddress );
+        if ( shift + bitsPerVertex > 32 )
+        {
+            bits |= uint64_t( meshBuffer.Load( byteAddress + sizeof( uint ) ) ) << 32;
+        }
+        bits >>= shift;
+        if ( shift + bitsPerVertex > 64 )
+        {
+            bits |= uint64_t( meshBuffer.Load( byteAddress + 2 * sizeof( uint ) ) ) << ( 64 - shift );
+        }
 
         uint3 compressedPosition;
-        compressedPosition.x = LoadMeshBufferBits( meshBuffer, bitOffset, bitsX );
-        compressedPosition.y = LoadMeshBufferBits( meshBuffer, bitOffset + bitsX, bitsY );
-        compressedPosition.z = LoadMeshBufferBits( meshBuffer, bitOffset + bitsX + bitsY, bitsZ );
+        compressedPosition.x = uint( bits ) & ( ( 1U << bitsX ) - 1U );
+        compressedPosition.y = uint( bits >> bitsX ) & ( ( 1U << bitsY ) - 1U );
+        compressedPosition.z = uint( bits >> ( bitsX + bitsY ) ) & ( ( 1U << bitsZ ) - 1U );
 
         int3 decompressedPosition = cluster.GetAnchor() + int3( compressedPosition );
         return ldexp( decompressedPosition, cluster.m_sharedExponent );

@@ -123,7 +123,7 @@ namespace EE::Physics
         TInlineVector<CreatedBody, 30>                          m_createdBodies;
         TInlineVector<b3JointId, 10>                            m_createdFilterJoints;
 
-        mutable TVector<Transform>                              m_globalBoneTransforms;
+        mutable TVector<Transform>                              m_modelSpaceBoneTransforms;
         float                                                   m_gravityScale = true;
         bool                                                    m_shouldFollowPose = false;
 

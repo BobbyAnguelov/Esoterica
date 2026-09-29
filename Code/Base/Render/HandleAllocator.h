@@ -40,33 +40,33 @@ namespace EE::Render
 
     public:
 
+        static constexpr OffsetType  s_invalidOffset = OffsetType( -1 );
+        static constexpr uint32_t    s_maxAddressablePages = uint32_t( OffsetType( -1 ) / OffsetType( 64 ) );
+
+        //-------------------------------------------------------------------------
+
         HandleAllocator() = default;
         HandleAllocator( HandleAllocator const& ) = delete;
         HandleAllocator& operator=( HandleAllocator const& ) = delete;
         HandleAllocator( HandleAllocator&& ) = default;
         HandleAllocator& operator=( HandleAllocator&& ) = default;
 
-        //-------------------------------------------------------------------------
-
-        static constexpr OffsetType  InvalidOffset = OffsetType( -1 );
-        static constexpr uint32_t    MaxAddressablePages = uint32_t( OffsetType( -1 ) / OffsetType( 64 ) );
-
         struct Handle
         {
+            inline bool IsValid() const { return m_offset != s_invalidOffset; }
+
+            //-------------------------------------------------------------------------
+
             OffsetType               m_size = OffsetType( 0 );
-            OffsetType               m_offset = InvalidOffset;
-
-            inline bool IsValid() const { return m_offset != InvalidOffset; }
+            OffsetType               m_offset = s_invalidOffset;
         };
-
-    public:
 
         //-------------------------------------------------------------------------
 
         inline void Initialize( uint32_t initialCapacityInPages )
         {
             EE_ASSERT( initialCapacityInPages > 0 );
-            EE_ASSERT( initialCapacityInPages <= MaxAddressablePages );
+            EE_ASSERT( initialCapacityInPages <= s_maxAddressablePages );
 
             m_isGrowable = true;
 
@@ -106,7 +106,7 @@ namespace EE::Render
 
             OffsetType const offset = FindFreeRun( numHandles );
 
-            if ( offset == InvalidOffset )
+            if ( offset == s_invalidOffset )
             {
                 // Growth not allowed - return invalid handle to signal out of memory
                 if ( !m_isGrowable )
@@ -123,7 +123,7 @@ namespace EE::Render
 
                 // Retry after growth - must succeed
                 OffsetType const retryOffset = FindFreeRun( numHandles );
-                if ( retryOffset == InvalidOffset )
+                if ( retryOffset == s_invalidOffset )
                 {
                     EE_ASSERT( false ); // Growth succeeded but still out of addressable range
                     return {};
@@ -173,7 +173,7 @@ namespace EE::Render
             TAlignedVector<uint64_t> m_dirty{ Memory::Allocators::g_handleAllocator_Hint };
         };
 
-        static constexpr uint64_t NotFoundOffset = ~0ULL;
+        static constexpr uint64_t s_notFoundOffset = ~0ULL;
 
     private:
 
@@ -254,6 +254,13 @@ namespace EE::Render
                 m_levels[level].m_pageSuffix.resize( numPages, 0 );
                 m_levels[level].m_pageMaxRun.resize( numPages, 0 );
                 m_levels[level].m_dirty.resize( ( numPages + 63 ) / 64, 0 );
+
+                // A shrink can leave stale dirty bits set for pages that were removed; mask off bits beyond numPages in the last word.
+                uint32_t const numLastWordPages = numPages % 64;
+                if ( numLastWordPages > 0 && !m_levels[level].m_dirty.empty() )
+                {
+                    m_levels[level].m_dirty.back() &= ( ( 1ULL << numLastWordPages ) - 1 );
+                }
             }
         }
 
@@ -470,7 +477,7 @@ namespace EE::Render
                     // Fully-free page: the run from the left continues through it
                     uint64_t const start = pageStart - uint64_t( carryFree );
                     carryFree += 64U;
-                    return ( carryFree >= numSlots ) ? start : NotFoundOffset;
+                    return ( carryFree >= numSlots ) ? start : s_notFoundOffset;
                 }
 
                 uint64_t const freeBits = ~pageMask;
@@ -526,7 +533,7 @@ namespace EE::Render
                 }
 
                 carryFree = m_levels[0].m_pageSuffix[pageIdx];
-                return NotFoundOffset;
+                return s_notFoundOffset;
             }
 
             // Higher level: skip or recurse using the child page hints
@@ -578,13 +585,13 @@ namespace EE::Render
                 }
 
                 uint64_t const found = ScanPage( level - 1, childIdx, numSlots, carryFree );
-                if ( found != NotFoundOffset )
+                if ( found != s_notFoundOffset )
                 {
                     return found;
                 }
             }
 
-            return NotFoundOffset;
+            return s_notFoundOffset;
         }
 
         // Top-level scan: find the lowest offset with a free run of numSlots.
@@ -618,13 +625,13 @@ namespace EE::Render
                 }
 
                 uint64_t const found = ScanPage( topLevel, pageIdx, numSlots, carryFree );
-                if ( found != NotFoundOffset )
+                if ( found != s_notFoundOffset )
                 {
                     return OffsetType( found );
                 }
             }
 
-            return InvalidOffset;
+            return s_invalidOffset;
         }
 
         //-------------------------------------------------------------------------
@@ -1201,7 +1208,7 @@ namespace EE::Render
             uint32_t const numCurrentPages = uint32_t( m_levels[0].m_slotMask.size() );
 
             // Don't exceed the maximum addressable offset
-            if ( numCurrentPages >= MaxAddressablePages )
+            if ( numCurrentPages >= s_maxAddressablePages )
             {
                 return false;
             }
@@ -1212,7 +1219,7 @@ namespace EE::Render
 
             // Grow by at least that many pages, clamped to max addressable
             uint32_t const growPages = Math::Max( 1u, pagesNeeded );
-            uint32_t const newNumPages = Math::Min( numCurrentPages + growPages, MaxAddressablePages );
+            uint32_t const newNumPages = Math::Min( numCurrentPages + growPages, s_maxAddressablePages );
 
             if ( newNumPages <= numCurrentPages )
             {

@@ -226,7 +226,7 @@ namespace EE::Reflection
             }
             else if ( parameterType == "Buffer" || parameterType == "RWBuffer" || parameterType == "StructuredBuffer" || parameterType == "RWStructuredBuffer" ||
                       parameterType == "Texture" || parameterType == "Texture1D" || parameterType == "Texture2D" || parameterType == "Texture3D" || parameterType == "TextureCube" ||
-                      parameterType == "RWTexture" || parameterType == "RWTexture1D" || parameterType == "RWTexture2D" || parameterType == "RWTexture3D" || parameterType == "RWTextureCube" )
+                      parameterType == "RWTexture" || parameterType == "RWTexture1D" || parameterType == "RWTexture2D" || parameterType == "RWTexture2DArray" || parameterType == "RWTexture3D" || parameterType == "RWTextureCube" )
             {
                 // Assume RHI 16-bit handle
                 isHandle = true;

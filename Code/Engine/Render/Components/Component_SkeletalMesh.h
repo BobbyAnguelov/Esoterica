@@ -54,17 +54,11 @@ namespace EE::Render
         // Skeletal Pose
         //-------------------------------------------------------------------------
 
-        // Get the model space transforms for the mesh
-        inline TVector<Transform> const& GetBoneTransforms() const { return m_modelSpaceBoneTransforms; }
+        // Get the model space transforms for the mesh - Note these are only updated whenever FinalizePose is called
+        // These could be the transforms from the previous update if you call this before the pose has been updated
+        inline TVector<Transform> const& GetModelSpaceBoneTransforms() const { return m_modelSpaceBoneTransforms; }
 
-        // The the model space transform for a specific bone
-        inline void SetBoneTransform( int32_t boneIdx, Transform const& transform )
-        {
-            EE_ASSERT( boneIdx >= 0 && boneIdx < m_modelSpaceBoneTransforms.size() );
-            m_modelSpaceBoneTransforms[boneIdx] = transform;
-        }
-
-        // This function will finalize the pose, run any procedural bone solvers and generate the skinning transforms
+        // This function will finalize the pose, run any procedural bone solvers and generate the model space and skinning transforms
         // Only run this function once per frame once you have set the final global pose
         void FinalizePose();
 
@@ -72,7 +66,7 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         inline bool HasSkeletonResourceSet() const { return m_skeleton.IsSet(); }
-        inline Animation::Skeleton const* GetSkeleton() const { return m_skeleton.GetPtr(); }
+        inline Animation::Skeleton const* GetSkeleton() const { EE_ASSERT( m_skeleton.IsLoaded() ); return m_skeleton.GetPtr(); }
         void SetSkeleton( ResourceID skeletonResourceID );
 
         void SetPose( Animation::Pose const* pPose );
@@ -107,22 +101,7 @@ namespace EE::Render
         virtual bool GetAttachmentSocketTransformInternal( StringID socketID, Transform& outSocketWorldTransform ) const override final;
         virtual bool HasSocket( StringID socketID ) const override final;
 
-    protected:
-
-        EE_REFLECT( Category = "Mesh" );
-        TResourcePtr<SkeletalMesh>                      m_mesh;
-
-        EE_REFLECT( Category = "Animation" );
-        TResourcePtr<Animation::Skeleton>               m_skeleton = nullptr;
-
-        TVector<int32_t>                                m_animToMeshBoneMap;
-        TVector<Transform>                              m_modelSpaceBoneTransforms;
-
-        TEntityWorldSystemSignal<SkeletalMeshComponent> m_instanceDataUpdateSignal;
-
-    private:
-
-        //-------------------------------------------------------------------------
+        void SetParentSpaceTransformsFromAnimation( TVector<Transform> const& parentSpaceTransforms );
 
         void UpdateSkinningProxy();
 
@@ -133,7 +112,20 @@ namespace EE::Render
             MeshComponent::WriteInstanceData( GetMesh(), m_skinningProxy.m_bonesHandle.m_offset, bufferData_WriteCombined );
         }
 
-    private:
+    protected:
+
+        EE_REFLECT( Category = "Mesh" );
+        TResourcePtr<SkeletalMesh>                      m_mesh;
+
+        EE_REFLECT( Category = "Animation" );
+        TResourcePtr<Animation::Skeleton>               m_skeleton = nullptr;
+
+        TVector<int32_t>                                m_meshToAnimBoneMap;
+        TVector<Transform>                              m_parentSpaceBoneTransforms;
+        TVector<Transform>                              m_modelSpaceBoneTransforms;
+        bool                                            m_transformsDirty = false;
+
+        TEntityWorldSystemSignal<SkeletalMeshComponent> m_instanceDataUpdateSignal;
 
         // Internal renderer data
         //-------------------------------------------------------------------------

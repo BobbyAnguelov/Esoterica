@@ -431,7 +431,8 @@ namespace EE::Resource
             constexpr static float const clearButtonWidth = 250;
             float const filterWidth = ImGui::GetContentRegionAvail().x - ( clearButtonWidth + itemSpacing.x );
 
-            if ( m_requestsFilter.UpdateAndDraw( filterWidth ) )
+            ImGui::SetNextItemWidth( filterWidth );
+            if ( ImGuiX::InputFilterText( m_requestsFilter ) )
             {
                 m_requestsUpdated = true;
             }

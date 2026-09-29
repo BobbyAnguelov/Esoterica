@@ -17,7 +17,14 @@ namespace EE::Resource
 
     bool OpenResourceDialog::Draw()
     {
-        if ( m_filter.UpdateAndDraw( -1, ImGuiX::FilterWidget::TakeInitialFocus ) )
+        ImGui::SetNextItemWidth( -1 );
+
+        if ( ImGui::IsWindowAppearing() )
+        {
+            ImGui::SetKeyboardFocusHere();
+        }
+
+        if ( ImGuiX::InputFilterText( m_filter ) )
         {
             UpdateFilter();
         }

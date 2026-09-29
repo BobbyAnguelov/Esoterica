@@ -2,7 +2,7 @@
 #include "Engine/_Module/API.h"
 #include "Base/Types/Arrays.h"
 #include "Base/Types/String.h"
-#include "Base/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiFilter.h"
 #include "Base/Render/RHI.h"
 
 //-------------------------------------------------------------------------
@@ -76,7 +76,7 @@ namespace EE
         TVector<EE::Render::RHI::ResourceAllocationStatistic>       m_snapshotGpuTextureStats;
 
         // Filter
-        ImGuiX::FilterWidget                                        m_filterWidget;
+        ImGuiX::FilterData                                          m_filter;
         uint64_t                                                    m_numBytesAccumulated = 0;
         uint64_t                                                    m_numAllocationsAccumulated = 0;
     };

@@ -204,7 +204,7 @@ namespace EE
 
     void PropertyGrid::ApplyFilter()
     {
-        auto const& filters = m_filterWidget.GetFilterTokens();
+        auto const& filters = m_filter.GetFilterTokens();
         for ( auto& pCategory : m_categories )
         {
             pCategory->ApplyFilter( filters );
@@ -281,7 +281,8 @@ namespace EE
         if ( m_isControlBarVisible )
         {
             float const filterWidth = ImGui::GetContentRegionAvail().x - ( 4 * ( ImGuiX::Style::s_iconButtonWidth + ImGui::GetStyle().ItemSpacing.x ) );
-            if ( m_filterWidget.UpdateAndDraw( filterWidth ) )
+            ImGui::SetNextItemWidth( filterWidth );
+            if ( ImGuiX::InputFilterText( m_filter ) )
             {
                 ApplyFilter();
             }

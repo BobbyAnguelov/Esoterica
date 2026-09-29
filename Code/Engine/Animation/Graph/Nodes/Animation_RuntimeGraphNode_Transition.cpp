@@ -290,9 +290,9 @@ namespace EE::Animation
 
                     // Apply the sync event offset
                     float const flNewIdxAndPercentage = targetStartEventSyncTime.ToFloat() + m_syncEventOffset;
-                    float eventIdxOffset;
+                    float eventIdxOffset = 0.0f;
                     float percentageThroughOffset = Math::Abs( Math::ModF( flNewIdxAndPercentage, eventIdxOffset ) );
-                    targetStartEventSyncTime = SyncTrackTime( (int32_t) eventIdxOffset, eventIdxOffset );
+                    targetStartEventSyncTime = SyncTrackTime( (int32_t) eventIdxOffset, percentageThroughOffset );
                     EE_ASSERT( targetStartEventSyncTime.IsValid() );
                 }
 
@@ -713,7 +713,8 @@ namespace EE::Animation
         {
             EE_ASSERT( m_cachedPoseBufferID.IsValid() );
             EE_ASSERT( !context.GetTaskSystem()->IsValidCachedPose( m_cachedPoseBufferID ) );
-            context.GetTaskSystem()->EnsureCachedPoseExists( m_cachedPoseBufferID );
+
+            context.GetTaskSystem()->RestoreCachedPoseBuffer( m_cachedPoseBufferID );
             m_recreateCachedPoseBuffer = false;
         }
         #endif
@@ -926,7 +927,7 @@ namespace EE::Animation
         outState.WriteValue( m_transitionDuration );
         outState.WriteValue( m_syncEventOffset );
         outState.WriteValue( m_blendWeight );
-        outState.WriteValue( isInstantTransition ? CachedPoseID::s_maxAllowableValue : m_cachedPoseBufferID.m_ID );
+        outState.WriteValue( isInstantTransition ? CachedPoseID::s_maxNumberOfCachedPoses : m_cachedPoseBufferID.m_ID );
         outState.WriteValue( m_sourceType );
 
         int16_t const sourceNodeIdx = m_pSourceNode != nullptr ? m_pSourceNode->GetNodeIndex() : InvalidIndex;

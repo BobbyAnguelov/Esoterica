@@ -4,9 +4,15 @@
 
 #include "Base/Esoterica.h"
 #include "Base/Render/RHI.h"
+#include "Engine/Render/ActiveRenderView.h"
 #include "Engine/Render/Device/DeviceRenderView.h"
 #include "Engine/Render/Device/DeviceResizeBuffer.h"
 #include "Engine/Render/RenderPasses/RenderPass.h"
+
+namespace EE
+{
+    class EntityWorld;
+}
 
 namespace EE::Render
 {
@@ -20,6 +26,11 @@ namespace EE::Render
 
     struct ForwardShadingMaterialShaderPipelineBucket
     {
+        void Initialize( RHI::Context* pContextRHI, MaterialShader const& shader );
+        void Shutdown( RHI::Context* pContextRHI );
+
+        //-------------------------------------------------------------------------
+
         StringView                                  m_shaderName;
         RHI::CommandSignature*                      m_pCommandSignature = nullptr;
         RHI::Pipeline*                              m_pDepthOnlyPipeline = nullptr;
@@ -34,25 +45,21 @@ namespace EE::Render
         #if EE_DEVELOPMENT_TOOLS
         RHI::Pipeline*                              m_pOutlinePipeline = nullptr;
         #endif
-
-        void Initialize( RHI::Context* pContextRHI, MaterialShader const& shader );
-        void Shutdown( RHI::Context* pContextRHI );
     };
+
+    //-------------------------------------------------------------------------
 
     struct ForwardShadingPass
     {
-        DeviceRenderView                            m_renderView;
-
-        //-------------------------------------------------------------------------
-
         static TVector<ForwardShadingMaterialShaderPipelineBucket> InitializeMaterialShaderBuckets( RenderSystem* pRenderSystem );
 
         // Depth only pass
         static void DrawMaterialShaderBuckets_DepthOnly
         (
             TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
-            DeviceRenderView const&                                         renderView,
+            ActiveRenderView const&                                         activeRenderView,
             RHI::Texture*                                                   pDepthTexture,
+            uint32_t                                                        depthTargetSlice,
             RHI::CommandBuffer*                                             pCommandBuffer
         );
 
@@ -60,7 +67,7 @@ namespace EE::Render
         static void DrawMaterialShaderBuckets_OutlineID
         (
             TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
-            DeviceRenderView const&                                         renderView,
+            ActiveRenderView const&                                         activeRenderView,
             RHI::Texture*                                                   pObjectIDTexture,
             RHI::Texture*                                                   pDepthTexture,
             RHI::CommandBuffer*                                             pCommandBuffer
@@ -71,7 +78,7 @@ namespace EE::Render
         static void DrawMaterialShaderBuckets_Shading
         (
             TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
-            DeviceRenderView const&                                         renderView,
+            ActiveRenderView const&                                         activeRenderView,
             RHI::Texture*                                                   pColorTexture,
             uint32_t                                                        colorTargetSlice,
             uint32_t                                                        colorTargetMipSlice,
@@ -83,7 +90,7 @@ namespace EE::Render
         static void DrawMaterialShaderBuckets
         (
             TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
-            DeviceRenderView const&                                         renderView,
+            ActiveRenderView const&                                         activeRenderView,
             RHI::Texture*                                                   pColorTexture,
             uint32_t                                                        colorTargetSlice,
             uint32_t                                                        colorTargetMipSlice,
@@ -96,20 +103,13 @@ namespace EE::Render
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );
 
-        void UpdateDeviceResources
-        (
-            RenderSystem*                                                   pRenderSystem,
-            TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
-            DeviceRenderWorld const&                                        deviceRenderWorld
-        );
-
+        void UpdateWorldDeviceResources( EntityWorld* pWorld );
         void UpdateViewportDeviceResources( RenderSystem* pRenderSystem, RenderViewport* pRenderViewport );
-
-        void UpdateRenderViews( RenderViewport const* pRenderViewport, TArrayView<ShaderTypes::RenderView> dstRenderViews_WriteCombined ) const;
 
         void DepthOnlyPass
         (
             TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
+            ActiveRenderView const&                                         activeRenderView,
             RenderViewport const*                                           pRenderViewport,
             DeviceResourceStates&                                           resourceStates,
             RHI::CommandBuffer*                                             pCommandBuffer
@@ -118,6 +118,7 @@ namespace EE::Render
         void ShadingPass
         (
             TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
+            ActiveRenderView const&                                         activeRenderView,
             RenderViewport const*                                           pRenderViewport,
             DeviceResourceStates&                                           resourceStates,
             RHI::CommandBuffer*                                             pCommandBuffer

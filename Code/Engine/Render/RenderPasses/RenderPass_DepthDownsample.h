@@ -24,6 +24,6 @@ namespace EE::Render
     private:
 
         RHI::Pipeline*                  m_pDownsamplePipeline = nullptr;
-        RHI::SamplerStateHandle         m_linearMaxClampSampler = RHI::InvalidResourceHandle;
+        RHI::SamplerStateHandle         m_linearMaxClampSampler = RHI::g_invalidResourceHandle;
     };
 }

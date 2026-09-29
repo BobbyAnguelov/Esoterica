@@ -23,9 +23,10 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
     StructuredBuffer<MeshInstance>              meshInstanceBuffer              = GetBuffer( RootConstants.m_instanceBuffer );
     ByteAddressBuffer                           shaderDataBuffer                = GetBuffer( RootCBV.m_shaderDataBuffer );
     StructuredBuffer<RenderView>                renderViewBuffer                = GetBuffer( RootCBV.m_renderViewBuffer );
+    StructuredBuffer<uint16_t>                  renderViewIndirectionBuffer     = GetBuffer( RootCBV.m_renderViewIndirectionBuffer );
     RWStructuredBuffer<uint>                    drawClusterBuffer               = GetRWBuffer( RootConstants.m_drawClusterBuffer );
-    Buffer<uint>                                drawClusterBaseOffsetsBuffer    = GetBuffer( RootConstants.m_drawClusterBaseOffsetsBuffer );
-    RWBuffer<uint>                              drawClusterScatterOffsetsBuffer = GetRWBuffer( RootConstants.m_drawClusterScatterOffsetsBuffer );
+    StructuredBuffer<uint>                      drawClusterBaseOffsetsBuffer    = GetBuffer( RootConstants.m_drawClusterBaseOffsetsBuffer );
+    RWByteAddressBuffer                         drawClusterScatterOffsetsBuffer = GetRWBuffer( RootConstants.m_drawClusterScatterOffsetsBuffer );
 
     //-------------------------------------------------------------------------
 
@@ -45,20 +46,20 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
 
     //-------------------------------------------------------------------------
 
-    for ( uint viewIndex = 0; viewIndex < RootCBV.m_numRenderViews; ++viewIndex )
+    for ( uint viewIndex = 0; viewIndex < RootCBV.m_numActiveRenderViews; ++viewIndex )
     {
         if ( ( clusterMask & ( 1ULL << viewIndex ) ) == 0 )
         {
             continue;
         }
 
-        const bool depthOnlyView = ( renderViewBuffer[viewIndex].m_renderViewFlags & RENDER_VIEW_FLAG_DEPTH_ONLY ) != 0;
+        const bool depthOnlyView = ( renderViewBuffer[renderViewIndirectionBuffer[viewIndex]].m_renderViewFlags & RENDER_VIEW_FLAG_DEPTH_ONLY ) != 0;
         const uint bucket = ( depthOnlyView && baseBucket == 2 ) ? 0 : baseBucket;
 
         const uint scatterOffsetIndex = viewIndex * EE_NUM_RENDER_BUCKETS_PER_SHADER_PER_VIEW + bucket;
 
         uint drawClusterBufferIndex = 0;
-        InterlockedAdd( drawClusterScatterOffsetsBuffer[scatterOffsetIndex], 1, drawClusterBufferIndex );
+        drawClusterScatterOffsetsBuffer.InterlockedAdd( scatterOffsetIndex * 4, 1, drawClusterBufferIndex );
 
         drawClusterBuffer[drawClusterBaseOffsetsBuffer[scatterOffsetIndex] + drawClusterBufferIndex] = clusterIndex;
     }

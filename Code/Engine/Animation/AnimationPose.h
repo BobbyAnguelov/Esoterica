@@ -114,6 +114,7 @@ namespace EE::Animation
         {
             EE_ASSERT( boneIdx < GetNumBones() && boneIdx >= 0 );
             m_parentSpaceTransforms[boneIdx] = transform;
+            ClearModelSpaceTransforms();
             MarkAsValidPose();
         }
 
@@ -121,6 +122,7 @@ namespace EE::Animation
         {
             EE_ASSERT( boneIdx < GetNumBones() && boneIdx >= 0 );
             m_parentSpaceTransforms[boneIdx].SetRotation( rotation );
+            ClearModelSpaceTransforms();
             MarkAsValidPose();
         }
 
@@ -128,6 +130,7 @@ namespace EE::Animation
         {
             EE_ASSERT( boneIdx < GetNumBones() && boneIdx >= 0 );
             m_parentSpaceTransforms[boneIdx].SetTranslation( translation );
+            ClearModelSpaceTransforms();
             MarkAsValidPose();
         }
 
@@ -136,6 +139,7 @@ namespace EE::Animation
         {
             EE_ASSERT( boneIdx < GetNumBones() && boneIdx >= 0 );
             m_parentSpaceTransforms[boneIdx].SetScale( uniformScale );
+            ClearModelSpaceTransforms();
             MarkAsValidPose();
         }
 

@@ -1,0 +1,21 @@
+
+#ifndef _PROBE_TABLE_SHAPE_ESH_
+#define _PROBE_TABLE_SHAPE_ESH_
+
+// The shape of the embedded radiance table
+//-------------------------------------------------------------------------
+//
+// To regenerate run the following commands:
+//
+//      EsotericaFilterFitter --fit --write-binary
+//      EmbedTables.bat <binary>
+//
+//      const_8     8 taps per axis,  1 coefficient term
+//      const_16   16                 1
+//      const_32   32                 1
+//      quad_32    32                 3
+
+#define PROBE_TABLE_TAPS_PER_AXIS           8
+#define PROBE_TABLE_NUM_ACTIVE_COEFFICIENTS 1
+
+#endif

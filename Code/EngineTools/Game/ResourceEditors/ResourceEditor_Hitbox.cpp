@@ -576,7 +576,7 @@ namespace EE
             int32_t const boneIdx = pMesh->GetBoneIndex( socketID );
             if ( boneIdx != InvalidIndex )
             {
-                socketTransform = pMesh->GetBindPose()[boneIdx];
+                socketTransform = pMesh->GetModelSpaceBindPoseTransform( boneIdx );
             }
         }
         else if ( IsUsingSkeletonAsSetupResource() )
@@ -659,7 +659,7 @@ namespace EE
             int32_t const boneIdx = pMesh->GetBoneIndex( socketID );
             if ( boneIdx != InvalidIndex )
             {
-                socketTransform = pMesh->GetBindPoseTransform( boneIdx );
+                socketTransform = pMesh->GetModelSpaceBindPoseTransform( boneIdx );
             }
 
             // Get longest child transform
@@ -668,7 +668,7 @@ namespace EE
             {
                 if ( pMesh->IsDirectChildBoneOf( boneIdx, childBoneIdx ) )
                 {
-                    Transform childTransform = pMesh->GetBindPoseTransform( childBoneIdx );
+                    Transform childTransform = pMesh->GetModelSpaceBindPoseTransform( childBoneIdx );
                     float const boneLength = childTransform.GetTranslation().GetDistance3( socketTransform.GetTranslation() );
                     if ( boneLength > maxLength )
                     {

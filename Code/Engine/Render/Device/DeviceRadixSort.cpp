@@ -40,11 +40,11 @@ namespace EE::Render
         m_pScatterShader = pRenderSystem->FindComputeShader( StringID( "FFX_ParallelSort_Scatter" ) );
         m_pScatterPayloadShader = pRenderSystem->FindComputeShader( StringID( "FFX_ParallelSort_ScatterPayload" ) );
 
-        static_assert( sizeof( ShaderTypes::FFX_ParallelSort_CountIndirectArgument ) % RHI::IndirectCommandAlignment == 0, "Indirect argument stride must be a multiple of IndirectCommandAlignment" );
-        static_assert( sizeof( ShaderTypes::FFX_ParallelSort_ReduceIndirectArgument ) % RHI::IndirectCommandAlignment == 0, "Indirect argument stride must be a multiple of IndirectCommandAlignment" );
-        static_assert( sizeof( ShaderTypes::FFX_ParallelSort_ScanAddIndirectArgument ) % RHI::IndirectCommandAlignment == 0, "Indirect argument stride must be a multiple of IndirectCommandAlignment" );
-        static_assert( sizeof( ShaderTypes::FFX_ParallelSort_ScatterIndirectArgument ) % RHI::IndirectCommandAlignment == 0, "Indirect argument stride must be a multiple of IndirectCommandAlignment" );
-        static_assert( sizeof( ShaderTypes::FFX_ParallelSort_ScatterPayloadIndirectArgument ) % RHI::IndirectCommandAlignment == 0, "Indirect argument stride must be a multiple of IndirectCommandAlignment" );
+        static_assert( sizeof( ShaderTypes::FFX_ParallelSort_CountIndirectArgument ) % RHI::g_indirectCommandAlignment == 0, "Indirect argument stride must be a multiple of g_indirectCommandAlignment" );
+        static_assert( sizeof( ShaderTypes::FFX_ParallelSort_ReduceIndirectArgument ) % RHI::g_indirectCommandAlignment == 0, "Indirect argument stride must be a multiple of g_indirectCommandAlignment" );
+        static_assert( sizeof( ShaderTypes::FFX_ParallelSort_ScanAddIndirectArgument ) % RHI::g_indirectCommandAlignment == 0, "Indirect argument stride must be a multiple of g_indirectCommandAlignment" );
+        static_assert( sizeof( ShaderTypes::FFX_ParallelSort_ScatterIndirectArgument ) % RHI::g_indirectCommandAlignment == 0, "Indirect argument stride must be a multiple of g_indirectCommandAlignment" );
+        static_assert( sizeof( ShaderTypes::FFX_ParallelSort_ScatterPayloadIndirectArgument ) % RHI::g_indirectCommandAlignment == 0, "Indirect argument stride must be a multiple of g_indirectCommandAlignment" );
 
         uint32_t const counterArgumentStride = sizeof( ShaderTypes::FFX_ParallelSort_CountIndirectArgument );
         uint32_t const reduceArgumentStride = sizeof( ShaderTypes::FFX_ParallelSort_ReduceIndirectArgument );
@@ -54,8 +54,8 @@ namespace EE::Render
 
         RHI::BufferParameters constantBufferParameters = {};
         constantBufferParameters.m_bufferSize = sizeof( FFX_ParallelSortCB );
-        constantBufferParameters.m_format = RHI::DataFormat::R32_UInt;
-        constantBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::ConstantBuffer, RHI::DescriptorTypeFlags::RWBuffer );
+        constantBufferParameters.m_bufferStride = sizeof( uint32_t );
+        constantBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::ConstantBuffer, RHI::DescriptorTypeFlags::RWBuffer };
         constantBufferParameters.m_debugName = "DeviceRadixSort CB";
         m_pConstantBuffer = RHI::CreateBuffer( pContextRHI, constantBufferParameters );
 
@@ -64,8 +64,8 @@ namespace EE::Render
             RHI::BufferParameters argumentsBufferParameters = {};
             argumentsBufferParameters.m_bufferSize = argumentStride * numArguments;
             argumentsBufferParameters.m_bufferStride = argumentStride;
-            argumentsBufferParameters.m_alignment = RHI::IndirectCommandAlignment;
-            argumentsBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::IndirectArgumentBuffer, RHI::DescriptorTypeFlags::RWBuffer );
+            argumentsBufferParameters.m_alignment = RHI::g_indirectCommandAlignment;
+            argumentsBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::IndirectArgumentBuffer, RHI::DescriptorTypeFlags::RWBuffer };
             argumentsBufferParameters.m_debugName = pDebugName;
             return RHI::CreateBuffer( pContextRHI, argumentsBufferParameters );
         };
@@ -111,7 +111,7 @@ namespace EE::Render
 
             RHI::BufferParameters bp = {};
             bp.m_bufferSize = newSize;
-            bp.m_format = RHI::DataFormat::R32_UInt;
+            bp.m_bufferStride = sizeof( uint32_t );
             bp.m_descriptorTypes = RHI::DescriptorTypeFlags::RWBuffer;
             bp.m_debugName = "DeviceRadixSort Scratch";
             return RHI::CreateBuffer( m_pContextRHI, bp );
@@ -123,7 +123,7 @@ namespace EE::Render
 
             RHI::BufferParameters reducedScratchBufferParameters = {};
             reducedScratchBufferParameters.m_bufferSize = newSize;
-            reducedScratchBufferParameters.m_format = RHI::DataFormat::R32_UInt;
+            reducedScratchBufferParameters.m_bufferStride = sizeof( uint32_t );
             reducedScratchBufferParameters.m_descriptorTypes = RHI::DescriptorTypeFlags::RWBuffer;
             reducedScratchBufferParameters.m_debugName = "DeviceRadixSort Reduced Scratch";
             return RHI::CreateBuffer( m_pContextRHI, reducedScratchBufferParameters );

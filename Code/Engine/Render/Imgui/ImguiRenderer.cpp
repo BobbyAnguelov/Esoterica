@@ -102,6 +102,185 @@ namespace EE::Render
         }
     }
 
+    void ImguiRenderer::RenderImguiData
+    (
+        ImDrawData const*                        pDrawData,
+        RenderSystem*                            pRenderSystem,
+        RHI::CommandBuffer*                      pCommandBuffer,
+        RHI::Texture*                            pRenderTarget,
+        RHI::Pipeline*                           pPipeline,
+        RHI::Buffer*                             pConstantBuffer,
+        RHI::Buffer*                             pVertexBuffer,
+        RHI::Buffer*                             pIndexBuffer,
+        uint32_t                                 frameIndex,
+        bool                                     clear,
+        ImguiRenderer::ImguiGeometryState& state
+    )
+    {
+        if ( pDrawData->DisplaySize.x <= 0.0f || pDrawData->DisplaySize.y <= 0.0f )
+        {
+            return;
+        }
+
+        EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, "Imgui viewport" );
+
+        RHI::LoadAction loadAction = {};
+        loadAction.m_loadActionsColor[0] = RHI::LoadActionType::Load;
+        if ( clear )
+        {
+            loadAction.m_loadActionsColor[0] = RHI::LoadActionType::Clear;
+        }
+
+        uint32_t viewportWidth = pRenderTarget->m_width;
+        uint32_t viewportHeight = pRenderTarget->m_height;
+
+        RHI::CmdSetRenderTargets( pCommandBuffer, { &pRenderTarget, 1 }, nullptr, &loadAction );
+        RHI::CmdSetViewport
+        (
+            pCommandBuffer, 0.0F, 0.0F,
+            float( viewportWidth ),
+            float( viewportHeight ),
+            0.0F, 1.0F
+        );
+        RHI::CmdSetScissor( pCommandBuffer, 0, 0, viewportWidth, viewportHeight );
+
+        RHI::CmdSetPipeline( pCommandBuffer, pPipeline );
+        RHI::CmdSetRootParameter( pCommandBuffer, 1, pConstantBuffer, 0 );
+        RHI::CmdSetIndexBuffer( pCommandBuffer, pIndexBuffer, RHI::IndexType::Uint32, 0 );
+
+        ImDrawVert* pVB = static_cast<ImDrawVert*>( pVertexBuffer->m_pMappedAddress_WriteCombined );
+        ImDrawIdx*  pIB = static_cast<ImDrawIdx*>( pIndexBuffer->m_pMappedAddress_WriteCombined );
+
+        for ( int32_t cmdListIndex = 0; cmdListIndex < pDrawData->CmdLists.Size; ++cmdListIndex )
+        {
+            ImDrawList const* pCmdList = pDrawData->CmdLists[cmdListIndex];
+
+            EE_ASSERT( ( state.vertexOffset + pCmdList->VtxBuffer.Size ) <= uint32_t( pVertexBuffer->m_size / pVertexBuffer->m_stride ) );
+            memcpy( pVB + state.vertexOffset, pCmdList->VtxBuffer.Data, pCmdList->VtxBuffer.Size * sizeof( ImDrawVert ) );
+
+            EE_ASSERT( ( state.indexOffset + pCmdList->IdxBuffer.Size ) <= uint32_t( pIndexBuffer->m_size / pIndexBuffer->m_stride ) );
+            memcpy( pIB + state.indexOffset, pCmdList->IdxBuffer.Data, pCmdList->IdxBuffer.Size * sizeof( ImDrawIdx ) );
+
+            for ( int32_t cmdIdx = 0; cmdIdx < pCmdList->CmdBuffer.Size; ++cmdIdx )
+            {
+                ImDrawCmd const* pCmd = &pCmdList->CmdBuffer[cmdIdx];
+                if ( pCmd->UserCallback != nullptr )
+                {
+                    EE_UNIMPLEMENTED_FUNCTION();
+                }
+                else
+                {
+                    // Project scissor/clipping rectangles into frame buffer space
+                    ImVec2 const& clipOffset = pDrawData->DisplayPos;
+                    ImVec2        clipMin( pCmd->ClipRect.x - clipOffset.x, pCmd->ClipRect.y - clipOffset.y );
+                    ImVec2        clipMax( pCmd->ClipRect.z - clipOffset.x, pCmd->ClipRect.w - clipOffset.y );
+
+                    uint32_t clipMinX = uint32_t( clipMin.x );
+                    uint32_t clipMinY = uint32_t( clipMin.y );
+                    uint32_t clipMaxX = uint32_t( clipMax.x );
+                    uint32_t clipMaxY = uint32_t( clipMax.y );
+
+                    if ( clipMaxX <= clipMinX || clipMaxY <= clipMinY )
+                    {
+                        continue;
+                    }
+
+                    RHI::SamplerStateHandle colorSampler;
+                    RHI::TextureHandle      colorTexture;
+
+                    ImGuiX::ImTextureID_Unpack( pCmd->GetTexID(), colorSampler, colorTexture );
+
+                    ShaderTypes::ImguiRootConstants rootConstants = {};
+                    rootConstants.m_vertexOffset = pCmd->VtxOffset + state.vertexOffset;
+                    rootConstants.m_colorSampler = colorSampler;
+                    rootConstants.m_colorTexture = colorTexture;
+
+                    RHI::CmdSetRootConstants( pCommandBuffer, 0, &rootConstants, sizeof( rootConstants ) );
+                    RHI::CmdSetScissor( pCommandBuffer, clipMinX, clipMinY, clipMaxX - clipMinX, clipMaxY - clipMinY );
+                    RHI::CmdDrawIndexed( pCommandBuffer, pCmd->ElemCount, pCmd->IdxOffset + state.indexOffset );
+                }
+            }
+
+            state.indexOffset += pCmdList->IdxBuffer.Size;
+            state.vertexOffset += pCmdList->VtxBuffer.Size;
+        }
+
+        RHI::CmdSetRenderTargets( pCommandBuffer, {}, nullptr );
+    }
+
+    void ImguiRenderer::UpdateTextureData( ImDrawData const* pDrawData, RenderSystem* pRenderSystem )
+    {
+        if ( pDrawData->Textures )
+        {
+            for ( ImTextureData* pTexture : *pDrawData->Textures )
+            {
+                if ( pTexture->Status == ImTextureStatus_WantCreate )
+                {
+                    RHI::TextureParameters textureParameters = {};
+                    textureParameters.m_width = pTexture->Width;
+                    textureParameters.m_height = pTexture->Height;
+                    textureParameters.m_format = RHI::DataFormat::RGBA8_UNorm;
+                    textureParameters.m_initialState = RHI::TextureState::Common;
+                    textureParameters.m_debugName.sprintf( "Imgui Texture %i", pTexture->UniqueID );
+
+                    auto CopyTextureMemory = [pTexture] ( uint8_t* pDstMemory_WriteCombined, size_t srcOffset, uint32_t rowStride, uint32_t row )
+                    {
+                        uint8_t* pPixels = reinterpret_cast<uint8_t*>( pTexture->GetPixels() );
+
+                        // TODO: pPixels are not aligned!
+                        //Memory::CopyToWriteCombined( pDstMemory_WriteCombined, pPixels + srcOffset, rowStride );
+                        std::memcpy( pDstMemory_WriteCombined, pPixels + srcOffset, rowStride );
+                    };
+                    RHI::Texture* pTextureRHI = pRenderSystem->QueueTextureCreate( CopyTextureMemory, textureParameters );
+
+                    pTexture->BackendUserData = pTextureRHI;
+                    pTexture->TexID = ImGuiX::ImTextureID_Pack
+                    (
+                        RHI::GetSamplerStateHandle( pRenderSystem->GetLinearWrapSampler() ),
+                        RHI::GetTextureHandle( pTextureRHI, RHI::DescriptorTypeFlags::Texture, 0 )
+                    );
+
+                    pTexture->SetStatus( ImTextureStatus_OK );
+                }
+
+                if ( pTexture->Status == ImTextureStatus_WantUpdates )
+                {
+                    RHI::Texture* pTextureRHI = static_cast<RHI::Texture*>( pTexture->BackendUserData );
+
+                    RHI::TextureCopyRegion copyRegion = {};
+                    copyRegion.m_x = pTexture->UpdateRect.x;
+                    copyRegion.m_y = pTexture->UpdateRect.y;
+                    copyRegion.m_width = pTexture->UpdateRect.w;
+                    copyRegion.m_height = pTexture->UpdateRect.h;
+
+                    auto CopyTextureMemory = [pTexture] ( uint8_t* pDstMemory_WriteCombined, size_t srcOffset, uint32_t rowStride, uint32_t row )
+                    {
+                        uint8_t* pPixels = reinterpret_cast<uint8_t*>( pTexture->GetPixelsAt( pTexture->UpdateRect.x, pTexture->UpdateRect.y + row ) );
+
+                        // TODO: pPixels are not aligned!
+                        //Memory::CopyToWriteCombined( pDstMemory_WriteCombined, pPixels + srcOffset, rowStride );
+                        std::memcpy( pDstMemory_WriteCombined, pPixels, rowStride );
+                    };
+                    pRenderSystem->QueueTextureUpdate( CopyTextureMemory, pTextureRHI, copyRegion, 1, 1, RHI::TextureState::Common );
+
+                    pTexture->SetStatus( ImTextureStatus_OK );
+                }
+
+                if ( pTexture->Status == ImTextureStatus_WantDestroy )
+                {
+                    RHI::Texture* pTextureRHI = static_cast<RHI::Texture*>( pTexture->BackendUserData );
+                    pRenderSystem->QueueResourceDelete( eastl::move( pTextureRHI ) );
+
+                    pTexture->BackendUserData = nullptr;
+                    pTexture->TexID = {};
+                    pTexture->SetStatus( ImTextureStatus_Destroyed );
+                }
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     void ImguiRenderer::Initialize( Window* pPrimaryRenderWindow, RenderSystem* pRenderSystem )
     {
         m_pRenderSystem = pRenderSystem;
@@ -400,7 +579,6 @@ namespace EE::Render
             bufferParameters.m_bufferSize = newBufferSize;
             bufferParameters.m_bufferStride = sizeof( ImDrawIdx );
             bufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
-            bufferParameters.m_format = RHI::DataFormat::R32_UInt;
 
             return RHI::CreateBuffer( pContextRHI, bufferParameters );
         };
@@ -517,183 +695,6 @@ namespace EE::Render
         if ( ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable )
         {
             ImGui::UpdatePlatformWindows();
-        }
-    }
-
-    void ImguiRenderer::RenderImguiData
-    (
-        ImDrawData const*                        pDrawData,
-        RenderSystem*                            pRenderSystem,
-        RHI::CommandBuffer*                      pCommandBuffer,
-        RHI::Texture*                            pRenderTarget,
-        RHI::Pipeline*                           pPipeline,
-        RHI::Buffer*                             pConstantBuffer,
-        RHI::Buffer*                             pVertexBuffer,
-        RHI::Buffer*                             pIndexBuffer,
-        uint32_t                                 frameIndex,
-        bool                                     clear,
-        ImguiRenderer::ImguiGeometryState& state
-    )
-    {
-        if ( pDrawData->DisplaySize.x <= 0.0f || pDrawData->DisplaySize.y <= 0.0f )
-        {
-            return;
-        }
-
-        EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, "Imgui viewport" );
-
-        RHI::LoadAction loadAction = {};
-        loadAction.m_loadActionsColor[0] = RHI::LoadActionType::Load;
-        if ( clear )
-        {
-            loadAction.m_loadActionsColor[0] = RHI::LoadActionType::Clear;
-        }
-
-        uint32_t viewportWidth = pRenderTarget->m_width;
-        uint32_t viewportHeight = pRenderTarget->m_height;
-
-        RHI::CmdSetRenderTargets( pCommandBuffer, { &pRenderTarget, 1 }, nullptr, &loadAction );
-        RHI::CmdSetViewport
-        (
-            pCommandBuffer, 0.0F, 0.0F,
-            float( viewportWidth ),
-            float( viewportHeight ),
-            0.0F, 1.0F
-        );
-        RHI::CmdSetScissor( pCommandBuffer, 0, 0, viewportWidth, viewportHeight );
-
-        RHI::CmdSetPipeline( pCommandBuffer, pPipeline );
-        RHI::CmdSetRootParameter( pCommandBuffer, 1, pConstantBuffer, 0 );
-        RHI::CmdSetIndexBuffer( pCommandBuffer, pIndexBuffer, RHI::IndexType::Uint32, 0 );
-
-        ImDrawVert* pVB = static_cast<ImDrawVert*>( pVertexBuffer->m_pMappedAddress_WriteCombined );
-        ImDrawIdx*  pIB = static_cast<ImDrawIdx*>( pIndexBuffer->m_pMappedAddress_WriteCombined );
-
-        for ( int32_t cmdListIndex = 0; cmdListIndex < pDrawData->CmdLists.Size; ++cmdListIndex )
-        {
-            ImDrawList const* pCmdList = pDrawData->CmdLists[cmdListIndex];
-
-            EE_ASSERT( ( state.vertexOffset + pCmdList->VtxBuffer.Size ) <= uint32_t( pVertexBuffer->m_size / pVertexBuffer->m_stride ) );
-            memcpy( pVB + state.vertexOffset, pCmdList->VtxBuffer.Data, pCmdList->VtxBuffer.Size * sizeof( ImDrawVert ) );
-
-            EE_ASSERT( ( state.indexOffset + pCmdList->IdxBuffer.Size ) <= uint32_t( pIndexBuffer->m_size / pIndexBuffer->m_stride ) );
-            memcpy( pIB + state.indexOffset, pCmdList->IdxBuffer.Data, pCmdList->IdxBuffer.Size * sizeof( ImDrawIdx ) );
-
-            for ( int32_t cmdIdx = 0; cmdIdx < pCmdList->CmdBuffer.Size; ++cmdIdx )
-            {
-                ImDrawCmd const* pCmd = &pCmdList->CmdBuffer[cmdIdx];
-                if ( pCmd->UserCallback != nullptr )
-                {
-                    EE_UNIMPLEMENTED_FUNCTION();
-                }
-                else
-                {
-                    // Project scissor/clipping rectangles into frame buffer space
-                    ImVec2 const& clipOffset = pDrawData->DisplayPos;
-                    ImVec2        clipMin( pCmd->ClipRect.x - clipOffset.x, pCmd->ClipRect.y - clipOffset.y );
-                    ImVec2        clipMax( pCmd->ClipRect.z - clipOffset.x, pCmd->ClipRect.w - clipOffset.y );
-
-                    uint32_t clipMinX = uint32_t( clipMin.x );
-                    uint32_t clipMinY = uint32_t( clipMin.y );
-                    uint32_t clipMaxX = uint32_t( clipMax.x );
-                    uint32_t clipMaxY = uint32_t( clipMax.y );
-
-                    if ( clipMaxX <= clipMinX || clipMaxY <= clipMinY )
-                    {
-                        continue;
-                    }
-
-                    RHI::SamplerStateHandle colorSampler;
-                    RHI::TextureHandle      colorTexture;
-
-                    ImGuiX::ImTextureID_Unpack( pCmd->GetTexID(), colorSampler, colorTexture );
-
-                    ShaderTypes::ImguiRootConstants rootConstants = {};
-                    rootConstants.m_vertexOffset = pCmd->VtxOffset + state.vertexOffset;
-                    rootConstants.m_colorSampler = colorSampler;
-                    rootConstants.m_colorTexture = colorTexture;
-
-                    RHI::CmdSetRootConstants( pCommandBuffer, 0, &rootConstants, sizeof( rootConstants ) );
-                    RHI::CmdSetScissor( pCommandBuffer, clipMinX, clipMinY, clipMaxX - clipMinX, clipMaxY - clipMinY );
-                    RHI::CmdDrawIndexed( pCommandBuffer, pCmd->ElemCount, pCmd->IdxOffset + state.indexOffset );
-                }
-            }
-
-            state.indexOffset += pCmdList->IdxBuffer.Size;
-            state.vertexOffset += pCmdList->VtxBuffer.Size;
-        }
-
-        RHI::CmdSetRenderTargets( pCommandBuffer, {}, nullptr );
-    }
-
-    void ImguiRenderer::UpdateTextureData( ImDrawData const* pDrawData, RenderSystem* pRenderSystem )
-    {
-        if ( pDrawData->Textures )
-        {
-            for ( ImTextureData* pTexture : *pDrawData->Textures )
-            {
-                if ( pTexture->Status == ImTextureStatus_WantCreate )
-                {
-                    RHI::TextureParameters textureParameters = {};
-                    textureParameters.m_width = pTexture->Width;
-                    textureParameters.m_height = pTexture->Height;
-                    textureParameters.m_format = RHI::DataFormat::RGBA8_UNorm;
-                    textureParameters.m_initialState = RHI::TextureState::Common;
-                    textureParameters.m_debugName.sprintf( "Imgui Texture %i", pTexture->UniqueID );
-
-                    auto CopyTextureMemory = [pTexture] ( uint8_t* pDstMemory_WriteCombined, size_t srcOffset, uint32_t rowStride, uint32_t row )
-                    {
-                        uint8_t* pPixels = reinterpret_cast<uint8_t*>( pTexture->GetPixels() );
-
-                        // TODO: pPixels are not aligned!
-                        //Memory::CopyToWriteCombined( pDstMemory_WriteCombined, pPixels + srcOffset, rowStride );
-                        std::memcpy( pDstMemory_WriteCombined, pPixels + srcOffset, rowStride );
-                    };
-                    RHI::Texture* pTextureRHI = pRenderSystem->QueueTextureCreate( CopyTextureMemory, textureParameters );
-
-                    pTexture->BackendUserData = pTextureRHI;
-                    pTexture->TexID = ImGuiX::ImTextureID_Pack
-                    (
-                        RHI::GetSamplerStateHandle( pRenderSystem->GetLinearWrapSampler() ),
-                        RHI::GetTextureHandle( pTextureRHI, RHI::DescriptorTypeFlags::Texture, 0 )
-                    );
-
-                    pTexture->SetStatus( ImTextureStatus_OK );
-                }
-
-                if ( pTexture->Status == ImTextureStatus_WantUpdates )
-                {
-                    RHI::Texture* pTextureRHI = static_cast<RHI::Texture*>( pTexture->BackendUserData );
-
-                    RHI::TextureCopyRegion copyRegion = {};
-                    copyRegion.m_x = pTexture->UpdateRect.x;
-                    copyRegion.m_y = pTexture->UpdateRect.y;
-                    copyRegion.m_width = pTexture->UpdateRect.w;
-                    copyRegion.m_height = pTexture->UpdateRect.h;
-
-                    auto CopyTextureMemory = [pTexture] ( uint8_t* pDstMemory_WriteCombined, size_t srcOffset, uint32_t rowStride, uint32_t row )
-                    {
-                        uint8_t* pPixels = reinterpret_cast<uint8_t*>( pTexture->GetPixelsAt( pTexture->UpdateRect.x, pTexture->UpdateRect.y + row ) );
-
-                        // TODO: pPixels are not aligned!
-                        //Memory::CopyToWriteCombined( pDstMemory_WriteCombined, pPixels + srcOffset, rowStride );
-                        std::memcpy( pDstMemory_WriteCombined, pPixels, rowStride );
-                    };
-                    pRenderSystem->QueueTextureUpdate( CopyTextureMemory, pTextureRHI, copyRegion, 1, 1, RHI::TextureState::Common );
-
-                    pTexture->SetStatus( ImTextureStatus_OK );
-                }
-
-                if ( pTexture->Status == ImTextureStatus_WantDestroy )
-                {
-                    RHI::Texture* pTextureRHI = static_cast<RHI::Texture*>( pTexture->BackendUserData );
-                    pRenderSystem->QueueResourceDelete( eastl::move( pTextureRHI ) );
-
-                    pTexture->BackendUserData = nullptr;
-                    pTexture->TexID = {};
-                    pTexture->SetStatus( ImTextureStatus_Destroyed );
-                }
-            }
         }
     }
 }

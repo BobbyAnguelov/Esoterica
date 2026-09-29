@@ -104,9 +104,8 @@ namespace EE::Animation
     {
         PoseBuffer::Release( poseInit );
         m_ID.Clear();
-        m_isLifetimeInternallyManaged = false;
+        m_isPendingDestroy = false;
         m_wasAccessed = false;
-        m_shouldBeReset = false;
     }
 
     //-------------------------------------------------------------------------
@@ -139,7 +138,7 @@ namespace EE::Animation
         Reset();
     }
 
-    void PoseBufferPool::Reset()
+    void PoseBufferPool::ResetInternal( bool resetForNewUpdate )
     {
         // Reset all buffers
         for ( auto& poseBuffer : m_poseBuffers )
@@ -149,29 +148,56 @@ namespace EE::Animation
 
         m_firstFreeBuffer = 0;
 
-        // Update cached buffer states
-        int8_t const numCachedBuffers = (int8_t) m_cachedBuffers.size();
-        for ( int8_t i = 0; i < numCachedBuffers; i++ )
+        if ( resetForNewUpdate )
         {
-            // Release any used but unaccessed buffers
-            if ( m_cachedBuffers[i].m_isUsed )
+            // Update cached buffer states
+            int8_t const numCachedBuffers = (int8_t) m_cachedBuffers.size();
+            for ( int8_t i = 0; i < numCachedBuffers; i++ )
             {
-                if ( m_cachedBuffers[i].m_isLifetimeInternallyManaged && !m_cachedBuffers[i].m_wasAccessed )
+                // Persistent buffers are ignored
+                if ( m_cachedBuffers[i].m_isPersistent )
                 {
-                    m_cachedBuffers[i].m_shouldBeReset = true;
+                    continue;
                 }
-                else
+
+                // Release any used but unaccessed buffers
+                if ( m_cachedBuffers[i].m_isUsed )
                 {
-                    m_cachedBuffers[i].m_wasAccessed = false;
+                    // Release any buffers that are no longer needed
+                    if ( m_cachedBuffers[i].m_isPendingDestroy && !m_cachedBuffers[i].m_wasAccessed )
+                    {
+                        m_cachedBuffers[i].Release();
+                        m_firstFreeCachedBuffer = Math::Min( m_firstFreeCachedBuffer, i );
+                    }
+                    else
+                    {
+                        m_cachedBuffers[i].m_wasAccessed = false;
+                    }
                 }
             }
-
-            // Release any buffers that are no longer needed
-            if ( m_cachedBuffers[i].m_shouldBeReset )
+        }
+        else // Full reset
+        {
+            for ( auto& cachedBuffer : m_cachedBuffers )
             {
-                EE_ASSERT( m_cachedBuffers[i].m_isUsed );
-                m_cachedBuffers[i].Release();
-                m_firstFreeCachedBuffer = Math::Min( m_firstFreeCachedBuffer, i );
+                if ( cachedBuffer.m_isPersistent )
+                {
+                    continue;
+                }
+
+                cachedBuffer.Release();
+            }
+
+            m_nextCachedPoseID.Clear();
+
+            // Find the first free buffer
+            int32_t const numCachedBuffers = (int32_t) m_cachedBuffers.size();
+            for ( m_firstFreeCachedBuffer = 0; m_firstFreeCachedBuffer < numCachedBuffers; m_firstFreeCachedBuffer++ )
+            {
+                if ( !m_cachedBuffers[m_firstFreeCachedBuffer].m_isUsed )
+                {
+                    break;
+                }
             }
         }
 
@@ -271,6 +297,13 @@ namespace EE::Animation
         return false;
     }
 
+    CachedPoseID PoseBufferPool::CreatePersistentCachedPoseBuffer()
+    {
+        auto pPoseBuffer = CreateCachedPoseBufferInternal();
+        pPoseBuffer->m_isPersistent = true;
+        return pPoseBuffer->m_ID;
+    }
+
     CachedPoseID PoseBufferPool::CreateCachedPoseBuffer()
     {
         return CreateCachedPoseBufferInternal()->m_ID;
@@ -279,6 +312,12 @@ namespace EE::Animation
     CachedPoseBuffer* PoseBufferPool::CreateCachedPoseBufferInternal( CachedPoseID bufferID )
     {
         CachedPoseBuffer* pCachedPoseBuffer = nullptr;
+
+        // If we are asking to create a cached pose for a specific ID, that ID MUST not be in use
+        if ( bufferID.IsValid() )
+        {
+            EE_ASSERT( !IsValidCachedPose( bufferID ) );
+        }
 
         // Find/create a free buffer
         //-------------------------------------------------------------------------
@@ -309,42 +348,13 @@ namespace EE::Animation
         }
         else [[likely]] // Generate a new ID
         {
-            pCachedPoseBuffer->m_ID = CachedPoseID( m_nextCachedPoseID );
+            pCachedPoseBuffer->m_ID = GenerateNewCachedPoseID();
         }
 
-        // Update ID
-        //-------------------------------------------------------------------------
-
-        m_nextCachedPoseID++;
-
-        // If we need to wrap around the IDs
-        if ( m_nextCachedPoseID >= CachedPoseID::s_maxAllowableValue )
-        {
-            m_nextCachedPoseID = 0;
-        }
-
-        // Ensure the new ID is unused
-        while ( true )
-        {
-            bool isUsedID = false;
-            for ( auto const& buffer : m_cachedBuffers )
-            {
-                if ( buffer.m_isUsed && buffer.m_ID == m_nextCachedPoseID )
-                {
-                    isUsedID = true;
-                    break;
-                }
-            }
-
-            if ( isUsedID )
-            {
-                m_nextCachedPoseID++;
-            }
-            else
-            {
-                break;
-            }
-        }
+        // We can only allow 64 cached poses due to the serialization limits on the ID.
+        // This limit is really high and we should NEVER need 64 cached poses at a given time.
+        // There is no way to gracefully handle this so just crash!
+        EE_ASSERT( pCachedPoseBuffer->m_ID.IsValid() );
 
         // Update free buffer index
         //-------------------------------------------------------------------------
@@ -362,9 +372,47 @@ namespace EE::Animation
 
         // Flag as accessed
         pCachedPoseBuffer->m_wasAccessed = true;
-        pCachedPoseBuffer->m_shouldBeReset = false;
 
         return pCachedPoseBuffer;
+    }
+
+    CachedPoseID PoseBufferPool::GenerateNewCachedPoseID()
+    {
+        if ( !m_nextCachedPoseID.IsValid() )
+        {
+            m_nextCachedPoseID = 0;
+        }
+
+        // Ensure the new ID is unused
+        int32_t numBuffersChecked = 0;
+        while ( true )
+        {
+            bool isUsedID = false;
+            for ( auto const &buffer : m_cachedBuffers )
+            {
+                if ( buffer.m_isUsed && buffer.m_ID == m_nextCachedPoseID )
+                {
+                    isUsedID = true;
+                    break;
+                }
+            }
+
+            if ( isUsedID )
+            {
+                m_nextCachedPoseID++;
+                numBuffersChecked++;
+                EE_ASSERT( numBuffersChecked < CachedPoseID::s_maxNumberOfCachedPoses );
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        // Return the free ID and increment the next ID tracker
+        CachedPoseID const ID = m_nextCachedPoseID;
+        m_nextCachedPoseID++;
+        return ID;
     }
 
     void PoseBufferPool::DestroyCachedPoseBuffer( CachedPoseID cachedPoseID )
@@ -375,8 +423,11 @@ namespace EE::Animation
         {
             if ( cachedBuffer.m_ID == cachedPoseID )
             {
-                // Cached buffer destruction is deferred to the next frame since we may already have tasks reading from it already
-                cachedBuffer.m_shouldBeReset = true;
+                EE_ASSERT( cachedBuffer.m_isUsed && !cachedBuffer.m_isPersistent );
+
+                // Cached buffer destruction is deferred to the first frame where we have stopped accessing the buffer since we may already have tasks reading from it already
+                // Transfer the ownership to the cache pose pool so the buffer lifetime is based on its usage
+                cachedBuffer.m_isPendingDestroy = true;
                 return;
             }
         }
@@ -395,7 +446,6 @@ namespace EE::Animation
             {
                 pFoundCachedPoseBuffer = &cachedBuffer;
                 cachedBuffer.m_wasAccessed = true;
-                cachedBuffer.m_shouldBeReset = false;
                 break;
             }
         }
@@ -403,14 +453,23 @@ namespace EE::Animation
         return pFoundCachedPoseBuffer;
     }
 
-    PoseBuffer* PoseBufferPool::GetOrCreateCachedPoseBuffer( CachedPoseID cachedPoseID, bool isLifetimeManagedByPosePool )
+    PoseBuffer* PoseBufferPool::CreateBufferForSpecificID( CachedPoseID cachedPoseID )
     {
-        CachedPoseBuffer* pBuffer = GetCachedPoseBufferInternal( cachedPoseID );
+        EE_ASSERT( cachedPoseID.IsValid() );
+        return CreateCachedPoseBufferInternal( cachedPoseID );
+    }
+
+    PoseBuffer* PoseBufferPool::GetOrCreateTemporaryBufferForSpecificID( CachedPoseID cachedPoseID )
+    {
+        EE_ASSERT( cachedPoseID.IsValid() );
+
+        auto pBuffer = GetCachedPoseBufferInternal( cachedPoseID );
         if ( pBuffer == nullptr )
         {
             pBuffer = CreateCachedPoseBufferInternal( cachedPoseID );
-            pBuffer->m_isLifetimeInternallyManaged = isLifetimeManagedByPosePool;
+            pBuffer->m_isPendingDestroy = true;
         }
+
         return pBuffer;
     }
 
@@ -429,7 +488,7 @@ namespace EE::Animation
         {
             for ( auto i = 0; i < s_bufferGrowAmount; i++ )
             {
-                m_debugPoseBuffers.emplace_back( PoseBuffer( m_pPrimarySkeleton, m_secondarySkeletons ) );
+                m_debugPoseBuffers.emplace_back( m_pPrimarySkeleton, m_secondarySkeletons );
                 m_debugBufferTaskIdxMapping.emplace_back( int8_t( -1 ) );
             }
 

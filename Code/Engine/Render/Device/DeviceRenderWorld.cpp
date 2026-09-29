@@ -57,13 +57,14 @@ namespace EE::Render
     void DeviceRenderWorld::Initialize( TaskSystem* pTaskSystem, RenderSystem* pRenderSystem )
     {
         m_pTaskSystem = pTaskSystem;
-        m_pContextRHI = pRenderSystem->GetContextRHI();
+        m_pRenderSystem = pRenderSystem;
 
         m_meshInstanceRootHandleAllocator.Initialize( 1 );
         m_skinningTransformHandleAllocator.Initialize( 1 );
         m_directionalLightHandleAllocator.Initialize( 1 );
         m_pointLightHandleAllocator.Initialize( 1 );
         m_spotLightHandleAllocator.Initialize( 1 );
+        m_renderViewAllocator.Initialize( 1 );
 
         m_updatePool_MeshInstanceRoot.Initialize();
         m_updatePool_MeshInstance.Initialize();
@@ -71,6 +72,7 @@ namespace EE::Render
         m_updatePool_PointLight.Initialize();
         m_updatePool_SpotLight.Initialize();
         m_updatePool_SkinningTransform.Initialize();
+        m_updatePool_RenderView.Initialize();
 
         static StringID const s_WorldUpdateShaderID = StringID( "WorldUpdate" );
         m_pWorldUpdateShader = pRenderSystem->FindComputeShader( s_WorldUpdateShaderID );
@@ -85,12 +87,15 @@ namespace EE::Render
             m_pointLightPageBuffers[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
             m_spotLightPageBuffers[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
             m_initializeBuffers_MeshInstance[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
+            m_initializeBuffers_PointLight[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
+            m_initializeBuffers_SpotLight[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
             m_updateBuffers_MeshInstanceRoot[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
             m_updateBuffers_MeshInstance[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
             m_updateBuffers_DirectionalLight[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
             m_updateBuffers_PointLight[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
             m_updateBuffers_SpotLight[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
             m_updateBuffers_SkinningTransform[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
+            m_updateBuffers_RenderView[frameIndex].Initialize( pRenderSystem->GetContextRHI(), true );
 
             RHI::BufferParameters constantBufferParameters = {};
             constantBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
@@ -109,6 +114,8 @@ namespace EE::Render
         m_spotLightBuffer.Initialize( pRenderSystem->GetContextRHI(), true );
         m_skinningTransformBuffer.Initialize( pRenderSystem->GetContextRHI(), true );
 
+        m_renderViewBuffer.Initialize( pRenderSystem->GetContextRHI(), true );
+
         m_meshInstanceBufferHandles.Initialize( pRenderSystem->GetContextRHI(), true );
         m_clusterToInstanceBufferHandles.Initialize( pRenderSystem->GetContextRHI(), true );
 
@@ -126,11 +133,11 @@ namespace EE::Render
         {
             shaderPool.m_instanceAllocator.Initialize( 1 );
             shaderPool.m_clusterAllocator.Initialize( 1 );
-            shaderPool.m_instanceBuffer.Initialize( m_pContextRHI, true );
-            shaderPool.m_clusterToInstanceBuffer.Initialize( m_pContextRHI, true );
+            shaderPool.m_instanceBuffer.Initialize( m_pRenderSystem->GetContextRHI(), true );
+            shaderPool.m_clusterToInstanceBuffer.Initialize( m_pRenderSystem->GetContextRHI(), true );
             for ( uint32_t frameIndex = 0; frameIndex < RHI::MaxPendingFrames; ++frameIndex )
             {
-                shaderPool.m_instancePageBuffers[frameIndex].Initialize( m_pContextRHI, true );
+                shaderPool.m_instancePageBuffers[frameIndex].Initialize( m_pRenderSystem->GetContextRHI(), true );
             }
         }
     }
@@ -138,6 +145,8 @@ namespace EE::Render
     void DeviceRenderWorld::Shutdown( RenderSystem* pRenderSystem )
     {
         EE_ASSERT( m_copyInitializeCommands_MeshInstance.GetIsComplete() );
+        EE_ASSERT( m_copyInitializeCommands_PointLight.GetIsComplete() );
+        EE_ASSERT( m_copyInitializeCommands_SpotLight.GetIsComplete() );
 
         EE_ASSERT( m_copyUpdateCommands_MeshInstanceRoot.GetIsComplete() );
         EE_ASSERT( m_copyUpdateCommands_MeshInstance.GetIsComplete() );
@@ -145,12 +154,14 @@ namespace EE::Render
         EE_ASSERT( m_copyUpdateCommands_PointLight.GetIsComplete() );
         EE_ASSERT( m_copyUpdateCommands_SpotLight.GetIsComplete() );
         EE_ASSERT( m_copyUpdateCommands_SkinningTransform.GetIsComplete() );
+        EE_ASSERT( m_copyUpdateCommands_RenderView.GetIsComplete() );
 
         m_meshInstanceRootHandleAllocator.Shutdown();
         m_skinningTransformHandleAllocator.Shutdown();
         m_directionalLightHandleAllocator.Shutdown();
         m_pointLightHandleAllocator.Shutdown();
         m_spotLightHandleAllocator.Shutdown();
+        m_renderViewAllocator.Shutdown();
 
         m_updatePool_MeshInstanceRoot.Shutdown();
         m_updatePool_MeshInstance.Shutdown();
@@ -158,6 +169,7 @@ namespace EE::Render
         m_updatePool_PointLight.Shutdown();
         m_updatePool_SpotLight.Shutdown();
         m_updatePool_SkinningTransform.Shutdown();
+        m_updatePool_RenderView.Shutdown();
 
         for ( uint32_t frameIndex = 0; frameIndex < RHI::MaxPendingFrames; ++frameIndex )
         {
@@ -166,12 +178,15 @@ namespace EE::Render
             m_pointLightPageBuffers[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
             m_spotLightPageBuffers[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
             m_initializeBuffers_MeshInstance[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
+            m_initializeBuffers_PointLight[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
+            m_initializeBuffers_SpotLight[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
             m_updateBuffers_MeshInstance[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
             m_updateBuffers_MeshInstanceRoot[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
             m_updateBuffers_DirectionalLight[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
             m_updateBuffers_PointLight[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
             m_updateBuffers_SpotLight[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
             m_updateBuffers_SkinningTransform[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
+            m_updateBuffers_RenderView[frameIndex].Shutdown( pRenderSystem->GetContextRHI() );
 
             RHI::DestroyBuffer( pRenderSystem->GetContextRHI(), eastl::move( m_worldUpdateConstantBuffers[frameIndex] ) );
         }
@@ -181,6 +196,7 @@ namespace EE::Render
         m_pointLightBuffer.Shutdown( pRenderSystem->GetContextRHI() );
         m_spotLightBuffer.Shutdown( pRenderSystem->GetContextRHI() );
         m_skinningTransformBuffer.Shutdown( pRenderSystem->GetContextRHI() );
+        m_renderViewBuffer.Shutdown( pRenderSystem->GetContextRHI() );
 
         //-------------------------------------------------------------------------
 
@@ -205,7 +221,7 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         m_pTaskSystem = nullptr;
-        m_pContextRHI = nullptr;
+        m_pRenderSystem = nullptr;
     }
 
     MeshInstanceRootProxy DeviceRenderWorld::AllocateMeshInstanceRoot()
@@ -380,6 +396,59 @@ namespace EE::Render
         skinningProxy = {};
     }
 
+    // Render views
+    //-------------------------------------------------------------------------
+
+    RenderViewProxy DeviceRenderWorld::AllocateRenderViews( DeviceRenderViewType type, uint32_t numViews )
+    {
+        EE_ASSERT( type != DeviceRenderViewType::Invalid );
+        EE_ASSERT( numViews == GetRenderViewGroupSize( type ) );
+
+        PageAllocator<DeviceRenderView, uint16_t>::Handle viewHandle = m_renderViewAllocator.Allocate( uint16_t( numViews ) );
+        EE_ASSERT( viewHandle.m_handle.IsValid() );
+
+        m_updatePool_RenderView.m_memoryPool.Commit( m_renderViewAllocator.GetCapacityInItems() );
+
+        DeviceRenderView* const pViews = m_renderViewAllocator.GetData();
+        uint16_t const groupOffset = viewHandle.m_handle.m_offset;
+
+        for ( uint16_t viewIndex = 0; viewIndex < uint16_t( numViews ); ++viewIndex )
+        {
+            pViews[groupOffset + viewIndex].Initialize( m_pRenderSystem );
+            pViews[groupOffset + viewIndex].m_deviceRenderViewType = type;
+        }
+
+        //-------------------------------------------------------------------------
+
+        RenderViewProxy renderViewProxy = {};
+        renderViewProxy.m_pUpdateCounter = &m_updatePool_RenderView.m_counter;
+        renderViewProxy.m_pUpdateSequence = &m_updatePool_RenderView.m_sequence;
+        renderViewProxy.m_pDstUpdateCommands = m_updatePool_RenderView.m_memoryPool.GetData();
+        renderViewProxy.m_renderViewHandle = viewHandle;
+
+        return renderViewProxy;
+    }
+
+    void DeviceRenderWorld::DeallocateRenderViews( RenderViewProxy&& renderViewProxy )
+    {
+        if ( !renderViewProxy.IsValid() )
+        {
+            return;
+        }
+
+        uint16_t const groupOffset = uint16_t( renderViewProxy.GetBaseRenderViewIndex() );
+        uint16_t const numViews = uint16_t( renderViewProxy.GetNumRenderViews() );
+
+        DeviceRenderView* const pViews = m_renderViewAllocator.GetData();
+        for ( uint16_t viewIndex = 0; viewIndex < numViews; ++viewIndex )
+        {
+            pViews[groupOffset + viewIndex].Shutdown( m_pRenderSystem );
+        }
+
+        m_renderViewAllocator.Deallocate( eastl::move( renderViewProxy.m_renderViewHandle ) );
+        renderViewProxy = {};
+    }
+
     void DeviceRenderWorld::QueueMeshInstanceInitialize( MeshInstanceProxy const& meshInstanceProxy, uint32_t rootInstanceID, RHI::Buffer* pMeshBuffer, uint32_t shaderParametersOffsetIn32ByteBlocks, uint32_t numClusters, uint32_t lodMask, uint32_t instanceIndex, uint32_t clusterToInstanceBase, bool instanceHidden )
     {
         EE_ASSERT( rootInstanceID != ~0U );
@@ -406,6 +475,48 @@ namespace EE::Render
         m_initializeCommands_MeshInstance.emplace_back( eastl::move( instanceInitializeCommand ) );
     }
 
+    void DeviceRenderWorld::QueuePointLightInitialize( LightInstanceProxy const& lightInstanceProxy, uint16_t shadowMapHandle, uint32_t shadowMapResolution )
+    {
+        EE_ASSERT( lightInstanceProxy.IsValid() );
+        if ( shadowMapResolution == 0 )
+        {
+            EE_ASSERT( shadowMapHandle == RHI::g_invalidResourceHandle );
+        }
+        else
+        {
+            EE_ASSERT( Math::IsPowerOf2( shadowMapResolution ) );
+            EE_ASSERT( shadowMapHandle != RHI::g_invalidResourceHandle );
+        }
+
+        ShaderTypes::PointLightInitializeCommand lightInitializeCommand = {};
+        lightInitializeCommand.m_instanceID = uint32_t( lightInstanceProxy.m_instanceHandle.m_offset );
+        lightInitializeCommand.m_shadowMapHandle = shadowMapHandle;
+        lightInitializeCommand.m_shadowResolutionBits = ( shadowMapResolution == 0 ) ? 0 : uint16_t( Math::GetMostSignificantBit( shadowMapResolution ) );
+
+        m_initializeCommands_PointLight.emplace_back( eastl::move( lightInitializeCommand ) );
+    }
+
+    void DeviceRenderWorld::QueueSpotLightInitialize( LightInstanceProxy const& lightInstanceProxy, uint16_t shadowMapHandle, uint32_t shadowMapResolution )
+    {
+        EE_ASSERT( lightInstanceProxy.IsValid() );
+        if ( shadowMapResolution == 0 )
+        {
+            EE_ASSERT( shadowMapHandle == RHI::g_invalidResourceHandle );
+        }
+        else
+        {
+            EE_ASSERT( Math::IsPowerOf2( shadowMapResolution ) );
+            EE_ASSERT( shadowMapHandle != RHI::g_invalidResourceHandle );
+        }
+
+        ShaderTypes::SpotLightInitializeCommand lightInitializeCommand = {};
+        lightInitializeCommand.m_instanceID = uint32_t( lightInstanceProxy.m_instanceHandle.m_offset );
+        lightInitializeCommand.m_shadowMapHandle = shadowMapHandle;
+        lightInitializeCommand.m_shadowResolutionBits = ( shadowMapResolution == 0 ) ? 0 : uint16_t( Math::GetMostSignificantBit( shadowMapResolution ) );
+
+        m_initializeCommands_SpotLight.emplace_back( eastl::move( lightInitializeCommand ) );
+    }
+
     void DeviceRenderWorld::UpdateDeviceResources_BeforeInstanceInitialize( RenderSystem* pRenderSystem )
     {
         EE_PROFILE_FUNCTION_RENDER();
@@ -421,6 +532,7 @@ namespace EE::Render
         m_updatePool_PointLight.Update();
         m_updatePool_SpotLight.Update();
         m_updatePool_SkinningTransform.Update();
+        m_updatePool_RenderView.Update();
 
         //-------------------------------------------------------------------------
 
@@ -495,7 +607,7 @@ namespace EE::Render
             RHI::BufferParameters transformUpdateBufferParameters = {};
             transformUpdateBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
             transformUpdateBufferParameters.m_bufferSize = newBufferSize;
-            transformUpdateBufferParameters.m_bufferStride = sizeof( ShaderTypes::PointLightUpdateCommand );
+            transformUpdateBufferParameters.m_bufferStride = sizeof( ShaderTypes::PointLightTransformUpdateCommand );
             transformUpdateBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
             transformUpdateBufferParameters.m_debugName.sprintf( "DeviceRenderWorld PointLight Update Buffer %i", frameIndex );
 
@@ -504,7 +616,7 @@ namespace EE::Render
 
         m_updateBuffers_PointLight[frameIndex].UpdateDeviceResources
         (
-            Math::Max( 1U, m_updatePool_PointLight.m_numUpdateCommands ) * sizeof( ShaderTypes::PointLightUpdateCommand ),
+            Math::Max( 1U, m_updatePool_PointLight.m_numUpdateCommands ) * sizeof( ShaderTypes::PointLightTransformUpdateCommand ),
             UpdateBuffer_PointLightUpdate
         );
 
@@ -515,7 +627,7 @@ namespace EE::Render
             RHI::BufferParameters transformUpdateBufferParameters = {};
             transformUpdateBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
             transformUpdateBufferParameters.m_bufferSize = newBufferSize;
-            transformUpdateBufferParameters.m_bufferStride = sizeof( ShaderTypes::SpotLightUpdateCommand );
+            transformUpdateBufferParameters.m_bufferStride = sizeof( ShaderTypes::SpotLightTransformUpdateCommand );
             transformUpdateBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
             transformUpdateBufferParameters.m_debugName.sprintf( "DeviceRenderWorld SpotLight Update Buffer %i", frameIndex );
 
@@ -524,7 +636,7 @@ namespace EE::Render
 
         m_updateBuffers_SpotLight[frameIndex].UpdateDeviceResources
         (
-            Math::Max( 1U, m_updatePool_SpotLight.m_numUpdateCommands ) * sizeof( ShaderTypes::SpotLightUpdateCommand ),
+            Math::Max( 1U, m_updatePool_SpotLight.m_numUpdateCommands ) * sizeof( ShaderTypes::SpotLightTransformUpdateCommand ),
             UpdateBuffer_SpotLightUpdate
         );
 
@@ -535,7 +647,7 @@ namespace EE::Render
             RHI::BufferParameters instanceRootBufferParameters = {};
             instanceRootBufferParameters.m_bufferSize = newBufferSize;
             instanceRootBufferParameters.m_bufferStride = sizeof( ShaderTypes::MeshInstanceRoot );
-            instanceRootBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer );
+            instanceRootBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer };
             instanceRootBufferParameters.m_debugName = "DeviceRenderWorld MeshInstanceRoot Buffer";
 
             RHI::Buffer* pMeshInstanceRootBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), instanceRootBufferParameters );
@@ -562,7 +674,7 @@ namespace EE::Render
             RHI::BufferParameters directionalLightBufferParameters = {};
             directionalLightBufferParameters.m_bufferSize = newBufferSize;
             directionalLightBufferParameters.m_bufferStride = sizeof( ShaderTypes::LightInstance_DirectionalLight );
-            directionalLightBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer );
+            directionalLightBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer };
             directionalLightBufferParameters.m_debugName = "DeviceRenderWorld DirectionalLight Buffer";
 
             RHI::Buffer* pBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), directionalLightBufferParameters );
@@ -587,7 +699,7 @@ namespace EE::Render
             RHI::BufferParameters pointLightBufferParameters = {};
             pointLightBufferParameters.m_bufferSize = newBufferSize;
             pointLightBufferParameters.m_bufferStride = sizeof( ShaderTypes::LightInstance_PointLight );
-            pointLightBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer );
+            pointLightBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer };
             pointLightBufferParameters.m_debugName = "DeviceRenderWorld PointLight Buffer";
 
             RHI::Buffer* pBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), pointLightBufferParameters );
@@ -612,7 +724,7 @@ namespace EE::Render
             RHI::BufferParameters spotLightBufferParameters = {};
             spotLightBufferParameters.m_bufferSize = newBufferSize;
             spotLightBufferParameters.m_bufferStride = sizeof( ShaderTypes::LightInstance_SpotLight );
-            spotLightBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer );
+            spotLightBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer };
             spotLightBufferParameters.m_debugName = "DeviceRenderWorld SpotLight Buffer";
 
             RHI::Buffer* pBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), spotLightBufferParameters );
@@ -639,7 +751,7 @@ namespace EE::Render
             RHI::BufferParameters skinningTransformBufferParameters = {};
             skinningTransformBufferParameters.m_bufferSize = newBufferSize;
             skinningTransformBufferParameters.m_bufferStride = sizeof( ShaderTypes::SkinningTransform );
-            skinningTransformBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer );
+            skinningTransformBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer };
             skinningTransformBufferParameters.m_debugName = "DeviceRenderWorld SkinningTransform Buffer";
 
             RHI::Buffer* pSkinningTransformBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), skinningTransformBufferParameters );
@@ -669,7 +781,6 @@ namespace EE::Render
             pageBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
             pageBufferParameters.m_bufferSize = newBufferSize;
             pageBufferParameters.m_bufferStride = sizeof( uint64_t );
-            pageBufferParameters.m_format = RHI::DataFormat::RG32_UInt;
             pageBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
             pageBufferParameters.m_debugName.sprintf( "DeviceRenderWorld MeshInstance Page Buffer %i", frameIndex );
 
@@ -690,7 +801,6 @@ namespace EE::Render
             pageBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
             pageBufferParameters.m_bufferSize = newBufferSize;
             pageBufferParameters.m_bufferStride = sizeof( uint64_t );
-            pageBufferParameters.m_format = RHI::DataFormat::RG32_UInt;
             pageBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
             pageBufferParameters.m_debugName.sprintf( "DeviceRenderWorld MeshInstanceRoot Page Buffer %i", frameIndex );
 
@@ -714,7 +824,6 @@ namespace EE::Render
             pageBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
             pageBufferParameters.m_bufferSize = newBufferSize;
             pageBufferParameters.m_bufferStride = sizeof( uint64_t );
-            pageBufferParameters.m_format = RHI::DataFormat::RG32_UInt;
             pageBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
             pageBufferParameters.m_debugName.sprintf( "DeviceRenderWorld DirectionalLight Page Buffer %i", frameIndex );
 
@@ -735,7 +844,6 @@ namespace EE::Render
             pageBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
             pageBufferParameters.m_bufferSize = newBufferSize;
             pageBufferParameters.m_bufferStride = sizeof( uint64_t );
-            pageBufferParameters.m_format = RHI::DataFormat::RG32_UInt;
             pageBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
             pageBufferParameters.m_debugName.sprintf( "DeviceRenderWorld PointLight Page Buffer %i", frameIndex );
 
@@ -756,7 +864,6 @@ namespace EE::Render
             pageBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
             pageBufferParameters.m_bufferSize = newBufferSize;
             pageBufferParameters.m_bufferStride = sizeof( uint64_t );
-            pageBufferParameters.m_format = RHI::DataFormat::RG32_UInt;
             pageBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
             pageBufferParameters.m_debugName.sprintf( "DeviceRenderWorld SpotLight Page Buffer %i", frameIndex );
 
@@ -791,6 +898,54 @@ namespace EE::Render
             UpdateBuffer_SkinningTransforms
         );
 
+        //-------------------------------------------------------------------------
+
+        uint32_t const renderViewCapacity = m_renderViewAllocator.GetCapacityInItems();
+
+        auto UpdateBuffer_RenderView = [this] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
+        {
+            RHI::BufferParameters renderViewBufferParameters = {};
+            renderViewBufferParameters.m_bufferSize = newBufferSize;
+            renderViewBufferParameters.m_bufferStride = sizeof( ShaderTypes::RenderView );
+            renderViewBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer };
+            renderViewBufferParameters.m_debugName = "DeviceRenderWorld RenderView Buffer";
+
+            RHI::Buffer* pRenderViewBuffer = RHI::CreateBuffer( m_pRenderSystem->GetContextRHI(), renderViewBufferParameters );
+
+            if ( pOldBuffer )
+            {
+                m_pRenderSystem->QueueBufferCopy( pRenderViewBuffer, 0, pOldBuffer, 0, Math::Min( pOldBuffer->m_size, newBufferSize ) );
+                m_pRenderSystem->QueueResourceDelete( eastl::move( pOldBuffer ) );
+            }
+
+            return pRenderViewBuffer;
+        };
+
+        m_renderViewBuffer.UpdateDeviceResources
+        (
+            Math::Max( 1ULL, size_t( renderViewCapacity ) * sizeof( ShaderTypes::RenderView ) ),
+            UpdateBuffer_RenderView
+        );
+
+        auto UpdateBuffer_RenderViewUpdate = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
+        {
+            RHI::DestroyBuffer( pContextRHI, eastl::move( pOldBuffer ) );
+
+            RHI::BufferParameters renderViewUpdateBufferParameters = {};
+            renderViewUpdateBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
+            renderViewUpdateBufferParameters.m_bufferSize = newBufferSize;
+            renderViewUpdateBufferParameters.m_bufferStride = sizeof( ShaderTypes::RenderViewUpdateCommand );
+            renderViewUpdateBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
+            renderViewUpdateBufferParameters.m_debugName.sprintf( "DeviceRenderWorld RenderView UpdateCommands Buffer %i", frameIndex );
+
+            return RHI::CreateBuffer( pContextRHI, renderViewUpdateBufferParameters );
+        };
+
+        m_updateBuffers_RenderView[frameIndex].UpdateDeviceResources
+        (
+            Math::Max( 1ULL, size_t( renderViewCapacity ) * sizeof( ShaderTypes::RenderViewUpdateCommand ) ),
+            UpdateBuffer_RenderViewUpdate
+        );
     }
 
     void DeviceRenderWorld::UpdateDeviceResources_AfterInstanceInitialize( RenderSystem* pRenderSystem )
@@ -822,6 +977,46 @@ namespace EE::Render
             UpdateBuffer_MeshInstanceInitialize
         );
 
+        auto UpdateBuffer_PointLightInitialize = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
+        {
+            RHI::DestroyBuffer( pContextRHI, eastl::move( pOldBuffer ) );
+
+            RHI::BufferParameters lightInitializeBufferParameters = {};
+            lightInitializeBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
+            lightInitializeBufferParameters.m_bufferSize = newBufferSize;
+            lightInitializeBufferParameters.m_bufferStride = sizeof( ShaderTypes::PointLightInitializeCommand );
+            lightInitializeBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
+            lightInitializeBufferParameters.m_debugName.sprintf( "DeviceRenderWorld PointLight Initialize Buffer %i", frameIndex );
+
+            return RHI::CreateBuffer( pContextRHI, lightInitializeBufferParameters );
+        };
+
+        m_initializeBuffers_PointLight[frameIndex].UpdateDeviceResources
+        (
+            Math::Max( 1ULL, m_initializeCommands_PointLight.size() ) * sizeof( ShaderTypes::PointLightInitializeCommand ),
+            UpdateBuffer_PointLightInitialize
+        );
+
+        auto UpdateBuffer_SpotLightInitialize = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
+        {
+            RHI::DestroyBuffer( pContextRHI, eastl::move( pOldBuffer ) );
+
+            RHI::BufferParameters lightInitializeBufferParameters = {};
+            lightInitializeBufferParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
+            lightInitializeBufferParameters.m_bufferSize = newBufferSize;
+            lightInitializeBufferParameters.m_bufferStride = sizeof( ShaderTypes::SpotLightInitializeCommand );
+            lightInitializeBufferParameters.m_flags = RHI::BufferFlags::PersistentMap;
+            lightInitializeBufferParameters.m_debugName.sprintf( "DeviceRenderWorld SpotLight Initialize Buffer %i", frameIndex );
+
+            return RHI::CreateBuffer( pContextRHI, lightInitializeBufferParameters );
+        };
+
+        m_initializeBuffers_SpotLight[frameIndex].UpdateDeviceResources
+        (
+            Math::Max( 1ULL, m_initializeCommands_SpotLight.size() ) * sizeof( ShaderTypes::SpotLightInitializeCommand ),
+            UpdateBuffer_SpotLightInitialize
+        );
+
         //-------------------------------------------------------------------------
 
         EE_ASSERT( m_meshInstanceShaderPools.size() == pRenderSystem->GetMaterialShaders().size() );
@@ -843,7 +1038,7 @@ namespace EE::Render
                 RHI::BufferParameters instanceBufferParameters = {};
                 instanceBufferParameters.m_bufferSize = newBufferSize;
                 instanceBufferParameters.m_bufferStride = sizeof( ShaderTypes::MeshInstance );
-                instanceBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer );
+                instanceBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer };
                 instanceBufferParameters.m_debugName.sprintf( "DeviceRenderWorld MeshInstance Buffer %u", shaderIndex );
 
                 RHI::Buffer* pMeshInstanceBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), instanceBufferParameters );
@@ -872,7 +1067,7 @@ namespace EE::Render
                 RHI::BufferParameters clusterToInstanceBufferParameters = {};
                 clusterToInstanceBufferParameters.m_bufferSize = newBufferSize;
                 clusterToInstanceBufferParameters.m_bufferStride = sizeof( ShaderTypes::ClusterToInstance );
-                clusterToInstanceBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer );
+                clusterToInstanceBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer };
                 clusterToInstanceBufferParameters.m_debugName.sprintf( "DeviceRenderWorld ClusterToInstance Buffer %u", shaderIndex );
 
                 RHI::Buffer* pClusterToInstanceBuffer = RHI::CreateBuffer( pRenderSystem->GetContextRHI(), clusterToInstanceBufferParameters );
@@ -1016,20 +1211,39 @@ namespace EE::Render
     void DeviceRenderWorld::DispatchWorldUpdate( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex )
     {
         EE_ASSERT( m_copyInitializeCommands_MeshInstance.GetIsComplete() );
+        EE_ASSERT( m_copyInitializeCommands_PointLight.GetIsComplete() );
+        EE_ASSERT( m_copyInitializeCommands_SpotLight.GetIsComplete() );
         EE_ASSERT( m_copyUpdateCommands_MeshInstance.GetIsComplete() );
         EE_ASSERT( m_copyUpdateCommands_MeshInstanceRoot.GetIsComplete() );
         EE_ASSERT( m_copyUpdateCommands_DirectionalLight.GetIsComplete() );
         EE_ASSERT( m_copyUpdateCommands_PointLight.GetIsComplete() );
         EE_ASSERT( m_copyUpdateCommands_SpotLight.GetIsComplete() );
         EE_ASSERT( m_copyUpdateCommands_SkinningTransform.GetIsComplete() );
+        EE_ASSERT( m_copyUpdateCommands_RenderView.GetIsComplete() );
 
         //-------------------------------------------------------------------------
 
         EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, "DeviceRenderWorld Update" );
 
-        bool const hasInitCommands = !m_initializeCommands_MeshInstance.empty();
+        //-------------------------------------------------------------------------
+
+        bool const hasInitCommands = !m_initializeCommands_MeshInstance.empty() || !m_initializeCommands_PointLight.empty() || !m_initializeCommands_SpotLight.empty();
 
         bool hasTransformUpdateCommands = false;
+
+        if ( m_updatePool_RenderView.m_numUpdateCommands )
+        {
+            hasTransformUpdateCommands = true;
+
+            EE_ASSERT( m_updateBuffers_RenderView[frameIndex].m_pBuffer->m_size >= size_t( m_updatePool_RenderView.m_numUpdateCommands ) * sizeof( ShaderTypes::RenderViewUpdateCommand ) );
+
+            m_copyUpdateCommands_RenderView.m_pSrcMemory = m_updatePool_RenderView.m_memoryPool.GetData();
+            m_copyUpdateCommands_RenderView.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::RenderViewUpdateCommand*>( m_updateBuffers_RenderView[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
+            m_copyUpdateCommands_RenderView.m_SetSize = m_updatePool_RenderView.m_numUpdateCommands;
+            m_copyUpdateCommands_RenderView.m_MinRange = 1024;
+
+            m_pTaskSystem->ScheduleTask( &m_copyUpdateCommands_RenderView );
+        }
 
         if ( m_updatePool_MeshInstance.m_numUpdateCommands )
         {
@@ -1072,7 +1286,7 @@ namespace EE::Render
             hasTransformUpdateCommands = true;
 
             m_copyUpdateCommands_PointLight.m_pSrcMemory = m_updatePool_PointLight.m_memoryPool.GetData();
-            m_copyUpdateCommands_PointLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::PointLightUpdateCommand*>( m_updateBuffers_PointLight[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
+            m_copyUpdateCommands_PointLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::PointLightTransformUpdateCommand*>( m_updateBuffers_PointLight[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
             m_copyUpdateCommands_PointLight.m_SetSize = m_updatePool_PointLight.m_numUpdateCommands;
             m_copyUpdateCommands_PointLight.m_MinRange = 1024;
 
@@ -1084,7 +1298,7 @@ namespace EE::Render
             hasTransformUpdateCommands = true;
 
             m_copyUpdateCommands_SpotLight.m_pSrcMemory = m_updatePool_SpotLight.m_memoryPool.GetData();
-            m_copyUpdateCommands_SpotLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::SpotLightUpdateCommand*>( m_updateBuffers_SpotLight[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
+            m_copyUpdateCommands_SpotLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::SpotLightTransformUpdateCommand*>( m_updateBuffers_SpotLight[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
             m_copyUpdateCommands_SpotLight.m_SetSize = m_updatePool_SpotLight.m_numUpdateCommands;
             m_copyUpdateCommands_SpotLight.m_MinRange = 1024;
 
@@ -1108,12 +1322,15 @@ namespace EE::Render
 
         alignas( 32 ) ShaderTypes::WorldUpdateConstants worldUpdateConstants = {};
         worldUpdateConstants.m_numInitializeCommands_MeshInstance = uint32_t( m_initializeCommands_MeshInstance.size() );
+        worldUpdateConstants.m_numInitializeCommands_PointLight = uint32_t( m_initializeCommands_PointLight.size() );
+        worldUpdateConstants.m_numInitializeCommands_SpotLight = uint32_t( m_initializeCommands_SpotLight.size() );
         worldUpdateConstants.m_numUpdateCommands_MeshInstanceRoot = m_updatePool_MeshInstanceRoot.m_numUpdateCommands;
         worldUpdateConstants.m_numUpdateCommands_MeshInstance = m_updatePool_MeshInstance.m_numUpdateCommands;
         worldUpdateConstants.m_numUpdateCommands_DirectionalLight = m_updatePool_DirectionalLight.m_numUpdateCommands;
         worldUpdateConstants.m_numUpdateCommands_PointLight = m_updatePool_PointLight.m_numUpdateCommands;
         worldUpdateConstants.m_numUpdateCommands_SpotLight = m_updatePool_SpotLight.m_numUpdateCommands;
         worldUpdateConstants.m_numUpdateCommands_SkinningTransform = m_updatePool_SkinningTransform.m_numUpdateCommands;
+        worldUpdateConstants.m_numUpdateCommands_RenderView = m_updatePool_RenderView.m_numUpdateCommands;
 
         Memory::CopyToWriteCombined( m_worldUpdateConstantBuffers[frameIndex]->m_pMappedAddress_WriteCombined, &worldUpdateConstants, sizeof( worldUpdateConstants ) );
 
@@ -1122,19 +1339,52 @@ namespace EE::Render
 
         if ( hasInitCommands )
         {
-            EE_ASSERT( ( m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer->m_size / m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer->m_stride ) >= m_initializeCommands_MeshInstance.size() );
+            if ( !m_initializeCommands_MeshInstance.empty() )
+            {
+                EE_ASSERT( ( m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer->m_size / m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer->m_stride ) >= m_initializeCommands_MeshInstance.size() );
 
-            m_copyInitializeCommands_MeshInstance.m_pSrcMemory = m_initializeCommands_MeshInstance.data();
-            m_copyInitializeCommands_MeshInstance.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::MeshInstanceInitializeCommand*>( m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
-            m_copyInitializeCommands_MeshInstance.m_SetSize = uint32_t( m_initializeCommands_MeshInstance.size() );
-            m_copyInitializeCommands_MeshInstance.m_MinRange = 1024;
+                m_copyInitializeCommands_MeshInstance.m_pSrcMemory = m_initializeCommands_MeshInstance.data();
+                m_copyInitializeCommands_MeshInstance.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::MeshInstanceInitializeCommand*>( m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
+                m_copyInitializeCommands_MeshInstance.m_SetSize = uint32_t( m_initializeCommands_MeshInstance.size() );
+                m_copyInitializeCommands_MeshInstance.m_MinRange = 1024;
 
-            m_pTaskSystem->ScheduleTask( &m_copyInitializeCommands_MeshInstance );
+                m_pTaskSystem->ScheduleTask( &m_copyInitializeCommands_MeshInstance );
+            }
+
+            if ( !m_initializeCommands_PointLight.empty() )
+            {
+                EE_ASSERT( ( m_initializeBuffers_PointLight[frameIndex].m_pBuffer->m_size / m_initializeBuffers_PointLight[frameIndex].m_pBuffer->m_stride ) >= m_initializeCommands_PointLight.size() );
+
+                m_copyInitializeCommands_PointLight.m_pSrcMemory = m_initializeCommands_PointLight.data();
+                m_copyInitializeCommands_PointLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::PointLightInitializeCommand*>( m_initializeBuffers_PointLight[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
+                m_copyInitializeCommands_PointLight.m_SetSize = uint32_t( m_initializeCommands_PointLight.size() );
+                m_copyInitializeCommands_PointLight.m_MinRange = 1024;
+
+                m_pTaskSystem->ScheduleTask( &m_copyInitializeCommands_PointLight );
+            }
+
+            if ( !m_initializeCommands_SpotLight.empty() )
+            {
+                EE_ASSERT( ( m_initializeBuffers_SpotLight[frameIndex].m_pBuffer->m_size / m_initializeBuffers_SpotLight[frameIndex].m_pBuffer->m_stride ) >= m_initializeCommands_SpotLight.size() );
+
+                m_copyInitializeCommands_SpotLight.m_pSrcMemory = m_initializeCommands_SpotLight.data();
+                m_copyInitializeCommands_SpotLight.m_pDstMemory_WriteCombined = static_cast<ShaderTypes::SpotLightInitializeCommand*>( m_initializeBuffers_SpotLight[frameIndex].m_pBuffer->m_pMappedAddress_WriteCombined );
+                m_copyInitializeCommands_SpotLight.m_SetSize = uint32_t( m_initializeCommands_SpotLight.size() );
+                m_copyInitializeCommands_SpotLight.m_MinRange = 1024;
+
+                m_pTaskSystem->ScheduleTask( &m_copyInitializeCommands_SpotLight );
+            }
+
+            uint32_t maxNumInitializeCommands = worldUpdateConstants.m_numInitializeCommands_MeshInstance;
+            maxNumInitializeCommands = Math::Max( maxNumInitializeCommands, worldUpdateConstants.m_numInitializeCommands_PointLight );
+            maxNumInitializeCommands = Math::Max( maxNumInitializeCommands, worldUpdateConstants.m_numInitializeCommands_SpotLight );
 
             ShaderTypes::WorldUpdateResourceTableData worldUpdateResourceTable = {};
             worldUpdateResourceTable.m_mode = 0;
 
             worldUpdateResourceTable.SetInitializeBuffer_MeshInstance( m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer );
+            worldUpdateResourceTable.SetInitializeBuffer_PointLight( m_initializeBuffers_PointLight[frameIndex].m_pBuffer );
+            worldUpdateResourceTable.SetInitializeBuffer_SpotLight( m_initializeBuffers_SpotLight[frameIndex].m_pBuffer );
 
             worldUpdateResourceTable.SetMeshInstanceBufferHandles( m_meshInstanceBufferHandles.m_pBuffer );
             worldUpdateResourceTable.SetDirectionalLightBuffer( m_directionalLightBuffer.m_pBuffer );
@@ -1144,18 +1394,22 @@ namespace EE::Render
             RHI::CmdSetPipeline( pCommandBuffer, m_pWorldUpdateShader->m_pPipeline );
             RHI::CmdSetRootConstants( pCommandBuffer, 0, &worldUpdateResourceTable, sizeof( worldUpdateResourceTable ) );
             RHI::CmdSetRootParameter( pCommandBuffer, 1, m_worldUpdateConstantBuffers[frameIndex], 0 );
-            RHI::CmdDispatchCompute( pCommandBuffer, ( worldUpdateConstants.m_numInitializeCommands_MeshInstance + 63 ) / 64, 1, 1 );
+            RHI::CmdDispatchCompute( pCommandBuffer, ( maxNumInitializeCommands + 63 ) / 64, 1, 1 );
             RHI::CmdBarrier( pCommandBuffer, RHI::PipelineStage::ComputeShader, RHI::PipelineStage::ComputeShader, RHI::ResourceAccess::UnorderedAccess, RHI::ResourceAccess::UnorderedAccess );
 
             //-------------------------------------------------------------------------
 
-            ShaderTypes::ClusterToInstanceUpdateResourceTableData clusterToInstanceUpdateResourceTable = {};
-            clusterToInstanceUpdateResourceTable.SetInitializeBuffer_MeshInstance( m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer );
-            clusterToInstanceUpdateResourceTable.SetClusterToInstanceBufferHandles( m_clusterToInstanceBufferHandles.m_pBuffer );
+            if ( !m_initializeCommands_MeshInstance.empty() )
+            {
+                ShaderTypes::ClusterToInstanceUpdateResourceTableData clusterToInstanceUpdateResourceTable = {};
+                clusterToInstanceUpdateResourceTable.SetInitializeBuffer_MeshInstance( m_initializeBuffers_MeshInstance[frameIndex].m_pBuffer );
+                clusterToInstanceUpdateResourceTable.SetClusterToInstanceBufferHandles( m_clusterToInstanceBufferHandles.m_pBuffer );
 
-            RHI::CmdSetPipeline( pCommandBuffer, m_pClusterToInstanceUpdateShader->m_pPipeline );
-            RHI::CmdSetRootConstants( pCommandBuffer, 0, &clusterToInstanceUpdateResourceTable, sizeof( clusterToInstanceUpdateResourceTable ) );
-            RHI::CmdDispatchCompute( pCommandBuffer, uint32_t( m_initializeCommands_MeshInstance.size() ), 1, 1 );
+                RHI::CmdSetPipeline( pCommandBuffer, m_pClusterToInstanceUpdateShader->m_pPipeline );
+                RHI::CmdSetRootConstants( pCommandBuffer, 0, &clusterToInstanceUpdateResourceTable, sizeof( clusterToInstanceUpdateResourceTable ) );
+                RHI::CmdDispatchCompute( pCommandBuffer, uint32_t( m_initializeCommands_MeshInstance.size() ), 1, 1 );
+            }
+
             RHI::CmdBarrier( pCommandBuffer, RHI::PipelineStage::ComputeShader, RHI::PipelineStage::AllShader, RHI::ResourceAccess::UnorderedAccess, RHI::ResourceAccess::ShaderResource );
         }
 
@@ -1173,6 +1427,7 @@ namespace EE::Render
             worldUpdateResourceTable.SetUpdateBuffer_PointLight( m_updateBuffers_PointLight[frameIndex].m_pBuffer );
             worldUpdateResourceTable.SetUpdateBuffer_SpotLight( m_updateBuffers_SpotLight[frameIndex].m_pBuffer );
             worldUpdateResourceTable.SetUpdateBuffer_SkinningTransform( m_updateBuffers_SkinningTransform[frameIndex].m_pBuffer );
+            worldUpdateResourceTable.SetUpdateBuffer_RenderView( m_updateBuffers_RenderView[frameIndex].m_pBuffer );
 
             worldUpdateResourceTable.SetSkinningTransformBuffer( m_skinningTransformBuffer.m_pBuffer );
             worldUpdateResourceTable.SetMeshInstanceRootBuffer( m_meshInstanceRootBuffer.m_pBuffer );
@@ -1180,6 +1435,7 @@ namespace EE::Render
             worldUpdateResourceTable.SetDirectionalLightBuffer( m_directionalLightBuffer.m_pBuffer );
             worldUpdateResourceTable.SetPointLightBuffer( m_pointLightBuffer.m_pBuffer );
             worldUpdateResourceTable.SetSpotLightBuffer( m_spotLightBuffer.m_pBuffer );
+            worldUpdateResourceTable.SetRenderViewBuffer( m_renderViewBuffer.m_pBuffer );
 
             uint32_t maxNumUpdateCommands = Math::Max
             (
@@ -1190,6 +1446,7 @@ namespace EE::Render
             maxNumUpdateCommands = Math::Max( maxNumUpdateCommands, worldUpdateConstants.m_numUpdateCommands_SpotLight );
             maxNumUpdateCommands = Math::Max( maxNumUpdateCommands, worldUpdateConstants.m_numUpdateCommands_MeshInstanceRoot );
             maxNumUpdateCommands = Math::Max( maxNumUpdateCommands, worldUpdateConstants.m_numUpdateCommands_SkinningTransform );
+            maxNumUpdateCommands = Math::Max( maxNumUpdateCommands, worldUpdateConstants.m_numUpdateCommands_RenderView );
 
             RHI::CmdSetPipeline( pCommandBuffer, m_pWorldUpdateShader->m_pPipeline );
             RHI::CmdSetRootConstants( pCommandBuffer, 0, &worldUpdateResourceTable, sizeof( worldUpdateResourceTable ) );
@@ -1197,13 +1454,17 @@ namespace EE::Render
             RHI::CmdDispatchCompute( pCommandBuffer, ( maxNumUpdateCommands + 63 ) / 64, 1, 1 );
 
             RHI::CmdBarrier( pCommandBuffer, RHI::PipelineStage::ComputeShader, RHI::PipelineStage::AllShader, RHI::ResourceAccess::UnorderedAccess, RHI::ResourceAccess::ShaderResource );
+        }
 
+        if ( hasTransformUpdateCommands )
+        {
             m_updatePool_MeshInstanceRoot.Submit();
             m_updatePool_MeshInstance.Submit();
             m_updatePool_DirectionalLight.Submit();
             m_updatePool_PointLight.Submit();
             m_updatePool_SpotLight.Submit();
             m_updatePool_SkinningTransform.Submit();
+            m_updatePool_RenderView.Submit();
         }
 
         //-------------------------------------------------------------------------
@@ -1257,16 +1518,31 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         m_pTaskSystem->WaitForTask( &m_copyInitializeCommands_MeshInstance );
+        m_pTaskSystem->WaitForTask( &m_copyInitializeCommands_PointLight );
+        m_pTaskSystem->WaitForTask( &m_copyInitializeCommands_SpotLight );
         m_pTaskSystem->WaitForTask( &m_copyUpdateCommands_MeshInstanceRoot );
         m_pTaskSystem->WaitForTask( &m_copyUpdateCommands_MeshInstance );
         m_pTaskSystem->WaitForTask( &m_copyUpdateCommands_DirectionalLight );
         m_pTaskSystem->WaitForTask( &m_copyUpdateCommands_PointLight );
         m_pTaskSystem->WaitForTask( &m_copyUpdateCommands_SpotLight );
         m_pTaskSystem->WaitForTask( &m_copyUpdateCommands_SkinningTransform );
+        m_pTaskSystem->WaitForTask( &m_copyUpdateCommands_RenderView );
 
         Memory::WriteCombinedBarrier();
 
         m_initializeCommands_MeshInstance.clear();
+        m_initializeCommands_PointLight.clear();
+        m_initializeCommands_SpotLight.clear();
+    }
+
+    RHI::Buffer* DeviceRenderWorld::GetRenderViewBuffer() const
+    {
+        return m_renderViewBuffer.m_pBuffer;
+    }
+
+    RHI::BufferHandle DeviceRenderWorld::GetRenderViewBufferHandle() const
+    {
+        return RHI::GetBufferHandle( m_renderViewBuffer.m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
 
     RHI::BufferHandle DeviceRenderWorld::GetMeshInstanceRootPageBufferHandle( uint32_t frameIndex ) const

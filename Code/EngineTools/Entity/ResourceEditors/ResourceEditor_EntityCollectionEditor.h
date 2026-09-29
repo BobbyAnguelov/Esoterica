@@ -4,6 +4,7 @@
 #include "EngineTools/Entity/EntityEditor/EntityEditor_Context.h"
 #include "EngineTools/Entity/EntityEditor/EntityEditor_Outliner.h"
 #include "EngineTools/Entity/EntityEditor/EntityEditor_EntityInspector.h"
+#include "EngineTools/Entity/EntityEditor/EntityEditor_ComponentTools.h"
 #include "Engine/Imgui/ImguiGizmo.h"
 #include "Engine/Entity/EntityDescriptors.h"
 
@@ -55,6 +56,8 @@ namespace EE::EntityModel
         EditorContext                                   m_editorContext;
         TVector<ViewportResourceDropHandler const*>     m_pViewportDropHandlers;
         EventBindingID                                  m_selectionChangedEventID;
+
+        ComponentToolsManager*                          m_pComponentToolsManager = nullptr;
 
         ImGuiX::Gizmo                                   m_gizmo;
         EntityOutliner                                  m_outliner;

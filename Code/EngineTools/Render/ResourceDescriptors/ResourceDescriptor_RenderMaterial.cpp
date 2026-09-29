@@ -1,17 +1,19 @@
 ﻿
 #include "ResourceDescriptor_RenderMaterial.h"
-
-#include "Base/Imgui/ImguiFilteredCombo.h"
+#include "Base/Imgui/ImguiInputs.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/TypeSystem/TypeInfo.h"
 #include "Engine/Render/RenderSystem.h"
 #include "EngineTools/PropertyGrid/PropertyGridEditor.h"
 #include "EngineTools/Core/ToolsContext.h"
+#include "EASTL/sort.h"
+
+//-------------------------------------------------------------------------
 
 namespace EE::Render
 {
-    class SurfaceShaderPicker final : public PG::PropertyEditor, public ImGuiX::ComboWithFilterWidget<StringID>
+    class SurfaceShaderPicker final : public PG::PropertyEditor
     {
     public:
 
@@ -20,6 +22,29 @@ namespace EE::Render
         SurfaceShaderPicker( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, IReflectedType* pTypeInstance, void* pPropertyInstance )
             : PropertyEditor( context, propertyInfo, pTypeInstance, pPropertyInstance )
         {
+            auto OptionsProviderFn = [this] ( TVector<ImGuiX::OptionData::Option>& options )
+            {
+                RenderSystem const* pRenderSystem = m_context.m_pToolsContext->m_pSystemRegistry->GetSystem<RenderSystem>();
+                TVector<MaterialShader> const& materialShaders = pRenderSystem->GetMaterialShaders();
+
+                options.reserve( materialShaders.size() );
+                for ( MaterialShader const& shaderInstance : materialShaders )
+                {
+                    if ( !shaderInstance.m_showInResourceEditor )
+                    {
+                        continue;
+                    }
+
+                    options.emplace_back( shaderInstance.m_shaderName.c_str() );
+                }
+
+                eastl::sort( options.begin(), options.end() );
+            };
+
+            m_optionData.SetOptionProvider( OptionsProviderFn );
+
+            //-------------------------------------------------------------------------
+
             SurfaceShaderPicker::ResetWorkingCopy();
         }
 
@@ -27,7 +52,13 @@ namespace EE::Render
 
         virtual void UpdatePropertyValue() override
         {
-            StringID const newValue = HasValidSelection() ? GetSelectedOption()->m_value : StringID();
+            StringID newValue;
+            auto pSelectedOption = m_optionData.TryGetOption( m_selectedOptionID );
+            if ( pSelectedOption != nullptr )
+            {
+                newValue = StringID( pSelectedOption->m_text );
+            }
+
             if ( m_valueCached == newValue )
             {
                 return;
@@ -56,7 +87,6 @@ namespace EE::Render
         virtual void ResetWorkingCopy() override
         {
             m_valueCached = *static_cast<StringID*>( m_pPropertyInstance );
-            SetSelectedOption( m_valueCached );
         }
 
         virtual void HandleExternalUpdate() override
@@ -65,37 +95,31 @@ namespace EE::Render
             if ( *pShaderID != m_valueCached )
             {
                 m_valueCached = *pShaderID;
-                SetSelectedOption( m_valueCached );
             }
         }
 
         virtual Result InternalUpdateAndDraw() override
         {
-            return ImGuiX::ComboWithFilterWidget<StringID>::DrawAndUpdate() ? Result::ValueUpdatedAndGridNeedsRebuild : Result::None;
-        }
-
-        virtual void PopulateOptionsList() override
-        {
-            RenderSystem const* pRenderSystem = m_context.m_pToolsContext->m_pSystemRegistry->GetSystem<RenderSystem>();
-            TVector<MaterialShader> const& materialShaders = pRenderSystem->GetMaterialShaders();
-
-            m_options.reserve( materialShaders.size() );
-            for ( MaterialShader const& shaderInstance : materialShaders )
+            m_selectedOptionID.Clear();
+            if ( m_valueCached.IsValid() )
             {
-                if ( !shaderInstance.m_showInResourceEditor )
-                {
-                    continue;
-                }
-
-                Option& option = m_options.emplace_back();
-                option.m_label = shaderInstance.m_shaderName.c_str();
-                option.m_value = shaderInstance.m_shaderName;
+                m_selectedOptionID = m_optionData.FindItemIDByText( m_valueCached.c_str() );
             }
+
+            ImGui::SetNextItemWidth( -1 );
+            return ImGuiX::ComboWithFilter( "SSP", &m_optionData, m_selectedOptionID ) ? Result::ValueUpdatedAndGridNeedsRebuild : Result::None;
         }
+
+        SurfaceShaderPicker( SurfaceShaderPicker const& ) = delete;
+        SurfaceShaderPicker( SurfaceShaderPicker&& ) = delete;
+        SurfaceShaderPicker& operator=( SurfaceShaderPicker const& ) = delete;
+        SurfaceShaderPicker& operator=( SurfaceShaderPicker&& ) = delete;
 
     private:
 
-        StringID m_valueCached;
+        StringID                    m_valueCached;
+        ImGuiX::OptionData          m_optionData;
+        UUID                        m_selectedOptionID;
     };
 
     //-------------------------------------------------------------------------

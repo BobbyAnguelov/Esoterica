@@ -1,9 +1,9 @@
 #pragma once
 
 #include "Engine/_Module/API.h"
-#include "Base/Imgui/ImguiX.h"
 #include "Base/Logging/SystemLog.h"
 #include "Base/Utils/CategoryTree.h"
+#include "Base/Imgui/ImguiFilter.h"
 
 //-------------------------------------------------------------------------
 
@@ -53,7 +53,7 @@ namespace EE
 
     private:
 
-        ImGuiX::FilterWidget                                m_filterWidget;
+        ImGuiX::FilterData                                  m_filter;
         TVector<SystemLog::Entry const*>                    m_tempBuffer;
         TVector<SystemLog::Entry>                           m_filteredEntries;
         int32_t                                             m_lastReflectedEntryIdx = 0;

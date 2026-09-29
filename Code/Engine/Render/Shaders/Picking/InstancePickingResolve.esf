@@ -13,10 +13,10 @@ EE_DECLARE_ROOT_CBV( GlobalParameters, b0, space0 );
 [numthreads( 64, 1, 1 )]
 void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, uint3 dispatchThreadID : SV_DispatchThreadID )
 {
-    RWBuffer<uint>                      instancePickingDistancesBuffer  = GetBuffer( RootCBV.m_instancePickingDistancesBuffer );   
+    RWByteAddressBuffer                 instancePickingDistancesBuffer  = GetBuffer( RootCBV.m_instancePickingDistancesBuffer );   
     AppendBuffer<PickingResult>         pickingResultsBuffer            = CreateAppendBuffer<PickingResult>( RootCBV.m_instancePickingResultsBuffer );
 
-    Buffer<uint64_t>                    meshInstanceRootPageBuffer      = GetBuffer( RootCBV.m_meshInstanceRootPageBuffer );
+    StructuredBuffer<uint64_t>          meshInstanceRootPageBuffer      = GetBuffer( RootCBV.m_meshInstanceRootPageBuffer );
 
     uint64_t meshInstanceRootPage = meshInstanceRootPageBuffer[groupID];
     uint64_t meshInstanceRootPageMask = ( 1ULL << groupThreadID );
@@ -25,7 +25,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
     {
         const uint meshInstanceRootIndex = dispatchThreadID.x;
 
-        uint instanceDistance = instancePickingDistancesBuffer[meshInstanceRootIndex];
+        uint instanceDistance = instancePickingDistancesBuffer.Load( meshInstanceRootIndex * 4 );
 
         if ( instanceDistance < asuint( 1.5E+10 ) )
         {

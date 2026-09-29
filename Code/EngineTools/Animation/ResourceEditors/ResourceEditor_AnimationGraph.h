@@ -12,7 +12,7 @@
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
 #include "Engine/Imgui/ImguiGizmo.h"
 #include "Base/Utils/CategoryTree.h"
-#include "Base/Imgui/ImguiFilteredCombo.h"
+#include "Base/Imgui/ImguiInputs.h"
 
 //-------------------------------------------------------------------------
 
@@ -114,22 +114,26 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
-        class IDComboWidget : public ImGuiX::ComboWithFilterWidget<StringID>
+        class IDOptionData : public ImGuiX::OptionData
         {
-
         public:
 
-            IDComboWidget( AnimationGraphEditor* pGraphEditor );
-            IDComboWidget( AnimationGraphEditor* pGraphEditor, IDControlParameterToolsNode* pControlParameter );
+            IDOptionData( AnimationGraphEditor* pGraphEditor );
+            IDOptionData( AnimationGraphEditor* pGraphEditor, IDControlParameterToolsNode* pControlParameter );
 
         private:
 
-            virtual void PopulateOptionsList() override;
+            void GenerateOptions( TVector<ImGuiX::OptionData::Option>& options );
+
+            IDOptionData( IDOptionData const& ) = delete;
+            IDOptionData( IDOptionData&& ) = delete;
+            IDOptionData& operator=( IDOptionData const& ) = delete;
+            IDOptionData& operator=( IDOptionData&& ) = delete;
 
         private:
 
-            AnimationGraphEditor*                       m_pGraphEditor = nullptr;
-            IDControlParameterToolsNode*    m_pControlParameter = nullptr;
+            AnimationGraphEditor*               m_pGraphEditor = nullptr;
+            IDControlParameterToolsNode*        m_pControlParameter = nullptr;
         };
 
         //-------------------------------------------------------------------------
@@ -602,14 +606,14 @@ namespace EE::Animation
         // Navigation
         TVector<NavigationTarget>                                           m_navigationTargetNodes;
         TVector<NavigationTarget>                                           m_navigationActiveTargetNodes;
-        ImGuiX::FilterWidget                                                m_navigationFilter;
+        ImGuiX::FilterData                                                  m_navigationFilter;
         bool                                                                m_navigationDialogSearchesPaths = false;
 
         // Rename Dialog State
-        IDComboWidget                                                       m_oldIDWidget;
-        char                                                                m_oldIDBuffer[256] = { 0 };
-        IDComboWidget                                                       m_newIDWidget;
-        char                                                                m_newIDBuffer[256] = { 0 };
+        ImGuiX::TextBuffer                                                  m_oldIDBuffer;
+        IDOptionData                                                        m_oldIDOptionData;
+        ImGuiX::TextBuffer                                                  m_newIDBuffer;
+        IDOptionData                                                        m_newIDOptionData;
 
         // Compilation Log
         TVector<NodeCompilationLogEntry>                                    m_compilationLog;
@@ -626,9 +630,10 @@ namespace EE::Animation
         TVector<ControlParameterPreviewState*>                              m_previewParameterStates;
         CategoryTree<ControlParameterPreviewState*>                         m_previewParameterGroupTree;
         TargetControlParameterToolsNode*                                    m_pSelectedTargetControlParameter = nullptr;
+        ImGuiX::OptionData                                                  m_parameterGroupOptionData;
 
         // Outliner
-        ImGuiX::FilterWidget                                                m_outlinerFilterWidget;
+        ImGuiX::FilterData                                                  m_outlinerFilter;
         TreeListView                                                        m_outlinerTreeView;
         TreeListViewContext                                                 m_outlinerTreeContext;
 
@@ -640,7 +645,7 @@ namespace EE::Animation
         EventBindingID                                                      m_variationDataPropertyGridPreEditEventBindingID;
         EventBindingID                                                      m_variationDataPropertyGridPostEditEventBindingID;
         UUID                                                                m_selectedVariationDataNode;
-        ImGuiX::FilterWidget                                                m_variationEditorFilter;
+        ImGuiX::FilterData                                                  m_variationEditorFilter;
         TreeListView                                                        m_variationTreeView;
         TreeListViewContext                                                 m_variationTreeContext;
         TVector<TPair<VariationDataToolsNode*, bool>>                       m_variationRequests;

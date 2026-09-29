@@ -26,13 +26,15 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
 
         float4                          m_renderTargetSize;
         
-        RenderViewFlags                 m_renderViewFlags               : 2;
+        RenderViewFlags                 m_renderViewFlags               : 3;
         RenderViewLayerFlags            m_renderViewLayerFlags          : 8;
-        uint                            m_padding                       : 22;
+        uint                            m_padding                       : 21;
     
         float                           m_projectionP00;
         float                           m_projectionP11;
         float                           m_znear;
+
+        float4                          m_shadowLightSphere;
 
         #ifndef __cplusplus
 
@@ -79,7 +81,11 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
             float4 P6 = P4 + SY;
             float4 P7 = P6 + SZ;
 
-            if ( min( P0.w, min( P1.w, min( P2.w, min( P3.w, min( P4.w, min( P5.w, min( P6.w, P7.w ) ) ) ) ) ) ) < m_znear ) { aabb = 0.0.xxxx; return false; }
+            if ( min( P0.w, min( P1.w, min( P2.w, min( P3.w, min( P4.w, min( P5.w, min( P6.w, P7.w ) ) ) ) ) ) ) < m_znear )
+            {
+                aabb = 0.0.xxxx;
+                return false;
+            }
 
             P0.xy /= P0.w;
             P1.xy /= P1.w;
@@ -104,7 +110,10 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         {
             c.z = -c.z; 
 
-            if ( c.z < r + m_znear ) { return false; }
+            if ( c.z < r + m_znear )
+            {
+                return false;
+            }
 
             float3 cr = c * r;
             float czr2 = c.z * c.z - r * r;
@@ -146,6 +155,13 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
             }
         }
         return true;
+    }
+
+    bool IsSphereVisible( float3 aabbCenter, float3 aabbHalfExtents, float3 sphereCenter, float sphereRadius )
+    {
+        float3 const centerToSphere = aabbCenter - sphereCenter;
+        float const combinedRadius = sphereRadius + length( aabbHalfExtents );
+        return dot( centerToSphere, centerToSphere ) <= ( combinedRadius * combinedRadius );
     }
 #endif
 
@@ -193,7 +209,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
 
     // 16-byte row
         float3                          m_cameraUpDirection;
-        uint                            m_numRenderViews;
+        uint                            m_numActiveRenderViews;
 
     // 16-byte row
         float3                          m_cameraRightDirection;
@@ -211,7 +227,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         uint                            m_renderViewBuffer                  : 16;
 
         uint                            m_meshInstanceRootBuffer            : 16;
-        uint                            m_cascadedShadowBuffer              : 16;
+        uint                            m_renderViewIndirectionBuffer       : 16;
 
         uint                            m_skinningTransformBuffer           : 16;
         uint                            m_renderBucketBuffer                : 16;
@@ -223,10 +239,11 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         uint                            m_dfgTexture                        : 16;
 
         uint                            m_radianceTexture                   : 16;
-        uint                            m_irradianceTexture                 : 16;
+        uint                            m_shCoefficientsBuffer              : 16;
 
         float                           m_radianceTextureMipLevels;
-        uint                            m_paddingTextures;
+        uint                            m_pointShadowResolution             : 16;
+        uint                            m_spotShadowResolution              : 16;
 
     // 16-byte row
         uint                            m_directionalLightBuffer            : 16;
@@ -275,11 +292,23 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         uint                            m_paddingEditor0;
 
     // 16-byte row
+        float                           m_directionalShadowNormalOffsetScale;
+        float                           m_spotShadowNormalOffsetScale;
+        float                           m_pointShadowNormalOffsetScale;
+        float                           m_paddingShadowBias0;
+
+    // 16-byte row
+        float                           m_directionalShadowDepthBias;
+        float                           m_spotShadowDepthBias;
+        float                           m_pointShadowDepthBias;
+        float                           m_paddingShadowBias1;
+
+    // 16-byte row
         uint64_t                        m_deviceAddress;
         uint64_t                        m_paddingDeviceAddress;
     };
 
-    HLSL_STATIC_ASSERT( sizeof( GlobalParameters ) == 224, "Constant buffer must be a multiple of 16 bytes in C++ and HLSL" );
+    HLSL_STATIC_ASSERT( sizeof( GlobalParameters ) == 256, "Constant buffer must be a multiple of 16 bytes in C++ and HLSL" );
 
     // RootConstants
     //-------------------------------------------------------------------------
@@ -483,26 +512,6 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
                                         "RootConstants( b0, num32BitConstants = 6, space = 0 )," \
                                         "CBV( b1, space = 0 )"
 
-    // Shadows
-    //-------------------------------------------------------------------------
-
-    struct HLSL_ALIGN_STRUCT CascadedShadow
-    {
-        float4x4                            m_shadowMatrix;
-
-        float4                              m_cascadeOffsets[4];
-        float4                              m_cascadeScales[4];
-        float4                              m_cascadeSize;
-
-        TextureHandle                       m_shadowCascades;
-        uint16_t                            m_padding0;
-
-        uint                                m_padding1;
-        uint4                               m_padding2;
-        uint4                               m_padding3;
-        uint2                               m_padding4;
-    };
-
     // Lights
     //-------------------------------------------------------------------------
 
@@ -510,16 +519,24 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     {
         float                               m_maxIntensity;         // Peak intensity (no distance falloff for directional)
 
-        float3                              m_lightDirection;
+        float3                              m_lightDirection;       // Towards the light
         uint                                m_packedTintedColor;    // RGBA8888 = KelvinToRGB(temperature) + tint, use UnpackColor()
 
-        uint16_t                            m_cascadedShadowIndex;
-        uint16_t                            m_padding;
-        uint                                m_padding0;
+        TextureHandle                       m_shadowCascades;
+        uint16_t                            m_padding0;
         uint                                m_padding1;
+        uint                                m_padding2;
+
+        float4x4                            m_shadowMatrix;
+
+        float4                              m_cascadeOffsets[4];
+        float4                              m_cascadeScales[4];
+        float4                              m_cascadeSize;
+
+        float4                              m_cascadeTexelWorldSize;
     };
 
-    HLSL_STATIC_ASSERT( sizeof( LightInstance_DirectionalLight ) == 32, "Expected exactly 32 bytes" );
+    HLSL_STATIC_ASSERT( sizeof( LightInstance_DirectionalLight ) == 256, "Expected exactly 256 bytes" );
 
     struct HLSL_ALIGN_STRUCT LightInstance_PointLight
     {
@@ -530,8 +547,8 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         float                               m_falloff;
         uint                                m_packedTintedColor;
 
-        uint16_t                            m_shadowMapHandle;
-        uint16_t                            m_padding;
+        TextureHandle                       m_shadowMapHandle;
+        uint16_t                            m_shadowResolutionBits;
     };
 
     HLSL_STATIC_ASSERT( sizeof( LightInstance_PointLight ) == 32, "Expected exactly 32 bytes" );
@@ -548,14 +565,89 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         float                               m_outerConeAngle;
         uint                                m_packedTintedColor;
 
-        uint16_t                            m_shadowMapHandle;
-        uint16_t                            m_padding0;
+        TextureHandle                       m_shadowMapHandle;
+        uint16_t                            m_shadowResolutionBits;
+
+        float                               m_shadowTangent;
+
+        uint                                m_padding0;
         uint                                m_padding1;
-        uint                                m_padding2;
-        uint                                m_padding3;
+
+        float4x4                            m_shadowMatrix;
     };
 
-    HLSL_STATIC_ASSERT( sizeof( LightInstance_SpotLight ) == 64, "Expected exactly 64 bytes" );
+    HLSL_STATIC_ASSERT( sizeof( LightInstance_SpotLight ) == 128, "Expected exactly 128 bytes" );
+
+    //-------------------------------------------------------------------------
+
+    static const float PUNCTUAL_SHADOW_NEAR_PLANE_FRACTION = 0.005F;   // of the light's radius
+    static const float PUNCTUAL_SHADOW_NEAR_PLANE_MINIMUM = 0.001F;
+
+    inline float PunctualShadowNearPlane( float maxRadius )
+    {
+        float const scaledNearPlane = maxRadius * PUNCTUAL_SHADOW_NEAR_PLANE_FRACTION;
+        return ( PUNCTUAL_SHADOW_NEAR_PLANE_MINIMUM > scaledNearPlane ) ? PUNCTUAL_SHADOW_NEAR_PLANE_MINIMUM : scaledNearPlane;
+    }
+
+    inline float PunctualShadowFarPlane( float maxRadius )
+    {
+        float const nearPlane = PunctualShadowNearPlane( maxRadius );
+        return ( maxRadius > nearPlane * 2.0F ) ? maxRadius : nearPlane * 2.0F;
+    }
+
+    inline float PunctualShadowTexelSize( float halfFOVTangent, uint32_t resolution )
+    {
+        return ( resolution > 0 ) ? ( 2.0F * halfFOVTangent / float( resolution ) ) : 0.0F;
+    }
+
+    //-------------------------------------------------------------------------
+
+    static const uint   g_OctahedralShadowNumFaces          = 8;
+    static const float  g_OctahedralShadowInverseSqrt3      = 0.57735026919F;
+    static const float  g_OctahedralShadowHalfFOVTangent    = 2.4494897427831781F;    // sqrt( 6 )
+
+    #ifndef __cplusplus
+    float3 OctahedralShadowFaceSigns( uint faceIndex )
+    {
+        return float3
+        (
+            ( ( faceIndex & 1 ) != 0 ) ? -1.0 : 1.0,
+            ( ( faceIndex & 2 ) != 0 ) ? -1.0 : 1.0,
+            ( ( faceIndex & 4 ) != 0 ) ? -1.0 : 1.0
+        );
+    }
+
+    float4 ProjectOctahedralShadowFacePosition( uint faceIndex, float3 lightPosition, float3 worldPosition, float nearPlane, float farPlane )
+    {
+        float3 const signs          = OctahedralShadowFaceSigns( faceIndex );
+        float3 const lightVector    = worldPosition - lightPosition;
+
+        float const fold        = ( signs.z < 0.0 ) ? 1.0 : 0.0;
+        float const numeratorXZ = fold * signs.x * signs.z;
+        float const numeratorYZ = fold * signs.y * signs.z;
+
+        float const depthScale  = nearPlane / ( farPlane - nearPlane );
+        float const depthOffset = nearPlane * farPlane / ( farPlane - nearPlane );
+        float const axisDepth   = g_OctahedralShadowInverseSqrt3 * dot( signs, lightVector );
+
+        return float4
+        (
+            g_OctahedralShadowInverseSqrt3 * ( lightVector.x + numeratorXZ * lightVector.z ),
+            -g_OctahedralShadowInverseSqrt3 * ( lightVector.y + numeratorYZ * lightVector.z ),
+            depthOffset - depthScale * axisDepth,
+            axisDepth
+        );
+    }
+
+    float3 ComputeOctahedralShadowClipDistances( uint faceIndex, float3 lightPosition, float3 worldPosition )
+    {
+        float3 const signs = OctahedralShadowFaceSigns( faceIndex );
+        float3 const lightVector = worldPosition - lightPosition;
+
+        return float3( signs.x * lightVector.x, signs.y * lightVector.y, signs.z * lightVector.z );
+    }
+
+    #endif
 
 EE_END_SHADER_TYPES_NAMESPACE
 
@@ -570,6 +662,13 @@ EE_END_SHADER_TYPES_NAMESPACE
         float3  m_worldNormal           : TEXCOORD1;
         float4  m_uv                    : TEXCOORD2;
         float4  m_color                 : TEXCOORD3;
+    };
+
+    struct MeshVertexOutput : VertexOutput
+    {
+        float   m_clipDistance0         : SV_ClipDistance0;
+        float   m_clipDistance1         : SV_ClipDistance1;
+        float   m_clipDistance2         : SV_ClipDistance2;
     };
 
     struct PrimitiveOutputFlags

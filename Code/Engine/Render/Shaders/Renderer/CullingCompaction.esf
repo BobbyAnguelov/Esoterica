@@ -19,7 +19,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
     StructuredBuffer<MeshInstance>              meshInstanceBuffer          = GetBuffer( RootConstants.m_instanceBuffer );
     StructuredBuffer<uint64_t>                  instanceVisibilityBuffer    = GetBuffer( RootConstants.m_instanceVisibilityBuffer );
     RWStructuredBuffer<ClusterCullingWorkEntry> cullingWorkBuffer           = GetRWBuffer( RootConstants.m_cullingWorkBuffer );
-    RWBuffer<uint>                              workCounterBuffer           = GetRWBuffer( RootConstants.m_workCounterBuffer );
+    RWByteAddressBuffer                         workCounterBuffer           = GetRWBuffer( RootConstants.m_workCounterBuffer );
 
     //-------------------------------------------------------------------------
 
@@ -45,11 +45,14 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
     uint workBufferBase = 0;
     if ( numClusters > 0 )
     {
-        InterlockedAdd( workCounterBuffer[0], numClusters, workBufferBase );
+        workCounterBuffer.InterlockedAdd( 0, numClusters, workBufferBase );
     }
 
     for ( uint localClusterIndex = 0; localClusterIndex < numClusters; ++localClusterIndex )
     {
-        cullingWorkBuffer[workBufferBase + localClusterIndex].m_clusterIndex = clusterToInstanceBase + localClusterIndex;
+        ClusterCullingWorkEntry workEntry = ( ClusterCullingWorkEntry )0;
+        workEntry.m_clusterIndex = clusterToInstanceBase + localClusterIndex;
+
+        cullingWorkBuffer[workBufferBase + localClusterIndex] = workEntry;
     }
 }

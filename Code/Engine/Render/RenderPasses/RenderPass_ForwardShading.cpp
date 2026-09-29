@@ -2,6 +2,7 @@
 #include "RenderPass_ForwardShading.h"
 #include "Base/Render/RHI.h"
 #include "Base/Render/RenderWindow.h"
+#include "Engine/Entity/EntityWorld.h"
 #include "Engine/Render/RenderViewport.h"
 #include "Engine/Render/RenderSystem.h"
 #include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
@@ -157,8 +158,9 @@ namespace EE::Render
     void ForwardShadingPass::DrawMaterialShaderBuckets_DepthOnly
     (
         TArrayView<ForwardShadingMaterialShaderPipelineBucket const> materialShaderBuckets,
-        DeviceRenderView const&                                      renderView,
+        ActiveRenderView const&                                      renderView,
         RHI::Texture*                                                pDepthTexture,
+        uint32_t                                                     depthTargetSlice,
         RHI::CommandBuffer*                                          pCommandBuffer
     )
     {
@@ -167,7 +169,7 @@ namespace EE::Render
         RHI::LoadAction depthOnlyLoadAction = {};
         depthOnlyLoadAction.m_loadActionDepth = RHI::LoadActionType::Clear;
 
-        RHI::CmdSetRenderTargets( pCommandBuffer, {}, pDepthTexture, &depthOnlyLoadAction );
+        RHI::CmdSetRenderTargets( pCommandBuffer, {}, pDepthTexture, &depthOnlyLoadAction, {}, {}, depthTargetSlice );
 
         // Depth only pass
         //-------------------------------------------------------------------------
@@ -178,7 +180,7 @@ namespace EE::Render
         {
             ForwardShadingMaterialShaderPipelineBucket const& shaderPipelineBucket = materialShaderBuckets[shaderIndex];
 
-            DeviceRenderViewBucket const& renderViewBucket = renderView.m_renderViewBuckets[shaderIndex];
+            ActiveRenderViewBucket const& renderViewBucket = renderView.m_renderViewBuckets[shaderIndex];
             uint32_t const bucketIndirectCommandCapacity = uint32_t( renderViewBucket.m_opaqueBucket.m_drawArgumentBuffer.m_pBuffer->m_size / sizeof( ShaderTypes::DrawArgument ) );
 
             {
@@ -187,7 +189,8 @@ namespace EE::Render
                 RHI::CmdSetPipeline( pCommandBuffer, isLowPrecisionDepth ? shaderPipelineBucket.m_pDepthOnlyPipeline_LowPrecision : shaderPipelineBucket.m_pDepthOnlyPipeline );
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
                 {
-                    MaterialShaderRenderBucket const& renderBucket = renderViewBucket.m_opaqueBucket;
+                    ActiveRenderViewMaterialShaderBucket const& renderBucket = renderViewBucket.m_opaqueBucket;
+
                     RHI::CmdExecuteIndirect
                     (
                         pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
@@ -203,7 +206,8 @@ namespace EE::Render
                 RHI::CmdSetPipeline( pCommandBuffer, isLowPrecisionDepth ? shaderPipelineBucket.m_pDepthOnlyAlphaTestPipeline_LowPrecision : shaderPipelineBucket.m_pDepthOnlyAlphaTestPipeline );
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
                 {
-                    MaterialShaderRenderBucket const& renderBucket = renderViewBucket.m_alphaTestBucket;
+                    ActiveRenderViewMaterialShaderBucket const& renderBucket = renderViewBucket.m_alphaTestBucket;
+
                     RHI::CmdExecuteIndirect
                     (
                         pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
@@ -220,7 +224,7 @@ namespace EE::Render
     void ForwardShadingPass::DrawMaterialShaderBuckets_OutlineID
     (
         TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
-        DeviceRenderView const&                                         renderView,
+        ActiveRenderView const&                                         renderView,
         RHI::Texture*                                                   pObjectIDTexture,
         RHI::Texture*                                                   pDepthTexture,
         RHI::CommandBuffer*                                             pCommandBuffer
@@ -243,7 +247,7 @@ namespace EE::Render
                 continue;
             }
 
-            DeviceRenderViewBucket const& renderViewBucket = renderView.m_renderViewBuckets[shaderIndex];
+            ActiveRenderViewBucket const& renderViewBucket = renderView.m_renderViewBuckets[shaderIndex];
             uint32_t const bucketIndirectCommandCapacity = uint32_t( renderViewBucket.m_opaqueBucket.m_drawArgumentBuffer.m_pBuffer->m_size / sizeof( ShaderTypes::DrawArgument ) );
 
             {
@@ -252,7 +256,8 @@ namespace EE::Render
                 RHI::CmdSetPipeline( pCommandBuffer, shaderPipelineBucket.m_pOutlinePipeline );
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
                 {
-                    MaterialShaderRenderBucket const& renderBucket = renderViewBucket.m_opaqueBucket;
+                    ActiveRenderViewMaterialShaderBucket const& renderBucket = renderViewBucket.m_opaqueBucket;
+
                     RHI::CmdExecuteIndirect
                     (
                         pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
@@ -268,7 +273,8 @@ namespace EE::Render
                 RHI::CmdSetPipeline( pCommandBuffer, shaderPipelineBucket.m_pOutlinePipeline );
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
                 {
-                    MaterialShaderRenderBucket const& renderBucket = renderViewBucket.m_alphaTestBucket;
+                    ActiveRenderViewMaterialShaderBucket const& renderBucket = renderViewBucket.m_alphaTestBucket;
+
                     RHI::CmdExecuteIndirect
                     (
                         pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
@@ -285,7 +291,7 @@ namespace EE::Render
     void ForwardShadingPass::DrawMaterialShaderBuckets_Shading
     (
         TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
-        DeviceRenderView const&                                         renderView,
+        ActiveRenderView const&                                         renderView,
         RHI::Texture*                                                   pColorTexture,
         uint32_t                                                        colorTargetSlice,
         uint32_t                                                        colorTargetMipSlice,
@@ -319,18 +325,20 @@ namespace EE::Render
                 ForwardShadingMaterialShaderPipelineBucket const& shaderPipelineBucket = materialShaderBuckets[shaderIndex];
 
                 uint32_t const bucketIndirectCommandCapacity = uint32_t( renderView.m_renderViewBuckets[shaderIndex].m_opaqueBucket.m_drawArgumentBuffer.m_pBuffer->m_size / sizeof( ShaderTypes::DrawArgument ) );
-                DeviceRenderViewBucket const& renderViewBucket = renderView.m_renderViewBuckets[shaderIndex];
+                ActiveRenderViewBucket const& renderViewBucket = renderView.m_renderViewBuckets[shaderIndex];
 
                 EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, shaderPipelineBucket.m_shaderName.data() );
 
                 RHI::CmdSetPipeline( pCommandBuffer, shaderPipelineBucket.m_pOpaquePipeline );
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, nullptr, sizeof( ShaderTypes::DrawRootConstants ) );
+
                 RHI::CmdExecuteIndirect
                 (
                     pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
                     renderViewBucket.m_opaqueBucket.m_drawArgumentBuffer.m_pBuffer, 0,
                     renderViewBucket.m_opaqueBucket.m_pDrawCounterBuffer, 0
                 );
+
                 RHI::CmdExecuteIndirect
                 (
                     pCommandBuffer, shaderPipelineBucket.m_pCommandSignature, bucketIndirectCommandCapacity,
@@ -356,7 +364,7 @@ namespace EE::Render
             ForwardShadingMaterialShaderPipelineBucket const& shaderPipelineBucket = materialShaderBuckets[shaderIndex];
 
             uint32_t const bucketIndirectCommandCapacity = uint32_t( renderView.m_renderViewBuckets[shaderIndex].m_alphaBlendBucket.m_drawArgumentBuffer.m_pBuffer->m_size / sizeof( ShaderTypes::DrawArgument ) );
-            DeviceRenderViewBucket const& renderViewBucket = renderView.m_renderViewBuckets[shaderIndex];
+            ActiveRenderViewBucket const& renderViewBucket = renderView.m_renderViewBuckets[shaderIndex];
 
             {
                 EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, shaderPipelineBucket.m_shaderName.data() );
@@ -390,7 +398,7 @@ namespace EE::Render
     void ForwardShadingPass::DrawMaterialShaderBuckets
     (
         TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
-        DeviceRenderView const&                                         renderView,
+        ActiveRenderView const&                                         renderView,
         RHI::Texture*                                                   pColorTexture,
         uint32_t                                                        colorTargetSlice,
         uint32_t                                                        colorTargetMipSlice,
@@ -403,6 +411,7 @@ namespace EE::Render
             materialShaderBuckets,
             renderView,
             pDepthTexture,
+            0,
             pCommandBuffer
         );
         DrawMaterialShaderBuckets_Shading
@@ -420,25 +429,32 @@ namespace EE::Render
     //-------------------------------------------------------------------------
 
     void ForwardShadingPass::Initialize( RenderPassContext const& context )
-    {
-        m_renderView.Initialize( context.m_pRenderSystem, context.m_materialShaderPipelineBuckets.size() );
-    }
+    {}
 
     void ForwardShadingPass::Shutdown( RenderSystem* pRenderSystem )
-    {
-        m_renderView.Shutdown( pRenderSystem );
-    }
+    {}
 
-    void ForwardShadingPass::UpdateDeviceResources
-    (
-        RenderSystem*                                                   pRenderSystem,
-        TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
-        DeviceRenderWorld const&                                        deviceRenderWorld
-    )
+    void ForwardShadingPass::UpdateWorldDeviceResources( EntityWorld* pWorld )
     {
         EE_PROFILE_FUNCTION_RENDER();
 
-        m_renderView.UpdateDeviceResources( pRenderSystem, deviceRenderWorld );
+        for ( Viewport* pViewport : pWorld->GetViewports() )
+        {
+            if ( !pViewport->IsValid() )
+            {
+                continue;
+            }
+
+            RenderViewport* pRenderViewport = static_cast<RenderViewport*>( pViewport );
+            RenderViewProxy& renderViewProxy = pRenderViewport->m_mainRenderViewProxy;
+
+            EE_ASSERT( renderViewProxy.IsValid() );
+            EE_ASSERT( renderViewProxy.GetNumRenderViews() == 1 );
+
+            renderViewProxy.StartRenderViewWrite();
+            renderViewProxy.WriteRenderView( 0, pRenderViewport->GetViewVolume(), pRenderViewport->GetSize(), ShaderTypes::RENDER_VIEW_FLAG_NONE );
+            renderViewProxy.SubmitRenderViewWrite();
+        }
     }
 
     void ForwardShadingPass::UpdateViewportDeviceResources( RenderSystem* pRenderSystem, RenderViewport* pRenderViewport )
@@ -461,7 +477,7 @@ namespace EE::Render
             depthParameters.m_width = textureWidth;
             depthParameters.m_height = textureHeight;
             depthParameters.m_format = RHI::DataFormat::D32_SFloat;
-            depthParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture );
+            depthParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture };
             depthParameters.m_debugName.sprintf( "ForwardShadingPass Depth Target %dx%d", textureWidth, textureHeight );
 
             pRenderViewport->m_forwardShading_depthTexture = RHI::CreateTexture( pRenderSystem->GetContextRHI(), depthParameters );
@@ -475,72 +491,10 @@ namespace EE::Render
         }
     }
 
-    void ForwardShadingPass::UpdateRenderViews( RenderViewport const* pRenderViewport, TArrayView<ShaderTypes::RenderView> dstRenderViews_WriteCombined ) const
-    {
-        Math::ViewVolume const& viewVolume = pRenderViewport->GetViewVolume();
-        Float2 const viewSize = pRenderViewport->GetSize();
-
-        Matrix reverseZ
-        (
-            Vector( 1.0f, 0.0f, 0.0f, 0.0f ),
-            Vector( 0.0f, 1.0f, 0.0f, 0.0f ),
-            Vector( 0.0f, 0.0f, -1.0f, 0.0f ),
-            Vector( 0.0f, 0.0f, 1.0f, 1.0f )
-        );
-
-        Matrix projectionMatrix = viewVolume.GetProjectionMatrix() * reverseZ;
-        Matrix viewProjectionMatrix = viewVolume.GetViewMatrix() * projectionMatrix;
-
-        alignas( 32 ) ShaderTypes::RenderView deviceRenderView = {};
-        std::memcpy
-        (
-            deviceRenderView.m_viewProjectionMatrix,
-            viewProjectionMatrix.m_rows,
-            sizeof( deviceRenderView.m_viewProjectionMatrix )
-        );
-        std::memcpy
-        (
-            deviceRenderView.m_viewMatrix,
-            viewVolume.GetViewMatrix().m_rows,
-            sizeof( deviceRenderView.m_viewMatrix )
-        );
-        std::memcpy
-        (
-            deviceRenderView.m_inverseViewProjectionMatrix,
-            viewProjectionMatrix.GetInverse().m_rows,
-            sizeof( deviceRenderView.m_inverseViewProjectionMatrix )
-        );
-        std::memcpy
-        (
-            deviceRenderView.m_inverseViewMatrix,
-            viewVolume.GetViewMatrix().GetInverse().m_rows,
-            sizeof( viewVolume.GetViewMatrix() )
-        );
-        std::memcpy
-        (
-            deviceRenderView.m_inverseProjectionMatrix,
-            projectionMatrix.GetInverse().m_rows,
-            sizeof( projectionMatrix )
-        );
-
-        deviceRenderView.m_renderTargetSize[0] = viewSize.m_x;
-        deviceRenderView.m_renderTargetSize[1] = viewSize.m_y;
-        deviceRenderView.m_renderTargetSize[2] = 1.0F / viewSize.m_x;
-        deviceRenderView.m_renderTargetSize[3] = 1.0F / viewSize.m_y;
-
-        deviceRenderView.m_projectionP00 = projectionMatrix.m_values[0][0];
-        deviceRenderView.m_projectionP11 = projectionMatrix.m_values[1][1];
-        deviceRenderView.m_znear = viewVolume.GetDepthRange().m_begin;
-
-        deviceRenderView.m_renderViewFlags = ShaderTypes::RENDER_VIEW_FLAG_NONE;
-        deviceRenderView.m_renderViewLayerFlags = ShaderTypes::RENDER_VIEW_LAYER_FLAG_FORWARD_SHADING;
-
-        Memory::CopyToWriteCombined( dstRenderViews_WriteCombined.data(), &deviceRenderView, sizeof( deviceRenderView ) );
-    }
-
     void ForwardShadingPass::DepthOnlyPass
     (
         TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
+        ActiveRenderView const&                                         activeRenderView,
         RenderViewport const*                                           pRenderViewport,
         DeviceResourceStates&                                           resourceStates,
         RHI::CommandBuffer*                                             pCommandBuffer
@@ -558,8 +512,9 @@ namespace EE::Render
         DrawMaterialShaderBuckets_DepthOnly
         (
             materialShaderBuckets,
-            m_renderView,
+            activeRenderView,
             pRenderViewport->m_forwardShading_depthTexture,
+            0,
             pCommandBuffer
         );
     }
@@ -567,6 +522,7 @@ namespace EE::Render
     void ForwardShadingPass::ShadingPass
     (
         TArrayView<ForwardShadingMaterialShaderPipelineBucket const>      materialShaderBuckets,
+        ActiveRenderView const&                                           activeRenderView,
         RenderViewport const*                                             pRenderViewport,
         DeviceResourceStates&                                             resourceStates,
         RHI::CommandBuffer*                                               pCommandBuffer
@@ -585,7 +541,7 @@ namespace EE::Render
         DrawMaterialShaderBuckets_Shading
         (
             materialShaderBuckets,
-            m_renderView,
+            activeRenderView,
             pRenderViewport->m_forwardShading_colorTexture, ~0U, 0,
             pRenderViewport->m_forwardShading_depthTexture,
             pCommandBuffer

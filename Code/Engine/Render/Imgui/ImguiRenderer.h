@@ -38,30 +38,6 @@ namespace EE::Render
 
     class EE_ENGINE_API ImguiRenderer : public ISystem
     {
-    public:
-
-        EE_SYSTEM( ImguiRenderer );
-
-    public:
-
-        void Initialize( Window* pPrimaryRenderWindow, RenderSystem* pRenderSystem );
-        void Shutdown();
-
-        #if EE_DEVELOPMENT_TOOLS
-        void PreShaderHotReload();
-        void PostShaderHotReload();
-        #endif
-
-        void UpdateDeviceResources();
-
-        void StartFrame();
-        void SubmitFrame( bool clear );
-        void EndFrame();
-
-        inline ImGuiX::ImageCache* GetImageCache() { return &m_imageCache; }
-
-    private:
-
         struct ImguiGeometryState
         {
             uint32_t vertexOffset = 0;
@@ -82,7 +58,29 @@ namespace EE::Render
 
         static void UpdateTextureData( ImDrawData const* pDrawData, RenderSystem* pRenderSystem );
 
+    public:
+
+        EE_SYSTEM( ImguiRenderer );
+
+        void Initialize( Window* pPrimaryRenderWindow, RenderSystem* pRenderSystem );
+        void Shutdown();
+
+        #if EE_DEVELOPMENT_TOOLS
+        void PreShaderHotReload();
+        void PostShaderHotReload();
+        #endif
+
+        void UpdateDeviceResources();
+
+        void StartFrame();
+        void SubmitFrame( bool clear );
+        void EndFrame();
+
+        inline ImGuiX::ImageCache* GetImageCache() { return &m_imageCache; }
+
     private:
+
+        //-------------------------------------------------------------------------
 
         RenderSystem*                                       m_pRenderSystem = nullptr;
         Window*                                             m_pPrimaryRenderWindow = nullptr;

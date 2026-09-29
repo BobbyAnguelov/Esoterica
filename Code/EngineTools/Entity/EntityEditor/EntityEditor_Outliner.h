@@ -97,7 +97,7 @@ namespace EE::EntityModel
 
         ImGuiX::CommandStack                            m_commandStack;
 
-        ImGuiX::FilterWidget                            m_filter;
+        ImGuiX::FilterData                              m_filter;
         TreeListView                                    m_treeView;
         TreeListViewContext                             m_treeContext;
     };

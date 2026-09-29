@@ -55,7 +55,7 @@ namespace EE::Render
 
                 RHI::BufferParameters meshBufferParameters = {};
                 meshBufferParameters.m_bufferSize = geometry.GetMeshData().size();
-                meshBufferParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw );
+                meshBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::Raw };
                 meshBufferParameters.m_debugName.sprintf( "MeshData %s", resourceID.c_str() );
 
                 pMeshResource->m_meshBuffersState.emplace_back( Mesh::ResourceUpdateState{ m_pRenderSystem->CreateBufferAsync( meshBufferParameters ) } );
@@ -177,7 +177,7 @@ namespace EE::Render
                 }
                 else // Delete allocated buffer
                 {
-                    if( pResourceBuffer != nullptr )
+                    if ( pResourceBuffer != nullptr )
                     {
                         m_pRenderSystem->QueueResourceDelete( eastl::move( pResourceBuffer ) );
                         EE_ASSERT( pResourceBuffer == nullptr );
@@ -197,7 +197,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        if( !isEverythingUnloaded )
+        if ( !isEverythingUnloaded )
         {
             return Resource::UnloadResult::InProgress;
         }

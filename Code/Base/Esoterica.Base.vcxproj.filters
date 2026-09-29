@@ -440,6 +440,9 @@
     <ClCompile Include="Imgui\ImguiTextureID.cpp" />
     <ClCompile Include="ThirdParty\implot\implot_demo.cpp" />
     <ClCompile Include="Resource\ResourceProviders\ResourceProvider_Local.cpp" />
+    <ClCompile Include="Imgui\ImguiFilter.cpp" />
+    <ClCompile Include="Imgui\Imguinputs.cpp" />
+    <ClCompile Include="Fonts\Font_Esoterica.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Esoterica.h" />
@@ -545,9 +548,6 @@
       <Filter>Imgui</Filter>
     </ClInclude>
     <ClInclude Include="Imgui\ImguiCommandStack.h">
-      <Filter>Imgui</Filter>
-    </ClInclude>
-    <ClInclude Include="Imgui\ImguiFilteredCombo.h">
       <Filter>Imgui</Filter>
     </ClInclude>
     <ClInclude Include="Imgui\ImguiTextBuffer.h">
@@ -1843,6 +1843,11 @@
     <ClInclude Include="ThirdParty\mINI\ini.h" />
     <ClInclude Include="Imgui\ImguiTextureID.h" />
     <ClInclude Include="Resource\ResourceProviders\ResourceProvider_Local.h" />
+    <ClInclude Include="Imgui\ImguiFilter.h" />
+    <ClInclude Include="Imgui\ImguiAppTitlebar.h" />
+    <ClInclude Include="Imgui\ImguiInputs.h" />
+    <ClInclude Include="Fonts\Font_Esoterica.h" />
+    <ClInclude Include="Imgui\EsotericaIcons.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Render\RHI.esh">

@@ -1,4 +1,5 @@
 #include "Base/Imgui/ImguiX.h"
+#include "Base/Imgui/ImguiAppTitlebar.h"
 
 #if EE_DEVELOPMENT_TOOLS
 #if _WIN32

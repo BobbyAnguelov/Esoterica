@@ -30,8 +30,8 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     // Based on: https://interplayoflight.wordpress.com/2025/11/23/spatial-hashing-for-raytraced-ambient-occlusion/
     //-------------------------------------------------------------------------
 
-    static const uint SPATIAL_HASH_MAX_LOD_LEVELS = 6;  // hard maximum, packed into 5 spare checksum bits
-    static const uint SPATIAL_HASH_MAX_LOOKUPS = 12;
+    static const uint g_maxLodLevels = 6;  // hard maximum, packed into 5 spare checksum bits
+    static const uint g_maxLookups = 12;
 
     float CellSizeFromLevel( uint level, float baseCellSize )
     {
@@ -52,7 +52,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
 
     uint GetSpatialHashTableSize( uint64_t handleLow )
     {
-        return 1u << ( uint( handleLow >> 32 ) & 0x1FU );
+        return 1U << ( uint( handleLow >> 32 ) & 0x1FU );
     }
 
     uint GetSpatialHashNumLODs( uint64_t handleLow )
@@ -97,14 +97,14 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         uint64_t2 LoadPayload( uint slotIndex, uint pageIndex )
         {
             uint base = slotIndex * m_payloadStride + 2 + pageIndex * 2;
-            return uint64_t2( m_payloads[ base ], m_payloads[ base + 1 ] );
+            return uint64_t2( m_payloads[base], m_payloads[base + 1] );
         }
 
         void StorePayload( uint slotIndex, uint pageIndex, uint64_t2 value )
         {
             uint base = slotIndex * m_payloadStride + 2 + pageIndex * 2;
-            m_payloads[ base ]     = value.x;
-            m_payloads[ base + 1 ] = value.y;
+            m_payloads[base]        = value.x;
+            m_payloads[base + 1]    = value.y;
         }
 
         uint2 LoadMetadata( uint slotIndex, uint metaIndex )
@@ -115,7 +115,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
 
         void StoreMetadata( uint slotIndex, uint metaIndex, uint2 value )
         {
-            m_payloads[ slotIndex * m_payloadStride + metaIndex ] = uint64_t( value.x ) | ( uint64_t( value.y ) << 32 );
+            m_payloads[slotIndex * m_payloadStride + metaIndex] = uint64_t( value.x ) | ( uint64_t( value.y ) << 32 );
         }
 
         bool LoadPayloadCell( float3 worldPos, float3 cameraPos, out uint slotIndex, out uint numCollisions, out uint checksum )
@@ -139,25 +139,64 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
             int3 R4 = R0;
             int3 R4max = R0max;
 
-            [unroll( SPATIAL_HASH_MAX_LOD_LEVELS )]
+            [unroll( g_maxLodLevels )]
             for ( int lod = int( m_numLODs - 1 ); lod > 0; --lod )
             {
                 int border = int( ( m_borderBits >> ( ( uint( lod ) - 1 ) * 4 ) ) & 0xFU );
                 R0 = 2 * ( R0 + border );
                 R0max = 2 * ( R0max - border ) + 1;
 
-                if ( lod == 5 ) { R4 = R0; R4max = R0max; }
-                if ( lod == 4 ) { R3 = R0; R3max = R0max; }
-                if ( lod == 3 ) { R2 = R0; R2max = R0max; }
-                if ( lod == 2 ) { R1 = R0; R1max = R0max; }
+                if ( lod == 5 )
+                {
+                    R4 = R0;
+                    R4max = R0max;
+                }
+
+                if ( lod == 4 )
+                {
+                    R3 = R0;
+                    R3max = R0max;
+                }
+
+                if ( lod == 3 )
+                {
+                    R2 = R0;
+                    R2max = R0max;
+                }
+
+                if ( lod == 2 )
+                {
+                    R1 = R0;
+                    R1max = R0max;
+                }
             }
 
             // Check from finest to coarsest
-            if ( all( c0 >= R0 ) && all( c0 <= R0max ) )                { level = 0; ci = c0; }
-            else if ( all( c0 >> 1 >= R1 ) && all( c0 >> 1 <= R1max ) ) { level = 1; ci = c0 >> 1; }
-            else if ( all( c0 >> 2 >= R2 ) && all( c0 >> 2 <= R2max ) ) { level = 2; ci = c0 >> 2; }
-            else if ( all( c0 >> 3 >= R3 ) && all( c0 >> 3 <= R3max ) ) { level = 3; ci = c0 >> 3; }
-            else if ( all( c0 >> 4 >= R4 ) && all( c0 >> 4 <= R4max ) ) { level = 4; ci = c0 >> 4; }
+            if ( all( c0 >= R0 ) && all( c0 <= R0max ) )
+            {
+                level = 0;
+                ci = c0;
+            }
+            else if ( all( c0 >> 1 >= R1 ) && all( c0 >> 1 <= R1max ) )
+            {
+                level = 1;
+                ci = c0 >> 1;
+            }
+            else if ( all( c0 >> 2 >= R2 ) && all( c0 >> 2 <= R2max ) )
+            {
+                level = 2;
+                ci = c0 >> 2;
+            }
+            else if ( all( c0 >> 3 >= R3 ) && all( c0 >> 3 <= R3max ) )
+            {
+                level = 3;
+                ci = c0 >> 3;
+            }
+            else if ( all( c0 >> 4 >= R4 ) && all( c0 >> 4 <= R4max ) )
+            {
+                level = 4;
+                ci = c0 >> 4;
+            }
 
             return TryLookup( ci, level, slotIndex, numCollisions, checksum );
         }
@@ -168,21 +207,37 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
             uint hashKey = PCG( level + PCG( uint( cellIndex.x ) + PCG( uint( cellIndex.y ) + PCG( uint( cellIndex.z ) ) ) ) );
             uint mask = m_tableSize - 1;
             uint slot = hashKey & mask;
-            [loop] for ( uint probe = 0; probe < SPATIAL_HASH_MAX_LOOKUPS; ++probe )
+            [loop] for ( uint probe = 0; probe < g_maxLookups; ++probe )
             {
                 uint idx = ( slot + probe ) & mask;
-                uint val = m_keys[idx];
-                if ( val == 0 ) { slotIndex = ~0; numCollisions = probe + 1; checksum = 0; return false; }
-                if ( val == checksum ) { slotIndex = idx; numCollisions = probe + 1; return true; }
+                uint val = m_keys.Load( idx * 4 );
+                if ( val == 0 )
+                {
+                    slotIndex = ~0;
+                    numCollisions = probe + 1;
+                    checksum = 0;
+                    return false;
+                }
+
+                if ( val == checksum )
+                {
+                    slotIndex = idx;
+                    numCollisions = probe + 1;
+                    return true;
+                }
             }
-            slotIndex = ~0u; numCollisions = m_tableSize; checksum = 0; return false;
+            slotIndex = ~0U;
+            numCollisions = m_tableSize; 
+            checksum = 0;
+            
+            return false;
         }
     };
 
     //-------------------------------------------------------------------------
 
     // Read-write variant for compute shader
-    struct SpatialHashRW : SpatialHashBase<RWBuffer<uint>, RWBuffer<uint64_t> >
+    struct SpatialHashRW : SpatialHashBase<RWByteAddressBuffer, RWStructuredBuffer<uint64_t> >
     {
         uint FindOrInsert( int3 cellIndex, uint level, out bool newCellInserted )
         {
@@ -190,13 +245,22 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
             uint hashKey = PCG( level + PCG( uint( cellIndex.x ) + PCG( uint( cellIndex.y ) + PCG( uint( cellIndex.z ) ) ) ) );
             uint mask = m_tableSize - 1;
             uint slot = hashKey & mask;
-            [loop] for ( uint probe = 0; probe < SPATIAL_HASH_MAX_LOOKUPS; ++probe )
+            [loop] for ( uint probe = 0; probe < g_maxLookups; ++probe )
             {
                 uint idx = ( slot + probe ) & mask;
                 uint oldVal;
-                InterlockedCompareExchange( m_keys[idx], 0, checksum, oldVal );
-                if ( oldVal == 0 ) { newCellInserted = true; return idx; }
-                if ( oldVal == checksum ) { newCellInserted = false; return idx; }
+                m_keys.InterlockedCompareExchange( idx * 4, 0, checksum, oldVal );
+                if ( oldVal == 0 )
+                {
+                    newCellInserted = true;
+                    return idx;
+                }
+
+                if ( oldVal == checksum )
+                {
+                    newCellInserted = false;
+                    return idx;
+                }
             }
             newCellInserted = false;
             return ~0;
@@ -204,7 +268,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     };
 
     // Read-only variant for pixel shader (SRV)
-    typedef SpatialHashBase<Buffer<uint>, Buffer<uint64_t> > SpatialHashRO;
+    typedef SpatialHashBase<ByteAddressBuffer, StructuredBuffer<uint64_t> > SpatialHashRO;
 
     //-------------------------------------------------------------------------
 

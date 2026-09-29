@@ -9,7 +9,7 @@ For regular GPU memory allocation (buffers and textures), where offset doesn't a
 ## Concepts
 
 | Term                   | Meaning                                                                                                    |
-|------------------------|------------------------------------------------------------------------------------------------------------|
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
 | Slot / handle / offset | One integer index in the pool. The three words are used interchangeably.                                   |
 | Page                   | 64 consecutive slots at level 0 — the unit of GPU work.                                                    |
 | Level                  | One tier of the hierarchy. Level 0 is the shader-facing slot bitmask; level k groups 64 level-(k−1) pages. |
@@ -43,7 +43,7 @@ public:
 ```
 
 | Name                 | Description                                                                         |
-|----------------------|-------------------------------------------------------------------------------------|
+| -------------------- | ----------------------------------------------------------------------------------- |
 | `Initialize`         | Reserve `initialCapacityInPages` pages (× 64 slots). Pool grows dynamically.        |
 | `Shutdown`           | Assert no handles remain live, then free all resources.                             |
 | `Allocate`           | Return a contiguous range at the lowest available offset. Debug asserts on failure. |
@@ -73,13 +73,12 @@ allocator.Deallocate( std::move( h ) );
 `HandleAllocator` holds `m_levels[NumHierarchyLevels]` of a per-level metadata struct:
 
 | Field                           | Type                | Meaning                                                           |
-|---------------------------------|---------------------|-------------------------------------------------------------------|
+| ------------------------------- | ------------------- | ----------------------------------------------------------------- |
 | `m_slotMask`                    | `TVector<uint64_t>` | 64 slots per page, `1` = allocated. Level 0 only — shader-facing. |
 | `m_availability`                | `TVector<uint64_t>` | 1 bit per 64 pages: page has ≥ 1 free slot. Level 0 fast path.    |
 | `m_pagePrefix` / `m_pageSuffix` | `TVector<uint32_t>` | Free slots at the page start / end.                               |
 | `m_pageMaxRun`                  | `TVector<uint32_t>` | Longest contiguous free run within the page.                      |
 | `m_dirty`                       | `TVector<uint64_t>` | 1 bit per page: the page hints are stale (lazy maintenance).      |
-
 - **Level 0** is the slot bitmask; one page = 64 slots.
 - **Level k > 0** groups 64 pages of level k−1 into one page; a unit is 64^k slots, and the `{prefix, suffix, maxRun}` hints make the same scan code work at every level.
 
@@ -131,7 +130,7 @@ All benchmarks use a fixed random seed and 131,072 slots. Performance numbers ar
 #### Release
 
 |              | HandleAllocator | D3D12MA MIN_OFFSET | D3D12MA MIN_TIME |
-|--------------|-----------------|--------------------|------------------|
+| ------------ | --------------- | ------------------ | ---------------- |
 | Small allocs | 0.47 ms         | 7.55 ms            | 0.06 ms          |
 | Large allocs | 0.55 ms         | 3.82 ms            | 0.03 ms          |
 | Total        | 1.03 ms         | 11.37 ms           | 0.09 ms          |
@@ -139,7 +138,7 @@ All benchmarks use a fixed random seed and 131,072 slots. Performance numbers ar
 #### Debug
 
 |              | HandleAllocator | D3D12MA MIN_OFFSET | D3D12MA MIN_TIME |
-|--------------|-----------------|--------------------|------------------|
+| ------------ | --------------- | ------------------ | ---------------- |
 | Small allocs | 1.10 ms         | 13.47 ms           | 0.30 ms          |
 | Large allocs | 1.49 ms         | 5.52 ms            | 0.16 ms          |
 | Total        | 2.60 ms         | 18.99 ms           | 0.46 ms          |
@@ -149,7 +148,7 @@ All benchmarks use a fixed random seed and 131,072 slots. Performance numbers ar
 16M-slot pool, first 12M slots fragmented into alternating 8-free / 8-allocated runs (max free run = 8), 4M-slot "huge" allocations. Two phases: first the 4M-slot tail is free, so the alloc lands there; then the tail is occupied, so every allocator must scan the full pool and fail.
 
 | Phase                                      | Debug        | Release      |
-|--------------------------------------------|--------------|--------------|
+| ------------------------------------------ | ------------ | ------------ |
 | Huge alloc lands in the free tail          | 0.2 ms/alloc | 0.1 ms/alloc |
 | Huge alloc full scan + fail (tail blocked) | <1 µs/alloc  | <1 µs/alloc  |
 
@@ -160,7 +159,7 @@ The scan is O(skipped hierarchy pages) — the fail case is rejected by a single
 2,000 small allocs (1–80 slots), free every 3rd, then 300 mixed-size allocs (1–120 slots) into the fragmented pool.
 
 |                    | Mean offset   | Max offset     | Packing ratio |
-|--------------------|---------------|----------------|---------------|
+| ------------------ | ------------- | -------------- | ------------- |
 | HandleAllocator    | 20,839        | 86,005         | 0.9           |
 | D3D12MA MIN_OFFSET | 20,839        | 86,005         | 0.9           |
 | D3D12MA MIN_TIME   | 66,330 (3.2×) | 86,391 (+0.4%) | 0.9 (−0.4%)   |

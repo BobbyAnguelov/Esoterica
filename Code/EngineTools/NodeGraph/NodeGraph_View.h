@@ -2,6 +2,7 @@
 #include "NodeGraph_StateMachineGraph.h"
 #include "NodeGraph_FlowGraph.h"
 #include "NodeGraph_UserContext.h"
+#include "Base/Imgui/ImguiFilter.h"
 
 //-------------------------------------------------------------------------
 
@@ -71,7 +72,7 @@ namespace EE::NodeGraph
                 m_pPin = nullptr;
                 m_requestOpenMenu = false;
                 m_isAutoConnectMenu = false;
-                m_filterWidget.Clear();
+                m_filter.Clear();
             }
 
         public:
@@ -83,7 +84,7 @@ namespace EE::NodeGraph
             bool                    m_menuOpened = false;
             bool                    m_isAutoConnectMenu = false;
             bool                    m_isDragReady = false;
-            ImGuiX::FilterWidget    m_filterWidget;
+            ImGuiX::FilterData      m_filter;
         };
 
         // Drag and Drop State

@@ -34,24 +34,31 @@
 
 namespace EE::Animation
 {
-    AnimationGraphEditor::IDComboWidget::IDComboWidget( AnimationGraphEditor* pGraphEditor )
-        : ImGuiX::ComboWithFilterWidget<StringID>( Flags::HidePreview )
-        , m_pGraphEditor( pGraphEditor )
+    AnimationGraphEditor::IDOptionData::IDOptionData( AnimationGraphEditor* pGraphEditor )
+        : m_pGraphEditor( pGraphEditor )
     {
         EE_ASSERT( m_pGraphEditor != nullptr );
+
+        SetOptionProvider( [this] ( TVector<Option>& options ) { GenerateOptions( options ); } );
     }
 
-    AnimationGraphEditor::IDComboWidget::IDComboWidget( AnimationGraphEditor* pGraphEditor, IDControlParameterToolsNode* pControlParameter )
-        : ImGuiX::ComboWithFilterWidget<StringID>( Flags::HidePreview )
-        , m_pGraphEditor( pGraphEditor )
+    AnimationGraphEditor::IDOptionData::IDOptionData( AnimationGraphEditor* pGraphEditor, IDControlParameterToolsNode* pControlParameter )
+        : m_pGraphEditor( pGraphEditor )
         , m_pControlParameter( pControlParameter )
     {
         EE_ASSERT( m_pGraphEditor != nullptr && pControlParameter != nullptr );
+
+        SetOptionProvider( [this] ( TVector<Option>& options ) { GenerateOptions( options ); } );
     }
 
-    void AnimationGraphEditor::IDComboWidget::PopulateOptionsList()
+    void AnimationGraphEditor::IDOptionData::GenerateOptions( TVector<ImGuiX::OptionData::Option>& options )
     {
         TVector<StringID> foundIDs;
+
+        if ( !m_pGraphEditor->IsDataFileLoaded() )
+        {
+            return;
+        }
 
         // Get all IDs in the graph
         auto pRootGraph = m_pGraphEditor->GetEditedRootGraph();
@@ -69,9 +76,7 @@ namespace EE::Animation
         }
 
         // De-duplicate and remove invalid IDs
-        TVector<StringID> sortedIDlist;
-        sortedIDlist.clear();
-
+        TInlineVector<StringID, 250> uniqueIDs;
         for ( auto ID : foundIDs )
         {
             if ( !ID.IsValid() )
@@ -79,31 +84,25 @@ namespace EE::Animation
                 continue;
             }
 
-            if ( VectorContains( sortedIDlist, ID ) )
+            if ( m_pControlParameter != nullptr )
+            {
+                if ( VectorContains( m_pControlParameter->GetExpectedPreviewValues(), ID ) )
+                {
+                    continue;
+                }
+            }
+
+            if ( VectorContains( uniqueIDs, ID ) )
             {
                 continue;
             }
 
-            sortedIDlist.emplace_back( ID );
+            uniqueIDs.emplace_back( ID );
         }
 
-        // Sort
-        auto Comparator = [] ( StringID const& a, StringID const& b ) { return strcmp( a.c_str(), b.c_str() ) < 0; };
-        eastl::sort( sortedIDlist.begin(), sortedIDlist.end(), Comparator );
-
-        // Add empty option
-        auto& emptyOpt = m_options.emplace_back();
-        emptyOpt.m_label = "* Clear ID *##IDCWClear";
-        emptyOpt.m_filterComparator = "";
-        emptyOpt.m_value = StringID();
-
-        // Add parameter options
+        // Add expected parameter options
         if ( m_pControlParameter != nullptr && !m_pControlParameter->GetExpectedPreviewValues().empty() )
         {
-            auto& expectedValueSeparator = m_options.emplace_back();
-            expectedValueSeparator.m_label = "Expected Values";
-            expectedValueSeparator.m_isSeparator = true;
-
             for ( auto ID : m_pControlParameter->GetExpectedPreviewValues() )
             {
                 if ( !ID.IsValid() )
@@ -111,33 +110,21 @@ namespace EE::Animation
                     continue;
                 }
 
-                auto& opt = m_options.emplace_back();
-                opt.m_label = ID.c_str();
-                opt.m_filterComparator = ID.c_str();
-                opt.m_filterComparator.make_lower();
-                opt.m_value = ID;
+                options.emplace_back( ID.c_str(), "Expected Values" );
             }
-
-            auto& globalValueSeparator = m_options.emplace_back();
-            globalValueSeparator.m_label = "Global Values";
-            globalValueSeparator.m_isSeparator = true;
         }
 
         // Create global options
-        for ( auto const& ID : sortedIDlist )
+        for ( auto const& ID : uniqueIDs )
         {
             if ( !ID.IsValid() )
             {
                 continue;
             }
 
-            auto& opt = m_options.emplace_back();
-            opt.m_label = ID.c_str();
-            opt.m_filterComparator = ID.c_str();
-            opt.m_filterComparator.make_lower();
-            opt.m_value = ID;
+            options.emplace_back( ID.c_str(), "Global Values" );
         }
-    };
+    }
 }
 
 //-------------------------------------------------------------------------
@@ -634,7 +621,8 @@ namespace EE::Animation
 
         IDParameterState( AnimationGraphEditor* pGraphEditor, ControlParameterToolsNode* pParameter )
             : ControlParameterPreviewState( pGraphEditor, pParameter )
-            , m_comboWidget( pGraphEditor, Cast<IDControlParameterToolsNode>( pParameter ) )
+            , m_buffer( 255 )
+            , m_optionData( pGraphEditor, Cast<IDControlParameterToolsNode>( pParameter ) )
         {}
 
     private:
@@ -647,45 +635,27 @@ namespace EE::Animation
             auto value = GetGraphInstance()->GetControlParameterValue<StringID>( parameterIdx );
             if ( value.IsValid() )
             {
-                strncpy_s( m_buffer, 255, value.c_str(), strlen( value.c_str() ) );
+                m_buffer.Fill( value.c_str() );
             }
             else
             {
-                memset( m_buffer, 0, 255 );
+                m_buffer.Clear();
             }
 
             //-------------------------------------------------------------------------
 
-            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 28 );
-            if ( ImGui::InputText( "##tp", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
+            ImGui::SameLine( 0, 0 );
+            ImGui::SetNextItemWidth( -1 );
+            if ( ImGuiX::InputTextWithOptions( "##PE", m_buffer.Data(), m_buffer.Size(), & m_optionData, ImGuiInputTextFlags_EnterReturnsTrue ) )
             {
-                GetGraphInstance()->SetControlParameterValue( parameterIdx, StringID( m_buffer ) );
-            }
-
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
-            {
-                GetGraphInstance()->SetControlParameterValue( parameterIdx, StringID( m_buffer ) );
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::SameLine(0, 0);
-            if ( m_comboWidget.DrawAndUpdate() )
-            {
-                StringID ID;
-                if ( m_comboWidget.HasValidSelection() )
-                {
-                    ID = m_comboWidget.GetSelectedOption()->m_value;
-                }
-
-                GetGraphInstance()->SetControlParameterValue( parameterIdx, ID );
+                GetGraphInstance()->SetControlParameterValue( parameterIdx, StringID( m_buffer.GetString() ) );
             }
         }
 
     private:
 
-        char                m_buffer[256] = { 0 };
-        IDComboWidget       m_comboWidget;
+        ImGuiX::TextBuffer                  m_buffer;
+        IDOptionData                        m_optionData;
     };
 
     //-------------------------------------------------------------------------
@@ -927,8 +897,8 @@ namespace EE::Animation
         , m_nodeVariationDataPropertyGrid( m_pToolsContext )
         , m_primaryGraphView( &m_userContext )
         , m_secondaryGraphView( &m_userContext )
-        , m_oldIDWidget( this )
-        , m_newIDWidget( this )
+        , m_oldIDOptionData( this )
+        , m_newIDOptionData( this )
         , m_variationSkeletonPicker( *m_pToolsContext, Skeleton::GetStaticResourceTypeID() )
         , m_variationDataPropertyGrid( m_pToolsContext )
     {
@@ -996,6 +966,19 @@ namespace EE::Animation
         }
 
         m_variationDataNodeTypes = m_pToolsContext->m_pTypeRegistry->GetAllDerivedTypes( VariationDataToolsNode::GetStaticTypeID(), false, false, true );
+
+        // Parameters
+        //-------------------------------------------------------------------------
+
+        auto OptionProvider = [this] ( TVector<ImGuiX::OptionData::Option>& options )
+        {
+            for ( auto const& category : m_parameterGroupTree.GetRootCategory().m_childCategories )
+            {
+                options.emplace_back( category.m_name );
+            }
+        };
+
+        m_parameterGroupOptionData.SetOptionProvider( OptionProvider );
 
         // User context
         //-------------------------------------------------------------------------
@@ -3617,7 +3600,13 @@ namespace EE::Animation
         // Filter
         //-------------------------------------------------------------------------
 
-        m_navigationFilter.UpdateAndDraw( ImGui::GetContentRegionAvail().x - 130, ImGuiX::FilterWidget::TakeInitialFocus );
+        if ( ImGui::IsWindowAppearing() )
+        {
+            ImGui::SetKeyboardFocusHere();
+        }
+
+        ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 130 );
+        ImGuiX::InputFilterText( m_navigationFilter );
 
         ImGui::SameLine();
 
@@ -3824,10 +3813,11 @@ namespace EE::Animation
         float const availableWidth = ImGui::GetContentRegionAvail().x;
         float const filterWidth = availableWidth - ( 2 * ( ImGuiX::Style::s_iconButtonWidth + ImGui::GetStyle().ItemSpacing.x ) );
 
-        if ( m_outlinerFilterWidget.UpdateAndDraw( filterWidth ) )
+        ImGui::SetNextItemWidth( filterWidth );
+        if ( ImGuiX::InputFilterText( m_outlinerFilter ) )
         {
             m_outlinerTreeView.ForEachItem( [] ( TreeListViewItem* pItem ) { pItem->SetExpanded( true ); } );
-            m_outlinerTreeView.UpdateItemVisibility( [this] ( TreeListViewItem const* pItem ) { return m_outlinerFilterWidget.MatchesFilter( pItem->GetDisplayName() ); } );
+            m_outlinerTreeView.UpdateItemVisibility( [this] ( TreeListViewItem const* pItem ) { return m_outlinerFilter.MatchesFilter( pItem->GetDisplayName() ); } );
         }
 
         //-------------------------------------------------------------------------
@@ -4280,22 +4270,8 @@ namespace EE::Animation
         ImGui::Text( "Group: " );
         ImGui::SameLine( fieldOffset );
 
-        auto OptionsCombo = [this] ()
-        {
-            for ( auto const& category : m_parameterGroupTree.GetRootCategory().m_childCategories )
-            {
-                if ( ImGui::MenuItem( category.m_name.c_str() ) )
-                {
-                    strncpy_s( m_parameterGroupBuffer, category.m_name.c_str(), 255 );
-                }
-            }
-        };
-
         ImGui::SetNextItemWidth( -1 );
-        if ( ImGuiX::InputTextCombo( "##ParameterGroup", m_parameterGroupBuffer, 255, OptionsCombo, ImGuiInputTextFlags_EnterReturnsTrue ) )
-        {
-            updateConfirmed = true;
-        }
+        ImGuiX::InputTextWithOptions( "##ParameterGroup", m_parameterGroupBuffer, 255, &m_parameterGroupOptionData );
 
         //-------------------------------------------------------------------------
 
@@ -5358,7 +5334,8 @@ namespace EE::Animation
 
             // Name/Path filter
             float const textFilterWidth = ImGui::GetContentRegionAvail().x - ImGuiX::Style::s_iconButtonWidth - ImGui::GetStyle().ItemSpacing.x;
-            bool filterUpdated = m_variationEditorFilter.UpdateAndDraw( textFilterWidth );
+            ImGui::SetNextItemWidth( textFilterWidth );
+            bool filterUpdated = ImGuiX::InputFilterText( m_variationEditorFilter );
 
             ImGui::SameLine();
 
@@ -6147,8 +6124,8 @@ namespace EE::Animation
 
     void AnimationGraphEditor::StartRenameIDs()
     {
-        memset( m_oldIDBuffer, 0, 255 );
-        memset( m_newIDBuffer, 0, 255 );
+        m_oldIDBuffer.Clear( 255 );
+        m_newIDBuffer.Clear( 255 );
         m_pToolsContext->m_pDialogManager->StartModalDialog( "Rename IDs", [this] () { return DrawRenameIDsDialog(); }, ImVec2( 400, 0 ), true );
     }
 
@@ -6156,75 +6133,44 @@ namespace EE::Animation
     {
         bool isDialogOpen = true;
 
-        constexpr float const comboWidth = 30;
         float const itemSpacingX = ImGui::GetStyle().ItemSpacing.x;
-        float const inputWidth = ImGui::GetContentRegionAvail().x - comboWidth - itemSpacingX;
+        float const offsetX = Math::Max( ImGui::CalcTextSize( "Old ID: " ).x, ImGui::CalcTextSize( "New ID: " ).x ) + itemSpacingX;
 
         // Old Value
         //-------------------------------------------------------------------------
 
         ImGui::AlignTextToFramePadding();
         ImGui::Text( "Old ID: " );
-        ImGui::SameLine();
+        ImGui::SameLine( offsetX, itemSpacingX );
 
-        ImGui::SetNextItemWidth( inputWidth - itemSpacingX - ImGui::CalcTextSize("Old ID: " ).x );
-        ImGui::InputText( "##oldid", m_oldIDBuffer, 255 );
-
-        ImGui::SameLine();
-
-        if ( m_oldIDWidget.DrawAndUpdate( comboWidth ) )
-        {
-            auto pSelectedOption = m_oldIDWidget.GetSelectedOption();
-            if ( pSelectedOption != nullptr && pSelectedOption->m_value.IsValid() )
-            {
-                strncpy_s( m_oldIDBuffer, 255, pSelectedOption->m_value.c_str(), strlen( pSelectedOption->m_value.c_str() ) );
-            }
-            else // Clear value
-            {
-                memset( m_oldIDBuffer, 0, 255 );
-            }
-        }
+        ImGui::SetNextItemWidth( -1 );
+        ImGuiX::InputTextWithOptions( "##oldID", m_oldIDBuffer.Data(), m_oldIDBuffer.Size(), &m_oldIDOptionData );
 
         // New Value
         //-------------------------------------------------------------------------
 
         ImGui::AlignTextToFramePadding();
         ImGui::Text( "New ID: " );
-        ImGui::SameLine();
+        ImGui::SameLine( offsetX, itemSpacingX );
 
-        ImGui::SetNextItemWidth( inputWidth - itemSpacingX - ImGui::CalcTextSize( "New ID: " ).x );
-        ImGui::InputText( "##newid", m_newIDBuffer, 255 );
-
-        ImGui::SameLine();
-
-        if ( m_newIDWidget.DrawAndUpdate( comboWidth ) )
-        {
-            auto pSelectedOption = m_newIDWidget.GetSelectedOption();
-            if ( pSelectedOption != nullptr && pSelectedOption->m_value.IsValid() )
-            {
-                strncpy_s( m_newIDBuffer, 255, pSelectedOption->m_value.c_str(), strlen( pSelectedOption->m_value.c_str() ) );
-            }
-            else // Clear value
-            {
-                memset( m_newIDBuffer, 0, 255 );
-            }
-        }
+        ImGui::SetNextItemWidth( -1 );
+        ImGuiX::InputTextWithOptions( "##newID", m_newIDBuffer.Data(), m_newIDBuffer.Size(), &m_newIDOptionData );
 
         // Get old and new IDs
         //-------------------------------------------------------------------------
 
-        StringUtils::StripTrailingWhitespace( m_oldIDBuffer );
+        StringUtils::StripTrailingWhitespace( m_oldIDBuffer.Data() );
         StringID oldID;
-        if ( strlen( m_oldIDBuffer ) > 0 )
+        if ( !m_oldIDBuffer.Empty() )
         {
-            oldID = StringID( m_oldIDBuffer );
+            oldID = StringID( m_oldIDBuffer.Data() );
         }
 
-        StringUtils::StripTrailingWhitespace( m_newIDBuffer );
+        StringUtils::StripTrailingWhitespace( m_newIDBuffer.Data() );
         StringID newID;
-        if ( strlen( m_newIDBuffer ) > 0 )
+        if ( !m_newIDBuffer.Empty() )
         {
-            newID = StringID( m_newIDBuffer );
+            newID = StringID( m_newIDBuffer.Data() );
         }
 
         //-------------------------------------------------------------------------
@@ -6589,7 +6535,8 @@ namespace EE::Animation
 
         IDEditor( PG::PropertyEditorContext const& context, TypeSystem::PropertyInfo const& propertyInfo, IReflectedType* pTypeInstance, void* m_pPropertyInstance )
             : PropertyEditor( context, propertyInfo, pTypeInstance, m_pPropertyInstance )
-            , m_picker( reinterpret_cast<AnimationGraphEditor*>( context.m_pUserContext ) )
+            , m_buffer( 255 )
+            , m_optionData( reinterpret_cast<AnimationGraphEditor*>( context.m_pUserContext ) )
         {
             IDEditor::ResetWorkingCopy();
         }
@@ -6602,40 +6549,10 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            ImGui::SetNextItemWidth( ImGui::GetContentRegionAvail().x - 30 );
-            if ( ImGui::InputText( "##agid", m_buffer, 255, ImGuiInputTextFlags_EnterReturnsTrue ) )
+            ImGui::SetNextItemWidth( -1 );
+            if ( ImGuiX::InputTextWithOptions( "##PGIDPicker", m_buffer.Data(), m_buffer.Size(), &m_optionData, ImGuiInputTextFlags_EnterReturnsTrue ) )
             {
-                valueUpdated = true;
-            }
-
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
-            {
-                valueUpdated = true;
-            }
-
-            if ( valueUpdated )
-            {
-                StringUtils::StripTrailingWhitespace( m_buffer );
-            }
-
-            //-------------------------------------------------------------------------
-
-            ImGui::SameLine( 0, 0 );
-
-            if ( m_picker.DrawAndUpdate( 30 ) )
-            {
-                auto pSelectedOption = m_picker.GetSelectedOption();
-                if ( pSelectedOption != nullptr && pSelectedOption->m_value.IsValid() )
-                {
-                    m_value_cached = pSelectedOption->m_value;
-                    strncpy_s( m_buffer, 255, pSelectedOption->m_value.c_str(), strlen( pSelectedOption->m_value.c_str() ) );
-                }
-                else // Clear value
-                {
-                    m_value_cached.Clear();
-                    memset( m_buffer, 0, 255 );
-                }
-
+                StringUtils::StripTrailingWhitespace( m_buffer.Data() );
                 valueUpdated = true;
             }
 
@@ -6646,58 +6563,58 @@ namespace EE::Animation
 
         virtual void UpdatePropertyValue() override
         {
-            if ( strlen( m_buffer ) > 0 )
+            if ( !m_buffer.Empty() )
             {
-                m_value_cached = StringID( m_buffer );
+                m_valueCached = StringID( m_buffer.GetString() );
             }
             else
             {
-                m_value_cached.Clear();
+                m_valueCached.Clear();
             }
 
-            *reinterpret_cast<StringID*>( m_pPropertyInstance ) = m_value_cached;
+            *reinterpret_cast<StringID*>( m_pPropertyInstance ) = m_valueCached;
         }
 
         virtual void ResetWorkingCopy() override
         {
-            m_value_cached = *reinterpret_cast<StringID*>( m_pPropertyInstance );
-            if ( m_value_cached.IsValid() )
+            m_valueCached = *reinterpret_cast<StringID*>( m_pPropertyInstance );
+            if ( m_valueCached.IsValid() )
             {
-                strncpy_s( m_buffer, 255, m_value_cached.c_str(), strlen( m_value_cached.c_str() ) );
+                m_buffer.Fill( m_valueCached.c_str() );
             }
             else
             {
-                memset( m_buffer, 0, 255 );
+                m_buffer.Clear();
             }
         }
 
         virtual void HandleExternalUpdate() override
         {
             StringID* pID = reinterpret_cast<StringID*>( m_pPropertyInstance );
-            if ( *pID != m_value_cached )
+            if ( *pID != m_valueCached )
             {
-                m_value_cached = *pID;
-                if ( m_value_cached.IsValid() )
+                m_valueCached = *pID;
+                if ( m_valueCached.IsValid() )
                 {
-                    strncpy_s( m_buffer, 255, m_value_cached.c_str(), strlen( m_value_cached.c_str() ) );
+                    m_buffer.Fill( m_valueCached.c_str() );
                 }
                 else
                 {
-                    memset( m_buffer, 0, 255 );
+                    m_buffer.Clear();
                 }
             }
         }
 
     private:
 
-        AnimationGraphEditor::IDComboWidget         m_picker;
-        char                                        m_buffer[256] = { 0 };
-        StringID                                    m_value_cached;
+        ImGuiX::TextBuffer                     m_buffer;
+        AnimationGraphEditor::IDOptionData     m_optionData;
+        StringID                               m_valueCached;
     };
 
     //-------------------------------------------------------------------------
 
-    class BoneMaskIDEditor final : public PG::PropertyEditor, public ImGuiX::ComboWithFilterWidget<StringID>
+    class BoneMaskIDEditor final : public PG::PropertyEditor
     {
         constexpr static uint32_t const s_bufferSize = 256;
 
@@ -6708,46 +6625,54 @@ namespace EE::Animation
             , m_pGraphEditor( reinterpret_cast<AnimationGraphEditor*>( context.m_pUserContext ) )
         {
             BoneMaskIDEditor::ResetWorkingCopy();
+
+            m_optionData.SetOptionProvider( [this] ( TVector<ImGuiX::OptionData::Option>& outOptions ) { PopulateOptionsList( outOptions ); } );
         }
 
     private:
 
         virtual Result InternalUpdateAndDraw() override
         {
-            return ImGuiX::ComboWithFilterWidget<StringID>::DrawAndUpdate() ? Result::ValueUpdated : Result::None;
+            m_selectedOptionID.Clear();
+            if ( m_valueCached.IsValid() )
+            {
+                m_selectedOptionID = m_optionData.FindItemIDByText( m_valueCached.c_str() );
+            }
+
+            ImGui::SetNextItemWidth( -1 );
+            return ImGuiX::ComboWithFilter( "##BME", &m_optionData, m_selectedOptionID ) ? Result::ValueUpdated : Result::None;
         }
 
         virtual void UpdatePropertyValue() override
         {
-            if ( HasValidSelection() )
+            auto pSelectedOption = m_optionData.TryGetOption( m_selectedOptionID );
+            if ( pSelectedOption != nullptr )
             {
-                m_value_cached = GetSelectedOption()->m_value;
+                m_valueCached = StringID( pSelectedOption->m_text );
             }
             else
             {
-                m_value_cached.Clear();
+                m_valueCached.Clear();
             }
 
-            *reinterpret_cast<StringID*>( m_pPropertyInstance ) = m_value_cached;
+            *reinterpret_cast<StringID*>( m_pPropertyInstance ) = m_valueCached;
         }
 
         virtual void ResetWorkingCopy() override
         {
-            m_value_cached = *reinterpret_cast<StringID*>( m_pPropertyInstance );
-            SetSelectedOption( m_value_cached );
+            m_valueCached = *reinterpret_cast<StringID*>( m_pPropertyInstance );
         }
 
         virtual void HandleExternalUpdate() override
         {
             StringID* pBoneMaskID = reinterpret_cast<StringID*>( m_pPropertyInstance );
-            if ( *pBoneMaskID != m_value_cached )
+            if ( *pBoneMaskID != m_valueCached )
             {
-                m_value_cached = *pBoneMaskID;
-                SetSelectedOption( m_value_cached );
+                m_valueCached = *pBoneMaskID;
             }
         }
 
-        virtual void PopulateOptionsList() override
+        void PopulateOptionsList( TVector<ImGuiX::OptionData::Option>& outOptions )
         {
             ResourceID const& skeletonResourceID = m_pGraphEditor->GetEditedGraphData()->GetActiveVariationSkeleton();
             auto pSkeletonFileEntry = m_pGraphEditor->m_pToolsContext->m_pDataFileRegistry->GetFileEntry( skeletonResourceID );
@@ -6761,19 +6686,24 @@ namespace EE::Animation
                         continue;
                     }
 
-                    auto& opt = m_options.emplace_back();
-                    opt.m_label = boneMaskID.c_str();
-                    opt.m_filterComparator = boneMaskID.c_str();
-                    opt.m_filterComparator.make_lower();
-                    opt.m_value = boneMaskID;
+                    outOptions.emplace_back( boneMaskID.c_str() );
                 }
             }
         };
 
     private:
 
+        BoneMaskIDEditor( BoneMaskIDEditor const& ) = delete;
+        BoneMaskIDEditor( BoneMaskIDEditor&& ) = delete;
+        BoneMaskIDEditor& operator=( BoneMaskIDEditor const& ) = delete;
+        BoneMaskIDEditor& operator=( BoneMaskIDEditor&& ) = delete;
+
+    private:
+
         AnimationGraphEditor*                    m_pGraphEditor = nullptr;
-        StringID                                    m_value_cached;
+        ImGuiX::OptionData                       m_optionData;
+        StringID                                 m_valueCached;
+        UUID                                     m_selectedOptionID;
     };
 
     //-------------------------------------------------------------------------

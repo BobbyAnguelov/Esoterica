@@ -101,9 +101,23 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         uint rangeStart = ~0U;
         uint rangeEnd = 0;
         
-        if ( pointLightPageRange.y > 0 )    { rangeStart = min( rangeStart, pointLightPageRange.x ); rangeEnd = max( rangeEnd, pointLightPageRange.x + pointLightPageRange.y ); }
-        if ( spotLightPageRange.y > 0 )     { rangeStart = min( rangeStart, spotLightPageRange.x ); rangeEnd = max( rangeEnd, spotLightPageRange.x + spotLightPageRange.y ); }
-        if ( rangeStart > rangeEnd )        { rangeStart = 0; rangeEnd = 0; }
+        if ( pointLightPageRange.y > 0 )
+        {
+            rangeStart = min( rangeStart, pointLightPageRange.x );
+            rangeEnd = max( rangeEnd, pointLightPageRange.x + pointLightPageRange.y );
+        }
+
+        if ( spotLightPageRange.y > 0 )
+        {
+            rangeStart = min( rangeStart, spotLightPageRange.x );
+            rangeEnd = max( rangeEnd, spotLightPageRange.x + spotLightPageRange.y );
+        }
+
+        if ( rangeStart > rangeEnd )
+        {
+            rangeStart = 0;
+            rangeEnd = 0;
+        }
         
         gsPageStart = rangeStart;
         gsPageEnd   = rangeEnd;
@@ -122,8 +136,8 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 
     StructuredBuffer<LightInstance_PointLight>  pointLights     = GetBuffer( RootCBV.m_pointLightBuffer );
     StructuredBuffer<LightInstance_SpotLight>   spotLights      = GetBuffer( RootCBV.m_spotLightBuffer );
-    Buffer<uint64_t>                            pointLightPages = GetBuffer( RootCBV.m_pointLightPageBuffer );
-    Buffer<uint64_t>                            spotLightPages  = GetBuffer( RootCBV.m_spotLightPageBuffer );
+    StructuredBuffer<uint64_t>                  pointLightPages = GetBuffer( RootCBV.m_pointLightPageBuffer );
+    StructuredBuffer<uint64_t>                  spotLightPages  = GetBuffer( RootCBV.m_spotLightPageBuffer );
 
     uint maxPages = max( RootCBV.m_numPointLightPages, RootCBV.m_numSpotLightPages );
 
@@ -166,7 +180,7 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
                 bool     inParent = isRoot || ( ( parentPayload.x & testBit ) != 0 );
 
                 bool inCell = false;
-                if( inParent && occupied )
+                if ( inParent && occupied )
                 {
                     uint pointLightIdx = pageIndex * 64 + groupThreadID;
                     inCell = TestPointLightCell( cellCenter, cellHalfExtents, pointLights[pointLightIdx] );

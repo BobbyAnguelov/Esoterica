@@ -60,7 +60,6 @@ namespace EE
     {
         #if EE_ENABLE_LPP
         LivePP_CreateAgent();
-        LivePP_EnableModules();
         #endif
 
         Int2 const windowDimensions( ( m_windowRect.right - m_windowRect.left ), ( m_windowRect.bottom - m_windowRect.top ) );

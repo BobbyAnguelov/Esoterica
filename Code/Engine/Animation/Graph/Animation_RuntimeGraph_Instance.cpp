@@ -1318,6 +1318,14 @@ namespace EE::Animation
 
         //-------------------------------------------------------------------------
 
+        // If we are a standalone instance, we need to fully reset the task system and release all pose and cached pose buffers
+        if ( IsStandaloneInstance() )
+        {
+            m_graphContext.m_pTaskSystem->Reset();
+        }
+
+        //-------------------------------------------------------------------------
+
         // Set nodes array to the current instance array
         TVector<GraphNode *> *const pPreviousNodeArray = recordedState.m_pNodes;
         const_cast<TVector<GraphNode *> *&>( recordedState.m_pNodes ) = &m_nodes;

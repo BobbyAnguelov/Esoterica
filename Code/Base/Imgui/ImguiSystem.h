@@ -13,6 +13,7 @@
 #include "Base/Fonts/Font_Roboto_Bold.h"
 #include "Base/Fonts/Font_Roboto_BoldItalic.h"
 #include "Base/Fonts/Font_MaterialDesignIcons.h"
+#include "Base/Fonts/Font_Esoterica.h"
 
 //-------------------------------------------------------------------------
 // Base ImGui integration
@@ -65,6 +66,7 @@ namespace EE::ImGuiX
         Blob const                      m_fontData_bold = Embed::Font_Roboto_Bold::GetFileData();
         Blob const                      m_fontData_bolditalic = Embed::Font_Roboto_BoldItalic::GetFileData();
         Blob const                      m_iconFontData = Embed::Font_MDI::GetFileData();
+        Blob const                      m_esotericaFontData = Embed::Font_Esoterica::GetFileData();
     };
 }
 #endif

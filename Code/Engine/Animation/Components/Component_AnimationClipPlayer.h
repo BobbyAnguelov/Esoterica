@@ -101,6 +101,9 @@ namespace EE::Animation
         // This is a helper that automatically converts seconds to percentage and sets the time! Note: this can only be called for initialized components
         void SetAnimTime( Seconds inTime );
 
+        // This is a helper that automatically converts frame time to percentage and sets the time! Note: this can only be called for initialized components
+        void SetAnimTime( FrameTime const& inTime );
+
     protected:
 
         virtual void Initialize() override;
@@ -115,6 +118,9 @@ namespace EE::Animation
         PlayMode                                m_playMode = PlayMode::Loop;
 
         EE_REFLECT();
+        int32_t                                 m_poseStartFrame = 0; // The posed frame that this animation will start at if posed
+
+        EE_REFLECT();
         bool                                    m_requiresManualUpdate = false; // Does this component require a manual update via a custom entity system?
 
         EE_REFLECT();
@@ -123,10 +129,11 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         Skeleton::LOD                           m_skeletonLOD = Skeleton::LOD::High;
-        Percentage                              m_previousAnimTime = Percentage( 0.0f );
+        Percentage                              m_previousAnimTime = Percentage( -1.0f );
         Percentage                              m_animTime = Percentage( 0.0f );
         Transform                               m_rootMotionDelta = Transform::Identity;
         Pose*                                   m_pPose = nullptr;
         TInlineVector<Pose*, 1>                 m_secondaryPoses;
+        bool                                    m_wasTimeManuallySet = false;
     };
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "EngineTools/Core/DialogManager.h"
 #include "EngineTools/FileSystem/DataFileRegistry.h"
+#include "Base/Imgui/ImguiFilter.h"
 
 //-------------------------------------------------------------------------
 
@@ -31,10 +32,10 @@ namespace EE::Resource
 
     private:
 
-        ToolsContext const*                         m_pToolsContext = nullptr;
-        ImGuiX::FilterWidget                        m_filter;
-        TVector<DataFileRegistry::FileInfo const*>    m_files;
-        TVector<DataFileRegistry::FileInfo const*>    m_filteredFiles;
-        String                                      m_buffer;
+        ToolsContext const*                             m_pToolsContext = nullptr;
+        ImGuiX::FilterData                              m_filter;
+        TVector<DataFileRegistry::FileInfo const*>      m_files;
+        TVector<DataFileRegistry::FileInfo const*>      m_filteredFiles;
+        String                                          m_buffer;
     };
 }

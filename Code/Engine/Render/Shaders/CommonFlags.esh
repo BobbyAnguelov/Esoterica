@@ -42,10 +42,11 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     static const RendererGlobalFlags            RENDERER_GLOBAL_FLAG_RESERVED_3                                             = 1U << 4U;
     static const RendererGlobalFlags            RENDERER_GLOBAL_FLAG_DISABLE_SSAO                                           = 1U << 5U;
 
-    typedef uint RenderViewFlags;               // 2 bits required
+    typedef uint RenderViewFlags;               // 3 bits required
     static const RenderViewFlags                RENDER_VIEW_FLAG_NONE                                                       = 0U;
     static const RenderViewFlags                RENDER_VIEW_FLAG_DEPTH_ONLY                                                 = 1U << 0U;
     static const RenderViewFlags                RENDER_VIEW_FLAG_FLIP_WINDING                                               = 1U << 1U;
+    static const RenderViewFlags                RENDER_VIEW_FLAG_SHADOW_FACE                                                = 1U << 2U;
 
     typedef uint RenderViewLayerFlags;          // 8 bits required, has to match `enum class ViewLayer` !
     static const RenderViewLayerFlags           RENDER_VIEW_LAYER_FLAG_NONE                                                 = 0U;

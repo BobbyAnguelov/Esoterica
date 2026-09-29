@@ -14,6 +14,7 @@ namespace EE::Animation
             if ( mask.IsZeroWeightMask() )
             {
                 pPose->m_parentSpaceTransforms[0].SetScale( 0.0f );
+                pPose->ClearModelSpaceTransforms();
             }
             else if ( mask.IsFullWeightMask() )
             {
@@ -27,6 +28,8 @@ namespace EE::Animation
                     float const scale = pPose->m_parentSpaceTransforms[i].GetScale() * mask.GetWeight( i );
                     pPose->m_parentSpaceTransforms[i].SetScale( scale );
                 }
+
+                pPose->ClearModelSpaceTransforms();
             }
         }
     };

@@ -1,8 +1,6 @@
 #ifndef __cplusplus
-#define RWStructuredBuffer RWBuffer
 #define FFX_HLSL
 #include "FFX_ParallelSort.esh"
-#undef RWStructuredBuffer
 #endif
 
 #include "Base/Render/RHI.esh"
@@ -74,8 +72,8 @@ EE_END_SHADER_TYPES_NAMESPACE
 #ifndef __cplusplus
 ESF_RESOURCE_TABLE struct FFX_ParallelSort_SetupIndirectResourceTable
 {
-    RWBuffer<uint>                              m_numKeysBuffer;
-    RWBuffer<uint>                              m_constantsBuffer;
+    RWStructuredBuffer<uint>                              m_numKeysBuffer;
+    RWStructuredBuffer<uint>                              m_constantsBuffer;
 
     RWStructuredBuffer<FFX_ParallelSort_CountIndirectArgument>          m_countArguments;
     RWStructuredBuffer<FFX_ParallelSort_ReduceIndirectArgument>         m_reduceArguments;

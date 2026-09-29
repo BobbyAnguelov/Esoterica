@@ -4,7 +4,9 @@
 #if EE_DEVELOPMENT_TOOLS
 
 #include "Engine/Render/RenderViewport.h"
+#include "Engine/Entity/EntityWorld.h"
 #include "Engine/Render/RenderSystem.h"
+#include "Engine/Render/Device/DeviceRenderWorld.h"
 #include "Engine/Render/RenderPasses/RenderPass_ForwardShading.h"
 #include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
 #include "Engine/Render/Shaders/EditorOutline/EditorOutline_Initialize.esf"
@@ -16,8 +18,6 @@ namespace EE::Render
 {
     void EditorOutlineRenderPass::Initialize( RenderPassContext const& context )
     {
-        m_renderView.Initialize( context.m_pRenderSystem, context.m_materialShaderPipelineBuckets.size() );
-
         m_pRenderSettings = context.m_pRenderSettings;
 
         static StringID s_InitializeShaderID = StringID( "EditorOutline_Initialize" );
@@ -72,18 +72,38 @@ namespace EE::Render
 
     void EditorOutlineRenderPass::Shutdown( RenderSystem* pRenderSystem )
     {
-        m_renderView.Shutdown( pRenderSystem );
-
         RHI::DestroyPipeline( pRenderSystem->GetContextRHI(), eastl::move( m_pInitializePipeline ) );
         RHI::DestroyPipeline( pRenderSystem->GetContextRHI(), eastl::move( m_pJumpFloodPipeline ) );
         RHI::DestroyPipeline( pRenderSystem->GetContextRHI(), eastl::move( m_pCompositePipeline ) );
     }
 
-    void EditorOutlineRenderPass::UpdateDeviceResources( RenderSystem* pRenderSystem, DeviceRenderWorld const& deviceRenderWorld )
+    void EditorOutlineRenderPass::UpdateWorldDeviceResources( EntityWorld* pWorld )
     {
         EE_PROFILE_FUNCTION_RENDER();
 
-        m_renderView.UpdateDeviceResources( pRenderSystem, deviceRenderWorld );
+        for ( Viewport* pViewport : pWorld->GetViewports() )
+        {
+            if ( !pViewport->IsValid() )
+            {
+                continue;
+            }
+
+            RenderViewport* pRenderViewport = static_cast<RenderViewport*>( pViewport );
+
+            if ( !pRenderViewport->IsPickingEnabled() )
+            {
+                continue;
+            }
+
+            RenderViewProxy& renderViewProxy = pRenderViewport->m_editorOutlineRenderViewProxy;
+
+            EE_ASSERT( renderViewProxy.IsValid() );
+            EE_ASSERT( renderViewProxy.GetNumRenderViews() == 1 );
+
+            renderViewProxy.StartRenderViewWrite();
+            renderViewProxy.WriteRenderView( 0, pRenderViewport->GetViewVolume(), pRenderViewport->GetSize(), ShaderTypes::RENDER_VIEW_FLAG_DEPTH_ONLY );
+            renderViewProxy.SubmitRenderViewWrite();
+        }
     }
 
     void EditorOutlineRenderPass::UpdateViewportDeviceResources( RenderSystem* pRenderSystem, RenderViewport* pRenderViewport )
@@ -102,32 +122,32 @@ namespace EE::Render
             depthParameters.m_width = textureWidth;
             depthParameters.m_height = textureHeight;
             depthParameters.m_format = RHI::DataFormat::D16_UNorm;
-            depthParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture );
+            depthParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture };
             depthParameters.m_debugName.sprintf( "EditorOutlinePass Depth Target %dx%d", textureWidth, textureHeight );
 
             pRenderViewport->m_editorOutline_depthTexture = RHI::CreateTexture( pRenderSystem->GetContextRHI(), depthParameters );
         }
 
-        if ( !pRenderViewport->m_editorOutline_JFA_Texture0 || pRenderViewport->m_editorOutline_JFA_Texture0->m_width != textureWidth || pRenderViewport->m_editorOutline_JFA_Texture0->m_height != textureHeight )
+        if ( !pRenderViewport->m_editorOutline_JFA_texture0 || pRenderViewport->m_editorOutline_JFA_texture0->m_width != textureWidth || pRenderViewport->m_editorOutline_JFA_texture0->m_height != textureHeight )
         {
             pRenderSystem->QueueResourceDelete
             (
-                eastl::move( pRenderViewport->m_editorOutline_JFA_Texture0 ),
-                eastl::move( pRenderViewport->m_editorOutline_JFA_Texture1 )
+                eastl::move( pRenderViewport->m_editorOutline_JFA_texture0 ),
+                eastl::move( pRenderViewport->m_editorOutline_JFA_texture1 )
             );
 
             RHI::TextureParameters seedTextureParameters = {};
             seedTextureParameters.m_width = textureWidth;
             seedTextureParameters.m_height = textureHeight;
             seedTextureParameters.m_format = RHI::DataFormat::RG16_UNorm;
-            seedTextureParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture );
+            seedTextureParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture };
             seedTextureParameters.m_debugName.sprintf( "EditorOutlinePass JFA Target 0 %dx%d", textureWidth, textureHeight );
 
-            pRenderViewport->m_editorOutline_JFA_Texture0 = RHI::CreateTexture( pRenderSystem->GetContextRHI(), seedTextureParameters );
+            pRenderViewport->m_editorOutline_JFA_texture0 = RHI::CreateTexture( pRenderSystem->GetContextRHI(), seedTextureParameters );
 
             seedTextureParameters.m_debugName.sprintf( "EditorOutlinePass JFA Target 1 %dx%d", textureWidth, textureHeight );
 
-            pRenderViewport->m_editorOutline_JFA_Texture1 = RHI::CreateTexture( pRenderSystem->GetContextRHI(), seedTextureParameters );
+            pRenderViewport->m_editorOutline_JFA_texture1 = RHI::CreateTexture( pRenderSystem->GetContextRHI(), seedTextureParameters );
         }
 
         if ( !pRenderViewport->m_editorOutline_idTexture || pRenderViewport->m_editorOutline_idTexture->m_width != textureWidth || pRenderViewport->m_editorOutline_idTexture->m_height != textureHeight )
@@ -138,79 +158,17 @@ namespace EE::Render
             idTextureParameters.m_width = textureWidth;
             idTextureParameters.m_height = textureHeight;
             idTextureParameters.m_format = RHI::DataFormat::R32_UInt;
-            idTextureParameters.m_descriptorTypes.SetMultipleFlags( RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture, RHI::DescriptorTypeFlags::RWTexture );
+            idTextureParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::RenderTarget, RHI::DescriptorTypeFlags::Texture, RHI::DescriptorTypeFlags::RWTexture };
             idTextureParameters.m_debugName.sprintf( "EditorOutlinePass Object ID Target %dx%d", textureWidth, textureHeight );
 
             pRenderViewport->m_editorOutline_idTexture = RHI::CreateTexture( pRenderSystem->GetContextRHI(), idTextureParameters );
         }
     }
 
-    void EditorOutlineRenderPass::UpdateRenderViews( RenderViewport const* pRenderViewport, TArrayView<ShaderTypes::RenderView> dstRenderViews_WriteCombined ) const
-    {
-        Math::ViewVolume const& viewVolume = pRenderViewport->GetViewVolume();
-        Float2 const viewSize = pRenderViewport->GetSize();
-
-        Matrix reverseZ
-        (
-            Vector( 1.0f, 0.0f, 0.0f, 0.0f ),
-            Vector( 0.0f, 1.0f, 0.0f, 0.0f ),
-            Vector( 0.0f, 0.0f, -1.0f, 0.0f ),
-            Vector( 0.0f, 0.0f, 1.0f, 1.0f )
-        );
-
-        Matrix projectionMatrix = viewVolume.GetProjectionMatrix() * reverseZ;
-        Matrix viewProjectionMatrix = viewVolume.GetViewMatrix() * projectionMatrix;
-
-        alignas( 32 ) ShaderTypes::RenderView deviceRenderView = {};
-        std::memcpy
-        (
-            deviceRenderView.m_viewProjectionMatrix,
-            viewProjectionMatrix.m_rows,
-            sizeof( deviceRenderView.m_viewProjectionMatrix )
-        );
-        std::memcpy
-        (
-            deviceRenderView.m_viewMatrix,
-            viewVolume.GetViewMatrix().m_rows,
-            sizeof( deviceRenderView.m_viewMatrix )
-        );
-        std::memcpy
-        (
-            deviceRenderView.m_inverseViewProjectionMatrix,
-            viewProjectionMatrix.GetInverse().m_rows,
-            sizeof( deviceRenderView.m_inverseViewProjectionMatrix )
-        );
-        std::memcpy
-        (
-            deviceRenderView.m_inverseViewMatrix,
-            viewVolume.GetViewMatrix().GetInverse().m_rows,
-            sizeof( viewVolume.GetViewMatrix() )
-        );
-        std::memcpy
-        (
-            deviceRenderView.m_inverseProjectionMatrix,
-            projectionMatrix.GetInverse().m_rows,
-            sizeof( projectionMatrix )
-        );
-
-        deviceRenderView.m_renderTargetSize[0] = viewSize.m_x;
-        deviceRenderView.m_renderTargetSize[1] = viewSize.m_y;
-        deviceRenderView.m_renderTargetSize[2] = 1.0F / viewSize.m_x;
-        deviceRenderView.m_renderTargetSize[3] = 1.0F / viewSize.m_y;
-
-        deviceRenderView.m_projectionP00 = projectionMatrix.m_values[0][0];
-        deviceRenderView.m_projectionP11 = projectionMatrix.m_values[1][1];
-        deviceRenderView.m_znear = viewVolume.GetDepthRange().m_begin;
-
-        deviceRenderView.m_renderViewFlags = ShaderTypes::RENDER_VIEW_FLAG_DEPTH_ONLY;
-        deviceRenderView.m_renderViewLayerFlags = ShaderTypes::RENDER_VIEW_LAYER_FLAG_FORWARD_SHADING;
-
-        Memory::CopyToWriteCombined( dstRenderViews_WriteCombined.data(), &deviceRenderView, sizeof( deviceRenderView ) );
-    }
-
     void EditorOutlineRenderPass::DrawToViewport
     (
         TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
+        ActiveRenderView const&                                         activeRenderView,
         RenderViewport const*                                           pRenderViewport,
         DeviceResourceStates&                                           resourceStates,
         RHI::CommandBuffer*                                             pCommandBuffer
@@ -243,7 +201,7 @@ namespace EE::Render
             ForwardShadingPass::DrawMaterialShaderBuckets_OutlineID
             (
                 materialShaderBuckets,
-                m_renderView,
+                activeRenderView,
                 pRenderViewport->m_editorOutline_idTexture.m_pTexture,
                 pRenderViewport->m_editorOutline_depthTexture.m_pTexture,
                 pCommandBuffer
@@ -255,8 +213,8 @@ namespace EE::Render
     {
         EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, "Editor Outline Resolve" );
 
-        uint32_t const textureWidth = pRenderViewport->m_editorOutline_JFA_Texture0->m_width;
-        uint32_t const textureHeight = pRenderViewport->m_editorOutline_JFA_Texture0->m_height;
+        uint32_t const textureWidth = pRenderViewport->m_editorOutline_JFA_texture0->m_width;
+        uint32_t const textureHeight = pRenderViewport->m_editorOutline_JFA_texture0->m_height;
 
         Float2 const viewportSize = pRenderViewport->GetSize();
 
@@ -270,10 +228,10 @@ namespace EE::Render
         {
             EE_ASSERT( !resourceStates.HasPendingBarriers() );
             resourceStates.ReadOnly( pRenderViewport->m_editorOutline_idTexture, RHI::PipelineStage::PixelShader, RHI::ResourceAccess::ShaderResource, RHI::TextureState::ShaderResource );
-            resourceStates.Writeable( pRenderViewport->m_editorOutline_JFA_Texture0, RHI::PipelineStage::Draw, RHI::ResourceAccess::RenderTarget, RHI::TextureState::RenderTarget );
+            resourceStates.Writeable( pRenderViewport->m_editorOutline_JFA_texture0, RHI::PipelineStage::Draw, RHI::ResourceAccess::RenderTarget, RHI::TextureState::RenderTarget );
             resourceStates.FlushBarriers( pCommandBuffer );
 
-            RHI::CmdSetRenderTargets( pCommandBuffer, { &pRenderViewport->m_editorOutline_JFA_Texture0.m_pTexture, 1 }, nullptr, &seedLoadAction );
+            RHI::CmdSetRenderTargets( pCommandBuffer, { &pRenderViewport->m_editorOutline_JFA_texture0.m_pTexture, 1 }, nullptr, &seedLoadAction );
             RHI::CmdSetViewport( pCommandBuffer, 0.0F, 0.0F, float( textureWidth ), float( textureHeight ), 0.0F, 1.0F );
             RHI::CmdSetScissor( pCommandBuffer, 0, 0, textureWidth, textureHeight );
 
@@ -302,8 +260,8 @@ namespace EE::Render
 
         for ( uint32_t stepSize = jumpFloodStepSize; stepSize >= 1; stepSize >>= 1 )
         {
-            DeviceTextureState& inputTexture = readIsTexture0 ? pRenderViewport->m_editorOutline_JFA_Texture0 : pRenderViewport->m_editorOutline_JFA_Texture1;
-            DeviceTextureState& outputTexture = readIsTexture0 ? pRenderViewport->m_editorOutline_JFA_Texture1 : pRenderViewport->m_editorOutline_JFA_Texture0;
+            DeviceTextureState& inputTexture = readIsTexture0 ? pRenderViewport->m_editorOutline_JFA_texture0 : pRenderViewport->m_editorOutline_JFA_texture1;
+            DeviceTextureState& outputTexture = readIsTexture0 ? pRenderViewport->m_editorOutline_JFA_texture1 : pRenderViewport->m_editorOutline_JFA_texture0;
 
             EE_ASSERT( !resourceStates.HasPendingBarriers() );
             resourceStates.ReadOnly( inputTexture, RHI::PipelineStage::PixelShader, RHI::ResourceAccess::ShaderResource, RHI::TextureState::ShaderResource );
@@ -332,7 +290,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        DeviceTextureState& distanceTexture = readIsTexture0 ? pRenderViewport->m_editorOutline_JFA_Texture0 : pRenderViewport->m_editorOutline_JFA_Texture1;
+        DeviceTextureState& distanceTexture = readIsTexture0 ? pRenderViewport->m_editorOutline_JFA_texture0 : pRenderViewport->m_editorOutline_JFA_texture1;
 
         RHI::LoadAction compositeLoadAction = {};
         compositeLoadAction.m_loadActionsColor[0] = RHI::LoadActionType::Load;

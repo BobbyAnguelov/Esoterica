@@ -463,7 +463,8 @@ namespace EE::EntityModel
 
                 {
                     ImGui::SameLine();
-                    if ( m_filter.UpdateAndDraw() )
+                    ImGui::SetNextItemWidth( -1 );
+                    if ( ImGuiX::InputFilterText( m_filter ) )
                     {
                         auto UpdateVisibility = [this] ( TreeListViewItem const* pItem ) -> bool
                         {
@@ -801,7 +802,8 @@ namespace EE::EntityModel
 
                     if ( ImGui::BeginMenu( EE_ICON_PLUS" Add Child Component" ) )
                     {
-                        m_componentContextMenufilter.UpdateAndDraw();
+                        ImGui::SetNextItemWidth( -1 );
+                        ImGuiX::InputFilterText( m_componentContextMenufilter );
 
                         if ( m_componentContextMenufilter.HasFilterSet() )
                         {
@@ -850,7 +852,8 @@ namespace EE::EntityModel
     {
         if ( ImGui::BeginMenu( EE_ICON_PUZZLE" Add Component" ) )
         {
-            m_componentContextMenufilter.UpdateAndDraw();
+            ImGui::SetNextItemWidth( -1 );
+            ImGuiX::InputFilterText( m_componentContextMenufilter );
 
             if ( m_componentContextMenufilter.HasFilterSet() )
             {
@@ -888,7 +891,8 @@ namespace EE::EntityModel
 
         if ( ImGui::BeginMenu( EE_ICON_COG" Add System" ) )
         {
-            m_systemContextMenufilter.UpdateAndDraw();
+            ImGui::SetNextItemWidth( -1 );
+            ImGuiX::InputFilterText( m_systemContextMenufilter );
 
             if ( m_systemContextMenufilter.HasFilterSet() )
             {

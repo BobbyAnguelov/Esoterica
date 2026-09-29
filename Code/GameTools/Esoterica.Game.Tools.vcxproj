@@ -61,6 +61,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Animation\ToolsGraphNodes\Animation_ToolsGraphNode_AimIK.cpp" />
+    <ClCompile Include="Base\ComponentTools\ComponentTool_SpawnPoint.cpp" />
     <ClCompile Include="_Module\GameToolsModule.cpp" />
   </ItemGroup>
   <ItemGroup>

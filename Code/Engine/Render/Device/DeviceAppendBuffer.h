@@ -13,6 +13,12 @@ namespace EE::Render
 
     struct EE_ENGINE_API DeviceAppendBufferBase
     {
+        void Initialize( RHI::Context* pContextRHI, StringView name );
+        void Shutdown( RHI::Context* pContextRHI );
+        uint64_t GetAppendBufferHandle() const;
+
+        //-------------------------------------------------------------------------
+
         String                                                      m_bufferName;
 
         // TODO: Bunch of mutable stuff here, we don't have/need multithreaded command buffer recording right now so it's a later problem.
@@ -24,29 +30,23 @@ namespace EE::Render
         TArray<RHI::Buffer*, RHI::MaxPendingFrames>                 m_hostBuffers = {};
 
         uint32_t                                                    m_maxBufferSize = 1;
-
-        //-------------------------------------------------------------------------
-
-        void Initialize( RHI::Context* pContextRHI, StringView name );
-        void Shutdown( RHI::Context* pContextRHI );
-        uint64_t GetAppendBufferHandle() const;
     };
 
     template <typename T>
     struct DeviceAppendBuffer final : public DeviceAppendBufferBase
     {
-        eastl::conditional_t<eastl::is_same_v<T, void>,
-            uint32_t,
-            TAlignedVector<T>
-        >                                                           m_bufferData;
-
-        //-------------------------------------------------------------------------
-
         void UpdateBuffers( RenderSystem* pRenderSystem, uint32_t frameIndex, size_t stride, TBitFlags<RHI::DescriptorTypeFlags> descriptorTypeFlags );
 
         void Clear( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
         void CopyResults( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
         void Barrier( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
+
+        //-------------------------------------------------------------------------
+
+        eastl::conditional_t<eastl::is_same_v<T, void>,
+            uint32_t,
+            TAlignedVector<T>
+        >                                                           m_bufferData;
     };
 
     //-------------------------------------------------------------------------
@@ -56,7 +56,7 @@ namespace EE::Render
     {
         if constexpr ( !eastl::is_same_v<T, void> )
         {
-            static_assert( ( sizeof( T ) % RHI::BufferAlignment ) == 0, "Structure has to be aligned to RHI::BufferAlignment" );
+            static_assert( ( sizeof( T ) % RHI::g_bufferAlignment ) == 0, "Structure has to be aligned to RHI::g_bufferAlignment" );
             EE_ASSERT( stride == sizeof( T ) );
         }
 

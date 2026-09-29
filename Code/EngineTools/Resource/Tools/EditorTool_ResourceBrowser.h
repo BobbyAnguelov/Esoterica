@@ -113,7 +113,7 @@ namespace EE::Resource
 
     private:
 
-        ImGuiX::FilterWidget                                m_filter;
+        ImGuiX::FilterData                                  m_filter;
         TVector<TypeFilter>                                 m_allPossibleTypeFilters;
         TVector<int32_t>                                    m_selectedTypeFilterIndices;
         bool                                                m_showRawFiles = false;

@@ -13,14 +13,17 @@ namespace EE::Render
 {
     class EE_ENGINE_API TextureResource final : public Resource::IResource
     {
-        EE_RESOURCE( "texture", "Texture Resource", Colors::DarkCyan, 20, true );
+        EE_RESOURCE( "texture", "Texture Resource", Colors::DarkCyan, 21, true );
 
-        EE_SERIALIZE( m_width,
-                      m_height,
-                      m_depth,
-                      m_arrayLayers,
-                      m_mipLevels,
-                      m_rhiDataFormat );
+        EE_SERIALIZE
+        (
+            m_width,
+            m_height,
+            m_depth,
+            m_arrayLayers,
+            m_mipLevels,
+            m_rhiDataFormat
+        );
 
         friend class TextureLoader;
         friend class TextureCompiler;
@@ -39,6 +42,8 @@ namespace EE::Render
 
     private:
 
+        //-------------------------------------------------------------------------
+
         RHI::Texture*                   m_pTexture = nullptr;
 
         uint32_t                        m_width = 0;
@@ -47,8 +52,6 @@ namespace EE::Render
         uint32_t                        m_arrayLayers = 0;
         uint32_t                        m_mipLevels = 0;
         uint32_t                        m_rhiDataFormat = 0;
-
-    private:
 
         AsyncTextureUpdate*             m_pAsyncTextureUpdate = nullptr;
     };

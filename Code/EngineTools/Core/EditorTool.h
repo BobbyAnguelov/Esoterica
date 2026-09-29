@@ -8,6 +8,7 @@
 #include "Base/Utils/GlobalRegistryBase.h"
 #include "Base/Resource/ResourcePtr.h"
 #include "Base/Drawing/DebugDrawing.h"
+#include "Base/Imgui/ImguiFilter.h"
 #include "Base/Time/Timers.h"
 
 //-------------------------------------------------------------------------

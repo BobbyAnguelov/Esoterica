@@ -2773,7 +2773,13 @@ namespace EE::NodeGraph
         {
             if ( pFlowGraph->HasContextMenuFilter() )
             {
-                m_contextMenuState.m_filterWidget.UpdateAndDraw( -1, ImGuiX::FilterWidget::TakeInitialFocus );
+                if ( ImGui::IsWindowAppearing() )
+                {
+                    ImGui::SetKeyboardFocusHere();
+                }
+
+                ImGui::SetNextItemWidth( -1 );
+                ImGuiX::InputFilterText( m_contextMenuState.m_filter );
             }
 
             //-------------------------------------------------------------------------
@@ -2782,7 +2788,7 @@ namespace EE::NodeGraph
 
             //-------------------------------------------------------------------------
 
-            if ( pFlowGraph->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filterWidget.GetFilterTokens(), TryCast<FlowNode>( m_contextMenuState.m_pNode ), m_contextMenuState.m_pPin ) )
+            if ( pFlowGraph->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filter.GetFilterTokens(), TryCast<FlowNode>( m_contextMenuState.m_pNode ), m_contextMenuState.m_pPin ) )
             {
                 m_contextMenuState.Reset();
                 ImGui::CloseCurrentPopup();
@@ -2850,12 +2856,13 @@ namespace EE::NodeGraph
         {
             if ( pStateMachineGraph->HasContextMenuFilter() )
             {
-                m_contextMenuState.m_filterWidget.UpdateAndDraw();
+                ImGui::SetNextItemWidth( -1 );
+                ImGuiX::InputFilterText( m_contextMenuState.m_filter );
             }
 
             DrawSharedContextMenuOptions( ctx );
 
-            if( pStateMachineGraph->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filterWidget.GetFilterTokens() ) )
+            if( pStateMachineGraph->DrawContextMenuOptions( ctx, m_pUserContext, m_contextMenuState.m_mouseCanvasPos, m_contextMenuState.m_filter.GetFilterTokens() ) )
             {
                 m_contextMenuState.Reset();
                 ImGui::CloseCurrentPopup();

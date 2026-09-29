@@ -16,7 +16,7 @@ namespace EE::Animation
     void ExternalPoseNode::Definition::PostInstantiateNode( InstantiationContext const &context ) const
     {
         auto pNode = static_cast<ExternalPoseNode*>( context.m_nodePtrs[context.m_currentNodeIdx] );
-        pNode->m_externalPoseBufferID = context.m_pTaskSystem->CreateCachedPose();
+        pNode->m_externalPoseBufferID = context.m_pTaskSystem->CreatePersistentCachedPose();
         EE_ASSERT( pNode->m_externalPoseBufferID.IsValid() );
     }
 

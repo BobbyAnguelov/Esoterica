@@ -12,9 +12,10 @@
 #include "EngineTools/Core/Tools/EditorTool_SystemSettings.h"
 #include "EngineTools/Core/Tools/EditorTool_MemoryTracker.h"
 #include "EngineTools/Core/ToolsEmbeddedResources.inl"
-#include "EngineTools/Core/Test/UITest.h"
 #include "EngineTools/Core/SystemDialogs.h"
 #include "Engine/Camera/Components/Component_ToolsCamera.h"
+#include "Engine/Debug/Widgets/FrameLimiterWidget.h"
+#include "Engine/Debug/Widgets/PerformanceStatsWidget.h"
 #include "Engine/Camera/Systems/WorldSystem_Camera.h"
 #include "Engine/ToolsUI/EngineDebugUI.h"
 #include "Engine/Entity/EntityWorld.h"
@@ -149,6 +150,11 @@ namespace EE
 
         m_pWorldManager = nullptr;
         m_pTypeRegistry = nullptr;
+
+        // Tester
+        //-------------------------------------------------------------------------
+
+        EE::Delete( m_pUITester );
     }
 
     //-------------------------------------------------------------------------
@@ -504,7 +510,12 @@ namespace EE
 
         if ( m_isUITestWindowOpen )
         {
-            DrawUITestWindow( this, &m_isUITestWindowOpen );
+            if ( m_pUITester == nullptr )
+            {
+                m_pUITester = EE::New<UITest>( this );
+            }
+
+            m_pUITester->DrawWindow( &m_isUITestWindowOpen );
         }
 
         //-------------------------------------------------------------------------

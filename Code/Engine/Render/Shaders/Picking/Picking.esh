@@ -26,92 +26,172 @@ EE_END_SHADER_TYPES_NAMESPACE
 // outBarycentrics: (u, v, w) where result = u*a + v*b + w*c, u+v+w = 1
 float3 ComputeClosestPointOnTriangle( float3 p, float3 a, float3 b, float3 c, out float3 outBarycentrics )
 {
-    const float3 ab = b - a;
-    const float3 ac = c - a;
-    const float3 ap = p - a;
+    float3 const ab = b - a;
+    float3 const ac = c - a;
+    float3 const ap = p - a;
 
-    const float d1 = dot(ab, ap);
-    const float d2 = dot(ac, ap);
-    if (d1 <= 0.f && d2 <= 0.f)
+    float const d1 = dot( ab, ap );
+    float const d2 = dot( ac, ap );
+    if ( d1 <= 0.f && d2 <= 0.f )
     {
-        outBarycentrics = float3(1.0, 0.0, 0.0);
+        outBarycentrics = float3( 1.0, 0.0, 0.0 );
         return a;
     }
 
-    const float3 bp = p - b;
-    const float d3 = dot(ab, bp);
-    const float d4 = dot(ac, bp);
-    if (d3 >= 0.f && d4 <= d3)
+    float3 const bp = p - b;
+    float const d3 = dot( ab, bp );
+    float const d4 = dot( ac, bp );
+    if ( d3 >= 0.f && d4 <= d3 )
     {
-        outBarycentrics = float3(0.0, 1.0, 0.0);
+        outBarycentrics = float3( 0.0, 1.0, 0.0 );
         return b;
     }
 
-    const float3 cp = p - c;
-    const float d5 = dot(ab, cp);
-    const float d6 = dot(ac, cp);
-    if (d6 >= 0.f && d5 <= d6)
+    float3 const cp = p - c;
+    float const d5 = dot( ab, cp );
+    float const d6 = dot( ac, cp );
+    if ( d6 >= 0.f && d5 <= d6 )
     {
-        outBarycentrics = float3(0.0, 0.0, 1.0);
+        outBarycentrics = float3( 0.0, 0.0, 1.0 );
         return c;
     }
 
-    const float vc = d1 * d4 - d3 * d2;
-    if (vc <= 0.f && d1 >= 0.f && d3 <= 0.f)
+    float const vc = d1 * d4 - d3 * d2;
+    if ( vc <= 0.f && d1 >= 0.f && d3 <= 0.f )
     {
-        const float t = d1 / (d1 - d3);
-        outBarycentrics = float3(1.0 - t, t, 0.0);
+        float const t = d1 / ( d1 - d3 );
+        outBarycentrics = float3( 1.0 - t, t, 0.0 );
         return a + t * ab;
     }
-    
-    const float vb = d5 * d2 - d1 * d6;
-    if (vb <= 0.f && d2 >= 0.f && d6 <= 0.f)
+
+    float const vb = d5 * d2 - d1 * d6;
+    if ( vb <= 0.f && d2 >= 0.f && d6 <= 0.f )
     {
-        const float t = d2 / (d2 - d6);
-        outBarycentrics = float3(1.0 - t, 0.0, t);
+        float const t = d2 / ( d2 - d6 );
+        outBarycentrics = float3( 1.0 - t, 0.0, t );
         return a + t * ac;
     }
-    
-    const float va = d3 * d6 - d5 * d4;
-    if (va <= 0.f && (d4 - d3) >= 0.f && (d5 - d6) >= 0.f)
+
+    float const va = d3 * d6 - d5 * d4;
+    if ( va <= 0.f && ( d4 - d3 ) >= 0.f && ( d5 - d6 ) >= 0.f )
     {
-        const float t = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-        outBarycentrics = float3(0.0, 1.0 - t, t);
-        return b + t * (c - b);
+        float const t = ( d4 - d3 ) / ( ( d4 - d3 ) + ( d5 - d6 ) );
+        outBarycentrics = float3( 0.0, 1.0 - t, t );
+        return b + t * ( c - b );
     }
 
-    const float denom = 1.f / (va + vb + vc);
-    const float v = vb * denom;
-    const float w = vc * denom;
+    float const denom = 1.f / ( va + vb + vc );
+    float const v = vb * denom;
+    float const w = vc * denom;
 
-    outBarycentrics = float3(1.0 - v - w, v, w);
+    outBarycentrics = float3( 1.0 - v - w, v, w );
     return a + v * ab + w * ac;
 }
 
-bool PickTriangleClipSpace( float2 mouse, float pickingDistance, float4 clipVertex0, float4 clipVertex1, float4 clipVertex2, out float hitDistance )
+// Vertices at or behind the eye (w <= epsilon) cannot be projected. Ideally this is the view's near
+// plane (w == near for a perspective view), but the render view CB doesn't expose it today.
+static const float g_pickingNearPlaneEpsilon = 1.0E-4;
+
+// Intersection of the edge with the near plane.
+// Clip space is linear in all four components, so the intersection position and it's depth (z/w) is exact.
+float4 IntersectPickingNearPlane( float4 a, float4 b )
 {
-    // TODO: Handle clipped triangles. I'm not sure if we need this or not?
-    if ( clipVertex0.w <= 0.0 || clipVertex1.w <= 0.0 || clipVertex2.w <= 0.0 )
-    {
-        hitDistance = 1.5E+10;
-        return false;
-    }
-    
-    float3 ndcVertex0 = clipVertex0.xyz / clipVertex0.w;
-    float3 ndcVertex1 = clipVertex1.xyz / clipVertex1.w;
-    float3 ndcVertex2 = clipVertex2.xyz / clipVertex2.w;
-    
+    precise float const t = ( g_pickingNearPlaneEpsilon - a.w ) / ( b.w - a.w );
+    return a + t * ( b - a );
+}
+
+bool PickNonClippedClipSpaceTriangle( float2 mouse, float pickingDistance, float4 clipVertex0, float4 clipVertex1, float4 clipVertex2, out float hitDistance )
+{
+    float3 const ndcVertex0 = clipVertex0.xyz / clipVertex0.w;
+    float3 const ndcVertex1 = clipVertex1.xyz / clipVertex1.w;
+    float3 const ndcVertex2 = clipVertex2.xyz / clipVertex2.w;
+
     float3 barycentrics;
-    float2 closestPoint = ComputeClosestPointOnTriangle( float3( mouse, 0.0 ), float3( ndcVertex0.xy, 0.0 ), float3( ndcVertex1.xy, 0.0 ), float3( ndcVertex2.xy, 0.0 ), barycentrics ).xy;
+    float2 const closestPoint = ComputeClosestPointOnTriangle( float3( mouse, 0.0 ), float3( ndcVertex0.xy, 0.0 ), float3( ndcVertex1.xy, 0.0 ), float3( ndcVertex2.xy, 0.0 ), barycentrics ).xy;
 
     if ( distance( closestPoint, mouse ) <= pickingDistance )
     {
         hitDistance = 1.0 - dot( barycentrics, float3( ndcVertex0.z, ndcVertex1.z, ndcVertex2.z ) );
         return true;
     }
-    
+
     hitDistance = 1.5E+10;
     return false;
+}
+
+bool PickTriangleClipSpace( float2 mouse, float pickingDistance, float4 clipVertex0, float4 clipVertex1, float4 clipVertex2, out float hitDistance )
+{
+    hitDistance = 1.5E+10;
+
+    bool const inFront0 = clipVertex0.w > g_pickingNearPlaneEpsilon;
+    bool const inFront1 = clipVertex1.w > g_pickingNearPlaneEpsilon;
+    bool const inFront2 = clipVertex2.w > g_pickingNearPlaneEpsilon;
+
+    // Not clipping
+    if ( inFront0 && inFront1 && inFront2 )
+    {
+        return PickNonClippedClipSpaceTriangle( mouse, pickingDistance, clipVertex0, clipVertex1, clipVertex2, hitDistance );
+    }
+
+    // Fully behind the eye
+    if ( !inFront0 && !inFront1 && !inFront2 )
+    {
+        return false;
+    }
+
+    // One vertex in front: the result is a single triangle
+    if ( inFront0 && !inFront1 && !inFront2 )
+    {
+        return PickNonClippedClipSpaceTriangle( mouse, pickingDistance, clipVertex0, IntersectPickingNearPlane( clipVertex0, clipVertex1 ), IntersectPickingNearPlane( clipVertex2, clipVertex0 ), hitDistance );
+    }
+
+    if ( inFront1 && !inFront2 && !inFront0 )
+    {
+        return PickNonClippedClipSpaceTriangle( mouse, pickingDistance, clipVertex1, IntersectPickingNearPlane( clipVertex1, clipVertex2 ), IntersectPickingNearPlane( clipVertex0, clipVertex1 ), hitDistance );
+    }
+
+    if ( inFront2 && !inFront0 && !inFront1 )
+    {
+        return PickNonClippedClipSpaceTriangle( mouse, pickingDistance, clipVertex2, IntersectPickingNearPlane( clipVertex2, clipVertex0 ), IntersectPickingNearPlane( clipVertex1, clipVertex2 ), hitDistance );
+    }
+
+    // Two vertices in front -> it's a quad
+    float4 quadVertex0;
+    float4 quadVertex1;
+    float4 quadVertex2;
+    float4 quadVertex3;
+
+    if ( inFront0 && inFront1 )
+    {
+        // vertex 2 is behind
+        quadVertex0 = clipVertex0;
+        quadVertex1 = clipVertex1;
+        quadVertex2 = IntersectPickingNearPlane( clipVertex1, clipVertex2 );
+        quadVertex3 = IntersectPickingNearPlane( clipVertex2, clipVertex0 );
+    }
+    else if ( inFront1 && inFront2 )
+    {
+        // vertex 0 is behind
+        quadVertex0 = clipVertex1;
+        quadVertex1 = clipVertex2;
+        quadVertex2 = IntersectPickingNearPlane( clipVertex2, clipVertex0 );
+        quadVertex3 = IntersectPickingNearPlane( clipVertex0, clipVertex1 );
+    }
+    else
+    {
+        // vertex 1 is behind
+        quadVertex0 = clipVertex2;
+        quadVertex1 = clipVertex0;
+        quadVertex2 = IntersectPickingNearPlane( clipVertex0, clipVertex1 );
+        quadVertex3 = IntersectPickingNearPlane( clipVertex1, clipVertex2 );
+    }
+
+    float hitDistance0, hitDistance1;
+    bool const hit0 = PickNonClippedClipSpaceTriangle( mouse, pickingDistance, quadVertex0, quadVertex1, quadVertex2, hitDistance0 );
+    bool const hit1 = PickNonClippedClipSpaceTriangle( mouse, pickingDistance, quadVertex0, quadVertex2, quadVertex3, hitDistance1 );
+
+    hitDistance = min( hitDistance0, hitDistance1 );
+    return hit0 || hit1;
 }
 
 #endif

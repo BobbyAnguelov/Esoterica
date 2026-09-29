@@ -168,13 +168,7 @@ namespace EE::Render
 
         void ValidateAndFixSubmeshSettings();
 
-    protected:
-
-        //-------------------------------------------------------------------------
-
         virtual void OnRenderInstanceDataUpdated() = 0;
-
-    protected:
 
         // Internal renderer functions
         //-------------------------------------------------------------------------
@@ -193,8 +187,6 @@ namespace EE::Render
 
         void ValidateSubmeshInstanceData( Material const* pPlaceholderMaterial ) const;
 
-    protected:
-
         //-------------------------------------------------------------------------
 
         EE_REFLECT();
@@ -211,8 +203,6 @@ namespace EE::Render
 
         EE_REFLECT( Category = "Submeshes" );
         SubmeshSettings                                 m_submeshSettings;
-
-    protected:
 
         // Internal renderer data
         //-------------------------------------------------------------------------

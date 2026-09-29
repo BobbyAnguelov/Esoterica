@@ -1,6 +1,7 @@
 
 #include "RenderProxies.h"
 #include "Engine/Render/Device/DeviceResourceState.h"
+#include "Engine/Render/Device/DeviceRenderView.h"
 
 #include "Base/Math/Vector.h"
 #include "Base/Math/Transform.h"
@@ -88,7 +89,7 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
-    void LightInstanceProxy::WriteDirectionalLight( Float3 lightDirection, float maxIntensity, Color tintedColor, uint16_t cascadedShadowIndex )
+    void LightInstanceProxy::WriteDirectionalLight( ShaderTypes::LightInstance_DirectionalLight const& light )
     {
         EE_ASSERT( m_pTransformUpdateCounter != nullptr );
         EE_ASSERT( IsValid() );
@@ -104,15 +105,19 @@ namespace EE::Render
 
         ShaderTypes::DirectionalLightUpdateCommand lightUpdateCommand = {};
         lightUpdateCommand.m_instanceID = uint32_t( m_instanceHandle.m_offset );
-        lightUpdateCommand.m_maxIntensity = maxIntensity;
-        lightUpdateCommand.m_packedTintedColor = tintedColor.ToUInt32();
-        lightUpdateCommand.m_cascadedShadowIndex = cascadedShadowIndex;
-        std::memcpy( &lightUpdateCommand.m_lightDirection, &lightDirection, sizeof( Float3 ) );
+        lightUpdateCommand.m_maxIntensity = light.m_maxIntensity;
+        memcpy( lightUpdateCommand.m_lightDirection, light.m_lightDirection, sizeof( light.m_lightDirection ) );
+        lightUpdateCommand.m_packedTintedColor = light.m_packedTintedColor;
+        lightUpdateCommand.m_shadowCascades = light.m_shadowCascades;
+        memcpy( lightUpdateCommand.m_shadowMatrix, light.m_shadowMatrix, sizeof( light.m_shadowMatrix ) );
+        memcpy( lightUpdateCommand.m_cascadeOffsets, light.m_cascadeOffsets, sizeof( light.m_cascadeOffsets ) );
+        memcpy( lightUpdateCommand.m_cascadeScales, light.m_cascadeScales, sizeof( light.m_cascadeScales ) );
+        memcpy( lightUpdateCommand.m_cascadeSize, light.m_cascadeSize, sizeof( light.m_cascadeSize ) );
 
         *( pDstLightUpdateCommand + m_dstTransformUpdateIndex ) = lightUpdateCommand;
     }
 
-    void LightInstanceProxy::WritePointLight( Float3 lightPosition, float maxIntensity, float maxRadius, float falloff, Color tintedColor, uint16_t shadowMapHandle )
+    void LightInstanceProxy::WritePointLight( Float3 lightPosition, float maxIntensity, float maxRadius, float falloff, Color tintedColor )
     {
         EE_ASSERT( m_pTransformUpdateCounter != nullptr );
         EE_ASSERT( IsValid() );
@@ -124,21 +129,20 @@ namespace EE::Render
             m_dstTransformUpdateSequence = transformUpdateSequence;
         }
 
-        ShaderTypes::PointLightUpdateCommand* pDstLightUpdateCommand = static_cast<ShaderTypes::PointLightUpdateCommand*>( m_pDstUpdateCommands );
+        ShaderTypes::PointLightTransformUpdateCommand* pDstLightUpdateCommand = static_cast<ShaderTypes::PointLightTransformUpdateCommand*>( m_pDstUpdateCommands );
 
-        ShaderTypes::PointLightUpdateCommand lightUpdateCommand = {};
+        ShaderTypes::PointLightTransformUpdateCommand lightUpdateCommand = {};
         lightUpdateCommand.m_instanceID = uint32_t( m_instanceHandle.m_offset );
         lightUpdateCommand.m_maxIntensity = maxIntensity;
         lightUpdateCommand.m_maxRadius = maxRadius;
         lightUpdateCommand.m_falloff = falloff;
         lightUpdateCommand.m_packedTintedColor = tintedColor.ToUInt32();
-        lightUpdateCommand.m_shadowMapHandle = shadowMapHandle;
         std::memcpy( &lightUpdateCommand.m_lightPosition, &lightPosition, sizeof( Float3 ) );
 
         *( pDstLightUpdateCommand + m_dstTransformUpdateIndex ) = lightUpdateCommand;
     }
 
-    void LightInstanceProxy::WriteSpotLight( Float3 lightPosition, Float3 lightDirection, float maxIntensity, float maxRadius, float falloff, Color tintedColor, float innerConeAngle, float outerConeAngle, uint16_t shadowMapHandle )
+    void LightInstanceProxy::WriteSpotLight( Float3 lightPosition, Float3 lightDirection, float maxIntensity, float maxRadius, float falloff, Color tintedColor, float innerConeAngle, float outerConeAngle, Matrix const& shadowViewProjectionMatrix )
     {
         EE_ASSERT( m_pTransformUpdateCounter != nullptr );
         EE_ASSERT( IsValid() );
@@ -150,19 +154,19 @@ namespace EE::Render
             m_dstTransformUpdateSequence = transformUpdateSequence;
         }
 
-        ShaderTypes::SpotLightUpdateCommand* pDstLightUpdateCommand = static_cast<ShaderTypes::SpotLightUpdateCommand*>( m_pDstUpdateCommands );
+        ShaderTypes::SpotLightTransformUpdateCommand* pDstLightUpdateCommand = static_cast<ShaderTypes::SpotLightTransformUpdateCommand*>( m_pDstUpdateCommands );
 
-        ShaderTypes::SpotLightUpdateCommand lightUpdateCommand = {};
+        ShaderTypes::SpotLightTransformUpdateCommand lightUpdateCommand = {};
         lightUpdateCommand.m_instanceID = uint32_t( m_instanceHandle.m_offset );
         lightUpdateCommand.m_maxIntensity = maxIntensity;
         lightUpdateCommand.m_maxRadius = maxRadius;
         lightUpdateCommand.m_falloff = falloff;
         lightUpdateCommand.m_packedTintedColor = tintedColor.ToUInt32();
-        lightUpdateCommand.m_shadowMapHandle = shadowMapHandle;
         lightUpdateCommand.m_innerConeAngle = innerConeAngle;
         lightUpdateCommand.m_outerConeAngle = outerConeAngle;
         std::memcpy( &lightUpdateCommand.m_lightPosition, &lightPosition, sizeof( Float3 ) );
         std::memcpy( &lightUpdateCommand.m_lightDirection, &lightDirection, sizeof( Float3 ) );
+        std::memcpy( lightUpdateCommand.m_shadowMatrix, shadowViewProjectionMatrix.m_rows, sizeof( lightUpdateCommand.m_shadowMatrix ) );
 
         *( pDstLightUpdateCommand + m_dstTransformUpdateIndex ) = lightUpdateCommand;
     }
@@ -196,5 +200,258 @@ namespace EE::Render
 
             *( m_pDstTransformUpdateCommands + m_dstTransformUpdateIndex + boneIndex ) = instanceUpdateCommand;
         }
+    }
+
+    //-------------------------------------------------------------------------
+
+    void RenderViewProxy::StartRenderViewWrite()
+    {
+        EE_ASSERT( m_pUpdateCounter != nullptr );
+        EE_ASSERT( IsValid() );
+
+        uint64_t updateSequence = *m_pUpdateSequence;
+        if ( m_dstUpdateIndex == ~0 || m_dstUpdateSequence != updateSequence ) // TODO: Do we need to handle overflow collision here?
+        {
+            m_dstUpdateIndex = m_pUpdateCounter->fetch_add( m_renderViewHandle.m_handle.m_size );
+            m_dstUpdateSequence = updateSequence;
+        }
+
+        m_numWrittenRenderViews = 0;
+    }
+
+    void RenderViewProxy::WriteRenderView( uint32_t viewIndex, ShaderTypes::RenderView const& renderView )
+    {
+        EE_ASSERT( IsValid() );
+        EE_ASSERT( viewIndex < m_renderViewHandle.m_handle.m_size );
+        EE_ASSERT( viewIndex == m_numWrittenRenderViews );
+
+        ShaderTypes::RenderViewUpdateCommand updateCommand = {};
+        updateCommand.m_renderView = renderView;
+        updateCommand.m_deviceRenderViewIndex = GetBaseRenderViewIndex() + viewIndex;
+
+        *( m_pDstUpdateCommands + m_dstUpdateIndex + m_numWrittenRenderViews ) = updateCommand;
+        m_numWrittenRenderViews++;
+    }
+
+    void RenderViewProxy::SubmitRenderViewWrite() const
+    {
+        EE_ASSERT( m_numWrittenRenderViews == m_renderViewHandle.m_handle.m_size );
+    }
+
+    DeviceRenderView& RenderViewProxy::GetRenderView( uint32_t viewIndex )
+    {
+        EE_ASSERT( IsValid() );
+        EE_ASSERT( viewIndex < GetNumRenderViews() );
+        return m_renderViewHandle.m_data[viewIndex];
+    }
+
+    DeviceRenderView const& RenderViewProxy::GetRenderView( uint32_t viewIndex ) const
+    {
+        EE_ASSERT( IsValid() );
+        EE_ASSERT( viewIndex < GetNumRenderViews() );
+        return m_renderViewHandle.m_data[viewIndex];
+    }
+
+    //-------------------------------------------------------------------------
+
+    static inline void StoreMatrix( float4x4& dst, Matrix const& src )
+    {
+        static_assert( sizeof( float4x4 ) == sizeof( Matrix ) );
+        std::memcpy( dst, src.m_rows, sizeof( float4x4 ) );
+    }
+
+    static ShaderTypes::RenderView CreateCommonRenderView
+    (
+        Matrix const&   viewMatrix,
+        Matrix const&   projectionMatrix,
+        Matrix const&   viewProjectionMatrix,
+        Float4 const&   renderTargetSize,
+        float           znear,
+        uint32_t        renderViewFlags,
+        uint32_t        renderViewLayerFlags
+    )
+    {
+        ShaderTypes::RenderView renderView = {};
+
+        StoreMatrix( renderView.m_viewMatrix, viewMatrix );
+        StoreMatrix( renderView.m_viewProjectionMatrix, viewProjectionMatrix );
+        StoreMatrix( renderView.m_inverseViewMatrix, viewMatrix.GetInverse() );
+        StoreMatrix( renderView.m_inverseProjectionMatrix, projectionMatrix.GetInverse() );
+        StoreMatrix( renderView.m_inverseViewProjectionMatrix, viewProjectionMatrix.GetInverse() );
+
+        renderView.m_renderTargetSize[0] = renderTargetSize.m_x;
+        renderView.m_renderTargetSize[1] = renderTargetSize.m_y;
+        renderView.m_renderTargetSize[2] = renderTargetSize.m_z;
+        renderView.m_renderTargetSize[3] = renderTargetSize.m_w;
+
+        renderView.m_renderViewFlags = renderViewFlags;
+        renderView.m_renderViewLayerFlags = renderViewLayerFlags;
+
+        renderView.m_projectionP00 = projectionMatrix.m_values[0][0];
+        renderView.m_projectionP11 = projectionMatrix.m_values[1][1];
+        renderView.m_znear = znear;
+
+        return renderView;
+    }
+
+    static inline Float4 PackRenderTargetSize( uint32_t resolution )
+    {
+        float const inverseResolution = ( resolution > 0 ) ? ( 1.0F / float( resolution ) ) : 0.0F;
+        return Float4( float( resolution ), float( resolution ), inverseResolution, inverseResolution );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void RenderViewProxy::WriteRenderView( uint32_t viewIndex, Math::ViewVolume const& viewVolume, Float2 renderTargetSize, uint32_t renderViewFlags )
+    {
+        EE_ASSERT( !renderTargetSize.IsNearZero() );
+
+        Matrix const& viewMatrix = viewVolume.GetViewMatrix();
+        Matrix const projectionMatrix = viewVolume.GetProjectionMatrix() * Matrix::ReverseZ;
+        Matrix const viewProjectionMatrix = viewMatrix * projectionMatrix;
+
+        Float4 const renderTargetSize4 = Float4( renderTargetSize.m_x, renderTargetSize.m_y, 1.0F / renderTargetSize.m_x, 1.0F / renderTargetSize.m_y );
+
+        ShaderTypes::RenderView renderView = CreateCommonRenderView
+        (
+            viewMatrix,
+            projectionMatrix,
+            viewProjectionMatrix,
+            renderTargetSize4,
+            viewVolume.GetDepthRange().m_begin,
+            renderViewFlags,
+            ShaderTypes::RENDER_VIEW_LAYER_FLAG_FORWARD_SHADING
+        );
+
+        WriteRenderView( viewIndex, renderView );
+    }
+
+    void RenderViewProxy::WritePointLightShadowRenderView( uint32_t viewIndex, Vector const& viewPosition, float maxRadius, uint32_t resolution )
+    {
+        Float3 const lightPosition = viewPosition.ToFloat3();
+
+        ShaderTypes::RenderView renderView = {};
+        StoreMatrix( renderView.m_viewMatrix, Matrix::Identity );
+        StoreMatrix( renderView.m_viewProjectionMatrix, Matrix::Identity );
+        StoreMatrix( renderView.m_inverseViewMatrix, Matrix::Identity );
+        StoreMatrix( renderView.m_inverseProjectionMatrix, Matrix::Identity );
+        StoreMatrix( renderView.m_inverseViewProjectionMatrix, Matrix::Identity );
+
+        Float4 const renderTargetSize = PackRenderTargetSize( resolution );
+        renderView.m_renderTargetSize[0] = renderTargetSize.m_x;
+        renderView.m_renderTargetSize[1] = renderTargetSize.m_y;
+        renderView.m_renderTargetSize[2] = renderTargetSize.m_z;
+        renderView.m_renderTargetSize[3] = renderTargetSize.m_w;
+
+        renderView.m_renderViewFlags = ShaderTypes::RENDER_VIEW_FLAG_DEPTH_ONLY | ShaderTypes::RENDER_VIEW_FLAG_SHADOW_FACE;
+        renderView.m_renderViewLayerFlags = ShaderTypes::RENDER_VIEW_LAYER_FLAG_SHADOW_MAP;
+
+        renderView.m_znear = ShaderTypes::PunctualShadowNearPlane( maxRadius );
+
+        renderView.m_shadowLightSphere[0] = lightPosition.m_x;
+        renderView.m_shadowLightSphere[1] = lightPosition.m_y;
+        renderView.m_shadowLightSphere[2] = lightPosition.m_z;
+        renderView.m_shadowLightSphere[3] = maxRadius;
+
+        WriteRenderView( viewIndex, renderView );
+    }
+
+    Matrix RenderViewProxy::WriteSpotLightShadowRenderView( uint32_t viewIndex, Vector const& viewPosition, Vector const& beamDirection, float halfAngleRadians, float maxRadius, uint32_t resolution )
+    {
+        float const nearPlane = ShaderTypes::PunctualShadowNearPlane( maxRadius );
+        float const farPlane = ShaderTypes::PunctualShadowFarPlane( maxRadius );
+
+        Matrix const projectionMatrix = Math::CreatePerspectiveProjectionMatrix( halfAngleRadians * 2.0F, 1.0F, nearPlane, farPlane ) * Matrix::ReverseZ;
+
+        Vector viewUpDirection = Vector::WorldUp;
+        if ( Math::Abs( beamDirection.GetDot3( viewUpDirection ) ) > 0.99F )
+        {
+            viewUpDirection = Vector::WorldRight;
+        }
+
+        Matrix const viewMatrix = Math::CreateLookAtMatrix( viewPosition, viewPosition + beamDirection, viewUpDirection );
+        Matrix const viewProjectionMatrix = viewMatrix * projectionMatrix;
+
+        ShaderTypes::RenderView renderView = CreateCommonRenderView
+        (
+            viewMatrix,
+            projectionMatrix,
+            viewProjectionMatrix,
+            PackRenderTargetSize( resolution ),
+            nearPlane,
+            ShaderTypes::RENDER_VIEW_FLAG_DEPTH_ONLY,
+            ShaderTypes::RENDER_VIEW_LAYER_FLAG_SHADOW_MAP
+        );
+
+        WriteRenderView( viewIndex, renderView );
+
+        return viewProjectionMatrix;
+    }
+
+    void RenderViewProxy::WriteCascadedShadowRenderView( uint32_t viewIndex, Matrix const& viewMatrix, Matrix const& projectionMatrix, float znear, uint32_t resolution )
+    {
+        Matrix const viewProjectionMatrix = viewMatrix * projectionMatrix;
+
+        ShaderTypes::RenderView renderView = CreateCommonRenderView
+        (
+            viewMatrix,
+            projectionMatrix,
+            viewProjectionMatrix,
+            PackRenderTargetSize( resolution ),
+            znear,
+            ShaderTypes::RENDER_VIEW_FLAG_DEPTH_ONLY,
+            ShaderTypes::RENDER_VIEW_LAYER_FLAG_SHADOW_MAP
+        );
+
+        WriteRenderView( viewIndex, renderView );
+    }
+
+    void RenderViewProxy::WriteGlobalEnvironmentMapRenderView( uint32_t viewIndex, Vector const& viewPosition, float znear, float zfar, uint32_t resolution )
+    {
+        EE_ASSERT( viewIndex < g_NumGlobalEnvironmentMapViews );
+
+        static Vector const faceDirections[g_NumGlobalEnvironmentMapViews] =
+        {
+            Vector::UnitX, -Vector::UnitX,
+            Vector::UnitY, -Vector::UnitY,
+            Vector::UnitZ, -Vector::UnitZ
+        };
+
+        static Vector const faceUpDirections[g_NumGlobalEnvironmentMapViews] =
+        {
+            Vector::UnitY, Vector::UnitY,
+            Vector::UnitZ, Vector::UnitZ,
+            Vector::UnitY, Vector::UnitY
+        };
+
+        static Vector const faceMirrorScales[g_NumGlobalEnvironmentMapViews] =
+        {
+            Vector( -1.0F, 1.0F, 1.0F, 1.0F ),
+            Vector( -1.0F, 1.0F, 1.0F, 1.0F ),
+            Vector( 1.0F, -1.0F, 1.0F, 1.0F ),
+            Vector( -1.0F, 1.0F, 1.0F, 1.0F ),
+            Vector( -1.0F, 1.0F, 1.0F, 1.0F ),
+            Vector( -1.0F, 1.0F, 1.0F, 1.0F )
+        };
+
+        Matrix mirrorMatrix = Matrix::Identity;
+        mirrorMatrix.SetScale( faceMirrorScales[viewIndex] );
+
+        Matrix const viewMatrix = Math::CreateLookAtMatrix( viewPosition, viewPosition + faceDirections[viewIndex], faceUpDirections[viewIndex] );
+        Matrix const projectionMatrix = Math::CreatePerspectiveProjectionMatrix( Math::DegreesToRadians * 90.0F, 1.0F, znear, zfar ) * Matrix::ReverseZ;
+        Matrix const viewProjectionMatrix = viewMatrix * projectionMatrix * mirrorMatrix;
+
+        ShaderTypes::RenderView renderView = CreateCommonRenderView
+        (
+            viewMatrix,
+            projectionMatrix,
+            viewProjectionMatrix,
+            PackRenderTargetSize( resolution ),
+            znear,
+            ShaderTypes::RENDER_VIEW_FLAG_NONE,
+            ShaderTypes::RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP
+        );
+
+        WriteRenderView( viewIndex, renderView );
     }
 }

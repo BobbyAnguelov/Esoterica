@@ -3,6 +3,8 @@
 #include "Engine/_Module/API.h"
 #include "Engine/Viewport/Viewport.h"
 #include "Engine/Viewport/ViewportPicking.h"
+#include "Engine/Render/ActiveRenderView.h"
+#include "Engine/Render/RenderProxies.h"
 #include "Engine/Render/Device/DeviceResourceState.h"
 #include "Engine/Render/Device/DeviceAppendBuffer.h"
 #include "Engine/Render/Device/DeviceResizeBuffer.h"
@@ -13,6 +15,8 @@
 namespace EE::Render
 {
     class Window;
+    class DeviceRenderWorld;
+    class RenderWorldSystem;
 
     //-------------------------------------------------------------------------
 
@@ -23,8 +27,8 @@ namespace EE::Render
 
         virtual bool IsValid() const override;
 
-        void Initialize( RHI::Context* pContextRHI, Render::Window* pWindow );
-        void Shutdown( RHI::Context* pContextRHI );
+        void Initialize( RenderSystem* pRenderSystem, RenderWorldSystem* pRenderWorldSystem, Render::Window* pWindow );
+        void Shutdown( RenderSystem* pRenderSystem, RenderWorldSystem* pRenderWorldSystem );
 
         void UpdateRenderWindow( Render::Window* pWindow );
 
@@ -84,31 +88,28 @@ namespace EE::Render
 
         mutable DeviceTextureState                          m_editorOutline_depthTexture = {};
         mutable DeviceTextureState                          m_editorOutline_idTexture = {};
-        mutable DeviceTextureState                          m_editorOutline_JFA_Texture0 = {};
-        mutable DeviceTextureState                          m_editorOutline_JFA_Texture1 = {};
+        mutable DeviceTextureState                          m_editorOutline_JFA_texture0 = {};
+        mutable DeviceTextureState                          m_editorOutline_JFA_texture1 = {};
         #endif
 
         TArray<RHI::Buffer*, RHI::MaxPendingFrames>         m_GTAO_parametersBuffers = {};
         uint32_t                                            m_GTAO_noiseIndex = 0;
 
         TArray<RHI::Buffer*, RHI::MaxPendingFrames>         m_globalParametersBuffers = {};
-        TArray<RHI::Buffer*, RHI::MaxPendingFrames>         m_renderViewBuffers = {};
         TArray<RHI::Buffer*, RHI::MaxPendingFrames>         m_renderBucketBuffers = {};
-        TArray<RHI::Buffer*, RHI::MaxPendingFrames>         m_cascadedShadowBuffers = {};
+        TArray<RHI::Buffer*, RHI::MaxPendingFrames>         m_renderViewIndirectionBuffers = {};
 
-        uint32_t                                            m_numGlobalEnvironmentMapRenderViews = 0;
-        uint32_t                                            m_numCascadedShadowRenderViews = 0;
-        uint32_t                                            m_numForwardShadingRenderViews = 0;
-        uint32_t                                            m_numEditorOutlineRenderViews = 0;
+        // TODO: Hacky, this should be owned by the world?
+        RenderViewProxy                                     m_mainRenderViewProxy = {};
+        RenderViewProxy                                     m_globalEnvironmentMapRenderViewProxy = {};
 
-        uint32_t                                            m_globalEnvironmentMapRenderViewsOffset = 0;
-        uint32_t                                            m_cascadedShadowRenderViewsOffset = 0;
-        uint32_t                                            m_forwardShadingRenderViewsOffset = 0;
-        uint32_t                                            m_editorOutlineRenderViewsOffset = 0;
+        TVector<ActiveRenderView>                           m_activeRenderViews;
+        ActiveRenderViewList                                m_activeRenderViewList;
+        ActiveRenderViewSelection                           m_activeRenderViewSelection;
 
-        uint32_t                                            m_numRenderViews = 0;
-        uint32_t                                            m_numRenderBuckets = 0;
-        uint32_t                                            m_numRenderViewBucketsPerView = 0;
+        #if EE_DEVELOPMENT_TOOLS
+        RenderViewProxy                                     m_editorOutlineRenderViewProxy = {};
+        #endif
 
         #if EE_DEVELOPMENT_TOOLS
         TArray<RHI::Buffer*, RHI::MaxPendingFrames>         m_shaderDebugDrawBuffers = {};

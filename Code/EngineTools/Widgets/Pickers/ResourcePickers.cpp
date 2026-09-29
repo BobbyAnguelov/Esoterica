@@ -17,9 +17,7 @@ namespace EE
     DataPickerBase::DataPickerBase( ToolsContext const& toolsContext )
         : m_toolsContext( toolsContext )
     {
-        float const controlsHeight = ImGuiX::CalculateButtonHeight( EE_ICON_ABACUS );
-        ImGuiX::ScopedFont const sfx( ImGuiX::Font::Small );
-        m_height = ( ImGui::GetFrameHeight() + s_controlsRowGapY + controlsHeight );
+        m_optionData.SetOptionProvider( [this] ( TVector<ImGuiX::OptionData::Option>& outOptions ) { GenerateOptionsList( outOptions ); } );
     }
 
     bool DataPickerBase::UpdateAndDraw()
@@ -31,85 +29,95 @@ namespace EE
         //-------------------------------------------------------------------------
 
         bool const isValidAndExistingPath = ValidateCurrentlySetPath();
-        DataPath const currentPath = GetDataPath();
 
         //-------------------------------------------------------------------------
         // Draw Picker
         //-------------------------------------------------------------------------
 
         ImGui::PushID( this );
-        if ( ImGui::BeginChild( "RP", ImVec2( -1, 0 ), ImGuiChildFlags_AutoResizeY, ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse ) )
+        auto const& style = ImGui::GetStyle();
+        float const itemSpacingX = style.ItemSpacing.x;
+
+        ImGuiX::ScopedFont const sfx( ImGuiX::Font::Small );
+
+        float const fullHeight = ( ImGui::GetFrameHeight() + s_controlsRowGapY + ImGuiX::CalculateButtonHeight( EE_ICON_ABACUS ) );
+        m_height = m_isCompact ? ImGui::GetFrameHeight() : fullHeight;
+
+        // Preview
+        //-------------------------------------------------------------------------
+
         {
-            auto const& style = ImGui::GetStyle();
-            float const itemSpacingX = style.ItemSpacing.x;
+            TInlineString<7> const previewStr = GetPreviewLabel();
+            Color const previewColor = GetPreviewColor();
 
-            ImGuiX::ScopedFont const sfx( ImGuiX::Font::Small );
-
-            // Preview
-            //-------------------------------------------------------------------------
-
+            ImGui::PushStyleColor( ImGuiCol_Button, ImGuiX::Style::s_colorGray0 );
+            ImGui::BeginDisabled( !isValidAndExistingPath );
             {
-                TInlineString<7> const previewStr = GetPreviewLabel();
-                Color const previewColor = GetPreviewColor();
+                ImGuiX::ScopedFont const sf( ImGuiX::Font::TinyBold, previewColor );
+                ImGui::Button( previewStr.c_str(), ImVec2( fullHeight, m_height ) );
 
-                ImGui::PushStyleColor( ImGuiCol_Button, ImGuiX::Style::s_colorGray0 );
-                ImGui::BeginDisabled( !isValidAndExistingPath );
+                if ( ImGui::BeginDragDropTarget() )
                 {
-                    ImGuiX::ScopedFont const sf( ImGuiX::Font::TinyBold, previewColor );
-                    ImGui::Button( previewStr.c_str(), ImVec2( m_height, m_height ) );
+                    valueUpdated = TryUpdatePathFromDragAndDrop();
+                    ImGui::EndDragDropTarget();
                 }
-                ImGui::EndDisabled();
-                ImGui::PopStyleColor();
+            }
+            ImGui::EndDisabled();
+            ImGui::PopStyleColor();
 
-                if ( ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+            if ( ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+            {
+                if ( isValidAndExistingPath && m_path.IsValid() )
                 {
-                    if ( isValidAndExistingPath && currentPath.IsValid() )
-                    {
-                        m_toolsContext.TryOpenDataFile( currentPath );
-                    }
+                    m_toolsContext.TryOpenDataFile( m_path );
                 }
-
-                ImGui::SameLine();
             }
 
-            // Combo Selector
+            ImGui::SameLine();
+        }
+
+        // Combo Selector
+        //-------------------------------------------------------------------------
+
+        ImGui::BeginGroup();
+        ImGui::BeginDisabled( !m_toolsContext.m_pDataFileRegistry->IsDataFileCacheBuilt() );
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( style.ItemSpacing.x, s_controlsRowGapY ) );
+
+        {
+            // Text Input
             //-------------------------------------------------------------------------
 
-            ImGui::BeginGroup();
-            ImGui::BeginDisabled( !m_toolsContext.m_pDataFileRegistry->IsDataFileCacheBuilt() );
-            ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( style.ItemSpacing.x, s_controlsRowGapY ) );
-
+            auto Callback = [] ( ImGuiInputTextCallbackData* pData ) -> int
             {
-                // Type and path fields
-                //-------------------------------------------------------------------------
+                auto* pCtx = (DataPickerBase*) pData->UserData;
 
-                float const comboArrowWidth = ImGui::GetFrameHeight();
-                float const totalPathWidgetWidth = ImGui::GetContentRegionAvail().x;
-                float const textWidgetWidth = totalPathWidgetWidth - comboArrowWidth;
+                if ( pData->EventFlag == ImGuiInputTextFlags_CallbackResize )
+                {
+                    pCtx->m_buffer.Resize( pData->BufTextLen );
+                    pData->Buf = pCtx->m_buffer.Data();
+                }
 
-                ImVec4 const pathColor = ( isValidAndExistingPath ? ImGuiX::Style::s_colorText : Colors::Red ).ToFloat4();
+                return 0;
+            };
+
+            float const optionsMenuWidth = m_isCompact ? ( ImGuiX::Style::s_iconButtonWidthSmall + style.ItemSpacing.x ) : 0;
+            float const textWidgetWidth = ImGui::GetContentRegionAvail().x - optionsMenuWidth;
+
+            m_optionData.m_preWidgetFunc = [this, isValidAndExistingPath] ()
+            {
+                ImVec4 pathColor = ImGuiX::Style::s_colorText;
+
+                // Only change the color when there is a path set
+                if ( m_path.IsValid() )
+                {
+                    pathColor = ( isValidAndExistingPath ? ImGuiX::Style::s_colorText : Colors::Red ).ToFloat4();
+                }
+
                 ImGui::PushStyleColor( ImGuiCol_Text, pathColor );
-                ImGui::SetNextItemWidth( textWidgetWidth );
+            };
 
-                if ( currentPath.IsValid() )
-                {
-                    size_t const size = currentPath.GetString().length();
-                    m_tempBuffer.resize( size + 1 );
-                    memcpy( m_tempBuffer.data(), currentPath.c_str(), size );
-                    m_tempBuffer.back() = 0;
-                }
-                else
-                {
-                    m_tempBuffer.resize( 512 );
-                    Memory::MemsetZero( m_tempBuffer.data(), 512 );
-                }
-
-                bool openDropDownDueToInput = false;
-                if ( ImGui::InputText( "##DataPathText", m_tempBuffer.data(), m_tempBuffer.size(), ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_ReadOnly ) )
-                {
-                    //m_shouldOpenDropDown = true; // This is disabled as there is no way to get imgui to behave properly with switching focus to input text boxes
-                    openDropDownDueToInput = true;
-                }
+            m_optionData.m_postWidgetFunc = [this, &valueUpdated] ()
+            {
                 ImGui::PopStyleColor();
 
                 // Drag and drop
@@ -118,228 +126,140 @@ namespace EE
                     valueUpdated = TryUpdatePathFromDragAndDrop();
                     ImGui::EndDragDropTarget();
                 }
+            };
 
-                // Tooltip
-                if ( currentPath.IsValid() )
+            ImGui::SetNextItemWidth( textWidgetWidth );
+            if ( ImGuiX::InputTextWithOptions( "IT", m_buffer.Data(), m_buffer.Size(), &m_optionData, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_EnterReturnsTrue, Callback, this ) )
+            {
+                if ( UpdateDataPathFromString( m_buffer.GetString() ) )
                 {
-                    ImGuiX::ItemTooltip( currentPath.c_str() );
-                }
-
-                // Allow pasting valid paths
-                bool bSwitchFocus = false; // We need to do this to display the pasted value immediately!
-                if ( ImGui::IsItemFocused() )
-                {
-                    if ( ImGui::IsKeyDown( ImGuiMod_Ctrl ) && ImGui::IsKeyPressed( ImGuiKey_V ) )
-                    {
-                        valueUpdated |= TryUpdatePathFromClipboard();
-                        m_shouldOpenDropDown = false;
-                        bSwitchFocus = true;
-                    }
-                    else if ( ImGui::IsKeyDown( ImGuiMod_Ctrl ) && ImGui::IsKeyPressed( ImGuiKey_X ) )
-                    {
-                        ImGui::SetClipboardText( currentPath.c_str() );
-                        SetDataPath( DataPath() );
-                        m_shouldOpenDropDown = false;
-                        valueUpdated = true;
-                    }
-                    else if ( ImGui::IsKeyPressed( ImGuiKey_Delete ) || ImGui::IsKeyPressed( ImGuiKey_Backspace ) )
-                    {
-                        SetDataPath( DataPath() );
-                        m_shouldOpenDropDown = false;
-                        valueUpdated = true;
-                    }
-                }
-
-                // Combo
-                //-------------------------------------------------------------------------
-
-                ImVec2 const comboDropDownSize( Math::Max( totalPathWidgetWidth, 500.0f ), ImGui::GetFrameHeight() * 20 );
-                ImGui::SetNextWindowSizeConstraints( ImVec2( comboDropDownSize.x, 0 ), comboDropDownSize );
-
-                ImGui::SameLine( 0, 0 );
-                bool const wasPopupOpen = m_isPopupOpen;
-
-                ImGui::SetNextItemOpen( true );
-                bool const didComboBeginReturnTrue = ImGui::BeginCombo( "##DataPath", "", ImGuiComboFlags_HeightLarge | ImGuiComboFlags_PopupAlignLeft | ImGuiComboFlags_NoPreview );
-                m_isPopupOpen = didComboBeginReturnTrue;
-
-                if ( m_shouldOpenDropDown && !m_isPopupOpen )
-                {
-                    // Make sure to open the actual combo popup
-                    ImGuiID const popupID = ImHashStr( "##ComboPopup", 0, ImGui::GetID( "##DataPath" ) );
-                    ImGui::OpenPopupEx( popupID, ImGuiPopupFlags_None );
-                    m_isPopupOpen = ImGui::IsPopupOpen( "##DataPath" );
-                }
-                m_shouldOpenDropDown = false;
-
-                if( bSwitchFocus )
-                {
-                    ImGui::FocusItem();
-                }
-
-                // Regenerate options and clear filter each time we open the combo
-                if ( m_isPopupOpen && !wasPopupOpen )
-                {
-                    if ( openDropDownDueToInput )
-                    {
-                        m_filterWidget.SetFilter( m_tempBuffer.data() );
-                    }
-                    else
-                    {
-                        m_filterWidget.Clear();
-                    }
-                    GenerateOptionsList();
-                    GenerateFilteredOptionList();
-                }
-
-                // Draw combo if open
-                bool shouldUpdateNavID = false;
-                if ( m_isPopupOpen )
-                {
-                    float const cursorPosYPreFilter = ImGui::GetCursorPosY();
-                    if ( m_filterWidget.UpdateAndDraw( -1, ImGuiX::FilterWidget::Flags::TakeInitialFocus ) )
-                    {
-                        GenerateFilteredOptionList();
-                    }
-                    float const cursorPosYPostFilter = ImGui::GetCursorPosY();
-                    float const filterHeight = cursorPosYPostFilter;
-
-                    ImVec2 const previousCursorPos = ImGui::GetCursorPos();
-                    ImVec2 const childSize( ImGui::GetContentRegionAvail().x, comboDropDownSize.y - filterHeight - style.ItemSpacing.y - style.WindowPadding.y );
-                    ImGui::Dummy( childSize );
-                    ImGui::SetCursorPos( previousCursorPos );
-
-                    //-------------------------------------------------------------------------
-
-                    if ( ImGui::BeginChild( "##OptList", childSize, false, ImGuiChildFlags_NavFlattened ) )
-                    {
-                        ImGuiX::ScopedFont const sf( ImGuiX::Font::Medium );
-
-                        ImGuiListClipper clipper;
-                        clipper.Begin( (int32_t) m_filteredOptions.size() );
-                        while ( clipper.Step() )
-                        {
-                            for ( int i = clipper.DisplayStart; i < clipper.DisplayEnd; i++ )
-                            {
-                                if ( ImGui::Selectable( m_filteredOptions[i].c_str() + 7 ) )
-                                {
-                                    if ( m_filteredOptions[i] != GetDataPath() )
-                                    {
-                                        SetDataPath( m_filteredOptions[i] );
-                                        valueUpdated = true;
-                                    }
-                                    ImGui::CloseCurrentPopup();
-                                }
-                                ImGuiX::ItemTooltip( m_filteredOptions[i].c_str() );
-                            }
-                        }
-                        clipper.End();
-                    }
-                    ImGui::EndChild();
-
-                    if ( didComboBeginReturnTrue )
-                    {
-                        ImGui::EndCombo();
-                    }
+                    valueUpdated = true;
                 }
             }
 
-            ImGui::PopStyleVar();
-            ImGui::EndDisabled();
-
-            // Buttons
+            // Options Button
             //-------------------------------------------------------------------------
 
+            if ( m_isCompact )
             {
-                ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
-                static ImVec2 const buttonSize( ImGuiX::Style::s_iconButtonWidthSmall, 0 );
-
-                // Open Resource
-                ImGui::BeginDisabled( !currentPath.IsValid() );
-                if ( ImGui::Button( EE_ICON_CONTENT_COPY "##Copy", buttonSize ) )
-                {
-                    ImGui::SetClipboardText( currentPath.c_str() );
-                }
-                ImGuiX::ItemTooltip( "Copy Data Path" );
-
                 ImGui::SameLine();
-                if ( ImGui::Button( EE_ICON_FOLDER_SYNC "##ShowInRB", buttonSize ) )
+                if ( ImGui::Button( EE_ICON_COG "##Options", ImVec2( ImGuiX::Style::s_iconButtonWidthSmall, 0 ) ) )
                 {
-                    m_toolsContext.TryFindInResourceBrowser( currentPath );
-                }
-                ImGuiX::ItemTooltip( "Show In Resource Browser" );
-
-                if ( m_showDependenciesButton )
-                {
-                    ImGui::SameLine();
-                    if ( ImGui::Button( EE_ICON_GRAPH "##ShowDeps", buttonSize ) )
-                    {
-                        m_toolsContext.ShowResourceDependencies( currentPath );
-                    }
-                    ImGuiX::ItemTooltip( "Show Dependencies" );
-                }
-
-                ImGui::SameLine();
-                if ( ImGui::Button( EE_ICON_COG "##Options", buttonSize ) )
-                {
-                    ImGui::OpenPopup( "##ResourcePickerOptions" );
+                    ImGui::OpenPopup( "##DataFilePathPickerOptions" );
                 }
                 ImGuiX::ItemTooltip( "Options" );
-
-                ImGui::SameLine();
-                if ( ImGui::Button( EE_ICON_CLOSE_CIRCLE "##Clear", buttonSize ) )
-                {
-                    if ( GetDataPath().IsValid() )
-                    {
-                        Clear();
-                        valueUpdated = true;
-                    }
-                }
-                ImGuiX::ItemTooltip( "Clear" );
-
-                ImGui::EndDisabled();
-            }
-            ImGui::EndGroup();
-
-            // Options Context Menu
-            //-------------------------------------------------------------------------
-
-            if ( ImGui::BeginPopup( "##DataFilePathPickerOptions" ) )
-            {
-                if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE " Copy Data Path" ) )
-                {
-                    ImGui::SetClipboardText( currentPath.c_str() );
-                }
-
-                if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN_OUTLINE " Show In Resource Browser" ) )
-                {
-                    m_toolsContext.TryFindInResourceBrowser( currentPath );
-                }
-
-                ImGui::Separator();
-
-                if ( ImGui::MenuItem( EE_ICON_FILE " Copy File Path" ) )
-                {
-                    FileSystem::Path const fileSystemPath = currentPath.GetFileSystemPath( m_toolsContext.GetSourceDataDirectory() );
-                    ImGui::SetClipboardText( fileSystemPath.c_str() );
-                }
-
-                if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN " Open In Explorer" ) )
-                {
-                    FileSystem::Path const fileSystemPath = currentPath.GetFileSystemPath( m_toolsContext.GetSourceDataDirectory() );
-                    Platform::Win32::OpenInExplorer( fileSystemPath );
-                }
-
-                ImGui::EndPopup();
             }
         }
-        ImGui::EndChild();
+
+        ImGui::PopStyleVar();
+        ImGui::EndDisabled();
+
+        // Control Row
+        //-------------------------------------------------------------------------
+
+        if ( !m_isCompact )
+        {
+            ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
+            static ImVec2 const buttonSize( ImGuiX::Style::s_iconButtonWidthSmall, 0 );
+
+            // Open Resource
+            ImGui::BeginDisabled( !m_path.IsValid() );
+            if ( ImGui::Button( EE_ICON_CONTENT_COPY "##Copy", buttonSize ) )
+            {
+                ImGui::SetClipboardText( m_path.c_str() );
+            }
+            ImGuiX::ItemTooltip( "Copy Data Path" );
+
+            ImGui::SameLine();
+            if ( ImGui::Button( EE_ICON_FOLDER_SYNC "##ShowInRB", buttonSize ) )
+            {
+                m_toolsContext.TryFindInResourceBrowser( m_path );
+            }
+            ImGuiX::ItemTooltip( "Show In Resource Browser" );
+
+            if ( m_showDependenciesButton )
+            {
+                ImGui::SameLine();
+                if ( ImGui::Button( EE_ICON_GRAPH "##ShowDeps", buttonSize ) )
+                {
+                    m_toolsContext.ShowResourceDependencies( m_path );
+                }
+                ImGuiX::ItemTooltip( "Show Dependencies" );
+            }
+
+            ImGui::SameLine();
+            if ( ImGui::Button( EE_ICON_COG "##Options", buttonSize ) )
+            {
+                ImGui::OpenPopup( "##DataFilePathPickerOptions" );
+            }
+            ImGuiX::ItemTooltip( "Options" );
+
+            ImGui::EndDisabled();
+        }
+        ImGui::EndGroup();
+
+        // Options Context Menu
+        //-------------------------------------------------------------------------
+
+        if ( ImGui::BeginPopup( "##DataFilePathPickerOptions" ) )
+        {
+            if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE " Copy Data Path" ) )
+            {
+                ImGui::SetClipboardText( m_path.c_str() );
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN_OUTLINE " Show In Resource Browser" ) )
+            {
+                m_toolsContext.TryFindInResourceBrowser( m_path );
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_GRAPH " Show Dependencies" ) )
+            {
+                m_toolsContext.ShowResourceDependencies( m_path );
+            }
+
+            ImGui::Separator();
+
+            if ( ImGui::MenuItem( EE_ICON_FILE " Copy File Path" ) )
+            {
+                FileSystem::Path const fileSystemPath = m_path.GetFileSystemPath( m_toolsContext.GetSourceDataDirectory() );
+                ImGui::SetClipboardText( fileSystemPath.c_str() );
+            }
+
+            if ( ImGui::MenuItem( EE_ICON_FOLDER_OPEN " Open In Explorer" ) )
+            {
+                FileSystem::Path const fileSystemPath = m_path.GetFileSystemPath( m_toolsContext.GetSourceDataDirectory() );
+                Platform::Win32::OpenInExplorer( fileSystemPath );
+            }
+
+            ImGui::EndPopup();
+        }
 
         //-------------------------------------------------------------------------
 
         ImGui::PopID();
 
         return valueUpdated;
+    }
+
+    void DataPickerBase::SetDataPath( DataPath const& path )
+    {
+        if ( ValidateDataPath( path ) )
+        {
+            m_path = path;
+        }
+        else
+        {
+            m_path.Clear();
+        }
+
+        m_buffer.Fill( m_path.GetString() );
+    }
+
+    void DataPickerBase::Clear()
+    {
+        m_buffer.Clear();
+        SetDataPath( DataPath() );
     }
 
     TInlineString<7> DataPickerBase::GetPreviewLabel() const
@@ -359,72 +279,21 @@ namespace EE
         return previewStr;
     }
 
-    void DataPickerBase::GenerateFilteredOptionList()
+    bool DataPickerBase::ValidateCurrentlySetPath()
     {
-        if ( m_filterWidget.HasFilterSet() )
-        {
-            m_filteredOptions.clear();
-
-            for ( DataPath const& dataPath : m_generatedOptions )
-            {
-                String lowercasePath = dataPath.GetString();
-                lowercasePath.make_lower();
-
-                if ( m_filterWidget.MatchesFilter( lowercasePath ) )
-                {
-                    m_filteredOptions.emplace_back( dataPath );
-                }
-            }
-        }
-        else
-        {
-            m_filteredOptions = m_generatedOptions;
-        }
+        return ValidateDataPath( m_path ) && m_toolsContext.m_pDataFileRegistry->DoesFileExist( m_path );
     }
 
-    bool DataPickerBase::TryUpdatePathFromClipboard()
+    void DataPickerBase::GenerateOptionsList( TVector<ImGuiX::OptionData::Option>& outOptions )
     {
-        String clipboardText = ImGui::GetClipboardText();
+        GenerateDataPathOptions();
 
-        if ( clipboardText.length() > 256 )
-        {
-            EE_LOG_WARNING( LogCategory::Resource, "DataFilePathPicker", "Pasting invalid length string" );
-            return false;
-        }
-
-        // Check for a valid file path if the resource path is bad
         //-------------------------------------------------------------------------
 
-        DataPath pastedPath;
-
-        if ( !DataPath::IsValidPath( clipboardText ) )
+        for ( DataPath const& dataPath : m_dataPathOptions )
         {
-            FileSystem::Path pastedFilePath( clipboardText );
-            if ( pastedFilePath.IsValid() && pastedFilePath.IsUnderDirectory( m_toolsContext.GetSourceDataDirectory() ) )
-            {
-                pastedPath = DataPath( pastedFilePath, m_toolsContext.GetSourceDataDirectory().c_str() );
-            }
+            outOptions.emplace_back( dataPath.GetString(), dataPath.GetID() );
         }
-        else
-        {
-            pastedPath = DataPath( clipboardText );
-        }
-
-        if ( !pastedPath.IsValid() )
-        {
-            return false;
-        }
-
-        // Validate path extension
-        //-------------------------------------------------------------------------
-
-        if ( ValidateDataPath( pastedPath ) )
-        {
-            SetDataPath( pastedPath );
-            return true;
-        }
-
-        return false;
     }
 
     bool DataPickerBase::TryUpdatePathFromDragAndDrop()
@@ -445,6 +314,38 @@ namespace EE
         return false;
     }
 
+    bool DataPickerBase::UpdateDataPathFromString( String const& str )
+    {
+        if ( str.empty() )
+        {
+            if ( m_path.IsValid() )
+            {
+                Clear();
+                return true;
+            }
+
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
+        String enteredPath = str;
+        if ( !enteredPath.empty() && !StringUtils::StartsWith( str, DataPath::s_pathPrefix ) )
+        {
+            enteredPath.sprintf( "%s%s", DataPath::s_pathPrefix, str.c_str() );
+        }
+
+        DataPath dataPath( enteredPath, DataPath::AllowInvalidPath );
+        if ( !dataPath.IsValid() || !ValidateDataPath( dataPath ) || dataPath == m_path )
+        {
+            m_buffer.Fill( GetDataPath().c_str() );
+            return false;
+        }
+
+        SetDataPath( dataPath );
+        return true;
+    }
+
     //-------------------------------------------------------------------------
 
     DataFilePathPicker::DataFilePathPicker( ToolsContext const& toolsContext, TypeSystem::TypeID dataFileTypeID, DataPath const& datafilePath )
@@ -456,41 +357,22 @@ namespace EE
 
     bool DataFilePathPicker::ValidateDataPath( DataPath const& path )
     {
-        bool isValidPath = path.IsValid();
-        if ( isValidPath )
+        if ( !path.IsValid() )
         {
-            // Check extension
-            //-------------------------------------------------------------------------
-
-            isValidPath = ( m_requiredExtension.comparei( path.GetExtension() ) == 0 );
-
-            // Check if file exist
-            //-------------------------------------------------------------------------
-
-            if ( isValidPath )
-            {
-                isValidPath = m_toolsContext.m_pDataFileRegistry->DoesFileExist( path );
-            }
+            return false;
         }
 
-        return isValidPath;
+        if ( m_requiredExtension.comparei( path.GetExtension() ) != 0 )
+        {
+            return false;
+        }
+
+        return true;
     }
 
-    void DataFilePathPicker::SetDataPath( DataPath const& path )
+    void DataFilePathPicker::GenerateDataPathOptions()
     {
-        if ( ValidateDataPath( path ) )
-        {
-            m_path = path;
-        }
-        else
-        {
-            m_path.Clear();
-        }
-    }
-
-    void DataFilePathPicker::GenerateOptionsList()
-    {
-        m_generatedOptions.clear();
+        m_dataPathOptions.clear();
 
         if ( m_fileTypeID.IsValid() )
         {
@@ -499,14 +381,14 @@ namespace EE
             DataFileExtension const dataFileExt = DataFileExtension( m_requiredExtension.c_str() );
             for ( auto const& pFileInfo : m_toolsContext.m_pDataFileRegistry->GetAllDataFileEntries( dataFileExt ) )
             {
-                m_generatedOptions.emplace_back( pFileInfo->m_dataPath );
+                m_dataPathOptions.emplace_back( pFileInfo->m_dataPath );
             }
         }
         else // Show all data files
         {
             for ( auto const& pFileInfo : m_toolsContext.m_pDataFileRegistry->GetAllDataFileEntries() )
             {
-                m_generatedOptions.emplace_back( pFileInfo->m_dataPath );
+                m_dataPathOptions.emplace_back( pFileInfo->m_dataPath );
             }
         }
     }
@@ -518,12 +400,6 @@ namespace EE
         EE_ASSERT( m_pDataFileInfo != nullptr ); // Type ID is not a datafile type!
 
         m_requiredExtension = m_pDataFileInfo->GetFileSystemExtension();
-
-        if ( m_isPopupOpen )
-        {
-            GenerateOptionsList();
-            GenerateFilteredOptionList();
-        }
     }
 
     //-------------------------------------------------------------------------
@@ -566,79 +442,70 @@ namespace EE
 
     bool ResourcePicker::ValidateDataPath( DataPath const& path )
     {
-        bool isValidPath = true;
-
-        if ( path.IsValid() )
+        if ( !path.IsValid() )
         {
-            // Check resource TypeID
-            //-------------------------------------------------------------------------
+            return false;
+        }
 
-            // Get actual resource typeID
-            ResourceTypeID actualResourceTypeID;
-            FileSystem::Extension const extension = path.GetExtension();
-            if ( !extension.empty() )
+        // Check resource TypeID
+        //-------------------------------------------------------------------------
+
+        // Get actual resource typeID
+        ResourceTypeID actualResourceTypeID;
+        FileSystem::Extension const extension = path.GetExtension();
+        if ( !extension.empty() )
+        {
+            if ( ResourceTypeID::IsValidResourceTypeIdentifierString( extension ) )
             {
-                if ( ResourceTypeID::IsValidResourceTypeIdentifierString( extension ) )
-                {
-                    actualResourceTypeID = ResourceTypeID( extension );
-                }
+                actualResourceTypeID = ResourceTypeID( extension );
             }
+        }
 
-            if ( !actualResourceTypeID.IsValid() )
+        if ( !actualResourceTypeID.IsValid() )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
+        if ( m_resourceTypeID.IsValid() )
+        {
+            if ( !m_toolsContext.m_pTypeRegistry->IsResourceTypeDerivedFrom( actualResourceTypeID, m_resourceTypeID ) )
             {
                 return false;
-            }
-
-            //-------------------------------------------------------------------------
-
-            if ( m_resourceTypeID.IsValid() )
-            {
-                if ( !m_toolsContext.m_pTypeRegistry->IsResourceTypeDerivedFrom( actualResourceTypeID, m_resourceTypeID ) )
-                {
-                    isValidPath = false;
-                }
-            }
-            else
-            {
-                if ( !m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( actualResourceTypeID ) )
-                {
-                    isValidPath = false;
-                }
-            }
-
-            // Custom validation
-            //-------------------------------------------------------------------------
-
-            if ( isValidPath && m_pCustomOptionProvider != nullptr )
-            {
-                isValidPath = m_pCustomOptionProvider->ValidatePath( m_toolsContext, path );
-            }
-
-            // Check if file exist
-            //-------------------------------------------------------------------------
-
-            if ( isValidPath )
-            {
-                isValidPath = m_toolsContext.m_pDataFileRegistry->DoesFileExist( path );
             }
         }
         else
         {
-            isValidPath = false;
+            if ( !m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( actualResourceTypeID ) )
+            {
+                return false;
+            }
         }
 
-        return isValidPath;
+        // Custom validation
+        //-------------------------------------------------------------------------
+
+        if ( m_pCustomOptionProvider != nullptr )
+        {
+            if ( !m_pCustomOptionProvider->ValidatePath( m_toolsContext, path ) )
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
-    void ResourcePicker::GenerateOptionsList()
+    void ResourcePicker::GenerateDataPathOptions()
     {
-        m_generatedOptions.clear();
+        m_dataPathOptions.clear();
 
         if ( m_pCustomOptionProvider != nullptr )
         {
             EE_ASSERT( m_resourceTypeID.IsValid() );
             EE_ASSERT( m_toolsContext.m_pTypeRegistry->IsRegisteredResourceType( m_resourceTypeID ) );
-            m_pCustomOptionProvider->GenerateOptions( m_toolsContext, m_generatedOptions );
+            m_pCustomOptionProvider->GenerateOptions( m_toolsContext, m_dataPathOptions );
         }
         else
         {
@@ -651,14 +518,14 @@ namespace EE
                 {
                     for ( auto const& resourceID : m_toolsContext.m_pDataFileRegistry->GetAllResourcesOfType( m_resourceTypeID ) )
                     {
-                        m_generatedOptions.emplace_back( resourceID.GetDataPath() );
+                        m_dataPathOptions.emplace_back( resourceID.GetDataPath() );
                     }
                 }
                 else // Apply custom filter
                 {
                     for ( auto const& resourceID : m_toolsContext.m_pDataFileRegistry->GetAllResourcesOfTypeFiltered( m_resourceTypeID, m_customResourceFilter ) )
                     {
-                        m_generatedOptions.emplace_back( resourceID.GetDataPath() );
+                        m_dataPathOptions.emplace_back( resourceID.GetDataPath() );
                     }
                 }
             }
@@ -673,23 +540,19 @@ namespace EE
 
                         if ( m_customResourceFilter == nullptr )
                         {
-                            m_generatedOptions.emplace_back( pResourceFileInfo->m_dataPath );
+                            m_dataPathOptions.emplace_back( pResourceFileInfo->m_dataPath );
                         }
                         else // Apply custom filter
                         {
                             if ( pResourceFileInfo->HasLoadedDescriptor() && m_customResourceFilter( TryCast<Resource::ResourceDescriptor>( pResourceFileInfo->m_pDataFile ) ) )
                             {
-                                m_generatedOptions.emplace_back( pResourceFileInfo->m_dataPath );
+                                m_dataPathOptions.emplace_back( pResourceFileInfo->m_dataPath );
                             }
                         }
                     }
                 }
             }
         }
-
-        //-------------------------------------------------------------------------
-
-        eastl::sort( m_generatedOptions.begin(), m_generatedOptions.end(), SortComparison_DataPath );
     }
 
     void ResourcePicker::SetRequiredResourceType( ResourceTypeID resourceTypeID )
@@ -722,28 +585,6 @@ namespace EE
         }
     }
 
-    void ResourcePicker::SetCustomResourceFilter( TFunction<bool( Resource::ResourceDescriptor const* )>&& filter )
-    {
-        m_customResourceFilter = filter;
-
-        if ( m_isPopupOpen )
-        {
-            GenerateOptionsList();
-            GenerateFilteredOptionList();
-        }
-    }
-
-    void ResourcePicker::ClearCustomResourceFilter()
-    {
-        m_customResourceFilter = nullptr;
-
-        if ( m_isPopupOpen )
-        {
-            GenerateOptionsList();
-            GenerateFilteredOptionList();
-        }
-    }
-
     void ResourcePicker::SetResourceID( ResourceID const& resourceID )
     {
         if ( resourceID.IsValid() && m_resourceTypeID.IsValid() )
@@ -751,21 +592,6 @@ namespace EE
             EE_ASSERT( resourceID.GetResourceTypeID() == m_resourceTypeID );
         }
 
-        if ( m_resourceID != resourceID )
-        {
-            m_resourceID = resourceID;
-        }
-    }
-
-    void ResourcePicker::SetDataPath( DataPath const& path )
-    {
-        if ( ValidateDataPath( path ) )
-        {
-            m_resourceID = ResourceID( path );
-        }
-        else
-        {
-            m_resourceID.Clear();
-        }
+        SetDataPath( resourceID.GetDataPath() );
     }
 }

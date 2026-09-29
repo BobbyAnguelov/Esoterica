@@ -1,8 +1,6 @@
 #ifndef __cplusplus
-#define RWStructuredBuffer RWBuffer
 #define FFX_HLSL
 #include "FFX_ParallelSort.esh"
-#undef RWStructuredBuffer
 #endif
 
 #include "Base/Render/RHI.esh"
@@ -10,9 +8,9 @@
 #ifndef __cplusplus
 ESF_RESOURCE_TABLE struct FFX_ParallelSort_ScanAddResourceTable
 {
-    RWBuffer<uint>  m_scanSrc;
-    RWBuffer<uint>  m_scanDst;
-    RWBuffer<uint>  m_scanScratch;
+    RWStructuredBuffer<uint>  m_scanSrc;
+    RWStructuredBuffer<uint>  m_scanDst;
+    RWStructuredBuffer<uint>  m_scanScratch;
 };
 #endif
 

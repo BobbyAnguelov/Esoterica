@@ -359,11 +359,16 @@ namespace EE::Animation
 
     //-------------------------------------------------------------------------
 
-    Percentage AnimationClip::GetPercentageThrough( FrameTime const &frameTime ) const
+    Percentage AnimationClip::GetPercentageThrough( FrameTime const& frameTime ) const
     {
         if ( IsSingleFrameAnimation() )
         {
             return Percentage( 1.0f );
+        }
+
+        if ( frameTime.GetFrameIndex() < 0 )
+        {
+            return Percentage( 0.0f );
         }
 
         int32_t lastFrameIdx = m_numFrames - 1;
@@ -372,7 +377,7 @@ namespace EE::Animation
             return Percentage( 1.0f );
         }
 
-        Percentage percentageThrough( frameTime.ToFloat() / ( m_numFrames - 1 ) );
+        Percentage percentageThrough( frameTime.ToFloat() / lastFrameIdx );
         percentageThrough.Clamp( false );
         return percentageThrough;
     }

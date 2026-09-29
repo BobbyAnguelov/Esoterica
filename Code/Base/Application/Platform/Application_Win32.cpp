@@ -134,6 +134,26 @@ namespace EE
         projectPreferences.exceptionHandler.isEnabled = false;
 
         m_agent = lpp::LppCreateSynchronizedAgentWithPreferences( &localPreferences, L"../../External/LivePP", &projectPreferences );
+
+        //-------------------------------------------------------------------------
+
+        if ( lpp::LppIsValidSynchronizedAgent( &m_agent ) && m_agent.EnableModule )
+        {
+            auto FilterFunction = [] ( void* context, const wchar_t* const path )
+            {
+                FileSystem::Path const processPath = FileSystem::GetCurrentProcessPath();
+                auto modulePath = FileSystem::Path( String( String::CtorConvert(), path ) );
+                return processPath.IsUnderDirectory( processPath );
+            };
+
+            //-------------------------------------------------------------------------
+
+            WString const currentProcessPath( WString::CtorConvert(), Platform::Win32::GetCurrentModulePath().c_str() );
+            m_agent.EnableModule( currentProcessPath.data(), lpp::LPP_MODULES_OPTION_ALL_IMPORT_MODULES, nullptr, FilterFunction );
+        }
+
+        //-------------------------------------------------------------------------
+
         return lpp::LppIsValidSynchronizedAgent( &m_agent );
     }
 

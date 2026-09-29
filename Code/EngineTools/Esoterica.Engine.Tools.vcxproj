@@ -129,6 +129,7 @@
     <ClCompile Include="Core\Test\Component_SerializationTest.cpp" />
     <ClCompile Include="Core\Tools\EditorTool_SystemSettings.cpp" />
     <ClCompile Include="Core\Test\UITest.cpp" />
+    <ClCompile Include="Entity\EntityEditor\EntityEditor_ComponentTools.cpp" />
     <ClCompile Include="Entity\EntityEditor\EntityEditor_Dialogs.cpp" />
     <ClCompile Include="Entity\EntityEditor\EntityEditor_Context.cpp" />
     <ClCompile Include="Entity\EntityEditor\EntityEditor_EntityInspector.cpp" />
@@ -137,6 +138,7 @@
     <ClCompile Include="Entity\EntityEditor\EntityEditor_UndoableAction.cpp" />
     <ClCompile Include="Entity\EntityEditor\EntityEditor_Utils.cpp" />
     <ClCompile Include="Entity\EntitySerializationTools.cpp" />
+    <ClCompile Include="Entity\Systems\WorldSystem_ComponentTools.cpp" />
     <ClCompile Include="Game\ResourceCompilers\ResourceCompiler_Hitbox.cpp" />
     <ClCompile Include="Game\ResourceDescriptors\ResourceDescriptor_Hitbox.cpp" />
     <ClCompile Include="Game\ResourceEditors\ResourceEditor_Hitbox.cpp" />
@@ -154,6 +156,7 @@
     <ClCompile Include="Import\RawFileInspector.cpp" />
     <ClCompile Include="Core\Tools\EditorTool_SystemLog.cpp" />
     <ClCompile Include="Render\BulkUpdateOperations\BulkUpdateOperation_Render.cpp" />
+    <ClCompile Include="Render\ComponentTools\ComponentTools_Light.cpp" />
     <ClCompile Include="Render\PropertyGrid\PropertyGrid_SubmeshSettings.cpp" />
     <ClCompile Include="Render\PropertyGrid\PropertyGrid_Mesh.cpp" />
     <ClCompile Include="Render\ResourceDescriptors\ResourceDescriptor_RenderMaterial.cpp" />
@@ -285,6 +288,7 @@
     <ClInclude Include="Core\Test\Component_SerializationTest.h" />
     <ClInclude Include="Core\Tools\EditorTool_SystemSettings.h" />
     <ClInclude Include="Core\Test\UITest.h" />
+    <ClInclude Include="Entity\EntityEditor\EntityEditor_ComponentTools.h" />
     <ClInclude Include="Entity\EntityEditor\EntityEditor_Dialogs.h" />
     <ClInclude Include="Entity\EntityEditor\EntityEditor_Context.h" />
     <ClInclude Include="Entity\EntityEditor\EntityEditor_EntityInspector.h" />
@@ -294,6 +298,7 @@
     <ClInclude Include="Entity\EntityEditor\EntityEditor_Utils.h" />
     <ClInclude Include="Entity\EntitySerializationTools.h" />
     <ClInclude Include="Entity\EntityToolTypes.h" />
+    <ClInclude Include="Entity\Systems\WorldSystem_ComponentTools.h" />
     <ClInclude Include="Game\ResourceCompilers\ResourceCompiler_Hitbox.h" />
     <ClInclude Include="Game\ResourceDescriptors\ResourceDescriptor_Hitbox.h" />
     <ClInclude Include="Game\ResourceEditors\ResourceEditor_Hitbox.h" />

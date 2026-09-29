@@ -30,11 +30,11 @@ namespace EE::Render
             MaterialShaderParameterHandle handle = { parameterInfo.m_parameterStrideInBytes, parameterInfo.m_parameterOffsetInBytes };
             if ( parameterTypeStr.starts_with( "Texture" ) )
             {
-                SetTexture( handle, RHI::InvalidResourceHandle );
+                SetTexture( handle, RHI::g_invalidResourceHandle );
             }
             else if ( parameterTypeStr.starts_with( "Buffer" ) )
             {
-                SetBuffer( handle, RHI::InvalidResourceHandle );
+                SetBuffer( handle, RHI::g_invalidResourceHandle );
             }
         }
     }
@@ -49,7 +49,7 @@ namespace EE::Render
             MaterialShaderParameterHandle handle = { parameterInfo.m_parameterStrideInBytes, parameterInfo.m_parameterOffsetInBytes };
             if ( parameterTypeStr.starts_with( "Texture" ) || parameterTypeStr.starts_with( "Buffer" ) )
             {
-                if ( *reinterpret_cast<RHI::GenericResourceHandle*>( &m_parametersMemory[parameterInfo.m_parameterOffsetInBytes] ) == RHI::InvalidResourceHandle )
+                if ( *reinterpret_cast<RHI::GenericResourceHandle*>( &m_parametersMemory[parameterInfo.m_parameterOffsetInBytes] ) == RHI::g_invalidResourceHandle )
                 {
                     return false;
                 }
@@ -119,9 +119,9 @@ namespace EE::Render
         m_pRootSignature = RHI::CreateRootSignature( pContextRHI, rootSignatureParameters );
 
         TInlineVector<RHI::IndirectArgumentDescriptor, 3> commandArguments;
-        for ( RHI::DescriptorReflection const& descriptorReflection : m_pRootSignature->m_descriptorReflections )
+        for ( uint32_t descriptorIndex = 0; descriptorIndex < m_pRootSignature->m_descriptorReflections.size(); ++descriptorIndex )
         {
-            uint32_t descriptorIndex = uint32_t( commandArguments.size() );
+            RHI::DescriptorReflection const& descriptorReflection = m_pRootSignature->m_descriptorReflections[descriptorIndex];
 
             if ( descriptorReflection.m_descriptorTypeFlags.IsFlagSet( RHI::DescriptorTypeFlags::RootConstant ) )
             {

@@ -27,7 +27,7 @@ namespace EE::Render
         virtual Resource::LoadResult Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const final;
         virtual Resource::UnloadResult Uninstall( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const override;
 
-    private:
+        //-------------------------------------------------------------------------
 
         RenderSystem* m_pRenderSystem = nullptr;
     };

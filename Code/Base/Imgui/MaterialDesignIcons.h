@@ -5,8 +5,8 @@
 
 #pragma once
 
-#define EE_ICONRANGE_MIN 0xF68C
-#define EE_ICONRANGE_MAX 0xF1D17
+#define EE_ICONRANGE_MDI_MIN 0xF68C
+#define EE_ICONRANGE_MDI_MAX 0xF1D17
 
 #define EE_ICON_AB_TESTING "\xf3\xb0\x87\x89"	// U+F01C9
 #define EE_ICON_ABACUS "\xf3\xb1\x9b\xa0"	// U+F16E0

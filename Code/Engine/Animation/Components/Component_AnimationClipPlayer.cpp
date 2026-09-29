@@ -5,7 +5,6 @@
 #include "Engine/Entity/EntityLog.h"
 #include "Base/Profiling.h"
 
-
 //-------------------------------------------------------------------------
 
 namespace EE::Animation
@@ -19,13 +18,17 @@ namespace EE::Animation
 
     void AnimationClipPlayerComponent::SetPlayMode( PlayMode mode )
     {
-        m_playMode = mode;
-        m_previousAnimTime = Percentage( -1 );
+        if ( m_playMode != mode )
+        {
+            m_playMode = mode;
+            m_previousAnimTime = Percentage( -1 );
+        }
     }
 
     void AnimationClipPlayerComponent::SetAnimTime( Percentage inTime )
     {
         m_animTime = inTime.GetClamped( m_playMode == PlayMode::Loop );
+        m_wasTimeManuallySet = true;
     }
 
     void AnimationClipPlayerComponent::SetAnimTime( Seconds inTime )
@@ -45,6 +48,27 @@ namespace EE::Animation
         EE_ASSERT( m_pAnimation.IsLoaded() );
         Percentage const percentage( inTime / m_pAnimation->GetDuration() );
         SetAnimTime( percentage );
+        m_wasTimeManuallySet = true;
+    }
+
+    void AnimationClipPlayerComponent::SetAnimTime( FrameTime const& inTime )
+    {
+        if ( !IsInitialized() )
+        {
+            EE_LOG_ENTITY_ERROR( this, "Animation", "Anim Clip Player", "Trying to set anim time on an uninitialized component!" );
+            return;
+        }
+
+        if ( m_pAnimation == nullptr )
+        {
+            EE_LOG_ENTITY_ERROR( this, "Animation", "Anim Clip Player", "Trying to set anim time on a player with no animation set!" );
+            return;
+        }
+
+        EE_ASSERT( m_pAnimation.IsLoaded() );
+        Percentage const percentage = m_pAnimation->GetPercentageThrough( inTime );
+        SetAnimTime( percentage );
+        m_wasTimeManuallySet = true;
     }
 
     //-------------------------------------------------------------------------
@@ -52,6 +76,8 @@ namespace EE::Animation
     void AnimationClipPlayerComponent::Initialize()
     {
         EntityComponent::Initialize();
+
+        m_previousAnimTime = -1.0f;
 
         if ( m_pAnimation != nullptr )
         {
@@ -61,6 +87,13 @@ namespace EE::Animation
             for ( auto pSecondaryAnimation : m_pAnimation->GetSecondaryAnimations() )
             {
                 m_secondaryPoses.emplace_back( EE::New<Pose>( pSecondaryAnimation->GetSkeleton() ) );
+            }
+
+            if ( m_playMode == PlayMode::Posed && !m_wasTimeManuallySet )
+            {
+                int32_t const numFrames = m_pAnimation->GetNumFrames();
+                int32_t const frameIdx = ( ( m_poseStartFrame % numFrames ) + numFrames ) % numFrames;
+                m_animTime = m_pAnimation->GetPercentageThrough( FrameTime( frameIdx, Percentage( 0 ) ) );
             }
         }
     }
@@ -75,7 +108,10 @@ namespace EE::Animation
         }
         m_secondaryPoses.clear();
 
+        m_animTime = 0.0f;
         m_previousAnimTime = -1.0f;
+        m_wasTimeManuallySet = false;
+
         EntityComponent::Shutdown();
     }
 
@@ -175,5 +211,9 @@ namespace EE::Animation
         {
             m_rootMotionDelta = Transform::Identity;
         }
+
+        //-------------------------------------------------------------------------
+
+        m_wasTimeManuallySet = false;
     }
 }

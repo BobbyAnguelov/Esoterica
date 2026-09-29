@@ -79,7 +79,7 @@ namespace EE::Resource
 
     private:
 
-        ImGuiX::FilterWidget                                m_filter;
+        ImGuiX::FilterData                                  m_filter;
         EventBindingID                                      m_resourceDatabaseUpdateEventBindingID;
         int32_t                                             m_dataDirectoryPathDepth;
         TVector<FileSystem::Path>                           m_foundPaths;

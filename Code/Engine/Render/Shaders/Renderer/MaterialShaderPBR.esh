@@ -86,19 +86,20 @@ MaterialShaderOutput MaterialShaderMain( in MaterialShaderInput materialInput );
 
 uint firstbitlow64( uint64_t v )
 {
-    uint index = firstbitlow( uint( v & 0xFFFFFFFF ) );
-    if ( index != 0xFFFFFFFF )
+    uint const low  = uint( v & 0xFFFFFFFF );
+    uint const high = uint( v >> 32 );
+
+    if ( low != 0 )
     {
-        return index;
+        return firstbitlow( low );
     }
 
-    index = firstbitlow( uint( v >> 32 ) );
-    if ( index != 0xFFFFFFFF )
+    if ( high != 0 )
     {
-        return index + 32;
+        return firstbitlow( high ) + 32;
     }
 
-    return -1;
+    return ~0U;
 }
 
 [RootSignature( DrawRootSignature )]
@@ -114,9 +115,7 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
     StructuredBuffer<LightInstance_PointLight>          pointLightBuffer            = GetBuffer( RootCBV.m_pointLightBuffer );
     StructuredBuffer<LightInstance_SpotLight>           spotLightBuffer             = GetBuffer( RootCBV.m_spotLightBuffer );
 
-    Buffer<uint64_t>                                    directionalLightPageBuffer  = GetBuffer( RootCBV.m_directionalLightPageBuffer );
-
-    StructuredBuffer<CascadedShadow>    cascadedShadowBuffer        = GetBuffer( RootCBV.m_cascadedShadowBuffer );
+    StructuredBuffer<uint64_t>                          directionalLightPageBuffer  = GetBuffer( RootCBV.m_directionalLightPageBuffer );
 
     Texture2D<float>                    ssaoTexture                 = GetTexture( RootCBV.m_ssaoTexture );
 
@@ -163,11 +162,11 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
 
     [branch] if ( ( primitive.m_primitiveFlags.m_rendererGlobalFlags & RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING ) == 0 )
     {
-        Texture2D   dfgTexture          = GetTexture( RootCBV.m_dfgTexture );
-        TextureCube radianceTexture     = GetTexture( RootCBV.m_radianceTexture );
-        TextureCube irradianceTexture   = GetTexture( RootCBV.m_irradianceTexture );
+        Texture2D                   dfgTexture          = GetTexture( RootCBV.m_dfgTexture );
+        TextureCube                 radianceTexture     = GetTexture( RootCBV.m_radianceTexture );
+        StructuredBuffer<SH::L2_RGB> shCoefficients      = GetBuffer( RootCBV.m_shCoefficientsBuffer );
         
-        float3      IBL                 = pbr.ComputeIBL( dfgTexture, radianceTexture, RootCBV.m_radianceTextureMipLevels, irradianceTexture );
+        float3      IBL                 = pbr.ComputeIBL( shCoefficients, dfgTexture, radianceTexture, RootCBV.m_radianceTextureMipLevels );
         float2      screenUV            = vertex.m_clipPosition.xy * RootCBV.m_viewportSize.zw;
         
         static const RendererGlobalFlags SSAO_EXCLUDE_FLAGS = RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING | RENDERER_GLOBAL_FLAG_DISABLE_SSAO;
@@ -196,26 +195,25 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
             [loop] while ( mask )
             {
                 uint bit = firstbitlow64( mask );
-                mask ^= ( 1U << bit );
+                mask ^= ( 1ULL << bit );
 
                 LightInstance_DirectionalLight directionalLight = directionalLightBuffer[pageIdx * 64 + bit];
 
-                float3 lightDirection  = directionalLight.m_lightDirection;
-                float  shadowDir       = 1.0;
+                float3 lightDirection       = directionalLight.m_lightDirection;
+                float  shadowDirectional    = 1.0;
 
                 float3 lightColor = UnpackColor( directionalLight.m_packedTintedColor ).rgb * directionalLight.m_maxIntensity;
 
-                if ( directionalLight.m_cascadedShadowIndex != 0xFFFF )
+                if ( directionalLight.m_shadowCascades != 0xFFFF )
                 {
-                    CascadedShadow cascadedShadow = cascadedShadowBuffer[directionalLight.m_cascadedShadowIndex];
-                    shadowDir = SampleShadow( cascadedShadow, directionalLight.m_lightDirection, vertex.m_worldPosition, vertex.m_clipPosition.z, triangleNormal, debugShadowColor );
+                    shadowDirectional = SampleDirectionalLightShadow( directionalLight, vertex.m_worldPosition, triangleNormal, debugShadowColor );
 
                     #if EE_DEVELOPMENT_TOOLS
-                        debugShadow = min( debugShadow, shadowDir );
+                        debugShadow = min( debugShadow, shadowDirectional );
                     #endif
                 }
 
-                float3 directLight = pbr.ComputeDirectLight( lightColor, lightDirection ) * shadowDir;
+                float3 directLight = pbr.ComputeDirectLight( lightColor, lightDirection ) * shadowDirectional;
 
                 #if EE_DEVELOPMENT_TOOLS
                     debugDirectLight += directLight;
@@ -251,6 +249,8 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
             uint pageRangeStart = WaveActiveMin( min( ( pointLightPageRange.y > 0 ) ? pointLightPageRange.x : ~0U, ( spotLightPageRange.y  > 0 ) ? spotLightPageRange.x  : ~0U ) );
             uint pageRangeEnd   = WaveActiveMax( max( ( pointLightPageRange.y > 0 ) ? ( pointLightPageRange.x + pointLightPageRange.y ) : 0, ( spotLightPageRange.y  > 0 ) ? ( spotLightPageRange.x  + spotLightPageRange.y  ) : 0 ) );
 
+            pageRangeEnd = min( pageRangeEnd, max( RootCBV.m_numPointLightPages, RootCBV.m_numSpotLightPages ) );
+
             [loop] for ( uint pageIndex = pageRangeStart; pageIndex < pageRangeEnd; ++pageIndex )
             {
                 bool hasPointPage = ( pageIndex >= pointLightPageRange.x ) && ( pageIndex < pointLightPageRange.x + pointLightPageRange.y );
@@ -283,7 +283,17 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
                     float  atten            = AttenuationNoCusp( length( lightVector ), pointLight.m_maxRadius, pointLight.m_maxIntensity, pointLight.m_falloff );
                     float3 lightRadiance    = UnpackColor( pointLight.m_packedTintedColor ).rgb * atten;
 
-                    float3 directLight      = pbr.ComputeDirectLight( lightRadiance, lightDirection );
+                    float  shadowPoint      = 1.0;
+                    if ( pointLight.m_shadowMapHandle != 0xFFFF )
+                    {
+                        shadowPoint = SamplePointLightShadow( pointLight, materialInput.m_vertex.m_worldPosition, triangleNormal );
+
+                        #if EE_DEVELOPMENT_TOOLS
+                            debugShadow = min( debugShadow, shadowPoint );
+                        #endif
+                    }
+
+                    float3 directLight      = pbr.ComputeDirectLight( lightRadiance, lightDirection ) * shadowPoint;
 
                     #if EE_DEVELOPMENT_TOOLS
                         debugDirectLight += directLight;
@@ -315,7 +325,17 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
                     float   atten           = AttenuationNoCusp( length( lightVector ), spotLight.m_maxRadius, spotLight.m_maxIntensity, spotLight.m_falloff );
                     float3  lightRadiance   = UnpackColor( spotLight.m_packedTintedColor ).rgb * atten * coneAtten;
 
-                    float3  directLight     = pbr.ComputeDirectLight( lightRadiance, lightDirection );
+                    float   shadowSpot      = 1.0;
+                    if ( spotLight.m_shadowMapHandle != 0xFFFF )
+                    {
+                        shadowSpot = SampleSpotLightShadow( spotLight, materialInput.m_vertex.m_worldPosition, triangleNormal );
+
+                        #if EE_DEVELOPMENT_TOOLS
+                            debugShadow = min( debugShadow, shadowSpot );
+                        #endif
+                    }
+
+                    float3  directLight     = pbr.ComputeDirectLight( lightRadiance, lightDirection ) * shadowSpot;
 
                     #if EE_DEVELOPMENT_TOOLS
                         debugDirectLight += directLight;
@@ -338,17 +358,55 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
         RendererDebugFlags debugFlags = materialOutput.m_primitiveFlags.m_rendererDebugFlags;
         debugFlags |= primitive.m_primitiveFlags.m_rendererDebugFlags;
     
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_DIRECT_LIGHT )           { result.rgb = debugDirectLight; }
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ENVIRONMENT_MAP_LIGHT )  { result.rgb = debugEnvironmentMapLight; }
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_SHADOWS)                 { result.rgb = debugShadow.xxx; }
-        
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ALBEDO )                 { result.rgb = materialOutput.m_albedo.rgb; }
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_NORMALS )                { result.rgb = materialOutput.m_normal * 0.5 + 0.5.xxx; }
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_METALNESS )              { result.rgb = materialOutput.m_metalness.xxx; }
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ROUGHNESS )              { result.rgb = materialOutput.m_roughness.xxx; }
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_AMBIENT_OCCLUSION )      { result.rgb = materialOutput.m_occlusion.xxx; }
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_COMPLEXITY )       { result.rgb = lerp( float3(0.0, 1.0, 0.0 ), float3( 1.0, 0.0, 0.0 ), saturate( debugLightComplexity / 32.0 ) ); }
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_SSAO )                   { result.rgb = debugSSAO.xxx; }
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_DIRECT_LIGHT )
+        {
+            result.rgb = debugDirectLight;
+        }
+
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ENVIRONMENT_MAP_LIGHT )
+        {
+            result.rgb = debugEnvironmentMapLight;
+        }
+
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_SHADOWS )
+        {
+            result.rgb = debugShadow.xxx;
+        }
+
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ALBEDO )
+        {
+            result.rgb = materialOutput.m_albedo.rgb;
+        }
+
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_NORMALS )
+        {
+            result.rgb = materialOutput.m_normal * 0.5 + 0.5.xxx;
+        }
+
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_METALNESS )
+        {
+            result.rgb = materialOutput.m_metalness.xxx;
+        }
+
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ROUGHNESS )
+        {
+            result.rgb = materialOutput.m_roughness.xxx;
+        }
+
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_AMBIENT_OCCLUSION )
+        {
+            result.rgb = materialOutput.m_occlusion.xxx;
+        }
+
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_COMPLEXITY )
+        {
+            result.rgb = lerp( float3(0.0, 1.0, 0.0 ), float3( 1.0, 0.0, 0.0 ), saturate( debugLightComplexity / 32.0 ) );
+        }
+
+        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_SSAO )
+        {
+            result.rgb = debugSSAO.xxx;
+        }
 
         if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_CELLS )
         {
@@ -368,10 +426,22 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
 
         if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_COLLISIONS )
         {
-            if ( debugSpatialHashNumCollisions == 0 )           { result.rgb = float3( 0.2, 0.2, 0.2 ); }
-            else if ( debugSpatialHashNumCollisions <= 5 )      { result.rgb = lerp( float3( 0.0, 1.0, 0.0 ), float3( 1.0, 0.0, 0.0 ), saturate( ( debugSpatialHashNumCollisions - 1 ) / 4.0 ) ); }
-            else if ( debugSpatialHashNumCollisions <= 10 )     { result.rgb = lerp( float3( 1.0, 0.0, 0.0 ), float3( 0.5, 0.0, 0.5 ), saturate( ( debugSpatialHashNumCollisions - 5 ) / 5.0 ) ); }
-            else                                                { result.rgb = float3( 0.5, 0.0, 0.5 ); }
+            if ( debugSpatialHashNumCollisions == 0 )
+            {
+                result.rgb = float3( 0.2, 0.2, 0.2 );
+            }
+            else if ( debugSpatialHashNumCollisions <= 5 )
+            {
+                result.rgb = lerp( float3( 0.0, 1.0, 0.0 ), float3( 1.0, 0.0, 0.0 ), saturate( ( debugSpatialHashNumCollisions - 1 ) / 4.0 ) );
+            }
+            else if ( debugSpatialHashNumCollisions <= 10 )
+            {
+                result.rgb = lerp( float3( 1.0, 0.0, 0.0 ), float3( 0.5, 0.0, 0.5 ), saturate( ( debugSpatialHashNumCollisions - 5 ) / 5.0 ) );
+            }
+            else
+            {
+                result.rgb = float3( 0.5, 0.0, 0.5 );
+            }
         }
 
         if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_PAYLOAD_COMPLEXITY )

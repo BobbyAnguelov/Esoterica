@@ -98,7 +98,7 @@
 	};
 
 	groupshared uint gs_FFX_PARALLELSORT_Histogram[FFX_PARALLELSORT_THREADGROUP_SIZE * FFX_PARALLELSORT_SORT_BIN_COUNT];
-	void FFX_ParallelSort_Count_uint(uint localID, uint groupID, FFX_ParallelSortCB CBuffer, uint ShiftBit, RWBuffer<uint> SrcBuffer, RWBuffer<uint> SumTable)
+	void FFX_ParallelSort_Count_uint(uint localID, uint groupID, FFX_ParallelSortCB CBuffer, uint ShiftBit, RWStructuredBuffer<uint> SrcBuffer, RWStructuredBuffer<uint> SumTable)
 	{
 		// Start by clearing our local counts in LDS
 		for (int i = 0; i < FFX_PARALLELSORT_SORT_BIN_COUNT; i++)
@@ -214,7 +214,7 @@
 		return wavePrefixed;
 	}
 
-	void FFX_ParallelSort_ReduceCount(uint localID, uint groupID, FFX_ParallelSortCB CBuffer, RWBuffer<uint> SumTable, RWBuffer<uint> ReduceTable)
+	void FFX_ParallelSort_ReduceCount(uint localID, uint groupID, FFX_ParallelSortCB CBuffer, RWStructuredBuffer<uint> SumTable, RWStructuredBuffer<uint> ReduceTable)
 	{
 		// Figure out what bin data we are reducing
 		uint BinID = groupID / CBuffer.NumReduceThreadgroupPerBin;
@@ -246,7 +246,7 @@
 	// then scattered loads from LDS
 	groupshared int gs_FFX_PARALLELSORT_LDS[FFX_PARALLELSORT_ELEMENTS_PER_THREAD][FFX_PARALLELSORT_THREADGROUP_SIZE];
 	void FFX_ParallelSort_ScanPrefix(uint numValuesToScan, uint localID, uint groupID, uint BinOffset, uint BaseIndex, bool AddPartialSums,
-									 FFX_ParallelSortCB CBuffer, RWBuffer<uint> ScanSrc, RWBuffer<uint> ScanDst, RWBuffer<uint> ScanScratch)
+									 FFX_ParallelSortCB CBuffer, RWStructuredBuffer<uint> ScanSrc, RWStructuredBuffer<uint> ScanDst, RWStructuredBuffer<uint> ScanScratch)
 	{
 		uint i;
 		// Perform coalesced loads into LDS
@@ -309,9 +309,9 @@
 	groupshared uint gs_FFX_PARALLELSORT_LocalHistogram[FFX_PARALLELSORT_SORT_BIN_COUNT];
 	// Scratch area for algorithm
 	groupshared uint gs_FFX_PARALLELSORT_LDSScratch[FFX_PARALLELSORT_THREADGROUP_SIZE];
-	void FFX_ParallelSort_Scatter_uint(uint localID, uint groupID, FFX_ParallelSortCB CBuffer, uint ShiftBit, RWBuffer<uint> SrcBuffer, RWBuffer<uint> DstBuffer, RWBuffer<uint> SumTable
+	void FFX_ParallelSort_Scatter_uint(uint localID, uint groupID, FFX_ParallelSortCB CBuffer, uint ShiftBit, RWStructuredBuffer<uint> SrcBuffer, RWStructuredBuffer<uint> DstBuffer, RWStructuredBuffer<uint> SumTable
 #ifdef kRS_ValueCopy
-										,RWBuffer<uint> SrcPayload, RWBuffer<uint> DstPayload
+										,RWStructuredBuffer<uint> SrcPayload, RWStructuredBuffer<uint> DstPayload
 #endif // kRS_ValueCopy
 	)
 	{
@@ -472,7 +472,7 @@
 		}
 	}
 
-	void FFX_ParallelSort_SetupIndirectParams(uint NumKeys, uint MaxThreadGroups, RWStructuredBuffer<FFX_ParallelSortCB> CBuffer, RWBuffer<uint> CountScatterArgs, RWBuffer<uint> ReduceScanArgs)
+	void FFX_ParallelSort_SetupIndirectParams(uint NumKeys, uint MaxThreadGroups, RWStructuredBuffer<FFX_ParallelSortCB> CBuffer, RWStructuredBuffer<uint> CountScatterArgs, RWStructuredBuffer<uint> ReduceScanArgs)
 	{
 		CBuffer[0].NumKeys = NumKeys;
 

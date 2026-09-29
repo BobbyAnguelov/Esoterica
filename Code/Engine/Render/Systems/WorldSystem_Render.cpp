@@ -181,38 +181,11 @@ namespace EE::Render
         #if EE_DEVELOPMENT_TOOLS
         m_meshInstanceRootOutlineBuffer.Initialize( m_pRenderSystem->GetContextRHI(), true );
         #endif
-
-        // TODO: Need to make it a resource instead of allocating it here
-        static constexpr uint32_t g_RadianceResolution = 128;
-        static constexpr uint32_t g_IrradianceResolution = 32;
-
-        RHI::TextureParameters renderTargetParameters = {};
-        renderTargetParameters.m_width = g_RadianceResolution;
-        renderTargetParameters.m_height = g_RadianceResolution;
-        renderTargetParameters.m_arrayLayers = 6;
-        renderTargetParameters.m_mipLevels = RHI::ComputeTextureMipLevels( g_RadianceResolution, g_RadianceResolution, 1 );
-        renderTargetParameters.m_format = RHI::DataFormat::RGBA16_SFloat;
-        renderTargetParameters.m_descriptorTypes = TBitFlags<RHI::DescriptorTypeFlags>( RHI::DescriptorTypeFlags::TextureCube,
-                                                                                        RHI::DescriptorTypeFlags::RenderTarget );
-        renderTargetParameters.m_clearValue = { { 0.0F, 0.0F, 0.0F, 1.0F } };
-        renderTargetParameters.m_debugName = "GlobalEnvironmentMap Radiance Target";
-
-        m_pRadianceTexture = RHI::CreateTexture( m_pRenderSystem->GetContextRHI(), renderTargetParameters );
-
-        renderTargetParameters.m_width = g_IrradianceResolution;
-        renderTargetParameters.m_height = g_IrradianceResolution;
-        renderTargetParameters.m_format = RHI::DataFormat::RGBA32_SFloat;
-        renderTargetParameters.m_mipLevels = 1;
-        renderTargetParameters.m_debugName = "GlobalEnvironmentMap Irradiance Target";
-
-        m_pIrradianceTexture = RHI::CreateTexture( m_pRenderSystem->GetContextRHI(), renderTargetParameters );
     }
 
     void RenderWorldSystem::ShutdownSystem()
     {
         m_pRenderSystem->WaitAllQueuesIdle();
-
-        EE_ASSERT( m_numShadowCastingDirectionalLights == 0 );
 
         m_deviceRenderWorld.Shutdown( m_pRenderSystem );
 
@@ -220,11 +193,198 @@ namespace EE::Render
         m_meshInstanceRootOutlineBuffer.Shutdown( m_pRenderSystem->GetContextRHI() );
         #endif
 
-        RHI::DestroyTexture( m_pRenderSystem->GetContextRHI(), eastl::move( m_pRadianceTexture ) );
-        RHI::DestroyTexture( m_pRenderSystem->GetContextRHI(), eastl::move( m_pIrradianceTexture ) );
-
         m_pRenderSystem = nullptr;
         m_pTaskSystem = nullptr;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void RenderWorldSystem::UpdateDirectionalLightShadows( Math::ViewVolume const& viewVolume )
+    {
+        float const shadowMapResolution = float( m_pRenderSystem->GetRenderSettings()->m_cascadedShadowResolution );
+        float const shadowMapTexelSize = 1.0F / shadowMapResolution;
+
+        Matrix const textureScaleBiasMatrix
+        (
+            Vector( 0.5F, 0.0F, 0.0F, 0.0F ),
+            Vector( 0.0F, -0.5F, 0.0F, 0.0F ),
+            Vector( 0.0F, 0.0F, 1.0F, 0.0F ),
+            Vector( 0.5F, 0.5F, 0.0F, 1.0F )
+        );
+
+        Math::ViewVolume::VolumeCorners frustumCorners = viewVolume.GetCorners();
+        FloatRange const depthRange = viewVolume.GetDepthRange();
+
+        for ( DirectionalLightComponent* pLightComponent : m_directionalLightComponents )
+        {
+            RenderViewProxy& renderViewProxy = pLightComponent->m_cascadedShadowRenderViewProxy;
+
+            Vector lightDirection = -pLightComponent->GetLightDirection();
+            lightDirection.SetW0();
+
+            //-------------------------------------------------------------------------
+
+            ShaderTypes::LightInstance_DirectionalLight light = {};
+            light.m_maxIntensity = pLightComponent->GetMaxIntensity();
+            light.m_packedTintedColor = pLightComponent->GetTintedColor().ToUInt32();
+            light.m_shadowCascades = RHI::g_invalidResourceHandle;
+
+            Float3 const lightDirectionAsFloat3 = lightDirection.ToFloat3();
+            std::memcpy( &light.m_lightDirection, &lightDirectionAsFloat3, sizeof( Float3 ) );
+
+            if ( !renderViewProxy.IsValid() )
+            {
+                pLightComponent->m_lightInstanceProxy.WriteDirectionalLight( light );
+                continue;
+            }
+
+            // A sun close to the zenith would make the view direction parallel to the world up and explode.
+            // Same fallback the light editor uses.
+            Vector viewUpDirection = Vector::WorldUp;
+            if ( Math::Abs( lightDirection.GetDot3( viewUpDirection ) ) > 0.99F )
+            {
+                viewUpDirection = Vector::WorldRight;
+            }
+
+            TArrayView<DeviceRenderView> shadowViews = renderViewProxy.m_renderViewHandle.m_data;
+
+            DeviceRenderView& shadowView = shadowViews[0];
+            EE_ASSERT( shadowView.m_depthTexture != nullptr );
+
+            light.m_shadowCascades = RHI::GetTextureHandle( shadowView.m_depthTexture, RHI::DescriptorTypeFlags::Texture, 0 );
+            light.m_cascadeSize[0] = shadowMapResolution;
+            light.m_cascadeSize[1] = shadowMapResolution;
+            light.m_cascadeSize[2] = shadowMapTexelSize;
+            light.m_cascadeSize[3] = shadowMapTexelSize;
+
+            //-------------------------------------------------------------------------
+
+            Matrix globalShadowMatrix = Matrix::Identity;
+            {
+                Vector frustumCenter = Vector::Zero;
+                for ( Vector const& corner : frustumCorners.m_points )
+                {
+                    frustumCenter += corner;
+                }
+                frustumCenter *= 1.0F / 8.0F;
+                frustumCenter.SetW1();
+
+                Matrix shadowProjectionMatrix = Math::CreateOrthographicProjectionMatrixOffCenter
+                (
+                    -0.5F, 0.5F, -0.5F, 0.5F,
+                    0.0F, 1.0F
+                );
+                shadowProjectionMatrix = shadowProjectionMatrix * Matrix::ReverseZ;
+
+                Matrix shadowViewMatrix = Math::CreateLookAtMatrix( frustumCenter + lightDirection * 0.5F, frustumCenter, viewUpDirection );
+                Matrix shadowViewProjectionMatrix = shadowViewMatrix * shadowProjectionMatrix;
+                globalShadowMatrix = shadowViewProjectionMatrix * textureScaleBiasMatrix;
+
+                std::memcpy( light.m_shadowMatrix, globalShadowMatrix.m_rows, sizeof( light.m_shadowMatrix ) );
+            }
+
+            // Cascade splits
+            //-------------------------------------------------------------------------
+
+            TArray<float, g_NumCascadedShadowViews> cascadeSplits = {};
+
+            float const lambda = 0.94F;
+            float const minDistance = 0.0F;
+            float const maxDistance = 1.0F;
+
+            float const depthRangeLength = depthRange.GetLength();
+            float const minZ = depthRange.m_begin + minDistance * depthRangeLength;
+            float const maxZ = depthRange.m_begin + maxDistance * depthRangeLength;
+            float const zRange = maxZ - minZ;
+            float const zRatio = maxZ / minZ;
+
+            for ( size_t split = 0; split < cascadeSplits.size(); ++split )
+            {
+                float const power = float( split + 1 ) / float( g_NumCascadedShadowViews );
+                float const log = minZ * Math::Pow( zRatio, power );
+                float const uniform = minZ + zRange * power;
+                float const distance = lambda * ( log - uniform ) + uniform;
+                cascadeSplits[split] = ( distance - depthRange.m_begin ) / zRange;
+            }
+
+            // Cascade fit
+            //-------------------------------------------------------------------------
+
+            renderViewProxy.StartRenderViewWrite();
+            for ( uint32_t cascadeIndex = 0; cascadeIndex < g_NumCascadedShadowViews; ++cascadeIndex )
+            {
+                float const previousSplitDistance = cascadeIndex ? cascadeSplits[cascadeIndex - 1] : minDistance;
+                float const splitDistance = cascadeSplits[cascadeIndex];
+
+                TArray<Vector, 8> splitFrustumCorners = {};
+                for ( size_t cornerIndex = 0; cornerIndex < 4; ++cornerIndex )
+                {
+                    Vector const frustumRay = frustumCorners.m_points[cornerIndex + 4] - frustumCorners.m_points[cornerIndex];
+                    splitFrustumCorners[cornerIndex] = frustumCorners.m_points[cornerIndex] + frustumRay * previousSplitDistance;
+                    splitFrustumCorners[cornerIndex + 4] = frustumCorners.m_points[cornerIndex] + frustumRay * splitDistance;
+                }
+
+                Vector splitFrustumCenter = Vector::Zero;
+                for ( Vector const& corner : splitFrustumCorners )
+                {
+                    splitFrustumCenter += corner;
+                }
+                splitFrustumCenter *= 1.0F / 8.0F;
+                splitFrustumCenter.SetW1();
+
+                float sphereRadius = 0.0F;
+                for ( Vector const& corner : splitFrustumCorners )
+                {
+                    sphereRadius = Math::Max( sphereRadius, corner.GetDistance3( splitFrustumCenter ) );
+                }
+
+                sphereRadius = Math::Ceiling( sphereRadius * 16.0F ) / 16.0F;
+
+                Matrix shadowProjectionMatrix = Math::CreateOrthographicProjectionMatrixOffCenter
+                (
+                    -sphereRadius, sphereRadius, -sphereRadius, sphereRadius,
+                    -sphereRadius * 2.0F, sphereRadius * 2.0F
+                );
+                shadowProjectionMatrix = shadowProjectionMatrix * Matrix::ReverseZ;
+
+                Matrix shadowViewMatrix = Math::CreateLookAtMatrix( splitFrustumCenter, splitFrustumCenter - lightDirection, viewUpDirection );
+                Matrix shadowViewProjectionMatrix = shadowViewMatrix * shadowProjectionMatrix;
+
+                // Snap the shadow map to the texel grid
+                Vector const shadowOrigin = shadowViewProjectionMatrix.TransformVector4( Vector( 0.0F, 0.0F, 0.0F, 1.0F ) ) * ( shadowMapResolution * 0.5F );
+
+                Vector roundedOffset = shadowOrigin.GetRound() - shadowOrigin;
+                roundedOffset *= 2.0F / shadowMapResolution;
+                roundedOffset.SetZ( 0.0F );
+                roundedOffset.SetW( 0.0F );
+
+                shadowProjectionMatrix.m_rows[3] += roundedOffset;
+                shadowViewProjectionMatrix = shadowViewMatrix * shadowProjectionMatrix;
+
+                //-------------------------------------------------------------------------
+
+                renderViewProxy.WriteCascadedShadowRenderView( cascadeIndex, shadowViewMatrix, shadowProjectionMatrix, -sphereRadius * 2.0F, m_pRenderSystem->GetRenderSettings()->m_cascadedShadowResolution );
+
+                //-------------------------------------------------------------------------
+
+                Matrix const cascadeShadowMatrixInverse = ( shadowViewProjectionMatrix * textureScaleBiasMatrix ).GetInverse();
+
+                Vector const cascadeCorner0 = globalShadowMatrix.TransformVector3( cascadeShadowMatrixInverse.TransformVector3( Vector::Zero ) );
+                Vector const cascadeCorner1 = globalShadowMatrix.TransformVector3( cascadeShadowMatrixInverse.TransformVector3( Vector::One ) );
+
+                Vector cascadeScale = Vector::One / ( cascadeCorner1 - cascadeCorner0 );
+                cascadeScale.SetW0();
+
+                Vector cascadeOffset = -cascadeCorner0;
+                cascadeOffset.SetW0();
+
+                cascadeOffset.Store( light.m_cascadeOffsets[cascadeIndex] );
+                cascadeScale.Store( light.m_cascadeScales[cascadeIndex] );
+            }
+
+            renderViewProxy.SubmitRenderViewWrite();
+            pLightComponent->m_lightInstanceProxy.WriteDirectionalLight( light );
+        }
     }
 
     void RenderWorldSystem::RegisterComponent( Entity* pEntity, EntityComponent* pComponent )
@@ -239,11 +399,6 @@ namespace EE::Render
                 EE_ASSERT( pStaticMeshComponent->m_meshInstanceProxies.empty() );
 
                 pStaticMeshComponent->QueueMeshInstanceInitialize( &m_deviceRenderWorld, m_pRenderSystem->GetPlaceholderMaterial() );
-
-                if ( pStaticMeshComponent->m_viewLayers.IsFlagSet( ViewLayer::GlobalEnvironmentMap ) )
-                {
-                    m_needUpdateGlobalEnvironmentMap = true;
-                }
 
                 m_staticMeshComponents.Add( pStaticMeshComponent );
                 m_staticMeshComponentInstanceUpdateQueue.Bind( pStaticMeshComponent, pStaticMeshComponent->GetInstanceDataUpdateSignal() );
@@ -263,11 +418,6 @@ namespace EE::Render
                 pSkeletalMeshComponent->QueueMeshInstanceInitialize( &m_deviceRenderWorld, m_pRenderSystem->GetPlaceholderMaterial() );
                 pSkeletalMeshComponent->UpdateSkinningProxy();
 
-                if ( pSkeletalMeshComponent->m_viewLayers.IsFlagSet( ViewLayer::GlobalEnvironmentMap ) )
-                {
-                    m_needUpdateGlobalEnvironmentMap = true;
-                }
-
                 m_skeletalMeshComponents.Add( pSkeletalMeshComponent );
                 m_skeletalMeshComponentInstanceUpdateQueue.Bind( pSkeletalMeshComponent, pSkeletalMeshComponent->GetInstanceDataUpdateSignal() );
 
@@ -282,13 +432,33 @@ namespace EE::Render
         {
             if ( auto pDirectionalLightComponent = TryCast<DirectionalLightComponent>( pComponent ) )
             {
+                pDirectionalLightComponent->m_lightInstanceProxy = m_deviceRenderWorld.AllocateDirectionalLight();
+
                 if ( pDirectionalLightComponent->GetShadowed() )
                 {
-                    pDirectionalLightComponent->m_cascadedShadowIndex = uint16_t( m_numShadowCastingDirectionalLights );
-                    m_numShadowCastingDirectionalLights++;
+                    pDirectionalLightComponent->m_cascadedShadowRenderViewProxy = m_deviceRenderWorld.AllocateRenderViews( DeviceRenderViewType::CascadedShadowMap, g_NumCascadedShadowViews );
+
+                    uint32_t const resolution = m_pRenderSystem->GetRenderSettings()->m_cascadedShadowResolution;
+                    EE_ASSERT( resolution > 0 );
+                    EE_ASSERT( Math::IsPowerOf2( resolution ) );
+
+                    DeviceRenderView* const pShadowView = &pDirectionalLightComponent->m_cascadedShadowRenderViewProxy.m_renderViewHandle.m_data[0];
+                    EE_ASSERT( pShadowView->m_depthTexture == nullptr );
+
+                    RHI::TextureParameters depthParameters = {};
+                    depthParameters.m_width = resolution;
+                    depthParameters.m_height = resolution;
+                    depthParameters.m_arrayLayers = g_NumCascadedShadowViews;
+                    depthParameters.m_format = RHI::DataFormat::D16_UNorm;
+                    depthParameters.m_initialState = RHI::TextureState::DepthWrite;
+                    depthParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Texture, RHI::DescriptorTypeFlags::RenderTarget };
+                    depthParameters.m_debugName.sprintf( "CascadedShadow Depth Array %u Cascades", g_NumCascadedShadowViews );
+
+                    pShadowView->m_depthTexture = RHI::CreateTexture( m_pRenderSystem->GetContextRHI(), depthParameters );
+
+                    pDirectionalLightComponent->m_shadowMapResolution = resolution;
                 }
 
-                pDirectionalLightComponent->m_lightInstanceProxy = m_deviceRenderWorld.AllocateDirectionalLight();
                 pDirectionalLightComponent->OnWorldTransformUpdated();
 
                 m_directionalLightComponents.Add( pDirectionalLightComponent );
@@ -296,6 +466,35 @@ namespace EE::Render
             else if ( auto pPointLightComponent = TryCast<PointLightComponent>( pComponent ) )
             {
                 pPointLightComponent->m_lightInstanceProxy = m_deviceRenderWorld.AllocatePointLight();
+
+                if ( pPointLightComponent->GetShadowed() )
+                {
+                    pPointLightComponent->m_renderViewProxy = m_deviceRenderWorld.AllocateRenderViews( DeviceRenderViewType::PointShadowMap, g_NumPointShadowViews );
+
+                    DeviceRenderView* const pShadowView = &pPointLightComponent->m_renderViewProxy.m_renderViewHandle.m_data[0];
+                    EE_ASSERT( pShadowView->m_depthTexture == nullptr );
+
+                    uint32_t const resolution = m_pRenderSystem->GetRenderSettings()->m_pointShadowResolution;
+                    EE_ASSERT( resolution > 0 );
+                    EE_ASSERT( Math::IsPowerOf2( resolution ) );
+
+                    RHI::TextureParameters depthParameters = {};
+                    depthParameters.m_width = resolution;
+                    depthParameters.m_height = resolution;
+                    depthParameters.m_arrayLayers = g_NumPointShadowViews;
+                    depthParameters.m_format = RHI::DataFormat::D16_UNorm;
+                    depthParameters.m_initialState = RHI::TextureState::DepthWrite;
+                    depthParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Texture, RHI::DescriptorTypeFlags::RenderTarget };
+                    depthParameters.m_debugName.sprintf( "PointLight Shadow Map %u", resolution );
+
+                    pShadowView->m_depthTexture = RHI::CreateTexture( m_pRenderSystem->GetContextRHI(), depthParameters );
+
+                    pPointLightComponent->m_shadowMapHandle = RHI::GetTextureHandle( pShadowView->m_depthTexture, RHI::DescriptorTypeFlags::Texture, 0 );
+                    pPointLightComponent->m_shadowMapResolution = resolution;
+                }
+
+                m_deviceRenderWorld.QueuePointLightInitialize( pPointLightComponent->m_lightInstanceProxy, pPointLightComponent->m_shadowMapHandle, pPointLightComponent->m_shadowMapResolution );
+
                 pPointLightComponent->OnWorldTransformUpdated();
 
                 m_pointLightComponents.Add( pPointLightComponent );
@@ -303,6 +502,35 @@ namespace EE::Render
             else if ( auto pSpotLightComponent = TryCast<SpotLightComponent>( pComponent ) )
             {
                 pSpotLightComponent->m_lightInstanceProxy = m_deviceRenderWorld.AllocateSpotLight();
+
+                if ( pSpotLightComponent->GetShadowed() )
+                {
+                    pSpotLightComponent->m_renderViewProxy = m_deviceRenderWorld.AllocateRenderViews( DeviceRenderViewType::SpotShadowMap, g_NumSpotShadowViews );
+
+                    DeviceRenderView* const pShadowView = &pSpotLightComponent->m_renderViewProxy.m_renderViewHandle.m_data[0];
+                    EE_ASSERT( pShadowView->m_depthTexture == nullptr );
+
+                    uint32_t const resolution = m_pRenderSystem->GetRenderSettings()->m_spotShadowResolution;
+                    EE_ASSERT( resolution > 0 );
+                    EE_ASSERT( Math::IsPowerOf2( resolution ) );
+
+                    RHI::TextureParameters depthParameters = {};
+                    depthParameters.m_width = resolution;
+                    depthParameters.m_height = resolution;
+                    depthParameters.m_arrayLayers = g_NumSpotShadowViews;
+                    depthParameters.m_format = RHI::DataFormat::D16_UNorm;
+                    depthParameters.m_initialState = RHI::TextureState::DepthWrite;
+                    depthParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Texture, RHI::DescriptorTypeFlags::RenderTarget };
+                    depthParameters.m_debugName.sprintf( "SpotLight Shadow Map %u", resolution );
+
+                    pShadowView->m_depthTexture = RHI::CreateTexture( m_pRenderSystem->GetContextRHI(), depthParameters );
+
+                    pSpotLightComponent->m_shadowMapHandle = RHI::GetTextureHandle( pShadowView->m_depthTexture, RHI::DescriptorTypeFlags::Texture, 0 );
+                    pSpotLightComponent->m_shadowMapResolution = resolution;
+                }
+
+                m_deviceRenderWorld.QueueSpotLightInitialize( pSpotLightComponent->m_lightInstanceProxy, pSpotLightComponent->m_shadowMapHandle, pSpotLightComponent->m_shadowMapResolution );
+
                 pSpotLightComponent->OnWorldTransformUpdated();
 
                 m_spotLightComponents.Add( pSpotLightComponent );
@@ -339,11 +567,6 @@ namespace EE::Render
                 pStaticMeshComponent->m_meshInstanceProxies.clear();
 
                 m_deviceRenderWorld.DeallocateMeshInstanceRoot( eastl::move( pStaticMeshComponent->m_meshInstanceRootProxy ) );
-
-                if ( pStaticMeshComponent->m_viewLayers.IsFlagSet( ViewLayer::GlobalEnvironmentMap ) )
-                {
-                    m_needUpdateGlobalEnvironmentMap = true;
-                }
             }
         }
         else if ( SkeletalMeshComponent* pSkeletalMeshComponent = TryCast<SkeletalMeshComponent>( pComponent ) )
@@ -365,11 +588,6 @@ namespace EE::Render
                 pSkeletalMeshComponent->m_meshInstanceProxies.clear();
 
                 m_deviceRenderWorld.DeallocateMeshInstanceRoot( eastl::move( pSkeletalMeshComponent->m_meshInstanceRootProxy ) );
-
-                if ( pSkeletalMeshComponent->m_viewLayers.IsFlagSet( ViewLayer::GlobalEnvironmentMap ) )
-                {
-                    m_needUpdateGlobalEnvironmentMap = true;
-                }
             }
         }
 
@@ -380,24 +598,28 @@ namespace EE::Render
         {
             if ( auto pDirectionalLightComponent = TryCast<DirectionalLightComponent>( pComponent ) )
             {
-                if ( pDirectionalLightComponent->GetShadowed() )
-                {
-                    m_numShadowCastingDirectionalLights--;
-                }
-
+                m_deviceRenderWorld.DeallocateRenderViews( eastl::move( pDirectionalLightComponent->m_cascadedShadowRenderViewProxy ) );
                 m_deviceRenderWorld.DeallocateDirectionalLight( eastl::move( pDirectionalLightComponent->m_lightInstanceProxy ) );
 
                 m_directionalLightComponents.Remove( pDirectionalLightComponent->GetID() );
             }
             else if ( auto pPointLightComponent = TryCast<PointLightComponent>( pComponent ) )
             {
+                m_deviceRenderWorld.DeallocateRenderViews( eastl::move( pPointLightComponent->m_renderViewProxy ) );
                 m_deviceRenderWorld.DeallocatePointLight( eastl::move( pPointLightComponent->m_lightInstanceProxy ) );
+
+                pPointLightComponent->m_shadowMapHandle = RHI::g_invalidResourceHandle;
+                pPointLightComponent->m_shadowMapResolution = 0;
 
                 m_pointLightComponents.Remove( pPointLightComponent->GetID() );
             }
             else if ( auto pSpotLightComponent = TryCast<SpotLightComponent>( pComponent ) )
             {
+                m_deviceRenderWorld.DeallocateRenderViews( eastl::move( pSpotLightComponent->m_renderViewProxy ) );
                 m_deviceRenderWorld.DeallocateSpotLight( eastl::move( pSpotLightComponent->m_lightInstanceProxy ) );
+
+                pSpotLightComponent->m_shadowMapHandle = RHI::g_invalidResourceHandle;
+                pSpotLightComponent->m_shadowMapResolution = 0;
 
                 m_spotLightComponents.Remove( pSpotLightComponent->GetID() );
             }
@@ -490,7 +712,6 @@ namespace EE::Render
             RHI::BufferParameters outlineBufferParameters = {};
             outlineBufferParameters.m_bufferSize = newBufferSize;
             outlineBufferParameters.m_bufferStride = sizeof( uint64_t );
-            outlineBufferParameters.m_format = RHI::DataFormat::RG32_UInt;
             outlineBufferParameters.m_debugName = "RenderWorldSystem MeshInstanceRoot Outline Buffer";
 
             RHI::Buffer* pOutlineBuffer = RHI::CreateBuffer( m_pRenderSystem->GetContextRHI(), outlineBufferParameters );
@@ -542,19 +763,4 @@ namespace EE::Render
         return RHI::GetBufferHandle( m_meshInstanceRootOutlineBuffer.m_pBuffer, RHI::DescriptorTypeFlags::Buffer );
     }
     #endif
-
-    RHI::TextureHandle RenderWorldSystem::GetRadianceTextureHandle() const
-    {
-        return RHI::GetTextureHandle( m_pRadianceTexture, RHI::DescriptorTypeFlags::TextureCube, 0 );
-    }
-
-    float RenderWorldSystem::GetRadianceTextureMipLevels() const
-    {
-        return float( m_pRadianceTexture->m_mipLevels );
-    }
-
-    RHI::TextureHandle RenderWorldSystem::GetIrradianceTextureHandle() const
-    {
-        return RHI::GetTextureHandle( m_pIrradianceTexture, RHI::DescriptorTypeFlags::TextureCube, 0 );
-    }
 }

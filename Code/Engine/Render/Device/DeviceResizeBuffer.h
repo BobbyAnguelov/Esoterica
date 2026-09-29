@@ -7,15 +7,15 @@ namespace EE::Render
 {
     struct DeviceResizeBuffer final
     {
-        RHI::Buffer*    m_pBuffer = nullptr;
-
-        //-------------------------------------------------------------------------
-
         void Initialize( RHI::Context* pContextRHI, bool allowShrink );
         void Shutdown( RHI::Context* pContextRHI );
 
         template <typename F>
         void UpdateDeviceResources( size_t newBufferSize, F fn );
+
+        //-------------------------------------------------------------------------
+
+        RHI::Buffer*    m_pBuffer = nullptr;
 
     private:
 
@@ -39,7 +39,10 @@ namespace EE::Render
     {
         bool needNewBuffer = false;
 
-        if ( !m_pBuffer ) { needNewBuffer = true; }
+        if ( !m_pBuffer )
+        {
+            needNewBuffer = true;
+        }
 
         if ( m_pBuffer )
         {

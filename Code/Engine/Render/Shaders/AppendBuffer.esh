@@ -12,14 +12,14 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     template <typename T>
     struct AppendBuffer
     {
-        RWBuffer<uint>                  m_counterBuffer;
+        RWByteAddressBuffer             m_counterBuffer;
         RWStructuredBuffer<T>           m_buffer;
         uint                            m_capacity;
     
         bool TryAppend( T data )
         {
             uint writeIndex = 0;
-            InterlockedAdd( m_counterBuffer[0],  1, writeIndex );
+            m_counterBuffer.InterlockedAdd( 0, 1, writeIndex );
         
             if ( writeIndex < m_capacity )
             {
@@ -33,7 +33,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
 
     struct RawAppendBuffer
     {
-        RWBuffer<uint>                  m_counterBuffer;
+        RWByteAddressBuffer             m_counterBuffer;
         RWByteAddressBuffer             m_buffer;
     
         uint                            m_capacity;
@@ -42,7 +42,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         bool TryAppend( T data )
         {
             uint writeIndex = 0;
-            InterlockedAdd( m_counterBuffer[0], 1, writeIndex );
+            m_counterBuffer.InterlockedAdd( 0, 1, writeIndex );
         
             if ( writeIndex < m_capacity )
             {

@@ -3,8 +3,14 @@
 #if EE_DEVELOPMENT_TOOLS
 
 #include "Base/Render/RHI.h"
+#include "Engine/Render/ActiveRenderView.h"
 #include "Engine/Render/Device/DeviceRenderView.h"
 #include "Engine/Render/RenderPasses/RenderPass.h"
+
+namespace EE
+{
+    class EntityWorld;
+}
 
 namespace EE::Render
 {
@@ -13,6 +19,7 @@ namespace EE::Render
         struct RenderView;
     }
 
+    class DeviceRenderWorld;
     class RenderSystem;
     class RenderViewport;
 
@@ -20,34 +27,32 @@ namespace EE::Render
 
     struct EditorOutlineRenderPass
     {
-        DeviceRenderView                            m_renderView;
-
-        RHI::Pipeline*                              m_pInitializePipeline = nullptr;
-        RHI::Pipeline*                              m_pJumpFloodPipeline = nullptr;
-        RHI::Pipeline*                              m_pCompositePipeline = nullptr;
-
-        RenderSettings const*                       m_pRenderSettings = nullptr;
-
-        //-------------------------------------------------------------------------
+    public:
 
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );
 
-        void UpdateDeviceResources( RenderSystem* pRenderSystem, DeviceRenderWorld const& deviceRenderWorld );
-
+        void UpdateWorldDeviceResources( EntityWorld* pWorld );
         void UpdateViewportDeviceResources( RenderSystem* pRenderSystem, RenderViewport* pRenderViewport );
-
-        void UpdateRenderViews( RenderViewport const* pRenderViewport, TArrayView<ShaderTypes::RenderView> dstRenderViews_WriteCombined ) const;
 
         void DrawToViewport
         (
             TArrayView<ForwardShadingMaterialShaderPipelineBucket const>    materialShaderBuckets,
+            ActiveRenderView const&                                         activeRenderView,
             RenderViewport const*                                           pRenderViewport,
             DeviceResourceStates&                                           resourceStates,
             RHI::CommandBuffer*                                             pCommandBuffer
         ) const;
 
         void ResolveToViewport( RenderViewport const* pRenderViewport, DeviceResourceStates& resourceStates, RHI::CommandBuffer* pCommandBuffer ) const;
+
+        //-------------------------------------------------------------------------
+
+        RHI::Pipeline*                              m_pInitializePipeline = nullptr;
+        RHI::Pipeline*                              m_pJumpFloodPipeline = nullptr;
+        RHI::Pipeline*                              m_pCompositePipeline = nullptr;
+
+        RenderSettings const*                       m_pRenderSettings = nullptr;
     };
 }
 
