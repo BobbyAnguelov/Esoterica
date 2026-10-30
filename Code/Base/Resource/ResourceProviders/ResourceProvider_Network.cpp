@@ -96,7 +96,6 @@ namespace EE::Resource
 
         if ( !m_networkClient.IsConnected() )
         {
-            EE_TRACE_HALT( "LOST CONNECTION!!" );
             return;
         }
 

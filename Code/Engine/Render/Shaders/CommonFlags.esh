@@ -5,59 +5,57 @@
 
 EE_BEGIN_SHADER_TYPES_NAMESPACE
 
-    // Common renderer flags
-    //-------------------------------------------------------------------------
-
     typedef uint RendererDebugFlags;            // 6 bits required
-    static const RendererDebugFlags             RENDERER_DEBUG_FLAG_NONE                                                    = 0U;
-    static const RendererDebugFlags             RENDERER_DEBUG_FLAG_SHOW_WIREFRAME                                          = 1U << 0U;
-    static const RendererDebugFlags             RENDERER_DEBUG_FLAG_RESERVED_0                                              = 1U << 1U;
-    static const RendererDebugFlags             RENDERER_DEBUG_FLAG_RESERVED_1                                              = 1U << 2U;
-    static const RendererDebugFlags             RENDERER_DEBUG_FLAG_RESERVED_2                                              = 1U << 3U;
-    static const RendererDebugFlags             RENDERER_DEBUG_FLAG_RESERVED_3                                              = 1U << 4U;
-    static const RendererDebugFlags             RENDERER_DEBUG_FLAG_SHOW_SHADOW_CASCADES                                    = 1U << 5U;
+    static const RendererDebugFlags             g_rendererDebugFlagNone                                                 = 0U;
+    static const RendererDebugFlags             g_rendererDebugFlagShowWireframe                                        = 1U << 0U;
+    static const RendererDebugFlags             g_rendererDebugFlagReserved0                                            = 1U << 1U;
+    static const RendererDebugFlags             g_rendererDebugFlagReserved1                                            = 1U << 2U;
+    static const RendererDebugFlags             g_rendererDebugFlagReserved2                                            = 1U << 3U;
+    static const RendererDebugFlags             g_rendererDebugFlagShowParallaxCost                                     = 1U << 4U;
+    static const RendererDebugFlags             g_rendererDebugFlagShowShadowCascades                                   = 1U << 5U;
 
     typedef uint RendererDebugVisualizationMode; // 8 bits required, has to match `enum class DebugVisualizationMode : int8_t` !
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_NONE                                      = 0;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_DIRECT_LIGHT                              = 1;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_ENVIRONMENT_MAP_LIGHT                     = 2;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_SHADOWS                                   = 3;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_ALBEDO                                    = 4;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_NORMALS                                   = 5;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_METALNESS                                 = 6;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_ROUGHNESS                                 = 7;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_AMBIENT_OCCLUSION                         = 8;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_COMPLEXITY                          = 9;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_COLLISIONS                     = 10;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_CELLS                          = 11;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_PAYLOAD_COMPLEXITY             = 12;
-    static const RendererDebugVisualizationMode RENDERER_DEBUG_VISUALIZATION_MODE_SSAO                                      = 13;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeNone                                    = 0;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeDirectLight                             = 1;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeEnvironmentMapLight                     = 2;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeShadows                                 = 3;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeAlbedo                                  = 4;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeNormals                                 = 5;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeMetalness                               = 6;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeRoughness                               = 7;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeAmbientOcclusion                        = 8;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeLightComplexity                         = 9;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeLightHashCollisions                     = 10;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeLightHashCells                          = 11;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeLightHashPayloadComplexity              = 12;
+    static const RendererDebugVisualizationMode g_rendererDebugVisualizationModeSSAO                                    = 13;
 
-    typedef uint RendererGlobalFlags;           // 6 bits required
-    static const RendererGlobalFlags            RENDERER_GLOBAL_FLAG_NONE                                                   = 0U;
-    static const RendererGlobalFlags            RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING                                       = 1U << 0U;
-    static const RendererGlobalFlags            RENDERER_GLOBAL_FLAG_RESERVED_0                                             = 1U << 1U;
-    static const RendererGlobalFlags            RENDERER_GLOBAL_FLAG_RESERVED_1                                             = 1U << 2U;
-    static const RendererGlobalFlags            RENDERER_GLOBAL_FLAG_RESERVED_2                                             = 1U << 3U;
-    static const RendererGlobalFlags            RENDERER_GLOBAL_FLAG_RESERVED_3                                             = 1U << 4U;
-    static const RendererGlobalFlags            RENDERER_GLOBAL_FLAG_DISABLE_SSAO                                           = 1U << 5U;
+    typedef uint RendererGlobalFlags;           // 7 bits required
+    static const RendererGlobalFlags            g_rendererGlobalFlagNone                                                = 0U;
+    static const RendererGlobalFlags            g_rendererGlobalFlagDisableLighting                                      = 1U << 0U;
+    static const RendererGlobalFlags            g_rendererGlobalFlagReserved0                                            = 1U << 1U;
+    static const RendererGlobalFlags            g_rendererGlobalFlagReserved1                                            = 1U << 2U;
+    static const RendererGlobalFlags            g_rendererGlobalFlagReserved2                                            = 1U << 3U;
+    static const RendererGlobalFlags            g_rendererGlobalFlagReserved3                                            = 1U << 4U;
+    static const RendererGlobalFlags            g_rendererGlobalFlagDisableSSAO                                          = 1U << 5U;
+    static const RendererGlobalFlags            g_rendererGlobalFlagDisableDecals                                        = 1U << 6U;
 
     typedef uint RenderViewFlags;               // 3 bits required
-    static const RenderViewFlags                RENDER_VIEW_FLAG_NONE                                                       = 0U;
-    static const RenderViewFlags                RENDER_VIEW_FLAG_DEPTH_ONLY                                                 = 1U << 0U;
-    static const RenderViewFlags                RENDER_VIEW_FLAG_FLIP_WINDING                                               = 1U << 1U;
-    static const RenderViewFlags                RENDER_VIEW_FLAG_SHADOW_FACE                                                = 1U << 2U;
+    static const RenderViewFlags                g_renderViewFlagNone                                                    = 0U;
+    static const RenderViewFlags                g_renderViewFlagDepthOnly                                               = 1U << 0U;
+    static const RenderViewFlags                g_renderViewFlagFlipWinding                                             = 1U << 1U;
+    static const RenderViewFlags                g_renderViewFlagShadowFace                                              = 1U << 2U;
 
     typedef uint RenderViewLayerFlags;          // 8 bits required, has to match `enum class ViewLayer` !
-    static const RenderViewLayerFlags           RENDER_VIEW_LAYER_FLAG_NONE                                                 = 0U;
-    static const RenderViewLayerFlags           RENDER_VIEW_LAYER_FLAG_SHADOW_MAP                                           = 1U << 0U;
-    static const RenderViewLayerFlags           RENDER_VIEW_LAYER_FLAG_FORWARD_SHADING                                      = 1U << 1U;
-    static const RenderViewLayerFlags           RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP                               = 1U << 2U;
-    static const RenderViewLayerFlags           RENDER_VIEW_LAYER_FLAG_RESERVED_0                                           = 1U << 3U;
-    static const RenderViewLayerFlags           RENDER_VIEW_LAYER_FLAG_RESERVED_1                                           = 1U << 4U;
-    static const RenderViewLayerFlags           RENDER_VIEW_LAYER_FLAG_RESERVED_2                                           = 1U << 5U;
-    static const RenderViewLayerFlags           RENDER_VIEW_LAYER_FLAG_RESERVED_3                                           = 1U << 6U;
-    static const RenderViewLayerFlags           RENDER_VIEW_LAYER_FLAG_RESERVED_4                                           = 1U << 7U;
+    static const RenderViewLayerFlags           g_renderViewLayerFlagNone                                               = 0U;
+    static const RenderViewLayerFlags           g_renderViewLayerFlagShadowMap                                          = 1U << 0U;
+    static const RenderViewLayerFlags           g_renderViewLayerFlagForwardShading                                     = 1U << 1U;
+    static const RenderViewLayerFlags           g_renderViewLayerFlagGlobalEnvironmentMap                               = 1U << 2U;
+    static const RenderViewLayerFlags           g_renderViewLayerFlagReserved0                                          = 1U << 3U;
+    static const RenderViewLayerFlags           g_renderViewLayerFlagReserved1                                          = 1U << 4U;
+    static const RenderViewLayerFlags           g_renderViewLayerFlagReserved2                                          = 1U << 5U;
+    static const RenderViewLayerFlags           g_renderViewLayerFlagReserved3                                          = 1U << 6U;
+    static const RenderViewLayerFlags           g_renderViewLayerFlagReserved4                                          = 1U << 7U;
 
 EE_END_SHADER_TYPES_NAMESPACE
 

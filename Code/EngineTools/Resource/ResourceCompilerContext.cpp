@@ -143,7 +143,7 @@ namespace EE::Resource
             return false;
         }
 
-        if ( !m_sourceResourceDirectoryPath.IsValid() || !m_compiledResourceDirectoryPath.IsValid() )
+        if ( !m_sourceDataDirectoryPath.IsValid() || !m_compiledResourceDirectoryPath.IsValid() )
         {
             return false;
         }
@@ -159,7 +159,7 @@ namespace EE::Resource
         {
             SystemLog::AddEntryVarArgs( Severity::Error, "Resource", m_compilerName.c_str(), __FILE__, __LINE__, pFormat, args );
         }
-        m_log.LogError( pFormat, args );
+        m_log.LogErrorVarArgs( pFormat, args );
         va_end( args );
 
         return CompilationResult::Failure;
@@ -173,7 +173,7 @@ namespace EE::Resource
         {
             SystemLog::AddEntryVarArgs( Severity::Warning, "Resource", m_compilerName.c_str(), __FILE__, __LINE__, pFormat, args );
         }
-        m_log.LogWarning( pFormat, args );
+        m_log.LogWarningVarArgs( pFormat, args );
         va_end( args );
     }
 
@@ -185,7 +185,7 @@ namespace EE::Resource
         {
             SystemLog::AddEntryVarArgs( Severity::Info, "Resource", m_compilerName.c_str(), __FILE__, __LINE__, pFormat, args );
         }
-        m_log.LogInfo( pFormat, args );
+        m_log.LogInfoVarArgs( pFormat, args );
         va_end( args );
     }
 
@@ -229,7 +229,7 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        FileSystem::Path const descriptorFilePath = ID.GetFileSystemPath( m_sourceResourceDirectoryPath );
+        FileSystem::Path const descriptorFilePath = ID.GetFileSystemPath( m_sourceDataDirectoryPath );
         if ( !descriptorFilePath.Exists() )
         {
             errorMessage = String( String::CtorSprintf(), "Descriptor file doesnt exist: %s", descriptorFilePath.c_str() );
@@ -261,7 +261,7 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        FileSystem::Path const dataFilePath = dataPath.GetFileSystemPath( m_sourceResourceDirectoryPath );
+        FileSystem::Path const dataFilePath = dataPath.GetFileSystemPath( m_sourceDataDirectoryPath );
         if ( !dataFilePath.Exists() )
         {
             errorMessage = String( String::CtorSprintf(), "Data file doesnt exist: %s", dataFilePath.c_str() );
@@ -294,7 +294,7 @@ namespace EE::Resource
 
         //-------------------------------------------------------------------------
 
-        FileSystem::Path const dataFilePath = dataPath.GetFileSystemPath( m_sourceResourceDirectoryPath );
+        FileSystem::Path const dataFilePath = dataPath.GetFileSystemPath( m_sourceDataDirectoryPath );
         if ( !dataFilePath.Exists() )
         {
             errorMessage = String( String::CtorSprintf(), "Raw data file doesnt exist: %s", dataFilePath.c_str() );
@@ -339,7 +339,7 @@ namespace EE::Resource
         {
             pCreatedInfo->m_compiledResourceVersion = pCompiler->GetVersionForResourceType( resourceTypeID );
 
-            pCreatedInfo->m_sourcePath = resourceID.GetFileSystemPath( m_sourceResourceDirectoryPath );
+            pCreatedInfo->m_sourcePath = resourceID.GetFileSystemPath( m_sourceDataDirectoryPath );
             pCreatedInfo->m_sourceFileExists = FileSystem::Exists( pCreatedInfo->m_sourcePath );
             pCreatedInfo->m_sourceFileHash = pCreatedInfo->m_sourceFileExists ? FileSystem::GetFileModifiedTime( pCreatedInfo->m_sourcePath ) : 0;
 
@@ -354,7 +354,7 @@ namespace EE::Resource
         }
         else
         {
-            pCreatedInfo->m_sourcePath = resourceID.GetFileSystemPath( m_sourceResourceDirectoryPath );
+            pCreatedInfo->m_sourcePath = resourceID.GetFileSystemPath( m_sourceDataDirectoryPath );
             pCreatedInfo->m_sourceFileExists = FileSystem::Exists( pCreatedInfo->m_sourcePath );
             pCreatedInfo->m_sourceFileHash = pCreatedInfo->m_sourceFileExists ? FileSystem::GetFileModifiedTime( pCreatedInfo->m_sourcePath ) : 0;
         }
@@ -386,10 +386,10 @@ namespace EE::Resource
 
         // Get the compile dependencies for this descriptor
         TVector<Resource::CompileDependency> dependencies;
-        pCreatedInfo->m_pDescriptor->GetCompileDependencies( m_typeRegistry, m_sourceResourceDirectoryPath, subResourceName, dependencies );
+        pCreatedInfo->m_pDescriptor->GetCompileDependencies( m_typeRegistry, m_sourceDataDirectoryPath, subResourceName, dependencies );
 
         // Get any additional dependencies
-        pCompiler->GetAdditionalCompileDependencies( m_typeRegistry, m_sourceResourceDirectoryPath, resourceID, pCreatedInfo->m_pDescriptor, dependencies );
+        pCompiler->GetAdditionalCompileDependencies( m_typeRegistry, m_sourceDataDirectoryPath, resourceID, pCreatedInfo->m_pDescriptor, dependencies );
 
         for ( Resource::CompileDependency const& compileDependency : dependencies )
         {
@@ -463,7 +463,7 @@ namespace EE::Resource
 
         CompileDependencyDataInfo& rawDataInfo = pParentInfo->m_dataDependencies.emplace_back();
         rawDataInfo.m_dataPath = cd.m_path;
-        rawDataInfo.m_sourcePath = cd.GetFileSystemPath( m_sourceResourceDirectoryPath );
+        rawDataInfo.m_sourcePath = cd.GetFileSystemPath( m_sourceDataDirectoryPath );
         rawDataInfo.m_sourceFileExists = FileSystem::Exists( rawDataInfo.m_sourcePath );
         rawDataInfo.m_sourceFileHash = rawDataInfo.m_sourceFileExists ? FileSystem::GetFileModifiedTime( rawDataInfo.m_sourcePath ) : 0;
 

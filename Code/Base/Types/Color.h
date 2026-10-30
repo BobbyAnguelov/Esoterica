@@ -38,6 +38,16 @@ namespace EE
         // Evaluate a gradient from yellow = 0 and red = 1
         static Color EvaluateYellowRedGradient( float weight, bool useDistinctColorForZero = true );
 
+        static Color FromFloats( float r, float g, float b, float a = 1.0f )
+        {
+            Color c;
+            c.m_byteColor.m_r = uint8_t( Math::Clamp( Math::RoundToInt32( r * 255 ), 0, 255 ) );
+            c.m_byteColor.m_g = uint8_t( Math::Clamp( Math::RoundToInt32( g * 255 ), 0, 255 ) );
+            c.m_byteColor.m_b = uint8_t( Math::Clamp( Math::RoundToInt32( b * 255 ), 0, 255 ) );
+            c.m_byteColor.m_a = uint8_t( Math::Clamp( Math::RoundToInt32( a * 255 ), 0, 255 ) );
+            return c;
+        }
+
         // Get a color from Hue, Saturation and Lightness
         static Color FromHSL( float h, float s, float l, float a = 1.0f )
         {
@@ -65,7 +75,6 @@ namespace EE
             return Color( Float4( Channel( 5.0f ), Channel( 3.0f ), Channel( 1.0f ), a ) );
         }
 
-
         // Get a color from a set
         static Color GetCategorizedColor( int32_t categoryIdx, float saturation = 0.7f, float lightness = 0.6f );
         static inline Color GetCategorizedColor( size_t categoryIdx, float saturation = 0.7f, float lightness = 0.6f ) { return GetCategorizedColor( (int32_t) categoryIdx, saturation, lightness ); }
@@ -90,13 +99,7 @@ namespace EE
             m_byteColor.m_a = a;
         }
 
-        inline Color( Float4 const& c )
-        {
-            m_byteColor.m_r = uint8_t( c[0] * 255 );
-            m_byteColor.m_g = uint8_t( c[1] * 255 );
-            m_byteColor.m_b = uint8_t( c[2] * 255 );
-            m_byteColor.m_a = uint8_t( c[3] * 255 );
-        }
+        inline Color( Float4 const& c ) : Color( FromFloats( c[0], c[1], c[2], c[3] ) ) {}
 
         //-------------------------------------------------------------------------
 

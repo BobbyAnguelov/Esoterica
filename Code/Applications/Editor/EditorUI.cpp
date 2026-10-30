@@ -4,10 +4,11 @@
 #include "EngineTools/MapEditor/MapEditor.h"
 #include "EngineTools/Resource/Tools/EditorTool_ResourceBrowser.h"
 #include "EngineTools/Resource/Tools/EditorTool_ResourceSystem.h"
-#include "EngineTools/Resource/Tools/EditorTool_ResourceImporter.h"
 #include "EngineTools/Resource/Tools/EditorTool_ResourceDependencyViewer.h"
 #include "EngineTools/Resource/Tools/EditorTool_ResourceBulkUpdate.h"
 #include "EngineTools/Resource/Dialogs/EditorDialog_DataFileCreator.h"
+#include "EngineTools/Import/Tools/EditorTool_BulkImporter.h"
+#include "EngineTools/Import/Tools/EditorTool_RawFileInspector.h"
 #include "EngineTools/Core/Tools/EditorTool_SystemLog.h"
 #include "EngineTools/Core/Tools/EditorTool_SystemSettings.h"
 #include "EngineTools/Core/Tools/EditorTool_MemoryTracker.h"
@@ -161,7 +162,7 @@ namespace EE
     // Tools Context
     //-------------------------------------------------------------------------
 
-    bool EditorUI::TryOpenDataFile( DataPath const& path ) const
+    bool EditorUI::TryOpenFile( DataPath const& path ) const
     {
         EE_ASSERT( path.IsValid() && path.IsFilePath() );
 
@@ -184,6 +185,9 @@ namespace EE
                 m_toolOperations.emplace_back( ToolOperation( m_pGamePreviewer, ToolOperation::DestroyTool ) );
             }
         }
+
+        // Register open file request
+        //-------------------------------------------------------------------------
 
         ToolOperation& request = m_toolOperations.emplace_back();
         request.m_type = ToolOperation::OpenFile;
@@ -216,7 +220,7 @@ namespace EE
 
     void EditorUI::OpenResourceImporter() const
     {
-        const_cast<EditorUI*>( this )->CreateTool<Resource::ResourceImporterEditorTool>( this );
+        const_cast<EditorUI*>( this )->CreateTool<Import::BulkImporterEditorTool>( this );
     }
 
     void EditorUI::ShowResourceDependencies( ResourceID const& resourceID ) const
@@ -268,12 +272,6 @@ namespace EE
 
         if ( ImGui::BeginMenu( "Resources" ) )
         {
-            bool isResourceImporterOpen = GetTool<Resource::ResourceImporterEditorTool>() != nullptr;
-            if ( ImGui::MenuItem( "Resource Importer", nullptr, &isResourceImporterOpen, !isResourceImporterOpen ) )
-            {
-                CreateTool<Resource::ResourceImporterEditorTool>( this );
-            }
-
             bool isResourceBrowserOpen = GetTool<Resource::ResourceBrowserEditorTool>() != nullptr;
             if ( ImGui::MenuItem( "Resource Browser", nullptr, &isResourceBrowserOpen, !isResourceBrowserOpen ) )
             {
@@ -475,12 +473,12 @@ namespace EE
                 //-------------------------------------------------------------------------
 
                 auto pSystemLog = GetTool<SystemLogEditorTool>();
-                ImGui::DockBuilderDockWindow( pSystemLog->GetDisplayName(), bottomDockID );
+                ImGui::DockBuilderDockWindow( pSystemLog->GetUniqueWindowName().c_str(), bottomDockID);
 
                 auto pResourceBrowser = GetTool<Resource::ResourceBrowserEditorTool>();
-                ImGui::DockBuilderDockWindow( pResourceBrowser->GetDisplayName(), leftDockID );
+                ImGui::DockBuilderDockWindow( pResourceBrowser->GetUniqueWindowName().c_str(), leftDockID );
 
-                ImGui::DockBuilderDockWindow( m_pMapEditor->m_windowName.c_str(), rightDockID );
+                ImGui::DockBuilderDockWindow( m_pMapEditor->GetUniqueWindowName().c_str(), rightDockID );
             }
 
             // Create the actual dock space
@@ -697,7 +695,7 @@ namespace EE
         {
             if ( pTool->GetID() == toolID )
             {
-                name = pTool->GetName();
+                name.sprintf( "%s - %s", pTool->GetUniqueTypeName(), pTool->GetDisplayName() );
                 break;
             }
         }
@@ -790,7 +788,7 @@ namespace EE
             {
                 if ( pEditorTool->IsEditingFile( request.m_path ) )
                 {
-                    m_focusTargetWindowName = pEditorTool->m_windowName;
+                    m_focusTargetWindowName = pEditorTool->GetUniqueWindowName();
                     return true;
                 }
             }
@@ -803,20 +801,14 @@ namespace EE
             if ( resourceTypeID == EntityModel::EntityMapDescriptor::GetStaticResourceTypeID() )
             {
                 m_pMapEditor->LoadMap( resourceID );
-                m_focusTargetWindowName = m_pMapEditor->m_windowName;
+                m_focusTargetWindowName = m_pMapEditor->GetUniqueWindowName();
                 return true;
             }
 
             // Create new editor
             //-------------------------------------------------------------------------
 
-            auto CreateToolWorld = [this] ()
-            {
-                EntityWorld* pEditorToolWorld = m_pWorldManager->CreateWorld( EntityWorldType::Tools );
-                return pEditorToolWorld;
-            };
-
-            EditorTool* pCreatedTool = EditorToolFactory::TryCreateEditor( this, request.m_path, CreateToolWorld );
+            EditorTool* pCreatedTool = EditorToolFactory::TryCreateEditor( this, request.m_path, [this] () { return m_pWorldManager->CreateWorld( EntityWorldType::Tools ); } );
             if ( pCreatedTool != nullptr )
             {
                 m_editorTools.emplace_back( pCreatedTool );
@@ -837,6 +829,16 @@ namespace EE
                     }
                 }
 
+                return true;
+            }
+
+            if ( Import::RawFileInspector::IsExtensionInspectable( request.m_path.GetExtension() ) )
+            {
+                EntityWorld* pEditorToolWorld = Import::RawFileInspector::RequiresWorld( request.m_path.GetExtension() ) ?  m_pWorldManager->CreateWorld( EntityWorldType::Tools ) : nullptr;
+                pCreatedTool = Import::RawFileInspector::CreateInspector( this, request.m_path, pEditorToolWorld );
+                pCreatedTool->Initialize( context );
+                EE_ASSERT( pCreatedTool->WasInitialized() ); // Ensure that the base initialize method was called!
+                m_editorTools.emplace_back( pCreatedTool );
                 return true;
             }
 
@@ -1064,7 +1066,8 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        ImGuiWindow* pCurrentWindow = ImGui::FindWindowByName( pEditorTool->m_windowName.c_str() );
+        InlineString const windowName = pEditorTool->GetUniqueWindowName();
+        ImGuiWindow* pCurrentWindow = ImGui::FindWindowByName( windowName.c_str() );
         bool const isVisible = pCurrentWindow != nullptr && !pCurrentWindow->Hidden;
 
         // Create top level editor tab/window
@@ -1083,7 +1086,7 @@ namespace EE
         }
 
         ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 1.0f );
-        ImGui::Begin( pEditorTool->m_windowName.c_str(), pIsToolOpen, windowFlags );
+        ImGui::Begin( windowName.c_str(), pIsToolOpen, windowFlags );
         ImGui::PopStyleVar();
 
         //-------------------------------------------------------------------------
@@ -1132,7 +1135,8 @@ namespace EE
 
         // This is the second Begin(), as SubmitToolWindow() has already done one
         // (Therefore only the p_open and flags of the first call to Begin() applies)
-        ImGui::Begin( pEditorTool->m_windowName.c_str() );
+        InlineString const windowName = pEditorTool->GetUniqueWindowName();
+        ImGui::Begin( windowName.c_str() );
         int32_t const beginCount = ImGui::GetCurrentWindow()->BeginCount;
         IM_ASSERT( beginCount == 2 );
 

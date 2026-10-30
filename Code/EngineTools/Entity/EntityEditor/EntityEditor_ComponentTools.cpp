@@ -1,5 +1,6 @@
 #include "EntityEditor_ComponentTools.h"
 #include "EntityEditor_Context.h"
+#include "Base/Imgui/ImguiX.h"
 
 //-------------------------------------------------------------------------
 
@@ -215,20 +216,24 @@ namespace EE::EntityModel
             InlineString const buttonLabel( InlineString::CtorSprintf(), "%s##SB", viewportWidgetList.m_pComponentTools->GetViewportSelectionWidgetIcon() );
             Color const iconDefaultColor = viewportWidgetList.m_pComponentTools->GetViewportSelectionWidgetColor();
 
+            auto const& viewVolume = pViewport->GetViewVolume();
+
             for ( auto const& item : viewportWidgetList.m_entityItems )
             {
                 auto pSpatialComponent = item.GetSpatialComponent();
 
-                if ( !pViewport->GetViewVolume().Contains( pSpatialComponent->GetWorldBounds().GetAABB() ) )
+                Vector const widgetAnchor = pSpatialComponent->GetWorldTransform().GetTranslation();
+
+                if ( !viewVolume.Contains( pSpatialComponent->GetWorldBounds().GetAABB() ) || !viewVolume.Contains( widgetAnchor ) )
                 {
                     continue;
                 }
 
-                auto const positionSS = pViewport->WorldSpaceToScreenSpace( pSpatialComponent->GetWorldTransform().GetTranslation() );
+                auto const positionSS = pViewport->WorldSpaceToScreenSpace( widgetAnchor );
                 ImVec2 const imguiPos = ImVec2( positionSS ) - ImGui::GetWindowPos() - ( buttonSize / 2 );
                 ImRect const buttonRect( imguiPos, imguiPos + buttonSize );
 
-                Color color = iconDefaultColor; 
+                Color color = iconDefaultColor;
                 if ( buttonRect.Contains( ImGui::GetMousePos() - ImGui::GetWindowPos() ) )
                 {
                     color = iconDefaultColor.GetScaledColor( 0.85f );

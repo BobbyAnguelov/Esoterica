@@ -3,7 +3,8 @@
 #define SHADOWS_ESH
 
 #include "Engine/Render/Shaders/CommonSamplers.esh"
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/LightInstance.esh"
+#include "Engine/Render/Shaders/Renderer/ShadowProjection.esh"
 
 float3 ComputeShadowNormalOffset( float dotNL, float3 normal, float2 texelWorldSize, float offsetScale )
 {

@@ -42,10 +42,7 @@ namespace EE::Animation
         EE_ASSERT( pSkeleton != nullptr );
 
         m_pFinalPoseBuffer = EE::New<PoseBuffer>( pSkeleton, SecondarySkeletonList() );
-        m_pFinalPoseBuffer->CalculateModelSpaceTransforms();
-
         m_pPreviousFinalPoseBuffer = EE::New<PoseBuffer>( pSkeleton, SecondarySkeletonList() );
-        m_pPreviousFinalPoseBuffer->CalculateModelSpaceTransforms();
 
         auto pTaskTypesTable = GetTaskTypesList();
         m_maxBitsForTaskTypeID = Math::GetMaxNumberOfBitsForValue( (uint32_t) pTaskTypesTable->size() );
@@ -198,6 +195,10 @@ namespace EE::Animation
         m_taskContext.m_worldTransformInverse = worldTransformInverse;
         m_taskContext.m_updateStage = TaskUpdateStage::PrePhysics;
 
+        #if EE_DEVELOPMENT_TOOLS
+        m_taskContext.m_isDetailedDebugViewEnabled = ( m_debugMode == TaskSystemDebugMode::DetailedPoseTree );
+        #endif
+
         m_prePhysicsTaskIndices.clear();
         m_hasCodependentPhysicsTasks = false;
 
@@ -207,12 +208,12 @@ namespace EE::Animation
         if ( m_hasPhysicsDependency )
         {
             // Go backwards through the registered task and execute all task chains with a pre-physics requirement
-            auto const numTasks = (int8_t) m_tasks.size();
-            for ( int8_t i = 0; i < numTasks; i++ )
+            int32_t const numTasks = (int32_t) m_tasks.size();
+            for ( int32_t i = 0; i < numTasks; i++ )
             {
                 if ( m_tasks[i]->GetRequiredUpdateStage() == TaskUpdateStage::PrePhysics )
                 {
-                    if ( !AddTaskChainToPrePhysicsList( i ) )
+                    if ( !AddTaskChainToPrePhysicsList( int8_t( i ) ) )
                     {
                         m_hasCodependentPhysicsTasks = true;
                         break;
@@ -309,13 +310,12 @@ namespace EE::Animation
                 }
             }
 
-            // Calculate the global transforms and release the task pose buffer
-            m_pFinalPoseBuffer->CalculateModelSpaceTransforms();
+            // Release the task pose buffer
             m_posePool.ReleasePoseBuffer( pFinalTask->GetResultBufferIndex() );
         }
         else
         {
-            m_pFinalPoseBuffer->Release( Pose::Init::ReferencePose, true );
+            m_pFinalPoseBuffer->Release( Pose::Init::ReferencePose );
         }
 
         #if EE_DEVELOPMENT_TOOLS
@@ -328,12 +328,12 @@ namespace EE::Animation
         // Execute all incomplete tasks
         //-------------------------------------------------------------------------
 
-        int16_t const numTasks = (int8_t) m_tasks.size();
-        for ( int8_t i = 0; i < numTasks; i++ )
+        int32_t const numTasks = (int32_t) m_tasks.size();
+        for ( int32_t i = 0; i < numTasks; i++ )
         {
             if ( !m_tasks[i]->IsComplete() )
             {
-                m_taskContext.m_currentTaskIdx = i;
+                m_taskContext.m_currentTaskIdx = int8_t( i );
 
                 // Set dependencies
                 m_taskContext.m_dependencies.clear();
@@ -375,14 +375,6 @@ namespace EE::Animation
     {
         return m_posePool.CreatePersistentCachedPoseBuffer();
     }
-
-    #if EE_DEVELOPMENT_TOOLS
-    void TaskSystem::RestoreCachedPoseBuffer( CachedPoseID cachedPoseID )
-    {
-        EE_ASSERT( cachedPoseID.IsValid() );
-        m_posePool.CreateBufferForSpecificID( cachedPoseID );
-    }
-    #endif
 
     void TaskSystem::DestroyCachedPose( CachedPoseID cachedPoseID )
     {
@@ -624,7 +616,6 @@ namespace EE::Animation
                     if ( pose.IsAdditivePose() )
                     {
                         Blender::ApplyAdditiveToReferencePose( m_taskContext.m_skeletonLOD, &pose, 1.0f, nullptr, &pose );
-                        pPoseBuffer->m_poses[poseIdx].CalculateModelSpaceTransforms();
                     }
                 }
 

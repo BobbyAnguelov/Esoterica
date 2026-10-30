@@ -30,10 +30,10 @@ namespace EE
 
     public:
 
-        Viewport() = default;
+        Viewport();
         Viewport( Int2 const& topLeft, Int2 const& size, Math::ViewVolume const& viewVolume = Math::ViewVolume() );
-        Viewport( Viewport const& rhs ) { operator=( rhs ); }
-        Viewport( Viewport&& rhs ) { operator=( eastl::move( rhs ) ); }
+        Viewport( Viewport const& rhs ) : Viewport() { operator=( rhs ); }
+        Viewport( Viewport&& rhs ) : Viewport() { operator=( eastl::move( rhs ) ); }
 
         virtual ~Viewport();
 
@@ -69,7 +69,7 @@ namespace EE
         inline Math::ViewVolume const& GetViewVolume() const { return m_viewVolume; }
 
         inline bool IsOrthographic() const { return m_viewVolume.IsOrthographic(); }
-        inline bool IsPerspective() const { return m_viewVolume.IsOrthographic(); }
+        inline bool IsPerspective() const { return m_viewVolume.IsPerspective(); }
 
         inline Vector GetViewPosition() const { return m_viewVolume.GetViewPosition(); }
         inline Vector GetViewForwardDirection() const { return m_viewVolume.GetViewForwardVector(); }
@@ -110,10 +110,12 @@ namespace EE
 
         // Visualization / Debug Drawing / Tools
         //-------------------------------------------------------------------------
+        // Viewports have their own debug draw system so that we can have per-viewport drawing in-addition to global world drawing
+        // This is useful for cases where we might have multiple viewports into the same world
 
         #if EE_DEVELOPMENT_TOOLS
-        [[nodiscard]] DebugDrawContext GetDebugDrawContext() { return m_debugDrawSystem.GetDebugDrawContext(); }
-        [[nodiscard]] DebugDrawSystem* GetDebugDrawSystem() { return &m_debugDrawSystem; }
+        [[nodiscard]] DebugDrawContext GetDebugDrawContext() const { return m_debugDrawSystem.GetDebugDrawContext(); }
+        [[nodiscard]] DebugDrawSystem* GetDebugDrawSystem() const { return &m_debugDrawSystem; }
 
         void CreateViewportSettings( TypeSystem::TypeRegistry& typeRegistry );
         void DestroyViewportSettings();
@@ -158,7 +160,7 @@ namespace EE
         #if EE_DEVELOPMENT_TOOLS
         PickingData                                 m_pickingData;
         TVector<IViewportSettings*>                 m_settings;
-        DebugDrawSystem                             m_debugDrawSystem;
+        mutable DebugDrawSystem                     m_debugDrawSystem;
         #endif
     };
 }

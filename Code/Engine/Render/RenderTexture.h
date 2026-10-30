@@ -13,7 +13,7 @@ namespace EE::Render
 {
     class EE_ENGINE_API TextureResource final : public Resource::IResource
     {
-        EE_RESOURCE( "texture", "Texture Resource", Colors::DarkCyan, 21, true );
+        EE_RESOURCE( "texture", "Texture Resource", Colors::DarkCyan, 23, true );
 
         EE_SERIALIZE
         (
@@ -40,9 +40,9 @@ namespace EE::Render
 
         virtual bool IsValid() const override { return m_pTexture != nullptr; }
 
-    private:
-
         //-------------------------------------------------------------------------
+
+    private:
 
         RHI::Texture*                   m_pTexture = nullptr;
 

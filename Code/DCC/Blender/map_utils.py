@@ -23,7 +23,7 @@ def build_entity_data(report, context, depsgraph, ee_data_path, exported_data_pa
     map_root.append(entities)
     
     name_ids = {}
-    
+
     for instance in depsgraph.object_instances:
         instance_object = None
         instance_parent = None
@@ -67,25 +67,6 @@ def build_entity_data(report, context, depsgraph, ee_data_path, exported_data_pa
             entity_resources = ET.Element('ReferencedResources')
             entity_element.append(entity_resources)
 
-        # Create spatial root component
-        matrix_world = instance.matrix_world        
-        (position, rotation, scale) = matrix_world.decompose()
-        rotation = rotation.to_euler()
-        rotation[0] = math.degrees(rotation[0])
-        rotation[1] = math.degrees(rotation[1])
-        rotation[2] = math.degrees(rotation[2])
-
-        component_transform = f'{rotation[0]},{rotation[1]},{rotation[2]},{position[0]},{position[1]},{position[2]},1.0'
-        component_local_scale = f'{scale[0]},{scale[1]},{scale[2]}'
-
-        spatial_root = entity_components.find('.//Type[@TypeID="EE::SpatialEntityComponent"]')
-        if spatial_root is None:
-            spatial_root = ee_runtime.create_object('EE::SpatialEntityComponent')
-            spatial_root.set_property('m_name', 'SpatialRoot')
-            # TODO: Figure this out
-            # spatial_root.set_property('m_transform', entity_transform)
-            entity_components.append(spatial_root.to_xml_element(use_map_format=True))
-
         # Create referenced resources
         mesh_descriptor_path = os.path.join(mesh_descriptors_path, descriptor_path(instance_mesh.name, '.mesh'))
         mesh_descriptor_path = mesh_descriptor_path.replace(ee_data_path, 'data:/').replace('\\', '/')
@@ -101,17 +82,48 @@ def build_entity_data(report, context, depsgraph, ee_data_path, exported_data_pa
             id_counter = id_counter + 1
         name_ids[instance_object.name] = id_counter
 
+        component_name = f'{instance_object.name}_{id_counter}'
+        matrix_world = instance.matrix_world
+
+        (position, rotation, scale) = matrix_world.decompose()
+        rotation = rotation.to_euler()
+        rotation[0] = math.degrees(rotation[0])
+        rotation[1] = math.degrees(rotation[1])
+        rotation[2] = math.degrees(rotation[2])
+
+        component_transform = f'{rotation[0]},{rotation[1]},{rotation[2]},{position[0]},{position[1]},{position[2]},1.0'
+        component_local_scale = f'{scale[0]},{scale[1]},{scale[2]}'
+
         static_mesh_component = ee_runtime.create_object('EE::Render::StaticMeshComponent')
-        static_mesh_component.set_property('m_name', f'{instance_object.name}_{id_counter}')
+        static_mesh_component.set_property('m_name', component_name)
         static_mesh_component.set_property('m_mesh', mesh_descriptor_path)
         static_mesh_component.set_property('m_transform', component_transform)
         static_mesh_component.set_property('m_nonUniformScale', component_local_scale)
 
         static_mesh_element = static_mesh_component.to_xml_element(use_map_format=True)
-        static_mesh_element.set('SpatialParent', 'SpatialRoot')
 
         entity_components.append(static_mesh_element)
-                        
+
+    # Spatial root for multi-mesh entities
+    #-------------------------------------------------------------------------
+
+    for entity_element in entities.findall('Entity'):
+        entity_components = entity_element.find('Components')
+        if entity_components is None:
+            continue
+
+        mesh_elements = entity_components.findall('Type')
+        if len(mesh_elements) <= 1:
+            continue
+
+        spatial_root = ee_runtime.create_object('EE::SpatialEntityComponent')
+        spatial_root.set_property('m_name', 'SpatialRoot')
+
+        for mesh_element in mesh_elements:
+            mesh_element.set('SpatialParent', 'SpatialRoot')
+
+        entity_components.insert(0, spatial_root.to_xml_element(use_map_format=True))
+
     # Save map
     ET.indent(map_root)
     pretty_xml = ET.tostring(map_root, encoding="utf-8", xml_declaration=False)

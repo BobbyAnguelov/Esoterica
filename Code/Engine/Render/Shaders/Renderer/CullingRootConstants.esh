@@ -1,0 +1,156 @@
+
+#include "Base/Render/RHI.esh"
+
+#ifndef _CULLING_ROOT_CONSTANTS_ESH_
+#define _CULLING_ROOT_CONSTANTS_ESH_
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    struct HLSL_ALIGN_STRUCT RenderBucket
+    {
+        BufferHandle                    m_drawCounterBuffer;
+        BufferHandle                    m_drawArgumentBuffer;
+        uint16_t                        m_padding;
+        uint16_t                        m_padding2;
+    };
+
+    //-------------------------------------------------------------------------
+
+    struct HLSL_ALIGN_STRUCT ClusterToInstance
+    {
+        uint                            m_instanceIndex;
+        uint                            m_clusterOffset;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( ClusterToInstance ) == 8, "Expected exactly 8 bytes" );
+
+    //-------------------------------------------------------------------------
+
+    struct ClusterCullingWorkEntry
+    {
+        uint                            m_clusterIndex;
+        uint                            m_visibilityMaskLow;
+        uint                            m_visibilityMaskHigh;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( ClusterCullingWorkEntry ) == 12, "Expected exactly 12 bytes, no padding" );
+
+    //-------------------------------------------------------------------------
+
+    struct HLSL_ALIGN_STRUCT InstanceCullingRootConstants
+    {
+        uint                            m_instanceCapacity;
+
+        uint                            m_instanceBuffer            : 16;
+        uint                            m_instancePageBuffer        : 16;
+
+        uint                            m_instanceVisibilityBuffer  : 16;
+        uint                            m_padding                   : 16;
+
+        uint                            m_instanceOffset;
+    };
+
+    #define InstanceCullingRootSignature    EE_BEGIN_ROOT_SIGNATURE \
+                                            "RootConstants( b0, num32BitConstants = 4, space = 0 )," \
+                                            "CBV( b1, space = 0 )"
+
+    //-------------------------------------------------------------------------
+
+    struct HLSL_ALIGN_STRUCT ClusterCullingRootConstants
+    {
+        uint                            m_instanceBuffer            : 16;
+        uint                            m_instanceVisibilityBuffer  : 16;
+
+        uint                            m_clusterToInstanceBuffer   : 16;
+        uint                            m_cullingWorkBuffer         : 16;
+
+        uint                            m_drawClusterCountersBuffer : 16;
+        uint                            m_padding0                  : 16;
+
+        uint                            m_workBufferOffset;
+        uint                            m_numWorkEntries;
+
+        uint                            m_padding;
+    };
+
+    struct HLSL_ALIGN_INDIRECT_ARGUMENT ClusterCullingArgument
+    {
+        ClusterCullingRootConstants     m_rootConstants;
+        uint64_t                        m_rootCBV;
+        uint3                           m_dispatchArguments;
+        uint                            m_padding;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( ClusterCullingArgument ) == 48, "Indirect argument layout must match the command signature" );
+
+    #define ClusterCullingRootSignature     EE_BEGIN_ROOT_SIGNATURE \
+                                            "RootConstants( b0, num32BitConstants = 6, space = 0 )," \
+                                            "CBV( b1, space = 0 )"
+
+    //-------------------------------------------------------------------------
+
+    struct HLSL_ALIGN_STRUCT CullingCompactionRootConstants
+    {
+        uint                            m_instanceCapacity;
+
+        uint                            m_instanceBuffer            : 16;
+        uint                            m_instanceVisibilityBuffer  : 16;
+
+        uint                            m_cullingWorkBuffer         : 16;
+        uint                            m_workCounterBuffer         : 16;
+
+        uint                            m_instanceOffset;
+    };
+
+    #define CullingCompactionRootSignature  EE_BEGIN_ROOT_SIGNATURE \
+                                            "RootConstants( b0, num32BitConstants = 4, space = 0 )"
+
+    //-------------------------------------------------------------------------
+
+    struct HLSL_ALIGN_STRUCT CullingArgumentGenerationRootConstants
+    {
+        uint                            m_instanceBuffer                    : 16;
+        uint                            m_instanceVisibilityBuffer          : 16;
+
+        uint                            m_cullingWorkBuffer                 : 16;
+        uint                            m_workCounterBuffer                 : 16;
+
+        uint                            m_clusterToInstanceBuffer           : 16;
+        uint                            m_padding0                          : 16;
+
+        uint                            m_cullingArgumentBuffer             : 16;
+        uint                            m_drawCompactionArgumentBuffer      : 16;
+
+        uint                            m_drawClusterBuffer                 : 16;
+        uint                            m_drawClusterBaseOffsetsBuffer      : 16;
+
+        uint                            m_drawClusterCountersBuffer         : 16;
+        uint                            m_drawClusterScatterOffsetsBuffer   : 16;
+
+        uint                            m_shaderIndex;
+        uint                            m_numArguments;
+    };
+
+    #define CullingArgumentGenerationRootSignature EE_BEGIN_ROOT_SIGNATURE \
+                                                   "RootConstants( b0, num32BitConstants = 8, space = 0 )," \
+                                                   "CBV( b1, space = 0 )"
+
+    //-------------------------------------------------------------------------
+
+    struct HLSL_ALIGN_STRUCT LightCulling_CullLightsRootConstants
+    {
+        uint                                m_cellLevel;
+        int                                 m_cellOffsetX;
+        int                                 m_cellOffsetY;
+        int                                 m_cellOffsetZ;
+        uint                                m_numLODs;
+        uint                                m_padding;
+    };
+
+    #define LightCulling_CullLightsRootSignature    EE_BEGIN_ROOT_SIGNATURE \
+                                                    "RootConstants( b0, num32BitConstants = 6, space = 0 )," \
+                                                    "CBV( b1, space = 0 )"
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

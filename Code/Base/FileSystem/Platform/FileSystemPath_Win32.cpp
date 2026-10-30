@@ -67,20 +67,38 @@ namespace EE::FileSystem
 
     bool Path::GetCorrectCaseForPath( char const* pPath, String& outPath )
     {
+        EE_ASSERT( pPath != nullptr );
+
+        size_t const inputPathLength = strlen( pPath );
+        if ( inputPathLength == 0 )
+        {
+            outPath.clear();
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
         bool failed = false;
 
-        HANDLE hFile = CreateFile( pPath, GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr );
+        HANDLE hFile = CreateFile( pPath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, nullptr );
         if ( hFile != INVALID_HANDLE_VALUE )
         {
             char buffer[g_maxPathBufferLength];
-            DWORD dwRet = GetFinalPathNameByHandle( hFile, buffer, g_maxPathBufferLength, FILE_NAME_NORMALIZED );
-            if ( dwRet < g_maxPathBufferLength )
+            DWORD const result = GetFinalPathNameByHandle( hFile, buffer, g_maxPathBufferLength, FILE_NAME_NORMALIZED );
+            if ( result == 0 || result >= g_maxPathBufferLength )
             {
-                outPath = buffer + 4;
+                failed = true;
             }
             else
             {
-                failed = true;
+                bool const hasTrailingDelimiter = ( pPath[inputPathLength - 1] == s_pathDelimiter );
+                outPath = buffer + 4;
+
+                // Add back trailing delimiter if the original path had one since GetFinalPathNameByHandle will strip it
+                if ( hasTrailingDelimiter && outPath.back() != s_pathDelimiter )
+                {
+                    outPath += s_pathDelimiter;
+                }
             }
 
             CloseHandle( hFile );

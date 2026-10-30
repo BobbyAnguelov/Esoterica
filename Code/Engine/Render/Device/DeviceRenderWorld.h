@@ -3,8 +3,10 @@
 #include "Engine/Render/RenderProxies.h"
 #include "Engine/Render/Device/DeviceRenderView.h"
 #include "Engine/Render/Device/DeviceResizeBuffer.h"
+#include "Engine/Render/Device/DeviceInstancePool.h"
 #include "Engine/Render/Shaders/EngineShader.h"
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
+#include "Engine/Render/Shaders/Renderer/LightInstance.esh"
 #include "Base/Threading/TaskSystem.h"
 #include "Base/Profiling.h"
 #include "Base/Render/PageAllocator.h"
@@ -34,6 +36,7 @@ namespace EE::Render
         uint32_t GetNumDirectionalLightPages() const;
         uint32_t GetNumPointLightPages() const;
         uint32_t GetNumSpotLightPages() const;
+        uint32_t GetNumDecalPages() const;
 
         void Initialize( TaskSystem* pTaskSystem, RenderSystem* pRenderSystem );
         void Shutdown( RenderSystem* pRenderSystem );
@@ -61,6 +64,12 @@ namespace EE::Render
         void DeallocatePointLight( LightInstanceProxy&& lightInstanceProxy );
         void DeallocateSpotLight( LightInstanceProxy&& lightInstanceProxy );
 
+        // Decals
+        //-------------------------------------------------------------------------
+
+        DecalInstanceProxy AllocateDecal();
+        void DeallocateDecal( DecalInstanceProxy&& decalInstanceProxy );
+
         // Render views
         //-------------------------------------------------------------------------
 
@@ -69,20 +78,20 @@ namespace EE::Render
 
         inline DeviceRenderView* GetDeviceRenderView( uint32_t viewIndex )
         {
-            EE_ASSERT( viewIndex < m_renderViewAllocator.GetCapacityInItems() );
-            return m_renderViewAllocator.GetData() + viewIndex;
+            EE_ASSERT( viewIndex < m_renderViews.m_storage.GetCapacity() );
+            return m_renderViews.m_storage.m_allocator.GetData() + viewIndex;
         }
 
         inline DeviceRenderView const* GetDeviceRenderView( uint32_t viewIndex ) const
         {
-            EE_ASSERT( viewIndex < m_renderViewAllocator.GetCapacityInItems() );
-            return m_renderViewAllocator.GetData() + viewIndex;
+            EE_ASSERT( viewIndex < m_renderViews.m_storage.GetCapacity() );
+            return m_renderViews.m_storage.m_allocator.GetData() + viewIndex;
         }
 
         inline uint32_t GetDeviceRenderViewIndex( DeviceRenderView const* pRenderView ) const
         {
-            EE_ASSERT( pRenderView >= m_renderViewAllocator.GetData() && pRenderView < m_renderViewAllocator.GetData() + m_renderViewAllocator.GetCapacityInItems() );
-            return uint32_t( pRenderView - m_renderViewAllocator.GetData() );
+            EE_ASSERT( pRenderView >= m_renderViews.m_storage.m_allocator.GetData() && pRenderView < m_renderViews.m_storage.m_allocator.GetData() + m_renderViews.m_storage.GetCapacity() );
+            return uint32_t( pRenderView - m_renderViews.m_storage.m_allocator.GetData() );
         }
 
         template <typename F>
@@ -91,7 +100,7 @@ namespace EE::Render
             uint32_t const numViews = GetRenderViewGroupSize( type );
             size_t nextGroupViewIndex = 0;
 
-            m_renderViewAllocator.ForEachAllocatedItem( [this, &nextGroupViewIndex, numViews, type, fn] ( DeviceRenderView* pRenderView, uint32_t viewIndex )
+            m_renderViews.m_storage.m_allocator.ForEachAllocatedItem( [this, &nextGroupViewIndex, numViews, type, fn] ( DeviceRenderView* pRenderView, uint32_t viewIndex )
             {
                 if ( viewIndex < nextGroupViewIndex || pRenderView->m_deviceRenderViewType != type )
                 {
@@ -109,7 +118,7 @@ namespace EE::Render
             uint32_t const numViews = GetRenderViewGroupSize( type );
             size_t nextGroupViewIndex = 0;
 
-            m_renderViewAllocator.ForEachAllocatedItem( [&nextGroupViewIndex, numViews, type, fn] ( DeviceRenderView const* pRenderView, size_t viewIndex )
+            m_renderViews.m_storage.m_allocator.ForEachAllocatedItem( [&nextGroupViewIndex, numViews, type, fn] ( DeviceRenderView const* pRenderView, size_t viewIndex )
             {
                 if ( viewIndex < nextGroupViewIndex || pRenderView->m_deviceRenderViewType != type )
                 {
@@ -121,13 +130,14 @@ namespace EE::Render
             } );
         }
 
-        inline uint32_t GetRenderViewCapacity() const { return m_renderViewAllocator.GetCapacityInItems(); }
+        inline uint32_t GetRenderViewCapacity() const { return m_renderViews.m_storage.GetCapacity(); }
 
         //-------------------------------------------------------------------------
 
         void QueueMeshInstanceInitialize( MeshInstanceProxy const& meshInstanceProxy, uint32_t rootInstanceID, RHI::Buffer* pMeshBuffer, uint32_t shaderParametersOffsetIn32ByteBlocks, uint32_t numClusters, uint32_t lodMask, uint32_t instanceIndex, uint32_t clusterToInstanceBase, bool instanceHidden );
         void QueuePointLightInitialize( LightInstanceProxy const& lightInstanceProxy, uint16_t shadowMapHandle, uint32_t shadowMapResolution );
         void QueueSpotLightInitialize( LightInstanceProxy const& lightInstanceProxy, uint16_t shadowMapHandle, uint32_t shadowMapResolution );
+        void QueueDecalInitialize( DecalInstanceProxy const& decalInstanceProxy, uint16_t albedoTexture, uint16_t pbrTexture, uint16_t normalTexture, uint16_t emissiveTexture, uint16_t parallaxTexture, uint16_t flags );
 
         //-------------------------------------------------------------------------
 
@@ -151,6 +161,9 @@ namespace EE::Render
         RHI::BufferHandle GetPointLightBufferHandle() const;
         RHI::BufferHandle GetSpotLightBufferHandle() const;
 
+        RHI::BufferHandle GetDecalPageBufferHandle( uint32_t frameIndex ) const;
+        RHI::BufferHandle GetDecalBufferHandle() const;
+
         RHI::Buffer* GetMeshInstanceRootBuffer() const;
 
         //-------------------------------------------------------------------------
@@ -172,104 +185,31 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        template <typename T>
-        struct UpdateCommandsPool
-        {
-            UpdateCommandsPool() = default;
-
-            UpdateCommandsPool( UpdateCommandsPool const& ) = delete;
-            UpdateCommandsPool& operator=( UpdateCommandsPool const& ) = delete;
-
-            UpdateCommandsPool( UpdateCommandsPool&& other ) noexcept
-                : m_counter( other.m_counter.load() )
-                , m_sequence( other.m_sequence )
-                , m_memoryPool( eastl::move( other.m_memoryPool ) )
-                , m_numUpdateCommands( other.m_numUpdateCommands )
-            {}
-
-            UpdateCommandsPool& operator=( UpdateCommandsPool&& other ) noexcept
-            {
-                m_counter.store( other.m_counter.load() );
-                m_sequence = other.m_sequence;
-                m_memoryPool = eastl::move( other.m_memoryPool );
-                m_numUpdateCommands = other.m_numUpdateCommands;
-                return *this;
-            }
-
-            void Initialize();
-            void Shutdown();
-
-            void Update();
-            void Submit();
-
-            //-------------------------------------------------------------------------
-
-            eastl::atomic<uint32_t>                                                 m_counter = 0;
-            uint64_t                                                                m_sequence = 0;
-            PageMemoryPool<T>                                                       m_memoryPool = {};
-            uint32_t                                                                m_numUpdateCommands = 0;
-        };
-
-        //-------------------------------------------------------------------------
-
         struct MeshInstanceShaderPool
         {
-            HandleAllocator<uint32_t>                                           m_instanceAllocator = {};
-            DeviceResizeBuffer                                                  m_instanceBuffer = {};
-            TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                   m_instancePageBuffers = {};
+            DeviceInstanceStorage<ShaderTypes::MeshInstance>                    m_instances = {};
 
             HandleAllocator<uint32_t>                                           m_clusterAllocator = {};
             DeviceResizeBuffer                                                  m_clusterToInstanceBuffer = {};
         };
 
-        //-------------------------------------------------------------------------
+        using MeshInstanceRootDeviceInstancePool = DeviceInstancePool<ShaderTypes::MeshInstanceRoot, ShaderTypes::MeshInstanceRootUpdateCommand>;
+        using MeshInstanceDeviceInitializeQueue = DeviceInstanceInitializeQueue<ShaderTypes::MeshInstanceInitializeCommand>;
+        using MeshInstanceDeviceUpdateCommands = DeviceInstanceUpdateCommands<ShaderTypes::MeshInstanceTransformUpdateCommand>;
 
-        template<typename T>
-        class CopyBufferDataTask final : public ITaskSet
-        {
-        public:
+        using RenderViewDeviceInstancePool = DeviceInstancePool<ShaderTypes::RenderView, ShaderTypes::RenderViewUpdateCommand, PageAllocator<DeviceRenderView, uint16_t>>;
+        using SkinningTransformDeviceInstancePool = DeviceInstancePool<ShaderTypes::SkinningTransform, ShaderTypes::SkinningTransformUpdateCommand>;
 
-            T const* m_pSrcMemory = nullptr;
-            T*       m_pDstMemory_WriteCombined = nullptr;
+        using DecalDeviceInstancePool = DeviceInstancePool<ShaderTypes::DecalInstance, ShaderTypes::DecalInstanceUpdateCommand>;
+        using DecalDeviceInitializeQueue = DeviceInstanceInitializeQueue<ShaderTypes::DecalInstanceInitializeCommand>;
 
-            CopyBufferDataTask() = default;
+        using PointLightDeviceInstancePool = DeviceInstancePool<ShaderTypes::LightInstance_PointLight, ShaderTypes::PointLightTransformUpdateCommand>;
+        using PointLightDeviceInitializeQueue = DeviceInstanceInitializeQueue<ShaderTypes::PointLightInitializeCommand>;
 
-            CopyBufferDataTask( CopyBufferDataTask const& ) = delete;
-            CopyBufferDataTask& operator=( CopyBufferDataTask const& ) = delete;
+        using SpotLightDeviceInstancePool = DeviceInstancePool<ShaderTypes::LightInstance_SpotLight, ShaderTypes::SpotLightTransformUpdateCommand>;
+        using SpotLightDeviceInitializeQueue = DeviceInstanceInitializeQueue<ShaderTypes::SpotLightInitializeCommand>;
 
-            CopyBufferDataTask( CopyBufferDataTask&& other ) noexcept
-                : m_pSrcMemory( other.m_pSrcMemory )
-                , m_pDstMemory_WriteCombined( other.m_pDstMemory_WriteCombined )
-            {
-                other.m_pSrcMemory = nullptr;
-                other.m_pDstMemory_WriteCombined = nullptr;
-            }
-
-            CopyBufferDataTask& operator=( CopyBufferDataTask&& other ) noexcept
-            {
-                m_pSrcMemory = other.m_pSrcMemory;
-                m_pDstMemory_WriteCombined = other.m_pDstMemory_WriteCombined;
-
-                other.m_pSrcMemory = nullptr;
-                other.m_pDstMemory_WriteCombined = nullptr;
-
-                return *this;
-            }
-
-        private:
-
-            virtual void ExecuteRange( TaskSetPartition range, uint32_t threadIndex ) override
-            {
-                EE_PROFILE_SCOPE_RENDER( "CopyBufferDataTask" );
-
-                Memory::CopyToWriteCombined
-                (
-                    m_pDstMemory_WriteCombined + range.start,
-                    m_pSrcMemory + range.start,
-                    ( range.end - range.start ) * sizeof( T )
-                );
-            }
-        };
+        using DirectionalLightDeviceInstancePool = DeviceInstancePool<ShaderTypes::LightInstance_DirectionalLight, ShaderTypes::DirectionalLightUpdateCommand>;
 
     private:
 
@@ -277,80 +217,40 @@ namespace EE::Render
 
         MeshInstanceShaderPool& GetMeshInstanceShaderPool( uint32_t shaderIndex );
 
+    private:
+
         //-------------------------------------------------------------------------
 
         TaskSystem*                                                                 m_pTaskSystem = nullptr;
         RenderSystem*                                                               m_pRenderSystem = nullptr;
 
-        ComputeShader const*                                                        m_pWorldUpdateShader = nullptr;
+        ComputeShader const*                                                        m_pInitializeInstancesShader = nullptr;
+        ComputeShader const*                                                        m_pUpdateInstancesShader = nullptr;
         ComputeShader const*                                                        m_pClusterToInstanceUpdateShader = nullptr;
-
-        // TODO: Need some kind of scratch GPU memory allocator to avoid tracking all these buffers
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_initializeBuffers_MeshInstance = {};
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_initializeBuffers_PointLight = {};
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_initializeBuffers_SpotLight = {};
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_updateBuffers_MeshInstanceRoot = {};
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_updateBuffers_MeshInstance = {};
-
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_updateBuffers_DirectionalLight = {};
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_updateBuffers_PointLight = {};
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_updateBuffers_SpotLight = {};
-
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_directionalLightPageBuffers = {};
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_pointLightPageBuffers = {};
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_spotLightPageBuffers = {};
-
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_updateBuffers_SkinningTransform = {};
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_updateBuffers_RenderView = {};
-
-        // TODO: Use QueueBufferUpdate API instead of triple buffering it, should save a lot of memory
-        TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>                           m_meshInstanceRootPageBuffers = {};
-
-        DeviceResizeBuffer                                                          m_meshInstanceRootBuffer = {};
-        DeviceResizeBuffer                                                          m_directionalLightBuffer = {};
-        DeviceResizeBuffer                                                          m_pointLightBuffer = {};
-        DeviceResizeBuffer                                                          m_spotLightBuffer = {};
-        DeviceResizeBuffer                                                          m_skinningTransformBuffer = {};
-        DeviceResizeBuffer                                                          m_renderViewBuffer = {};
-
-        TVector<MeshInstanceShaderPool>                                             m_meshInstanceShaderPools;
-
-        PageAllocator<DeviceRenderView, uint16_t>                                   m_renderViewAllocator = {};
 
         DeviceResizeBuffer                                                          m_meshInstanceBufferHandles = {};
         DeviceResizeBuffer                                                          m_clusterToInstanceBufferHandles = {};
 
         TArray<RHI::Buffer*, RHI::MaxPendingFrames>                                 m_worldUpdateConstantBuffers = {};
 
-        HandleAllocator<uint32_t>                                                   m_meshInstanceRootHandleAllocator = {};
-        HandleAllocator<uint32_t>                                                   m_skinningTransformHandleAllocator = {};
-        HandleAllocator<uint32_t>                                                   m_directionalLightHandleAllocator = {};
-        HandleAllocator<uint32_t>                                                   m_pointLightHandleAllocator = {};
-        HandleAllocator<uint32_t>                                                   m_spotLightHandleAllocator = {};
+        MeshInstanceRootDeviceInstancePool                                          m_meshInstanceRoots = {};
+        TVector<MeshInstanceShaderPool>                                             m_meshInstanceShaderPools;
 
-        UpdateCommandsPool<ShaderTypes::MeshInstanceRootUpdateCommand>              m_updatePool_MeshInstanceRoot = {};
-        UpdateCommandsPool<ShaderTypes::MeshInstanceTransformUpdateCommand>         m_updatePool_MeshInstance = {};
-        UpdateCommandsPool<ShaderTypes::DirectionalLightUpdateCommand>              m_updatePool_DirectionalLight = {};
-        UpdateCommandsPool<ShaderTypes::PointLightTransformUpdateCommand>           m_updatePool_PointLight = {};
-        UpdateCommandsPool<ShaderTypes::SpotLightTransformUpdateCommand>            m_updatePool_SpotLight = {};
-        UpdateCommandsPool<ShaderTypes::SkinningTransformUpdateCommand>             m_updatePool_SkinningTransform = {};
-        UpdateCommandsPool<ShaderTypes::RenderViewUpdateCommand>                    m_updatePool_RenderView = {};
+        MeshInstanceDeviceInitializeQueue                                           m_meshInstanceInitialize = {};
+        MeshInstanceDeviceUpdateCommands                                            m_meshInstanceUpdates = {};
 
-        // TODO: Get rid of intermediate buffers and write directly to mapped buffers
-        TAlignedVector<ShaderTypes::MeshInstanceInitializeCommand>                  m_initializeCommands_MeshInstance;
-        TAlignedVector<ShaderTypes::PointLightInitializeCommand>                    m_initializeCommands_PointLight;
-        TAlignedVector<ShaderTypes::SpotLightInitializeCommand>                     m_initializeCommands_SpotLight;
+        RenderViewDeviceInstancePool                                                m_renderViews = {};
+        SkinningTransformDeviceInstancePool                                         m_skinningTransforms = {};
 
-        CopyBufferDataTask<ShaderTypes::MeshInstanceInitializeCommand>              m_copyInitializeCommands_MeshInstance;
-        CopyBufferDataTask<ShaderTypes::PointLightInitializeCommand>                m_copyInitializeCommands_PointLight;
-        CopyBufferDataTask<ShaderTypes::SpotLightInitializeCommand>                 m_copyInitializeCommands_SpotLight;
+        DecalDeviceInstancePool                                                     m_decals = {};
+        DecalDeviceInitializeQueue                                                  m_decalInitialize = {};
 
-        CopyBufferDataTask<ShaderTypes::MeshInstanceRootUpdateCommand>              m_copyUpdateCommands_MeshInstanceRoot;
-        CopyBufferDataTask<ShaderTypes::MeshInstanceTransformUpdateCommand>         m_copyUpdateCommands_MeshInstance;
-        CopyBufferDataTask<ShaderTypes::DirectionalLightUpdateCommand>              m_copyUpdateCommands_DirectionalLight;
-        CopyBufferDataTask<ShaderTypes::PointLightTransformUpdateCommand>           m_copyUpdateCommands_PointLight;
-        CopyBufferDataTask<ShaderTypes::SpotLightTransformUpdateCommand>            m_copyUpdateCommands_SpotLight;
-        CopyBufferDataTask<ShaderTypes::SkinningTransformUpdateCommand>             m_copyUpdateCommands_SkinningTransform;
-        CopyBufferDataTask<ShaderTypes::RenderViewUpdateCommand>                    m_copyUpdateCommands_RenderView;
+        PointLightDeviceInstancePool                                                m_pointLights = {};
+        PointLightDeviceInitializeQueue                                             m_pointLightInitialize = {};
+
+        SpotLightDeviceInstancePool                                                 m_spotLights = {};
+        SpotLightDeviceInitializeQueue                                              m_spotLightInitialize = {};
+
+        DirectionalLightDeviceInstancePool                                          m_directionalLights = {};
     };
 }

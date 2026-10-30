@@ -621,7 +621,7 @@ namespace EE::EntityModel
     void EditorContext::GetAllEntitiesInGroup( EntityMapID const& mapID, StringID parentGroupID, TVector<Entity*>& outEntities, bool recurse ) const
     {
         EE_ASSERT( mapID.IsValid() && parentGroupID.IsValid() );
-       
+
         auto iter = m_entityGroups.find( mapID );
         EE_ASSERT( iter != m_entityGroups.end() );
 
@@ -652,14 +652,14 @@ namespace EE::EntityModel
         TVector<EntityEditorItemGroup> const& groups = iter->second;
         for ( EntityEditorItemGroup const& childGroup : groups )
         {
-            if( childGroup.m_ID == parentGroupID )
+            if ( childGroup.m_ID == parentGroupID )
             {
                 continue;
             }
 
             if ( recurse )
             {
-                if (  childGroup.IsChildOf( parentGroupID ) )
+                if ( childGroup.IsChildOf( parentGroupID ) )
                 {
                     outGroups.emplace_back( childGroup.m_ID );
                 }
@@ -793,7 +793,7 @@ namespace EE::EntityModel
         ScopedChange const sc( this );
 
         bool shouldStartCompoundAction = !m_pUndoStack->IsCompoundActionActive();
-        if ( shouldStartCompoundAction)
+        if ( shouldStartCompoundAction )
         {
             m_pUndoStack->BeginCompoundAction();
         }
@@ -1669,7 +1669,7 @@ namespace EE::EntityModel
         }
 
         return true;
-}
+    }
 
     bool EditorContext::DoesSpatialSelectionContainComponents() const
     {
@@ -1833,10 +1833,10 @@ namespace EE::EntityModel
         UpdateSpatialSelectionData();
     }
 
-    void EditorContext::BeginManipulatingSpatialSelection( ImGuiX::Gizmo::Result const& result, bool duplicateSelectionIfPossible )
+    void EditorContext::BeginManipulatingSpatialSelection( Gizmo::Result const& result, bool duplicateSelectionIfPossible, bool alignToSurface, Vector const& surfacePositionWS, Vector const& surfaceNormalWS )
     {
         EE_ASSERT( !m_isManipulatingSpatialSelection );
-        EE_ASSERT( result.m_state == ImGuiX::GizmoState::StartedManipulating );
+        EE_ASSERT( result.m_state == GizmoState::StartedManipulating );
 
         if ( duplicateSelectionIfPossible && result.IsTranslation() && !DoesSpatialSelectionContainComponents() )
         {
@@ -1858,14 +1858,24 @@ namespace EE::EntityModel
 
         BeginTransformEdit( m_spatialSelection );
         m_isManipulatingSpatialSelection = true;
-        ManipulateSpatialSelection( result );
+        ManipulateSpatialSelection( result, alignToSurface, surfacePositionWS, surfaceNormalWS );
     }
 
-    void EditorContext::ManipulateSpatialSelection( ImGuiX::Gizmo::Result const& result )
+    void EditorContext::ManipulateSpatialSelection( Gizmo::Result const& result, bool alignToSurface, Vector const& surfacePositionWS, Vector const& surfaceNormalWS )
     {
         if ( !result.IsScale() )
         {
-            Transform const newTransform = result.GetModifiedTransform( GetSpatialSelectionTransform() );
+            Transform newTransform = result.GetModifiedTransform( GetSpatialSelectionTransform() );
+
+            if ( alignToSurface )
+            {
+                newTransform.SetTranslation( surfacePositionWS );
+
+                Quaternion const& rotation = newTransform.GetRotation();
+                Quaternion const alignment = Quaternion::FromRotationBetweenVectors( rotation.RotateVector( Vector::UnitZ ), surfaceNormalWS );
+                newTransform.SetRotation( rotation * alignment );
+            }
+
             PositionSpatialSelection( newTransform );
         }
         else
@@ -1874,11 +1884,11 @@ namespace EE::EntityModel
         }
     }
 
-    void EditorContext::EndManipulatingSpatialSelection( ImGuiX::Gizmo::Result const& result )
+    void EditorContext::EndManipulatingSpatialSelection( Gizmo::Result const& result )
     {
         EE_ASSERT( m_isManipulatingSpatialSelection );
 
-        ManipulateSpatialSelection( result );
+        ManipulateSpatialSelection( result, false, Vector::Zero, Vector::Zero );
         EndTransformEdit();
         m_isManipulatingSpatialSelection = false;
 

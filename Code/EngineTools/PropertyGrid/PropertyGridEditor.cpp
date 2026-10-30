@@ -2259,9 +2259,10 @@ namespace EE::PG
         {
             bool valueUpdated = false;
 
-            constexpr float const verticalOffset = 3.0f;
-            float const           columnWidth = ImGui::GetColumnWidth();
-            float const           cursorStartPosX = ImGui::GetCursorScreenPos().x;
+            constexpr float const verticalOffset = 4.0f;
+            constexpr float const fixRangeButtonWidth = 32.0f;
+            float const columnWidth = ImGui::GetColumnWidth();
+            float const cursorStartPosX = ImGui::GetCursorScreenPos().x;
 
             //-------------------------------------------------------------------------
 
@@ -2288,35 +2289,65 @@ namespace EE::PG
 
             //-------------------------------------------------------------------------
 
+            bool const isInvalidRange = m_value_imgui.IsSet() && !m_value_imgui.IsValid();
+
+            static constexpr char const separatorText[] = "to";
             float const cursorEndPosX = ImGui::GetCursorScreenPos().x;
-            float const inputWidth = ( columnWidth - ( cursorEndPosX - cursorStartPosX ) - ( ImGui::GetStyle().ItemSpacing.x * 2 ) ) / 2;
-            int32_t     tmpValue = 0;
+            float const extraGap = isInvalidRange ? fixRangeButtonWidth + ImGui::GetStyle().ItemSpacing.x : 0.0f;
+            float const inputWidth = ( columnWidth - ImGui::CalcTextSize( separatorText ).x - ( cursorEndPosX - cursorStartPosX ) - ( ImGui::GetStyle().ItemSpacing.x * 3 ) - extraGap ) / 2;
+            int32_t tmpValue = 0;
 
             //-------------------------------------------------------------------------
 
-            ImGui::BeginDisabled( !isSet );
-            ImGui::SetNextItemWidth( inputWidth );
-            ImGui::InputScalar( "##min", ImGuiDataType_S32, isSet ? &m_value_imgui.m_begin : &tmpValue, 0, 0 );
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
             {
-                ValidateUserInput( true );
-                valueUpdated = true;
+                ImGuiX::ScopedFont const sf( isInvalidRange ? Colors::Red : ImGuiX::Style::s_colorText );
+
+                ImGui::BeginDisabled( !isSet );
+                ImGui::SetNextItemWidth( inputWidth );
+                ImGui::InputScalar( "##min", ImGuiDataType_S32, isSet ? &m_value_imgui.m_begin : &tmpValue, 0, 0 );
+                if ( ImGui::IsItemDeactivatedAfterEdit() )
+                {
+                    valueUpdated = true;
+                }
+                ImGui::EndDisabled();
             }
-            ImGui::EndDisabled();
+
+            //-------------------------------------------------------------------------
+
             ImGui::SameLine();
             ImGui::SetCursorPosY( ImGui::GetCursorPosY() - verticalOffset );
+            ImGui::Text( separatorText );
 
             //-------------------------------------------------------------------------
 
-            ImGui::BeginDisabled( !isSet );
-            ImGui::SetNextItemWidth( inputWidth );
-            ImGui::InputScalar( "##max", ImGuiDataType_S32, isSet ? &m_value_imgui.m_end : &tmpValue, 0, 0 );
-            if ( ImGui::IsItemDeactivatedAfterEdit() )
             {
-                ValidateUserInput( false );
-                valueUpdated = true;
+                ImGuiX::ScopedFont const sf( isInvalidRange ? Colors::Red : ImGuiX::Style::s_colorText );
+
+                ImGui::SameLine( 0, ImGui::GetStyle().ItemSpacing.x );
+                ImGui::SetCursorPosY( ImGui::GetCursorPosY() - verticalOffset );
+                ImGui::BeginDisabled( !isSet );
+                ImGui::SetNextItemWidth( inputWidth );
+                ImGui::InputScalar( "##max", ImGuiDataType_S32, isSet ? &m_value_imgui.m_end : &tmpValue, 0, 0 );
+                if ( ImGui::IsItemDeactivatedAfterEdit() )
+                {
+                    valueUpdated = true;
+                }
+                ImGui::EndDisabled();
             }
-            ImGui::EndDisabled();
+
+            //-------------------------------------------------------------------------
+
+            if ( isInvalidRange )
+            {
+                ImGui::SameLine();
+                ImGui::SetCursorPosY( ImGui::GetCursorPosY() - verticalOffset );
+                if ( ImGuiX::FlatIconButton( EE_ICON_AUTO_FIX, "##FixRange", Colors::Lime, ImVec2( fixRangeButtonWidth, 0 ), true ) )
+                {
+                    m_value_imgui.MakeValid();
+                    valueUpdated = true;
+                }
+                ImGuiX::ItemTooltip( "Fix Range" );
+            }
 
             //-------------------------------------------------------------------------
 
@@ -2332,16 +2363,6 @@ namespace EE::PG
         virtual void ResetWorkingCopy() override
         {
             m_value_cached = m_value_imgui = *reinterpret_cast<IntRange*>( m_pPropertyInstance );
-
-            // Ensure we always have a valid range!
-            if ( m_value_imgui.IsSet() )
-            {
-                if ( m_value_imgui.IsValid() )
-                {
-                    m_value_imgui.Clear();
-                    m_value_cached = m_value_imgui;
-                }
-            }
         }
 
         virtual void HandleExternalUpdate() override
@@ -2350,27 +2371,6 @@ namespace EE::PG
             if ( actualValue != m_value_cached )
             {
                 m_value_cached = m_value_imgui = actualValue;
-            }
-        }
-
-    private:
-
-        // Ensure users cant input an invalid range
-        void ValidateUserInput( bool wasRangeStartEdited )
-        {
-            if ( wasRangeStartEdited )
-            {
-                if ( m_value_imgui.m_begin > m_value_imgui.m_end )
-                {
-                    m_value_imgui.m_begin = m_value_imgui.m_end;
-                }
-            }
-            else
-            {
-                if ( m_value_imgui.m_end < m_value_imgui.m_begin )
-                {
-                    m_value_imgui.m_end = m_value_imgui.m_begin;
-                }
             }
         }
 
@@ -2398,8 +2398,8 @@ namespace EE::PG
 
             constexpr float const verticalOffset = 4.0f;
             constexpr float const fixRangeButtonWidth = 32.0f;
-            float const           columnWidth = ImGui::GetColumnWidth();
-            float const           cursorStartPosX = ImGui::GetCursorScreenPos().x;
+            float const columnWidth = ImGui::GetColumnWidth();
+            float const cursorStartPosX = ImGui::GetCursorScreenPos().x;
             //-------------------------------------------------------------------------
 
             bool isSet = m_value_imgui.IsSet();
@@ -2499,16 +2499,6 @@ namespace EE::PG
         virtual void ResetWorkingCopy() override
         {
             m_value_cached = m_value_imgui = *reinterpret_cast<FloatRange*>( m_pPropertyInstance );
-
-            // Ensure we always have a valid range!
-            if ( m_value_imgui.IsSet() )
-            {
-                /*if (  )
-                {
-                    m_value_imgui.Clear();
-                    m_value_cached = m_value_imgui;
-                }*/
-            }
         }
 
         virtual void HandleExternalUpdate() override

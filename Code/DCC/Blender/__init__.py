@@ -25,286 +25,34 @@ def is_file_in_folder(file_path, folder_path):
     abs_folder_path = os.path.abspath(folder_path)
     return os.path.commonpath([abs_file_path, abs_folder_path]) == abs_folder_path
 
-def find_linked_node(input, node_type):
-    node_stack = []
 
-    if input.is_linked:
-        node_stack.append(input.links[0].from_node)
+def validate_operator_properties(operator, properties):
+    """Drop any keyword the installed Blender does not accept for this operator.
 
-    while len(node_stack) > 0:
-        node = node_stack.pop()
-        if node.type == node_type:
-            return node
-        
-        if node.type == 'GROUP':
-            for group_output in node.outputs:
-                if group_output.type == 'SHADER':
-                    # HACK: Just assume that this is our BRDF node...
-                    return node
+    Blender renames and removes operator properties between releases, and passing an unknown keyword
+    raises TypeError rather than being ignored. Filtering against the operator's own RNA properties lets
+    the export run on a range of versions instead of breaking on one renamed argument.
 
-            # for group_node in node.node_tree.nodes:
-            #     if group_node.type == 'GROUP_OUTPUT':
-            #         for group_input in group_node.inputs:
-            #             if group_input.is_linked:
-            #                 node_stack.append(group_input.links[0].from_node)
-                            
-        for node_input in node.inputs:
-            if node_input.is_linked:
-                node_stack.append(node_input.links[0].from_node)
+    Returns the accepted subset. Call this once and reuse the result - the lookup is not cheap.
+    """
+    supported = set(operator.get_rna_type().properties.keys())
+    accepted = { name: value for name, value in properties.items() if name in supported }
+    ignored = sorted(set(properties.keys()) - supported)
 
-    return None
+    if ignored:
+        print(f'Esoterica: {operator.idname()} does not accept {", ".join(ignored)} - ignoring')
 
-def find_linked_texture(input, ee_data_path, texture_descriptors_path):
-    if input is None:
-        return (None, None, None)
-    
-    # Allow EXR for emission outputs
-    allow_exr = input.name == 'Emission'
-
-    # Try to figure out which textures material is using.
-    # For each relevant property we walk back the nodes and choose the first texture node that we found.
-    node_stack = []
-    if input.is_linked:
-        node_stack.append(input.links[0].from_node)
-
-    while len(node_stack) > 0:
-        node = node_stack.pop()
-
-        if node.type == 'TEX_IMAGE':
-            # Some people use .EXR files for normal maps and roughness maps.
-            # I don't know why, but we need to maintain pipeline sanity.
-            filepath = node.image.filepath
-            old_filepath = node.image.filepath_raw
-            old_fileformat = node.image.file_format
-
-            if filepath:
-                # Relative paths outside of the current folder needs to be fixed?
-                # Copy everything to ExportedData to be self-contained.
-                if filepath.startswith('//..'):
-                    filepath = filepath.replace('//', '//ExportedData/').replace('..\\', '')
-
-                if not allow_exr and node.image.file_format == 'OPEN_EXR':
-                    filepath = filepath.replace('.exr', '.png')
-
-                abs_path = bpy.path.abspath(filepath)
-                if not os.path.exists(abs_path):
-                    print(f'Resaving image {node.image.filepath} -> {abs_path}')
-
-                    if not allow_exr and node.image.file_format == 'OPEN_EXR':
-                        node.image.file_format = 'PNG'
-
-                    node.image.filepath_raw = abs_path
-                    node.image.save()
-
-                    node.image.filepath_raw = old_filepath
-                    node.image.file_format = old_fileformat
-
-                descriptor_path = os.path.join(texture_descriptors_path, map_utils.descriptor_path(node.image.name, '.texture'))
-                ee_path = descriptor_path.replace(ee_data_path, 'data:/').replace( '\\', '/' )
-                return (ee_path, descriptor_path, abs_path)
-
-        for node_input in node.inputs:
-            if node_input.is_linked:
-                node_stack.append(node_input.links[0].from_node)
-
-    return (None, None, None)
+    return accepted
 
 class ET_EsotericaToolsPreferences(bpy.types.AddonPreferences):
     bl_idname = __name__
 
     esoterica_path: bpy.props.StringProperty(name='Esoterica path', subtype='DIR_PATH')  # type: ignore
-    allow_blend_file_edits: bpy.props.BoolProperty(name='Allow editing this .blend file') # type: ignore
 
     def draw(self, context):
         self.layout.label(text='EE Tools Settings')
         self.layout.prop(self, 'esoterica_path')
-        self.layout.prop(self, 'allow_blend_file_edits')
 
-
-class ET_OT_ExportMaterials(bpy.types.Operator):
-    bl_idname = 'eetools.export_materials'
-    bl_label = 'Export materials'
-
-    def execute(self, context):
-        if not bpy.data.filepath:
-            self.report({'ERROR'}, "Current blend file is not saved.")
-            return {'CANCELLED'}
-        
-        addon_prefs = context.preferences.addons[__name__].preferences
-        esoterica_path = os.path.abspath(addon_prefs.esoterica_path)
-        allow_blend_file_edits = addon_prefs.allow_blend_file_edits
-        
-        if not allow_blend_file_edits:
-            self.report({'ERROR'}, f'Material export MAY need to modify the current blend file.\nFor example, if you use .exr roughness textures the addon will convert that to .png and update the materials.\nEnable "{ET_EsotericaToolsPreferences.bl_rna.properties['allow_blend_file_edits'].name}" checkbox explicitly to allow this.')
-            return {'CANCELLED'}
-
-        ee_data_path = os.path.join(esoterica_path, 'Data')
-        exported_data_path = os.path.join(bpy.path.abspath('//'), 'ExportedData')
-        descriptors_path = os.path.join(bpy.path.abspath('//'), 'ResourceDescriptors')
-
-        os.makedirs(exported_data_path, exist_ok=True)
-
-        material_descriptors_path = os.path.join(descriptors_path, 'Materials')
-        texture_descriptors_path = os.path.join(descriptors_path, 'Textures')
-
-        os.makedirs(material_descriptors_path, exist_ok=True)
-        os.makedirs(texture_descriptors_path, exist_ok=True)
-
-        for material in bpy.data.materials:
-            if material.users == 0:
-                continue
-
-            # Don't care about grease pencil materials
-            if material.is_grease_pencil:
-                continue
-
-            # Don't care about OSL and other material types
-            if not material.use_nodes:
-                continue
-
-            output_node = next((node for node in material.node_tree.nodes if node.type == 'OUTPUT_MATERIAL'), None)
-            if output_node is None:
-                continue
-
-            surface_input = output_node.inputs.get('Surface')
-            if surface_input is None:
-                continue
-
-            principled_bsdf = find_linked_node(surface_input, 'BSDF_PRINCIPLED')
-            if principled_bsdf is None:
-                continue
-
-            material_descriptor_path = os.path.join(material_descriptors_path, map_utils.descriptor_path(material.name, '.material'))
-
-            material_descriptor = None
-            if os.path.exists(material_descriptor_path):
-                material_descriptor = ee_runtime.load_object(material_descriptor_path)
-            else:
-                material_descriptor = ee_runtime.create_object('EE::Render::MaterialResourceDescriptor')
-
-            material_descriptor.set_property('m_shader', 'ComplexSurfacePBR')
-            
-            shader_parameters = material_descriptor.get_property('m_shaderParameters')
-            if shader_parameters is None:
-                shader_parameters = ee_runtime.create_object('EE::Render::Shaders::ComplexSurfacePBRParameters')
-            
-            material_has_alpha = False
-            shader_flags = ''
-            if material.blend_method == 'OPAQUE':
-                pass                
-            elif material.blend_method == 'CLIP' or material.blend_method == 'HASHED':
-                material_has_alpha = True
-                shader_flags += '|AlphaTest'
-            elif material.blend_method == 'BLEND':
-                material_has_alpha = True
-                shader_flags += '|AlphaBlend'
-            
-            if not material.use_backface_culling:
-                shader_flags += '|TwoSided'
-                
-            # TODO: Handle alpha blended materials
-            shader_parameters.set_property('m_opacity', '1.0')
-            shader_parameters.set_property('m_shaderFlags', shader_flags.lstrip('|'))
-            
-            # HACK: Extremely cursed way of guessing node inputs, since we don't know what node type this is
-            base_color_input = principled_bsdf.inputs.get('Base Color', None)
-            if base_color_input is None:
-                base_color_input = principled_bsdf.inputs.get('Diffuse', None)
-
-            alpha_input = principled_bsdf.inputs.get('Alpha', None)
-
-            normal_input = principled_bsdf.inputs.get('Normal', None)
-
-            roughness_input = principled_bsdf.inputs.get('Roughness', None)
-            if roughness_input is None:
-                roughness_input = principled_bsdf.inputs.get('Rough', None)
-
-            metallic_input = principled_bsdf.inputs.get('Metallic', None)
-
-            # Export albedo (with optional mask if it's separate)
-            (ee_mask_path, mask_path, mask_file) = find_linked_texture(alpha_input, ee_data_path, texture_descriptors_path)
-            (ee_albedo_path, albedo_path, albedo_file) = find_linked_texture(base_color_input, ee_data_path, texture_descriptors_path)
-            if ee_albedo_path is not None:
-                shader_parameters.set_property('m_albedoTexture', ee_albedo_path)
-
-                albedo_texture = None
-                if os.path.exists(albedo_path):
-                    albedo_texture = ee_runtime.load_object(albedo_path)
-                else:
-                    albedo_texture = ee_runtime.create_object('EE::Render::TextureResourceDescriptor')
-                
-                albedo_texture.set_property('m_name', f'{map_utils.descriptor_path(material.name, '')}_Albedo')
-                
-                source_paths = None
-                if material_has_alpha and ee_mask_path is not None and ee_mask_path != ee_albedo_path:
-                    albedo_texture.set_property('m_textureGroup', 'data://render/texturegroups/albedotexturewithmask.txtg')
-                    source_paths = [
-                        albedo_file.replace(ee_data_path, 'data:/').replace('\\', '/'),
-                        mask_file.replace(ee_data_path, 'data:/').replace('\\', '/')
-                    ]
-                else:
-                    albedo_texture.set_property('m_textureGroup', 'data://render/texturegroups/albedotexture.txtg')
-                    source_paths = [albedo_file.replace(ee_data_path, 'data:/').replace('\\', '/')]
-                
-                albedo_texture.set_property('m_sourcePaths', source_paths)
-                ee_runtime.save_object(albedo_texture, albedo_path, '0')
-            
-            (ee_normal_path, normal_path, normal_file) = find_linked_texture(normal_input, ee_data_path, texture_descriptors_path)
-            if ee_normal_path is not None:
-                shader_parameters.set_property('m_normalTexture', ee_normal_path)
-
-                normal_texture = None
-                if os.path.exists(normal_path):
-                    normal_texture = ee_runtime.load_object(normal_path)
-                else:
-                    normal_texture = ee_runtime.create_object('EE::Render::TextureResourceDescriptor')
-                    normal_texture.set_property('m_textureGroup', 'data://render/texturegroups/normaltexture.txtg')
-                    normal_texture.set_property('m_name', f'{map_utils.descriptor_path(material.name, '')}_Normal')
-                
-                normal_texture.set_property('m_sourcePaths', [normal_file.replace(ee_data_path, 'data:/').replace('\\', '/')])
-                ee_runtime.save_object(normal_texture, normal_path, '0')
-
-            (ee_roughness_path, roughness_path, roughness_file) = find_linked_texture(roughness_input, ee_data_path, texture_descriptors_path)
-            (ee_metalness_path, metalness_path, metalness_file) = find_linked_texture(metallic_input, ee_data_path, texture_descriptors_path)
-
-            ee_pbr_path = None
-            if ee_roughness_path:
-                ee_pbr_path = ee_roughness_path
-                pbr_path = roughness_path
-            elif ee_metalness_path:
-                ee_pbr_path = ee_metalness_path
-                pbr_path = metalness_path
-            
-            if ee_pbr_path:
-                shader_parameters.set_property('m_pbrTexture', ee_pbr_path)
-
-                pbr_texture = None
-                if os.path.exists(pbr_path):
-                    pbr_texture = ee_runtime.load_object(pbr_path)
-                else:
-                    pbr_texture = ee_runtime.create_object('EE::Render::TextureResourceDescriptor')
-                    pbr_texture.set_property('m_textureGroup', 'data://render/texturegroups/pbrtexture.txtg')
-                    pbr_texture.set_property('m_name', f'{map_utils.descriptor_path(material.name, '')}_PBR')
-                
-                pbr_source_paths = [
-                    'data://render/textures/white_16x16.png',
-                    'data://render/textures/black_16x16.png',
-                    'data://render/textures/white_16x16.png',
-                    'data://render/textures/white_16x16.png'
-                ]
-
-                if roughness_file is not None:
-                    pbr_source_paths[0] = roughness_file.replace(ee_data_path, 'data:/').replace('\\', '/')
-                if metalness_file is not None:
-                    pbr_source_paths[1] = metalness_file.replace(ee_data_path, 'data:/').replace('\\', '/')
-
-                pbr_texture.set_property('m_sourcePaths', pbr_source_paths)
-                ee_runtime.save_object(pbr_texture, pbr_path, '0')
-
-            material_descriptor.set_property('m_shaderParameters', shader_parameters)
-            ee_runtime.save_object(material_descriptor, material_descriptor_path, '0')
-
-        return {'FINISHED'}
 
 class ET_OT_ExportMeshes(bpy.types.Operator):
     bl_idname = 'eetools.export_meshes'
@@ -325,10 +73,32 @@ class ET_OT_ExportMeshes(bpy.types.Operator):
         os.makedirs(exported_data_path, exist_ok=True)
 
         mesh_descriptors_path = os.path.join(descriptors_path, 'Meshes')
-        material_descriptors_path = os.path.join(descriptors_path, 'Materials')
-
+        
         os.makedirs(mesh_descriptors_path, exist_ok=True)
-        os.makedirs(material_descriptors_path, exist_ok=True)
+
+        os.makedirs(os.path.join(exported_data_path, 'textures'), exist_ok=True)
+
+        # Validate fbx export properties upfront
+        fbxProperties = validate_operator_properties(bpy.ops.export_scene.fbx, {
+            'check_existing': False,
+            'use_selection': True,
+            'object_types': {'MESH'},
+            'use_mesh_modifiers': True,
+            'use_triangles': True,
+            'apply_scale_options': 'FBX_SCALE_ALL',
+            'bake_space_transform': True,
+            'mesh_smooth_type': 'FACE',
+            'path_mode': 'RELATIVE',
+            'embed_textures': False,
+            'export_image_format': 'AUTO',
+            'export_materials': True,
+            'export_texcoords': True,
+            'export_normals': True,
+            'export_tangents': False,
+            'export_animations': False,
+        })
+
+        numExported = 0
 
         for mesh in bpy.data.meshes:
             # Skip meshes without materials
@@ -338,45 +108,19 @@ class ET_OT_ExportMeshes(bpy.types.Operator):
             temp_object = bpy.data.objects.new(f'{map_utils.descriptor_path(mesh.name, '')}_Mesh', mesh)
             context.collection.objects.link(temp_object)
 
-            target_path = os.path.join(exported_data_path, f'{mesh.name}.glb')
+            target_path = os.path.join(exported_data_path, f'{mesh.name}.fbx')
 
             select_object(temp_object)
-            bpy.ops.export_scene.gltf(filepath=target_path,
-                                      check_existing=False,
-                                      use_active_scene=False,
-                                      use_active_collection=False,
-                                      use_active_collection_with_nested=False,
-                                      use_selection=True,
-                                      export_animations=False,
-                                      export_optimize_animation_size=False,
-                                      export_format='GLB',
-                                      export_materials='EXPORT',
-                                      export_texcoords=True,
-                                      export_normals=True,
-                                      export_tangents=False,
-                                      export_vertex_color='ACTIVE',
-                                      export_cameras=False,
-                                      export_image_format='NONE')
 
-            # FBX is slower because it exports what we don't need
-            # target_path = os.path.join( exported_data_path, f'{mesh.name}.fbx' )
-            # bpy.ops.export_scene.fbx( filepath             = target_path,
-            #                           check_existing       = False,
-            #                           use_selection        = True,
-            #                           object_types         = {'MESH'},
-            #                           use_triangles        = True,
-            #                           embed_textures       = False,
-            #                           axis_forward         = 'Y',
-            #                           axis_up              = 'Z' )
+            bpy.ops.export_scene.fbx(filepath=target_path, **fbxProperties)
 
             # Clean up
             bpy.data.objects.remove(temp_object, do_unlink=True)
 
             # ------------------------------------------------------------------------------------------------
-            # Write descriptors
+            # Write descriptor
 
             ee_mesh_path = target_path.replace(ee_data_path, 'data:/').replace('\\', '/')
-            ee_materials_path = material_descriptors_path.replace(ee_data_path, 'data:/').replace('\\', '/')
 
             mesh_descriptor_path = os.path.join(mesh_descriptors_path, map_utils.descriptor_path(mesh.name, '.mesh'))
 
@@ -389,20 +133,11 @@ class ET_OT_ExportMeshes(bpy.types.Operator):
             mesh_descriptor.set_property('m_meshPath', ee_mesh_path)
             mesh_descriptor.set_property('m_meshGroup', 'data://render/meshgroups/highpoly.meshgrp')
 
-            material_mappings = []
-            for material in mesh.materials:
-                if material is None:
-                    continue
-                
-                for lod_mask in range(0, 8):
-                    material_mapping = ee_runtime.create_object('EE::Render::MeshMaterialMapping')
-                    material_mapping.set_property('m_mappingID', f'{map_utils.descriptor_path(mesh.name, '')}_Mesh/{map_utils.descriptor_path(material.name, '')}/{2**lod_mask}')
-                    material_mapping.set_property('m_material', f'{ee_materials_path}/{map_utils.descriptor_path(material.name, '.material')}')
-                    material_mappings.append(material_mapping)
-
-            mesh_descriptor.set_property('m_materialMappings', material_mappings)
-
             ee_runtime.save_object(mesh_descriptor, mesh_descriptor_path, '1')
+
+            numExported += 1
+
+        self.report({'INFO'}, f'Exported {numExported} mesh(es) as FBX with materials and textures')
 
         return {'FINISHED'}
 
@@ -562,13 +297,11 @@ class ET_PT_EsotericaToolsPanel(bpy.types.Panel):
 
             box.label(text='Export', icon='PLUGIN')
             box.prop(addon_prefs, 'esoterica_path')
-            box.prop(addon_prefs, 'allow_blend_file_edits')
 
             box.operator(ET_OT_LoadReflectionData.bl_idname)
 
             box.separator()
 
-            box.operator(ET_OT_ExportMaterials.bl_idname)
             box.operator(ET_OT_ExportMeshes.bl_idname)
             box.operator(ET_OT_ExportMap.bl_idname)
 
@@ -588,8 +321,7 @@ addon_classes = [
     ET_OT_ExportEntityCollection,
     ET_OT_LoadReflectionData,
     ET_OT_InstallDependencies,
-    ET_OT_ExportMeshes,
-    ET_OT_ExportMaterials
+    ET_OT_ExportMeshes
 ]
 
 

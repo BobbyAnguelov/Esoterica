@@ -244,7 +244,7 @@ namespace EE::Animation
         EE_ASSERT( chainEndBoneIdx >= 0 && chainEndBoneIdx < GetNumBones() );
 
         // Get the entire chain
-        TInlineVector<int32_t, 100> boneChainIndices;
+        TInlineVector<int32_t, 20> boneChainIndices;
         int32_t boneIdx = chainEndBoneIdx;
         while ( boneIdx != InvalidIndex )
         {

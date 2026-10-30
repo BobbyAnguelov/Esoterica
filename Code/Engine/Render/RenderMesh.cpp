@@ -2,11 +2,19 @@
 #include "Base/Drawing/DebugDrawing.h"
 
 //-------------------------------------------------------------------------
+// Mesh
+//-------------------------------------------------------------------------
 
 namespace EE::Render
 {
-    void MeshStatistics::Accumulate( MeshStatistics const & src )
+    #if EE_DEVELOPMENT_TOOLS
+    void Mesh::Statistics::Accumulate( Mesh::Statistics const& src )
     {
+        m_numMeshDecals = Math::Max( m_numMeshDecals, src.m_numMeshDecals );
+        m_numMeshDecalProjectionBases += src.m_numMeshDecalProjectionBases;
+        m_numMeshDecalProjections += src.m_numMeshDecalProjections;
+        m_meshDecalSizeBytes += src.m_meshDecalSizeBytes;
+
         if ( src.m_numClusters == 0 )
         {
             return;
@@ -70,6 +78,7 @@ namespace EE::Render
         m_clusterVertexOverhead = 1.0F - m_averageClusterUtilization;
         m_vertexTriangleReuse = m_numVertices > 0 ? float( m_numTriangles ) * 3.0F / float( m_numVertices ) : 0.0F;
     }
+    #endif
 
     //-------------------------------------------------------------------------
 
@@ -85,8 +94,18 @@ namespace EE::Render
 
         return nullptr;
     }
+}
 
-    //-------------------------------------------------------------------------
+//-------------------------------------------------------------------------
+// Skeletal Mesh
+//-------------------------------------------------------------------------
+
+namespace EE::Render
+{
+    SkeletalMesh::~SkeletalMesh()
+    {
+        EE_ASSERT( m_pProceduralBoneSettings == nullptr );
+    }
 
     bool SkeletalMesh::IsValid() const
     {
@@ -146,8 +165,8 @@ namespace EE::Render
             Transform const parentBoneWorldTransform = m_modelSpaceBindPose[parentBoneIdx] * worldTransform;
 
             drawingContext.DrawLine( parentBoneWorldTransform.GetTranslation(), boneWorldTransform.GetTranslation(), Colors::Orange );
-            drawingContext.DrawBox( boneWorldTransform, Float3( 0.005f ), Colors::Orange );
-            drawingContext.DrawAxis( boneWorldTransform, 0.05f, 2.0f );
+            drawingContext.DrawBox( boneWorldTransform, Float3( 0.002f ), Colors::Orange );
+            drawingContext.DrawAxis( boneWorldTransform, 0.01f, 1.0f );
 
             if ( drawBoneNames )
             {

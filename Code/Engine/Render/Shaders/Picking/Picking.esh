@@ -2,7 +2,6 @@
 #ifndef _PICKING_ESH_
 #define _PICKING_ESH_
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
 #include "Engine/Render/Shaders/Debug/DebugDraw.esh"
 #include "Engine/Render/Shaders/AppendBuffer.esh"
 

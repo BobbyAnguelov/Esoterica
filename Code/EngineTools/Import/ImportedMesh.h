@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ImportedSkeleton.h"
+#include "ImportedMaterial.h"
 #include "Base/Types/Arrays.h"
 #include "Base/Types/StringID.h"
 
@@ -80,6 +81,7 @@ namespace EE::Import
         virtual bool IsValid() const override final;
 
         void Finalize();
+        void FinalizeMaterials( FileSystem::Path const& sourceDataDirectory, FileSystem::Path const& overrideTextureSearchPathDirectory = FileSystem::Path() );
 
         inline int32_t GetNumGeometries() const { return (int32_t) m_geometries.size(); }
         inline TVector<Geometry> const& GetGeometries() const { return m_geometries; }
@@ -90,13 +92,19 @@ namespace EE::Import
         inline int32_t GetNumBones() const { EE_ASSERT( IsSkeletalMesh() ); return (int32_t) m_skeleton.GetNumBones(); }
 
         // Get the total number of mesh instances
-        uint32_t GetNumSubmeshes() const { return (uint32_t) m_submeshes.size(); }
+        int32_t GetNumSubmeshes() const { return (int32_t) m_submeshes.size(); }
 
         // Get the mesh instances contain needed for this mesh
         TVector<Submesh> const& GetSubmeshes() const { return m_submeshes; }
 
         // Get the required number of influence, this will be a multiple of 4 and less than s_maxNumOfBoneInfluences
         uint32_t GetMaxNumberOfBoneInfluencesPerVertex() const { EE_ASSERT( IsSkeletalMesh() ); return m_maxNumberOfBoneInfluences; }
+
+        // Get the total number of materials
+        int32_t GetNumMaterials() const { return m_materials.GetNumMaterials(); }
+
+        // Get the materials for this mesh
+        Materials const& GetMaterials() const { return m_materials; }
 
         // Apply scale to this mesh
         void ApplyScale( Float3 const& scale );
@@ -106,6 +114,7 @@ namespace EE::Import
         Skeleton                                m_skeleton;
         TVector<Geometry>                       m_geometries;
         TVector<Submesh>                        m_submeshes;
+        Materials                               m_materials;
         uint32_t                                m_maxNumberOfBoneInfluences = 0;
         bool                                    m_isSkeletalMesh = false;
     };

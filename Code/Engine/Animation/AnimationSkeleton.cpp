@@ -205,7 +205,7 @@ namespace EE::Animation
 
                 if ( !bIsFilteredOut && options.m_drawAxes )
                 {
-                    ctx.DrawAxis( boneTransform, 0.02f, 2.0f );
+                    ctx.DrawAxis( boneTransform, options.m_axisLength, options.m_axisThickness );
                 }
 
                 if ( !bIsFilteredOut && options.m_drawBoneNames )

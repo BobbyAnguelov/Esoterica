@@ -78,7 +78,7 @@ namespace EE::DebugDrawInternal
         DebugCommandFlagTriangle = 1U << 2U,
 
         DebugCommandFlagDisableAA = 1U << 10U,
-        DebugCommandFlagOutline = 1U << 11U
+        DebugCommandFlagOutline = 1U << 11U // Draws a highlighted outline for this primitive
     };
 
     //-------------------------------------------------------------------------

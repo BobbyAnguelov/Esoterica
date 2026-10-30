@@ -8,11 +8,7 @@ namespace EE::Render
 {
     struct DeviceTextureState final
     {
-        RHI::Texture*                   m_pTexture = nullptr;
-
-        TBitFlags<RHI::PipelineStage>   m_currentSync = RHI::PipelineStage::All;
-        TBitFlags<RHI::ResourceAccess>  m_currentAccess = RHI::ResourceAccess::Common;
-        RHI::TextureState               m_currentState = RHI::TextureState::ShaderResource;
+    public:
 
         inline DeviceTextureState() = default;
         inline explicit DeviceTextureState( RHI::Texture* pResource )
@@ -76,6 +72,16 @@ namespace EE::Render
         inline operator RHI::Texture*( ) & noexcept { return m_pTexture; }
         inline operator RHI::Texture const*( ) const & noexcept { return m_pTexture; }
         inline operator RHI::Texture*&&( ) && noexcept { return eastl::move( m_pTexture ); }
+
+        //-------------------------------------------------------------------------
+
+    public:
+
+        RHI::Texture*                   m_pTexture = nullptr;
+
+        TBitFlags<RHI::PipelineStage>   m_currentSync = RHI::PipelineStage::All;
+        TBitFlags<RHI::ResourceAccess>  m_currentAccess = RHI::ResourceAccess::Common;
+        RHI::TextureState               m_currentState = RHI::TextureState::ShaderResource;
     };
 
     //-------------------------------------------------------------------------
@@ -92,11 +98,17 @@ namespace EE::Render
             RHI::TextureState                   m_textureState = {};
         };
 
+        //-------------------------------------------------------------------------
+
+    public:
+
         void FlushBarriers( RHI::CommandBuffer* pCommandBuffer );
         bool HasPendingBarriers() const;
 
         void ReadOnly( DeviceTextureState& texture, TBitFlags<RHI::PipelineStage> sync, TBitFlags<RHI::ResourceAccess> access, RHI::TextureState state );
         void Writeable( DeviceTextureState& texture, TBitFlags<RHI::PipelineStage> sync, TBitFlags<RHI::ResourceAccess> access, RHI::TextureState state );
+
+        //-------------------------------------------------------------------------
 
     private:
 

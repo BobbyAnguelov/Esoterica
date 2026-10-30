@@ -64,7 +64,7 @@ namespace EE::Resource
         static bool TryWriteToFile( TypeSystem::TypeRegistry const& typeRegistry, Log& log, FileSystem::Path const& filePath, T const* pDataFile )
         {
             static_assert( std::is_base_of<ResourceDescriptor, T>::value, "T must be a child of ResourceDescriptor" );
-            return IDataFile::TryWriteToFile(typeRegistry, log, filePath, pDataFile );
+            return IDataFile::TryWriteToFile( typeRegistry, log, filePath, pDataFile );
         }
 
     public:

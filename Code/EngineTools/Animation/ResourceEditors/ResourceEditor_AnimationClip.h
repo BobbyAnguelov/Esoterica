@@ -21,7 +21,7 @@ namespace EE::Timeline
 
 namespace EE::Animation
 {
-    class AnimationClipPlayerComponent;
+    class AnimationPlayerComponent;
     class EventEditor;
 
     //-------------------------------------------------------------------------
@@ -106,7 +106,7 @@ namespace EE::Animation
     private:
 
         Entity*                         m_pPreviewEntity = nullptr;
-        AnimationClipPlayerComponent*   m_pAnimationComponent = nullptr;
+        AnimationPlayerComponent*       m_pAnimationComponent = nullptr;
         Render::SkeletalMeshComponent*  m_pMeshComponent = nullptr;
 
         Timeline::TimelineEditor*       m_pTimelineEditor = nullptr;
@@ -131,6 +131,7 @@ namespace EE::Animation
         bool                            m_shouldDrawBoneNames = false;
         bool                            m_characterPoseUpdateRequested = false;
         bool                            m_isPreviewCapsuleDrawingEnabled = false;
+        bool                            m_areProceduralBonesEnabled = true;
         float                           m_previewCapsuleHalfHeight = 0.65f;
         float                           m_previewCapsuleRadius = 0.35f;
         Skeleton::LOD                   m_skeletonLOD = Skeleton::LOD::High;

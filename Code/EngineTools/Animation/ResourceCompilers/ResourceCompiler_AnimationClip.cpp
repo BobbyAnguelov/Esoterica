@@ -305,7 +305,7 @@ namespace EE::Animation
         Timer<PlatformClock> timer;
         EE_ASSERT( outAnimation == nullptr );
 
-        Import::ReaderContext readerCtx = { [&ctx]( char const* pString ) { ctx.LogWarning( pString ); }, [&ctx] ( char const* pString ) { ctx.LogError( pString ); } };
+        Import::ReaderContext readerCtx = { ctx.m_sourceDataDirectoryPath, [&ctx]( char const* pString ) { ctx.LogWarning( pString ); }, [&ctx] ( char const* pString ) { ctx.LogError( pString ); } };
 
         // Read Skeleton Data
         //-------------------------------------------------------------------------
@@ -316,7 +316,7 @@ namespace EE::Animation
         {
             auto pSkeletonResourceDescriptor = ctx.GetDescriptor<SkeletonResourceDescriptor>( skeletonPath );
 
-            FileSystem::Path const skeletonFilePath = pSkeletonResourceDescriptor->m_skeletonPath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath );
+            FileSystem::Path const skeletonFilePath = pSkeletonResourceDescriptor->m_skeletonPath.GetFileSystemPath( ctx.m_sourceDataDirectoryPath );
 
             Import::Source const skeletonFileSource( skeletonFilePath, ctx.GetRawData( pSkeletonResourceDescriptor->m_skeletonPath ) );
             outSkeleton = Import::Importer::ReadSkeleton( readerCtx, skeletonFileSource, pSkeletonResourceDescriptor->m_skeletonRootBoneName, pSkeletonResourceDescriptor->m_highLODBones );
@@ -351,7 +351,7 @@ namespace EE::Animation
 
         timer.Start();
 
-        FileSystem::Path const animationFilePath = animationPath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath );
+        FileSystem::Path const animationFilePath = animationPath.GetFileSystemPath( ctx.m_sourceDataDirectoryPath );
         if ( !FileSystem::Exists( animationFilePath ) )
         {
             return ctx.LogError( "Invalid animation file path: %s", animationFilePath.ToString().c_str() );

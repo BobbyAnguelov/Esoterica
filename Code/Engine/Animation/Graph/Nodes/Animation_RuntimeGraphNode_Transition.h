@@ -186,8 +186,6 @@ namespace EE::Animation
         SourceType                              m_sourceType = SourceType::State;
         BoneMaskTaskList                        m_boneMaskTaskList;
 
-        bool                                    m_recreateCachedPoseBuffer = false; // Needed in the scenario where we are restoring from a recorded state
-
         #if EE_DEVELOPMENT_TOOLS
         int16_t                                 m_rootMotionActionIdxSource = InvalidIndex;
         int16_t                                 m_rootMotionActionIdxTarget = InvalidIndex;

@@ -21,6 +21,8 @@ namespace EE::Render
 
         void DrawToViewport( RenderViewport const* pRenderViewport, DeviceResourceStates& resourceStates, RHI::CommandBuffer* pCommandBuffer, DeviceTextureState& depthBuffer ) const;
 
+        //-------------------------------------------------------------------------
+
     private:
 
         RHI::Pipeline*                  m_pDownsamplePipeline = nullptr;

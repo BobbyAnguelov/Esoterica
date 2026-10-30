@@ -17,10 +17,10 @@ namespace EE::Physics
         m_pPropertyGrid->SetTypeToEdit( &m_settings );
         m_pPropertyGrid->SetControlBarVisible( false );
 
-        m_startGizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
+        m_startGizmo.SetOption( Gizmo::Options::AllowScale, false );
         m_startGizmo.SetLabel( m_settings.m_isCastQuery ? "Sweep Start" : "Overlap" );
 
-        m_endGizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
+        m_endGizmo.SetOption( Gizmo::Options::AllowScale, false );
         m_endGizmo.SetLabel( "Sweep End" );
 
         //-------------------------------------------------------------------------
@@ -514,9 +514,9 @@ namespace EE::Physics
 
         //-------------------------------------------------------------------------
 
-        ImGuiX::Gizmo::Result startResult = m_startGizmo.UpdateAndDraw( m_settings.m_sweepStart.GetTranslation(), m_settings.m_sweepStart.GetRotation(), *pViewport, checkGizmoHotkeys );
+        Gizmo::Result startResult = m_startGizmo.UpdateAndDraw( m_settings.m_sweepStart.GetTranslation(), m_settings.m_sweepStart.GetRotation(), *pViewport, isViewportFocused, checkGizmoHotkeys );
         startResult.ApplyResult( m_settings.m_sweepStart );
-        if ( startResult.m_state == ImGuiX::GizmoState::StartedManipulating )
+        if ( startResult.m_state == GizmoState::StartedManipulating )
         {
             m_pEntityEditorContext->ClearSelection();
         }
@@ -530,13 +530,13 @@ namespace EE::Physics
 
         if ( m_settings.m_isCastQuery )
         {
-            ImGuiX::Gizmo::Result endResult = m_endGizmo.UpdateAndDraw( m_settings.m_sweepEnd.GetTranslation(), m_settings.m_sweepEnd.GetRotation(), *pViewport, checkGizmoHotkeys );
+            Gizmo::Result endResult = m_endGizmo.UpdateAndDraw( m_settings.m_sweepEnd.GetTranslation(), m_settings.m_sweepEnd.GetRotation(), *pViewport, isViewportFocused, checkGizmoHotkeys );
 
             if ( !startResult.IsManipulating() )
             {
                 endResult.ApplyResult( m_settings.m_sweepEnd );
 
-                if ( endResult.m_state == ImGuiX::GizmoState::StartedManipulating )
+                if ( endResult.m_state == GizmoState::StartedManipulating )
                 {
                     m_pEntityEditorContext->ClearSelection();
                 }

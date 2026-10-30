@@ -50,6 +50,8 @@ namespace EE::Render
 
         inline TEntityWorldSystemSignal<StaticMeshComponent>* GetInstanceDataUpdateSignal() { return &m_instanceDataUpdateSignal; }
 
+        //-------------------------------------------------------------------------
+
     private:
 
         virtual Mesh const* GetMeshResource() const override { return m_mesh.IsLoaded() ? m_mesh.GetPtr() : nullptr; }
@@ -68,13 +70,13 @@ namespace EE::Render
 
         virtual Float3* GetNonUniformScaleForEdit() override { return &m_nonUniformScale; }
 
-        //-------------------------------------------------------------------------
-
         inline void WriteInstanceData( TArrayView<uint32_t> bufferData_WriteCombined ) const
         {
             EE_ASSERT( m_meshInstanceRootProxy.IsValid() );
             MeshComponent::WriteInstanceData( GetMesh(), ~0U, bufferData_WriteCombined );
         }
+
+        //-------------------------------------------------------------------------
 
     private:
 

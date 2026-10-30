@@ -32,7 +32,6 @@ namespace EE
     private:
 
         virtual bool IsSingleWindowTool() const override { return true; }
-        virtual bool SupportsViewport() const override { return true; }
         virtual bool SupportsUndoRedo() const override { return false; }
         virtual bool HasViewportOrientationGuide() const override { return false; }
         virtual bool HasViewportToolbarTimeControls() const { return true; }

@@ -26,10 +26,14 @@ namespace EE::Render
 
     struct ForwardShadingMaterialShaderPipelineBucket
     {
+    public:
+
         void Initialize( RHI::Context* pContextRHI, MaterialShader const& shader );
         void Shutdown( RHI::Context* pContextRHI );
 
         //-------------------------------------------------------------------------
+
+    public:
 
         StringView                                  m_shaderName;
         RHI::CommandSignature*                      m_pCommandSignature = nullptr;
@@ -51,6 +55,8 @@ namespace EE::Render
 
     struct ForwardShadingPass
     {
+    public:
+
         static TVector<ForwardShadingMaterialShaderPipelineBucket> InitializeMaterialShaderBuckets( RenderSystem* pRenderSystem );
 
         // Depth only pass
@@ -99,6 +105,8 @@ namespace EE::Render
         );
 
         //-------------------------------------------------------------------------
+
+    public:
 
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );

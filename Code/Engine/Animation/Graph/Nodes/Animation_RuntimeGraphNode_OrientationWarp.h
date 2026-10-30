@@ -19,21 +19,29 @@ namespace EE::Animation
         {
             EE_REFLECT_ENUM
 
-            MovementDirection = 0,
-            CharacterForward,
+            MovementDirection = 0, // Ensure that the movement direction post warp is aligned to the desired orientation
+            CharacterForward, // Ensure that the character forward direction post warp is aligned to the desired orientation
+        };
+
+        enum class OffsetType : uint8_t
+        {
+            EE_REFLECT_ENUM
+
+            RelativeToCharacter = 0,
+            RelativeToOriginalRootMotion
         };
 
         struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_isOffsetNode, m_isOffsetRelativeToCharacter, m_samplingMode );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_isOffsetNode, m_offsetType, m_samplingMode );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
             int16_t                         m_clipReferenceNodeIdx = InvalidIndex;
             int16_t                         m_targetValueNodeIdx = InvalidIndex;
             bool                            m_isOffsetNode = false;
-            bool                            m_isOffsetRelativeToCharacter = true;
+            OffsetType                      m_offsetType = OffsetType::RelativeToCharacter;
             AlignmentMode                   m_alignmentMode = AlignmentMode::MovementDirection;
             RootMotionData::SamplingMode    m_samplingMode = RootMotionData::SamplingMode::WorldSpace;
         };

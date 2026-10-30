@@ -646,7 +646,7 @@ namespace EE::Animation
 
             ImGui::SameLine( 0, 0 );
             ImGui::SetNextItemWidth( -1 );
-            if ( ImGuiX::InputTextWithOptions( "##PE", m_buffer.Data(), m_buffer.Size(), & m_optionData, ImGuiInputTextFlags_EnterReturnsTrue ) )
+            if ( ImGuiX::InputTextWithOptions( "##PE", m_buffer.Data(), m_buffer.Size(), &m_optionData ) )
             {
                 GetGraphInstance()->SetControlParameterValue( parameterIdx, StringID( m_buffer.GetString() ) );
             }
@@ -942,9 +942,9 @@ namespace EE::Animation
         //-------------------------------------------------------------------------
 
         m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
-        m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
-        m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowCoordinateSpaceSwitching, false );
-        m_gizmo.SetMode( ImGuiX::Gizmo::Mode::Translation );
+        m_gizmo.SetOption( Gizmo::Options::AllowScale, false );
+        m_gizmo.SetOption( Gizmo::Options::AllowCoordinateSpaceSwitching, false );
+        m_gizmo.SetMode( Gizmo::Mode::Translation );
 
         // Create main graph data storage
         //-------------------------------------------------------------------------
@@ -1639,10 +1639,10 @@ namespace EE::Animation
                     }
                 };
 
-                auto const gizmoResult = m_gizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, m_isViewportFocused );
+                auto const gizmoResult = m_gizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, m_isViewportFocused, m_isViewportFocused );
                 switch ( gizmoResult.m_state )
                 {
-                    case ImGuiX::GizmoState::StartedManipulating:
+                    case GizmoState::StartedManipulating:
                     {
                         if ( !IsDebugging() )
                         {
@@ -1655,14 +1655,14 @@ namespace EE::Animation
                     }
                     break;
 
-                    case ImGuiX::GizmoState::Manipulating:
+                    case GizmoState::Manipulating:
                     {
                         gizmoResult.ApplyResult( gizmoTransform );
                         SetParameterValue( gizmoTransform );
                     }
                     break;
 
-                    case ImGuiX::GizmoState::StoppedManipulating:
+                    case GizmoState::StoppedManipulating:
                     {
                         gizmoResult.ApplyResult( gizmoTransform );
                         SetParameterValue( gizmoTransform );
@@ -1922,11 +1922,6 @@ namespace EE::Animation
             EE_ASSERT( m_graphRecording.HasRecordedData() );
 
             for ( ResourceID const& resourceID : m_graphRecording.GetAllRecordedGraphResourceIDs() )
-            {
-                VectorEmplaceBackUnique( graphResourceIDs, resourceID );
-            }
-
-            for ( ResourceID const& resourceID : m_graphRecording.GetAllRecordedExternalClipResourceIDs() )
             {
                 VectorEmplaceBackUnique( graphResourceIDs, resourceID );
             }
@@ -6550,7 +6545,7 @@ namespace EE::Animation
             //-------------------------------------------------------------------------
 
             ImGui::SetNextItemWidth( -1 );
-            if ( ImGuiX::InputTextWithOptions( "##PGIDPicker", m_buffer.Data(), m_buffer.Size(), &m_optionData, ImGuiInputTextFlags_EnterReturnsTrue ) )
+            if ( ImGuiX::InputTextWithOptions( "##PGIDPicker", m_buffer.Data(), m_buffer.Size(), &m_optionData ) )
             {
                 StringUtils::StripTrailingWhitespace( m_buffer.Data() );
                 valueUpdated = true;

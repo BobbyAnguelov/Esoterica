@@ -105,7 +105,7 @@ namespace EE::Resource
         // Clear state
         //-------------------------------------------------------------------------
 
-        m_log.ClearLog();
+        m_log.Clear();
         m_logBuffer.Clear();
         m_resourcesToProcess.clear();
         m_loadedResource.Clear();

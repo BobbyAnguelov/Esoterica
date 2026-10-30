@@ -15,7 +15,12 @@
 #include "Base/Math/ViewVolume.h"
 #include "EASTL/bit.h"
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
+#include "Engine/Render/Shaders/Renderer/LightInstance.esh"
+#include "Engine/Render/Shaders/Renderer/CullingRootConstants.esh"
+#include "Engine/Render/Shaders/Renderer/DrawRootConstants.esh"
+#include "Engine/Render/Shaders/Renderer/MeshOutput.esh"
 #include "Engine/Render/Shaders/Picking/Picking.esh"
 
 #include "Engine/Render/ProbeTables/DFGTable_Esoterica.h"
@@ -397,7 +402,6 @@ namespace EE::Render
         m_renderPass_debugDraw.UpdateViewportDeviceResources
         (
             m_pRenderSystem,
-            pRenderWorldSystem->m_deviceRenderWorld,
             pWorld->GetDebugDrawSystem(),
             ctx.GetDeltaTime(),
             pRenderViewport
@@ -412,15 +416,21 @@ namespace EE::Render
         // Light culling spatial hash
         //-------------------------------------------------------------------------
 
+        uint32_t const numPointLightPages = 2 * pRenderWorldSystem->m_deviceRenderWorld.GetNumPointLightPages();
+        uint32_t const numSpotLightPages = 2 * pRenderWorldSystem->m_deviceRenderWorld.GetNumSpotLightPages();
+        uint32_t const numDecalPages = 2 * pRenderWorldSystem->m_deviceRenderWorld.GetNumDecalPages();
+        uint32_t const numDirectionalLightPages = 2 * pRenderWorldSystem->m_deviceRenderWorld.GetNumDirectionalLightPages();
+
         uint32_t const spatialHashPayloadStride = DeviceSpatialHash::ComputePayloadStride
         (
-            pRenderWorldSystem->m_deviceRenderWorld.GetNumPointLightPages(),
-            pRenderWorldSystem->m_deviceRenderWorld.GetNumSpotLightPages()
+            numPointLightPages,
+            numSpotLightPages,
+            numDecalPages
         );
 
         m_lightCulling_spatialHash.UpdateBuffers( m_pRenderSystem, frameIndex, spatialHashPayloadStride );
 
-        m_lightCulling_spatialHash.m_numLODs = Math::Clamp( m_pRenderGlobalSettings->m_spatialHashNumLODs, 1u, DeviceSpatialHash::s_maxLODs );
+        m_lightCulling_spatialHash.m_numLODs = Math::Clamp( m_pRenderGlobalSettings->m_spatialHashNumLODs, 1U, DeviceSpatialHash::s_maxLODs );
 
         m_lightCulling_spatialHash.m_borderCells[1] = m_pRenderGlobalSettings->m_spatialHashBorderLOD1;
         m_lightCulling_spatialHash.m_borderCells[2] = m_pRenderGlobalSettings->m_spatialHashBorderLOD2;
@@ -604,7 +614,7 @@ namespace EE::Render
         mainCameraViewVolume.GetViewRightVector().StoreFloat3( globalParameters.m_cameraRightDirection );
         mainCameraViewVolume.GetViewUpVector().StoreFloat3( globalParameters.m_cameraUpDirection );
 
-        globalParameters.m_rendererGlobalFlags = ShaderTypes::RENDERER_GLOBAL_FLAG_NONE;
+        globalParameters.m_rendererGlobalFlags = ShaderTypes::g_rendererGlobalFlagNone;
 
         globalParameters.m_viewportSize[0] = float( pRenderViewport->GetSize().m_x );
         globalParameters.m_viewportSize[1] = float( pRenderViewport->GetSize().m_y );
@@ -634,6 +644,14 @@ namespace EE::Render
         globalParameters.m_spotShadowDepthBias = m_pRenderGlobalSettings->m_spotShadowDepthBias;
         globalParameters.m_pointShadowDepthBias = m_pRenderGlobalSettings->m_pointShadowDepthBias;
 
+        float const reliefFadeCosStart = Math::Cos( m_pRenderGlobalSettings->m_parallaxReliefFadeStartAngle * Math::DegreesToRadians );
+        float const reliefFadeCosEnd = Math::Cos( m_pRenderGlobalSettings->m_parallaxReliefFadeEndAngle * Math::DegreesToRadians );
+
+        globalParameters.m_parallaxReliefFadeCosLow = Math::Min( reliefFadeCosStart, reliefFadeCosEnd );
+        globalParameters.m_parallaxReliefFadeCosHigh = Math::Max( Math::Max( reliefFadeCosStart, reliefFadeCosEnd ), globalParameters.m_parallaxReliefFadeCosLow + 1e-4F );
+        globalParameters.m_parallaxMaxSteps = m_pRenderGlobalSettings->m_parallaxMaxSteps;
+        globalParameters.m_parallaxErrorPixels = m_pRenderGlobalSettings->m_parallaxErrorPixels;
+
         DeviceRenderView const* const pGlobalEnvironmentMapView = &pRenderViewport->m_globalEnvironmentMapRenderViewProxy.m_renderViewHandle.m_data[0];
 
         if ( enableSSAO )
@@ -645,15 +663,19 @@ namespace EE::Render
 
         globalParameters.m_directionalLightBuffer = pRenderWorldSystem->m_deviceRenderWorld.GetDirectionalLightBufferHandle();
         globalParameters.m_directionalLightPageBuffer = pRenderWorldSystem->m_deviceRenderWorld.GetDirectionalLightPageBufferHandle( frameIndex );
-        globalParameters.m_numDirectionalLightPages = pRenderWorldSystem->m_deviceRenderWorld.GetNumDirectionalLightPages();
+        globalParameters.m_numDirectionalLightPages = numDirectionalLightPages;
 
         globalParameters.m_pointLightBuffer = pRenderWorldSystem->m_deviceRenderWorld.GetPointLightBufferHandle();
         globalParameters.m_pointLightPageBuffer = pRenderWorldSystem->m_deviceRenderWorld.GetPointLightPageBufferHandle( frameIndex );
-        globalParameters.m_numPointLightPages = pRenderWorldSystem->m_deviceRenderWorld.GetNumPointLightPages();
+        globalParameters.m_numPointLightPages = numPointLightPages;
 
         globalParameters.m_spotLightBuffer = pRenderWorldSystem->m_deviceRenderWorld.GetSpotLightBufferHandle();
         globalParameters.m_spotLightPageBuffer = pRenderWorldSystem->m_deviceRenderWorld.GetSpotLightPageBufferHandle( frameIndex );
-        globalParameters.m_numSpotLightPages = pRenderWorldSystem->m_deviceRenderWorld.GetNumSpotLightPages();
+        globalParameters.m_numSpotLightPages = numSpotLightPages;
+
+        globalParameters.m_decalBuffer = pRenderWorldSystem->m_deviceRenderWorld.GetDecalBufferHandle();
+        globalParameters.m_decalPageBuffer = pRenderWorldSystem->m_deviceRenderWorld.GetDecalPageBufferHandle( frameIndex );
+        globalParameters.m_numDecalPages = numDecalPages;
 
         globalParameters.m_lightCulling_MinCellSize = m_pRenderGlobalSettings->m_lightCullingMinCellSize;
         globalParameters.m_lightCulling_SpatialHashLow = m_lightCulling_spatialHash.GetPackedHandleLow();
@@ -704,10 +726,16 @@ namespace EE::Render
         globalParameters.m_pickingEnabled = 0;
         #endif
 
-        globalParameters.m_mainCameraRenderView = pRenderViewport->m_activeRenderViewList.m_mainRenderViewActiveIndex;
         globalParameters.m_numRenderViewBucketsPerView = pRenderViewport->m_activeRenderViewList.m_numRenderViewBucketsPerView;
         globalParameters.m_numActiveRenderViews = pRenderViewport->m_activeRenderViewList.m_numActiveRenderViews;
         globalParameters.m_numRenderBuckets = pRenderViewport->m_activeRenderViewList.m_numRenderBuckets;
+
+        //-------------------------------------------------------------------------
+
+        Matrix const mainCameraViewProjectionMatrix = mainCameraViewVolume.GetViewMatrix() * ( mainCameraViewVolume.GetProjectionMatrix() * Matrix::ReverseZ );
+        memcpy( globalParameters.m_mainCameraViewProjectionMatrix, mainCameraViewProjectionMatrix.m_rows, sizeof( globalParameters.m_mainCameraViewProjectionMatrix ) );
+
+        globalParameters.m_debugDrawObjectIDOffset = pRenderWorldSystem->m_deviceRenderWorld.GetNumMeshInstanceRootPages() * 64;
 
         // Editor selection outline
         //-------------------------------------------------------------------------
@@ -729,7 +757,7 @@ namespace EE::Render
 
         if ( !enableSSAO )
         {
-            globalParameters.m_rendererGlobalFlags |= ShaderTypes::RENDERER_GLOBAL_FLAG_DISABLE_SSAO;
+            globalParameters.m_rendererGlobalFlags |= ShaderTypes::g_rendererGlobalFlagDisableSSAO;
         }
 
         #if EE_DEVELOPMENT_TOOLS
@@ -740,14 +768,18 @@ namespace EE::Render
         auto const* pVisSettings = pRenderViewport->GetViewportSettings<RenderViewportSettings>();
         globalParameters.m_rendererDebugVisualizationMode = uint8_t( pVisSettings->m_visualizationMode );
 
-        globalParameters.m_rendererDebugFlags = ShaderTypes::RENDERER_DEBUG_FLAG_NONE;
+        globalParameters.m_rendererDebugFlags = ShaderTypes::g_rendererDebugFlagNone;
         if ( pVisSettings->m_showWireframe )
         {
-            globalParameters.m_rendererDebugFlags |= ShaderTypes::RENDERER_DEBUG_FLAG_SHOW_WIREFRAME;
+            globalParameters.m_rendererDebugFlags |= ShaderTypes::g_rendererDebugFlagShowWireframe;
         }
         if ( pVisSettings->m_showShadowCascades )
         {
-            globalParameters.m_rendererDebugFlags |= ShaderTypes::RENDERER_DEBUG_FLAG_SHOW_SHADOW_CASCADES;
+            globalParameters.m_rendererDebugFlags |= ShaderTypes::g_rendererDebugFlagShowShadowCascades;
+        }
+        if ( pVisSettings->m_showParallaxCost )
+        {
+            globalParameters.m_rendererDebugFlags |= ShaderTypes::g_rendererDebugFlagShowParallaxCost;
         }
         #endif
 
@@ -961,7 +993,6 @@ namespace EE::Render
         DeviceRenderWorld const& deviceRenderWorld = pRenderWorldSystem->m_deviceRenderWorld;
         ActiveRenderViewList const& activeRenderViewList = pRenderViewport->m_activeRenderViewList;
 
-        RHI::BufferHandle   renderViewBufferHandle = deviceRenderWorld.GetRenderViewBufferHandle();
         RHI::Buffer*        pGlobalParametersBuffer = pRenderViewport->m_globalParametersBuffers[frameIndex];
 
         //-------------------------------------------------------------------------
@@ -1363,8 +1394,6 @@ namespace EE::Render
             m_renderPass_debugDraw.DrawOutlineToViewport
             (
                 pRenderViewport,
-                renderViewBufferHandle,
-                pRenderViewport->m_mainRenderViewProxy.GetBaseRenderViewIndex(),
                 pRenderWorldSystem->m_deviceRenderWorld.GetNumMeshInstanceRootPages() * 64,
                 m_resourceStates,
                 pCommandBuffer_DepthPass,
@@ -1428,7 +1457,7 @@ namespace EE::Render
             EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer_GTAO, "XeGTAO" );
 
             m_renderPass_GTAO.PrefilterDepth( pRenderViewport, m_resourceStates, pCommandBuffer_GTAO, frameIndex );
-            m_renderPass_GTAO.ComputeNoisyResult( pRenderViewport, m_resourceStates, pCommandBuffer_GTAO, renderViewBufferHandle, pRenderViewport->m_mainRenderViewProxy.GetBaseRenderViewIndex(), frameIndex );
+            m_renderPass_GTAO.ComputeNoisyResult( pRenderViewport, m_resourceStates, pCommandBuffer_GTAO, deviceRenderWorld.GetRenderViewBufferHandle(), frameIndex );
             m_renderPass_GTAO.Denoise( pRenderViewport, m_resourceStates, pCommandBuffer_GTAO, enableAsyncCompute, frameIndex );
         }
 
@@ -1604,22 +1633,19 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         #if EE_DEVELOPMENT_TOOLS
-        m_renderPass_debugDraw.DrawToViewport
-        (
-            pRenderViewport,
-            pRenderWorldSystem->m_deviceRenderWorld,
-            pRenderViewport->m_finalTexture,
-            renderViewBufferHandle,
-            pRenderViewport->m_mainRenderViewProxy.GetBaseRenderViewIndex(),
-            m_resourceStates,
-            pCommandBuffer_PostProcessing,
-            frameIndex
-        );
-
         if ( enableEditorOutline )
         {
             m_renderPass_editorOutline.ResolveToViewport( pRenderViewport, m_resourceStates, pCommandBuffer_PostProcessing );
         }
+
+        m_renderPass_debugDraw.DrawToViewport
+        (
+            pRenderViewport,
+            pRenderViewport->m_finalTexture,
+            m_resourceStates,
+            pCommandBuffer_PostProcessing,
+            frameIndex
+        );
 
         if ( !pRenderViewport->IsStandalone() )
         {

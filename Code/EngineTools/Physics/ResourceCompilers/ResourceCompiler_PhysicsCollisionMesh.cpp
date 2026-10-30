@@ -39,9 +39,9 @@ namespace EE::Physics
         // Read raw mesh data
         //-------------------------------------------------------------------------
 
-        FileSystem::Path const meshFilePath = pResourceDescriptor->m_sourcePath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath );
+        FileSystem::Path const meshFilePath = pResourceDescriptor->m_sourcePath.GetFileSystemPath( ctx.m_sourceDataDirectoryPath );
 
-        Import::ReaderContext readerCtx = { [&ctx]( char const* pString ) { ctx.LogWarning( pString ); }, [&ctx] ( char const* pString ) { ctx.LogError( pString ); } };
+        Import::ReaderContext readerCtx = { ctx.m_sourceDataDirectoryPath, [&ctx]( char const* pString ) { ctx.LogWarning( pString ); }, [&ctx] ( char const* pString ) { ctx.LogError( pString ); } };
         Import::Source const fileSource( meshFilePath, ctx.GetRawData( pResourceDescriptor->m_sourcePath ) );
         TUniquePtr<Import::Mesh> pImportedMesh = Import::Importer::ReadStaticMesh( readerCtx, fileSource, pResourceDescriptor->m_meshesToInclude );
         if ( pImportedMesh == nullptr )

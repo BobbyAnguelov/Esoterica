@@ -197,6 +197,11 @@ namespace EE::Reflection
 
         shader.m_shaderStageToolMetadata.emplace_back( "PS_main", "PS", "PERMUTATION_DEFAULT;" );
 
+        // PS DepthOnly
+        //-------------------------------------------------------------------------
+
+        shader.m_shaderStageToolMetadata.emplace_back( "", "PS", "PERMUTATION_DEPTH_ONLY;" );
+
         // PS AlphaTest
         //-------------------------------------------------------------------------
 
@@ -233,7 +238,7 @@ namespace EE::Reflection
             return false;
         }
 
-        shader.m_shaderStageToolMetadata.emplace_back( "PS_main", "PS", "PERMUTATION_DEFAULT;PERMUTATION_ALPHA_TEST;" );
+        shader.m_shaderStageToolMetadata.emplace_back( "PS_main", "PS", "PERMUTATION_DEPTH_ONLY;PERMUTATION_ALPHA_TEST;" );
 
         #if EE_DEVELOPMENT_TOOLS
 

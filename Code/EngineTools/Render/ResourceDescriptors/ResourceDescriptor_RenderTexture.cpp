@@ -1,4 +1,4 @@
-﻿#include "ResourceDescriptor_RenderTexture.h"
+#include "ResourceDescriptor_RenderTexture.h"
 #include "EngineTools/Core/ToolsContext.h"
 #include "EngineTools/FileSystem/DataFileRegistry.h"
 #include "EngineTools/PropertyGrid/PropertyGridTypeEditingRules.h"
@@ -7,6 +7,29 @@
 
 namespace EE::Render
 {
+    void TextureResourceDescriptor::GetCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<Resource::CompileDependency>& outDependencies ) const
+    {
+        for ( DataPath const& path : m_sourcePaths )
+        {
+            if ( path.IsValid() )
+            {
+                VectorEmplaceBackUnique( outDependencies, Resource::CompileDependency( path, false ) );
+            }
+        }
+
+        if ( m_computeOcclusionFromHeight && m_occlusionHeightSource.IsValid() )
+        {
+            VectorEmplaceBackUnique( outDependencies, Resource::CompileDependency( m_occlusionHeightSource, false ) );
+        }
+
+        if ( m_textureGroup.IsValid() )
+        {
+            VectorEmplaceBackUnique( outDependencies, Resource::CompileDependency( m_textureGroup, false ) );
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     class TextureResourceDescriptorEditingRules final : public PG::TTypeEditingRules<TextureResourceDescriptor>
     {
         using PG::TTypeEditingRules<TextureResourceDescriptor>::TTypeEditingRules;

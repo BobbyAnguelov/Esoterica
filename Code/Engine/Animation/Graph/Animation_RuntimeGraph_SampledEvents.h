@@ -115,6 +115,10 @@ namespace EE::Animation
         // Get the percentage through the event when it was sampled
         inline Percentage GetPercentageThrough() const { EE_ASSERT( IsAnimationEvent() ); return m_animEventData.m_percentageThrough; }
 
+        // Get the duration of the event in seconds
+        // Warning: Do not rely on it in all cases as it will not be correct for graph node emitted anim events
+        inline Seconds GetDuration() const { EE_ASSERT( IsAnimationEvent() ); return m_animEventData.m_eventDuration; }
+
         // Checks if the sampled event is of a specified runtime type
         template<typename T>
         inline bool IsEventOfType() const { EE_ASSERT( IsAnimationEvent() ); return IsOfType<T>( m_animEventData.m_pEvent ); }
@@ -300,10 +304,10 @@ namespace EE::Animation
         // Animation Events
         //-------------------------------------------------------------------------
 
-        inline SampledEvent& EmplaceAnimationEvent( SourcePath const& path, Event const* pEvent, Percentage percentageThrough, Seconds eventDuration, bool isFromActiveBranch = true )
+        inline SampledEvent& EmplaceAnimationEvent( SourcePath const& path, Event const* pEvent, Percentage percentageThrough, Seconds eventDuration, bool isFromActiveBranch = true, float weight = 1.0f )
         {
             m_numAnimEventsSampled++;
-            return m_sampledEvents.emplace_back( path, 1.0f, isFromActiveBranch, pEvent, percentageThrough, eventDuration );
+            return m_sampledEvents.emplace_back( path, weight, isFromActiveBranch, pEvent, percentageThrough, eventDuration );
         }
 
         inline int16_t GetNumAnimationEventsSampled() const { return m_numAnimEventsSampled; }
@@ -311,10 +315,10 @@ namespace EE::Animation
         // Graph Events
         //-------------------------------------------------------------------------
 
-        inline SampledEvent& EmplaceGraphEvent( SourcePath const& path, GraphEventType type, StringID ID, bool isFromActiveBranch )
+        inline SampledEvent& EmplaceGraphEvent( SourcePath const& path, GraphEventType type, StringID ID, bool isFromActiveBranch = true, float weight = 1.0f )
         {
             m_numGraphEventsSampled++;
-            return m_sampledEvents.emplace_back( path, 1.0f, isFromActiveBranch, type, ID );
+            return m_sampledEvents.emplace_back( path, weight, isFromActiveBranch, type, ID );
         }
 
         inline int16_t GetNumGraphEventsSampled() const { return m_numGraphEventsSampled; }

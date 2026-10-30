@@ -410,14 +410,13 @@ namespace EE::Animation
     void TransitionNode::ShutdownInternal( GraphContext& context )
     {
         // Release cached pose buffers
-        if ( m_cachedPoseBufferID.IsValid() && !m_recreateCachedPoseBuffer )
+        if ( m_cachedPoseBufferID.IsValid() )
         {
             EE_ASSERT( context.GetTaskSystem()->IsValidCachedPose( m_cachedPoseBufferID ) );
             context.GetTaskSystem()->DestroyCachedPose( m_cachedPoseBufferID );
         }
 
         m_cachedPoseBufferID.Clear();
-        m_recreateCachedPoseBuffer = false;
 
         // Clear transition flags from target
         m_pTargetNode->SetTransitionState( StateNode::TransitionState::None );
@@ -707,18 +706,6 @@ namespace EE::Animation
 
         MarkNodeActive( context );
 
-        // Recreate buffers
-        #if EE_DEVELOPMENT_TOOLS
-        if ( m_recreateCachedPoseBuffer )
-        {
-            EE_ASSERT( m_cachedPoseBufferID.IsValid() );
-            EE_ASSERT( !context.GetTaskSystem()->IsValidCachedPose( m_cachedPoseBufferID ) );
-
-            context.GetTaskSystem()->RestoreCachedPoseBuffer( m_cachedPoseBufferID );
-            m_recreateCachedPoseBuffer = false;
-        }
-        #endif
-
         // Calculate update range and whether to sync or not
         //-------------------------------------------------------------------------
         
@@ -950,12 +937,6 @@ namespace EE::Animation
 
         int16_t sourceNodeIdx = InvalidIndex;
         inState.ReadValue( sourceNodeIdx );
-
-        // Either reading or writing to a cached buffer
-        if ( m_cachedPoseBufferID.IsValid() )
-        {
-            m_recreateCachedPoseBuffer = true;
-        }
 
         // Serialize source node idx
         if ( sourceNodeIdx != InvalidIndex )

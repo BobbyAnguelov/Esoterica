@@ -46,6 +46,14 @@ namespace EE::Render
                 VectorEmplaceBackUnique( outDependencies, materialMapping.m_material.GetResourceID() );
             }
         }
+
+        for ( auto const& meshDecal : m_meshDecals )
+        {
+            if ( meshDecal.m_material.GetResourceID().IsValid() )
+            {
+                VectorEmplaceBackUnique( outDependencies, meshDecal.m_material.GetResourceID() );
+            }
+        }
     }
 
     void MeshResourceDescriptor::Clear()
@@ -53,6 +61,8 @@ namespace EE::Render
         m_meshPath.Clear();
         m_meshesToInclude.clear();
         m_materialMappings.clear();
+        m_sockets.clear();
+        m_meshDecals.clear();
         m_meshGroup.Clear();
     }
 
@@ -75,7 +85,7 @@ namespace EE::Render
         for ( Mesh::Submesh const& submesh : pMesh->GetSubmeshes() )
         {
             MeshMaterialMapping& mapping = desiredMappings.emplace_back();
-            mapping.m_mappingID = MeshMaterialMapping::GetMappingID( submesh );
+            mapping.m_mappingID = MeshMaterialMapping::CreateMappingID( submesh );
             EE_ASSERT( mapping.m_mappingID.IsValid() );
         }
 
@@ -90,9 +100,8 @@ namespace EE::Render
                 desiredMappings[i].m_material = m_materialMappings[i].m_material;
             }
 
-            // Duplicate the last material across all new mappings
-            m_materialMappings.resize( desiredMappings.size() );
-            if ( desiredMappings.size() > m_materialMappings.size() )
+            // Duplicate the last material across all new mappings, for the case where a mapping was added for a submesh that did not exist yet
+            if ( !m_materialMappings.empty() && desiredMappings.size() > m_materialMappings.size() )
             {
                 for ( size_t i = m_materialMappings.size(); i < desiredMappings.size(); i++ )
                 {

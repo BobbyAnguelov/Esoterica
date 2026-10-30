@@ -87,12 +87,6 @@ namespace EE::Animation
         }
         m_externalGraphData.clear();
 
-        for ( auto pExternalPoseData : m_externalPoseData )
-        {
-            EE::Delete( pExternalPoseData );
-        }
-        m_externalPoseData.clear();
-
         m_timingInfo.Reset();
     }
 
@@ -114,13 +108,6 @@ namespace EE::Animation
         }
 
         return nullptr;
-    }
-
-    RecordedExternalPoseData *RecordedGraphUpdateData::CreateExternalPoseData()
-    {
-        auto pData = EE::New<RecordedExternalPoseData>();
-        m_externalPoseData.emplace_back( pData );
-        return pData;
     }
 
     void RecordedGraphUpdateData::SetSecondarySkeletons( SecondarySkeletonList const& secondarySkeletons )
@@ -196,31 +183,6 @@ namespace EE::Animation
         }
 
         return graphResourceIDs;
-    }
-
-    TInlineVector<ResourceID, 2> GraphRecording::GetAllRecordedExternalClipResourceIDs() const
-    {
-        EE_ASSERT( HasRecordedData() );
-
-        TInlineVector<ResourceID, 2> clipResourceIDs;
-
-        for ( RecordedGraphUpdateData const* pRecordedUpdateData : m_recordedUpdateData )
-        {
-            for ( RecordedExternalPoseData const* pRecordedPoseData : pRecordedUpdateData->m_externalPoseData )
-            {
-                if ( pRecordedPoseData->m_clipResourceID0.IsValid() )
-                {
-                    VectorEmplaceBackUnique( clipResourceIDs, pRecordedPoseData->m_clipResourceID0 );
-                }
-
-                if ( pRecordedPoseData->m_clipResourceID1.IsValid() )
-                {
-                    VectorEmplaceBackUnique( clipResourceIDs, pRecordedPoseData->m_clipResourceID1 );
-                }
-            }
-        }
-
-        return clipResourceIDs;
     }
 
     TInlineVector<ResourceID, 2> GraphRecording::GetAllRecordedSkeletonResourceIDs() const
@@ -449,29 +411,6 @@ namespace EE::Animation
                 return Result::Failure;
             }
 
-            // Manage external pose data
-            //-------------------------------------------------------------------------
-
-            for ( RecordedExternalPoseData const *pEPD : pUpdateData->m_externalPoseData )
-            {
-                /*auto pExternalGraphNode = static_cast<ExternalPoseNode*>( m_pPlaybackGraphInstance->m_nodes[pEPD->m_externalPoseNodeIdx] );
-
-                ExternalPoseData poseData = pExternalGraphNode->m_poseData;
-
-                poseData.m_pClip0 = TryGetExternalClip( pEPD->m_clipResourceID0 );
-                poseData.m_startTime0 = pEPD->m_startTime0;
-                poseData.m_endTime0 = pEPD->m_endTime0;
-
-                poseData.m_pClip1 = TryGetExternalClip( pEPD->m_clipResourceID1 );
-                poseData.m_startTime1 = pEPD->m_startTime1;
-                poseData.m_endTime1 = pEPD->m_endTime1;
-
-                poseData.m_blendWeight = pEPD->m_blendWeight;
-
-                EE_ASSERT( poseData.IsValid( m_pPlaybackGraphInstance->GetPrimarySkeleton() ) );
-                m_pPlaybackGraphInstance->SetExternalPose( pEPD->m_slotID, poseData );*/
-            }
-
             // Manage external graph instances
             //-------------------------------------------------------------------------
 
@@ -568,6 +507,18 @@ namespace EE::Animation
                 m_pPlaybackGraphInstance->SetSecondarySkeletons( secondarySkeletons );
             }
 
+            // Update Cached Poses
+            //-------------------------------------------------------------------------
+
+            // If we haven't fully updated the task system, then update the cached poses here
+            if ( ( pUpdateData->m_recordedGraphStateIdx == InvalidIndex ) && ( i == targetRecordedUpdateIdx ) )
+            {
+                if ( pUpdateData->m_recordedPosePoolData.HasData() )
+                {
+                    m_pPlaybackGraphInstance->RestoreRecordedCachedPoses( *pUpdateData );
+                }
+            }
+
             // Evaluate the graph
             //-------------------------------------------------------------------------
 
@@ -592,9 +543,9 @@ namespace EE::Animation
 
             // Evaluate tasks
             //-------------------------------------------------------------------------
-            // We need to evaluate the pose for a few updates before the desired end update since we need to ensure that the cached pose buffers are filled correctly
+            // Only do this for the final update
 
-            if ( i > ( targetRecordedUpdateIdx - 2 ) )
+            if ( i == targetRecordedUpdateIdx )
             {
                 int32_t const nextFrameIdx = ( i < m_pRecording->GetNumRecordedUpdates() - 1 ) ? i + 1 : i;
                 RecordedGraphUpdateData const *pCurrentUpdateData = m_pRecording->m_recordedUpdateData[i];

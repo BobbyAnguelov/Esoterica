@@ -21,6 +21,8 @@ namespace EE::Render
 
     struct GTAOPass final
     {
+    public:
+
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );
 
@@ -40,7 +42,6 @@ namespace EE::Render
             DeviceResourceStates&   resourceStates,
             RHI::CommandBuffer*     pCommandBuffer,
             RHI::BufferHandle       renderViewBuffer,
-            uint32_t                mainCameraRenderView,
             uint32_t                frameIndex
         );
 

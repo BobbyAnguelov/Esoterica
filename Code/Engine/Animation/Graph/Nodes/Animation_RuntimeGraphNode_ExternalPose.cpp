@@ -74,8 +74,27 @@ namespace EE::Animation
             }
         }
 
+        // Events
+        SourcePath const nodePath = GetNodePath( context );
+
+        if ( !m_externalEvents.empty() )
+        {
+            SampledEventsBuffer *pSampledEventsBuffer = context.GetSampledEventsBuffer();
+            bool const isFromActiveBranch = ( context.m_branchState == BranchState::Active );
+
+            for ( SampledEvent const &externalEvent : m_externalEvents )
+            {
+                EE_ASSERT( externalEvent.IsAnimationEvent() );
+                pSampledEventsBuffer->EmplaceAnimationEvent( nodePath, externalEvent.GetEvent(), externalEvent.GetPercentageThrough(), externalEvent.GetDuration(), isFromActiveBranch, externalEvent.GetWeight() );
+            }
+
+            result.m_sampledEventRange.m_endIdx = pSampledEventsBuffer->GetNumSampledEvents();
+
+            m_externalEvents.clear();
+        }
+
         // Register the read
-        result.m_taskIdx = context.GetTaskSystem()->RegisterTask<CachedPoseReadTask>( GetNodePath( context ), m_externalPoseBufferID );
+        result.m_taskIdx = context.GetTaskSystem()->RegisterTask<CachedPoseReadTask>( nodePath, m_externalPoseBufferID );
 
         return result;
     }

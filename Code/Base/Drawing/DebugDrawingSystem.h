@@ -21,13 +21,14 @@ namespace EE
     public:
 
         DebugDrawSystem() = default;
+        DebugDrawSystem( Math::ViewVolume const* pViewVolume, Float2 const* pTL, Float2 const* pSize ) : m_pViewVolume( pViewVolume ), m_pViewportTopLeft( pTL ), m_pViewportSize( pSize ) { EE_ASSERT( pViewVolume != nullptr && pTL != nullptr && pSize != nullptr ); }
         ~DebugDrawSystem();
 
         // Empty all per thread buffers
         void Reset();
 
         // Returns a per-thread drawing context, this removes the need for constantly calling get thread command buffer
-        inline DebugDrawContext GetDebugDrawContext() { return DebugDrawContext( GetThreadCommandBuffer() ); }
+        inline DebugDrawContext GetDebugDrawContext() { return DebugDrawContext( GetThreadCommandBuffer(), m_pViewVolume, m_pViewportTopLeft, m_pViewportSize ); }
 
         // Reflects all the individual per-thread buffers into a single supplied frame command buffer. Clears all thread buffers.
         void ReflectFrameCommandBuffer( DebugDrawInternal::FrameCommandBuffer& reflectedFrameCommands );
@@ -40,6 +41,9 @@ namespace EE
 
         TInlineVector<CommandBufferRecord, 32>          m_threadCommandBuffers;
         Threading::ReadWriteMutex                       m_threadCommandBuffersMutex;
+        Math::ViewVolume const*                         m_pViewVolume = nullptr; // Only set for viewport drawing contexts
+        Float2 const*                                   m_pViewportTopLeft = nullptr;
+        Float2 const*                                   m_pViewportSize = nullptr;
     };
 }
 #endif

@@ -43,24 +43,7 @@ namespace EE::Render
 
         EE_SYSTEM( RenderSystem );
 
-    private:
-
-        static constexpr uint32_t s_maxPendingTransfers = RHI::MaxPendingFrames * 2;
-        static constexpr uint64_t s_stagingBufferAlignment = 32;
-
-        #if EE_DEVELOPMENT_TOOLS
-        enum class InternalStage
-        {
-            None = 0,
-            ResourceUpdate,
-            AsyncResourceUpdate,
-            GraphicsUpdate
-        };
-        #endif
-
     public:
-
-        //-------------------------------------------------------------------------
 
         void Initialize( RenderSettings const& settings );
         void Shutdown();
@@ -111,8 +94,6 @@ namespace EE::Render
         inline void SetPlaceholderMaterial( Material const* pPlaceholderMaterial ) { m_pPlaceholderMaterial = pPlaceholderMaterial; }
         inline Material const* GetPlaceholderMaterial()const { return m_pPlaceholderMaterial; }
 
-    public:
-
         void RegisterRenderWindow( Window* pRenderWindow );
         void UnregisterRenderWindow( Window* pRenderWindow );
 
@@ -125,11 +106,6 @@ namespace EE::Render
 
         RenderViewport* CreateRenderViewport( Render::Window* pRenderWindow );
         void DestroyRenderViewport( RenderViewport* pViewport );
-
-    public:
-
-        template<typename... RHIResourceList>
-        void QueueResourceDelete( RHIResourceList&&... resourcesRHI );
 
         // Resource create/update API
         //-------------------------------------------------------------------------
@@ -147,6 +123,9 @@ namespace EE::Render
 
         template<typename F>
         void QueueTextureUpdate( F copyFn, RHI::Texture* pDstTexture, RHI::TextureCopyRegion const& dstRegion, uint32_t numMipLevels, uint32_t numArraySlices, RHI::TextureState dstTextureState );
+
+        template<typename... RHIResourceList>
+        void QueueResourceDelete( RHIResourceList&&... resourcesRHI );
 
         // Shaders
         //-------------------------------------------------------------------------
@@ -188,9 +167,30 @@ namespace EE::Render
         AsyncMaterialParametersUpdate* CreateMaterialParametersAsync( size_t shaderIndex );
         AsyncShaderDataUpdate* CreateShaderDataAsync( uint32_t shaderDataSizeInBytes );
 
+        //-------------------------------------------------------------------------
+
     private:
 
         //-------------------------------------------------------------------------
+
+        static constexpr uint32_t s_maxPendingTransfers = RHI::MaxPendingFrames * 2;
+        static constexpr uint64_t s_stagingBufferAlignment = 32;
+
+    private:
+
+        #if EE_DEVELOPMENT_TOOLS
+        enum class InternalStage
+        {
+            None = 0,
+            ResourceUpdate,
+            AsyncResourceUpdate,
+            GraphicsUpdate
+        };
+        #endif
+
+        //-------------------------------------------------------------------------
+
+    private:
 
         RHI::Context*                                                           m_pContextRHI = nullptr;
         RHI::Queue*                                                             m_pGraphicsQueue = nullptr;
@@ -265,53 +265,6 @@ namespace EE::Render
     };
 
     //-------------------------------------------------------------------------
-
-    template<typename ...RHIResourceList>
-    inline void RenderSystem::QueueResourceDelete( RHIResourceList && ...resourcesRHI )
-    {
-        Threading::ScopeLockWrite lock( m_resourceDeleteMutex );
-
-        auto fn = [this] ( auto&& resource )
-        {
-            bool resourceValid = true;
-
-            if constexpr ( eastl::is_pointer_v<decltype( resource )> )
-            {
-                resourceValid = resource != nullptr;
-            }
-
-            if ( resourceValid )
-            {
-                using ResourceType = eastl::decay_t<decltype( resource )>;
-
-                static_assert( eastl::is_same_v<ResourceType, RHI::Buffer*> || eastl::is_same_v<ResourceType, RHI::Texture*> ||
-                               eastl::is_same_v<ResourceType, DeviceTextureState> ||
-                               eastl::is_same_v<ResourceType, ShaderDataHandle> || eastl::is_same_v<ResourceType, MaterialShaderParametersInstance>,
-                               "Unsupported resource type" );
-
-                if constexpr ( eastl::is_same_v<ResourceType, RHI::Buffer*> )
-                {
-                    m_resourceDeleteQueue_Buffer.emplace_back( eastl::forward<decltype( resource )>( resource ), RHI::MaxPendingFrames );
-                }
-                else if constexpr ( eastl::is_same_v<ResourceType, RHI::Texture*> || eastl::is_same_v<ResourceType, DeviceTextureState> )
-                {
-                    m_resourceDeleteQueue_Texture.emplace_back( eastl::forward<decltype( resource )>( resource ), RHI::MaxPendingFrames );
-                }
-                else if constexpr ( eastl::is_same_v<ResourceType, ShaderDataHandle> )
-                {
-                    m_resourceDeleteQueue_ShaderData.emplace_back( eastl::forward<decltype( resource )>( resource ), RHI::MaxPendingFrames );
-                }
-                else if constexpr ( eastl::is_same_v<ResourceType, MaterialShaderParametersInstance> )
-                {
-                    m_resourceDeleteQueue_MaterialParametersInstance.emplace_back( eastl::forward<decltype( resource )>( resource ), RHI::MaxPendingFrames );
-                }
-
-                resource = {};
-            }
-        };
-
-        ( fn( eastl::forward<RHIResourceList>( resourcesRHI ) ), ... );
-    }
 
     template<typename F>
     inline RHI::Buffer* RenderSystem::QueueBufferCreate( F copyFn, RHI::BufferParameters const& dstBufferParameters )
@@ -545,5 +498,52 @@ namespace EE::Render
         }
 
         m_hasCopyBarriers[m_frameIndex] = true;
+    }
+
+    template<typename ...RHIResourceList>
+    inline void RenderSystem::QueueResourceDelete( RHIResourceList && ...resourcesRHI )
+    {
+        Threading::ScopeLockWrite lock( m_resourceDeleteMutex );
+
+        auto fn = [this] ( auto&& resource )
+        {
+            bool resourceValid = true;
+
+            if constexpr ( eastl::is_pointer_v<decltype( resource )> )
+            {
+                resourceValid = resource != nullptr;
+            }
+
+            if ( resourceValid )
+            {
+                using ResourceType = eastl::decay_t<decltype( resource )>;
+
+                static_assert( eastl::is_same_v<ResourceType, RHI::Buffer*> || eastl::is_same_v<ResourceType, RHI::Texture*> ||
+                               eastl::is_same_v<ResourceType, DeviceTextureState> ||
+                               eastl::is_same_v<ResourceType, ShaderDataHandle> || eastl::is_same_v<ResourceType, MaterialShaderParametersInstance>,
+                               "Unsupported resource type" );
+
+                if constexpr ( eastl::is_same_v<ResourceType, RHI::Buffer*> )
+                {
+                    m_resourceDeleteQueue_Buffer.emplace_back( eastl::forward<decltype( resource )>( resource ), RHI::MaxPendingFrames );
+                }
+                else if constexpr ( eastl::is_same_v<ResourceType, RHI::Texture*> || eastl::is_same_v<ResourceType, DeviceTextureState> )
+                {
+                    m_resourceDeleteQueue_Texture.emplace_back( eastl::forward<decltype( resource )>( resource ), RHI::MaxPendingFrames );
+                }
+                else if constexpr ( eastl::is_same_v<ResourceType, ShaderDataHandle> )
+                {
+                    m_resourceDeleteQueue_ShaderData.emplace_back( eastl::forward<decltype( resource )>( resource ), RHI::MaxPendingFrames );
+                }
+                else if constexpr ( eastl::is_same_v<ResourceType, MaterialShaderParametersInstance> )
+                {
+                    m_resourceDeleteQueue_MaterialParametersInstance.emplace_back( eastl::forward<decltype( resource )>( resource ), RHI::MaxPendingFrames );
+                }
+
+                resource = {};
+            }
+        };
+
+        ( fn( eastl::forward<RHIResourceList>( resourcesRHI ) ), ... );
     }
 }

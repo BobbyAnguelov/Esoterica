@@ -1,6 +1,8 @@
 #include "DDS.h"
-#include "Base/FileSystem/FileStreams.h"
+#include "EngineTools/Import/ImporterSource.h"
 #include "Base/Memory/Memory.h"
+#include "EngineTools/Import/ImportedImage.h"
+#include "Base/FileSystem/FileSystem.h"
 
 //-------------------------------------------------------------------------
 
@@ -474,191 +476,88 @@ namespace EE::Import::DDS
 
     //-------------------------------------------------------------------------
 
-    class DDSImportedImage : public Image
+    class ImportedImage : public Image
     {
-        friend struct DDSReader;
+        friend class File;
     };
 
     //-------------------------------------------------------------------------
 
-    struct DDSReader
+    TUniquePtr<Image> File::ReadImage() const
     {
-        static TUniquePtr<Image> ReadImage( FileSystem::Path const& path )
+        EE_ASSERT( IsValid() );
+
+        TUniquePtr<Image> image( EE::New<ImportedImage>() );
+        ImportedImage* pImportedImage = (ImportedImage*) image.get();
+        uint8_t const* pBlobData = m_fileData.data();
+
+        // Check Header
+        //-------------------------------------------------------------------------
+
+        DirectDrawHeader const& header = *reinterpret_cast<DirectDrawHeader const*>( pBlobData );
+
+        EE_ASSERT( header.m_magic[0] == 'D' && header.m_magic[1] == 'D' && header.m_magic[2] == 'S' && header.m_magic[3] == ' ' );
+        EE_ASSERT( header.m_size == 124 );
+        EE_ASSERT( header.m_pixelFormat.m_size == 32 );
+        EE_ASSERT( header.m_pixelFormat.m_fourcc[0] == 'D' && header.m_pixelFormat.m_fourcc[1] == 'X' && header.m_pixelFormat.m_fourcc[2] == '1' && header.m_pixelFormat.m_fourcc[3] == '0' );
+
+        bool const isCompressed = IsBlockCompressed( DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
+        Int2 const rowPitchAndLinearSize = PitchAndLinearSize( header.m_width, header.m_height, DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
+
+        if ( isCompressed )
         {
-            TUniquePtr<Image> image( EE::New<DDSImportedImage>() );
-            DDSImportedImage* pImportedImage = (DDSImportedImage*) image.get();
-
-            FileSystem::InputFileStream inputStream( path );
-            if ( !inputStream.IsValid() )
-            {
-                pImportedImage->LogError( "Failed to load file: %s", path.c_str() );
-                return image;
-            }
-
-            // Read Header
-            //-------------------------------------------------------------------------
-
-            DirectDrawHeader header = {};
-            inputStream.Read( &header, sizeof( header ) );
-
-            EE_ASSERT( header.m_magic[0] == 'D' && header.m_magic[1] == 'D' && header.m_magic[2] == 'S' && header.m_magic[3] == ' ' );
-            EE_ASSERT( header.m_size == 124 );
-            EE_ASSERT( header.m_pixelFormat.m_size == 32 );
-            EE_ASSERT( header.m_pixelFormat.m_fourcc[0] == 'D' && header.m_pixelFormat.m_fourcc[1] == 'X' && header.m_pixelFormat.m_fourcc[2] == '1' && header.m_pixelFormat.m_fourcc[3] == '0' );
-
-            bool isCompressed = IsBlockCompressed( DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
-            Int2 rowPitchAndLinearSize = PitchAndLinearSize( header.m_width, header.m_height, DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
-
-            if ( isCompressed )
-            {
-                EE_ASSERT( uint32_t( rowPitchAndLinearSize.m_y ) == header.m_pitchOrLinearSize );
-            }
-            else
-            {
-                EE_ASSERT( uint32_t( rowPitchAndLinearSize.m_x ) == header.m_pitchOrLinearSize );
-            }
-
-            size_t imageDataSize = rowPitchAndLinearSize.m_y;
-            for ( uint32_t mip = 1; mip < header.m_mipmapCount; ++mip )
-            {
-                Int2 mipPitchOrLinearSize = PitchAndLinearSize( header.m_width >> mip, header.m_height >> mip, DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
-                imageDataSize += mipPitchOrLinearSize.m_y;
-            }
-
-            imageDataSize *= header.m_depth;
-            imageDataSize *= header.m_dxt10.m_arraySize;
-
-            if ( ( header.m_dxt10.m_miscFlag & DDS_RESOURCE_MISC_TEXTURECUBE ) == DDS_RESOURCE_MISC_TEXTURECUBE )
-            {
-                imageDataSize *= 6;
-            }
-
-            // Read Pixel Data
-            //-------------------------------------------------------------------------
-
-            std::streampos dataStart = inputStream.GetStream().tellg();
-            EE_ASSERT( size_t( dataStart ) == sizeof( DirectDrawHeader ) );
-
-            inputStream.GetStream().seekg( 0, std::ios::end );
-            std::streampos dataEnd = inputStream.GetStream().tellg();
-            inputStream.GetStream().seekg( dataStart );
-
-            size_t const pixelDataSize = dataEnd - dataStart;
-            EE_ASSERT( imageDataSize == pixelDataSize );
-            uint8_t* pPixelData = (uint8_t*) EE::Alloc( pixelDataSize );
-            inputStream.Read( pPixelData, pixelDataSize );
-
-            // Set image parameters
-            //-------------------------------------------------------------------------
-
-            uint32_t const bitsPerPixel = DDS::BitsPerPixel( DDS::DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
-
-            pImportedImage->m_pImageData = pPixelData;
-            pImportedImage->m_width = header.m_width;
-            pImportedImage->m_height = header.m_height;
-            pImportedImage->m_depth = header.m_depth;
-            pImportedImage->m_hdr = DDS::IsFloatingPoint32Bit( DDS::DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
-            pImportedImage->m_stride = ( pImportedImage->m_width * bitsPerPixel + 7 ) / 8;
-
-            if ( header.m_dxt10.m_dxgiFormat == DDS::DXGI_FORMAT_R9G9B9E5_SHAREDEXP )
-            {
-                pImportedImage->m_sharedExponent = true;
-                pImportedImage->m_channels = 0;
-            }
-            else
-            {
-                pImportedImage->m_channels = bitsPerPixel / 8;
-            }
-
-            return image;
+            EE_ASSERT( uint32_t( rowPitchAndLinearSize.m_y ) == header.m_pitchOrLinearSize );
+        }
+        else
+        {
+            EE_ASSERT( uint32_t( rowPitchAndLinearSize.m_x ) == header.m_pitchOrLinearSize );
         }
 
-        static TUniquePtr<Image> ReadImage( Blob const& blob )
+        size_t imageDataSize = rowPitchAndLinearSize.m_y;
+        for ( uint32_t mip = 1; mip < header.m_mipmapCount; ++mip )
         {
-            TUniquePtr<Image> image( EE::New<DDSImportedImage>() );
-            DDSImportedImage* pImportedImage = (DDSImportedImage*) image.get();
-            uint8_t const* pBlobData = blob.data();
-
-            // Check Header
-            //-------------------------------------------------------------------------
-
-            DirectDrawHeader const& header = *reinterpret_cast<DirectDrawHeader const*>( pBlobData );
-
-            EE_ASSERT( header.m_magic[0] == 'D' && header.m_magic[1] == 'D' && header.m_magic[2] == 'S' && header.m_magic[3] == ' ' );
-            EE_ASSERT( header.m_size == 124 );
-            EE_ASSERT( header.m_pixelFormat.m_size == 32 );
-            EE_ASSERT( header.m_pixelFormat.m_fourcc[0] == 'D' && header.m_pixelFormat.m_fourcc[1] == 'X' && header.m_pixelFormat.m_fourcc[2] == '1' && header.m_pixelFormat.m_fourcc[3] == '0' );
-
-            bool const isCompressed = IsBlockCompressed( DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
-            Int2 const rowPitchAndLinearSize = PitchAndLinearSize( header.m_width, header.m_height, DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
-
-            if ( isCompressed )
-            {
-                EE_ASSERT( uint32_t( rowPitchAndLinearSize.m_y ) == header.m_pitchOrLinearSize );
-            }
-            else
-            {
-                EE_ASSERT( uint32_t( rowPitchAndLinearSize.m_x ) == header.m_pitchOrLinearSize );
-            }
-
-            size_t imageDataSize = rowPitchAndLinearSize.m_y;
-            for ( uint32_t mip = 1; mip < header.m_mipmapCount; ++mip )
-            {
-                Int2 mipPitchOrLinearSize = PitchAndLinearSize( header.m_width >> mip, header.m_height >> mip, DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
-                imageDataSize += mipPitchOrLinearSize.m_y;
-            }
-
-            imageDataSize *= header.m_depth;
-            imageDataSize *= header.m_dxt10.m_arraySize;
-
-            if ( ( header.m_dxt10.m_miscFlag & DDS_RESOURCE_MISC_TEXTURECUBE ) == DDS_RESOURCE_MISC_TEXTURECUBE )
-            {
-                imageDataSize *= 6;
-            }
-
-            // Copy Pixel Data
-            //-------------------------------------------------------------------------
-
-            size_t const pixelDataSize = blob.size() - sizeof( DirectDrawHeader );
-            EE_ASSERT( imageDataSize == pixelDataSize );
-            uint8_t* pPixelData = (uint8_t*) EE::Alloc( pixelDataSize );
-            memcpy( pPixelData, pBlobData + sizeof( DirectDrawHeader ), pixelDataSize );
-
-            // Set image parameters
-            //-------------------------------------------------------------------------
-
-            uint32_t const bitsPerPixel = DDS::BitsPerPixel( DDS::DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
-
-            pImportedImage->m_pImageData = pPixelData;
-            pImportedImage->m_width = header.m_width;
-            pImportedImage->m_height = header.m_height;
-            pImportedImage->m_depth = header.m_depth;
-            pImportedImage->m_hdr = DDS::IsFloatingPoint32Bit( DDS::DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
-            pImportedImage->m_stride = ( pImportedImage->m_width * bitsPerPixel + 7 ) / 8;
-
-            if ( header.m_dxt10.m_dxgiFormat == DDS::DXGI_FORMAT_R9G9B9E5_SHAREDEXP )
-            {
-                pImportedImage->m_sharedExponent = true;
-                pImportedImage->m_channels = 0;
-            }
-            else
-            {
-                pImportedImage->m_channels = bitsPerPixel / 8;
-            }
-
-            return image;
+            Int2 mipPitchOrLinearSize = PitchAndLinearSize( header.m_width >> mip, header.m_height >> mip, DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
+            imageDataSize += mipPitchOrLinearSize.m_y;
         }
-    };
 
-    //-------------------------------------------------------------------------
+        imageDataSize *= header.m_depth;
+        imageDataSize *= header.m_dxt10.m_arraySize;
 
-    TUniquePtr<EE::Import::Image> ReadImage( FileSystem::Path const& path )
-    {
-        return DDSReader::ReadImage( path );
-    }
+        if ( ( header.m_dxt10.m_miscFlag & DDS_RESOURCE_MISC_TEXTURECUBE ) == DDS_RESOURCE_MISC_TEXTURECUBE )
+        {
+            imageDataSize *= 6;
+        }
 
-    TUniquePtr<EE::Import::Image> ReadImage( Blob const& blob )
-    {
-        return DDSReader::ReadImage( blob );
+        // Copy Pixel Data
+        //-------------------------------------------------------------------------
+
+        size_t const pixelDataSize = m_fileData.size() - sizeof( DirectDrawHeader );
+        EE_ASSERT( imageDataSize == pixelDataSize );
+        uint8_t* pPixelData = (uint8_t*) EE::Alloc( pixelDataSize );
+        memcpy( pPixelData, pBlobData + sizeof( DirectDrawHeader ), pixelDataSize );
+
+        // Set image parameters
+        //-------------------------------------------------------------------------
+
+        uint32_t const bitsPerPixel = DDS::BitsPerPixel( DDS::DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
+
+        pImportedImage->m_pImageData = pPixelData;
+        pImportedImage->m_width = header.m_width;
+        pImportedImage->m_height = header.m_height;
+        pImportedImage->m_depth = header.m_depth;
+        pImportedImage->m_hdr = DDS::IsFloatingPoint32Bit( DDS::DXGIFormat( header.m_dxt10.m_dxgiFormat ) );
+        pImportedImage->m_stride = ( pImportedImage->m_width * bitsPerPixel + 7 ) / 8;
+
+        if ( header.m_dxt10.m_dxgiFormat == DDS::DXGI_FORMAT_R9G9B9E5_SHAREDEXP )
+        {
+            pImportedImage->m_sharedExponent = true;
+            pImportedImage->m_channels = 0;
+        }
+        else
+        {
+            pImportedImage->m_channels = bitsPerPixel / 8;
+        }
+
+        return image;
     }
 }

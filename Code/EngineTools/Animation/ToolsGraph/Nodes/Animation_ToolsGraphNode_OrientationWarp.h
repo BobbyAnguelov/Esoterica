@@ -11,14 +11,6 @@ namespace EE::Animation
     {
         EE_REFLECT_TYPE( OrientationWarpToolsNode );
 
-        enum class OffsetType
-        {
-            EE_REFLECT_ENUM
-
-            RelativeToCharacter,
-            RelativeToOriginalRootMotion
-        };
-
     public:
 
         OrientationWarpToolsNode();
@@ -33,7 +25,7 @@ namespace EE::Animation
 
         // The coordinate space of the supplied offset
         EE_REFLECT();
-        OffsetType                          m_offsetType = OffsetType::RelativeToCharacter;
+        OrientationWarpNode::OffsetType     m_offsetType = OrientationWarpNode::OffsetType::RelativeToCharacter;
 
         // The sampling mode for the warped motion
         EE_REFLECT();

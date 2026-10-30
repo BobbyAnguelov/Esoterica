@@ -1,0 +1,96 @@
+
+#include "Base/Render/RHI.esh"
+
+#ifndef _DRAW_ROOT_CONSTANTS_ESH_
+#define _DRAW_ROOT_CONSTANTS_ESH_
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    struct HLSL_ALIGN_STRUCT DrawCompactionRootConstants
+    {
+        uint                            m_clusterToInstanceBuffer           : 16;
+        uint                            m_cullingWorkBuffer                 : 16;
+
+        uint                            m_instanceBuffer                    : 16;
+        uint                            m_padding1                          : 16;
+
+        uint                            m_drawClusterBuffer                 : 16;
+        uint                            m_drawClusterBaseOffsetsBuffer      : 16;
+
+        uint                            m_drawClusterScatterOffsetsBuffer   : 16;
+        uint                            m_padding0                          : 16;
+
+        uint                            m_workBufferOffset;
+        uint                            m_numWorkEntries;
+    };
+
+    struct HLSL_ALIGN_INDIRECT_ARGUMENT DrawCompactionArgument
+    {
+        DrawCompactionRootConstants     m_rootConstants;
+        uint64_t                        m_rootCBV;
+        uint3                           m_dispatchArguments;
+        uint                            m_padding;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( DrawCompactionArgument ) == 48, "Indirect argument layout must match the command signature" );
+
+    #define DrawCompactionRootSignature     EE_BEGIN_ROOT_SIGNATURE \
+                                            "RootConstants( b0, num32BitConstants = 6, space = 0 )," \
+                                            "CBV( b1, space = 0 )"
+
+    //-------------------------------------------------------------------------
+
+    struct HLSL_ALIGN_STRUCT DrawArgumentGenerationRootConstants
+    {
+        uint                            m_shaderIndex;
+
+        uint                            m_drawClusterCountersBuffer : 16;
+        uint                            m_drawClusterBaseOffsetsBuffer : 16;
+
+        uint                            m_drawClusterBuffer         : 16;
+        uint                            m_clusterToInstanceBuffer   : 16;
+
+        uint                            m_instanceBuffer            : 16;
+        uint                            m_padding                   : 16;
+    };
+
+    #define DrawArgumentGenerationRootSignature EE_BEGIN_ROOT_SIGNATURE \
+                                                "RootConstants( b0, num32BitConstants = 4, space = 0 )," \
+                                                "CBV( b1, space = 0 )"
+
+    //-------------------------------------------------------------------------
+
+    struct HLSL_ALIGN_STRUCT DrawRootConstants
+    {
+        uint                                m_drawClusterBufferOffset;
+        uint                                m_renderViewIndex;
+
+        uint                                m_drawClusterBuffer         : 16;
+        uint                                m_clusterToInstanceBuffer   : 16;
+
+        uint                                m_instanceBuffer            : 16;
+        uint                                m_padding0                  : 16;
+
+        uint                                m_padding1;
+        uint                                m_padding2;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( DrawRootConstants ) == 24, "Root constants must be exactly 24 bytes" );
+
+    struct HLSL_ALIGN_INDIRECT_ARGUMENT DrawArgument
+    {
+        DrawRootConstants                   m_rootConstants;
+        uint64_t                            m_rootCBV;
+        uint3                               m_dispatchArguments;
+        uint                                m_padding;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( DrawArgument ) == 48, "Indirect argument layout must match the command signature" );
+
+    #define DrawRootSignature           EE_BEGIN_ROOT_SIGNATURE \
+                                        "RootConstants( b0, num32BitConstants = 6, space = 0 )," \
+                                        "CBV( b1, space = 0 )"
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

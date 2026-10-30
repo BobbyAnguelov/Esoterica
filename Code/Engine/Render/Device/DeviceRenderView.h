@@ -62,6 +62,17 @@ namespace EE::Render
 
     struct DeviceRenderView final
     {
+    public:
+
+        inline bool IsValid() const { return m_deviceRenderViewType != DeviceRenderViewType::Invalid; }
+
+        void Initialize( RenderSystem* pRenderSystem );
+        void Shutdown( RenderSystem* pRenderSystem );
+
+        //-------------------------------------------------------------------------
+
+    public:
+
         DeviceRenderViewType                m_deviceRenderViewType = DeviceRenderViewType::Invalid;
 
         mutable DeviceTextureState          m_colorTexture = {};                            // Plain texture, cubemap or texture array. Only valid for color passes
@@ -69,12 +80,5 @@ namespace EE::Render
 
         RHI::Texture*                       m_pEnvironmentMapRadianceTexture = nullptr;    // Environment map views only
         RHI::Buffer*                        m_pSHCoefficientsBuffer = nullptr;             // Environment map views only
-
-        //-------------------------------------------------------------------------
-
-        inline bool IsValid() const { return m_deviceRenderViewType != DeviceRenderViewType::Invalid; }
-
-        void Initialize( RenderSystem* pRenderSystem );
-        void Shutdown( RenderSystem* pRenderSystem );
     };
 }

@@ -1,6 +1,5 @@
 #include "DataFileRegistry.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
-#include "Engine/Entity/EntityDescriptors.h"
 #include "Base/FileSystem/FileSystemUtils.h"
 #include "Base/TypeSystem/ResourceInfo.h"
 #include "Base/TypeSystem/TypeRegistry.h"
@@ -23,6 +22,9 @@ namespace EE
         m_dataFileExtension = rhs.m_dataFileExtension;
         m_fileType = rhs.m_fileType;
         m_pDataFile = rhs.m_pDataFile;
+        m_compileDependencies.swap( rhs.m_compileDependencies );
+        m_installDependencies.swap( rhs.m_installDependencies );
+        m_referencedPaths.swap( rhs.m_referencedPaths );
 
         rhs.m_pDataFile = nullptr;
 
@@ -54,9 +56,143 @@ namespace EE
     {
         EE::Delete( m_pDataFile );
         LoadDataFile( typeRegistry, log );
+        ClearDependencyCache();
+    }
+
+    TInlineVector<ResourceID, 10> DataFileRegistry::FileInfo::GetCompileDependents( DataPath const& path ) const
+    {
+        TInlineVector<ResourceID, 10> deps;
+        for ( auto const& cdep : m_compileDependencies )
+        {
+            if ( cdep.m_compileDependency == path )
+            {
+                deps.emplace_back( cdep.m_resourceID );
+            }
+        }
+
+        return deps;
+    }
+
+    TInlineVector<ResourceID, 10> DataFileRegistry::FileInfo::GetInstallDependents( ResourceID const& resourceID ) const
+    {
+        TInlineVector<ResourceID, 10> deps;
+        for ( auto const& idep : m_installDependencies )
+        {
+            if ( idep.m_installDependency == resourceID )
+            {
+                deps.emplace_back( idep.m_resourceID );
+            }
+        }
+
+        return deps;
+    }
+
+    void DataFileRegistry::FileInfo::ClearDependencyCache()
+    {
+        m_compileDependencies.clear();
+        m_installDependencies.clear();
+        m_referencedPaths.clear();
+    }
+
+    void DataFileRegistry::FileInfo::BuildDependencyCache( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceDataDirPath )
+    {
+        EE_ASSERT( m_pDataFile != nullptr );
+
+        ClearDependencyCache();
+
+        // Update all path references
+        //-------------------------------------------------------------------------
+
+        m_pDataFile->GetReferencedPaths( m_referencedPaths );
+
+        if ( !IsResourceDescriptorFile() )
+        {
+            return;
+        }
+
+        // Ask descriptor for all dependencies
+        //-------------------------------------------------------------------------
+
+        auto pDescriptor = TryCast<Resource::ResourceDescriptor>( m_pDataFile );
+        EE_ASSERT( pDescriptor != nullptr );
+
+        TVector<Resource::CompileDependency> compileDependencies;
+        TVector<ResourceID> installDependencies;
+
+        auto AddDependencies = [this, &compileDependencies, &installDependencies] ( ResourceID const& dependentID )
+        {
+            for ( auto const& compileDep : compileDependencies )
+            {
+                m_compileDependencies.emplace_back( dependentID, compileDep );
+            }
+
+            for ( auto const& installDep : installDependencies )
+            {
+                m_installDependencies.emplace_back( dependentID, installDep );
+            }
+        };
+
+        // Get all compile/install dependencies for main resource
+        //-------------------------------------------------------------------------
+
+        pDescriptor->GetCompileDependencies( typeRegistry, sourceDataDirPath, "", compileDependencies );
+        pDescriptor->GetInstallDependencies( typeRegistry, sourceDataDirPath, "", installDependencies );
+
+        AddDependencies( GetResourceID() );
+
+        // Get all compile/install dependencies for sub-resources
+        //-------------------------------------------------------------------------
+
+        TVector<String> subResources;
+        pDescriptor->GetAllSubResources( subResources );
+
+        for ( String const& subResourceName : subResources )
+        {
+            compileDependencies.clear();
+            installDependencies.clear();
+
+            pDescriptor->GetCompileDependencies( typeRegistry, sourceDataDirPath, subResourceName, compileDependencies );
+            pDescriptor->GetInstallDependencies( typeRegistry, sourceDataDirPath, subResourceName, installDependencies );
+
+            DataPath subresourcePath = m_dataPath;
+            subresourcePath.SetSubFilename( subResourceName );
+            AddDependencies( ResourceID( subresourcePath ) );
+        }
+
+        // De-duplicate dependencies
+        //-------------------------------------------------------------------------
+
+        for ( int32_t i = int32_t( m_compileDependencies.size() ) - 1; i >= 0; i-- )
+        {
+            for ( int32_t j = i - 1; j >= 0; j-- )
+            {
+                if ( m_compileDependencies[i] == m_compileDependencies[j] )
+                {
+                    m_compileDependencies.erase_unsorted( m_compileDependencies.begin() + i );
+                    break;
+                }
+            }
+        }
+
+        for ( int32_t i = int32_t( m_installDependencies.size() ) - 1; i >= 0; i-- )
+        {
+            for ( int32_t j = i - 1; j >= 0; j-- )
+            {
+                if ( m_installDependencies[i] == m_installDependencies[j] )
+                {
+                    m_installDependencies.erase_unsorted( m_installDependencies.begin() + i );
+                    break;
+                }
+            }
+        }
     }
 
     //-------------------------------------------------------------------------
+
+    DataFileRegistry::DirectoryInfo::~DirectoryInfo()
+    {
+        EE_ASSERT( m_directories.empty() && m_files.empty() );
+    }
 
     void DataFileRegistry::DirectoryInfo::ChangePath( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& newPath )
     {
@@ -68,10 +204,10 @@ namespace EE
         // Rename sub-directories
         //-------------------------------------------------------------------------
 
-        for ( auto& directory : m_directories )
+        for ( auto& pDirectory : m_directories )
         {
-            FileSystem::Path const newSubdirectoryPath = newPath + directory.m_name.c_str();
-            directory.ChangePath( rawResourceDirectoryPath, newSubdirectoryPath );
+            FileSystem::Path const newSubdirectoryPath = newPath + pDirectory->m_name.c_str();
+            pDirectory->ChangePath( rawResourceDirectoryPath, newSubdirectoryPath );
         }
 
         // Rename files
@@ -86,9 +222,10 @@ namespace EE
 
     void DataFileRegistry::DirectoryInfo::Clear()
     {
-        for ( auto& dir : m_directories )
+        for ( auto& pDir : m_directories )
         {
-            dir.Clear();
+            pDir->Clear();
+            EE::Delete( pDir );
         }
 
         //-------------------------------------------------------------------------
@@ -113,9 +250,9 @@ namespace EE
 
         if ( recurseIntoChildDirectories )
         {
-            for ( DirectoryInfo const& directory : m_directories )
+            for ( DirectoryInfo const* pDirectory : m_directories )
             {
-                directory.GetAllFiles( files, recurseIntoChildDirectories );
+                pDirectory->GetAllFiles( files, recurseIntoChildDirectories );
             }
         }
     }
@@ -134,9 +271,9 @@ namespace EE
 
         if ( recurseIntoChildDirectories )
         {
-            for ( DirectoryInfo const& directory : m_directories )
+            for ( DirectoryInfo const* pDirectory : m_directories )
             {
-                directory.GetAllResourceOrDataFiles( files, recurseIntoChildDirectories );
+                pDirectory->GetAllResourceOrDataFiles( files, recurseIntoChildDirectories );
             }
         }
     }
@@ -245,25 +382,28 @@ namespace EE
                 {
                     EE_ASSERT( m_numItemsProcessed == m_totalItemsToProcess );
 
-                    // Notify users that the DB has been rebuilt
                     m_fileCacheUpdatedEvent.Execute();
 
-                    // Start loading descriptors
-                    if ( !m_dataFilesToLoad.empty() )
-                    {
-                        StartDataFileCacheBuild();
-                    }
-                    else // Nothing else to do
+                    if ( m_dataFilesToLoad.empty() )
                     {
                         m_state = DatabaseState::Ready;
+                    }
+                    else
+                    {
+                        StartDataFileCacheBuild();
                     }
                 }
                 else if ( m_state == DatabaseState::BuildingDataFileCache )
                 {
                     EE_ASSERT( m_numItemsProcessed == m_totalItemsToProcess );
-
                     m_dataFilesToLoad.clear();
+                    StartDependencyCacheBuild();
+                }
+                else if ( m_state == DatabaseState::BuildingDependencyCache )
+                {
+                    EE_ASSERT( m_numItemsProcessed == m_totalItemsToProcess );
                     m_state = DatabaseState::Ready;
+                    m_dependencyCacheUpdatedEvent.Execute();
                 }
                 else
                 {
@@ -429,7 +569,6 @@ namespace EE
     {
         EE_ASSERT( m_state == DatabaseState::BuildingFileSystemCache );
         EE_ASSERT( m_pAsyncTask == nullptr );
-        EE_ASSERT( !m_dataFilesToLoad.empty() );
 
         //-------------------------------------------------------------------------
 
@@ -452,9 +591,61 @@ namespace EE
         m_numItemsProcessed = 0;
         m_totalItemsToProcess = (int32_t) m_dataFilesToLoad.size();
 
+        EE_ASSERT( m_totalItemsToProcess > 0 );
+
         m_state = DatabaseState::BuildingDataFileCache;
         m_pAsyncTask = EE::New<AsyncTask>( m_totalItemsToProcess, BuildDescriptorCache );
         m_pTaskSystem->ScheduleTask( m_pAsyncTask );
+    }
+
+    void DataFileRegistry::StartDependencyCacheBuild()
+    {
+        EE_ASSERT( m_state == DatabaseState::BuildingDataFileCache || m_state == DatabaseState::Ready );
+        EE_ASSERT( m_pAsyncTask == nullptr );
+
+        //-------------------------------------------------------------------------
+
+        auto BuildDependencyCache = [this] ( TaskSetPartition range, uint32_t threadnum )
+        {
+            Threading::ScopeLockWrite const sw( m_mutex );
+
+            auto iter = m_filesPerPath.begin();
+            for ( uint32_t i = 0; i < range.start; i++ )
+            {
+                iter++;
+            }
+
+            for ( uint32_t i = range.start; i < range.end; i++ )
+            {
+                auto const& fileEntryPair = *iter;
+                iter++;
+
+                FileInfo* pFileInfo = fileEntryPair.second;
+                if ( pFileInfo->HasLoadedDataFile() )
+                {
+                    pFileInfo->BuildDependencyCache( *m_pTypeRegistry, m_sourceDataDirPath );
+                }
+
+                m_numItemsProcessed++;
+            }
+        };
+
+        //-------------------------------------------------------------------------
+
+        m_numItemsProcessed = 0;
+        m_totalItemsToProcess = (int32_t) m_filesPerPath.size();
+
+        if ( m_totalItemsToProcess == 0 )
+        {
+            m_dependencyCacheUpdatedEvent.Execute();
+            m_state = DatabaseState::Ready;
+        }
+        else
+        {
+            m_state = DatabaseState::BuildingDependencyCache;
+            m_pAsyncTask = EE::New<AsyncTask>( m_totalItemsToProcess, BuildDependencyCache );
+            m_pTaskSystem->ScheduleTask( m_pAsyncTask );
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -510,17 +701,22 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        auto const& foundEntries = m_resourcesPerType.at( resourceTypeID );
-        for ( auto const& entry : foundEntries )
+        TVector<FileInfo*> const& foundEntries = m_resourcesPerType.at( resourceTypeID );
+        for ( FileInfo const* pEntry : foundEntries )
         {
-            if ( !entry->IsResourceDescriptorFile() )
+            if ( !pEntry->IsResourceDescriptorFile() )
             {
                 continue;
             }
 
-            if ( filter( TryCast< Resource::ResourceDescriptor>( entry->m_pDataFile ) ) )
+            if ( !pEntry->HasLoadedDataFile() )
             {
-                results.emplace_back( entry );
+                continue;
+            }
+
+            if ( filter( Cast<Resource::ResourceDescriptor>( pEntry->m_pDataFile ) ) )
+            {
+                results.emplace_back( pEntry );
             }
         }
 
@@ -531,17 +727,22 @@ namespace EE
             auto const derivedResourceTypeIDs = m_pTypeRegistry->GetAllDerivedResourceTypes( resourceTypeID );
             for ( ResourceTypeID derivedResourceTypeID : derivedResourceTypeIDs )
             {
-                auto const& derivedResources = m_resourcesPerType.at( derivedResourceTypeID );
-                for ( auto const& entry : derivedResources )
+                TVector<FileInfo*> const& derivedResources = m_resourcesPerType.at( derivedResourceTypeID );
+                for ( FileInfo const* pEntry : derivedResources )
                 {
-                    if ( !entry->IsResourceDescriptorFile() )
+                    if ( !pEntry->IsResourceDescriptorFile() )
                     {
                         continue;
                     }
 
-                    if ( filter( TryCast< Resource::ResourceDescriptor>( entry->m_pDataFile ) ) )
+                    if ( !pEntry->HasLoadedDataFile() )
                     {
-                        results.emplace_back( entry );
+                        continue;
+                    }
+
+                    if ( filter( Cast<Resource::ResourceDescriptor>( pEntry->m_pDataFile ) ) )
+                    {
+                        results.emplace_back( pEntry );
                     }
                 }
             }
@@ -637,17 +838,22 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        auto const& foundEntries = m_resourcesPerType.at( resourceTypeID );
-        for ( auto const& entry : foundEntries )
+        TVector<FileInfo*> const& foundEntries = m_resourcesPerType.at( resourceTypeID );
+        for ( FileInfo const* pEntry : foundEntries )
         {
-            if ( !entry->IsResourceDescriptorFile() )
+            if ( !pEntry->IsResourceDescriptorFile() )
             {
                 continue;
             }
 
-            if ( filter( TryCast< Resource::ResourceDescriptor>( entry->m_pDataFile ) ) )
+            if ( !pEntry->HasLoadedDataFile() )
             {
-                results.emplace_back( entry->m_dataPath );
+                continue;
+            }
+
+            if ( filter( Cast<Resource::ResourceDescriptor>( pEntry->m_pDataFile ) ) )
+            {
+                results.emplace_back( pEntry->m_dataPath );
             }
         }
 
@@ -658,17 +864,22 @@ namespace EE
             auto const derivedResourceTypeIDs = m_pTypeRegistry->GetAllDerivedResourceTypes( resourceTypeID );
             for ( ResourceTypeID derivedResourceTypeID : derivedResourceTypeIDs )
             {
-                auto const& derivedResources = m_resourcesPerType.at( derivedResourceTypeID );
-                for ( auto const& entry : derivedResources )
+                TVector<FileInfo*> const& derivedResources = m_resourcesPerType.at( derivedResourceTypeID );
+                for ( FileInfo const* pEntry : derivedResources )
                 {
-                    if ( !entry->IsResourceDescriptorFile() )
+                    if ( !pEntry->IsResourceDescriptorFile() )
                     {
                         continue;
                     }
 
-                    if ( filter( TryCast< Resource::ResourceDescriptor>( entry->m_pDataFile ) ) )
+                    if ( !pEntry->HasLoadedDataFile() )
                     {
-                        results.emplace_back( entry->m_dataPath );
+                        continue;
+                    }
+
+                    if ( filter( Cast<Resource::ResourceDescriptor>( pEntry->m_pDataFile ) ) )
+                    {
+                        results.emplace_back( pEntry->m_dataPath );
                     }
                 }
             }
@@ -679,8 +890,7 @@ namespace EE
 
     void DataFileRegistry::GetAllResourcesThatDependOnFile( DataPath const& sourceFile, TVector<DataPath>& outCompileDependents, TVector<ResourceID>* pOutInstallDependents ) const
     {
-        EE_ASSERT( IsDataFileCacheBuilt() );
-        EE_ASSERT( m_pAsyncTask == nullptr );
+        EE_ASSERT( IsDependencyCacheBuilt() );
 
         outCompileDependents.clear();
 
@@ -698,116 +908,38 @@ namespace EE
         // Search all descriptors for dependencies
         //-------------------------------------------------------------------------
 
-        uint32_t const numThreads = m_pTaskSystem->GetNumWorkers() + 1;
+        Threading::ScopeLockRead const sr( m_mutex );
 
-        TVector<TInlineVector<DataPath, 100>> compileDependenciesPerThread;
-        compileDependenciesPerThread.resize( numThreads );
+        ResourceID const sourceFileResourceID( sourceFile );
 
-        TVector<TInlineVector<ResourceID, 100>> installDependenciesPerThread;
-        installDependenciesPerThread.resize( numThreads );
-
-        auto SearchForDependencies = [this, &sourceFile, &compileDependenciesPerThread, &installDependenciesPerThread, shouldReturnInstallDependencies ] ( TaskSetPartition range, uint32_t threadNum )
+        // Check each descriptor if it depends on the specified source file 
+        for ( auto const& iter : m_filesPerPath )
         {
-            Threading::ScopeLockRead const sr( m_mutex );
+            FileInfo const* pFileInfo = iter.second;
 
-            TVector<Resource::CompileDependency> compileDependencies;
-            TVector<ResourceID> installDependencies;
-
-            auto iter = m_filesPerPath.begin();
-            for ( uint32_t i = 0; i < range.start; i++ )
+            if ( !pFileInfo->IsResourceDescriptorFile() )
             {
-                iter++;
+                continue;
             }
 
-            for ( uint32_t i = range.start; i < range.end; i++  )
+            for ( ResourceID const& ID : pFileInfo->GetCompileDependents( sourceFile ) )
             {
-                auto const& fileEntryPair = *iter;
-                iter++;
-
-                // Check each descriptor if it depends on the specified source file 
-                auto pDescriptor = TryCast<Resource::ResourceDescriptor>( fileEntryPair.second->m_pDataFile );
-                if ( pDescriptor != nullptr )
-                {
-                    compileDependencies.clear();
-                    installDependencies.clear();
-
-                    // Get all compile dependencies for main resource
-                    //-------------------------------------------------------------------------
-
-                    pDescriptor->GetCompileDependencies( *m_pTypeRegistry, m_sourceDataDirPath, "", compileDependencies );
-                    if ( VectorContains( compileDependencies, sourceFile ) )
-                    {
-                         compileDependenciesPerThread[threadNum].emplace_back( fileEntryPair.second->m_dataPath );
-                    }
-
-                    // Get all install dependencies
-                    //-------------------------------------------------------------------------
-
-                    if ( shouldReturnInstallDependencies )
-                    {
-                        pDescriptor->GetInstallDependencies( *m_pTypeRegistry, m_sourceDataDirPath, "", installDependencies );
-                        if ( VectorContains( installDependencies, sourceFile ) )
-                        {
-                            installDependenciesPerThread[threadNum].emplace_back( fileEntryPair.second->m_dataPath );
-                        }
-                    }
-
-                    // Get all compile/install dependencies for sub-resources
-                    //-------------------------------------------------------------------------
-
-                    TVector<String> subResources;
-                    pDescriptor->GetAllSubResources( subResources );
-
-                    for ( String const& subResourceName : subResources )
-                    {
-                        compileDependencies.clear();
-                        installDependencies.clear();
-
-                        DataPath subresourcePath = fileEntryPair.second->m_dataPath;
-                        subresourcePath.SetSubFilename( subResourceName );
-
-                        pDescriptor->GetCompileDependencies( *m_pTypeRegistry, m_sourceDataDirPath, subResourceName, compileDependencies );
-                        if ( VectorContains( compileDependencies, sourceFile ) )
-                        {
-                            compileDependenciesPerThread[threadNum].emplace_back( subresourcePath );
-                        }
-
-                        if ( shouldReturnInstallDependencies )
-                        {
-                            pDescriptor->GetInstallDependencies( *m_pTypeRegistry, m_sourceDataDirPath, subResourceName, installDependencies );
-                            if ( VectorContains( installDependencies, sourceFile ) )
-                            {
-                                installDependenciesPerThread[threadNum].emplace_back( subresourcePath );
-                            }
-                        }
-                    }
-                }
+                outCompileDependents.emplace_back( ID.GetDataPath() );
             }
-        };
-
-        // Blocking async search
-        //-------------------------------------------------------------------------
-
-        m_pAsyncTask = EE::New<AsyncTask>( (uint32_t) m_filesPerPath.size(), SearchForDependencies );
-        m_pTaskSystem->ScheduleTask( m_pAsyncTask );
-        m_pTaskSystem->WaitForTask( m_pAsyncTask );
-        EE::Delete( m_pAsyncTask );
-
-        for ( uint32_t i = 0; i < numThreads; i++ )
-        {
-            outCompileDependents.insert( outCompileDependents.end(), compileDependenciesPerThread[i].begin(), compileDependenciesPerThread[i].end());
 
             if ( shouldReturnInstallDependencies )
             {
-                pOutInstallDependents->insert( pOutInstallDependents->end(), installDependenciesPerThread[i].begin(), installDependenciesPerThread[i].end() );
+                for ( ResourceID const& ID : pFileInfo->GetInstallDependents( sourceFileResourceID ) )
+                {
+                    pOutInstallDependents->emplace_back( ID );
+                }
             }
         }
     }
 
     void DataFileRegistry::GetAllFilesThatReferenceFile( DataPath const& sourceFile, TVector<DataFileRegistry::FileInfo const*>& outReferencers ) const
     {
-        EE_ASSERT( IsDataFileCacheBuilt() );
-        EE_ASSERT( m_pAsyncTask == nullptr );
+        EE_ASSERT( IsDependencyCacheBuilt() );
 
         outReferencers.clear();
 
@@ -816,56 +948,17 @@ namespace EE
             return;
         }
 
-        // Search all descriptors for dependencies
+        // Search all data files for dependencies
         //-------------------------------------------------------------------------
 
-        uint32_t const numThreads = m_pTaskSystem->GetNumWorkers() + 1;
-        TVector<TInlineVector<DataFileRegistry::FileInfo const*, 100>> referencersPerThread;
-        referencersPerThread.resize( numThreads );
-
-        auto SearchForReferences = [this, &sourceFile, &referencersPerThread] ( TaskSetPartition range, uint32_t threadNum )
+        Threading::ScopeLockRead const sr( m_mutex );
+        for ( auto const& iter : m_filesPerPath )
         {
-            Threading::ScopeLockRead const sr( m_mutex );
-
-            auto iter = m_filesPerPath.begin();
-            for ( uint32_t i = 0; i < range.start; i++ )
+            FileInfo const* pFileInfo = iter.second;
+            if ( VectorContains( pFileInfo->m_referencedPaths, sourceFile ) )
             {
-                iter++;
+                outReferencers.emplace_back( pFileInfo );
             }
-
-            TVector<DataPath> referencedPaths;
-            TypeSystem::TypeID const dataPathTypeID = GetCoreTypeID( TypeSystem::CoreTypeID::DataPath );
-            TypeSystem::TypeID const typedDataPathTypeID = GetCoreTypeID( TypeSystem::CoreTypeID::TDataFilePath );
-
-            for ( uint32_t i = range.start; i < range.end; i++ )
-            {
-                auto const& fileEntryPair = *iter;
-                iter++;
-
-                // Check each data file if it references the specified source file
-                if ( fileEntryPair.second->m_pDataFile != nullptr )
-                {
-                    referencedPaths.clear();
-                    fileEntryPair.second->m_pDataFile->GetReferencedPaths( referencedPaths );
-                    if ( VectorContains( referencedPaths, sourceFile ) )
-                    {
-                        referencersPerThread[threadNum].emplace_back( fileEntryPair.second );
-                    }
-                }
-            }
-        };
-
-        // Blocking async search
-        //-------------------------------------------------------------------------
-
-        m_pAsyncTask = EE::New<AsyncTask>( (uint32_t) m_filesPerPath.size(), SearchForReferences );
-        m_pTaskSystem->ScheduleTask( m_pAsyncTask );
-        m_pTaskSystem->WaitForTask( m_pAsyncTask );
-        EE::Delete( m_pAsyncTask );
-
-        for ( uint32_t i = 0; i < numThreads; i++ )
-        {
-            outReferencers.insert( outReferencers.end(), referencersPerThread[i].begin(), referencersPerThread[i].end() );
         }
     }
 
@@ -887,12 +980,12 @@ namespace EE
             directoryPath.Append( splitPath[i] );
 
             String const intermediateName( splitPath[i] );
-            auto searchPredicate = [&intermediateName] ( DirectoryInfo& dir ) { return dir.m_name.comparei( intermediateName ) == 0; };
+            auto searchPredicate = [&intermediateName] ( DirectoryInfo const* pDir ) { return pDir->m_name.comparei( intermediateName ) == 0; };
 
             auto itemIter = eastl::find_if( pCurrentDir->m_directories.begin(), pCurrentDir->m_directories.end(), searchPredicate );
             if ( itemIter != pCurrentDir->m_directories.end() )
             {
-                pCurrentDir = itemIter;
+                pCurrentDir = *itemIter;
             }
             else
             {
@@ -921,28 +1014,78 @@ namespace EE
             directoryPath.Append( splitPath[i] );
 
             String const intermediateName( splitPath[i] );
-            auto searchPredicate = [&intermediateName] ( DirectoryInfo& dir ) { return dir.m_name.comparei( intermediateName ) == 0; };
+            auto searchPredicate = [&intermediateName] ( DirectoryInfo const* pDir ) { return pDir->m_name.comparei( intermediateName ) == 0; };
 
             // Try to find an existing directory record
             auto itemIter = eastl::find_if( pCurrentDir->m_directories.begin(), pCurrentDir->m_directories.end(), searchPredicate );
             if ( itemIter != pCurrentDir->m_directories.end() )
             {
-                pCurrentDir = itemIter;
+                pCurrentDir = *itemIter;
             }
             else // Create new directory
             {
-                auto& newDirectory = pCurrentDir->m_directories.emplace_back( DirectoryInfo() );
-                newDirectory.m_name = splitPath[i];
-                newDirectory.m_filePath = directoryPath;
-                newDirectory.m_dataPath = DataPath( newDirectory.m_filePath, m_sourceDataDirPath );
+                DirectoryInfo* pNewDirectory = pCurrentDir->m_directories.emplace_back( EE::New<DirectoryInfo>() );
+                pNewDirectory->m_name = splitPath[i];
+                pNewDirectory->m_filePath = directoryPath;
+                pNewDirectory->m_dataPath = DataPath( pNewDirectory->m_filePath, m_sourceDataDirPath );
 
-                pCurrentDir = &newDirectory;
+                pCurrentDir = pNewDirectory;
             }
         }
 
         //-------------------------------------------------------------------------
 
         return pCurrentDir;
+    }
+
+    void DataFileRegistry::RemoveDirectory( FileSystem::Path const& dirPath )
+    {
+        DirectoryInfo* pParentDirectory = FindDirectory( dirPath.GetParentDirectory() );
+        EE_ASSERT( pParentDirectory != nullptr );
+
+        int32_t const numDirectories = (int32_t) pParentDirectory->m_directories.size();
+        int32_t directoryIdx = InvalidIndex;
+        for ( int32_t i = 0; i < numDirectories; i++ )
+        {
+            if ( pParentDirectory->m_directories[i]->m_filePath == dirPath )
+            {
+                directoryIdx = i;
+                break;
+            }
+        }
+
+        EE_ASSERT( directoryIdx != InvalidIndex );
+        RemoveDirectory( pParentDirectory, directoryIdx );
+    }
+
+    void DataFileRegistry::RemoveDirectory( DirectoryInfo* pParentDirectory, int32_t directoryIdx )
+    {
+        EE_ASSERT( pParentDirectory != nullptr );
+
+        DirectoryInfo* pDirectory = pParentDirectory->m_directories[directoryIdx];
+
+        // Remove all sub-directories
+        while ( !pDirectory->m_directories.empty() )
+        {
+            RemoveDirectory( pDirectory, 0 );
+        }
+
+        // Remove all files
+        RemoveAllFilesFromDirectory( pDirectory );
+
+        // Remove directory
+        EE::Delete( pDirectory );
+        pParentDirectory->m_directories.erase( pParentDirectory->m_directories.begin() + directoryIdx );
+    }
+
+    void DataFileRegistry::RemoveAllFilesFromDirectory( DirectoryInfo* pDirectory, bool fireDeletedEvent )
+    {
+        EE_ASSERT( pDirectory != nullptr );
+
+        while ( !pDirectory->m_files.empty() )
+        {
+            RemoveFileRecord( pDirectory, 0, fireDeletedEvent );
+        }
     }
 
     bool DataFileRegistry::HasFileRecord( FileSystem::Path const& path ) const
@@ -1036,46 +1179,53 @@ namespace EE
         {
             if ( pDirectory->m_files[i]->m_filePath == path )
             {
-                // Remove from file map
-                auto fileMapIter = m_filesPerPath.find( pDirectory->m_files[i]->m_dataPath );
-                if ( fileMapIter != m_filesPerPath.end() )
-                {
-                    m_filesPerPath.erase( fileMapIter );
-                }
-
-                // Remove from categorized resource lists
-                if ( pDirectory->m_files[i]->IsResourceDescriptorFile() )
-                {
-                    ResourceTypeID const typeID = ResourceTypeID( pDirectory->m_files[i]->m_dataFileExtension );
-                    auto iter = m_resourcesPerType.find( typeID );
-                    if ( iter != m_resourcesPerType.end() )
-                    {
-                        TVector<FileInfo*>& category = iter->second;
-                        category.erase_first_unsorted( pDirectory->m_files[i] );
-                    }
-                }
-                else if ( pDirectory->m_files[i]->IsDataFile() )
-                {
-                    auto iter = m_dataFilesPerExtension.find( pDirectory->m_files[i]->m_dataFileExtension );
-                    if ( iter != m_dataFilesPerExtension.end() )
-                    {
-                        TVector<FileInfo*>& category = iter->second;
-                        category.erase_first_unsorted( pDirectory->m_files[i] );
-                    }
-                }
-
-                // Fire event
-                if ( fireDeletedEvent )
-                {
-                    m_fileDeletedEvent.Execute( pDirectory->m_files[i]->m_dataPath );
-                }
-
-                // Destroy record
-                EE::Delete( pDirectory->m_files[i] );
-                pDirectory->m_files.erase_unsorted( pDirectory->m_files.begin() + i );
+                RemoveFileRecord( pDirectory, i );
                 return;
             }
         }
+    }
+
+    void DataFileRegistry::RemoveFileRecord( DirectoryInfo* pDirectory, int32_t fileIdx, bool fireDeletedEvent )
+    {
+        EE_ASSERT( pDirectory != nullptr );
+
+        // Remove from file map
+        auto fileMapIter = m_filesPerPath.find( pDirectory->m_files[fileIdx]->m_dataPath );
+        if ( fileMapIter != m_filesPerPath.end() )
+        {
+            m_filesPerPath.erase( fileMapIter );
+        }
+
+        // Remove from categorized resource lists
+        if ( pDirectory->m_files[fileIdx]->IsResourceDescriptorFile() )
+        {
+            ResourceTypeID const typeID = ResourceTypeID( pDirectory->m_files[fileIdx]->m_dataFileExtension );
+            auto iter = m_resourcesPerType.find( typeID );
+            if ( iter != m_resourcesPerType.end() )
+            {
+                TVector<FileInfo*>& category = iter->second;
+                category.erase_first_unsorted( pDirectory->m_files[fileIdx] );
+            }
+        }
+        else if ( pDirectory->m_files[fileIdx]->IsDataFile() )
+        {
+            auto iter = m_dataFilesPerExtension.find( pDirectory->m_files[fileIdx]->m_dataFileExtension );
+            if ( iter != m_dataFilesPerExtension.end() )
+            {
+                TVector<FileInfo*>& category = iter->second;
+                category.erase_first_unsorted( pDirectory->m_files[fileIdx] );
+            }
+        }
+
+        // Fire event
+        if ( fireDeletedEvent )
+        {
+            m_fileDeletedEvent.Execute( pDirectory->m_files[fileIdx]->m_dataPath );
+        }
+
+        // Destroy record
+        EE::Delete( pDirectory->m_files[fileIdx] );
+        pDirectory->m_files.erase_unsorted( pDirectory->m_files.begin() + fileIdx );
     }
 
     // Watcher Events
@@ -1094,6 +1244,9 @@ namespace EE
         // Process events
         //-------------------------------------------------------------------------
 
+        bool rebuildDependencyCache = false;
+        bool notifyDependencyCacheUpdated = false;
+
         {
             Threading::ScopeLockWrite const sw( m_mutex );
 
@@ -1103,7 +1256,12 @@ namespace EE
                 {
                     case FileSystem::Watcher::Event::FileCreated:
                     {
-                        AddFileRecord( fsEvent.m_path, true );
+                        auto pFile = AddFileRecord( fsEvent.m_path, true );
+                        if ( pFile->HasLoadedDataFile() )
+                        {
+                            pFile->BuildDependencyCache( *m_pTypeRegistry, m_sourceDataDirPath );
+                            notifyDependencyCacheUpdated = true;
+                        }
                     }
                     break;
 
@@ -1112,6 +1270,7 @@ namespace EE
                     case FileSystem::Watcher::Event::FileDeleted:
                     {
                         RemoveFileRecord( fsEvent.m_path );
+                        rebuildDependencyCache = true;
                     }
                     break;
 
@@ -1128,6 +1287,7 @@ namespace EE
                         }
 
                         AddFileRecord( fsEvent.m_path, true );
+                        rebuildDependencyCache = true;
                     }
                     break;
 
@@ -1141,12 +1301,19 @@ namespace EE
                         int32_t const numFiles = (int32_t) pDirectory->m_files.size();
                         for ( int32_t i = 0; i < numFiles; i++ )
                         {
-                            if ( pDirectory->m_files[i]->m_filePath == fsEvent.m_path )
+                            auto pFile = pDirectory->m_files[i];
+                            if ( pFile->m_filePath == fsEvent.m_path )
                             {
-                                if ( pDirectory->m_files[i]->IsResourceDescriptorFile() || pDirectory->m_files[i]->IsDataFile() )
+                                if ( pFile->IsResourceDescriptorFile() || pFile->IsDataFile() )
                                 {
                                     Log log;
-                                    pDirectory->m_files[i]->ReloadDataFile( *m_pTypeRegistry, log );
+                                    pFile->ReloadDataFile( *m_pTypeRegistry, log );
+
+                                    if ( pFile->HasLoadedDataFile() )
+                                    {
+                                        pFile->BuildDependencyCache( *m_pTypeRegistry, m_sourceDataDirPath );
+                                        notifyDependencyCacheUpdated = true;
+                                    }
                                 }
 
                                 break;
@@ -1178,6 +1345,8 @@ namespace EE
                                 AddFileRecord( filePath, true );
                             }
                         }
+
+                        rebuildDependencyCache = true;
                     }
                     break;
 
@@ -1185,19 +1354,10 @@ namespace EE
 
                     case FileSystem::Watcher::Event::DirectoryDeleted:
                     {
-                        auto pParentDirectory = FindDirectory( fsEvent.m_path.GetParentDirectory() );
-                        EE_ASSERT( pParentDirectory != nullptr );
-
-                        int32_t const numDirectories = (int32_t) pParentDirectory->m_directories.size();
-                        for ( int32_t i = 0; i < numDirectories; i++ )
+                        if ( FindDirectory( fsEvent.m_path ) != nullptr )
                         {
-                            if ( pParentDirectory->m_directories[i].m_filePath == fsEvent.m_path )
-                            {
-                                // Delete all children and remove directory
-                                pParentDirectory->m_directories[i].Clear();
-                                pParentDirectory->m_directories.erase_unsorted( pParentDirectory->m_directories.begin() + i );
-                                break;
-                            }
+                            RemoveDirectory( fsEvent.m_path );
+                            rebuildDependencyCache = true;
                         }
                     }
                     break;
@@ -1229,7 +1389,7 @@ namespace EE
                             int32_t const numOldDirectories = (int32_t) pOldParentDirectory->m_directories.size();
                             for ( int32_t i = 0; i < numOldDirectories; i++ )
                             {
-                                if ( pOldParentDirectory->m_directories[i].m_filePath == fsEvent.m_oldPath )
+                                if ( pOldParentDirectory->m_directories[i]->m_filePath == fsEvent.m_oldPath )
                                 {
                                     pNewParentDirectory->m_directories.emplace_back( pOldParentDirectory->m_directories[i] );
                                     pOldParentDirectory->m_directories.erase_unsorted( pOldParentDirectory->m_directories.begin() + i );
@@ -1243,7 +1403,7 @@ namespace EE
                             // Update directory
                             //-------------------------------------------------------------------------
 
-                            pDirectory = &pNewParentDirectory->m_directories.back();
+                            pDirectory = pNewParentDirectory->m_directories.back();
                         }
                         else
                         {
@@ -1254,6 +1414,8 @@ namespace EE
 
                         EE_ASSERT( pDirectory != nullptr );
                         pDirectory->ChangePath( m_sourceDataDirPath, fsEvent.m_path );
+
+                        rebuildDependencyCache = true;
                     }
                     break;
 
@@ -1279,9 +1441,18 @@ namespace EE
         // Dispatch Notifications
         //-------------------------------------------------------------------------
 
-        if ( m_fileCacheUpdatedEvent.HasBoundUsers() )
+        m_fileCacheUpdatedEvent.Execute();
+
+        // Rebuild dependency cache
+        //-------------------------------------------------------------------------
+
+        if ( rebuildDependencyCache )
         {
-            m_fileCacheUpdatedEvent.Execute();
+            StartDependencyCacheBuild();
+        }
+        else if ( notifyDependencyCacheUpdated )
+        {
+            m_dependencyCacheUpdatedEvent.Execute();
         }
     }
 }

@@ -8,8 +8,6 @@ namespace EE::Import
 {
     class EE_ENGINETOOLS_API Image : public ImportedData
     {
-        friend struct Importer;
-        friend struct ImporterAccessor;
 
     public:
 

@@ -280,7 +280,8 @@ namespace EE
         ImGui::BeginGroup();
 
         static ImGuiTextFilter filter;
-        filter.Draw( "##EntityFilter", 300 );
+        ImGui::SetNextItemWidth( 300 );
+        filter.Draw( "##EntityFilter" );
 
         ImGui::SetNextWindowBgAlpha( 0.5f );
         if ( ImGui::BeginChild( ImGui::GetID( (void*) (intptr_t) 0 ), ImVec2( 300, -1 ), true, 0 ) )

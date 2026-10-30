@@ -7,6 +7,9 @@
 #include "Base/Math/Transform.h"
 #include "Base/Math/Matrix43.h"
 
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
+#include "Engine/Render/Shaders/Renderer/LightInstance.esh"
+#include "Engine/Render/Shaders/Renderer/ShadowProjection.esh"
 #include "Engine/Render/Shaders/Renderer/WorldUpdate.esh"
 
 namespace EE::Render
@@ -173,6 +176,54 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
+    static ShaderTypes::Transform PackDecalTransform( Transform const& decalWorldTransform, Float3 const& inverseScale )
+    {
+        ShaderTypes::Transform packedTransform = {};
+
+        Float3 const translation = decalWorldTransform.GetTranslation().ToFloat3();
+        packedTransform.m_translation[0] = -translation.m_x;
+        packedTransform.m_translation[1] = -translation.m_y;
+        packedTransform.m_translation[2] = -translation.m_z;
+
+        Quaternion const rotation = decalWorldTransform.GetRotation().GetConjugate();
+        packedTransform.m_rotation[0] = rotation.GetX();
+        packedTransform.m_rotation[1] = rotation.GetY();
+        packedTransform.m_rotation[2] = rotation.GetZ();
+        packedTransform.m_rotation[3] = rotation.GetW();
+
+        packedTransform.m_scale[0] = inverseScale.m_x;
+        packedTransform.m_scale[1] = inverseScale.m_y;
+        packedTransform.m_scale[2] = inverseScale.m_z;
+
+        return packedTransform;
+    }
+
+    void DecalInstanceProxy::WriteDecal( Transform const& decalWorldTransform, Float3 const& inverseScale, Color tint, float opacity, float tiling, float shapeRadius, float heightOffset, uint32_t packedEmissiveColor )
+    {
+        EE_ASSERT( m_pUpdateCounter != nullptr );
+        EE_ASSERT( IsValid() );
+
+        uint64_t updateSequence = *m_pUpdateSequence;
+        if ( m_dstUpdateIndex == ~0 || m_dstUpdateSequence != updateSequence )
+        {
+            m_dstUpdateIndex = m_pUpdateCounter->fetch_add( 1 );
+            m_dstUpdateSequence = updateSequence;
+        }
+
+        ShaderTypes::DecalInstanceUpdateCommand decalUpdateCommand = {};
+        decalUpdateCommand.m_instanceID = uint32_t( m_instanceHandle.m_offset );
+        decalUpdateCommand.m_transform = PackDecalTransform( decalWorldTransform, inverseScale );
+        decalUpdateCommand.m_tiling = tiling;
+        decalUpdateCommand.m_shapeRadius = shapeRadius;
+        decalUpdateCommand.m_heightOffset = Math::FloatToHalf( Math::Clamp( heightOffset, -1.0F, 1.0F ) );
+        decalUpdateCommand.m_packedTintedColor = ( tint.ToUInt32() & 0x00FFFFFF ) | ( ( uint32_t( Math::Clamp( opacity, 0.0F, 1.0F ) * 255.0F + 0.5F ) & 0xFF ) << 24 );
+        decalUpdateCommand.m_packedEmissiveColor = packedEmissiveColor;
+
+        *( m_pDstUpdateCommands + m_dstUpdateIndex ) = decalUpdateCommand;
+    }
+
+    //-------------------------------------------------------------------------
+
     static_assert( sizeof( Transform ) == sizeof( ShaderTypes::SkinningTransform ) );
 
     void SkinningProxy::WriteTransforms( TArrayView<Transform const> boneTransforms, TArrayView<Transform const> inverseBindPose )
@@ -286,6 +337,7 @@ namespace EE::Render
 
         renderView.m_renderViewFlags = renderViewFlags;
         renderView.m_renderViewLayerFlags = renderViewLayerFlags;
+        renderView.m_rendererGlobalFlags = ShaderTypes::g_rendererGlobalFlagNone;
 
         renderView.m_projectionP00 = projectionMatrix.m_values[0][0];
         renderView.m_projectionP11 = projectionMatrix.m_values[1][1];
@@ -320,7 +372,7 @@ namespace EE::Render
             renderTargetSize4,
             viewVolume.GetDepthRange().m_begin,
             renderViewFlags,
-            ShaderTypes::RENDER_VIEW_LAYER_FLAG_FORWARD_SHADING
+            ShaderTypes::g_renderViewLayerFlagForwardShading
         );
 
         WriteRenderView( viewIndex, renderView );
@@ -343,8 +395,8 @@ namespace EE::Render
         renderView.m_renderTargetSize[2] = renderTargetSize.m_z;
         renderView.m_renderTargetSize[3] = renderTargetSize.m_w;
 
-        renderView.m_renderViewFlags = ShaderTypes::RENDER_VIEW_FLAG_DEPTH_ONLY | ShaderTypes::RENDER_VIEW_FLAG_SHADOW_FACE;
-        renderView.m_renderViewLayerFlags = ShaderTypes::RENDER_VIEW_LAYER_FLAG_SHADOW_MAP;
+        renderView.m_renderViewFlags = ShaderTypes::g_renderViewFlagDepthOnly | ShaderTypes::g_renderViewFlagShadowFace;
+        renderView.m_renderViewLayerFlags = ShaderTypes::g_renderViewLayerFlagShadowMap;
 
         renderView.m_znear = ShaderTypes::PunctualShadowNearPlane( maxRadius );
 
@@ -379,8 +431,8 @@ namespace EE::Render
             viewProjectionMatrix,
             PackRenderTargetSize( resolution ),
             nearPlane,
-            ShaderTypes::RENDER_VIEW_FLAG_DEPTH_ONLY,
-            ShaderTypes::RENDER_VIEW_LAYER_FLAG_SHADOW_MAP
+            ShaderTypes::g_renderViewFlagDepthOnly,
+            ShaderTypes::g_renderViewLayerFlagShadowMap
         );
 
         WriteRenderView( viewIndex, renderView );
@@ -399,8 +451,8 @@ namespace EE::Render
             viewProjectionMatrix,
             PackRenderTargetSize( resolution ),
             znear,
-            ShaderTypes::RENDER_VIEW_FLAG_DEPTH_ONLY,
-            ShaderTypes::RENDER_VIEW_LAYER_FLAG_SHADOW_MAP
+            ShaderTypes::g_renderViewFlagDepthOnly,
+            ShaderTypes::g_renderViewLayerFlagShadowMap
         );
 
         WriteRenderView( viewIndex, renderView );
@@ -448,9 +500,11 @@ namespace EE::Render
             viewProjectionMatrix,
             PackRenderTargetSize( resolution ),
             znear,
-            ShaderTypes::RENDER_VIEW_FLAG_NONE,
-            ShaderTypes::RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP
+            ShaderTypes::g_renderViewFlagNone,
+            ShaderTypes::g_renderViewLayerFlagGlobalEnvironmentMap
         );
+
+        renderView.m_rendererGlobalFlags |= ShaderTypes::g_rendererGlobalFlagDisableDecals;
 
         WriteRenderView( viewIndex, renderView );
     }

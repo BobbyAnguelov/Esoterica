@@ -51,7 +51,7 @@ namespace EE
     protected:
 
         // Get the required extension/type to display in the preview
-        virtual TInlineString<7> GetPreviewLabel() const;
+        virtual TInlineString<9> GetPreviewLabel() const;
 
         // Get the color for the preview label
         virtual Color GetPreviewColor() const { return ImGuiX::Style::s_colorText; }
@@ -163,7 +163,7 @@ namespace EE
 
     private:
 
-        virtual TInlineString<7> GetPreviewLabel() const override;
+        virtual TInlineString<9> GetPreviewLabel() const override;
         virtual Color GetPreviewColor() const override;
         virtual bool ValidateDataPath( DataPath const& path ) override;
         virtual void GenerateDataPathOptions() override;

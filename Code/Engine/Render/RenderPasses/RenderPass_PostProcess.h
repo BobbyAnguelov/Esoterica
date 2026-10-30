@@ -24,6 +24,8 @@ namespace EE::Render
                              DeviceTextureState&        hdrTexture,
                              DeviceTextureState&        depthTexture ) const;
 
+        //-------------------------------------------------------------------------
+
     private:
 
         RHI::Pipeline* m_pPipelineCombined = nullptr;

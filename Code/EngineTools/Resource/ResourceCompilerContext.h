@@ -104,12 +104,12 @@ namespace EE::Resource
 
     public:
 
-        CompileContext( ResourceID resourceID, TypeSystem::TypeRegistry const& typeRegistry, CompiledResourceDatabase& compiledResourceDB, CompilerRegistry const& compilerRegistry, FileSystem::Path const& sourceResourceDirectoryPath, FileSystem::Path const& compiledResourceDirectoryPath, Platform::Target platform = Platform::Target::PC, bool isCompilingForShippingBuild = false )
+        CompileContext( ResourceID resourceID, TypeSystem::TypeRegistry const& typeRegistry, CompiledResourceDatabase& compiledResourceDB, CompilerRegistry const& compilerRegistry, FileSystem::Path const& sourceDataDirectoryPath, FileSystem::Path const& compiledResourceDirectoryPath, Platform::Target platform = Platform::Target::PC, bool isCompilingForShippingBuild = false )
             : m_resourceID( resourceID )
             , m_typeRegistry( typeRegistry )
             , m_compiledResourceDB( compiledResourceDB )
             , m_compilerRegistry( compilerRegistry )
-            , m_sourceResourceDirectoryPath( sourceResourceDirectoryPath )
+            , m_sourceDataDirectoryPath( sourceDataDirectoryPath )
             , m_compiledResourceDirectoryPath( compiledResourceDirectoryPath )
             , m_platform( platform )
             , m_isCompilingForShippingBuild( isCompilingForShippingBuild )
@@ -217,7 +217,7 @@ namespace EE::Resource
         TypeSystem::TypeRegistry const&                 m_typeRegistry;
         CompiledResourceDatabase&                       m_compiledResourceDB;
         CompilerRegistry const&                         m_compilerRegistry;
-        FileSystem::Path const                          m_sourceResourceDirectoryPath;
+        FileSystem::Path const                          m_sourceDataDirectoryPath;
         FileSystem::Path const                          m_compiledResourceDirectoryPath;
         Platform::Target const                          m_platform = Platform::Target::PC;
         bool const                                      m_isCompilingForShippingBuild = false;

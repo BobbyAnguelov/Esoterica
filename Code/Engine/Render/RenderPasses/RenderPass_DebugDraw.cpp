@@ -253,7 +253,7 @@ namespace EE::Render
         TArray<RHI::TextureHandle, 2>               fontTextureHandles,
         Float2                                      fontPixelSize,
         Viewport const&                             viewport,
-        TArrayView<TextCommand const>               textCommands 
+        TArrayView<TextCommand const>               textCommands
     )
     {
         EE_PROFILE_FUNCTION_RENDER();
@@ -295,7 +295,7 @@ namespace EE::Render
         TArray<TVector<uint8_t>, 2>&                fontCaches,
         Float2                                      fontPixelSize,
         Viewport const&                             viewport,
-        TArrayView<TextCommand const>               textCommands 
+        TArrayView<TextCommand const>               textCommands
     )
     {
         EE_PROFILE_FUNCTION_RENDER();
@@ -477,11 +477,9 @@ namespace EE::Render
         uint64_t&                                   dstParametersDeviceAddress,
         DebugMeshRegistry const*                    pDebugMeshRegistry,
         MeshCommand const&                          meshCommand,
-        RHI::BufferHandle                           renderViewBuffer,
-        uint32_t                                    mainCameraViewIndex,
         uint64_t                                    pickingResultsBufferHandle,
         uint32_t                                    pickingSortPriority,
-        uint64_t                                    debugParametersDeviceAddress,
+        uint64_t                                    globalParametersDeviceAddress,
         uint32_t                                    objectID = ~0U
     )
     {
@@ -493,9 +491,7 @@ namespace EE::Render
         }
 
         ShaderTypes::DebugDrawMeshRootConstant meshRootConstant = {};
-        meshRootConstant.m_renderViewBuffer = renderViewBuffer;
         meshRootConstant.m_meshBuffer = RHI::GetBufferHandle( pDebugMesh->m_pMeshBuffer, RHI::DescriptorTypeFlags::Buffer );
-        meshRootConstant.m_mainCameraRenderView = mainCameraViewIndex;
         meshRootConstant.m_packedColorTint = meshCommand.m_tintColor;
         meshRootConstant.m_wireframe = meshCommand.m_isWireframe;
         meshRootConstant.m_fakeLighting = meshCommand.m_useFakeLighting;
@@ -504,7 +500,7 @@ namespace EE::Render
 
         ShaderTypes::DebugDrawMeshArgument meshArgument = {};
         meshArgument.m_rootConstant = meshRootConstant;
-        meshArgument.m_rootCBV = debugParametersDeviceAddress;
+        meshArgument.m_rootCBV = globalParametersDeviceAddress;
         meshArgument.m_rootSRV = dstParametersDeviceAddress;
         meshArgument.m_dispatchArguments[0] = pDebugMesh->m_numClusters;
         meshArgument.m_dispatchArguments[1] = 1;
@@ -802,10 +798,13 @@ namespace EE::Render
         m_pDebugMeshRegistry->UpdateDeviceResources();
     }
 
-    void DebugDrawRenderPass::UpdateViewportDeviceResources( RenderSystem* pRenderSystem,
-                                                             DeviceRenderWorld const& deviceRenderWorld,
-                                                             DebugDrawSystem* pDebugDrawingSystem, Seconds const deltaTime,
-                                                             RenderViewport* pRenderViewport )
+    void DebugDrawRenderPass::UpdateViewportDeviceResources
+    (
+        RenderSystem* pRenderSystem,
+        DebugDrawSystem* pDebugDrawingSystem,
+        Seconds const deltaTime,
+        RenderViewport* pRenderViewport
+    )
     {
         uint32_t            frameIndex = pRenderSystem->GetFrameIndex();
         RHI::Context*       pContextRHI = pRenderSystem->GetContextRHI();
@@ -1040,19 +1039,6 @@ namespace EE::Render
             EE_ASSERT( pDstCommandsOutline_WriteCombined == pDstCommandsOutlineEnd_WriteCombined );
         }
 
-        if ( !pRenderViewport->m_debugParametersBuffers[frameIndex] )
-        {
-            RHI::BufferParameters debugParameters = {};
-            debugParameters.m_bufferSize = sizeof( ShaderTypes::DebugDrawParameters );
-            debugParameters.m_bufferStride = sizeof( ShaderTypes::DebugDrawParameters );
-            debugParameters.m_memoryType = RHI::ResourceMemoryType::HostToDevice;
-            debugParameters.m_descriptorTypes = RHI::DescriptorTypeFlags::ConstantBuffer;
-            debugParameters.m_flags = RHI::BufferFlags::PersistentMap;
-            debugParameters.m_debugName.sprintf( "RenderPass_DebugDraw DebugParameters %i", frameIndex );
-
-            pRenderViewport->m_debugParametersBuffers[frameIndex] = RHI::CreateBuffer( pContextRHI, debugParameters );
-        }
-
         //-------------------------------------------------------------------------
 
         auto UpdateBuffer_DebugMeshTransform = [pContextRHI, frameIndex] ( RHI::Buffer* && pOldBuffer, size_t newBufferSize )
@@ -1132,28 +1118,6 @@ namespace EE::Render
         } );
 
         pRenderViewport->m_debugDrawPickingResultsBuffer.UpdateBuffers( pRenderSystem, frameIndex, sizeof( ShaderTypes::PickingResult ), RHI::DescriptorTypeFlags::RWBuffer );
-
-        //-------------------------------------------------------------------------
-
-        Math::ViewVolume const& viewVolume = pRenderViewport->GetViewVolume();
-
-        alignas( 32 ) ShaderTypes::DebugDrawParameters debugDrawParameters = {};
-        viewVolume.GetViewPosition().StoreFloat3( debugDrawParameters.m_cameraPosition );
-        viewVolume.GetViewForwardVector().StoreFloat3( debugDrawParameters.m_cameraForwardDirection );
-        viewVolume.GetViewUpVector().StoreFloat3( debugDrawParameters.m_cameraUpDirection );
-        viewVolume.GetViewRightVector().StoreFloat3( debugDrawParameters.m_cameraRightDirection );
-
-        debugDrawParameters.m_objectIDOffset = deviceRenderWorld.GetNumMeshInstanceRootPages() * 64;
-
-        Vector mouseClipSpace = pRenderViewport->ScreenSpaceToClipSpace( pRenderViewport->m_lastKnownPickingMousePosition );
-        float pickingRadiusClipSpace = float( pRenderViewport->m_lastKnownPickingPixelRadius ) / pRenderViewport->GetDimensions().GetMax();
-
-        debugDrawParameters.m_pickingInput[0] = mouseClipSpace.GetX();
-        debugDrawParameters.m_pickingInput[1] = mouseClipSpace.GetY();
-        debugDrawParameters.m_pickingInput[2] = pickingRadiusClipSpace;
-        debugDrawParameters.m_pickingInput[3] = 0.0F;
-
-        Memory::CopyToWriteCombined( pRenderViewport->m_debugParametersBuffers[frameIndex]->m_pMappedAddress_WriteCombined, &debugDrawParameters, sizeof( ShaderTypes::DebugDrawParameters ) );
     }
 
     void DebugDrawRenderPass::ClearBuffers( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex )
@@ -1165,10 +1129,7 @@ namespace EE::Render
     }
 
     void DebugDrawRenderPass::DrawToViewport( RenderViewport const*     pRenderViewport,
-                                              DeviceRenderWorld const&  deviceRenderWorld,
                                               DeviceTextureState&       finalRenderTarget,
-                                              RHI::BufferHandle         renderViewBuffer,
-                                              uint32_t                  mainCameraViewIndex,
                                               DeviceResourceStates&     resourceStates,
                                               RHI::CommandBuffer*       pCommandBuffer,
                                               uint32_t                  frameIndex )
@@ -1222,8 +1183,6 @@ namespace EE::Render
                     this,
                     &fontTextureHandles,
                     frameIndex,
-                    renderViewBuffer,
-                    mainCameraViewIndex,
                     pRenderViewport,
                     &numValidMeshCommandsPerBucket
                 ] ( CommandBuffer const& commandBuffer )
@@ -1276,11 +1235,9 @@ namespace EE::Render
                         dstParametersDeviceAddress,
                         m_pDebugMeshRegistry,
                         meshCommand,
-                        renderViewBuffer,
-                        mainCameraViewIndex,
                         pRenderViewport->m_debugDrawPickingResultsBuffer.GetAppendBufferHandle(),
                         m_depthBuckets[dstBucketIndex].m_pickingSortPriority,
-                        pRenderViewport->m_debugParametersBuffers[frameIndex]->m_deviceAddress
+                        pRenderViewport->m_globalParametersBuffers[frameIndex]->m_deviceAddress
                     );
 
                     if ( validMesh )
@@ -1323,10 +1280,8 @@ namespace EE::Render
 
         ShaderTypes::DebugDrawResourceTableData debugDrawRootConstant = {};
         debugDrawRootConstant.SetDebugDrawCommandsBuffer( RHI::GetBufferHandle( pRenderViewport->m_debugCommandsBuffers[frameIndex].m_pBuffer, RHI::DescriptorTypeFlags::Buffer ) );
-        debugDrawRootConstant.SetRenderViewBuffer( renderViewBuffer );
 
         debugDrawRootConstant.SetPickingResultsBuffer( pRenderViewport->m_debugDrawPickingResultsBuffer.GetAppendBufferHandle() );
-        debugDrawRootConstant.m_mainCameraRenderView = mainCameraViewIndex;
 
         debugDrawRootConstant.m_commandsOffset = 0;
 
@@ -1342,10 +1297,7 @@ namespace EE::Render
         debugDrawResolveRootConstant.SetArgumentBuffer_TransparentDepthOff( m_depthBuckets[DEPTH_TEST_SEPARATE_WRITE].m_pArgumentBuffer );
         resourceStates.FlushBarriers( pCommandBuffer );
 
-        debugDrawResolveRootConstant.SetRenderViewBuffer( renderViewBuffer );
-        debugDrawResolveRootConstant.SetDebugParametersBufferAddress( pRenderViewport->m_debugParametersBuffers[frameIndex]->m_deviceAddress );
-
-        debugDrawResolveRootConstant.m_mainCameraRenderView = mainCameraViewIndex;
+        debugDrawResolveRootConstant.SetGlobalParametersBufferAddress( pRenderViewport->m_globalParametersBuffers[frameIndex]->m_deviceAddress );
 
         RHI::CmdSetPipeline( pCommandBuffer, m_pDebugDrawResolveShader->m_pPipeline );
         RHI::CmdSetRootConstants( pCommandBuffer, 0, &debugDrawResolveRootConstant, sizeof( debugDrawResolveRootConstant ) );
@@ -1399,7 +1351,7 @@ namespace EE::Render
 
             RHI::CmdSetPipeline( pCommandBuffer, m_pTransparentDepthOnDepthPipeline );
             RHI::CmdSetRootConstants( pCommandBuffer, 0, &debugDrawRootConstant, sizeof( debugDrawRootConstant ) );
-            RHI::CmdSetRootParameter( pCommandBuffer, 1, pRenderViewport->m_debugParametersBuffers[frameIndex], 0 );
+            RHI::CmdSetRootParameter( pCommandBuffer, 1, pRenderViewport->m_globalParametersBuffers[frameIndex], 0 );
 
             if ( numCommands )
             {
@@ -1423,7 +1375,7 @@ namespace EE::Render
 
             RHI::CmdSetPipeline( pCommandBuffer, m_pTransparentDepthOnColorPipeline );
             RHI::CmdSetRootConstants( pCommandBuffer, 0, &debugDrawRootConstant, sizeof( debugDrawRootConstant ) );
-            RHI::CmdSetRootParameter( pCommandBuffer, 1, pRenderViewport->m_debugParametersBuffers[frameIndex], 0 );
+            RHI::CmdSetRootParameter( pCommandBuffer, 1, pRenderViewport->m_globalParametersBuffers[frameIndex], 0 );
 
             if ( numCommands )
             {
@@ -1475,7 +1427,7 @@ namespace EE::Render
 
             RHI::CmdSetPipeline( pCommandBuffer, m_pTransparentDepthOnNoWriteColorPipeline );
             RHI::CmdSetRootConstants( pCommandBuffer, 0, &debugDrawRootConstant, sizeof( debugDrawRootConstant ) );
-            RHI::CmdSetRootParameter( pCommandBuffer, 1, pRenderViewport->m_debugParametersBuffers[frameIndex], 0 );
+            RHI::CmdSetRootParameter( pCommandBuffer, 1, pRenderViewport->m_globalParametersBuffers[frameIndex], 0 );
 
             if ( numCommands )
             {
@@ -1565,8 +1517,6 @@ namespace EE::Render
     void DebugDrawRenderPass::DrawOutlineToViewport
     (
         RenderViewport const*   pRenderViewport,
-        RHI::BufferHandle       renderViewBuffer,
-        uint32_t                mainCameraViewIndex,
         uint32_t                objectIDOffset,
         DeviceResourceStates&   resourceStates,
         RHI::CommandBuffer*     pCommandBuffer,
@@ -1618,11 +1568,9 @@ namespace EE::Render
                          dstParametersDeviceAddress,
                          m_pDebugMeshRegistry,
                          meshCommand,
-                         renderViewBuffer,
-                         mainCameraViewIndex,
                          pRenderViewport->m_debugDrawPickingResultsBuffer.GetAppendBufferHandle(),
                          m_depthBuckets[DEPTH_TEST_ON_WRITE].m_pickingSortPriority,
-                         pRenderViewport->m_debugParametersBuffers[frameIndex]->m_deviceAddress,
+                         pRenderViewport->m_globalParametersBuffers[frameIndex]->m_deviceAddress,
                          objectIDOffset + numValidMeshCommands
                     );
 
@@ -1658,16 +1606,14 @@ namespace EE::Render
             {
                 ShaderTypes::DebugDrawResourceTableData debugDrawRootConstant = {};
                 debugDrawRootConstant.SetDebugDrawCommandsBuffer( RHI::GetBufferHandle( pRenderViewport->m_debugCommandsBuffersOutline[frameIndex].m_pBuffer, RHI::DescriptorTypeFlags::Buffer ) );
-                debugDrawRootConstant.SetRenderViewBuffer( renderViewBuffer );
                 debugDrawRootConstant.SetPickingResultsBuffer( pRenderViewport->m_debugDrawPickingResultsBuffer.GetAppendBufferHandle() );
-                debugDrawRootConstant.m_mainCameraRenderView = mainCameraViewIndex;
                 debugDrawRootConstant.m_commandsOffset = 0;
                 debugDrawRootConstant.m_numDebugDrawCommands = numCommands;
                 debugDrawRootConstant.m_pickingSortPriority = m_depthBuckets[DEPTH_TEST_ON_WRITE].m_pickingSortPriority;
 
                 RHI::CmdSetPipeline( pCommandBuffer, m_pOutlinePipeline );
                 RHI::CmdSetRootConstants( pCommandBuffer, 0, &debugDrawRootConstant, sizeof( debugDrawRootConstant ) );
-                RHI::CmdSetRootParameter( pCommandBuffer, 1, pRenderViewport->m_debugParametersBuffers[frameIndex], 0 );
+                RHI::CmdSetRootParameter( pCommandBuffer, 1, pRenderViewport->m_globalParametersBuffers[frameIndex], 0 );
 
                 RHI::CmdDispatchMesh( pCommandBuffer, ( numCommands + 63 ) / 64, 1, 1 );
             }

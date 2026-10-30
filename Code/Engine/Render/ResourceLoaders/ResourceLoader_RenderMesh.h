@@ -1,8 +1,10 @@
 #pragma once
 
-#include "Engine/_Module/API.h"
 #include "Base/Resource/ResourceLoader.h"
-#include "Base/Render/RHI.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE::TypeSystem { class TypeRegistry; }
 
 //-------------------------------------------------------------------------
 
@@ -10,6 +12,7 @@ namespace EE::Render
 {
     class Mesh;
     class RenderSystem;
+    class SkeletalMesh;
 
     //-------------------------------------------------------------------------
 
@@ -19,11 +22,11 @@ namespace EE::Render
 
         MeshLoader();
 
-        inline void SetRenderSystem( RenderSystem* pRenderSystem )
-        {
-            EE_ASSERT( !m_pRenderSystem );
-            m_pRenderSystem = pRenderSystem;
-        }
+        inline void SetRenderSystemPtr( RenderSystem* pRenderSystem ) { EE_ASSERT( pRenderSystem != nullptr ); m_pRenderSystem = pRenderSystem; }
+        inline void ClearRenderSystemPtr() { m_pRenderSystem = nullptr; }
+
+        inline void SetTypeRegistryPtr( TypeSystem::TypeRegistry const* pTypeRegistry ) { EE_ASSERT( pTypeRegistry != nullptr ); m_pTypeRegistry = pTypeRegistry; }
+        inline void ClearTypeRegistryPtr() { m_pTypeRegistry = nullptr; }
 
     private:
 
@@ -33,9 +36,13 @@ namespace EE::Render
         virtual Resource::UnloadResult Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const override;
 
         virtual Resource::LoadResult Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const override;
+        virtual Resource::UnloadResult Uninstall( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const override;
 
-        //-------------------------------------------------------------------------
+        void LoadAndCreateProceduralBoneSettings( SkeletalMesh* pSkeletalMesh, Serialization::BinaryInputArchive* pArchive ) const;
 
-        RenderSystem* m_pRenderSystem = nullptr;
+    private:
+
+        RenderSystem*                       m_pRenderSystem = nullptr;
+        TypeSystem::TypeRegistry const*     m_pTypeRegistry = nullptr;
     };
 }

@@ -11,18 +11,25 @@ namespace EE::Render
 
     struct SMAAPass final
     {
+    public:
+
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );
 
         void UpdateViewportDeviceResources( RenderSystem* pRenderSystem, RenderViewport* pRenderViewport );
 
-        void DrawToViewport( RenderViewport const*                  pRenderViewport,
-                             DeviceResourceStates&                  resourceStates,
-                             RHI::CommandBuffer*                    pCommandBuffer,
-                             RHI::Texture*                          pSMAAAreaTexture,
-                             RHI::Texture*                          pSMAASearchTexture ) const;
+        void DrawToViewport
+        (
+            RenderViewport const*   pRenderViewport,
+            DeviceResourceStates&   resourceStates,
+            RHI::CommandBuffer*     pCommandBuffer,
+            RHI::Texture*           pSMAAAreaTexture,
+            RHI::Texture*           pSMAASearchTexture
+        ) const;
 
         //-------------------------------------------------------------------------
+
+    public:
 
         RHI::Pipeline*      m_pPipelineEdgeDetection = nullptr;
         RHI::Pipeline*      m_pPipelineBlendingWeightCalculation = nullptr;

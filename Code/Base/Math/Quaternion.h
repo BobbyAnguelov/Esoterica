@@ -157,15 +157,34 @@ namespace EE
             return Quaternion::Distance( *this, rhs ) <= threshold;
         }
 
-        inline Radians GetTwistAngle() const;
-
-        inline Radians GetSwingAngle() const;
-
         // Exact equality
         inline bool operator==( Quaternion const& rhs ) const { return AsVector() == rhs.AsVector(); }
 
         // Exact equality
         inline bool operator!=( Quaternion const& rhs ) const { return !operator==( rhs ); }
+
+        // Swing-twist decomposition: this = swing * twist (i.e. twist is applied first)
+        //-------------------------------------------------------------------------
+
+        // Get the twist angle of this rotation around the specified axis
+        // The twist is the component of this rotation around the specified axis, the swing is the remainder (a rotation around an axis perpendicular to the twist axis)
+        // For a 180 degree swing the twist is undefined and 0 is returned
+        inline Radians GetTwistAngle( Vector const& axis ) const;
+
+        // Get the swing angle of this rotation relative to the specified twist axis, i.e. the angle of the rotation returned by GetSwing( axis )
+        // The result is always in the range [0, Pi]. Unlike the twist, the swing angle is defined for every rotation (a 180 degree swing returns Pi)
+        inline Radians GetSwingAngle( Vector const& axis ) const;
+
+        // The twist is the component of this rotation around the specified axis, the swing is the remainder (a rotation around an axis perpendicular to the twist axis)
+        // For a 180 degree swing the twist is undefined and identity is returned
+        inline Quaternion GetTwist( Vector const& axis ) const;
+
+        // Get the swing portion of the swing-twist decomposition around the specified twist axis
+        inline Quaternion GetSwing( Vector const& axis ) const;
+
+        // Get the swing-twist decomposition around the specified twist axis
+        // For a 180 degree swing, the twist is undefined and identity is returned
+        inline void GetSwingTwist( Vector const& axis, Quaternion& outSwing, Quaternion& outTwist ) const;
 
     private:
 
@@ -529,27 +548,72 @@ namespace EE
         return result;
     }
 
-    Radians Quaternion::GetTwistAngle() const
+    Radians Quaternion::GetTwistAngle( Vector const& axis ) const
     {
-        // Account for polarity to keep the twist angle in range.
-        // This is simpler than asking the user to check polarity or unwinding.
-        float const z = GetZ();
+        EE_ASSERT( axis.IsNormalized3() );
+
+        float const projected = ToVector().GetDot3( axis );
         float const w = GetW();
-        float twist = w < 0.0f ? Math::ATan2( -z, -w ) : Math::ATan2( z, w );
+
+        // 180 degree swing, the twist is undefined
+        if ( ( projected * projected + w * w ) < Math::Epsilon )
+        {
+            return 0.0f;
+        }
+
+        // Account for polarity to keep the twist angle in range.
+        float twist = w < 0.0f ? Math::ATan2( -projected, -w ) : Math::ATan2( projected, w );
         twist *= 2.0f;
-        EE_ASSERT( -Math::Pi <= twist && twist <= Math::Pi );
         return twist;
     }
 
-    Radians Quaternion::GetSwingAngle() const
+    Radians Quaternion::GetSwingAngle( Vector const& axis ) const
     {
-        Float4 const q = ToFloat4();
+        EE_ASSERT( axis.IsNormalized3() );
 
-        // Polarity should not matter because all terms are squared.
-        float const x = Math::Sqrt( q.m_z * q.m_z + q.m_w * q.m_w );
-        float const y = Math::Sqrt( q.m_x * q.m_x + q.m_y * q.m_y );
-        float const swing = 2.0f * Math::ATan2( y, x );
+        Vector const v = ToVector();
+        float const projected = v.GetDot3( axis );
+        float const w = GetW();
+
+        // cos( swing / 2 ) is the length of the twist component ( axis * projected, w )
+        // sin( swing / 2 ) is the length of what is left of the vector part once the twist component is removed
+        // Polarity does not matter since both terms are lengths, and there is no singularity to guard: a 180 degree swing gives ( 1, 0 ) i.e. Pi
+        float const cosHalfSwing = Math::Sqrt( projected * projected + w * w );
+        float const sinHalfSwing = ( v - ( axis * projected ) ).GetLength3();
+
+        float const swing = 2.0f * Math::ATan2( sinHalfSwing, cosHalfSwing );
         EE_ASSERT( 0.0f <= swing && swing <= Math::Pi );
         return swing;
+    }
+
+    Quaternion Quaternion::GetTwist( Vector const& axis ) const
+    {
+        EE_ASSERT( axis.IsNormalized3() );
+
+        float const projected = ToVector().GetDot3( axis );
+        float const w = GetW();
+
+        // 180 degree swing, the twist is undefined
+        if ( ( projected * projected + w * w ) < Math::Epsilon )
+        {
+            return Quaternion::Identity;
+        }
+
+        Vector const twistVector = axis * projected;
+        Quaternion twist( twistVector.GetX(), twistVector.GetY(), twistVector.GetZ(), w );
+        twist.Normalize();
+        return twist;
+    }
+
+    Quaternion Quaternion::GetSwing( Vector const& axis ) const
+    {
+        return *this * GetTwist( axis ).GetInverse();
+    }
+
+    void Quaternion::GetSwingTwist( Vector const& axis, Quaternion& outSwing, Quaternion& outTwist ) const
+    {
+        Quaternion const q = *this;
+        outTwist = GetTwist( axis );
+        outSwing = q * outTwist.GetInverse();
     }
 }

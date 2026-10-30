@@ -73,6 +73,13 @@ namespace EE::Render
 
         void ResetPose();
 
+        // Procedural Bones
+        //-------------------------------------------------------------------------
+
+        inline bool HasProceduralBones() const { return m_pProceduralBoneSolver != nullptr; }
+        inline bool AreProceduralBonesEnabled() const { return m_proceduralBonesEnabled; }
+        inline void SetProceduralBonesEnabled( bool enabled ) { m_proceduralBonesEnabled = enabled; }
+
         //-------------------------------------------------------------------------
 
         inline TEntityWorldSystemSignal<SkeletalMeshComponent>* GetInstanceDataUpdateSignal() { return &m_instanceDataUpdateSignal; }
@@ -112,6 +119,10 @@ namespace EE::Render
             MeshComponent::WriteInstanceData( GetMesh(), m_skinningProxy.m_bonesHandle.m_offset, bufferData_WriteCombined );
         }
 
+    private:
+
+        void CalculateModelSpaceTransforms();
+
     protected:
 
         EE_REFLECT( Category = "Mesh" );
@@ -124,6 +135,9 @@ namespace EE::Render
         TVector<Transform>                              m_parentSpaceBoneTransforms;
         TVector<Transform>                              m_modelSpaceBoneTransforms;
         bool                                            m_transformsDirty = false;
+
+        class ProceduralBoneSolver*                     m_pProceduralBoneSolver = nullptr;
+        bool                                            m_proceduralBonesEnabled = true;
 
         TEntityWorldSystemSignal<SkeletalMeshComponent> m_instanceDataUpdateSignal;
 

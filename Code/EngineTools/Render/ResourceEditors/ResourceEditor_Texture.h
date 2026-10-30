@@ -20,7 +20,6 @@ namespace EE::Render
 
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { return EE_ICON_IMAGE_OUTLINE; }
-        virtual bool SupportsViewport() const override { return false; }
         virtual void Initialize( UpdateContext const& context ) override;
         virtual void SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual void ExtendViewportToolBar( UpdateContext const& context, Viewport* pViewport ) override;

@@ -22,9 +22,13 @@ namespace EE::Render
 
     struct EE_ENGINE_API DeviceSpatialHash
     {
+    public:
+
         static constexpr uint32_t   s_maxLODs = 6;   // hard maximum, must match g_maxLodLevels in SpatialHash.esh
 
         //-------------------------------------------------------------------------
+
+    public:
 
         static void ComputeDispatchParameters
         (
@@ -33,12 +37,14 @@ namespace EE::Render
             DeviceSpatialHashDispatchParameters outDispatches[s_maxLODs]
         );
 
-        static uint32_t ComputePayloadStride( uint32_t numPointLightPages, uint32_t numSpotLightPages )
+        static uint32_t ComputePayloadStride( uint32_t numPointLightPages, uint32_t numSpotLightPages, uint32_t numDecalPages )
         {
-            return 2 + 2 * Math::Max( numPointLightPages, numSpotLightPages ); // 2 metadata + 2 masks per page
+            return ( 3 * 2 ) + ( 3 * Math::Max( Math::Max( numPointLightPages, numSpotLightPages ), numDecalPages ) );
         }
 
         //-------------------------------------------------------------------------
+
+    public:
 
         void Initialize( RHI::Context* pContextRHI, StringView name, uint32_t tableSize, uint32_t payloadStride );
         void Shutdown( RHI::Context* pContextRHI );
@@ -50,6 +56,8 @@ namespace EE::Render
         uint64_t GetPackedHandleHigh( float baseCellSize ) const;
 
         //-------------------------------------------------------------------------
+
+    public:
 
         String                      m_name;
 

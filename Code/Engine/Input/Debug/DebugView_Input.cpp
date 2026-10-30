@@ -35,11 +35,11 @@ namespace EE::Input
         EE_ASSERT( pDrawList != nullptr );
         Float2 const buttonTopLeft = position;
         Float2 const buttonBottomRight = buttonTopLeft + dimensions;
-        pDrawList->AddRect( buttonTopLeft, buttonBottomRight, buttonColor, g_buttonBorderRounding, g_buttonBorderThickness, ImDrawFlags_RoundCornersAll );
+        pDrawList->AddRect( buttonTopLeft, buttonBottomRight, buttonColor, g_buttonBorderRounding, g_buttonBorderThickness, ImDrawFlags_RoundAll );
 
         if ( IsHeldDown )
         {
-            pDrawList->AddRectFilled( buttonTopLeft + g_buttonBorderOffset, buttonTopLeft + dimensions - g_buttonBorderOffset, pressedColor, g_buttonBorderRounding - 1, ImDrawFlags_RoundCornersAll );
+            pDrawList->AddRectFilled( buttonTopLeft + g_buttonBorderOffset, buttonTopLeft + dimensions - g_buttonBorderOffset, pressedColor, g_buttonBorderRounding - 1, ImDrawFlags_RoundAll );
         }
 
         if ( pLabel != nullptr )
@@ -68,7 +68,7 @@ namespace EE::Input
         Float2 const borderDimensions( dimensions.m_x, dimensions.m_y - ( drawPosition.m_y - position.m_y + 4 ) );
         Float2 const triggerTopLeft = drawPosition;
         Float2 const triggerBottomRight = triggerTopLeft + borderDimensions;
-        pDrawList->AddRect( triggerTopLeft, triggerBottomRight, g_controlOutlineColor, 0.0f, g_buttonBorderThickness, ImDrawFlags_RoundCornersAll );
+        pDrawList->AddRect( triggerTopLeft, triggerBottomRight, g_controlOutlineColor, 0.0f, g_buttonBorderThickness, ImDrawFlags_RoundAll );
 
         // Get Values
         float triggerValue = 0.0f;

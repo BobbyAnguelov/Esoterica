@@ -3,6 +3,7 @@
 #include "EngineTools/_Module/API.h"
 #include "EngineTools/Resource/ResourceDescriptor.h"
 #include "Engine/Render/RenderMaterial.h"
+#include "Engine/Render/RenderDecalMaterial.h"
 #include "Engine/Render/RenderMesh.h"
 #include "Base/Resource/ResourcePtr.h"
 
@@ -67,11 +68,13 @@ namespace EE::Render
     {
         EE_REFLECT_TYPE( MeshMaterialMapping );
 
-        inline static StringID GetMappingID( Mesh::Submesh const& submesh )
+        inline static StringID CreateMappingID( StringID submeshID, StringID materialNameID, uint8_t lodMask )
         {
-            InlineString str( InlineString::CtorSprintf(), "%s/%s/%u", submesh.m_ID.c_str(), submesh.m_materialNameID.c_str(), submesh.m_lodMask );
+            InlineString str( InlineString::CtorSprintf(), "%s/%s/%u", submeshID.c_str(), materialNameID.c_str(), lodMask );
             return StringID( str.c_str() );
         }
+
+        inline static StringID CreateMappingID( Mesh::Submesh const& submesh ) { return CreateMappingID( submesh.m_ID, submesh.m_materialNameID, submesh.m_lodMask ); }
 
     public:
 
@@ -100,6 +103,22 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
+    struct EE_ENGINETOOLS_API MeshDecalDefinition final : public IReflectedType
+    {
+        EE_REFLECT_TYPE( MeshDecalDefinition );
+
+        EE_REFLECT();
+        TResourcePtr<DecalMaterial>     m_material;
+
+        EE_REFLECT();
+        Transform                       m_localTransform = Transform::Identity;
+
+        EE_REFLECT();
+        Float3                          m_nonUniformScale = Float3::One;
+    };
+
+    //-------------------------------------------------------------------------
+
     struct EE_ENGINETOOLS_API MeshResourceDescriptor : public Resource::ResourceDescriptor
     {
         EE_REFLECT_TYPE( MeshResourceDescriptor );
@@ -110,7 +129,7 @@ namespace EE::Render
 
         virtual void Clear() override;
 
-        virtual int32_t GetFileVersion() const override { return 2; }
+        virtual int32_t GetFileVersion() const override { return 3; }
 
         virtual void GetCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<Resource::CompileDependency>& outDependencies ) const override;
 
@@ -134,6 +153,9 @@ namespace EE::Render
 
         EE_REFLECT( ReadOnly );
         TVector<MeshSocketDefinition>   m_sockets;
+
+        EE_REFLECT( ReadOnly );
+        TVector<MeshDecalDefinition>    m_meshDecals;
 
         // LOD Group
         EE_REFLECT();

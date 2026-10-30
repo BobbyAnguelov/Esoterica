@@ -1,0 +1,74 @@
+
+#include "Base/Render/RHI.esh"
+
+#ifndef _LIGHT_INSTANCE_ESH_
+#define _LIGHT_INSTANCE_ESH_
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    struct HLSL_ALIGN_STRUCT LightInstance_DirectionalLight
+    {
+        float                               m_maxIntensity;
+
+        float3                              m_lightDirection;
+        uint                                m_packedTintedColor;
+
+        TextureHandle                       m_shadowCascades;
+        uint16_t                            m_padding0;
+        uint                                m_padding1;
+        uint                                m_padding2;
+
+        float4x4                            m_shadowMatrix;
+
+        float4                              m_cascadeOffsets[4];
+        float4                              m_cascadeScales[4];
+        float4                              m_cascadeSize;
+
+        float4                              m_cascadeTexelWorldSize;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( LightInstance_DirectionalLight ) == 256, "Expected exactly 256 bytes" );
+
+    struct HLSL_ALIGN_STRUCT LightInstance_PointLight
+    {
+        float                               m_maxIntensity;
+
+        float3                              m_lightPosition;
+        float                               m_maxRadius;
+        float                               m_falloff;
+        uint                                m_packedTintedColor;
+
+        TextureHandle                       m_shadowMapHandle;
+        uint16_t                            m_shadowResolutionBits;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( LightInstance_PointLight ) == 32, "Expected exactly 32 bytes" );
+
+    struct HLSL_ALIGN_STRUCT LightInstance_SpotLight
+    {
+        float                               m_maxIntensity;
+
+        float3                              m_lightPosition;
+        float3                              m_lightDirection;
+        float                               m_maxRadius;
+        float                               m_falloff;
+        float                               m_innerConeAngle;
+        float                               m_outerConeAngle;
+        uint                                m_packedTintedColor;
+
+        TextureHandle                       m_shadowMapHandle;
+        uint16_t                            m_shadowResolutionBits;
+
+        float                               m_shadowTangent;
+
+        uint                                m_padding0;
+        uint                                m_padding1;
+
+        float4x4                            m_shadowMatrix;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( LightInstance_SpotLight ) == 128, "Expected exactly 128 bytes" );
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

@@ -430,7 +430,7 @@ namespace EE::Render
                     case AsyncResourceUpdateState::Completed:
                     {
                         EE::Delete( pMaterialParametersUpdate );
-                        VectorEraseUnordered( m_asyncMaterialParametersUpdateQueue, asyncMaterialParametersUpdateIndex );
+                        VectorEraseUnordered( m_asyncMaterialParametersUpdateQueue, asyncMaterialParametersUpdateIndex-- );
                     }
                     break;
                 }
@@ -1024,7 +1024,7 @@ namespace EE::Render
         size_t parametersSizeInBytes = 0;
         for ( MaterialShaderParameterInfo const& parameterInfo : shaderInstance.m_parameterInfo )
         {
-            parametersSizeInBytes += parameterInfo.m_parameterStrideInBytes;
+            parametersSizeInBytes = Math::Max( parametersSizeInBytes, size_t( parameterInfo.m_parameterOffsetInBytes ) + parameterInfo.m_parameterStrideInBytes );
         }
 
         EE_ASSERT( ( parametersSizeInBytes % 32 ) == 0 );

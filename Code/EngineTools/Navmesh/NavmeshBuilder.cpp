@@ -10,7 +10,7 @@ namespace EE::Navmesh
 {
     bool NavmeshBuilder::Build( NavmeshBuildData const& buildData, NavmeshData& outData )
     {
-        ClearLog();
+        Log::Clear();
 
         m_buildFaces.clear();
         m_progress = 0.0f;

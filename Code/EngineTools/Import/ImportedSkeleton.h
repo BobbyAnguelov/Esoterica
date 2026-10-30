@@ -38,8 +38,8 @@ namespace EE::Import
         inline TVector<Bone> const& GetBoneData() const { return m_bones; }
         inline Bone const& GetBoneData( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx]; }
         inline StringID const& GetBoneName( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx].m_name; }
-        inline uint32_t GetNumBones() const { return (uint32_t) m_bones.size(); }
-        inline uint32_t GetNumBonesToSampleAtLowLOD() const { return m_numBonesToSampleAtLowLOD; }
+        inline int32_t GetNumBones() const { return (int32_t) m_bones.size(); }
+        inline int32_t GetNumBonesToSampleAtLowLOD() const { return m_numBonesToSampleAtLowLOD; }
 
         inline StringID GetBoneID( int32_t boneIdx ) const { EE_ASSERT( boneIdx >= 0 && boneIdx < m_bones.size() ); return m_bones[boneIdx].m_name; }
         int32_t GetBoneIndex( StringID const& boneName ) const;

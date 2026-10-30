@@ -4,10 +4,10 @@
 #include "EntityEditor_EntityItem.h"
 #include "EngineTools/Core/UndoStack.h"
 #include "EngineTools/Entity/EntityToolTypes.h"
+#include "EngineTools/Gizmos/Gizmo.h"
 #include "Engine/Entity/EntityWorld.h"
 #include "Base/TypeSystem/TypeInfo.h"
 #include "Base/Types/Function.h"
-#include "Engine/Imgui/ImguiGizmo.h"
 
 //-------------------------------------------------------------------------
 
@@ -203,9 +203,9 @@ namespace EE::EntityModel
         Transform const GetSpatialSelectionTransform() const { return m_selectionTransform; }
 
         inline bool IsManipulatingSpatialSelection() const { return m_isManipulatingSpatialSelection; }
-        void BeginManipulatingSpatialSelection( ImGuiX::Gizmo::Result const& result, bool duplicateSelectionIfPossible );
-        void ManipulateSpatialSelection( ImGuiX::Gizmo::Result const& result );
-        void EndManipulatingSpatialSelection( ImGuiX::Gizmo::Result const& result );
+        void BeginManipulatingSpatialSelection( Gizmo::Result const& result, bool duplicateSelectionIfPossible, bool alignToSurface, Vector const& surfacePositionWS, Vector const& surfaceNormalWS );
+        void ManipulateSpatialSelection( Gizmo::Result const& result, bool alignToSurface, Vector const& surfacePositionWS, Vector const& surfaceNormalWS );
+        void EndManipulatingSpatialSelection( Gizmo::Result const& result );
 
         // Moves the current spatial selection to this new transform
         void PositionSpatialSelection( Transform const& newTransform );

@@ -37,6 +37,7 @@ namespace EE::Render
 
         ImGui::Checkbox( "Show Wireframe", &m_showWireframe );
         ImGui::Checkbox( "Show Shadow Cascades", &m_showShadowCascades );
+        ImGui::Checkbox( "Show Parallax Cost", &m_showParallaxCost );
 
         ImGui::SeparatorText( "Static Meshes" );
 

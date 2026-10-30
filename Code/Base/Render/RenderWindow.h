@@ -36,6 +36,8 @@ namespace EE::Render
 
         void StartFrame( RHI::Context* pContextRHI, uint32_t frameIndex );
 
+        //-------------------------------------------------------------------------
+
     private:
 
         RHI::Swapchain*                                             m_pSwapchain = nullptr;

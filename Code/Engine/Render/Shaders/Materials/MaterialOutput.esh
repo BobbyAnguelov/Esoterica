@@ -1,0 +1,46 @@
+
+#include "Engine/Render/Shaders/Materials/MaterialInput.esh"
+
+#ifndef _MATERIAL_OUTPUT_ESH_
+#define _MATERIAL_OUTPUT_ESH_
+
+#ifndef __cplusplus
+
+struct MaterialShaderOutput
+{
+    static MaterialShaderOutput New( MaterialShaderInput materialInput )
+    {
+        MaterialShaderOutput materialOutput;
+        materialOutput.m_albedo                 = 0.5.xxx;
+        materialOutput.m_opacity                = 1.0;
+        materialOutput.m_metalness              = 0.0;
+        materialOutput.m_roughness              = 1.0;
+        materialOutput.m_occlusion              = 1.0;
+        materialOutput.m_normal                 = materialInput.m_vertex.m_worldNormal;
+        materialOutput.m_emissiveColor          = 0.0.xxx;
+        materialOutput.m_height                 = 0.0;
+        materialOutput.m_maxDisplacement        = 0.0;
+        materialOutput.m_numParallaxSteps       = 0;
+        materialOutput.m_primitiveFlags         = ( PrimitiveOutputFlags ) 0;
+        return materialOutput;
+    }
+
+    //-------------------------------------------------------------------------
+
+    float3                  m_albedo;
+    float                   m_opacity;
+    float                   m_metalness;
+    float                   m_roughness;
+    float                   m_occlusion;
+    float3                  m_normal;
+    float3                  m_emissiveColor;
+    float                   m_height;
+    float                   m_maxDisplacement;
+    uint                    m_numParallaxSteps;            // Steps the parallax march took, for the debug visualization only
+
+    PrimitiveOutputFlags    m_primitiveFlags;
+};
+
+#endif
+
+#endif

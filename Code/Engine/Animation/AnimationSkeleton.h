@@ -46,7 +46,7 @@ namespace EE::Animation
 
         Color                   m_boneColor = Colors::HotPink;
         float                   m_lineThickness = 2.0f;
-        float                   m_axisThickness = 3.0f;
+        float                   m_axisThickness = 1.0f;
         float                   m_axisLength = 0.01f;
         TVector<float> const*   m_pBoneWeights = nullptr;
         TVector<int32_t> const* m_pBoneIdxFilter = nullptr;
@@ -139,8 +139,8 @@ namespace EE::Animation
         // Returns whether the specified bone is a child of the specified parent bone
         EE_FORCE_INLINE bool AreBonesInTheSameHierarchy( int32_t boneIdx0, int32_t boneIdx1 ) const { return IsChildBoneOf( boneIdx0, boneIdx1) || IsChildBoneOf( boneIdx1, boneIdx0 ); }
 
-        // Returns whether or not the specified bone has children
-        EE_FORCE_INLINE bool IsLeafBone( int32_t boneIdx ) const { EE_ASSERT( IsValidBoneIndex( boneIdx ) ); return VectorContains( m_parentIndices, boneIdx ); }
+        // Returns true if the specified bone has no children
+        EE_FORCE_INLINE bool IsLeafBone( int32_t boneIdx ) const { EE_ASSERT( IsValidBoneIndex( boneIdx ) ); return !VectorContains( m_parentIndices, boneIdx ); }
 
         // Get all boneIDs
         EE_FORCE_INLINE TVector<StringID> const& GetBoneIDs() const { return m_boneIDs; }

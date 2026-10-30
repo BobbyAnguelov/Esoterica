@@ -111,28 +111,6 @@ static_assert( sizeof( DebugDrawCommand_Raw ) == 64 );
 #define DEBUG_DRAW_VERTEX_FLAG_2D           ( 1 << 0 )
 #define DEBUG_DRAW_VERTEX_FLAG_LINE_AA      ( 1 << 1 )
 
-struct HLSL_ALIGN_STRUCT DebugDrawParameters // THIS IS IN A CONSTANT BUFFER! 16-byte row alignment
-{
-// 16-byte row
-    float3                          m_cameraPosition;
-    uint                            m_objectIDOffset;   // Offset applied to debug draw object IDs to avoid collisions with mesh instances
-    
-// 16-byte row
-    float3                          m_cameraForwardDirection;
-    uint                            m_padding1;
-
-// 16-byte row
-    float3                          m_cameraUpDirection;
-    uint                            m_padding2;
-
-// 16-byte row
-    float3                          m_cameraRightDirection;
-    uint                            m_padding3;
-
-// 16-byte row
-    float4                          m_pickingInput; // xy - mouse, z - radius in pixels, w - unused
-};
-
 #ifndef __cplusplus
 
 #if EE_DEVELOPMENT_TOOLS

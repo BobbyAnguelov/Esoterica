@@ -368,6 +368,23 @@ namespace EE::Animation
         return InvalidIndex;
     }
 
+    StringID GraphInstance::GetExternalGraphSlotID( GraphInstance *pExternalGraphInstance ) const
+    {
+        int32_t const numSlots = (int32_t) m_pGraphDefinition->m_externalGraphSlots.size();
+        for ( int32_t i = 0; i < numSlots; i++ )
+        {
+            auto const &graphSlot = m_pGraphDefinition->m_externalGraphSlots[i];
+            auto pReferencedGraphNode = reinterpret_cast<ReferencedGraphNode*>( m_nodes[graphSlot.m_nodeIdx] );
+            EE_ASSERT( pReferencedGraphNode->IsExternalGraphSlot() );
+            if ( pReferencedGraphNode->m_pGraphInstance == pExternalGraphInstance )
+            {
+                return graphSlot.m_slotID;
+            }
+        }
+
+        return StringID();
+    }
+
     ReferencedGraphNode *GraphInstance::GetExternalGraphNode( StringID slotID ) const
     {
         EE_ASSERT( slotID.IsValid() );
@@ -516,6 +533,14 @@ namespace EE::Animation
             return false;
         }
 
+        // Do not allow connecting the same instance into multiple slots at once
+        StringID const existingSlotID = GetExternalGraphSlotID( pExternalGraphInstance );
+        if ( existingSlotID.IsValid() )
+        {
+            EE_LOG_ERROR( LogCategory::Animation, "Graph Instance", "Cannot insert external graph (%s) since it is already connected to external pose slot: %s! Connecting the same instance into multiple slots is not allowed!\n", pExternalGraphInstance->GetGraphDefinition()->GetResourceID().c_str(), existingSlotID.c_str() );
+            return false;
+        }
+
         // Get the node idx for the graph and ensure it is valid, users are expected to check slot validity before calling this function
         ReferencedGraphNode *pReferencedGraphNode = GetExternalGraphNode( slotID );
         EE_ASSERT( pReferencedGraphNode != nullptr && pReferencedGraphNode->IsExternalGraphSlot() );
@@ -625,7 +650,7 @@ namespace EE::Animation
         return m_pGraphDefinition->m_externalPoseSlots[nSlotIdx].m_slotID;
     }
 
-    bool GraphInstance::SetExternalPose( StringID slotID, Pose const &primaryPose, TVector<Pose const*> const& secondaryPoses, Transform const& rootMotionDelta, StringID boneMaskID )
+    bool GraphInstance::SetExternalPose( StringID slotID, Pose const &primaryPose, TVector<Pose const*> const& secondaryPoses, Transform const& rootMotionDelta, StringID boneMaskID, TVector<SampledEvent> const& events )
     {
         EE_ASSERT( IsStandaloneInstance() && !m_isExternalGraph );
         EE_ASSERT( slotID.IsValid() );
@@ -662,6 +687,7 @@ namespace EE::Animation
         EE_ASSERT( pTaskSystem->IsValidCachedPose( pExternalPoseNode->m_externalPoseBufferID ) ); // This cannot happen but lets make doubly sure!
         pTaskSystem->FillCachedPoseBuffer( pExternalPoseNode->m_externalPoseBufferID, primaryPose, secondaryPoses );
         pExternalPoseNode->m_rootMotionDelta = rootMotionDelta;
+        pExternalPoseNode->m_externalEvents = events;
 
         pExternalPoseNode->m_boneMask.Reset();
         if ( boneMaskID.IsValid() )
@@ -689,6 +715,7 @@ namespace EE::Animation
 
         pExternalPoseNode->m_boneMask.Reset();
         pExternalPoseNode->m_rootMotionDelta = Transform::Identity;
+        pExternalPoseNode->m_externalEvents.clear();
 
         TaskSystem *pTaskSystem = m_graphContext.GetTaskSystem();
         EE_ASSERT( pTaskSystem->IsValidCachedPose( pExternalPoseNode->m_externalPoseBufferID ) ); // This cannot happen but lets make doubly sure!
@@ -915,6 +942,7 @@ namespace EE::Animation
 
     void GraphInstance::ExecutePrePhysicsPoseTasks( Transform const& endWorldTransform )
     {
+        EE_ASSERT( IsStandaloneInstance() );
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Pre-Physics Tasks" );
 
         #if EE_DEVELOPMENT_TOOLS
@@ -926,11 +954,12 @@ namespace EE::Animation
 
     void GraphInstance::ExecutePostPhysicsPoseTasks()
     {
+        EE_ASSERT( IsStandaloneInstance() );
         EE_PROFILE_SCOPE_ANIMATION( "Graph Instance: Post-Physics Tasks" );
         m_graphContext.m_pTaskSystem->UpdatePostPhysics();
 
         #if EE_DEVELOPMENT_TOOLS
-        RecordTasks();
+        RecordTaskSystemState();
         OutputTaskSystemLog();
         #endif
     }
@@ -1116,6 +1145,14 @@ namespace EE::Animation
                 }
             }
         }
+
+        // Record cached pose and task system state
+        //-------------------------------------------------------------------------
+
+        if ( IsStandaloneInstance() )
+        {
+            m_graphContext.m_pTaskSystem->RecordPosePoolState( pUpdateData->m_recordedPosePoolData );
+        }
     }
 
     void GraphInstance::RecordPostGraphEvaluateState( SyncTrackTimeRange const* pRange )
@@ -1255,8 +1292,10 @@ namespace EE::Animation
         }
     }
 
-    void GraphInstance::RecordTasks()
+    void GraphInstance::RecordTaskSystemState()
     {
+        EE_ASSERT( IsStandaloneInstance() );
+
         if ( m_pRecording == nullptr )
         {
             return;
@@ -1285,11 +1324,18 @@ namespace EE::Animation
 
             if ( !RestoreRecordedGraphState( *pGraphState ) )
             {
+                EE_UNREACHABLE_CODE();
                 return false;
+            }
+
+            // Fully restore the pose pool to the recorded state
+            if ( IsStandaloneInstance() && updateData.m_recordedPosePoolData.HasData() )
+            {
+                m_graphContext.m_pTaskSystem->SetPosePoolToRecordedState( updateData.m_recordedPosePoolData );
             }
         }
 
-        // Should we update parameters
+        // Update parameters
         //-------------------------------------------------------------------------
 
         RestoreRecordedGraphParameters( updateData );
@@ -1403,20 +1449,14 @@ namespace EE::Animation
         }
     }
 
-    void GraphInstance::GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges ) const
+    void GraphInstance::RestoreRecordedCachedPoses( RecordedGraphUpdateData const &updateData )
     {
-        for ( int16_t activeNodeIdx : m_graphContext.m_activeNodes )
-        {
-            auto pNodeDefinition = m_pGraphDefinition->m_nodeDefinitions[activeNodeIdx];
-            if ( IsOfType<LayerBlendNode::Definition>( pNodeDefinition ) )
-            {
-                auto& layerUpdateRange = outRanges.emplace_back();
-                layerUpdateRange.m_nodeIdx = activeNodeIdx;
+        EE_ASSERT( m_graphContext.IsInitialized() );
+        EE_ASSERT( !IsRecording() );
+        EE_ASSERT( IsStandaloneInstance() );
+        EE_ASSERT( updateData.m_recordedPosePoolData.HasData() );
 
-                auto pNode = static_cast<LayerBlendNode*>( m_nodes[activeNodeIdx] );
-                pNode->GetSyncUpdateRangesForUnsynchronizedLayers( layerUpdateRange.m_updateRanges );
-            }
-        }
+        m_graphContext.GetTaskSystem()->SetCachedBufferPosesToRecordedState( updateData.m_recordedPosePoolData );
     }
 
     //-------------------------------------------------------------------------

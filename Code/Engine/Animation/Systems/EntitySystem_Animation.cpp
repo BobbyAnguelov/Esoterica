@@ -1,5 +1,5 @@
 #include "EntitySystem_Animation.h"
-#include "Engine/Animation/Components/Component_AnimationClipPlayer.h"
+#include "Engine/Animation/Components/Component_AnimationPlayer.h"
 #include "Engine/Animation/Components/Component_AnimationGraph.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
@@ -27,7 +27,7 @@ namespace EE::Animation
             EE_ASSERT( !VectorContains( m_meshComponents, pMeshComponent ) );
             m_meshComponents.push_back( pMeshComponent );
         }
-        else if ( auto pAnimPlayerComponent = TryCast<AnimationClipPlayerComponent>( pComponent ) )
+        else if ( auto pAnimPlayerComponent = TryCast<AnimationPlayerComponent>( pComponent ) )
         {
             m_animPlayers.emplace_back( pAnimPlayerComponent );
         }
@@ -52,7 +52,7 @@ namespace EE::Animation
             EE_ASSERT( VectorContains( m_meshComponents, pMeshComponent ) );
             m_meshComponents.erase_first( pMeshComponent );
         }
-        else if ( auto pAnimPlayerComponent = TryCast<AnimationClipPlayerComponent>( pComponent ) )
+        else if ( auto pAnimPlayerComponent = TryCast<AnimationPlayerComponent>( pComponent ) )
         {
             m_animPlayers.erase_first_unsorted( pAnimPlayerComponent );
         }
@@ -142,21 +142,22 @@ namespace EE::Animation
                     }
                 }
 
-                // Transfer primary pose
+                // Transfer poses
                 //-------------------------------------------------------------------------
 
-                auto const* pPrimaryPose = pAnimComponent->GetPrimaryPose();
-                EE_ASSERT( pPrimaryPose->HasModelSpaceTransforms() );
-                TransferAnimationPoseToMesh( pPrimaryPose );
-
-                // Transfer secondary poses
-                //-------------------------------------------------------------------------
-
-                if ( pAnimComponent->HasSecondaryPoses() )
+                if ( pAnimComponent->WasPoseUpdated() )
                 {
-                    for ( auto pSecondaryPose : pAnimComponent->GetSecondaryPoses() )
+                    // Primary pose
+                    auto const* pPrimaryPose = pAnimComponent->GetPrimaryPose();
+                    TransferAnimationPoseToMesh( pPrimaryPose );
+
+                    // Transfer secondary poses
+                    if ( pAnimComponent->HasSecondaryPoses() )
                     {
-                        TransferAnimationPoseToMesh( pSecondaryPose );
+                        for ( auto pSecondaryPose : pAnimComponent->GetSecondaryPoses() )
+                        {
+                            TransferAnimationPoseToMesh( pSecondaryPose );
+                        }
                     }
                 }
             }
@@ -219,11 +220,10 @@ namespace EE::Animation
 
                 // Set PrimaryPose
                 //-------------------------------------------------------------------------
-                // Note:    for components requiring manual update, the users need to ensure the manual update occurs before this update
-                //          This update is already set to the lowest priority so in general users wont need to do anything
+                // For components requiring manual update, the users need to ensure the manual update occurs before this update
+                // This update is already set to the lowest priority so in general users wont need to do anything
 
                 auto const* pPrimaryPose = pAnimComponent->GetPrimaryPose();
-                EE_ASSERT( pPrimaryPose->HasModelSpaceTransforms() );
                 TransferAnimationPoseToMesh( pPrimaryPose );
 
                 // Transfer secondary poses

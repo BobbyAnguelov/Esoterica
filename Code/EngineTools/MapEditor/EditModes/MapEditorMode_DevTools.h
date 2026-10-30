@@ -1,5 +1,6 @@
 #pragma once
 #include "EngineTools/MapEditor/MapEditorMode.h"
+#include "EngineTools/Gizmos/Gizmo.h"
 
 //-------------------------------------------------------------------------
 
@@ -15,7 +16,8 @@ namespace EE
         {
             None,
             DebugMeshTests,
-            IntersectionTests
+            IntersectionTests,
+            Gizmos
         };
 
     public:
@@ -44,8 +46,15 @@ namespace EE
 
         void UpdateAndDraw_IntersectionTests( UpdateContext const& context, bool isFocused );
 
+        // Gizmos
+        //-------------------------------------------------------------------------
+
+        void UpdateAndDrawGizmos( UpdateContext const& context, Viewport const* pViewport, bool isFocused );
+
     private:
 
-        Mode                        m_mode = Mode::IntersectionTests;
+        Mode                        m_mode = Mode::Gizmos;
+        Transform                   m_t;
+        Gizmo                       m_gizmo;
     };
 }

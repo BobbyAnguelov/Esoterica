@@ -1,4 +1,5 @@
 #include "Animation_TaskPosePool.h"
+#include "Engine/Animation/Graph/Animation_RuntimeGraph_Recording.h"
 
 //-------------------------------------------------------------------------
 
@@ -14,17 +15,17 @@ namespace EE::Animation
         UpdateSecondarySkeletonList( secondarySkeletons );
     }
 
-    void PoseBuffer::ResetPose( Pose::Init poseInit, bool calculateGlobalPose )
+    void PoseBuffer::ResetPose( Pose::Init poseInit )
     {
         for ( Pose& pose : m_poses )
         {
-            pose.Reset( poseInit, calculateGlobalPose );
+            pose.Reset( poseInit );
         }
     }
 
-    void PoseBuffer::Release( Pose::Init poseInit, bool calculateGlobalPose )
+    void PoseBuffer::Release( Pose::Init poseInit )
     {
-        ResetPose( poseInit, calculateGlobalPose );
+        ResetPose( poseInit );
         m_isUsed = false;
     }
 
@@ -453,12 +454,6 @@ namespace EE::Animation
         return pFoundCachedPoseBuffer;
     }
 
-    PoseBuffer* PoseBufferPool::CreateBufferForSpecificID( CachedPoseID cachedPoseID )
-    {
-        EE_ASSERT( cachedPoseID.IsValid() );
-        return CreateCachedPoseBufferInternal( cachedPoseID );
-    }
-
     PoseBuffer* PoseBufferPool::GetOrCreateTemporaryBufferForSpecificID( CachedPoseID cachedPoseID )
     {
         EE_ASSERT( cachedPoseID.IsValid() );
@@ -529,4 +524,128 @@ namespace EE::Animation
         return nullptr;
     }
     #endif
+
+    //-------------------------------------------------------------------------
+
+    void PoseBufferPool::RecordState( RecordedPosePoolData &outData )
+    {
+        outData.m_nextCachedPoseID = m_nextCachedPoseID;
+        outData.m_nFirstFreeCachedBufferIdx = m_firstFreeCachedBuffer;
+
+        outData.DestroyRecordedBuffers();
+        outData.m_bufferIndices.clear();
+
+        for ( int32_t i = 0; i < int32_t( m_cachedBuffers.size() ); i++ )
+        {
+            if ( !m_cachedBuffers[i].IsUsed() )
+            {
+                continue;
+            }
+
+            CachedPoseBuffer const &sourceCachedPoseBuffer = m_cachedBuffers[i];
+
+            CachedPoseBuffer* pBuffer = outData.m_buffers.emplace_back( EE::New<CachedPoseBuffer>( m_pPrimarySkeleton, m_secondarySkeletons ) );
+            pBuffer->CopyFrom( sourceCachedPoseBuffer );
+            pBuffer->m_isUsed = sourceCachedPoseBuffer.m_isUsed;
+            pBuffer->m_ID = sourceCachedPoseBuffer.m_ID;
+            pBuffer->m_isPendingDestroy = sourceCachedPoseBuffer.m_isPendingDestroy;
+            pBuffer->m_wasAccessed = sourceCachedPoseBuffer.m_wasAccessed;
+            pBuffer->m_isPersistent = sourceCachedPoseBuffer.m_isPersistent;
+
+            EE_ASSERT( i < 127 );
+            outData.m_bufferIndices.emplace_back( int8_t( i ) );
+        }
+
+        outData.m_bHasData = true;
+    }
+
+    void PoseBufferPool::SetToRecordedState( RecordedPosePoolData const &data, bool transferMatchingBuffersOnly )
+    {
+        EE_ASSERT( data.m_buffers.size() == data.m_bufferIndices.size() );
+
+        //-------------------------------------------------------------------------
+
+        auto TransferPoses = [] ( CachedPoseBuffer const& sourceBuffer, CachedPoseBuffer &targetBuffer )
+        {
+            // Manual copy of poses since not all poses might exist
+            int8_t const numSourcePoses = (int8_t) sourceBuffer.m_poses.size();
+            int8_t const numTargetPoses = (int8_t) targetBuffer.m_poses.size();
+            for ( int32_t sourcePoseIdx = 0; sourcePoseIdx < numSourcePoses; sourcePoseIdx++ )
+            {
+                for ( int32_t targetPoseIdx = 0; targetPoseIdx < numTargetPoses; targetPoseIdx++ )
+                {
+                    if ( targetBuffer.m_poses[targetPoseIdx].GetSkeleton() == sourceBuffer.m_poses[sourcePoseIdx].GetSkeleton() )
+                    {
+                        targetBuffer.m_poses[targetPoseIdx].CopyFrom( sourceBuffer.m_poses[sourcePoseIdx] );
+                        break;
+                    }
+                }
+            }
+        };
+
+        //-------------------------------------------------------------------------
+
+        if ( transferMatchingBuffersOnly )
+        {
+            int8_t const numRecordedBuffers = (int8_t) data.m_buffers.size();
+            for ( int8_t i = 0; i < numRecordedBuffers; i++ )
+            {
+                CachedPoseBuffer &targetCachedPoseBuffer = m_cachedBuffers[data.m_bufferIndices[i]];
+                if ( targetCachedPoseBuffer.IsUsed() )
+                {
+                    CachedPoseBuffer const &sourceCachedPoseBuffer = *data.m_buffers[i];
+                    EE_ASSERT( sourceCachedPoseBuffer.m_ID == targetCachedPoseBuffer.m_ID );
+                    TransferPoses( sourceCachedPoseBuffer, targetCachedPoseBuffer );
+                }
+            }
+        }
+        else // Full restore of cached pose buffer state
+        {
+            // Reset all buffers and restore ID and free buffer state
+            for ( auto &cachedBuffer : m_cachedBuffers )
+            {
+                cachedBuffer.Release();
+                cachedBuffer.m_isPersistent = false;
+            }
+
+            m_nextCachedPoseID = data.m_nextCachedPoseID;
+            m_firstFreeCachedBuffer = data.m_nFirstFreeCachedBufferIdx;
+
+            // Grow buffers if needed
+            int32_t numRequiredBuffers = 0;
+            for ( int32_t nBufferIdx : data.m_bufferIndices )
+            {
+                numRequiredBuffers = Math::Max( numRequiredBuffers, nBufferIdx + 1 );
+            }
+
+            size_t const growCount = numRequiredBuffers - m_cachedBuffers.size();
+            if ( growCount > 0 )
+            {
+                m_cachedBuffers.reserve( m_cachedBuffers.size() + growCount );
+
+                for ( auto i = 0; i < growCount; i++ )
+                {
+                    m_cachedBuffers.emplace_back( CachedPoseBuffer( m_pPrimarySkeleton, m_secondarySkeletons ) );
+                }
+            }
+
+            EE_ASSERT( m_firstFreeCachedBuffer <= m_cachedBuffers.size() );
+
+            // Restore all buffer contents
+            int8_t const numRecordedBuffers = (int8_t) data.m_buffers.size();
+            for ( int8_t i = 0; i < numRecordedBuffers; i++ )
+            {
+                CachedPoseBuffer &targetCachedPoseBuffer = m_cachedBuffers[data.m_bufferIndices[i]];
+                CachedPoseBuffer const &sourceCachedPoseBuffer = *data.m_buffers[i];
+                TransferPoses( sourceCachedPoseBuffer, targetCachedPoseBuffer );
+
+                // Restore remaining buffer state
+                targetCachedPoseBuffer.m_isUsed = sourceCachedPoseBuffer.m_isUsed;
+                targetCachedPoseBuffer.m_ID = sourceCachedPoseBuffer.m_ID;
+                targetCachedPoseBuffer.m_isPendingDestroy = sourceCachedPoseBuffer.m_isPendingDestroy;
+                targetCachedPoseBuffer.m_wasAccessed = sourceCachedPoseBuffer.m_wasAccessed;
+                targetCachedPoseBuffer.m_isPersistent = sourceCachedPoseBuffer.m_isPersistent;
+            }
+        }
+    }
 }

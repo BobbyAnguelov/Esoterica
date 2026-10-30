@@ -27,8 +27,6 @@ namespace EE::Render
     {
     public:
 
-        //-------------------------------------------------------------------------
-
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );
 
@@ -53,9 +51,9 @@ namespace EE::Render
             RHI::Buffer*                                                pProbeTableBuffer
         ) const;
 
-    private:
-
         //-------------------------------------------------------------------------
+
+    private:
 
         RHI::Pipeline*                              m_pPipelineCubemapDownsample = nullptr;
 

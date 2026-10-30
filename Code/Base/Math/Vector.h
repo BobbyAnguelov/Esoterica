@@ -262,8 +262,13 @@ namespace EE
         EE_FORCE_INLINE float GetDot3( Vector const& other ) const { return Dot3( other ).ToFloat(); }
         EE_FORCE_INLINE float GetDot4( Vector const& other ) const { return Dot4( other ).ToFloat(); }
 
+        // Get the length (can be negative) of the other vector when projected onto this vector
         EE_FORCE_INLINE Vector ScalarProjection( Vector const& other ) const;
+
+        // Get the length (can be negative) of the other vector when projected onto this vector
         EE_FORCE_INLINE float GetScalarProjection( Vector const& other ) const { return ScalarProjection( other ).ToFloat(); }
+
+        // Get the result when projecting the other vector onto this vector
         EE_FORCE_INLINE Vector VectorProjection( Vector const& other ) const;
 
         // Transformations

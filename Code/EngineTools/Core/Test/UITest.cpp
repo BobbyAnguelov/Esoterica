@@ -57,6 +57,8 @@ namespace EE
 
         m_optionData0.SetOptions( choices );
 
+        m_buffer.Resize( m_optionData0.GetRequiredTextBufferSize() );
+
         auto OptionProvider = [] ( TVector<ImGuiX::OptionData::Option>& options )
         {
             options =
@@ -437,6 +439,10 @@ namespace EE
 
             //-------------------------------------------------------------------------
 
+            ImGui::Separator();
+
+            //-------------------------------------------------------------------------
+
             auto Callback = [] ( ImGuiInputTextCallbackData* pData ) -> int
             {
                 UITest* pCtx = (UITest*) pData->UserData;
@@ -451,7 +457,8 @@ namespace EE
             };
 
             ImGui::SetNextItemWidth( 200 );
-            ImGuiX::InputTextWithOptions( "ITWO0", m_buffer.Data(), m_buffer.Size(), &m_optionData0, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_EnterReturnsTrue, Callback, this );
+            ImGuiX::InputTextWithOptions( "ITWO0", m_buffer.Data(), m_buffer.Size(), &m_optionData0, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_CallbackResize, Callback, this );
+            ImGui::Text( "Buffer: %s", m_buffer.Data() );
 
             ImGui::SetNextItemWidth( -1 );
             ImGuiX::InputTextWithOptions( "ITWO1", buffer, 255, &m_optionData1 );
@@ -866,9 +873,19 @@ namespace EE
 
     void UITest::DrawResourcePickers()
     {
-        m_picker.UpdateAndDraw();
+        if ( m_picker.UpdateAndDraw() )
+        {
+            m_resourceID0 = m_picker.GetResourceID();
+        }
 
-        m_compactPicker.UpdateAndDraw();
+        ImGui::Text( m_resourceID0.IsValid() ? m_resourceID0.c_str() : "No Resource ID set" );
+
+        if ( m_compactPicker.UpdateAndDraw() )
+        {
+            m_resourceID1 = m_compactPicker.GetResourceID();
+        }
+
+        ImGui::Text( m_resourceID1.IsValid() ? m_resourceID1.c_str() : "No Resource ID set" );
     }
 
     //-------------------------------------------------------------------------

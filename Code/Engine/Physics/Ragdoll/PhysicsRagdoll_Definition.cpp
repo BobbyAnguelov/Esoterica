@@ -169,7 +169,7 @@ namespace EE::Physics
 
                 //-------------------------------------------------------------------------
 
-                float twistAngle = relQ.GetTwistAngle().ToFloat();
+                float twistAngle = relQ.GetTwistAngle( Vector::UnitZ ).ToFloat();
                 Vector p2 = { wedgeRadius * Math::Cos( twistAngle ), wedgeRadius * Math::Sin( twistAngle ), 0.0f };
                 ctx.DrawArrow( frameA.GetTranslation(), frameA.TransformPoint( p2 ), Colors::Gold, 3.0f );
             }

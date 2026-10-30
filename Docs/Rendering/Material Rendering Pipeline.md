@@ -14,17 +14,17 @@ Each render view maps to one bit of a 64-bit view mask. The culling passes produ
 
 Culling runs in six GPU compute passes:
 
-**Instance culling** runs 128-thread groups ( 1 thread per instance ), tests each instance against every render view, and writes a 64-bit visibility mask for every instance.
+****Instance culling**** runs 128-thread groups ( 1 thread per instance ), tests each instance against every render view, and writes a 64-bit visibility mask for every instance.
 
-**Culling compaction** runs 128-thread groups ( 1 thread per instance ) and, for each visible instance, atomically reserves one work entry per cluster in the culling work buffer, then writes the entries sequentially.
+****Culling compaction**** runs 128-thread groups ( 1 thread per instance ) and, for each visible instance, atomically reserves one work entry per cluster in the culling work buffer, then writes the entries sequentially.
 
-**Culling argument generation** reads the work counter and writes one cluster culling argument plus one draw compaction argument per 65k-group chunk of the work buffer.
+****Culling argument generation**** reads the work counter and writes one cluster culling argument plus one draw compaction argument per 65k-group chunk of the work buffer.
 
-**Cluster culling** executes indirectly over the chunk arguments, one thread per work entry. It performs per-cluster frustum and screen-size tests for each view, writes the resulting 64-bit visibility mask back into the work entry, and atomically counts the cluster per view and sub-bucket.
+****Cluster culling**** executes indirectly over the chunk arguments, one thread per work entry. It performs per-cluster frustum and screen-size tests for each view, writes the resulting 64-bit visibility mask back into the work entry, and atomically counts the cluster per view and sub-bucket.
 
-**Draw argument generation** prefix-sums the per-( view, bucket ) counts into per-bucket base offsets and writes one draw argument per non-empty bucket, split into 65k-group draws.
+****Draw argument generation**** prefix-sums the per-( view, bucket ) counts into per-bucket base offsets and writes one draw argument per non-empty bucket, split into 65k-group draws.
 
-**Draw compaction** executes indirectly over the chunk arguments and scatters the slots of visible clusters into dense per-( view, bucket ) draw cluster buffers, which the mesh shaders index directly.
+****Draw compaction**** executes indirectly over the chunk arguments and scatters the slots of visible clusters into dense per-( view, bucket ) draw cluster buffers, which the mesh shaders index directly.
 
 ## Draw Arguments
 

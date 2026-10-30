@@ -1,5 +1,7 @@
 #include "ResourceCompiler_RenderTexture.h"
 #include "EngineTools/Render/ResourceDescriptors/ResourceDescriptor_RenderTexture.h"
+#include "EngineTools/Render/ConeStepMapping/ConeStepMapping.h"
+#include "EngineTools/Render/Occlusion/Occlusion.h"
 #include "EngineTools/Resource/ResourceCompilerContext.h"
 #include "EngineTools/Import/Importer.h"
 #include "EngineTools/Import/ImportedImage.h"
@@ -14,6 +16,8 @@
 
 #include <ctt.h>
 
+#include <thread>
+
 struct SurfaceRGBA
 {
     uint8_t*    m_pSurfaceData = nullptr;
@@ -26,6 +30,41 @@ struct SurfaceRGBA
 
 namespace EE::Render
 {
+    static char const* const g_occlusionChannelName = "AmbientOcclusion";
+    static char const* const g_heightChannelName = "Height";
+
+    static const int32_t g_greenChannel = 1;
+
+    inline int32_t GetChannelIndex( TextureGroupFileMask::ChannelMask channel )
+    {
+        if ( channel == TextureGroupFileMask::ChannelMask::R ) { return 0; }
+        if ( channel == TextureGroupFileMask::ChannelMask::G ) { return 1; }
+        if ( channel == TextureGroupFileMask::ChannelMask::B ) { return 2; }
+        if ( channel == TextureGroupFileMask::ChannelMask::A ) { return 3; }
+
+        return 0;
+    }
+
+    // Which channel the group puts a slot in, or -1 if it does not have that slot
+    inline int32_t GetChannelSlotDestination( TextureGroup const& group, char const* pChannelName )
+    {
+        for ( TextureGroupFileMask const& mask : group.m_fileMasks )
+        {
+            if ( mask.m_channelName != pChannelName )
+            {
+                continue;
+            }
+
+            // A mask is authored as one source channel into one destination channel.
+            if ( mask.m_destinationMask.IsFlagSet( TextureGroupFileMask::ChannelMask::R ) ) { return 0; }
+            if ( mask.m_destinationMask.IsFlagSet( TextureGroupFileMask::ChannelMask::G ) ) { return 1; }
+            if ( mask.m_destinationMask.IsFlagSet( TextureGroupFileMask::ChannelMask::B ) ) { return 2; }
+            if ( mask.m_destinationMask.IsFlagSet( TextureGroupFileMask::ChannelMask::A ) ) { return 3; }
+        }
+
+        return -1;
+    }
+
     template<typename T>
     void SwizzleChannels( SurfaceRGBA& sourceSurface, uint8_t const* pSourceImageData, TArrayView<size_t> srcOffsets, TArrayView<size_t> dstOffsets )
     {
@@ -100,7 +139,8 @@ namespace EE::Render
 
         Import::ReaderContext readerCtx =
         {
-            [&ctx]( char const* pString ) { ctx.LogWarning( pString ); },
+            ctx.m_sourceDataDirectoryPath,
+            [&ctx] ( char const* pString ) { ctx.LogWarning( pString ); },
             [&ctx] ( char const* pString ) { ctx.LogError( pString ); },
         };
 
@@ -110,12 +150,17 @@ namespace EE::Render
         bool                            isHDR = false;
         bool                            isSharedExponent = false;
 
-        if ( pResourceDescriptor->m_sourcePaths.size() != pTextureGroup->m_fileMasks.size() )
+        if ( pResourceDescriptor->m_sourcePaths.size() < pTextureGroup->m_fileMasks.size() )
         {
-            return ctx.LogError( "Amount of input textures does not match file masks in the group %s", ctx.GetInputPath().c_str() );
+            return ctx.LogError( "Not enough input textures for the file masks in the group %s", ctx.GetInputPath().c_str() );
         }
 
-        for ( size_t textureIndex = 0; textureIndex < pResourceDescriptor->m_sourcePaths.size(); ++textureIndex )
+        if ( pResourceDescriptor->m_sourcePaths.size() > pTextureGroup->m_fileMasks.size() )
+        {
+            ctx.LogWarning( "Ignoring %d input texture(s) with no matching file mask in %s", int32_t( pResourceDescriptor->m_sourcePaths.size() - pTextureGroup->m_fileMasks.size() ), ctx.GetInputPath().c_str() );
+        }
+
+        for ( size_t textureIndex = 0; textureIndex < pTextureGroup->m_fileMasks.size(); ++textureIndex )
         {
             DataPath const&             sourceTexturePath = pResourceDescriptor->m_sourcePaths[textureIndex];
             TextureGroupFileMask const& fileMask = pTextureGroup->m_fileMasks[textureIndex];
@@ -130,7 +175,7 @@ namespace EE::Render
                 continue;
             }
 
-            FileSystem::Path const textureFilePath = sourceTexturePath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath );
+            FileSystem::Path const textureFilePath = sourceTexturePath.GetFileSystemPath( ctx.m_sourceDataDirectoryPath );
             Import::Source const fileSource( textureFilePath, ctx.GetRawData( sourceTexturePath ) );
             TUniquePtr<Import::Image> importedImage = Import::Importer::ReadImage( readerCtx, fileSource );
 
@@ -161,6 +206,8 @@ namespace EE::Render
 
                     sourceImageData.reset( EE::NewArray<uint8_t>( sourceSurface.m_height * importedImage->GetStride() ) );
                     sourceSurface.m_pSurfaceData = sourceImageData.get();
+
+                    std::memset( sourceSurface.m_pSurfaceData, 0, size_t( sourceSurface.m_height ) * size_t( sourceSurface.m_strideInBytes ) );
 
                     isHDR = importedImage->IsHDR();
                     isSharedExponent = importedImage->IsSharedExponent();
@@ -332,6 +379,95 @@ namespace EE::Render
             return ctx.LogError( "No image data imported!", ctx.GetInputPath().c_str() );
         }
 
+        // Generate ambient occlusion
+        //-------------------------------------------------------------------------
+
+        if ( pResourceDescriptor->m_computeOcclusionFromHeight )
+        {
+            if ( sourceSurfaces.size() != 1 )
+            {
+                return ctx.LogError( "A computed occlusion map needs a single surface: %s", ctx.GetInputPath().c_str() );
+            }
+
+            int32_t const occlusionChannel = GetChannelSlotDestination( *pTextureGroup, g_occlusionChannelName );
+            if ( occlusionChannel < 0 )
+            {
+                return ctx.LogError( "Occlusion cannot be computed for %s: the texture group has no %s channel", ctx.GetInputPath().c_str(), g_occlusionChannelName );
+            }
+
+            for ( size_t maskIndex = 0; maskIndex < pTextureGroup->m_fileMasks.size() && maskIndex < pResourceDescriptor->m_sourcePaths.size(); ++maskIndex )
+            {
+                if ( pTextureGroup->m_fileMasks[maskIndex].m_channelName != g_occlusionChannelName )
+                {
+                    continue;
+                }
+
+                if ( pResourceDescriptor->m_sourcePaths[maskIndex].IsValid() )
+                {
+                    ctx.LogWarning( "Computed occlusion replaces the occlusion map provided by %s in %s", pResourceDescriptor->m_sourcePaths[maskIndex].c_str(), ctx.GetInputPath().c_str() );
+                }
+
+                break;
+            }
+
+            DataPath const& heightSourcePath = pResourceDescriptor->m_occlusionHeightSource;
+            if ( !heightSourcePath.IsValid() )
+            {
+                return ctx.LogError( "Occlusion generation needs a height image: %s", ctx.GetInputPath().c_str() );
+            }
+
+            FileSystem::Path const heightFilePath = heightSourcePath.GetFileSystemPath( ctx.m_sourceDataDirectoryPath );
+            Import::Source const heightSource( heightFilePath, ctx.GetRawData( heightSourcePath ) );
+            TUniquePtr<Import::Image> pHeightImage = Import::Importer::ReadImage( readerCtx, heightSource );
+            if ( pHeightImage == nullptr || !pHeightImage->IsValid() )
+            {
+                return ctx.LogError( "Failed to read the occlusion height image: %s", heightSourcePath.c_str() );
+            }
+
+            if ( pHeightImage->IsHDR() )
+            {
+                return ctx.LogError( "The occlusion height image has to be eight bit, but %s is not", heightSourcePath.c_str() );
+            }
+
+            Occlusion::HeightField heightField;
+            heightField.m_pData = pHeightImage->GetImageData();
+            heightField.m_width = pHeightImage->GetWidth();
+            heightField.m_height = pHeightImage->GetHeight();
+            heightField.m_strideInBytes = pHeightImage->GetStride();
+            heightField.m_pixelSizeInBytes = pHeightImage->GetStride() / pHeightImage->GetWidth();
+            heightField.m_channel = GetChannelIndex( pResourceDescriptor->m_occlusionHeightChannel );
+
+            Occlusion::Settings settings;
+            settings.m_strength = pResourceDescriptor->m_occlusionStrength;
+            settings.m_blurRadius = pResourceDescriptor->m_occlusionBlurRadius;
+            settings.m_contrast = pResourceDescriptor->m_occlusionContrast;
+
+            Occlusion::Generate( ctx, settings, sourceSurfaces[0].m_pSurfaceData, sourceSurfaces[0].m_width, sourceSurfaces[0].m_height, sourceSurfaces[0].m_strideInBytes, occlusionChannel, heightField );
+        }
+
+        // Generate cone step map
+        //-------------------------------------------------------------------------
+
+        if ( pTextureGroup->m_coneStepSettings.m_generateConeStepMap )
+        {
+            if ( sourceSurfaces.size() != 1 )
+            {
+                return ctx.LogError( "A cone step map has to be generated from a single height map: %s", ctx.GetInputPath().c_str() );
+            }
+
+            if ( GetChannelSlotDestination( *pTextureGroup, g_heightChannelName ) != g_greenChannel )
+            {
+                return ctx.LogError( "Cone step mapping expects height in green channel: %s", ctx.GetInputPath().c_str() );
+            }
+
+            if ( isHDR || ( pTextureGroup->m_compressionSettings.m_textureType != TextureGroupCompressionSettings::TextureType::Grayscale2Channel ) )
+            {
+                return ctx.LogError( "A cone step map is an 8 bit two channel texture, use the Grayscale2Channel texture type: %s", ctx.GetInputPath().c_str() );
+            }
+
+            ConeStepMap::Generate( ctx, sourceSurfaces[0].m_pSurfaceData, sourceSurfaces[0].m_width, sourceSurfaces[0].m_height, sourceSurfaces[0].m_strideInBytes, int32_t( pTextureGroup->m_coneStepSettings.m_radiusInTexels ) );
+        }
+
         // Set ctt to use 4 threads by default
         //-------------------------------------------------------------------------
 
@@ -349,41 +485,12 @@ namespace EE::Render
             ScopedTimer<PlatformClock, Milliseconds> tt( compressionTime );
 
             uint32_t pixelStride = ( sourceSurfaces[0].m_strideInBytes / sourceSurfaces[0].m_width );
-            ctt_format cttSourceFormat = CTT_FORMAT_R8G8B8A8_UNORM;
-
-            if ( pixelStride == 1 )
-            {
-                cttSourceFormat = CTT_FORMAT_R8_UNORM;
-            }
-            else if ( pixelStride == 2 )
-            {
-                cttSourceFormat = CTT_FORMAT_R8G8_UNORM;
-            }
-            else if ( pixelStride == 4 )
-            {
-                cttSourceFormat = CTT_FORMAT_R8G8B8A8_UNORM;
-            }
-            else
-            {
-                if ( isHDR )
-                {
-                    if ( pixelStride != 16 )
-                    {
-                        return ctx.LogError( "Expected 16 bytes pixel stride, got %d", pixelStride );
-                    }
-
-                    cttSourceFormat = CTT_FORMAT_R32G32B32A32_SFLOAT;
-                }
-                else
-                {
-                    EE_ASSERT( false );
-                    cttSourceFormat = CTT_FORMAT_R8G8B8A8_UNORM;
-                }
-            }
 
             bool isCompressed = true;
 
             ctt_color_space cttSourceColorSpace = CTT_COLOR_SPACE_LINEAR;
+            ctt_format cttSourceFormat = CTT_FORMAT_R8G8B8A8_UNORM;
+
             ctt_format cttTargetFormat = CTT_FORMAT_R8G8B8A8_UNORM;
             ctt_alpha_mode cttAlphaMode = CTT_ALPHA_MODE_STRAIGHT;
 
@@ -393,6 +500,7 @@ namespace EE::Render
                 {
                     isCompressed = false;
 
+                    cttSourceFormat = CTT_FORMAT_R8G8B8A8_UNORM;
                     cttSourceColorSpace = CTT_COLOR_SPACE_LINEAR;
                     cttAlphaMode = CTT_ALPHA_MODE_STRAIGHT;
 
@@ -405,16 +513,19 @@ namespace EE::Render
                     {
                         if ( pixelStride == 1 )
                         {
+                            cttSourceFormat = CTT_FORMAT_R8_UNORM;
                             cttTargetFormat = CTT_FORMAT_R8_UNORM;
                             compressedFormat = RHI::DataFormat::R8_UNorm;
                         }
                         else if ( pixelStride == 2 )
                         {
+                            cttSourceFormat = CTT_FORMAT_R8G8_UNORM;
                             cttTargetFormat = CTT_FORMAT_R8G8_UNORM;
                             compressedFormat = RHI::DataFormat::RG8_UNorm;
                         }
                         else if ( pixelStride == 4 )
                         {
+                            cttSourceFormat = CTT_FORMAT_R8G8B8A8_UNORM;
                             cttTargetFormat = CTT_FORMAT_R8G8B8A8_UNORM;
                             compressedFormat = RHI::DataFormat::RGBA8_UNorm;
                         }
@@ -427,12 +538,14 @@ namespace EE::Render
                                     return ctx.LogError( "Expected 16 bytes pixel stride, got %d", pixelStride );
                                 }
 
+                                cttSourceFormat = CTT_FORMAT_R32G32B32A32_SFLOAT;
                                 cttTargetFormat = CTT_FORMAT_R32G32B32A32_SFLOAT;
                                 compressedFormat = RHI::DataFormat::RGBA32_SFloat;
                             }
                             else
                             {
                                 EE_ASSERT( false );
+                                cttSourceFormat = CTT_FORMAT_R8G8B8A8_UNORM;
                                 cttTargetFormat = CTT_FORMAT_R8G8B8A8_UNORM;
                                 compressedFormat = RHI::DataFormat::RGBA8_UNorm;
                             }
@@ -448,6 +561,7 @@ namespace EE::Render
                     cttSourceColorSpace = CTT_COLOR_SPACE_SRGB;
                     cttAlphaMode = CTT_ALPHA_MODE_STRAIGHT;
                     cttTargetFormat = CTT_FORMAT_R8G8B8A8_SRGB;
+                    cttTargetFormat = CTT_FORMAT_R8G8B8A8_SRGB;
                     compressedFormat = RHI::DataFormat::RGBA8_sRGB;
                 }
                 break;
@@ -456,6 +570,7 @@ namespace EE::Render
                 {
                     cttSourceColorSpace = CTT_COLOR_SPACE_LINEAR;
                     cttAlphaMode = CTT_ALPHA_MODE_STRAIGHT;
+                    cttSourceFormat = CTT_FORMAT_R8G8B8A8_UNORM;
                     cttTargetFormat = CTT_FORMAT_BC7_UNORM_BLOCK;
                     compressedFormat = RHI::DataFormat::DXBC7_UNorm;
                 }
@@ -465,7 +580,8 @@ namespace EE::Render
                 {
                     cttSourceColorSpace = CTT_COLOR_SPACE_SRGB;
                     cttAlphaMode = CTT_ALPHA_MODE_STRAIGHT;
-                    cttTargetFormat = CTT_FORMAT_BC7_UNORM_BLOCK;
+                    cttSourceFormat = CTT_FORMAT_R8G8B8A8_SRGB;
+                    cttTargetFormat = CTT_FORMAT_BC7_SRGB_BLOCK;
                     compressedFormat = RHI::DataFormat::DXBC7_sRGB;
                 }
                 break;
@@ -474,6 +590,7 @@ namespace EE::Render
                 {
                     cttSourceColorSpace = CTT_COLOR_SPACE_LINEAR;
                     cttAlphaMode = CTT_ALPHA_MODE_OPAQUE;
+                    cttSourceFormat = CTT_FORMAT_R8G8B8A8_UNORM;
                     cttTargetFormat = CTT_FORMAT_BC4_UNORM_BLOCK;
                     compressedFormat = RHI::DataFormat::DXBC4_UNorm;
                 }
@@ -483,6 +600,7 @@ namespace EE::Render
                 {
                     cttSourceColorSpace = CTT_COLOR_SPACE_LINEAR;
                     cttAlphaMode = CTT_ALPHA_MODE_OPAQUE;
+                    cttSourceFormat = CTT_FORMAT_R8G8B8A8_UNORM;
                     cttTargetFormat = CTT_FORMAT_BC5_UNORM_BLOCK;
                     compressedFormat = RHI::DataFormat::DXBC5_UNorm;
                 }
@@ -492,19 +610,16 @@ namespace EE::Render
                 {
                     cttSourceColorSpace = CTT_COLOR_SPACE_LINEAR;
                     cttAlphaMode = CTT_ALPHA_MODE_OPAQUE;
+                    cttSourceFormat = CTT_FORMAT_R32G32B32A32_SFLOAT;
                     cttTargetFormat = CTT_FORMAT_BC6H_UFLOAT_BLOCK;
                     compressedFormat = RHI::DataFormat::DXBC6H_UFloat;
                 }
                 break;
             }
 
-            // How long the chain is depends on the format the type above chose: a
-            // block-compressed texture stops at a whole block, an uncompressed one
-            // runs to 1x1. Both are computed here rather than before the switch,
-            // because before the switch the format is not known yet.
             textureMipLevels = isCompressed
-                             ? RHI::ComputeBlockCompressedMipLevels( sourceSurfaces[0].m_width, sourceSurfaces[0].m_height, uint32_t( sourceSurfaces.size() ) )
-                             : RHI::ComputeUncompressedMipLevels( sourceSurfaces[0].m_width, sourceSurfaces[0].m_height, uint32_t( sourceSurfaces.size() ) );
+                ? RHI::ComputeBlockCompressedMipLevels( sourceSurfaces[0].m_width, sourceSurfaces[0].m_height, uint32_t( sourceSurfaces.size() ) )
+                : RHI::ComputeUncompressedMipLevels( sourceSurfaces[0].m_width, sourceSurfaces[0].m_height, uint32_t( sourceSurfaces.size() ) );
 
             if ( !pTextureGroup->m_mipSettings.m_generateMipmaps )
             {
@@ -526,7 +641,31 @@ namespace EE::Render
             }
             else
             {
-                ctt_image* pImage = ctt_image_create( sourceSurfaces.size() == 1 ? CTT_TEXTURE_KIND_TEXTURE2D : CTT_TEXTURE_KIND_TEXTURE3D );
+                if ( isHDR )
+                {
+                    if ( pixelStride != 16 )
+                    {
+                        return ctx.LogError( "Expected 16 bytes pixel stride, got %d", pixelStride );
+                    }
+                }
+                else
+                {
+                    if ( pixelStride != 4 )
+                    {
+                        return ctx.LogError( "Expected 4 bytes pixel stride, got %d", pixelStride );
+                    }
+                }
+
+                ctt_format_desc cttFormatDesc = {};
+                cttFormatDesc.alpha = cttAlphaMode;
+                cttFormatDesc.format = cttSourceFormat;
+                cttFormatDesc.color_space = cttSourceColorSpace;
+
+                ctt_image* pImage = ctt_image_create( sourceSurfaces.size() == 1 ? CTT_TEXTURE_KIND_TEXTURE2D : CTT_TEXTURE_KIND_TEXTURE3D, cttFormatDesc );
+                if ( pImage == nullptr )
+                {
+                    return ctx.LogError( "Failed to create ctt image: \"%s\"", ctt_last_error_message() );
+                }
 
                 for ( SurfaceRGBA const& sourceSurface : sourceSurfaces )
                 {
@@ -536,8 +675,7 @@ namespace EE::Render
                     ctt_surface* pSurface = ctt_surface_create
                     (
                         sourceSurface.m_pSurfaceData, surfaceSliceStride,
-                        sourceSurface.m_width, sourceSurface.m_height, 1, surfaceRowStride, surfaceSliceStride,
-                        cttSourceFormat, cttSourceColorSpace, cttAlphaMode
+                        sourceSurface.m_width, sourceSurface.m_height, 1, surfaceRowStride, surfaceSliceStride
                     );
 
                     size_t layer = 0;
@@ -562,26 +700,7 @@ namespace EE::Render
                 convertSettings.mipmap = textureMipLevels > 0;
                 convertSettings.mipmap_count.present = true;
                 convertSettings.mipmap_count.value = textureMipLevels;
-                switch ( pTextureGroup->m_mipSettings.m_mipmapFilter )
-                {
-                    case TextureGroupMipSettings::MipFilter::LinearDownscale:
-                    {
-                        convertSettings.mipmap_filter = CTT_MIPMAP_FILTER_TRIANGLE;
-                    }
-                    break;
-
-                    case TextureGroupMipSettings::MipFilter::EnvironmentMapConvolution:
-                    {
-                        convertSettings.mipmap_filter = CTT_MIPMAP_FILTER_LANCZOS3;
-                    }
-                    break;
-
-                    default:
-                    {
-                        convertSettings.mipmap_filter = CTT_MIPMAP_FILTER_LANCZOS3;
-                    }
-                    break;
-                }
+                convertSettings.mipmap_filter = CTT_MIPMAP_FILTER_LANCZOS3;
                 convertSettings.quality = CTT_QUALITY_BASIC;
 
                 ctt_pipeline_output* pOutput = nullptr;
@@ -597,7 +716,6 @@ namespace EE::Render
                         case CTT_STATUS_UNSUPPORTED_FORMAT: pErrorMessage = "UNSUPPORTED_FORMAT"; break;
                         case CTT_STATUS_INVALID_SWIZZLE: pErrorMessage = "INVALID_SWIZZLE"; break;
                         case CTT_STATUS_CUBEMAP_FACE_COUNT: pErrorMessage = "CUBEMAP_FACE_COUNT"; break;
-                        case CTT_STATUS_CUBEMAP_NON_UNIFORM_FACES: pErrorMessage = "CUBEMAP_NON_UNIFORM_FACES"; break;
                         case CTT_STATUS_COMPRESSION: pErrorMessage = "COMPRESSION"; break;
                         case CTT_STATUS_OUTPUT_ENCODING: pErrorMessage = "OUTPUT_ENCODING"; break;
                         case CTT_STATUS_INPUT_DECODING: pErrorMessage = "INPUT_DECODING"; break;

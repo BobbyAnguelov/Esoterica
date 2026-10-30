@@ -30,6 +30,8 @@ namespace EE::Render
         {
             EE_REFLECT_TYPE( MaterialOverride );
 
+        public:
+
             MaterialOverride() = default;
 
             MaterialOverride( int16_t submeshIdx, ResourceID const& materialID = ResourceID() )
@@ -56,6 +58,8 @@ namespace EE::Render
         struct EE_ENGINE_API SubmeshSettings : public IReflectedType
         {
             EE_REFLECT_TYPE( SubmeshSettings );
+
+        public:
 
             inline void Clear() { m_hiddenSubmeshes.clear(); m_materialOverrides.clear(); }
 

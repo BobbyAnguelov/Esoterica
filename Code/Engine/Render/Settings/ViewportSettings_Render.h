@@ -46,6 +46,7 @@ namespace EE::Render
         bool                        m_showSkeletalMeshBones = false;
         bool                        m_showSkeletalMeshBindPoses = false;
         bool                        m_showShadowCascades = false;
+        bool                        m_showParallaxCost = false;
     };
 }
 #endif

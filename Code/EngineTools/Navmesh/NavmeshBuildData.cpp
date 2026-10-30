@@ -16,7 +16,7 @@ namespace EE::Navmesh
 
     void NavmeshBuildData::Clear()
     {
-        ClearLog();
+        Log::Clear();
 
         m_collisionMeshInstances.clear();
 
@@ -128,10 +128,11 @@ namespace EE::Navmesh
 
     //-------------------------------------------------------------------------
 
-    bool NavmeshBuildData::LoadCollisionMeshes( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceDirectoryPath, TFunction<void( ResourceID const&, Import::Source&, TVector<String>& )> customMeshLoadInfoFunction )
+    bool NavmeshBuildData::LoadCollisionMeshes( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceDataDirectoryPath, TFunction<void( ResourceID const&, Import::Source&, TVector<String>& )> customMeshLoadInfoFunction )
     {
         Import::ReaderContext readerCtx =
         {
+            sourceDataDirectoryPath,
             []( char const* pString ) { EE_LOG_WARNING( LogCategory::Navmesh, "Generation", pString ); },
             [] ( char const* pString ) { EE_LOG_ERROR( LogCategory::Navmesh, "Generation", pString ); }
         };
@@ -170,7 +171,7 @@ namespace EE::Navmesh
                 FileSystem::Path meshDescriptorFilePath;
                 if ( descriptorDataPath.IsValid() )
                 {
-                    meshDescriptorFilePath = descriptorDataPath.GetFileSystemPath( sourceDirectoryPath );
+                    meshDescriptorFilePath = descriptorDataPath.GetFileSystemPath( sourceDataDirectoryPath );
                 }
                 else
                 {
@@ -191,7 +192,7 @@ namespace EE::Navmesh
                 FileSystem::Path collisionMeshFilePath;
                 if ( physicsCollisionDescriptor.m_sourcePath.IsValid() )
                 {
-                    collisionMeshFilePath = physicsCollisionDescriptor.m_sourcePath.GetFileSystemPath( sourceDirectoryPath );
+                    collisionMeshFilePath = physicsCollisionDescriptor.m_sourcePath.GetFileSystemPath( sourceDataDirectoryPath );
                 }
                 else
                 {

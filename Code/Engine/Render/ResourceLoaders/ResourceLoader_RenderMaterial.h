@@ -15,11 +15,8 @@ namespace EE::Render
 
         MaterialLoader();
 
-        EE_FORCE_INLINE void SetRenderSystem( RenderSystem* pRenderSystem )
-        {
-            EE_ASSERT( !m_pRenderSystem );
-            m_pRenderSystem = pRenderSystem;
-        }
+        inline void SetRenderSystemPtr( RenderSystem* pRenderSystem ) { EE_ASSERT( pRenderSystem != nullptr ); m_pRenderSystem = pRenderSystem; }
+        inline void ClearRenderSystemPtr() { m_pRenderSystem = nullptr; }
 
     private:
 
@@ -27,7 +24,7 @@ namespace EE::Render
         virtual Resource::LoadResult Install( ResourceID const& resourceID, Resource::InstallDependencyList const& installDependencies, Resource::ResourceRecord* pResourceRecord ) const final;
         virtual Resource::UnloadResult Uninstall( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const override;
 
-        //-------------------------------------------------------------------------
+    private:
 
         RenderSystem* m_pRenderSystem = nullptr;
     };

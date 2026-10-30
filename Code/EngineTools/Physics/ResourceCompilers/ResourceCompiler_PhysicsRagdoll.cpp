@@ -35,10 +35,10 @@ namespace EE::Physics
 
         auto pSkeletonResourceDescriptor = ctx.GetDescriptor<Animation::SkeletonResourceDescriptor>( pResourceDescriptor->m_skeleton.GetDataPath() );
 
-        FileSystem::Path const skeletonFilePath = pSkeletonResourceDescriptor->m_skeletonPath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath );
+        FileSystem::Path const skeletonFilePath = pSkeletonResourceDescriptor->m_skeletonPath.GetFileSystemPath( ctx.m_sourceDataDirectoryPath );
         Import::Source const skeletonFileSource( skeletonFilePath, ctx.GetRawData( pSkeletonResourceDescriptor->m_skeletonPath ) );
 
-        Import::ReaderContext readerCtx = { [&ctx]( char const* pString ) { ctx.LogWarning( pString ); }, [&ctx] ( char const* pString ) { ctx.LogError( pString ); } };
+        Import::ReaderContext readerCtx = { ctx.m_sourceDataDirectoryPath, [&ctx]( char const* pString ) { ctx.LogWarning( pString ); }, [&ctx] ( char const* pString ) { ctx.LogError( pString ); } };
         TUniquePtr<Import::Skeleton> skeleton = Import::Importer::ReadSkeleton( readerCtx, skeletonFileSource, pSkeletonResourceDescriptor->m_skeletonRootBoneName, pSkeletonResourceDescriptor->m_highLODBones );
         if ( skeleton == nullptr || !skeleton->IsValid() )
         {

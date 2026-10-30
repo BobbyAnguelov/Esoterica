@@ -33,6 +33,13 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     static const uint g_maxLodLevels = 6;  // hard maximum, packed into 5 spare checksum bits
     static const uint g_maxLookups = 12;
 
+    static uint const s_pointLightSlot = 0;
+    static uint const s_spotLightSlot  = 1;
+    static uint const s_decalSlot      = 2;
+
+    static uint const s_numCulledSlots = 3;
+    static uint const s_numWordsPerPayloadEntry = 2;
+
     float CellSizeFromLevel( uint level, float baseCellSize )
     {
         return exp2( float( level ) ) * baseCellSize;
@@ -94,28 +101,34 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
             return ( word >> 22U ) ^ word;
         }
 
-        uint64_t2 LoadPayload( uint slotIndex, uint pageIndex )
+        uint PayloadMaskBase( uint slotIndex, uint maskIndex )
         {
-            uint base = slotIndex * m_payloadStride + 2 + pageIndex * 2;
-            return uint64_t2( m_payloads[base], m_payloads[base + 1] );
+            return ( slotIndex * m_payloadStride )
+                 + ( s_numCulledSlots * s_numWordsPerPayloadEntry )
+                 + ( maskIndex * s_numCulledSlots );
         }
 
-        void StorePayload( uint slotIndex, uint pageIndex, uint64_t2 value )
+        uint LoadMask( uint slotIndex, uint maskIndex, uint lane )
         {
-            uint base = slotIndex * m_payloadStride + 2 + pageIndex * 2;
-            m_payloads[base]        = value.x;
-            m_payloads[base + 1]    = value.y;
+            return m_payloads[PayloadMaskBase( slotIndex, maskIndex ) + lane];
+        }
+
+        void StoreMask( uint slotIndex, uint maskIndex, uint lane, uint mask )
+        {
+            m_payloads[PayloadMaskBase( slotIndex, maskIndex ) + lane] = mask;
         }
 
         uint2 LoadMetadata( uint slotIndex, uint metaIndex )
         {
-            uint64_t packed = m_payloads[ slotIndex * m_payloadStride + metaIndex ];
-            return uint2( uint( packed & 0xFFFFFFFF ), uint( packed >> 32 ) );
+            uint const base = ( slotIndex * m_payloadStride ) + ( metaIndex * s_numWordsPerPayloadEntry );
+            return uint2( m_payloads[base], m_payloads[base + 1] );
         }
 
         void StoreMetadata( uint slotIndex, uint metaIndex, uint2 value )
         {
-            m_payloads[slotIndex * m_payloadStride + metaIndex] = uint64_t( value.x ) | ( uint64_t( value.y ) << 32 );
+            uint const base = ( slotIndex * m_payloadStride ) + ( metaIndex * s_numWordsPerPayloadEntry );
+            m_payloads[base]        = value.x;
+            m_payloads[base + 1]    = value.y;
         }
 
         bool LoadPayloadCell( float3 worldPos, float3 cameraPos, out uint slotIndex, out uint numCollisions, out uint checksum )
@@ -237,7 +250,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     //-------------------------------------------------------------------------
 
     // Read-write variant for compute shader
-    struct SpatialHashRW : SpatialHashBase<RWByteAddressBuffer, RWStructuredBuffer<uint64_t> >
+    struct SpatialHashRW : SpatialHashBase<RWByteAddressBuffer, RWStructuredBuffer<uint> >
     {
         uint FindOrInsert( int3 cellIndex, uint level, out bool newCellInserted )
         {
@@ -268,7 +281,7 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
     };
 
     // Read-only variant for pixel shader (SRV)
-    typedef SpatialHashBase<ByteAddressBuffer, StructuredBuffer<uint64_t> > SpatialHashRO;
+    typedef SpatialHashBase<ByteAddressBuffer, StructuredBuffer<uint> > SpatialHashRO;
 
     //-------------------------------------------------------------------------
 

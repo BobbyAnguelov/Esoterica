@@ -3,7 +3,7 @@
 Author: Kirill Bazhenov
 Status: Published
 Category: Guide
-Last edited time: September 24, 2026 7:06 PM
+Last edited time: October 18, 2026 6:57 PM
 Type: Guideline
 
 # Rendering — System Overview
@@ -40,6 +40,8 @@ We make a few deliberate bets to hit those goals:
 [Meshes](Rendering/Meshes.md)
 
 [Material Rendering Pipeline](Rendering/Material%20Rendering%20Pipeline.md)
+
+[Decals](Rendering/Decals.md)
 
 [HandleAllocator](Rendering/HandleAllocator.md)
 

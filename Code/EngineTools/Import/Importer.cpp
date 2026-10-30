@@ -3,11 +3,13 @@
 #include "ImportedSkeleton.h"
 #include "ImportedAnimation.h"
 #include "ImportedImage.h"
+
 #include "Formats/FBX.h"
 #include "Formats/GLTF.h"
 #include "Formats/DDS.h"
-#include "EngineTools/ThirdParty/tinyexr/tinyexr.h"
-#include "Base/ThirdParty/stb/stb_image.h"
+#include "Formats/EXR.h"
+#include "Formats/HDR.h"
+#include "Formats/Bitmaps.h"
 
 //-------------------------------------------------------------------------
 
@@ -35,78 +37,135 @@ namespace EE::Import
         return false;
     }
 
+    static bool ValidateFile( ReaderContext const& ctx, Source const& source, Import::File const* pFile )
+    {
+        if ( pFile == nullptr )
+        {
+            InlineString str( InlineString::CtorSprintf(), "Invalid source file extension: %s", source.m_path.c_str() );
+            ctx.m_errorDelegate( str.c_str() );
+            return false;
+        }
+        
+        if ( !pFile->IsValid() )
+        {
+            InlineString str( InlineString::CtorSprintf(), "Invalid source file: %s, error: %s", source.m_path.c_str(), pFile->GetErrorMessage().c_str() );
+            ctx.m_errorDelegate( str.c_str() );
+            return false;
+        }
+
+        return true;
+    }
+
     //-------------------------------------------------------------------------
 
-    TUniquePtr<Mesh> Importer::ReadStaticMesh( ReaderContext const& ctx, Source const& source, TVector<String> const& meshesToInclude )
+    TUniquePtr<ImageFile> Importer::LoadImageFile( ReaderContext const& ctx, Source const& source )
     {
-        EE_ASSERT( source.IsValid() && ctx.IsValid() );
+        TUniquePtr<ImageFile> imageFile;
 
-        TUniquePtr<Mesh> pImportedMesh = nullptr;
+        FileSystem::Extension const extension = source.GetExtension();
 
-        auto const extension = source.GetExtension();
-        if ( extension == "fbx" )
+        if ( extension == "hdr" )
         {
-            pImportedMesh = UFbx::ReadStaticMesh( source, meshesToInclude );
+            imageFile = TUniquePtr<ImageFile>( EE::New<HDR::File>( source ) );
         }
-        else if ( extension == "gltf" || extension == "glb" )
+        else if ( extension == "exr" )
         {
-            pImportedMesh = gltf::ReadStaticMesh( source, meshesToInclude );
+            imageFile = TUniquePtr<ImageFile>( EE::New<EXR::File>( source ) );
+        }
+        else if ( extension == "dds" )
+        {
+            imageFile = TUniquePtr<ImageFile>( EE::New<DDS::File>( source ) );
         }
         else
         {
-            char buffer[512];
-            Printf( buffer, 512, "unsupported extension: %s", source.m_path.c_str() );
-            ctx.m_errorDelegate( buffer );
+            imageFile = TUniquePtr<ImageFile>( EE::New<BitmapImage::File>( source ) );
         }
 
-        pImportedMesh->Finalize();
+        return imageFile;
+    }
 
-        //-------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
 
-        if ( !ValidateRawAsset( ctx, pImportedMesh.get() ) )
+    TUniquePtr<SceneFile> Importer::LoadSceneFile( ReaderContext const& ctx, Source const& source )
+    {
+        TUniquePtr<SceneFile> sceneFile;
+
+        FileSystem::Extension const extension = source.GetExtension();
+
+        if ( extension == "fbx" )
         {
-            pImportedMesh = nullptr;
+            sceneFile = TUniquePtr<SceneFile>( EE::New<UFbx::File>( source, ctx.m_sourceDataDirectoryPath ) );
+        }
+        else if ( extension == "gltf" || extension == "glb" )
+        {
+            sceneFile = TUniquePtr<SceneFile>( EE::New<gltf::File>( source, ctx.m_sourceDataDirectoryPath ) );
+        }
+
+        return sceneFile;
+    }
+
+    //-------------------------------------------------------------------------
+
+    TUniquePtr<Mesh> Importer::ReadStaticMesh( ReaderContext const& ctx, Source const& source, TVector<String> const& meshesToInclude, bool finalizeMaterials )
+    {
+        EE_ASSERT( source.IsValid() && ctx.IsValid() );
+
+        TUniquePtr<SceneFile> const sceneFile = LoadSceneFile( ctx, source );
+        if ( !ValidateFile( ctx, source, sceneFile.get() ) )
+        {
+            return nullptr;
         }
 
         //-------------------------------------------------------------------------
+
+        TUniquePtr<Mesh> pImportedMesh = sceneFile->ReadStaticMesh( meshesToInclude );
+        if ( pImportedMesh != nullptr )
+        {
+            pImportedMesh->Finalize();
+
+            if ( finalizeMaterials )
+            {
+                pImportedMesh->FinalizeMaterials( ctx.m_sourceDataDirectoryPath );
+            }
+
+            if ( !ValidateRawAsset( ctx, pImportedMesh.get() ) )
+            {
+                pImportedMesh = nullptr;
+            }
+        }
 
         return pImportedMesh;
     }
 
     //-------------------------------------------------------------------------
 
-    TUniquePtr<Mesh> Importer::ReadSkeletalMesh( ReaderContext const& ctx, Source const& source, TVector<String> const& meshesToInclude )
+    TUniquePtr<Mesh> Importer::ReadSkeletalMesh( ReaderContext const& ctx, Source const& source, TVector<String> const& meshesToInclude, bool finalizeMaterials )
     {
         EE_ASSERT( source.IsValid() && ctx.IsValid() );
 
-        TUniquePtr<Mesh> pImportedMesh = nullptr;
-
-        auto const extension = source.GetExtension();
-        if ( extension == "fbx" )
+        TUniquePtr<SceneFile> const sceneFile = LoadSceneFile( ctx, source );
+        if ( !ValidateFile( ctx, source, sceneFile.get() ) )
         {
-            pImportedMesh = UFbx::ReadSkeletalMesh( source, meshesToInclude );
-        }
-        else if ( extension == "gltf" || extension == "glb" )
-        {
-            pImportedMesh = gltf::ReadSkeletalMesh( source, meshesToInclude );
-        }
-        else
-        {
-            char buffer[512];
-            Printf( buffer, 512, "unsupported extension: %s", source.m_path.c_str() );
-            ctx.m_errorDelegate( buffer );
-        }
-
-        pImportedMesh->Finalize();
-
-        //-------------------------------------------------------------------------
-
-        if ( !ValidateRawAsset( ctx, pImportedMesh.get() ) )
-        {
-            pImportedMesh = nullptr;
+            return nullptr;
         }
 
         //-------------------------------------------------------------------------
+
+        TUniquePtr<Mesh> pImportedMesh = sceneFile->ReadSkeletalMesh( meshesToInclude );
+        if ( pImportedMesh != nullptr )
+        {
+            pImportedMesh->Finalize();
+
+            if ( finalizeMaterials )
+            {
+                pImportedMesh->FinalizeMaterials( ctx.m_sourceDataDirectoryPath );
+            }
+
+            if ( !ValidateRawAsset( ctx, pImportedMesh.get() ) )
+            {
+                pImportedMesh = nullptr;
+            }
+        }
 
         return pImportedMesh;
     }
@@ -117,34 +176,24 @@ namespace EE::Import
     {
         EE_ASSERT( source.IsValid() && ctx.IsValid() );
 
-        TUniquePtr<Skeleton> pImportedSkeleton = nullptr;
-
-        auto const extension = source.GetExtension();
-        if ( extension == "fbx" )
+        TUniquePtr<SceneFile> const sceneFile = LoadSceneFile( ctx, source );
+        if ( !ValidateFile( ctx, source, sceneFile.get() ) )
         {
-            pImportedSkeleton = UFbx::ReadSkeleton( source, skeletonRootBoneName );
-        }
-        else if ( extension == "gltf" || extension == "glb" )
-        {
-            pImportedSkeleton = gltf::ReadSkeleton( source, skeletonRootBoneName );
-        }
-        else
-        {
-            char buffer[512];
-            Printf( buffer, 512, "unsupported extension: %s", source.m_path.c_str() );
-            ctx.m_errorDelegate( buffer );
-        }
-
-        pImportedSkeleton->Finalize( listOfHighLODBones );
-
-        //-------------------------------------------------------------------------
-
-        if ( !ValidateRawAsset( ctx, pImportedSkeleton.get() ) )
-        {
-            pImportedSkeleton = nullptr;
+            return nullptr;
         }
 
         //-------------------------------------------------------------------------
+
+        TUniquePtr<Skeleton> pImportedSkeleton = sceneFile->ReadSkeleton( skeletonRootBoneName );
+        if ( pImportedSkeleton != nullptr )
+        {
+            pImportedSkeleton->Finalize( listOfHighLODBones );
+
+            if ( !ValidateRawAsset( ctx, pImportedSkeleton.get() ) )
+            {
+                pImportedSkeleton = nullptr;
+            }
+        }
 
         return pImportedSkeleton;
     }
@@ -161,26 +210,17 @@ namespace EE::Import
             EE_ASSERT( pSecondarySkeleton != nullptr && pSecondarySkeleton->IsValid() );
         }
 
-        TUniquePtr<Animation> pImportedAnimation = nullptr;
+        //-------------------------------------------------------------------------
 
-        auto const extension = source.GetExtension();
-        if ( extension == "fbx" )
+        TUniquePtr<SceneFile> const sceneFile = LoadSceneFile( ctx, source );
+        if ( !ValidateFile( ctx, source, sceneFile.get() ) )
         {
-            pImportedAnimation = UFbx::ReadAnimation( source, pPrimarySkeleton, secondarySkeletons, animationName, samplingFrameRate );
-        }
-        else if ( extension == "gltf" || extension == "glb" )
-        {
-            pImportedAnimation = gltf::ReadAnimation( source, pPrimarySkeleton, secondarySkeletons, animationName );
-        }
-        else
-        {
-            TInlineString<512> errorString;
-            errorString.sprintf( "unsupported extension: %s", source.m_path.c_str() );
-            ctx.m_errorDelegate( errorString.c_str() );
+            return nullptr;
         }
 
         //-------------------------------------------------------------------------
 
+        TUniquePtr<Animation> pImportedAnimation = sceneFile->ReadAnimation( pPrimarySkeleton, secondarySkeletons, animationName, samplingFrameRate );
         if ( pImportedAnimation != nullptr )
         {
             if ( !pImportedAnimation->HasErrors() )
@@ -188,17 +228,44 @@ namespace EE::Import
                 pImportedAnimation->Finalize();
             }
 
-            //-------------------------------------------------------------------------
-
             if ( !ValidateRawAsset( ctx, pImportedAnimation.get() ) )
             {
                 pImportedAnimation = nullptr;
             }
         }
 
+        return pImportedAnimation;
+    }
+
+    //-------------------------------------------------------------------------
+
+    TUniquePtr<Materials> Importer::ReadMaterials( ReaderContext const& ctx, Source const& source, FileSystem::Path const& overrideTextureSearchPath )
+    {
+        EE_ASSERT( ctx.IsValid() && source.IsValid() );
+
+        TUniquePtr<SceneFile> const sceneFile = LoadSceneFile( ctx, source );
+        if ( !ValidateFile( ctx, source, sceneFile.get() ) )
+        {
+            return nullptr;
+        }
+
         //-------------------------------------------------------------------------
 
-        return pImportedAnimation;
+        TUniquePtr<Materials> pImportedMaterials = sceneFile->ReadMaterials();
+        if ( pImportedMaterials != nullptr )
+        {
+            if ( !pImportedMaterials->HasErrors() )
+            {
+                pImportedMaterials->Finalize( ctx.m_sourceDataDirectoryPath, overrideTextureSearchPath );
+            }
+
+            if ( !ValidateRawAsset( ctx, pImportedMaterials.get() ) )
+            {
+                pImportedMaterials = nullptr;
+            }
+        }
+
+        return pImportedMaterials;
     }
 
     //-------------------------------------------------------------------------
@@ -207,116 +274,20 @@ namespace EE::Import
     {
         EE_ASSERT( ctx.IsValid() && source.IsValid() );
 
-        // HDR
-        //-------------------------------------------------------------------------
-        // TODO: Load HDR directly in half-float format instead of float.
-
-        FileSystem::Extension const extension = source.GetExtension();
-        if ( extension == "hdr" )
+        TUniquePtr<ImageFile> const imageFile = LoadImageFile( ctx, source );
+        if ( !ValidateFile( ctx, source, imageFile.get() ) )
         {
-            TUniquePtr<Image> importedImage( EE::New<Image>() );
-
-            float* pImportedHDR = nullptr;
-            if( source.m_pFileData != nullptr )
-            {
-                pImportedHDR = stbi_loadf_from_memory( source.m_pFileData->data(), (int32_t) source.m_pFileData->size(), &importedImage->m_width, &importedImage->m_height, &importedImage->m_channels, STBI_rgb_alpha );
-            }
-            else
-            {
-                pImportedHDR = stbi_loadf( source.m_path.c_str(), &importedImage->m_width, &importedImage->m_height, &importedImage->m_channels, STBI_rgb_alpha );
-            }
-
-            importedImage->m_pImageData = reinterpret_cast<uint8_t*>( pImportedHDR );
-            importedImage->m_hdr = true;
-            importedImage->m_stride = int32_t( importedImage->m_width * STBI_rgb_alpha * sizeof( float ) );
-
-            return importedImage;
+            return nullptr;
         }
 
-        // EXR
-        //-------------------------------------------------------------------------
-        // TODO: Load EXR directly in half-float format instead of float.
-
-        else if ( extension == "exr" )
-        {
-            TUniquePtr<Image> importedImage( EE::New<Image>() );
-
-            float* pImportedHDR = nullptr;
-            char const* pErrorMessage = nullptr;
-
-            if ( source.m_pFileData != nullptr )
-            {
-                if ( LoadEXRFromMemory( &pImportedHDR, &importedImage->m_width, &importedImage->m_height, source.m_pFileData->data(), source.m_pFileData->size(), &pErrorMessage ) != TINYEXR_SUCCESS )
-                {
-                    String errorMessage;
-                    errorMessage.sprintf( "Failed to load EXR file %s : %s", source.m_path.c_str(), pErrorMessage );
-                    ctx.m_errorDelegate( errorMessage.c_str() );
-
-                    EE::Free( pErrorMessage );
-                    return nullptr;
-                }
-            }
-            else
-            {
-                if ( LoadEXR( &pImportedHDR, &importedImage->m_width, &importedImage->m_height, source.m_path.c_str(), &pErrorMessage ) != TINYEXR_SUCCESS )
-                {
-                    String errorMessage;
-                    errorMessage.sprintf( "Failed to load EXR file %s : %s", source.m_path.c_str(), pErrorMessage );
-                    ctx.m_errorDelegate( errorMessage.c_str() );
-
-                    EE::Free( pErrorMessage );
-                    return nullptr;
-                }
-            }
-
-            importedImage->m_pImageData = reinterpret_cast<uint8_t*>( pImportedHDR );
-            importedImage->m_hdr = true;
-            importedImage->m_stride = int32_t( importedImage->m_width * STBI_rgb_alpha * sizeof( float ) );
-
-            return importedImage;
-        }
-
-        // DDS
         //-------------------------------------------------------------------------
 
-        else if ( extension == "dds" )
+        TUniquePtr<Image> importedImage = imageFile->ReadImage();
+        if ( !ValidateRawAsset( ctx, importedImage.get() ) )
         {
-            TUniquePtr<Image> importedImage;
-
-            if ( source.m_pFileData != nullptr )
-            {
-                importedImage = DDS::ReadImage( *source.m_pFileData );
-            }
-            else
-            {
-                importedImage = DDS::ReadImage( source.m_path );
-            }
-
-            return importedImage;
+            importedImage = nullptr;
         }
 
-        // Regular Formats
-        //-------------------------------------------------------------------------
-
-        else
-        {
-            TUniquePtr<Image> importedImage( EE::New<Image>() );
-
-            if ( source.m_pFileData != nullptr )
-            {
-                importedImage->m_pImageData = stbi_load_from_memory( source.m_pFileData->data(), (int32_t) source.m_pFileData->size(), &importedImage->m_width, &importedImage->m_height, &importedImage->m_channels, STBI_rgb_alpha );
-            }
-            else
-            {
-                importedImage->m_pImageData = stbi_load( source.m_path.c_str(), &importedImage->m_width, &importedImage->m_height, &importedImage->m_channels, STBI_rgb_alpha );
-            }
-
-            importedImage->m_stride = importedImage->m_width * STBI_rgb_alpha;
-            importedImage->m_channels = 4;
-
-            return importedImage;
-        }
-
-        return nullptr;
+        return importedImage;
     }
 }

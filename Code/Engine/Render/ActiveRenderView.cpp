@@ -5,7 +5,8 @@
 #include "Base/Render/RHI.h"
 #include "Engine/Render/Device/DeviceRenderWorld.h"
 #include "Engine/Render/RenderSystem.h"
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
+#include "Engine/Render/Shaders/Renderer/DrawRootConstants.esh"
 
 //-------------------------------------------------------------------------
 
@@ -143,7 +144,9 @@ namespace EE::Render
 
         bool const hasEditorOutlineRenderView = ( editorOutlineRenderViewIndex != ActiveRenderViewList::s_InvalidActiveRenderViewIndex );
 
+        // The main camera is always the first active render view, shaders rely on this.
         activeRenderViewList.m_mainRenderViewActiveIndex = numActiveRenderViews;
+        EE_ASSERT( activeRenderViewList.m_mainRenderViewActiveIndex == 0 );
         AppendRenderView( mainRenderViewIndex );
 
         if ( hasEditorOutlineRenderView )

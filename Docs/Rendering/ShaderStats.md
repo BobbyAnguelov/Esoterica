@@ -1,185 +1,203 @@
 ## RDNA 3 (RX 7900)
 
-### Pixel shaders
-| Name                           | Permutation            | VGPR   | SGPR    | Occupancy   |
-| ------------------------------ | ---------------------- | ------ | ------- | ----------- |
-| BilateralUpsample              |                        | 12/256 | 34/104  | 95.31%      |
-| DebugDraw                      |                        | 13/256 | 22/104  | 94.92%      |
-| DebugDrawMesh                  |                        | 11/256 | 19/104  | 95.70%      |
-| DepthPyramidReduction          |                        | 6/256  | 26/104  | 97.66%      |
-| Downsample                     |                        | 5/256  | 22/104  | 98.05%      |
-| EditorOutline_Composite        |                        | 7/256  | 24/104  | 97.27%      |
-| EditorOutline_Initialize       |                        | 9/256  | 24/104  | 96.48%      |
-| EditorOutline_JumpFlood        |                        | 29/256 | 24/104  | 88.67%      |
-| ComplexSurfacePBR              | `DEFAULT`              | 67/256 | 86/104  | 73.83%      |
-| ComplexSurfacePBR              | `ALPHA_TEST`           | 67/256 | 86/104  | 73.83%      |
-| ComplexSurfacePBR              | `DEFAULT` `ALPHA_TEST` | 67/256 | 86/104  | 73.83%      |
-| DefaultPBR                     | `DEFAULT`              | 52/256 | 86/104  | 79.69%      |
-| DefaultPBR                     | `ALPHA_TEST`           | 52/256 | 86/104  | 79.69%      |
-| DefaultPBR                     | `DEFAULT` `ALPHA_TEST` | 52/256 | 86/104  | 79.69%      |
-| Placeholder                    | `DEFAULT`              | 51/256 | 82/104  | 80.08%      |
-| Placeholder                    | `ALPHA_TEST`           | 51/256 | 82/104  | 80.08%      |
-| Placeholder                    | `DEFAULT` `ALPHA_TEST` | 51/256 | 82/104  | 80.08%      |
-| DefaultColorOnlyPBR            | `DEFAULT`              | 67/256 | 90/104  | 73.83%      |
-| DefaultColorOnlyPBR            | `ALPHA_TEST`           | 67/256 | 90/104  | 73.83%      |
-| DefaultColorOnlyPBR            | `DEFAULT` `ALPHA_TEST` | 67/256 | 90/104  | 73.83%      |
-| OITResolve                     |                        | 4/256  | 16/104  | 98.44%      |
-| CubemapDownsample              |                        | 16/256 | 26/104  | 93.75%      |
-| PostProcess                    |                        | 6/256  | 30/104  | 97.66%      |
-| Imgui                          |                        | 10/256 | 18/104  | 96.09%      |
-| SMAA_BlendingWeightCalculation |                        | 30/256 | 40/104  | 88.28%      |
-| SMAA_EdgeDetection             |                        | 25/256 | 24/104  | 90.23%      |
-| SMAA_NeighborhoodBlending      |                        | 14/256 | 26/104  | 94.53%      |
+### Material shaders
+
+| Name          | Permutation               | Stages  | VS/MS VGPR | VS/MS SGPR | LDS           | PS VGPR | PS SGPR |
+| ------------- | ------------------------- | ------- | ---------- | ---------- | ------------- | ------- | ------- |
+| Placeholder   | `DEFAULT`                 | MS + PS | 47/256     | 89/106     | 10.00/64.00Kb | 71/256  | 88/106  |
+| Placeholder   | `DEPTH_ONLY`              | MS      | 47/256     | 89/106     | 10.00/64.00Kb | -       | -       |
+| Placeholder   | `ALPHA_TEST`              | MS + PS | 47/256     | 89/106     | 10.00/64.00Kb | 71/256  | 88/106  |
+| Placeholder   | `DEPTH_ONLY` `ALPHA_TEST` | MS + PS | 33/256     | 93/106     | 8.50/64.00Kb  | 13/256  | 33/106  |
+| PrincipledPBR | `DEFAULT`                 | MS + PS | 47/256     | 89/106     | 10.00/64.00Kb | 89/256  | 92/106  |
+| PrincipledPBR | `DEPTH_ONLY`              | MS      | 47/256     | 89/106     | 10.00/64.00Kb | -       | -       |
+| PrincipledPBR | `ALPHA_TEST`              | MS + PS | 47/256     | 89/106     | 10.00/64.00Kb | 89/256  | 92/106  |
+| PrincipledPBR | `DEPTH_ONLY` `ALPHA_TEST` | MS + PS | 38/256     | 93/106     | 9.50/64.00Kb  | 18/256  | 42/106  |
+| SyntyPBR      | `DEFAULT`                 | MS + PS | 47/256     | 89/106     | 10.00/64.00Kb | 84/256  | 88/106  |
+| SyntyPBR      | `DEPTH_ONLY`              | MS      | 47/256     | 89/106     | 10.00/64.00Kb | -       | -       |
+| SyntyPBR      | `ALPHA_TEST`              | MS + PS | 47/256     | 89/106     | 10.00/64.00Kb | 84/256  | 88/106  |
+| SyntyPBR      | `DEPTH_ONLY` `ALPHA_TEST` | MS + PS | 38/256     | 93/106     | 9.50/64.00Kb  | 18/256  | 42/106  |
+
+### Surface shaders
+
+| Name                           | Stages  | VS/MS VGPR | VS/MS SGPR | LDS           | PS VGPR | PS SGPR |
+| ------------------------------ | ------- | ---------- | ---------- | ------------- | ------- | ------- |
+| BilateralUpsample              | VS + PS | 12/256     | 26/106     | -             | 12/256  | 32/106  |
+| DebugDraw                      | MS + PS | 72/256     | 66/106     | 15.50/64.00Kb | 17/256  | 22/106  |
+| DebugDrawMesh                  | MS + PS | 37/256     | 88/106     | 8.00/64.00Kb  | 11/256  | 19/106  |
+| DepthPyramidReduction          | VS + PS | 12/256     | 24/106     | -             | 6/256   | 24/106  |
+| Downsample                     | VS + PS | 12/256     | 22/106     | -             | 5/256   | 20/106  |
+| EditorOutline_Composite        | VS + PS | 12/256     | 26/106     | -             | 7/256   | 24/106  |
+| EditorOutline_Initialize       | VS + PS | 9/256      | 26/106     | -             | 9/256   | 24/106  |
+| EditorOutline_JumpFlood        | VS + PS | 12/256     | 26/106     | -             | 29/256  | 24/106  |
+| OITResolve                     | VS + PS | 9/256      | 22/106     | -             | 4/256   | 16/106  |
+| CubemapDownsample              | VS + PS | 12/256     | 24/106     | -             | 7/256   | 32/106  |
+| PostProcess                    | VS + PS | 12/256     | 22/106     | -             | 6/256   | 28/106  |
+| Imgui                          | VS + PS | 16/256     | 24/106     | -             | 11/256  | 18/106  |
+| SMAA_BlendingWeightCalculation | VS + PS | 26/256     | 26/106     | -             | 30/256  | 38/106  |
+| SMAA_EdgeDetection             | VS + PS | 25/256     | 26/106     | -             | 25/256  | 24/106  |
+| SMAA_NeighborhoodBlending      | VS + PS | 13/256     | 26/106     | -             | 14/256  | 26/106  |
 
 ### Compute shaders
 
+| Name                            | VGPR   | SGPR   | Occupancy   | LDS          | Scratch   |
+| ------------------------------- | ------ | ------ | ----------- | ------------ | --------- |
+| DebugDrawResolve                | 9/256  | 28/106 | 96.48%      | 0.00/64.00Kb | 0B        |
+| FFX_ParallelSort_Count          | 12/256 | 20/106 | 95.31%      | 8.00/64.00Kb | 0B        |
+| FFX_ParallelSort_Reduce         | 8/256  | 20/106 | 96.88%      | 0.50/64.00Kb | 0B        |
+| FFX_ParallelSort_Scan           | 15/256 | 20/106 | 94.14%      | 2.50/64.00Kb | 0B        |
+| FFX_ParallelSort_ScanAdd        | 16/256 | 24/106 | 93.75%      | 2.50/64.00Kb | 0B        |
+| FFX_ParallelSort_Scatter        | 20/256 | 24/106 | 92.19%      | 2.00/64.00Kb | 0B        |
+| FFX_ParallelSort_ScatterPayload | 24/256 | 32/106 | 90.62%      | 2.00/64.00Kb | 0B        |
+| FFX_ParallelSort_SetupIndirect  | 19/256 | 32/106 | 92.58%      | 0.00/64.00Kb | 0B        |
+| Denoise                         | 42/256 | 48/106 | 83.59%      | 0.00/64.00Kb | 0B        |
+| MainPass                        | 53/256 | 48/106 | 79.30%      | 0.00/64.00Kb | 0B        |
+| PrefilterDepth                  | 30/256 | 48/106 | 88.28%      | 0.50/64.00Kb | 0B        |
+| InstancePickingResolve          | 9/256  | 20/106 | 96.48%      | 0.00/64.00Kb | 0B        |
+| IrradianceSHProject             | 46/256 | 42/106 | 82.03%      | 3.00/64.00Kb | 0B        |
+| ProbeTableRadiance              | 28/256 | 52/106 | 89.06%      | 0.00/64.00Kb | 0B        |
+| CullingCompaction               | 7/256  | 16/106 | 97.27%      | 0.00/64.00Kb | 0B        |
+| CullingArgumentGeneration       | 17/256 | 25/106 | 93.36%      | 0.00/64.00Kb | 0B        |
+| DrawCompaction                  | 7/256  | 40/106 | 97.27%      | 0.00/64.00Kb | 0B        |
+| DrawArgumentGeneration          | 15/256 | 52/106 | 94.14%      | 0.00/64.00Kb | 0B        |
+| ClusterCulling                  | 38/256 | 64/106 | 85.16%      | 0.00/64.00Kb | 0B        |
+| ClusterToInstanceUpdate         | 5/256  | 16/106 | 98.05%      | 0.00/64.00Kb | 0B        |
+| InstanceCulling                 | 34/256 | 60/106 | 86.72%      | 0.00/64.00Kb | 0B        |
+| LightCulling_CullLights         | 41/256 | 66/106 | 83.98%      | 0.50/64.00Kb | 0B        |
+| InitializeInstances             | 18/256 | 24/106 | 92.97%      | 0.00/64.00Kb | 0B        |
+| UpdateInstances                 | 94/256 | 28/106 | 63.28%      | 0.00/64.00Kb | 0B        |
 
-| Name                            | VGPR   | SGPR    | Occupancy   | LDS          | Scratch   |
-| ------------------------------- | ------ | ------- | ----------- | ------------ | --------- |
-| DebugDrawResolve                | 17/256 | 32/104  | 93.36%      | 0.00/64.00Kb | 0Kb       |
-| FFX_ParallelSort_Count          | 12/256 | 20/104  | 95.31%      | 8.00/64.00Kb | 0Kb       |
-| FFX_ParallelSort_Reduce         | 8/256  | 20/104  | 96.88%      | 0.50/64.00Kb | 0Kb       |
-| FFX_ParallelSort_Scan           | 15/256 | 20/104  | 94.14%      | 2.50/64.00Kb | 0Kb       |
-| FFX_ParallelSort_ScanAdd        | 16/256 | 24/104  | 93.75%      | 2.50/64.00Kb | 0Kb       |
-| FFX_ParallelSort_Scatter        | 20/256 | 26/104  | 92.19%      | 2.00/64.00Kb | 0Kb       |
-| FFX_ParallelSort_ScatterPayload | 24/256 | 34/104  | 90.62%      | 2.00/64.00Kb | 0Kb       |
-| FFX_ParallelSort_SetupIndirect  | 19/256 | 32/104  | 92.58%      | 0.00/64.00Kb | 0Kb       |
-| Denoise                         | 42/256 | 48/104  | 83.59%      | 0.00/64.00Kb | 0Kb       |
-| MainPass                        | 53/256 | 48/104  | 79.30%      | 0.00/64.00Kb | 0Kb       |
-| PrefilterDepth                  | 30/256 | 48/104  | 88.28%      | 0.50/64.00Kb | 0Kb       |
-| InstancePickingResolve          | 9/256  | 20/104  | 96.48%      | 0.00/64.00Kb | 0Kb       |
-| IrradianceSHProject             | 46/256 | 42/104  | 82.03%      | 3.00/64.00Kb | 0Kb       |
-| ProbeTableRadiance              | 31/256 | 48/104  | 87.89%      | 0.00/64.00Kb | 0Kb       |
-| CullingCompaction               | 7/256  | 16/104  | 97.27%      | 0.00/64.00Kb | 0Kb       |
-| CullingArgumentGeneration       | 17/256 | 25/104  | 93.36%      | 0.00/64.00Kb | 0Kb       |
-| DrawCompaction                  | 7/256  | 40/104  | 97.27%      | 0.00/64.00Kb | 0Kb       |
-| DrawArgumentGeneration          | 16/256 | 56/104  | 93.75%      | 0.00/64.00Kb | 0Kb       |
-| ClusterCulling                  | 38/256 | 64/104  | 85.16%      | 0.00/64.00Kb | 0Kb       |
-| ClusterToInstanceUpdate         | 11/256 | 16/104  | 95.70%      | 0.00/64.00Kb | 0Kb       |
-| InstanceCulling                 | 34/256 | 60/104  | 86.72%      | 0.00/64.00Kb | 0Kb       |
-| LightCulling_CullLights         | 24/256 | 58/104  | 90.62%      | 0.50/64.00Kb | 0Kb       |
-| WorldUpdate                     | 94/256 | 32/104  | 63.28%      | 0.00/64.00Kb | 0Kb       |
+## RDNA 3.5 (Radeon 890M)
 
-## RDNA 3.5 (Radeon 8040S)
+### Material shaders
 
-### Pixel shaders
-| Name                           | Permutation            | VGPR   | SGPR    | Occupancy   |
-| ------------------------------ | ---------------------- | ------ | ------- | ----------- |
-| BilateralUpsample              |                        | 12/256 | 34/104  | 95.31%      |
-| DebugDraw                      |                        | 13/256 | 22/104  | 94.92%      |
-| DebugDrawMesh                  |                        | 11/256 | 19/104  | 95.70%      |
-| DepthPyramidReduction          |                        | 6/256  | 26/104  | 97.66%      |
-| Downsample                     |                        | 5/256  | 22/104  | 98.05%      |
-| EditorOutline_Composite        |                        | 7/256  | 24/104  | 97.27%      |
-| EditorOutline_Initialize       |                        | 9/256  | 24/104  | 96.48%      |
-| EditorOutline_JumpFlood        |                        | 28/256 | 24/104  | 89.06%      |
-| ComplexSurfacePBR              | `DEFAULT`              | 72/256 | 86/104  | 71.88%      |
-| ComplexSurfacePBR              | `ALPHA_TEST`           | 72/256 | 86/104  | 71.88%      |
-| ComplexSurfacePBR              | `DEFAULT` `ALPHA_TEST` | 72/256 | 86/104  | 71.88%      |
-| DefaultPBR                     | `DEFAULT`              | 56/256 | 86/104  | 78.12%      |
-| DefaultPBR                     | `ALPHA_TEST`           | 56/256 | 86/104  | 78.12%      |
-| DefaultPBR                     | `DEFAULT` `ALPHA_TEST` | 56/256 | 86/104  | 78.12%      |
-| Placeholder                    | `DEFAULT`              | 49/256 | 82/104  | 80.86%      |
-| Placeholder                    | `ALPHA_TEST`           | 49/256 | 82/104  | 80.86%      |
-| Placeholder                    | `DEFAULT` `ALPHA_TEST` | 49/256 | 82/104  | 80.86%      |
-| DefaultColorOnlyPBR            | `DEFAULT`              | 65/256 | 86/104  | 74.61%      |
-| DefaultColorOnlyPBR            | `ALPHA_TEST`           | 65/256 | 86/104  | 74.61%      |
-| DefaultColorOnlyPBR            | `DEFAULT` `ALPHA_TEST` | 65/256 | 86/104  | 74.61%      |
-| OITResolve                     |                        | 4/256  | 16/104  | 98.44%      |
-| CubemapDownsample              |                        | 17/256 | 26/104  | 93.36%      |
-| PostProcess                    |                        | 6/256  | 30/104  | 97.66%      |
-| Imgui                          |                        | 14/256 | 18/104  | 94.53%      |
-| SMAA_BlendingWeightCalculation |                        | 31/256 | 40/104  | 87.89%      |
-| SMAA_EdgeDetection             |                        | 23/256 | 24/104  | 91.02%      |
-| SMAA_NeighborhoodBlending      |                        | 17/256 | 26/104  | 93.36%      |
+| Name          | Permutation               | Stages  | VS/MS VGPR | VS/MS SGPR | LDS           | PS VGPR | PS SGPR |
+| ------------- | ------------------------- | ------- | ---------- | ---------- | ------------- | ------- | ------- |
+| Placeholder   | `DEFAULT`                 | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 72/256  | 88/106  |
+| Placeholder   | `DEPTH_ONLY`              | MS      | 47/256     | 93/106     | 10.00/64.00Kb | -       | -       |
+| Placeholder   | `ALPHA_TEST`              | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 72/256  | 88/106  |
+| Placeholder   | `DEPTH_ONLY` `ALPHA_TEST` | MS + PS | 33/256     | 93/106     | 8.50/64.00Kb  | 13/256  | 33/106  |
+| PrincipledPBR | `DEFAULT`                 | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 96/256  | 92/106  |
+| PrincipledPBR | `DEPTH_ONLY`              | MS      | 47/256     | 93/106     | 10.00/64.00Kb | -       | -       |
+| PrincipledPBR | `ALPHA_TEST`              | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 96/256  | 92/106  |
+| PrincipledPBR | `DEPTH_ONLY` `ALPHA_TEST` | MS + PS | 38/256     | 93/106     | 9.50/64.00Kb  | 18/256  | 42/106  |
+| SyntyPBR      | `DEFAULT`                 | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 72/256  | 88/106  |
+| SyntyPBR      | `DEPTH_ONLY`              | MS      | 47/256     | 93/106     | 10.00/64.00Kb | -       | -       |
+| SyntyPBR      | `ALPHA_TEST`              | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 72/256  | 88/106  |
+| SyntyPBR      | `DEPTH_ONLY` `ALPHA_TEST` | MS + PS | 38/256     | 93/106     | 9.50/64.00Kb  | 18/256  | 42/106  |
+
+### Surface shaders
+
+| Name                           | Stages  | VS/MS VGPR | VS/MS SGPR | LDS           | PS VGPR | PS SGPR |
+| ------------------------------ | ------- | ---------- | ---------- | ------------- | ------- | ------- |
+| BilateralUpsample              | VS + PS | 12/256     | 26/106     | -             | 12/256  | 32/106  |
+| DebugDraw                      | MS + PS | 72/256     | 66/106     | 15.50/64.00Kb | 17/256  | 22/106  |
+| DebugDrawMesh                  | MS + PS | 37/256     | 88/106     | 8.00/64.00Kb  | 11/256  | 19/106  |
+| DepthPyramidReduction          | VS + PS | 12/256     | 24/106     | -             | 6/256   | 24/106  |
+| Downsample                     | VS + PS | 12/256     | 22/106     | -             | 5/256   | 20/106  |
+| EditorOutline_Composite        | VS + PS | 12/256     | 26/106     | -             | 7/256   | 24/106  |
+| EditorOutline_Initialize       | VS + PS | 9/256      | 26/106     | -             | 9/256   | 24/106  |
+| EditorOutline_JumpFlood        | VS + PS | 12/256     | 26/106     | -             | 28/256  | 24/106  |
+| OITResolve                     | VS + PS | 9/256      | 22/106     | -             | 4/256   | 16/106  |
+| CubemapDownsample              | VS + PS | 12/256     | 24/106     | -             | 7/256   | 32/106  |
+| PostProcess                    | VS + PS | 12/256     | 22/106     | -             | 6/256   | 28/106  |
+| Imgui                          | VS + PS | 16/256     | 24/106     | -             | 11/256  | 18/106  |
+| SMAA_BlendingWeightCalculation | VS + PS | 26/256     | 26/106     | -             | 30/256  | 38/106  |
+| SMAA_EdgeDetection             | VS + PS | 25/256     | 26/106     | -             | 25/256  | 24/106  |
+| SMAA_NeighborhoodBlending      | VS + PS | 13/256     | 26/106     | -             | 14/256  | 26/106  |
 
 ### Compute shaders
 
-
-| Name                            | VGPR   | SGPR    | Occupancy   | LDS          | Scratch   |
-| ------------------------------- | ------ | ------- | ----------- | ------------ | --------- |
-| DebugDrawResolve                | 17/256 | 32/104  | 93.36%      | 0.00/64.00Kb | 0Kb       |
-| FFX_ParallelSort_Count          | 12/256 | 20/104  | 95.31%      | 8.00/64.00Kb | 0Kb       |
-| FFX_ParallelSort_Reduce         | 8/256  | 20/104  | 96.88%      | 0.50/64.00Kb | 0Kb       |
-| FFX_ParallelSort_Scan           | 15/256 | 20/104  | 94.14%      | 2.50/64.00Kb | 0Kb       |
-| FFX_ParallelSort_ScanAdd        | 16/256 | 24/104  | 93.75%      | 2.50/64.00Kb | 0Kb       |
-| FFX_ParallelSort_Scatter        | 20/256 | 26/104  | 92.19%      | 2.00/64.00Kb | 0Kb       |
-| FFX_ParallelSort_ScatterPayload | 24/256 | 34/104  | 90.62%      | 2.00/64.00Kb | 0Kb       |
-| FFX_ParallelSort_SetupIndirect  | 19/256 | 33/104  | 92.58%      | 0.00/64.00Kb | 0Kb       |
-| Denoise                         | 41/256 | 48/104  | 83.98%      | 0.00/64.00Kb | 0Kb       |
-| MainPass                        | 51/256 | 48/104  | 80.08%      | 0.00/64.00Kb | 0Kb       |
-| PrefilterDepth                  | 32/256 | 48/104  | 87.50%      | 0.50/64.00Kb | 0Kb       |
-| InstancePickingResolve          | 9/256  | 20/104  | 96.48%      | 0.00/64.00Kb | 0Kb       |
-| IrradianceSHProject             | 48/256 | 42/104  | 81.25%      | 3.00/64.00Kb | 0Kb       |
-| ProbeTableRadiance              | 31/256 | 44/104  | 87.89%      | 0.00/64.00Kb | 0Kb       |
-| CullingCompaction               | 7/256  | 16/104  | 97.27%      | 0.00/64.00Kb | 0Kb       |
-| CullingArgumentGeneration       | 17/256 | 25/104  | 93.36%      | 0.00/64.00Kb | 0Kb       |
-| DrawCompaction                  | 7/256  | 40/104  | 97.27%      | 0.00/64.00Kb | 0Kb       |
-| DrawArgumentGeneration          | 16/256 | 56/104  | 93.75%      | 0.00/64.00Kb | 0Kb       |
-| ClusterCulling                  | 38/256 | 64/104  | 85.16%      | 0.00/64.00Kb | 0Kb       |
-| ClusterToInstanceUpdate         | 11/256 | 16/104  | 95.70%      | 0.00/64.00Kb | 0Kb       |
-| InstanceCulling                 | 34/256 | 60/104  | 86.72%      | 0.00/64.00Kb | 0Kb       |
-| LightCulling_CullLights         | 17/256 | 62/104  | 93.36%      | 0.50/64.00Kb | 0Kb       |
-| WorldUpdate                     | 94/256 | 32/104  | 63.28%      | 0.00/64.00Kb | 0Kb       |
+| Name                            | VGPR   | SGPR   | Occupancy   | LDS          | Scratch   |
+| ------------------------------- | ------ | ------ | ----------- | ------------ | --------- |
+| DebugDrawResolve                | 9/256  | 28/106 | 96.48%      | 0.00/64.00Kb | 0B        |
+| FFX_ParallelSort_Count          | 12/256 | 20/106 | 95.31%      | 8.00/64.00Kb | 0B        |
+| FFX_ParallelSort_Reduce         | 8/256  | 20/106 | 96.88%      | 0.50/64.00Kb | 0B        |
+| FFX_ParallelSort_Scan           | 15/256 | 20/106 | 94.14%      | 2.50/64.00Kb | 0B        |
+| FFX_ParallelSort_ScanAdd        | 16/256 | 24/106 | 93.75%      | 2.50/64.00Kb | 0B        |
+| FFX_ParallelSort_Scatter        | 20/256 | 24/106 | 92.19%      | 2.00/64.00Kb | 0B        |
+| FFX_ParallelSort_ScatterPayload | 24/256 | 32/106 | 90.62%      | 2.00/64.00Kb | 0B        |
+| FFX_ParallelSort_SetupIndirect  | 19/256 | 33/106 | 92.58%      | 0.00/64.00Kb | 0B        |
+| Denoise                         | 41/256 | 48/106 | 83.98%      | 0.00/64.00Kb | 0B        |
+| MainPass                        | 51/256 | 48/106 | 80.08%      | 0.00/64.00Kb | 0B        |
+| PrefilterDepth                  | 32/256 | 48/106 | 87.50%      | 0.50/64.00Kb | 0B        |
+| InstancePickingResolve          | 9/256  | 20/106 | 96.48%      | 0.00/64.00Kb | 0B        |
+| IrradianceSHProject             | 48/256 | 42/106 | 81.25%      | 3.00/64.00Kb | 0B        |
+| ProbeTableRadiance              | 28/256 | 48/106 | 89.06%      | 0.00/64.00Kb | 0B        |
+| CullingCompaction               | 7/256  | 16/106 | 97.27%      | 0.00/64.00Kb | 0B        |
+| CullingArgumentGeneration       | 17/256 | 25/106 | 93.36%      | 0.00/64.00Kb | 0B        |
+| DrawCompaction                  | 7/256  | 40/106 | 97.27%      | 0.00/64.00Kb | 0B        |
+| DrawArgumentGeneration          | 15/256 | 52/106 | 94.14%      | 0.00/64.00Kb | 0B        |
+| ClusterCulling                  | 38/256 | 64/106 | 85.16%      | 0.00/64.00Kb | 0B        |
+| ClusterToInstanceUpdate         | 5/256  | 16/106 | 98.05%      | 0.00/64.00Kb | 0B        |
+| InstanceCulling                 | 34/256 | 60/106 | 86.72%      | 0.00/64.00Kb | 0B        |
+| LightCulling_CullLights         | 30/256 | 72/106 | 88.28%      | 0.50/64.00Kb | 0B        |
+| InitializeInstances             | 18/256 | 24/106 | 92.97%      | 0.00/64.00Kb | 0B        |
+| UpdateInstances                 | 94/256 | 28/106 | 63.28%      | 0.00/64.00Kb | 0B        |
 
 ## RDNA 4.0 (RX 9060)
 
-### Pixel shaders
-| Name                           | Permutation            | VGPR   | SGPR    | Occupancy   |
-| ------------------------------ | ---------------------- | ------ | ------- | ----------- |
-| BilateralUpsample              |                        | 12/256 | 34/106  | 95.31%      |
-| DebugDraw                      |                        | 13/256 | 22/106  | 94.92%      |
-| DebugDrawMesh                  |                        | 11/256 | 19/106  | 95.70%      |
-| DepthPyramidReduction          |                        | 6/256  | 26/106  | 97.66%      |
-| Downsample                     |                        | 5/256  | 22/106  | 98.05%      |
-| EditorOutline_Composite        |                        | 7/256  | 22/106  | 97.27%      |
-| EditorOutline_Initialize       |                        | 9/256  | 24/106  | 96.48%      |
-| EditorOutline_JumpFlood        |                        | 29/256 | 22/106  | 88.67%      |
-| ComplexSurfacePBR              | `DEFAULT`              | 70/256 | 86/106  | 72.66%      |
-| ComplexSurfacePBR              | `ALPHA_TEST`           | 70/256 | 86/106  | 72.66%      |
-| ComplexSurfacePBR              | `DEFAULT` `ALPHA_TEST` | 70/256 | 86/106  | 72.66%      |
-| DefaultPBR                     | `DEFAULT`              | 56/256 | 86/106  | 78.12%      |
-| DefaultPBR                     | `ALPHA_TEST`           | 56/256 | 86/106  | 78.12%      |
-| DefaultPBR                     | `DEFAULT` `ALPHA_TEST` | 56/256 | 86/106  | 78.12%      |
-| Placeholder                    | `DEFAULT`              | 52/256 | 82/106  | 79.69%      |
-| Placeholder                    | `ALPHA_TEST`           | 52/256 | 82/106  | 79.69%      |
-| Placeholder                    | `DEFAULT` `ALPHA_TEST` | 52/256 | 82/106  | 79.69%      |
-| DefaultColorOnlyPBR            | `DEFAULT`              | 70/256 | 86/106  | 72.66%      |
-| DefaultColorOnlyPBR            | `ALPHA_TEST`           | 70/256 | 86/106  | 72.66%      |
-| DefaultColorOnlyPBR            | `DEFAULT` `ALPHA_TEST` | 70/256 | 86/106  | 72.66%      |
-| OITResolve                     |                        | 4/256  | 12/106  | 98.44%      |
-| CubemapDownsample              |                        | 17/256 | 26/106  | 93.36%      |
-| PostProcess                    |                        | 6/256  | 34/106  | 97.66%      |
-| Imgui                          |                        | 11/256 | 18/106  | 95.70%      |
-| SMAA_BlendingWeightCalculation |                        | 30/256 | 40/106  | 88.28%      |
-| SMAA_EdgeDetection             |                        | 23/256 | 18/106  | 91.02%      |
-| SMAA_NeighborhoodBlending      |                        | 17/256 | 22/106  | 93.36%      |
+### Material shaders
+
+| Name          | Permutation               | Stages  | VS/MS VGPR | VS/MS SGPR | LDS           | PS VGPR | PS SGPR |
+| ------------- | ------------------------- | ------- | ---------- | ---------- | ------------- | ------- | ------- |
+| Placeholder   | `DEFAULT`                 | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 84/256  | 88/106  |
+| Placeholder   | `DEPTH_ONLY`              | MS      | 47/256     | 93/106     | 10.00/64.00Kb | -       | -       |
+| Placeholder   | `ALPHA_TEST`              | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 84/256  | 88/106  |
+| Placeholder   | `DEPTH_ONLY` `ALPHA_TEST` | MS + PS | 36/256     | 93/106     | 8.50/64.00Kb  | 13/256  | 34/106  |
+| PrincipledPBR | `DEFAULT`                 | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 89/256  | 92/106  |
+| PrincipledPBR | `DEPTH_ONLY`              | MS      | 47/256     | 93/106     | 10.00/64.00Kb | -       | -       |
+| PrincipledPBR | `ALPHA_TEST`              | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 89/256  | 92/106  |
+| PrincipledPBR | `DEPTH_ONLY` `ALPHA_TEST` | MS + PS | 38/256     | 93/106     | 9.50/64.00Kb  | 18/256  | 42/106  |
+| SyntyPBR      | `DEFAULT`                 | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 84/256  | 88/106  |
+| SyntyPBR      | `DEPTH_ONLY`              | MS      | 47/256     | 93/106     | 10.00/64.00Kb | -       | -       |
+| SyntyPBR      | `ALPHA_TEST`              | MS + PS | 47/256     | 93/106     | 10.00/64.00Kb | 84/256  | 88/106  |
+| SyntyPBR      | `DEPTH_ONLY` `ALPHA_TEST` | MS + PS | 38/256     | 93/106     | 9.50/64.00Kb  | 18/256  | 42/106  |
+
+### Surface shaders
+
+| Name                           | Stages  | VS/MS VGPR | VS/MS SGPR | LDS           | PS VGPR | PS SGPR |
+| ------------------------------ | ------- | ---------- | ---------- | ------------- | ------- | ------- |
+| BilateralUpsample              | VS + PS | 11/256     | 26/106     | -             | 12/256  | 32/106  |
+| DebugDraw                      | MS + PS | 72/256     | 66/106     | 15.50/64.00Kb | 19/256  | 22/106  |
+| DebugDrawMesh                  | MS + PS | 36/256     | 88/106     | 8.00/64.00Kb  | 11/256  | 19/106  |
+| DepthPyramidReduction          | VS + PS | 11/256     | 24/106     | -             | 6/256   | 24/106  |
+| Downsample                     | VS + PS | 11/256     | 22/106     | -             | 5/256   | 20/106  |
+| EditorOutline_Composite        | VS + PS | 11/256     | 26/106     | -             | 7/256   | 20/106  |
+| EditorOutline_Initialize       | VS + PS | 5/256      | 26/106     | -             | 9/256   | 24/106  |
+| EditorOutline_JumpFlood        | VS + PS | 11/256     | 26/106     | -             | 29/256  | 20/106  |
+| OITResolve                     | VS + PS | 5/256      | 22/106     | -             | 4/256   | 12/106  |
+| CubemapDownsample              | VS + PS | 11/256     | 24/106     | -             | 7/256   | 32/106  |
+| PostProcess                    | VS + PS | 11/256     | 22/106     | -             | 6/256   | 28/106  |
+| Imgui                          | VS + PS | 13/256     | 24/106     | -             | 12/256  | 18/106  |
+| SMAA_BlendingWeightCalculation | VS + PS | 28/256     | 26/106     | -             | 30/256  | 38/106  |
+| SMAA_EdgeDetection             | VS + PS | 24/256     | 26/106     | -             | 23/256  | 18/106  |
+| SMAA_NeighborhoodBlending      | VS + PS | 13/256     | 26/106     | -             | 17/256  | 22/106  |
 
 ### Compute shaders
 
-
-| Name                            | VGPR   | SGPR    | Occupancy   | LDS         | Scratch   |
-| ------------------------------- | ------ | ------- | ----------- | ----------- | --------- |
-| DebugDrawResolve                | 17/256 | 32/106  | 93.36%      | 0.00/0.00Kb | 0Kb       |
-| FFX_ParallelSort_Count          | 12/256 | 16/106  | 95.31%      | 8.00/8.00Kb | 0Kb       |
-| FFX_ParallelSort_Reduce         | 8/256  | 20/106  | 96.88%      | 0.50/0.50Kb | 0Kb       |
-| FFX_ParallelSort_Scan           | 15/256 | 20/106  | 94.14%      | 2.50/2.50Kb | 0Kb       |
-| FFX_ParallelSort_ScanAdd        | 16/256 | 24/106  | 93.75%      | 2.50/2.50Kb | 0Kb       |
-| FFX_ParallelSort_Scatter        | 20/256 | 24/106  | 92.19%      | 1.56/2.00Kb | 0Kb       |
-| FFX_ParallelSort_ScatterPayload | 24/256 | 34/106  | 90.62%      | 1.56/2.00Kb | 0Kb       |
-| FFX_ParallelSort_SetupIndirect  | 16/256 | 33/106  | 93.75%      | 0.00/0.00Kb | 0Kb       |
-| Denoise                         | 41/256 | 44/106  | 83.98%      | 0.00/0.00Kb | 0Kb       |
-| MainPass                        | 52/256 | 48/106  | 79.69%      | 0.00/0.00Kb | 0Kb       |
-| PrefilterDepth                  | 18/256 | 36/106  | 92.97%      | 0.25/0.50Kb | 0Kb       |
-| InstancePickingResolve          | 9/256  | 20/106  | 96.48%      | 0.00/0.00Kb | 0Kb       |
-| IrradianceSHProject             | 46/256 | 44/106  | 82.03%      | 3.00/3.00Kb | 0Kb       |
-| ProbeTableRadiance              | 31/256 | 48/106  | 87.89%      | 0.00/0.00Kb | 0Kb       |
-| CullingCompaction               | 7/256  | 16/106  | 97.27%      | 0.00/0.00Kb | 0Kb       |
-| CullingArgumentGeneration       | 17/256 | 28/106  | 93.36%      | 0.00/0.00Kb | 0Kb       |
-| DrawCompaction                  | 7/256  | 40/106  | 97.27%      | 0.00/0.00Kb | 0Kb       |
-| DrawArgumentGeneration          | 16/256 | 56/106  | 93.75%      | 0.00/0.00Kb | 0Kb       |
-| ClusterCulling                  | 38/256 | 64/106  | 85.16%      | 0.00/0.00Kb | 0Kb       |
-| ClusterToInstanceUpdate         | 11/256 | 16/106  | 95.70%      | 0.00/0.00Kb | 0Kb       |
-| InstanceCulling                 | 34/256 | 60/106  | 86.72%      | 0.00/0.00Kb | 0Kb       |
-| LightCulling_CullLights         | 17/256 | 62/106  | 93.36%      | 0.11/0.50Kb | 0Kb       |
-| WorldUpdate                     | 94/256 | 36/106  | 63.28%      | 0.00/0.00Kb | 0Kb       |
+| Name                            | VGPR   | SGPR   | Occupancy   | LDS          | Scratch   |
+| ------------------------------- | ------ | ------ | ----------- | ------------ | --------- |
+| DebugDrawResolve                | 9/256  | 24/106 | 96.48%      | 0.00/64.00Kb | 0B        |
+| FFX_ParallelSort_Count          | 12/256 | 16/106 | 95.31%      | 8.00/64.00Kb | 0B        |
+| FFX_ParallelSort_Reduce         | 8/256  | 20/106 | 96.88%      | 0.50/64.00Kb | 0B        |
+| FFX_ParallelSort_Scan           | 15/256 | 20/106 | 94.14%      | 2.50/64.00Kb | 0B        |
+| FFX_ParallelSort_ScanAdd        | 16/256 | 24/106 | 93.75%      | 2.50/64.00Kb | 0B        |
+| FFX_ParallelSort_Scatter        | 20/256 | 24/106 | 92.19%      | 1.56/64.00Kb | 0B        |
+| FFX_ParallelSort_ScatterPayload | 24/256 | 32/106 | 90.62%      | 1.56/64.00Kb | 0B        |
+| FFX_ParallelSort_SetupIndirect  | 20/256 | 34/106 | 92.19%      | 0.00/64.00Kb | 0B        |
+| Denoise                         | 43/256 | 40/106 | 83.20%      | 0.00/64.00Kb | 0B        |
+| MainPass                        | 51/256 | 44/106 | 80.08%      | 0.00/64.00Kb | 0B        |
+| PrefilterDepth                  | 15/256 | 36/106 | 94.14%      | 0.25/64.00Kb | 0B        |
+| InstancePickingResolve          | 9/256  | 20/106 | 96.48%      | 0.00/64.00Kb | 0B        |
+| IrradianceSHProject             | 43/256 | 42/106 | 83.20%      | 3.00/64.00Kb | 0B        |
+| ProbeTableRadiance              | 28/256 | 52/106 | 89.06%      | 0.00/64.00Kb | 0B        |
+| CullingCompaction               | 8/256  | 16/106 | 96.88%      | 0.00/64.00Kb | 0B        |
+| CullingArgumentGeneration       | 13/256 | 24/106 | 94.92%      | 0.00/64.00Kb | 0B        |
+| DrawCompaction                  | 7/256  | 44/106 | 97.27%      | 0.00/64.00Kb | 0B        |
+| DrawArgumentGeneration          | 13/256 | 54/106 | 94.92%      | 0.00/64.00Kb | 0B        |
+| ClusterCulling                  | 39/256 | 60/106 | 84.77%      | 0.00/64.00Kb | 0B        |
+| ClusterToInstanceUpdate         | 5/256  | 20/106 | 98.05%      | 0.00/64.00Kb | 0B        |
+| InstanceCulling                 | 34/256 | 60/106 | 86.72%      | 0.00/64.00Kb | 0B        |
+| LightCulling_CullLights         | 30/256 | 70/106 | 88.28%      | 0.14/64.00Kb | 0B        |
+| InitializeInstances             | 16/256 | 24/106 | 93.75%      | 0.00/64.00Kb | 0B        |
+| UpdateInstances                 | 94/256 | 28/106 | 63.28%      | 0.00/64.00Kb | 0B        |

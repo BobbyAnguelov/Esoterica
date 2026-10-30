@@ -23,6 +23,9 @@ namespace EE::Render
     {
         struct Transform;
         struct SkinningTransform;
+        struct DecalInstance;
+        struct DecalInstanceInitializeCommand;
+        struct DecalInstanceUpdateCommand;
         struct LightInstance_DirectionalLight;
         struct DirectionalLightUpdateCommand;
         struct PointLightInitializeCommand;
@@ -46,11 +49,15 @@ namespace EE::Render
 
     struct MeshInstanceRootProxy final
     {
+    public:
+
         void WriteRootTransform( Transform const& worldTransform, Float3 worldNonUniformScale, Float3 worldAABBCenter, Float3 worldAABBHalfExtents );
 
         inline bool IsValid() const { return m_instanceHandle.IsValid(); }
 
         //-------------------------------------------------------------------------
+
+    public:
 
         eastl::atomic<uint32_t>*                                                m_pTransformUpdateCounter = nullptr;
         uint64_t const*                                                         m_pTransformUpdateSequence = nullptr;
@@ -65,6 +72,8 @@ namespace EE::Render
 
     struct MeshInstanceProxy final
     {
+    public:
+
         void StartLocalTransformWrite();
         void WriteLocalTransform( Matrix43 const& localTransform );
         void SubmitLocalTransformWrite() const;
@@ -72,6 +81,8 @@ namespace EE::Render
         inline bool IsValid() const { return m_instanceHandle.IsValid(); }
 
         //-------------------------------------------------------------------------
+
+    public:
 
         eastl::atomic<uint32_t>*                                                m_pTransformUpdateCounter = nullptr;
         uint64_t const*                                                         m_pTransformUpdateSequence = nullptr;
@@ -90,6 +101,8 @@ namespace EE::Render
 
     struct LightInstanceProxy final
     {
+    public:
+
         void WriteDirectionalLight( ShaderTypes::LightInstance_DirectionalLight const& light );
         void WritePointLight( Float3 lightPosition, float maxIntensity, float maxRadius, float falloff, Color tintedColor );
         void WriteSpotLight( Float3 lightPosition, Float3 lightDirection, float maxIntensity, float maxRadius, float falloff, Color tintedColor, float innerConeAngle, float outerConeAngle, Matrix const& shadowViewProjectionMatrix );
@@ -97,6 +110,8 @@ namespace EE::Render
         inline bool IsValid() const { return m_instanceHandle.IsValid(); }
 
         //-------------------------------------------------------------------------
+
+    public:
 
         eastl::atomic<uint32_t>*                                                m_pTransformUpdateCounter = nullptr;
         uint64_t const*                                                         m_pTransformUpdateSequence = nullptr;
@@ -109,13 +124,40 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
+    struct DecalInstanceProxy final
+    {
+    public:
+
+        void WriteDecal( Transform const& decalWorldTransform, Float3 const& inverseScale, Color tint, float opacity, float tiling, float shapeRadius, float heightOffset, uint32_t packedEmissiveColor );
+
+        inline bool IsValid() const { return m_instanceHandle.IsValid(); }
+
+        //-------------------------------------------------------------------------
+
+    public:
+
+        eastl::atomic<uint32_t>*                                                m_pUpdateCounter = nullptr;
+        uint64_t const*                                                         m_pUpdateSequence = nullptr;
+        ShaderTypes::DecalInstanceUpdateCommand*                                m_pDstUpdateCommands = nullptr; // TODO: Need a workaround for platforms that don't support virtual memory. Can use PageAllocator<T> handle for that.
+
+        uint64_t                                                                m_dstUpdateSequence = ~0ULL;
+        uint32_t                                                                m_dstUpdateIndex = ~0U;
+        HandleAllocator<uint32_t>::Handle                                       m_instanceHandle = {};
+    };
+
+    //-------------------------------------------------------------------------
+
     struct SkinningProxy final
     {
+    public:
+
         void WriteTransforms( TArrayView<Transform const> boneTransforms, TArrayView<Transform const> inverseBindPose );
 
         inline bool IsValid() const { return m_bonesHandle.IsValid(); }
 
         //-------------------------------------------------------------------------
+
+    public:
 
         eastl::atomic<uint32_t>*                                                m_pTransformUpdateCounter = nullptr;
         uint64_t const*                                                         m_pTransformUpdateSequence = nullptr;
@@ -148,6 +190,14 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
+    private:
+
+        void WriteRenderView( uint32_t viewIndex, ShaderTypes::RenderView const& renderView );
+
+        //-------------------------------------------------------------------------
+
+    public:
+
         eastl::atomic<uint32_t>*                                                m_pUpdateCounter = nullptr;
         uint64_t const*                                                         m_pUpdateSequence = nullptr;
         ShaderTypes::RenderViewUpdateCommand*                                   m_pDstUpdateCommands = nullptr; // TODO: Need a workaround for platforms that don't support virtual memory. Can use PageAllocator<T> handle for that.
@@ -156,9 +206,5 @@ namespace EE::Render
         uint32_t                                                                m_dstUpdateIndex = ~0U;
         uint32_t                                                                m_numWrittenRenderViews = 0;
         PageAllocator<DeviceRenderView, uint16_t>::Handle                       m_renderViewHandle = {};
-
-    private:
-
-        void WriteRenderView( uint32_t viewIndex, ShaderTypes::RenderView const& renderView );
     };
 }

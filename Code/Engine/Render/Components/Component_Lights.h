@@ -27,6 +27,8 @@ namespace EE::Render
         inline Vector const& GetLightPosition() const { return GetWorldTransform().GetTranslation(); }
         inline bool GetShadowed() const { return m_shadowed; }
 
+        //-------------------------------------------------------------------------
+
     private:
 
         EE_REFLECT();
@@ -81,9 +83,13 @@ namespace EE::Render
         void SetMaxRadius( float maxRadius );
         void SetFalloff( float falloff );
 
+        //-------------------------------------------------------------------------
+
     protected:
 
         virtual void OnWorldTransformUpdated() override;
+
+        //-------------------------------------------------------------------------
 
     private:
 
@@ -123,9 +129,13 @@ namespace EE::Render
         void SetMaxRadius( float maxRadius );
         void SetFalloff( float falloff );
 
+        //-------------------------------------------------------------------------
+
     protected:
 
         virtual void OnWorldTransformUpdated() override;
+
+        //-------------------------------------------------------------------------
 
     private:
 

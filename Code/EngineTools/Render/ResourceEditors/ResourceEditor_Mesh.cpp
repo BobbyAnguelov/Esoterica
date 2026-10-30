@@ -1,5 +1,6 @@
 #include "ResourceEditor_Mesh.h"
 #include "EngineTools/Core/EditorTool.h"
+#include "EngineTools/Core/CommonToolTypes.h"
 #include "EngineTools/Render/ResourceDescriptors/ResourceDescriptor_RenderMesh.h"
 #include "Engine/Render/Components/Component_RenderMesh.h"
 #include "Engine/Render/Components/Component_StaticMesh.h"
@@ -20,6 +21,7 @@ namespace EE::Render
         : DataFileEditor( pToolsContext, resourceID.GetDataPath(), pWorld )
         , m_editedResource( resourceID )
         , m_socketPropertyGrid( pToolsContext )
+        , m_decalPropertyGrid( pToolsContext )
         , m_isViewingSkeletalMesh( resourceID.GetResourceTypeID() == SkeletalMesh::GetStaticResourceTypeID() )
     {
         EE_ASSERT( resourceID.IsValid() );
@@ -30,13 +32,20 @@ namespace EE::Render
         m_preEditSocketBindingID = m_socketPropertyGrid.OnPreEdit().Bind( OnPreEdit );
         m_postEditSocketBindingID = m_socketPropertyGrid.OnPostEdit().Bind( OnPostEdit );
 
-        m_socketGizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
+        m_preEditDecalBindingID = m_decalPropertyGrid.OnPreEdit().Bind( OnPreEdit );
+        m_postEditDecalBindingID = m_decalPropertyGrid.OnPostEdit().Bind( OnPostEdit );
+
+        m_socketGizmo.SetOption( Gizmo::Options::AllowScale, false );
+        m_decalGizmo.SetOption( Gizmo::Options::AllowNonUniformScale, true );
     }
 
     MeshEditor::~MeshEditor()
     {
         m_socketPropertyGrid.OnPreEdit().Unbind( m_preEditSocketBindingID );
         m_socketPropertyGrid.OnPostEdit().Unbind( m_postEditSocketBindingID );
+
+        m_decalPropertyGrid.OnPreEdit().Unbind( m_preEditDecalBindingID );
+        m_decalPropertyGrid.OnPostEdit().Unbind( m_postEditDecalBindingID );
 
         for ( auto pPicker : m_materialPickers )
         {
@@ -67,8 +76,9 @@ namespace EE::Render
 
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Skeleton" ).c_str(), leftDockID0 );
         ImGui::DockBuilderDockWindow( GetToolWindowName( "Sockets" ).c_str(), leftDockID1 );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Mesh Info" ).c_str(), centerDockID1 );
-        ImGui::DockBuilderDockWindow( GetToolWindowName( "Submeshes" ).c_str(), rightDockID0 );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Mesh Decals" ).c_str(), leftDockID1 );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Mesh Info" ).c_str(), rightDockID0 );
+        ImGui::DockBuilderDockWindow( GetToolWindowName( "Submeshes" ).c_str(), centerDockID1 );
         ImGui::DockBuilderDockWindow( GetToolWindowName( s_dataFileWindowName ).c_str(), rightDockID1 );
     }
 
@@ -172,6 +182,9 @@ namespace EE::Render
             ImGui::MenuItem( "Show Bind Pose", nullptr, &m_showBindPose );
         }
 
+        ImGui::Separator();
+        ImGui::MenuItem( "Edit Mesh Decals", nullptr, &m_isEditingMeshDecals );
+
         return true;
     }
 
@@ -192,7 +205,12 @@ namespace EE::Render
             ViewportNotificationWindows::DrawResourceCompilationFailedWindow( m_editedResource.GetResourceCompilationLog() );
         }
 
-        DrawSocketGizmo( pViewport, isFocused );
+        if ( !m_isEditingMeshDecals )
+        {
+            DrawSocketGizmo( pViewport, isFocused );
+        }
+
+        DrawMeshDecalGizmo( pViewport, isFocused );
     }
 
     //-------------------------------------------------------------------------
@@ -201,6 +219,7 @@ namespace EE::Render
     {
         m_selectedSubmeshes.clear();
         m_selectedBoneIDs.clear();
+        m_selectedDecalIndex = InvalidIndex;
     }
 
     void MeshEditor::Initialize( UpdateContext const& context )
@@ -217,6 +236,7 @@ namespace EE::Render
         CreateToolWindow( "Mesh Info", [this] ( UpdateContext const& context, bool isFocused ) { DrawMeshInfoWindow( context, isFocused ); } );
         CreateToolWindow( "Submeshes", [this] ( UpdateContext const& context, bool isFocused ) { DrawSubmeshesWindow( context, isFocused ); } );
         CreateToolWindow( "Sockets", [this] ( UpdateContext const& context, bool isFocused ) { DrawSocketsWindow( context, isFocused ); } );
+        CreateToolWindow( "Mesh Decals", [this] ( UpdateContext const& context, bool isFocused ) { DrawMeshDecalsWindow( context, isFocused ); } );
     }
 
     void MeshEditor::Shutdown( UpdateContext const& context )
@@ -419,7 +439,7 @@ namespace EE::Render
 
             if ( m_showOrigin )
             {
-                drawingContext.DrawAxis( Transform::Identity, 0.25f, 3.0f );
+                drawingContext.DrawAxis( Transform::Identity, 0.15f, 1.0f );
             }
 
             // Shared Mesh
@@ -502,12 +522,20 @@ namespace EE::Render
                     int32_t const selectedBoneIdx = pSkelMesh->GetBoneIndex( selectedBoneID );
                     if ( selectedBoneIdx != InvalidIndex )
                     {
-                        Transform const& globalBoneTransform = pSkelMesh->GetModelSpaceBindPoseTransform( selectedBoneIdx );
-                        drawingContext.DrawAxis( globalBoneTransform, 0.25f, 3.0f );
+                        Transform const& boneTransform = pSkelMesh->GetModelSpaceBindPoseTransform( selectedBoneIdx );
+                        drawingContext.DrawAxis( boneTransform, 0.02f, 2.0f );
 
-                        Vector textLocation = globalBoneTransform.GetTranslation();
+                        Vector textLocation = boneTransform.GetTranslation();
                         Vector const textLineLocation = textLocation - Vector( 0, 0, 0.01f );
                         drawingContext.DrawText3D( textLocation, selectedBoneID.c_str(), Colors::Yellow );
+
+                        int32_t const parentBoneIdx = pSkelMesh->GetParentBoneIndex( selectedBoneIdx );
+                        if ( parentBoneIdx != InvalidIndex )
+                        {
+                            Transform const& parentBoneTransform = pSkelMesh->GetModelSpaceBindPoseTransform( parentBoneIdx );
+
+                            drawingContext.DrawLine( boneTransform.GetTranslation(), parentBoneTransform.GetTranslation(), Colors::Yellow.GetAlphaVersion( 0.75f ), 1.0f );
+                        }
                     }
                 }
             }
@@ -528,6 +556,44 @@ namespace EE::Render
                 }
 
                 drawingContext.DrawAxis( socketTransform, 0.1f, 2.0f );
+            }
+
+            // Mesh Decals
+            //-------------------------------------------------------------------------
+
+            static Color const s_meshDecalColor = Color( 66, 133, 244 );
+            static Color const s_meshDecalSelectedColor = Color( 255, 215, 0 );
+            static float const s_meshDecalLineThickness = 4.0F;
+
+            if ( IsDataFileLoaded() && ( m_isEditingMeshDecals || m_selectedDecalIndex != InvalidIndex ) )
+            {
+                MeshResourceDescriptor const* pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
+                Transform const meshWorldTransform = ( m_pMeshComponent != nullptr ) ? m_pMeshComponent->GetWorldTransform() : Transform::Identity;
+
+                int32_t const numDecals = int32_t( pMeshDescriptor->m_meshDecals.size() );
+                for ( int32_t decalIdx = 0; decalIdx < numDecals; decalIdx++ )
+                {
+                    bool const isSelected = decalIdx == m_selectedDecalIndex;
+                    if ( !m_isEditingMeshDecals && !isSelected )
+                    {
+                        continue;
+                    }
+
+                    MeshDecalDefinition const& decal = pMeshDescriptor->m_meshDecals[decalIdx];
+
+                    Transform const decalWorldTransform = decal.m_localTransform * meshWorldTransform;
+
+                    Float3 const halfExtents = ( Float3( 0.5F ) * decal.m_nonUniformScale ) * decalWorldTransform.GetScale();
+                    OBB const decalBounds( decalWorldTransform.GetTranslationAsPoint(), Vector( halfExtents, 0.0F ), decalWorldTransform.GetRotation() );
+                    drawingContext.DrawWireBox( decalBounds, isSelected ? s_meshDecalSelectedColor : s_meshDecalColor, s_meshDecalLineThickness, DebugDrawLayer::World );
+
+                    if ( isSelected )
+                    {
+                        Vector const axisStart = decalWorldTransform.GetTranslationAsPoint();
+                        Vector const axisEnd = axisStart + ( decalWorldTransform.GetAxisZ() * ( halfExtents.m_z + 0.1F ) );
+                        drawingContext.DrawLine( axisStart, axisEnd, Colors::Cyan, 2.0F, DebugDrawLayer::World );
+                    }
+                }
             }
         }
     }
@@ -682,32 +748,37 @@ namespace EE::Render
                 }
             };
 
-            DrawStatisticRow( "Clusters", "%u", [] ( MeshStatistics const& stats ) { return stats.m_numClusters; } );
+            DrawStatisticRow( "Clusters", "%u", [] ( Mesh::Statistics const& stats ) { return stats.m_numClusters; } );
 
-            DrawStatisticRow( "Cluster utilization Min", "%.2f%%", [] ( MeshStatistics const& stats ) { return stats.m_minimumClusterUtilization * 100.0F; } );
-            DrawStatisticRow( "Cluster utilization Max", "%.2f%%", [] ( MeshStatistics const& stats ) { return stats.m_maximumClusterUtilization * 100.0F; } );
-            DrawStatisticRow( "Cluster utilization Avg", "%.2f%%", [] ( MeshStatistics const& stats ) { return stats.m_averageClusterUtilization * 100.0F; } );
-            DrawStatisticRow( "Cluster utilization Median", "%.2f%%", [] ( MeshStatistics const& stats ) { return stats.m_medianClusterUtilization * 100.0F; } );
-            DrawStatisticRow( "Cluster Vtx overhead", "%.2f%%", [] ( MeshStatistics const& stats ) { return stats.m_clusterVertexOverhead * 100.0F; } );
-            DrawStatisticRow( "Vtx triangle reuse", "%.2f%%", [] ( MeshStatistics const& stats ) { return stats.m_vertexTriangleReuse * 100.0F; } );
-            DrawStatisticRow( "Vtx compression min accuracy", "%.2f%%", [] ( MeshStatistics const& stats ) { return stats.m_minimumCompressionAccuracy * 100.0F; } );
-            DrawStatisticRow( "Vtx compression avg accuracy", "%.2f%%", [] ( MeshStatistics const& stats ) { return stats.m_averageCompressionAccuracy * 100.0F; } );
-            DrawStatisticRow( "Compression ratio", "%.2f%%", [] ( MeshStatistics const& stats ) { return stats.m_compressionRatio * 100.0F; } );
+            DrawStatisticRow( "Cluster utilization Min", "%.2f%%", [] ( Mesh::Statistics const& stats ) { return stats.m_minimumClusterUtilization * 100.0F; } );
+            DrawStatisticRow( "Cluster utilization Max", "%.2f%%", [] ( Mesh::Statistics const& stats ) { return stats.m_maximumClusterUtilization * 100.0F; } );
+            DrawStatisticRow( "Cluster utilization Avg", "%.2f%%", [] ( Mesh::Statistics const& stats ) { return stats.m_averageClusterUtilization * 100.0F; } );
+            DrawStatisticRow( "Cluster utilization Median", "%.2f%%", [] ( Mesh::Statistics const& stats ) { return stats.m_medianClusterUtilization * 100.0F; } );
+            DrawStatisticRow( "Cluster Vtx overhead", "%.2f%%", [] ( Mesh::Statistics const& stats ) { return stats.m_clusterVertexOverhead * 100.0F; } );
+            DrawStatisticRow( "Vtx triangle reuse", "%.2f%%", [] ( Mesh::Statistics const& stats ) { return stats.m_vertexTriangleReuse * 100.0F; } );
+            DrawStatisticRow( "Vtx compression min accuracy", "%.2f%%", [] ( Mesh::Statistics const& stats ) { return stats.m_minimumCompressionAccuracy * 100.0F; } );
+            DrawStatisticRow( "Vtx compression avg accuracy", "%.2f%%", [] ( Mesh::Statistics const& stats ) { return stats.m_averageCompressionAccuracy * 100.0F; } );
+            DrawStatisticRow( "Compression ratio", "%.2f%%", [] ( Mesh::Statistics const& stats ) { return stats.m_compressionRatio * 100.0F; } );
 
-            DrawStatisticRow( "Position bits X min", "%u", [] ( MeshStatistics const& stats ) { return stats.m_minimumPositionBitsPerAxisX; } );
-            DrawStatisticRow( "Position bits X max", "%u", [] ( MeshStatistics const& stats ) { return stats.m_maximumPositionBitsPerAxisX; } );
-            DrawStatisticRow( "Position bits X avg", "%.1f", [] ( MeshStatistics const& stats ) { return stats.m_averagePositionBitsPerAxisX; } );
-            DrawStatisticRow( "Position bits X median", "%.1f", [] ( MeshStatistics const& stats ) { return stats.m_medianPositionBitsPerAxisX; } );
+            DrawStatisticRow( "Mesh decals", "%u", [] ( Mesh::Statistics const& stats ) { return stats.m_numMeshDecals; } );
+            DrawStatisticRow( "Decal projection bases", "%u", [] ( Mesh::Statistics const& stats ) { return stats.m_numMeshDecalProjectionBases; } );
+            DrawStatisticRow( "Decal projections", "%u", [] ( Mesh::Statistics const& stats ) { return stats.m_numMeshDecalProjections; } );
+            DrawStatisticRow( "Decal memory (KB)", "%.2f", [] ( Mesh::Statistics const& stats ) { return float( stats.m_meshDecalSizeBytes ) / 1024.0F; } );
 
-            DrawStatisticRow( "Position bits Y min", "%u", [] ( MeshStatistics const& stats ) { return stats.m_minimumPositionBitsPerAxisY; } );
-            DrawStatisticRow( "Position bits Y max", "%u", [] ( MeshStatistics const& stats ) { return stats.m_maximumPositionBitsPerAxisY; } );
-            DrawStatisticRow( "Position bits Y avg", "%.1f", [] ( MeshStatistics const& stats ) { return stats.m_averagePositionBitsPerAxisY; } );
-            DrawStatisticRow( "Position bits Y median", "%.1f", [] ( MeshStatistics const& stats ) { return stats.m_medianPositionBitsPerAxisY; } );
+            DrawStatisticRow( "Position bits X min", "%u", [] ( Mesh::Statistics const& stats ) { return stats.m_minimumPositionBitsPerAxisX; } );
+            DrawStatisticRow( "Position bits X max", "%u", [] ( Mesh::Statistics const& stats ) { return stats.m_maximumPositionBitsPerAxisX; } );
+            DrawStatisticRow( "Position bits X avg", "%.1f", [] ( Mesh::Statistics const& stats ) { return stats.m_averagePositionBitsPerAxisX; } );
+            DrawStatisticRow( "Position bits X median", "%.1f", [] ( Mesh::Statistics const& stats ) { return stats.m_medianPositionBitsPerAxisX; } );
 
-            DrawStatisticRow( "Position bits Z min", "%u", [] ( MeshStatistics const& stats ) { return stats.m_minimumPositionBitsPerAxisZ; } );
-            DrawStatisticRow( "Position bits Z max", "%u", [] ( MeshStatistics const& stats ) { return stats.m_maximumPositionBitsPerAxisZ; } );
-            DrawStatisticRow( "Position bits Z avg", "%.1f", [] ( MeshStatistics const& stats ) { return stats.m_averagePositionBitsPerAxisZ; } );
-            DrawStatisticRow( "Position bits Z median", "%.1f", [] ( MeshStatistics const& stats ) { return stats.m_medianPositionBitsPerAxisZ; } );
+            DrawStatisticRow( "Position bits Y min", "%u", [] ( Mesh::Statistics const& stats ) { return stats.m_minimumPositionBitsPerAxisY; } );
+            DrawStatisticRow( "Position bits Y max", "%u", [] ( Mesh::Statistics const& stats ) { return stats.m_maximumPositionBitsPerAxisY; } );
+            DrawStatisticRow( "Position bits Y avg", "%.1f", [] ( Mesh::Statistics const& stats ) { return stats.m_averagePositionBitsPerAxisY; } );
+            DrawStatisticRow( "Position bits Y median", "%.1f", [] ( Mesh::Statistics const& stats ) { return stats.m_medianPositionBitsPerAxisY; } );
+
+            DrawStatisticRow( "Position bits Z min", "%u", [] ( Mesh::Statistics const& stats ) { return stats.m_minimumPositionBitsPerAxisZ; } );
+            DrawStatisticRow( "Position bits Z max", "%u", [] ( Mesh::Statistics const& stats ) { return stats.m_maximumPositionBitsPerAxisZ; } );
+            DrawStatisticRow( "Position bits Z avg", "%.1f", [] ( Mesh::Statistics const& stats ) { return stats.m_averagePositionBitsPerAxisZ; } );
+            DrawStatisticRow( "Position bits Z median", "%.1f", [] ( Mesh::Statistics const& stats ) { return stats.m_medianPositionBitsPerAxisZ; } );
 
             ImGui::EndTable();
         }
@@ -737,11 +808,20 @@ namespace EE::Render
             m_materialPickers.emplace_back( EE::New<ResourcePicker>( *m_pToolsContext, Material::GetStaticResourceTypeID() ) );
         }
 
-        EE_ASSERT( pMeshDescriptor->m_materialMappings.size() == numSubmeshes );
-        for ( size_t i = 0; i < numSubmeshes; i++ )
+        if ( pMeshDescriptor->FixUpMaterialMappings( pMesh ) )
+        {
+            MarkDirty();
+        }
+
+        int32_t const numMappings = int32_t( pMeshDescriptor->m_materialMappings.size() );
+
+        for ( int32_t i = 0; i < numSubmeshes; i++ )
         {
             m_materialPickers[i]->SetCompactMode( true );
-            m_materialPickers[i]->SetResourceID( pMeshDescriptor->m_materialMappings[i].m_material.GetResourceID() );
+
+            // Submesh with no mappings is shown as unset
+            ResourceID const materialID = ( i < numMappings ) ? pMeshDescriptor->m_materialMappings[i].m_material.GetResourceID() : ResourceID();
+            m_materialPickers[i]->SetResourceID( materialID );
         }
 
         //-------------------------------------------------------------------------
@@ -790,6 +870,10 @@ namespace EE::Render
             lodWidth = ( ImGui::CalcTextSize( EE_ICON_NUMERIC_3_CIRCLE ).x + lodItemSpacingX ) * 8;
         }
 
+        ImGui::PushStyleColor( ImGuiCol_Header, Colors::Transparent );
+        ImGui::PushStyleColor( ImGuiCol_HeaderHovered, Colors::Transparent );
+        ImGui::PushStyleColor( ImGuiCol_HeaderActive, Colors::Transparent );
+
         static ImGuiTableFlags flags = ImGuiTableFlags_BordersV | ImGuiTableFlags_BordersOuterH | ImGuiTableFlags_RowBg | ImGuiTableFlags_Resizable | ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Sortable;
         if ( ImGui::BeginTable( "SubMeshTable", 5, flags, ImGui::GetContentRegionAvail() - ImVec2( 0, pickerHeight ) ) )
         {
@@ -797,7 +881,7 @@ namespace EE::Render
             ImGui::TableSetupColumn( "Name", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
             ImGui::TableSetupColumn( "LOD", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoResize | ImGuiTableColumnFlags_NoSort, lodWidth );
             ImGui::TableSetupColumn( "Material Name", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch );
-            ImGui::TableSetupColumn( "Resource", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort );
+            ImGui::TableSetupColumn( "Material", ImGuiTableColumnFlags_NoHide | ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_NoSort );
 
             ImGui::TableSetupScrollFreeze( 0, 1 );
 
@@ -825,7 +909,15 @@ namespace EE::Render
 
                 //-------------------------------------------------------------------------
 
-                ImGui::TableNextRow();
+                ImGui::TableNextRow( ImGuiTableRowFlags_None, ImGui::GetFrameHeightWithSpacing() );
+
+                if ( isSelected )
+                {
+                    ImGui::TableSetBgColor( ImGuiTableBgTarget_RowBg0, ImGuiX::Style::s_colorGray1 );
+                }
+
+                //-------------------------------------------------------------------------
+
                 ImGui::TableNextColumn();
 
                 ImGuiX::ToggleButtonSettings settings;
@@ -869,8 +961,15 @@ namespace EE::Render
 
                 ImGui::TableNextColumn();
 
-                ImGui::SetNextItemSelectionUserData( submeshIdx );
-                ImGui::Selectable( name.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns );
+                {
+                    ImGuiX::ScopedFont const sf( isSelected ? ImGuiX::Style::s_colorAccent0 : ImGuiX::Style::s_colorText );
+                    ImGui::SetNextItemSelectionUserData( submeshIdx );
+                    ImGui::Selectable( name.c_str(), isSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowOverlap );
+                    if ( ImGui::IsItemHovered() && !isSelected )
+                    {
+                        ImGui::TableSetBgColor( ImGuiTableBgTarget_RowBg0, ImGuiX::Style::s_colorGray0 );
+                    }
+                }
 
                 // LOD
                 //-------------------------------------------------------------------------
@@ -932,8 +1031,19 @@ namespace EE::Render
 
                 if ( m_materialPickers[submeshIdx]->UpdateAndDraw() )
                 {
-                    ScopedDataFileModification dfm( this );
-                    pMeshDescriptor->m_materialMappings[submeshIdx].m_material = m_materialPickers[submeshIdx]->GetResourceID();
+                    if ( isSelected )
+                    {
+                        ScopedDataFileModification dfm( this );
+                        for ( int16_t const& selectedSubMeshIdx : m_selectedSubmeshes )
+                        {
+                            pMeshDescriptor->m_materialMappings[selectedSubMeshIdx].m_material = m_materialPickers[submeshIdx]->GetResourceID();
+                        }
+                    }
+                    else // Only update the single entry
+                    {
+                        ScopedDataFileModification dfm( this );
+                        pMeshDescriptor->m_materialMappings[submeshIdx].m_material = m_materialPickers[submeshIdx]->GetResourceID();
+                    }
                 }
 
                 ImGui::PopID();
@@ -963,7 +1073,11 @@ namespace EE::Render
 
             ImGui::EndTable();
         }
+
+        ImGui::PopStyleColor( 3 );
     }
+
+    //-------------------------------------------------------------------------
 
     void MeshEditor::DrawSocketsWindow( UpdateContext const& context, bool isFocused )
     {
@@ -1146,7 +1260,7 @@ namespace EE::Render
             return true;
         };
 
-        auto ApplyGizmoResult = [this] ( ImGuiX::Gizmo::Result const& result )
+        auto ApplyGizmoResult = [this] ( Gizmo::Result const& result )
         {
             Transform shapeTransform = GetSelectedSocketTransform();
             shapeTransform = result.GetModifiedTransform( shapeTransform );
@@ -1162,23 +1276,23 @@ namespace EE::Render
         {
             m_socketGizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
 
-            auto const gizmoResult = m_socketGizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, isFocused );
+            auto const gizmoResult = m_socketGizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, isFocused, isFocused );
             switch ( gizmoResult.m_state )
             {
-                case ImGuiX::GizmoState::StartedManipulating:
+                case GizmoState::StartedManipulating:
                 {
                     BeginDataFileModification();
                     ApplyGizmoResult( gizmoResult );
                 }
                 break;
 
-                case ImGuiX::GizmoState::Manipulating:
+                case GizmoState::Manipulating:
                 {
                     ApplyGizmoResult( gizmoResult );
                 }
                 break;
 
-                case ImGuiX::GizmoState::StoppedManipulating:
+                case GizmoState::StoppedManipulating:
                 {
                     ApplyGizmoResult( gizmoResult );
                     EndDataFileModification();
@@ -1194,6 +1308,279 @@ namespace EE::Render
             m_socketGizmo.Reset();
         }
     }
+
+    //-------------------------------------------------------------------------
+
+    void MeshEditor::AddMeshDecal( ResourceID const& materialResourceID )
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+
+        MeshResourceDescriptor* pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
+
+        ScopedDataFileModification sm( this );
+        m_selectedDecalIndex = int32_t( pMeshDescriptor->m_meshDecals.size() );
+
+        MeshDecalDefinition& meshDecal = pMeshDescriptor->m_meshDecals.emplace_back();
+        if ( materialResourceID.IsValid() )
+        {
+            meshDecal.m_material = materialResourceID;
+        }
+    }
+
+    void MeshEditor::RemoveMeshDecal( int32_t decalIdx )
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+
+        MeshResourceDescriptor* pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
+        EE_ASSERT( decalIdx >= 0 && decalIdx < int32_t( pMeshDescriptor->m_meshDecals.size() ) );
+
+        ScopedDataFileModification sm( this );
+        pMeshDescriptor->m_meshDecals.erase( pMeshDescriptor->m_meshDecals.begin() + decalIdx );
+
+        m_selectedDecalIndex = InvalidIndex;
+    }
+
+    Transform MeshEditor::GetSelectedMeshDecalTransform() const
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+
+        if ( m_selectedDecalIndex == InvalidIndex )
+        {
+            return Transform::Identity;
+        }
+
+        MeshResourceDescriptor const* pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
+        EE_ASSERT( m_selectedDecalIndex < int32_t( pMeshDescriptor->m_meshDecals.size() ) );
+
+        Transform const meshWorldTransform = ( m_pMeshComponent != nullptr ) ? m_pMeshComponent->GetWorldTransform() : Transform::Identity;
+        return pMeshDescriptor->m_meshDecals[m_selectedDecalIndex].m_localTransform * meshWorldTransform;
+    }
+
+    void MeshEditor::SetSelectedMeshDecalTransform( Transform const& transform )
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+
+        if ( m_selectedDecalIndex == InvalidIndex )
+        {
+            return;
+        }
+
+        MeshResourceDescriptor* pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
+        EE_ASSERT( m_selectedDecalIndex < int32_t( pMeshDescriptor->m_meshDecals.size() ) );
+
+        Transform const meshWorldTransform = ( m_pMeshComponent != nullptr ) ? m_pMeshComponent->GetWorldTransform() : Transform::Identity;
+
+        ScopedDataFileModification sm( this );
+        pMeshDescriptor->m_meshDecals[m_selectedDecalIndex].m_localTransform = transform * meshWorldTransform.GetInverse();
+    }
+
+    Float3 MeshEditor::GetSelectedMeshDecalNonUniformScale() const
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+
+        if ( m_selectedDecalIndex == InvalidIndex )
+        {
+            return Float3::One;
+        }
+
+        MeshResourceDescriptor const* pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
+        EE_ASSERT( m_selectedDecalIndex < int32_t( pMeshDescriptor->m_meshDecals.size() ) );
+
+        return pMeshDescriptor->m_meshDecals[m_selectedDecalIndex].m_nonUniformScale;
+    }
+
+    void MeshEditor::SetSelectedMeshDecalNonUniformScale( Float3 const& nonUniformScale )
+    {
+        EE_ASSERT( IsDataFileLoaded() );
+
+        if ( m_selectedDecalIndex == InvalidIndex )
+        {
+            return;
+        }
+
+        MeshResourceDescriptor* pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
+        EE_ASSERT( m_selectedDecalIndex < int32_t( pMeshDescriptor->m_meshDecals.size() ) );
+
+        ScopedDataFileModification sm( this );
+        pMeshDescriptor->m_meshDecals[m_selectedDecalIndex].m_nonUniformScale = nonUniformScale;
+    }
+
+    //-------------------------------------------------------------------------
+
+    void MeshEditor::DrawMeshDecalsWindow( UpdateContext const& context, bool isFocused )
+    {
+        if ( !IsDataFileLoaded() )
+        {
+            return;
+        }
+
+        auto pMeshDescriptor = GetDataFile<MeshResourceDescriptor>();
+        int32_t const numDecals = int32_t( pMeshDescriptor->m_meshDecals.size() );
+
+        // Toolbar
+        //-------------------------------------------------------------------------
+
+        ImGui::Checkbox( "Edit Mesh Decals", &m_isEditingMeshDecals );
+        ImGuiX::ItemTooltip( "Show the decal volumes in the viewport and manipulate them with the gizmo" );
+
+        ImGui::SameLine();
+        if ( ImGui::Button( EE_ICON_PLUS" Add Decal" ) )
+        {
+            m_commandStack.PushCommand( [this] () { AddMeshDecal( ResourceID() ); } );
+        }
+
+        // Dropping a decal material on the add button creates a new decal using that material
+        if ( ImGui::BeginDragDropTarget() )
+        {
+            if ( ImGuiPayload const* pPayload = ImGui::AcceptDragDropPayload( DragAndDrop::s_filePayloadID, ImGuiDragDropFlags_AcceptBeforeDelivery ) )
+            {
+                if ( pPayload->IsDelivery() )
+                {
+                    InlineString payloadStr = static_cast<char*>( pPayload->Data );
+                    ResourceID const materialResourceID( payloadStr.c_str() );
+
+                    if ( materialResourceID.IsValid() && materialResourceID.GetResourceTypeID() == DecalMaterial::GetStaticResourceTypeID() && m_pToolsContext->m_pDataFileRegistry->DoesFileExist( materialResourceID ) )
+                    {
+                        m_commandStack.PushCommand( [this, materialResourceID] () { AddMeshDecal( materialResourceID ); } );
+                    }
+                }
+            }
+
+            ImGui::EndDragDropTarget();
+        }
+
+        ImGuiX::ItemTooltip( "Add a new mesh decal, or drop a decal material on this button" );
+
+        // Decal List
+        //-------------------------------------------------------------------------
+
+        float const listHeight = Math::Max( 60.0F, ImGui::GetContentRegionAvail().y * 0.4F );
+        if ( ImGui::BeginChild( "MeshDecalList", ImVec2( -1, listHeight ), ImGuiChildFlags_ResizeY ) )
+        {
+            for ( int32_t decalIndex = 0; decalIndex < numDecals; ++decalIndex )
+            {
+                ImGui::PushID( decalIndex );
+
+                MeshDecalDefinition const& decal = pMeshDescriptor->m_meshDecals[decalIndex];
+                ResourceID const& materialID = decal.m_material.GetResourceID();
+
+                InlineString label( InlineString::CtorSprintf(), "%d. %s", decalIndex, materialID.IsValid() ? materialID.c_str() : "<no material>" );
+
+                if ( ImGui::Selectable( label.c_str(), m_selectedDecalIndex == decalIndex ) )
+                {
+                    m_selectedDecalIndex = decalIndex;
+                }
+
+                if ( ImGui::BeginPopupContextItem() )
+                {
+                    m_selectedDecalIndex = decalIndex;
+
+                    if ( ImGui::MenuItem( EE_ICON_CLOSE" Remove Decal" ) )
+                    {
+                        m_commandStack.PushCommand( [this, decalIndex] () { RemoveMeshDecal( decalIndex ); } );
+                    }
+
+                    ImGui::EndPopup();
+                }
+
+                ImGui::PopID();
+            }
+
+            if ( numDecals == 0 )
+            {
+                ImGui::TextDisabled( "No mesh decals" );
+            }
+        }
+        ImGui::EndChild();
+
+        // Selected Decal
+        //-------------------------------------------------------------------------
+
+        ImGui::SeparatorText( "Selected Decal" );
+
+        if ( m_selectedDecalIndex == InvalidIndex || m_selectedDecalIndex >= numDecals )
+        {
+            m_selectedDecalIndex = InvalidIndex;
+            m_decalPropertyGrid.SetTypeToEdit( nullptr );
+        }
+        else
+        {
+            auto pDecalToEdit = &pMeshDescriptor->m_meshDecals[m_selectedDecalIndex];
+            if ( pDecalToEdit != m_decalPropertyGrid.GetEditedType() )
+            {
+                m_decalPropertyGrid.SetTypeToEdit( pDecalToEdit );
+            }
+        }
+
+        m_decalPropertyGrid.UpdateAndDraw();
+    }
+
+    //-------------------------------------------------------------------------
+
+    void MeshEditor::DrawMeshDecalGizmo( Viewport const* pViewport, bool isFocused )
+    {
+        if ( !IsDataFileLoaded() || !m_isEditingMeshDecals || m_selectedDecalIndex == InvalidIndex )
+        {
+            m_decalGizmo.Reset();
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        Transform gizmoTransform = GetSelectedMeshDecalTransform();
+
+        auto const gizmoResult = m_decalGizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, isFocused, isFocused );
+
+        // Compute the manipulated decal transform
+        //-------------------------------------------------------------------------
+
+        Transform newTransform = gizmoTransform;
+        Float3 newNonUniformScale = GetSelectedMeshDecalNonUniformScale();
+
+        if ( gizmoResult.IsScale() )
+        {
+            // A decal is a unit cube with per axis extents, the gizmo delta is relative so scale the extents instead of the transform
+            Float3 const scaleDelta = gizmoResult.m_delta.ToFloat3();
+            newNonUniformScale.m_x = Math::Max( newNonUniformScale.m_x * ( 1.0F + scaleDelta.m_x ), 0.001F );
+            newNonUniformScale.m_y = Math::Max( newNonUniformScale.m_y * ( 1.0F + scaleDelta.m_y ), 0.001F );
+            newNonUniformScale.m_z = Math::Max( newNonUniformScale.m_z * ( 1.0F + scaleDelta.m_z ), 0.001F );
+        }
+        else
+        {
+            newTransform = gizmoResult.GetModifiedTransform( gizmoTransform );
+        }
+
+        switch ( gizmoResult.m_state )
+        {
+            case GizmoState::StartedManipulating:
+            {
+                BeginDataFileModification();
+                SetSelectedMeshDecalTransform( newTransform );
+                SetSelectedMeshDecalNonUniformScale( newNonUniformScale );
+            }
+            break;
+
+            case GizmoState::Manipulating:
+            {
+                SetSelectedMeshDecalTransform( newTransform );
+                SetSelectedMeshDecalNonUniformScale( newNonUniformScale );
+            }
+            break;
+
+            case GizmoState::StoppedManipulating:
+            {
+                SetSelectedMeshDecalTransform( newTransform );
+                SetSelectedMeshDecalNonUniformScale( newNonUniformScale );
+                EndDataFileModification();
+            }
+            break;
+
+            default:
+            break;
+        }
+    }
+
+    //-------------------------------------------------------------------------
 
     void MeshEditor::DrawSkeletonWindow( UpdateContext const& context, bool isFocused )
     {

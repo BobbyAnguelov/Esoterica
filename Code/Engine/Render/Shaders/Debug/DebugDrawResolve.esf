@@ -1,6 +1,5 @@
 
 #include "Engine/Render/Shaders/Debug/DebugDraw.esh"
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
 #include "Engine/Render/Shaders/Picking/Picking.esh"
 
 #ifndef __cplusplus // Hacky workaround to get shader reflection for another shader
@@ -8,10 +7,8 @@ struct DebugDrawResourceTable // Has to match struct in DebugDraw.esf!
 {
     AppendBuffer<PickingResult>     m_pickingResultsBuffer;
     
-    StructuredBuffer<RenderView>    m_renderViewBuffer;
     ByteAddressBuffer               m_debugDrawCommandsBuffer;
 
-    uint                            m_mainCameraRenderView;
     uint                            m_commandsOffset;
     uint                            m_numDebugDrawCommands;
     uint                            m_pickingSortPriority;
@@ -25,8 +22,10 @@ struct HLSL_ALIGN_STRUCT DebugDrawArgument2
     DebugDrawResourceTableData  m_resourceTable;
     uint64_t                    m_rootCBV;
     uint3                       m_dispatchArguments;
-    uint3                       m_padding;
+    uint                        m_padding;
 };
+
+HLSL_STATIC_ASSERT( sizeof( DebugDrawArgument2 ) == 48, "Indirect argument layout must be aligned to 16 bytes" );
 #endif
 
 #ifndef __cplusplus
@@ -38,10 +37,7 @@ ESF_RESOURCE_TABLE struct DebugDrawResolveResourceTable
     RawAppendBuffer                         CommandsBuffer_TransparentDepthOn;
     RawAppendBuffer                         CommandsBuffer_TransparentDepthOff;
     
-    uint64_t                                m_debugParametersBufferAddress;
-    uint16_t                                m_renderViewBuffer;
-    
-    uint                                    m_mainCameraRenderView;
+    uint64_t                                m_globalParametersBufferAddress;
 };
 #endif
 
@@ -64,9 +60,7 @@ void CS_main()
     DebugDrawResolveResourceTable resourceTable = CreateDebugDrawResolveResourceTable( RootConstants );
     
     DebugDrawArgument2 argument = ( DebugDrawArgument2 ) 0;
-    argument.m_resourceTable.SetRenderViewBuffer( resourceTable.m_renderViewBuffer );
-    argument.m_resourceTable.m_mainCameraRenderView = RootConstants.m_mainCameraRenderView;
-    argument.m_rootCBV = resourceTable.m_debugParametersBufferAddress;
+    argument.m_rootCBV = resourceTable.m_globalParametersBufferAddress;
         
     argument.m_resourceTable.SetDebugDrawCommandsBuffer( GetAppendBufferDataHandle( RootConstants.GetCommandsBuffer_TransparentDepthOn() ) );
     argument.m_resourceTable.m_numDebugDrawCommands = resourceTable.CommandsBuffer_TransparentDepthOn.m_counterBuffer.Load( 0 );

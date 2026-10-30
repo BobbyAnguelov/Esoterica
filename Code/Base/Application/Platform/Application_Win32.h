@@ -138,7 +138,7 @@ namespace EE
         bool                            m_isBorderLess = false;
 
         #if EE_ENABLE_LPP
-        lpp::LppSynchronizedAgent       m_agent;
+        lpp::LppSynchronizedAgent       m_agent = { 0 };
         #endif
     };
 }

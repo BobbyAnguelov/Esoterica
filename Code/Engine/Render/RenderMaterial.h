@@ -11,7 +11,7 @@ namespace EE::Render
 {
     class EE_ENGINE_API Material final : public Resource::IResource
     {
-        EE_RESOURCE( "material", "Render Material", Colors::Aquamarine, 6, false );
+        EE_RESOURCE( "material", "Render Material", Colors::Aquamarine, 9, false );
 
         friend class MaterialCompiler;
         friend class MaterialLoader;
@@ -39,11 +39,14 @@ namespace EE::Render
 
         struct MaterialParameterStorage
         {
-            EE_SERIALIZE( m_textures,
-                          m_scalars,
-                          m_vectors2,
-                          m_vectors4,
-                          m_matrices );
+            EE_SERIALIZE
+            (
+                m_textures,
+                m_scalars,
+                m_vectors2,
+                m_vectors4,
+                m_matrices
+            );
 
             TVector<StoredMaterialParameter<TResourcePtr<TextureResource>>> m_textures;
             TVector<StoredMaterialParameter<uint32_t>>                      m_scalars;
@@ -53,6 +56,8 @@ namespace EE::Render
         };
 
         //-------------------------------------------------------------------------
+
+    private:
 
         StringID                            m_shaderID;
         MaterialParameterStorage            m_parameterStorage;

@@ -1,0 +1,106 @@
+#pragma once
+
+#include "EngineTools/_Module/API.h"
+#include "Gizmo_Translate.h"
+#include "Gizmo_Rotate.h"
+#include "Gizmo_Scale.h"
+#include "Base/Math/Transform.h"
+#include "Base/Types/BitFlags.h"
+#include "Base/Types/String.h"
+
+//-------------------------------------------------------------------------
+
+namespace EE
+{
+    class EE_ENGINETOOLS_API Gizmo
+    {
+
+    public:
+
+        enum class Mode
+        {
+            Translation,
+            Rotation,
+            Scale
+        };
+
+        enum class Options
+        {
+            AllowCoordinateSpaceSwitching = 0,
+            AllowScale,
+            AllowNonUniformScale,
+        };
+
+        enum class ResultDeltaType
+        {
+            None,
+            Rotation,
+            Translation,
+            Scale,
+            NonUniformScale
+        };
+
+        struct EE_ENGINETOOLS_API Result
+        {
+            // Apply the results of the gizmo manipulation to a transform
+            void ApplyResult( Transform& transform ) const;
+
+            // Get a modified version of a transform with the gizmo manipulation applied
+            inline Transform GetModifiedTransform( Transform const& transform ) const
+            {
+                Transform t = transform;
+                ApplyResult( t );
+                return t;
+            }
+
+            bool IsManipulating() const { return m_state == GizmoState::StartedManipulating || m_state == GizmoState::Manipulating; }
+
+            inline bool IsTranslation() const { return m_deltaType == ResultDeltaType::Translation; }
+            inline bool IsRotation() const { return m_deltaType == ResultDeltaType::Rotation; }
+            inline bool IsScale() const { return m_deltaType == ResultDeltaType::Scale || m_deltaType == ResultDeltaType::NonUniformScale; }
+
+        public:
+
+            GizmoState          m_state = GizmoState::None;
+            Vector              m_delta = Vector::Zero; // either a position, scale or quat delta
+            ResultDeltaType     m_deltaType = ResultDeltaType::None;
+        };
+
+    public:
+
+        Gizmo();
+        Gizmo( TBitFlags<Options> options );
+
+        Result UpdateAndDraw( Vector const& position, Quaternion const& orientation, Viewport const& viewport, bool isFocused, bool checkHotkeys = false );
+
+        void Reset();
+        bool IsManipulating() const;
+
+        inline void SetLabel( char const* pOptionalLabel ) { m_optionalLabel = String( pOptionalLabel ); }
+        inline void ClearLabel() { m_optionalLabel.clear(); }
+
+        inline void SetOption( Options option, bool isEnabled ) { m_options.SetFlag( option, isEnabled ); }
+        inline void SetOptions( TBitFlags<Options> options ) { m_options = options; }
+
+        inline Mode GetMode() const { return m_mode; }
+        void SetMode( Mode newMode );
+        void SwitchToNextMode();
+
+        void SetCoordinateSystemSpace( CoordinateSpace space );
+        inline CoordinateSpace GetCoordinateSystemSpace() const { return m_coordinateSystemSpace; }
+        inline bool IsInWorldSpace() const { return m_coordinateSystemSpace == CoordinateSpace::World; }
+        inline bool IsInLocalSpace() const { return m_coordinateSystemSpace == CoordinateSpace::Local; }
+
+    protected:
+
+        TBitFlags<Options>          m_options;
+        Mode                        m_mode = Mode::Translation;
+        String                      m_optionalLabel;
+        CoordinateSpace             m_coordinateSystemSpace = CoordinateSpace::World;
+
+        // Manipulation state
+        TranslationGizmo            m_translationGizmo;
+        RotationGizmo               m_rotationGizmo;
+        ScaleGizmo                  m_scaleGizmo;
+    };
+}

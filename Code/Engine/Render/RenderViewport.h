@@ -115,8 +115,6 @@ namespace EE::Render
         TArray<RHI::Buffer*, RHI::MaxPendingFrames>         m_shaderDebugDrawBuffers = {};
         TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>   m_debugCommandsBuffers = {};
         TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>   m_debugCommandsBuffersOutline = {};
-        TArray<RHI::Buffer*, RHI::MaxPendingFrames>         m_debugParametersBuffers = {};
-
         TArray<RHI::Buffer*, RHI::MaxPendingFrames>         m_meshArgumentCounterBuffers = {};
         TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>   m_meshArgumentBuffers = {};
         TArray<DeviceResizeBuffer, RHI::MaxPendingFrames>   m_meshParametersBuffers = {};

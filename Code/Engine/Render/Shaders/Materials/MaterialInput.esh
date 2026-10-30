@@ -1,0 +1,67 @@
+
+#include "Engine/Render/Shaders/Renderer/MeshOutput.esh"
+
+#ifndef _MATERIAL_INPUT_ESH_
+#define _MATERIAL_INPUT_ESH_
+
+struct MaterialShaderInput
+{
+    static MaterialShaderInput New( VertexOutput vertex, PrimitiveOutput primitive, float3 cameraPosition )
+    {
+        MaterialShaderInput materialInput;
+        materialInput.m_vertex                  = vertex;
+        materialInput.m_vertex.m_worldNormal    = normalize( materialInput.m_vertex.m_worldNormal );
+        materialInput.m_primitive               = primitive;
+
+        materialInput.m_ddxUV                   = ddx( vertex.m_uv.xy );
+        materialInput.m_ddyUV                   = ddy( vertex.m_uv.xy );
+
+        materialInput.m_ddxWorldPosition        = ddx( vertex.m_worldPosition );
+        materialInput.m_ddyWorldPosition        = ddy( vertex.m_worldPosition );
+
+        materialInput.m_view                    = normalize( cameraPosition - vertex.m_worldPosition );
+
+        return materialInput;
+    }
+
+    float3x3 ComputeTBN( float2 ddxUV, float2 ddyUV )
+    {
+        float3  dp2perp = cross( -m_ddyWorldPosition, m_vertex.m_worldNormal );
+        float3  dp1perp = cross( m_vertex.m_worldNormal, m_ddxWorldPosition );
+
+        float3  T = dp2perp * ddxUV.x + dp1perp * -ddyUV.x;
+        float3  B = dp2perp * ddxUV.y + dp1perp * -ddyUV.y;
+
+        float invmax = rsqrt( max( dot( T, T ), dot( B, B ) ) );
+        return float3x3( T * invmax, B * invmax, m_vertex.m_worldNormal );
+    }
+
+    float3x3 ComputeTBN()
+    {
+        return ComputeTBN( m_ddxUV, m_ddyUV );
+    }
+    
+    float3 UnpackNormalMap( float3x3 TBN, float2 normalSample )
+    {    
+        float3 tangentNormal;
+        tangentNormal.xy = normalSample * 2.0 - 1.0.xx;
+        tangentNormal.z  = sqrt( 1.0 - saturate( dot( tangentNormal.xy, tangentNormal.xy ) ) );
+        
+        return normalize( mul( tangentNormal, TBN ) );
+    }
+
+    //-------------------------------------------------------------------------
+
+    VertexOutput        m_vertex;
+    PrimitiveOutput     m_primitive;
+
+    float2              m_ddxUV;
+    float2              m_ddyUV;
+
+    float3              m_ddxWorldPosition;
+    float3              m_ddyWorldPosition;
+
+    float3              m_view;
+};
+
+#endif

@@ -143,7 +143,7 @@ namespace EE
             {
                 FileSystem::Path const processPath = FileSystem::GetCurrentProcessPath();
                 auto modulePath = FileSystem::Path( String( String::CtorConvert(), path ) );
-                return processPath.IsUnderDirectory( processPath );
+                return modulePath.IsUnderDirectory( processPath );
             };
 
             //-------------------------------------------------------------------------
@@ -361,6 +361,7 @@ namespace EE
 
         SelectObject( g_splashScreenMemoryDeviceContext, (HGDIOBJ) m_splashScreenBitmapHandle );
 
+        SetWindowText( m_splashScreenHandle, m_applicationName.c_str() );
         ShowWindow( m_splashScreenHandle, SW_SHOW );
         UpdateWindow( m_splashScreenHandle );
 

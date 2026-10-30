@@ -38,26 +38,6 @@ namespace EE::Render
 
     class EE_ENGINE_API ImguiRenderer : public ISystem
     {
-        struct ImguiGeometryState
-        {
-            uint32_t vertexOffset = 0;
-            uint32_t indexOffset = 0;
-        };
-
-        static void RenderImguiData( ImDrawData const*      pDrawData,
-                                     RenderSystem*          pRenderSystem,
-                                     RHI::CommandBuffer*    pCommandBuffer,
-                                     RHI::Texture*          pRenderTarget,
-                                     RHI::Pipeline*         pPipeline,
-                                     RHI::Buffer*           pConstantBuffer,
-                                     RHI::Buffer*           pVertexBuffer,
-                                     RHI::Buffer*           pIndexBuffer,
-                                     uint32_t               frameIndex,
-                                     bool                   clear,
-                                     ImguiGeometryState&    state );
-
-        static void UpdateTextureData( ImDrawData const* pDrawData, RenderSystem* pRenderSystem );
-
     public:
 
         EE_SYSTEM( ImguiRenderer );
@@ -78,9 +58,40 @@ namespace EE::Render
 
         inline ImGuiX::ImageCache* GetImageCache() { return &m_imageCache; }
 
+        //-------------------------------------------------------------------------
+
     private:
 
+        struct ImguiGeometryState
+        {
+            uint32_t vertexOffset = 0;
+            uint32_t indexOffset = 0;
+        };
+
         //-------------------------------------------------------------------------
+
+    private:
+
+        static void RenderImguiData
+        (
+            ImDrawData const*       pDrawData,
+            RenderSystem*           pRenderSystem,
+            RHI::CommandBuffer*     pCommandBuffer,
+            RHI::Texture*           pRenderTarget,
+            RHI::Pipeline*          pPipeline,
+            RHI::Buffer*            pConstantBuffer,
+            RHI::Buffer*            pVertexBuffer,
+            RHI::Buffer*            pIndexBuffer,
+            uint32_t                frameIndex,
+            bool                    clear,
+            ImguiGeometryState&     state
+        );
+
+        static void UpdateTextureData( ImDrawData const* pDrawData, RenderSystem* pRenderSystem );
+
+        //-------------------------------------------------------------------------
+
+    private:
 
         RenderSystem*                                       m_pRenderSystem = nullptr;
         Window*                                             m_pPrimaryRenderWindow = nullptr;

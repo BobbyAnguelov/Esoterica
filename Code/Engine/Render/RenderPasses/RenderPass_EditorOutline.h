@@ -48,6 +48,8 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
+    public:
+
         RHI::Pipeline*                              m_pInitializePipeline = nullptr;
         RHI::Pipeline*                              m_pJumpFloodPipeline = nullptr;
         RHI::Pipeline*                              m_pCompositePipeline = nullptr;

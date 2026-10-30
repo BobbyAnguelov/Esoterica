@@ -97,7 +97,7 @@ namespace EE::Resource
         void DrawDirectoryTreeContextMenu( TVector<TreeListViewItem*> const& selectedItemsWithContextMenus );
 
         void RebuildDirectoryTreeView( TreeListViewItem* pRootItem );
-        void SetSelectedDirectory( DataPath const& newFolderPath );
+        void SetSelectedDirectory( DataPath const& directoryPath );
 
         // Files
         //-------------------------------------------------------------------------
@@ -108,8 +108,8 @@ namespace EE::Resource
         void GenerateDirectoryContentsList();
         void SortFileList();
         void SetSelectedFile( DataPath const& filePath, bool setFocus );
-        void DrawDirectoryInfoContextMenu( DataFileRegistry::DirectoryInfo const& directoryInfo, bool isFileListView );
-        void DrawFileInfoContextMenu( DataFileRegistry::FileInfo const& fileInfo );
+        void DrawDirectoryInfoContextMenu( DataFileRegistry::DirectoryInfo const* pDirectoryInfo, bool isFileListView );
+        void DrawFileInfoContextMenu( DataFileRegistry::FileInfo const* pFileInfo );
 
     private:
 
@@ -137,8 +137,8 @@ namespace EE::Resource
         // Selected Directory Contents
         //-------------------------------------------------------------------------
 
-        TVector<DataFileRegistry::DirectoryInfo>              m_directoryList;
-        TVector<DataFileRegistry::FileInfo>                   m_fileList;
+        TVector<DataFileRegistry::DirectoryInfo const*>     m_directoryList;
+        TVector<DataFileRegistry::FileInfo const*>          m_fileList;
         TVector<int32_t>                                    m_sortedFileListIndices;
         DataPath                                            m_selectedItem;
     };

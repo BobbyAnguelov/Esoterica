@@ -94,50 +94,13 @@ namespace EE::ImGuiX
     // Create a trimmed string that fits in the desired with, will trim from the end and append...
     EE_BASE_API void TrimStringToWidth( char const* pStr, float width, InlineString& outString );
 
-    inline void DrawShadowedText( Color textColor, Color shadowColor, TFunction<void( Color )> const& drawFunc )
-    {
-        ImVec2 const cursorPos = ImGui::GetCursorPos();
-        ImGui::SetCursorPos( cursorPos + ImVec2( 0, 1 ) );
-        ImGui::Indent( 1 );
-        drawFunc( shadowColor );
-        ImGui::Unindent( 1 );
-        ImGui::SetCursorPos( cursorPos );
-        drawFunc( textColor );
-    }
+    EE_BASE_API void DrawShadowedText( Color textColor, Color shadowColor, TFunction<void( Color )> const& drawFunc );
 
     inline void DrawShadowedText( Color textColor, TFunction<void( Color )> const& drawFunc ) { DrawShadowedText( textColor, Colors::Black, drawFunc ); }
 
-    inline void DrawShadowedText( Color textColor, Color shadowColor, char const* pFormat, ... )
-    {
-        va_list args;
-        va_start( args, pFormat );
+    EE_BASE_API void DrawShadowedText( Color textColor, Color shadowColor, char const* pFormat, ... );
 
-        ImVec2 const cursorPos = ImGui::GetCursorPos();
-        ImGui::SetCursorPos( cursorPos + ImVec2( 0, 1 ) );
-        ImGui::Indent( 1 );
-        ImGui::TextColoredV( shadowColor, pFormat, args );
-        ImGui::Unindent( 1 );
-        ImGui::SetCursorPos( cursorPos );
-        ImGui::TextColoredV( textColor, pFormat, args );
-
-        va_end( args );
-    }
-
-    inline void DrawShadowedText( Color textColor, char const* pFormat, ... )
-    {
-        va_list args;
-        va_start( args, pFormat );
-
-        ImVec2 const cursorPos = ImGui::GetCursorPos();
-        ImGui::SetCursorPos( cursorPos + ImVec2( 0, 1 ) );
-        ImGui::Indent( 1 );
-        ImGui::TextColoredV( Colors::Black, pFormat, args );
-        ImGui::Unindent( 1 );
-        ImGui::SetCursorPos( cursorPos );
-        ImGui::TextColoredV( textColor, pFormat, args );
-
-        va_end( args );
-    }
+    EE_BASE_API void DrawShadowedText( Color textColor, char const* pFormat, ... );
 
     EE_BASE_API void DrawSeverityIcon( Severity severity );
 

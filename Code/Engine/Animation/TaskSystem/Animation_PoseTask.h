@@ -68,6 +68,7 @@ namespace EE::Animation
 
         #if EE_DEVELOPMENT_TOOLS
         mutable TVector<TaskLogEntry>*  m_pLog = nullptr;
+        bool                            m_isDetailedDebugViewEnabled = false;
         #endif
     };
 

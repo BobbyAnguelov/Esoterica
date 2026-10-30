@@ -17,9 +17,11 @@ namespace EE::Render
 
         inline TextureResource const* GetEnvironmentMapTexture() const { return m_environmentMapTexture.GetPtr(); }
 
+        //-------------------------------------------------------------------------
+
     private:
 
-        EE_REFLECT()
+        EE_REFLECT();
         TResourcePtr<TextureResource> m_environmentMapTexture;
     };
 }

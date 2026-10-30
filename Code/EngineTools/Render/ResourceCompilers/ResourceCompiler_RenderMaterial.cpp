@@ -32,10 +32,18 @@ namespace EE::Render
             if ( property.IsResourcePtrProperty() )
             {
                 Resource::ResourcePtr const* pResource = property.GetPropertyAddress<Resource::ResourcePtr>( pResourceDescriptor->m_shaderParameters.Get() );
-                if ( pResource->IsSet() && pResource->GetResourceTypeID() == TextureResource::GetStaticResourceTypeID() )
+
+                if ( !pResource->IsSet()  )
                 {
-                    material.m_parameterStorage.m_textures.emplace_back( property.m_ID, pResource->GetResourceID() );
+                    return ctx.LogError( "Required texture is not set: %s, %s", property.m_typeID.c_str(), property.m_ID.c_str() );
                 }
+
+                if ( pResource->GetResourceTypeID() != TextureResource::GetStaticResourceTypeID() )
+                {
+                    return ctx.LogError( "Invalid texture set: %s, %s", property.m_ID.c_str(), pResource->GetResourceID().c_str() );
+                }
+
+                material.m_parameterStorage.m_textures.emplace_back( property.m_ID, pResource->GetResourceID() );
             }
             // Scalars
             else if ( property.m_typeID == TypeSystem::GetCoreTypeID<uint32_t>() ||
@@ -93,10 +101,18 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         Resource::ResourceHeader hdr( Material::s_version, Material::GetStaticResourceTypeID(), ctx.m_sourceResourceHash );
-        pResourceDescriptor->ForEachDependency( [&hdr] ( Resource::ResourcePtr const* pResource )
+
+        for ( TypeSystem::PropertyInfo const& property : pResourceDescriptor->m_shaderParameters.GetInstanceTypeInfo()->m_properties )
         {
-            hdr.m_installDependencies.push_back( pResource->GetResourceID() );
-        } );
+            if ( property.IsResourcePtrProperty() )
+            {
+                Resource::ResourcePtr const* pResource = property.GetPropertyAddress<Resource::ResourcePtr>( pResourceDescriptor->m_shaderParameters.Get() );
+                if ( pResource->IsSet() )
+                {
+                    VectorEmplaceBackUnique( hdr.m_installDependencies, pResource->GetResourceID() );
+                }
+            }
+        }
 
         // Serialize
         //-------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 #include "EngineTools/Widgets/Pickers/ResourcePickers.h"
 #include "Engine/Animation/AnimationClip.h"
 #include "Engine/Physics/Ragdoll/PhysicsRagdoll_Instance.h"
-#include "Engine/Imgui/ImguiGizmo.h"
+#include "EngineTools/Gizmos/Gizmo.h"
 #include "Base/Imgui/ImguiCommandStack.h"
 #include "Base/Time/Timers.h"
 
@@ -188,7 +188,7 @@ namespace EE::Physics
         TResourcePtr<Animation::Skeleton>               m_skeleton;
 
         // Body/Joint editor
-        ImGuiX::Gizmo                                   m_gizmo;
+        Gizmo                                   m_gizmo;
         BoneInfo*                                       m_pSkeletonTreeRoot = nullptr;
         bool                                            m_drawSkeleton = true;
         bool                                            m_drawBodyAxes = false;

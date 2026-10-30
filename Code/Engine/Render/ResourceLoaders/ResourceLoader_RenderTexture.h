@@ -17,18 +17,15 @@ namespace EE::Render
 
         TextureLoader();
 
-        inline void SetRenderSystem( RenderSystem* pRenderSystem )
-        {
-            EE_ASSERT( !m_pRenderSystem );
-            m_pRenderSystem = pRenderSystem;
-        }
+        inline void SetRenderSystemPtr( RenderSystem* pRenderSystem ) { EE_ASSERT( pRenderSystem != nullptr ); m_pRenderSystem = pRenderSystem; }
+        inline void ClearRenderSystemPtr() { m_pRenderSystem = nullptr; }
 
     private:
 
         virtual Resource::LoadResult Load( ResourceID const& resourceID, FileSystem::Path const& resourcePath, Resource::ResourceRecord* pResourceRecord, Serialization::BinaryInputArchive* pArchive ) const override;
         virtual Resource::UnloadResult Unload( ResourceID const& resourceID, Resource::ResourceRecord* pResourceRecord ) const override;
 
-        //-------------------------------------------------------------------------
+    private:
 
         RenderSystem* m_pRenderSystem = nullptr;
     };

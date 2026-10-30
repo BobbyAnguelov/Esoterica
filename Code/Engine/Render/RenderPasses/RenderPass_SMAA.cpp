@@ -122,11 +122,14 @@ namespace EE::Render
         }
     }
 
-    void SMAAPass::DrawToViewport( RenderViewport const*                pRenderViewport,
-                                   DeviceResourceStates&                resourceStates,
-                                   RHI::CommandBuffer*                  pCommandBuffer,
-                                   RHI::Texture*                        pSMAAAreaTexture,
-                                   RHI::Texture*                        pSMAASearchTexture ) const
+    void SMAAPass::DrawToViewport
+    (
+        RenderViewport const*   pRenderViewport,
+        DeviceResourceStates&   resourceStates,
+        RHI::CommandBuffer*     pCommandBuffer,
+        RHI::Texture*           pSMAAAreaTexture,
+        RHI::Texture*           pSMAASearchTexture
+    ) const
     {
 
         EE_RHI_COMMAND_BUFFER_PROFILE_SCOPE( pCommandBuffer, "SMAA" );

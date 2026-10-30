@@ -35,10 +35,14 @@ namespace EE::Render
 
     struct ShaderCullingBucket
     {
+    public:
+
         void Initialize( RHI::Context* pContextRHI, char const* pShaderName );
         void Shutdown( RHI::Context* pContextRHI );
 
         //-------------------------------------------------------------------------
+
+    public:
 
         DeviceResizeBuffer                                                  m_instanceVisibilityBuffer = {};
         DeviceResizeBuffer                                                  m_clusterCullingWorkBuffer = {};
@@ -81,6 +85,8 @@ namespace EE::Render
         void ForEachRenderPass( F fn );
 
         //-------------------------------------------------------------------------
+
+    private:
 
         RenderSystem*                                                       m_pRenderSystem = nullptr;
 

@@ -95,6 +95,9 @@ namespace EE::Import
 
     void Mesh::Finalize()
     {
+        // Calculate max number of bone influences
+        //-------------------------------------------------------------------------
+
         if ( IsSkeletalMesh() )
         {
             m_maxNumberOfBoneInfluences = 4;
@@ -104,5 +107,40 @@ namespace EE::Import
                 m_maxNumberOfBoneInfluences = Math::Max( m_maxNumberOfBoneInfluences, geo.m_numBoneInfluences );
             }
         }
+    }
+
+    void Mesh::FinalizeMaterials( FileSystem::Path const& sourceDataDirectory, FileSystem::Path const& overrideTextureSearchPathDirectory )
+    {
+        // Remove all unused materials and resolve their file paths
+        //-------------------------------------------------------------------------
+
+        auto IsMaterialReferenced = [this] ( StringID materialID )
+        {
+            for ( auto const& sm : m_submeshes )
+            {
+                if ( sm.m_materialID == materialID )
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        };
+
+        for ( int32_t i = int32_t( m_materials.GetNumMaterials() ) - 1; i >= 0; i-- )
+        {
+            if ( !IsMaterialReferenced( m_materials[i].m_ID ) )
+            {
+                m_materials.m_data.erase_unsorted( m_materials.begin() + i );
+            }
+        }
+
+        FileSystem::Path textureSearchPath = m_sourcePath.GetParentDirectory();
+        if ( overrideTextureSearchPathDirectory.IsValid() && overrideTextureSearchPathDirectory.IsDirectoryPath() )
+        {
+            textureSearchPath = overrideTextureSearchPathDirectory;
+        }
+
+        m_materials.Finalize( sourceDataDirectory, textureSearchPath );
     }
 }

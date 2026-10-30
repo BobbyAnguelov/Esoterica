@@ -65,7 +65,7 @@ namespace EE::Resource
                             }
                             else if ( pFileInfo->IsDataFile() )
                             {
-                                m_pToolsContext->TryOpenDataFile( pFileInfo->m_dataPath );
+                                m_pToolsContext->TryOpenFile( pFileInfo->m_dataPath );
                             }
 
                             shouldCloseDialog = true;

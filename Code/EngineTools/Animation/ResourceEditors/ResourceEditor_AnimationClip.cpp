@@ -3,7 +3,7 @@
 #include "EngineTools/Animation/ResourceDescriptors/ResourceDescriptor_AnimationClip.h"
 #include "EngineTools/Timeline/TimelineEditor.h"
 #include "EngineTools/Core/SystemDialogs.h"
-#include "Engine/Animation/Components/Component_AnimationClipPlayer.h"
+#include "Engine/Animation/Components/Component_AnimationPlayer.h"
 #include "Engine/Animation/Systems/EntitySystem_Animation.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
@@ -124,9 +124,9 @@ namespace EE::Animation
         EE_ASSERT( m_editedResource.IsLoaded() );
 
         // Create animation component
-        m_pAnimationComponent = EE::New<AnimationClipPlayerComponent>( StringID( "Animation Component" ) );
+        m_pAnimationComponent = EE::New<AnimationPlayerComponent>( StringID( "Animation Component" ) );
         m_pAnimationComponent->SetAnimation( m_editedResource.GetResourceID() );
-        m_pAnimationComponent->SetPlayMode( AnimationClipPlayerComponent::PlayMode::Posed );
+        m_pAnimationComponent->SetPlayMode( AnimationPlayerComponent::PlayMode::Posed );
         m_pAnimationComponent->SetSkeletonLOD( m_skeletonLOD );
 
         // Create entity
@@ -327,6 +327,12 @@ namespace EE::Animation
 
         if ( IsResourceLoaded() )
         {
+            // Ensure that the component procedural bones flag matches what we require
+            if ( m_pMeshComponent != nullptr && m_pMeshComponent->AreProceduralBonesEnabled() != m_areProceduralBonesEnabled )
+            {
+                m_pMeshComponent->SetProceduralBonesEnabled( m_areProceduralBonesEnabled );
+            }
+
             // Update pose and position
             //-------------------------------------------------------------------------
 
@@ -427,7 +433,16 @@ namespace EE::Animation
 
         ImGui::Checkbox( "Draw Bone Names", &m_shouldDrawBoneNames );
 
-        ImGuiX::Checkbox( "Isolate Selected Bones", &m_isolateSelectedBones );
+        ImGui::Checkbox( "Isolate Selected Bones", &m_isolateSelectedBones );
+
+        if ( ImGui::Checkbox( "Procedural Bones", &m_areProceduralBonesEnabled ) )
+        {
+            if ( m_pMeshComponent != nullptr )
+            {
+                m_pMeshComponent->SetProceduralBonesEnabled( m_areProceduralBonesEnabled );
+                m_pAnimationComponent->SetAnimTime( m_currentAnimTime, true );
+            }
+        }
 
         ImGui::SeparatorText( "Capsule Debug" );
 

@@ -102,13 +102,13 @@ namespace EE::Render
             return RHI::CreateBuffer( pRenderSystem->GetContextRHI(), keyBufferParameters );
         } );
 
-        m_payloadBuffer.UpdateDeviceResources( m_tableSize * payloadStride * sizeof( uint64_t ), [this, pRenderSystem] ( RHI::Buffer* && pOldBuffer, size_t newSize )
+        m_payloadBuffer.UpdateDeviceResources( m_tableSize * payloadStride * sizeof( uint32_t ), [this, pRenderSystem] ( RHI::Buffer* && pOldBuffer, size_t newSize )
         {
             pRenderSystem->QueueResourceDelete( eastl::move( pOldBuffer ) );
 
             RHI::BufferParameters payloadBufferParameters = {};
             payloadBufferParameters.m_bufferSize = newSize;
-            payloadBufferParameters.m_bufferStride = sizeof( uint64_t );
+            payloadBufferParameters.m_bufferStride = sizeof( uint32_t );
             payloadBufferParameters.m_descriptorTypes = { RHI::DescriptorTypeFlags::Buffer, RHI::DescriptorTypeFlags::RWBuffer };
             payloadBufferParameters.m_debugName.sprintf( "SpatialHash %.*s Payloads", m_name.length(), m_name.data() );
             return RHI::CreateBuffer( pRenderSystem->GetContextRHI(), payloadBufferParameters );

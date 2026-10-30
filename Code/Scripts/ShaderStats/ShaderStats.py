@@ -1,419 +1,722 @@
-import xml.etree.ElementTree as ET
+"""
+Analyze Esoterica's shaders with the Radeon GPU Analyzer (RGA).
+
+Reads Build/ShaderStageMetadata.xml (written by EsotericaReflector.exe), compiles
+every shader variant for every target AMD architecture with RGA, and writes the
+resource usage tables to Docs/Rendering/ShaderStats.md.
+
+Requires the RGA_PATH environment variable to point at rga.exe.
+RGA 2.15 or newer is required.
+"""
+
 import os
 import re
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing
 
-# Matches a markdown table row: leading |, cells separated by |, trailing |
 _TABLE_ROW_RE = re.compile(r"^\|(.+)\|$")
 
-# List of platforms to analyze
 PLATFORMS = [
     ('gfx1100', 'RDNA 3 (RX 7900)'),
-    ('gfx1150', 'RDNA 3.5 (Radeon 8040S)'),
+    ('gfx1150', 'RDNA 3.5 (Radeon 890M)'),
     ('gfx1200', 'RDNA 4.0 (RX 9060)')
 ]
 
+MINIMUM_RGA_VERSION = (2, 15)
+SHADER_MODEL = '6_6'
+RGA_OUTPUT_DIRECTORY = os.path.join('Build', 'RGA')
+
+STAGES = {
+    'MS': {'entry_point': 'MS_main', 'output_suffix': 'mesh'},
+    'VS': {'entry_point': 'VS_main', 'output_suffix': 'vert'},
+    'PS': {'entry_point': 'PS_main', 'output_suffix': 'pixel'},
+    'CS': {'entry_point': 'CS_main', 'output_suffix': 'comp'}
+}
+
+PERMUTATION_PREFIX = 'PERMUTATION_'
+
+SHADER_TYPE_MATERIAL = 'Material'
+SHADER_TYPE_SURFACE = 'Surface'
+SHADER_TYPE_COMPUTE = 'Compute'
+
+GRAPHICS_SHADER_TYPES = [SHADER_TYPE_MATERIAL, SHADER_TYPE_SURFACE]
+
+VS_MS_STAGES = ['MS', 'VS']
+
+_CSV_STAT_KEYS = {
+    'AVAILABLE_VGPRs': 'vgprAvailable',
+    'USED_VGPRs': 'vgprUsed',
+    'AVAILABLE_SGPRs': 'sgprAvailable',
+    'USED_SGPRs': 'sgprUsed',
+    'AVAILABLE_LDS_BYTES': 'ldsAvailableBytes',
+    'USED_LDS_BYTES': 'ldsUsedBytes',
+    'SCRATCH_MEM': 'scratchBytes'
+}
+
+_NOT_AVAILABLE = ('', 'N/A', '-')
+
+
 def get_rga_executable():
-    """
-    Get RGA executable path from environment variable.
-    
-    Returns:
-        Path to rga.exe or None if not found
-    """
     rga_path = os.environ.get('RGA_PATH')
-    
+
     if not rga_path:
         print("ERROR: RGA_PATH environment variable is not defined!")
         print("Please set RGA_PATH to the full path of rga.exe")
         return None
-    
+
     if not os.path.exists(rga_path):
         print(f"ERROR: RGA executable not found at: {rga_path}")
         print("Please check that RGA_PATH points to a valid rga.exe file")
         return None
-    
+
     return rga_path
 
-def parse_rga_stats(shader_name, stage, platform):
-    """
-    Parse RGA statistics file for a shader.
-    
-    Args:
-        shader_name: Name of the shader
-        stage: Shader stage (PS or CS)
-        platform: GPU platform (e.g., gfx1100)
-        
-    Returns:
-        Dictionary containing shader statistics or None if file not found
-    """
-    cwd = os.getcwd()
-    
-    # Determine stats file path based on stage
-    if stage == 'PS':
-        stats_file = f"{cwd}\\Build\\RGA\\{platform}_{shader_name}.PS_pixel.txt"
-    elif stage == 'CS':
-        stats_file = f"{cwd}\\Build\\RGA\\{platform}_{shader_name}.CS_comp.txt"
-    else:
+
+def get_rga_version(rga_exe):
+    """Read the major and minor version of an RGA executable, or None."""
+    try:
+        result = subprocess.run([rga_exe, '--version'], capture_output=True, text=True)
+    except OSError as e:
+        print(f"ERROR: Could not run {rga_exe}: {e}")
         return None
-    
-    # Check if file exists
+
+    match = re.search(r'Version:\s*(\d+)\.(\d+)', result.stdout or '')
+    if not match:
+        return None
+
+    return (int(match.group(1)), int(match.group(2)))
+
+
+def stats_file_path(platform, label, stage):
+    """
+    Path RGA writes the resource usage statistics of one compiled stage to.
+    """
+    suffix = STAGES[stage]['output_suffix']
+
+    return os.path.join(RGA_OUTPUT_DIRECTORY, f'{platform}_{label}_{suffix}.csv')
+
+
+def _to_number(value):
+    """Convert a statistic to int or float, or None when it does not apply."""
+    value = value.strip()
+
+    if value in _NOT_AVAILABLE:
+        return None
+
+    try:
+        return int(value)
+    except ValueError:
+        pass
+
+    try:
+        return float(value)
+    except ValueError:
+        return value
+
+
+def parse_rga_stats(stats_file):
+    """
+    Parse the resource usage RGA wrote for one shader stage
+    """
     if not os.path.exists(stats_file):
-        print(f"  ⚠ Warning: Stats file not found: {stats_file}")
         return None
-    
+
     try:
-        stats = {}
-        with open(stats_file, 'r') as f:
-            for line in f:
-                line = line.strip()
-                # Skip empty lines and the "Statistics:" header
-                if not line or line == 'Statistics:':
-                    continue
-                
-                # Parse lines in format: "- key = value"
-                if line.startswith('-'):
-                    # Remove the leading "- " and split on "="
-                    line = line[1:].strip()
-                    if '=' in line:
-                        key, value = line.split('=', 1)
-                        key = key.strip()
-                        value = value.strip()
-                        
-                        # Try to convert value to int, otherwise keep as string
-                        try:
-                            value = int(value)
-                        except ValueError:
-                            pass
-                        
-                        # Handle nested keys like "resourceUsage.numUsedVgprs"
-                        if '.' in key:
-                            parts = key.split('.')
-                            current = stats
-                            for part in parts[:-1]:
-                                if part not in current:
-                                    current[part] = {}
-                                current = current[part]
-                            current[parts[-1]] = value
-                        else:
-                            stats[key] = value
-        
-        return stats if stats else None
-        
-    except Exception as e:
-        print(f"  ✗ Error parsing stats file: {e}")
+        with open(stats_file, 'r', encoding='utf-8-sig') as f:
+            lines = [line.strip() for line in f if line.strip()]
+    except OSError as e:
+        print(f"  x Error reading stats file: {e}")
         return None
 
-def run_rga_analysis_wrapper(args_tuple):
-    """
-    Wrapper function for parallel execution of RGA analysis.
-    
-    Args:
-        args_tuple: Tuple of (rga_exe, shader_name, stage, file_path, entry_point, dxc_options, platform, macros)
-    
-    Returns:
-        Tuple of (shader_name, stage, platform, success)
-    """
-    rga_exe, shader_name, stage, file_path, entry_point, dxc_options, platform, macros = args_tuple
-    success = run_rga_analysis(rga_exe, shader_name, stage, file_path, entry_point, dxc_options, platform, macros)
-    return (shader_name, stage, platform, success)
+    if len(lines) < 2:
+        return None
 
-def run_rga_analysis(rga_exe, shader_name, stage, file_path, entry_point, dxc_options, platform, macros):
-    """
-    Run RGA analysis for a shader.
-    
-    Args:
-        rga_exe: Path to rga.exe
-        shader_name: Name of the shader
-        stage: Shader stage (PS or CS)
-        file_path: Full path to shader file
-        entry_point: Shader entry point
-        dxc_options: DXC command line options
-        platform: GPU platform (e.g., gfx1100)
-        macros: List of macro names to define
-    """
-    cwd = os.getcwd()
-    
-    # Build RGA command arguments
-    args = [
-        rga_exe,
-        "-s", "dx12",
-        "-c", platform,
-        f"--{stage.lower()}", file_path,
-        f"--{stage.lower()}-entry", entry_point,
-        "--dxc-opt", dxc_options,
-        "-I", f"{cwd}/Code",
-        "-D", "EE_RGA_ANALYZE=1"
+    names = [name.strip() for name in lines[0].split(',')]
+    values = [value.strip() for value in lines[1].split(',')]
+
+    stats = {}
+    for name, value in zip(names, values):
+        key = _CSV_STAT_KEYS.get(name)
+        if key:
+            stats[key] = _to_number(value)
+
+    return stats or None
+
+
+def _infer_shader_type(shader):
+    if 'CS' in shader['stages']:
+        return SHADER_TYPE_COMPUTE
+
+    if shader['permutations']:
+        return SHADER_TYPE_MATERIAL
+
+    return SHADER_TYPE_SURFACE
+
+
+def _permutation_names(permutation):
+    """Strip the reflector's prefix from each permutation macro."""
+    prefix_length = len(PERMUTATION_PREFIX)
+
+    return [
+        macro[prefix_length:] if macro.startswith(PERMUTATION_PREFIX) else macro
+        for macro in permutation
     ]
-    
-    # Add macro definitions
-    for macro in macros:
-        args.extend(["-D", f"{macro}=1"])
-    
-    # Add remaining arguments
-    args.extend([
-        "--all-model", "6_6",
-        "--autogen-dir", f"{cwd}\\Build\\RGA\\Generated\\{platform}\\{shader_name}",
-        "--isa", f"{cwd}\\Build\\RGA\\ISA\\{platform}_{shader_name}.{stage}.isa",
-        "-a", f"{cwd}\\Build\\RGA\\{shader_name}.{stage}.txt"
-    ])
-    
-    print(f"Running RGA for {shader_name} ({stage}) on {platform}...")
-    
-    try:
-        # Create shader-specific directory
-        os.makedirs(f"{cwd}\\Build\\RGA\\Generated\\{platform}\\{shader_name}", exist_ok=True)
-        
-        # Run RGA
-        result = subprocess.run(args, capture_output=True, text=True)
-        
-        if result.returncode == 0:
-            print(f"  ✓ Success")
+
+
+def _variant_label(name, permutation):
+    """Build the unique label a shader variant is compiled and reported under."""
+    return '_'.join([name] + _permutation_names(permutation))
+
+
+def _permutation_text(permutation):
+    """Build the permutation column of a markdown table row."""
+    return ' '.join(f'`{name}`' for name in _permutation_names(permutation))
+
+
+def collect_shader_variants(xml_file_path):
+    """
+    Group the reflector's per-stage metadata into the shader variants to compile.
+    """
+    root = ET.parse(xml_file_path).getroot()
+
+    shaders = []
+    index = {}
+
+    for entry in root.findall('.//CompiledShader'):
+        name = entry.get('Name', '')
+        stage = entry.get('Stage', '')
+        file_path = entry.get('FilePath', '')
+        entry_point = entry.get('EntryPoint', '')
+
+        if stage not in STAGES:
+            continue
+
+        is_null_stage = not entry_point
+
+        # Skip entry points that are not interesting, for example outline ID passes
+        if not is_null_stage and entry_point != STAGES[stage]['entry_point']:
+            continue
+
+        shader = index.get((name, file_path))
+        if shader is None:
+            shader = {
+                'name': name,
+                'file_path': file_path,
+                'dxc_options': entry.get('CommandLineDXC', ''),
+                'declared_type': entry.get('Type', ''),
+                'stages': {},
+                'null_stages': {},
+                'permutations': []
+            }
+            index[(name, file_path)] = shader
+            shaders.append(shader)
+
+        macros = tuple(
+            macro.get('Name', '')
+            for macro in entry.findall('MacroDefinition')
+            if macro.get('Name', '')
+        )
+
+        if is_null_stage:
+            shader['null_stages'].setdefault(macros, set()).add(stage)
         else:
-            print(f"  ✗ Failed with return code {result.returncode}")
-            if result.stderr:
-                print(f"  Error: {result.stderr}")
-        
-        return result.returncode == 0
-        
-    except Exception as e:
-        print(f"  ✗ Exception: {e}")
-        return False
+            shader['stages'][stage] = entry_point
 
-def _format_markdown_tables(text: str) -> str:
-    """Reformat all markdown tables in *text* to align columns for plaintext
-    readability.  Returns the reformatted text."""
-    lines = text.splitlines()
-    output = []
-    i = 0
+        # Only material shaders have permutations
+        if (is_null_stage or macros) and macros not in shader['permutations']:
+            shader['permutations'].append(macros)
 
-    while i < len(lines):
-        # Find consecutive table rows
-        start = i
-        while i < len(lines) and _TABLE_ROW_RE.match(lines[i]):
-            i += 1
+    variants = []
+    for shader in shaders:
+        shader_type = shader['declared_type'] or _infer_shader_type(shader)
+        shader_variants = []
 
-        if i - start >= 2:
-            block = lines[start:i]
-            output.extend(_align_table_block(block))
-        else:
-            if i == start:
-                output.append(lines[i])
-                i += 1
+        for permutation in (shader['permutations'] or [()]):
+            stages = dict(shader['stages'])
+            null_stages = shader['null_stages'].get(permutation, set())
+
+            for stage in null_stages:
+                stages.pop(stage, None)
+
+            shader_variants.append({
+                'name': shader['name'],
+                'type': shader_type,
+                'label': _variant_label(shader['name'], permutation),
+                'permutation': _permutation_text(permutation),
+                'file_path': shader['file_path'],
+                'dxc_options': shader['dxc_options'],
+                'stages': stages,
+                'null_stages': null_stages,
+                'macros': list(permutation)
+            })
+
+        compiled = [variant for variant in shader_variants if not variant['null_stages']]
+        shared_label = compiled[0]['label'] if compiled else None
+
+        for variant in shader_variants:
+            if variant['null_stages'] and shared_label is not None:
+                variant['stats_labels'] = {stage: shared_label for stage in variant['stages']}
             else:
-                output.extend(lines[start:i])
+                variant['stats_labels'] = {stage: variant['label'] for stage in variant['stages']}
 
-    return "\n".join(output) + "\n"
+        variants.extend(shader_variants)
+
+    return variants
+
+
+def find_unknown_stages(xml_file_path):
+    """
+    Find stages in the metadata this tool does not know how to compile.
+    """
+    root = ET.parse(xml_file_path).getroot()
+
+    return sorted({
+        entry.get('Stage', '')
+        for entry in root.findall('.//CompiledShader')
+        if entry.get('Stage', '') and entry.get('Stage', '') not in STAGES
+    })
+
+
+def build_rga_command(rga_exe, platform, variant, generated_dir, stats_base, isa_base):
+    """Build the RGA command line that compiles and analyzes one shader variant."""
+    cwd = os.getcwd()
+
+    args = [rga_exe, '-s', 'dx12', '-c', platform, '--offline']
+
+    for stage in STAGES:
+        entry_point = variant['stages'].get(stage)
+        if entry_point is None:
+            continue
+
+        args.extend([f"--{stage.lower()}", variant['file_path']])
+        args.extend([f"--{stage.lower()}-entry", entry_point])
+
+    if variant['dxc_options']:
+        args.extend(['--dxc-opt', variant['dxc_options']])
+
+    args.extend(['-I', f"{cwd}/Code"])
+
+    for macro in variant['macros']:
+        args.extend(['-D', f'{macro}=1'])
+
+    args.extend([
+        '--all-model', SHADER_MODEL,
+        '--autogen-dir', generated_dir,
+        '--isa', isa_base,
+        '-a', stats_base
+    ])
+
+    return args
+
+
+def run_rga_analysis(task):
+    """
+    Run RGA once for one shader variant on one platform.
+    """
+    for path in task['stats_files'].values():
+        if os.path.exists(path):
+            os.remove(path)
+
+    os.makedirs(task['generated_dir'], exist_ok=True)
+
+    output = ''
+    try:
+        result = subprocess.run(task['command'], capture_output=True, text=True)
+        output = (result.stdout or '') + (result.stderr or '')
+    except OSError as e:
+        output = f'{e}'
+
+    missing = [
+        os.path.basename(path) for path in task['stats_files'].values() if not os.path.exists(path)
+    ]
+
+    return {
+        'platform': task['platform'],
+        'label': task['label'],
+        'missing': missing,
+        'output': output if missing else ''
+    }
+
+
+def get_shader_stage_metadata(rga_exe):
+    try:
+        result = subprocess.run([rga_exe, '-h', '-s', 'dx12'], capture_output=True, text=True)
+    except OSError:
+        return set(STAGES)
+
+    help_text = (result.stdout or '') + (result.stderr or '')
+
+    return {
+        stage for stage in STAGES
+        if re.search(rf'^\s*--{stage.lower()}\s', help_text, re.MULTILINE)
+    }
 
 
 def _align_table_block(lines):
     """Reformat a single markdown table block with aligned columns."""
     rows = []
     for line in lines:
-        m = _TABLE_ROW_RE.match(line)
-        if not m:
+        match = _TABLE_ROW_RE.match(line)
+        if not match:
             return lines
-        rows.append([c.strip() for c in m.group(1).split("|")])
+        rows.append([cell.strip() for cell in match.group(1).split('|')])
 
     if len(rows) < 2:
         return lines
 
     ncols = len(rows[0])
-    if any(len(r) != ncols for r in rows):
+    if any(len(row) != ncols for row in rows):
         return lines
 
     widths = [0] * ncols
-    for r in rows:
-        for j, cell in enumerate(r):
-            widths[j] = max(widths[j], len(cell))
+    for row in rows:
+        for column_index, cell in enumerate(row):
+            widths[column_index] = max(widths[column_index], len(cell))
 
     result = []
-    for ri, r in enumerate(rows):
-        padded = " | ".join(cell.ljust(widths[j]) for j, cell in enumerate(r))
-        result.append("| " + padded + " |")
+    for row_index, row in enumerate(rows):
+        padded = ' | '.join(cell.ljust(widths[i]) for i, cell in enumerate(row))
+        result.append('| ' + padded + ' |')
 
-        if ri == 1 and all(c.replace("-", "").replace(":", "").strip() == "" for c in r):
-            sep_cells = []
-            for j, cell in enumerate(r):
+        # Second row is the separator, align its dashes with the column widths
+        if row_index == 1 and all(c.replace('-', '').replace(':', '').strip() == '' for c in row):
+            separators = []
+            for i, cell in enumerate(row):
                 cell = cell.strip()
-                left = ":" if cell.startswith(":") else ""
-                right = ":" if cell.endswith(":") else ""
-                sep_cells.append(left + "-" * (widths[j] - len(left) - len(right)) + right)
-            result[ri] = "| " + " | ".join(sep_cells) + " |"
+                left = ':' if cell.startswith(':') else ''
+                right = ':' if cell.endswith(':') else ''
+                separators.append(left + '-' * (widths[i] - len(left) - len(right)) + right)
+            result[row_index] = '| ' + ' | '.join(separators) + ' |'
 
     return result
 
 
-def xml_to_markdown_table(xml_file_path, output_file_path):
+def _format_markdown_tables(text):
+    """Align the columns of every markdown table in *text* for readability."""
+    lines = text.splitlines()
+    output = []
+    i = 0
+
+    while i < len(lines):
+        start = i
+        while i < len(lines) and _TABLE_ROW_RE.match(lines[i]):
+            i += 1
+
+        if i - start >= 2:
+            output.extend(_align_table_block(lines[start:i]))
+        elif i == start:
+            output.append(lines[i])
+            i += 1
+        else:
+            output.extend(lines[start:i])
+
+    return '\n'.join(output) + '\n'
+
+
+def _dash(value):
+    """Format a statistic that may not apply to this stage."""
+    return '-' if value is None else str(value)
+
+
+def _register_cell(stats, used_key, available_key):
+    """Format a "used/available" register column."""
+    if not stats:
+        return '-'
+
+    used = stats.get(used_key)
+    available = stats.get(available_key)
+
+    if used is None and available is None:
+        return '-'
+
+    return f'{_dash(used)}/{_dash(available)}'
+
+
+def _memory_cell(stats, used_key, available_key, unit):
+    """Format a "used/available" memory column in the given unit."""
+    if not stats:
+        return '-'
+
+    used = stats.get(used_key)
+    if used is None:
+        return '-'
+
+    available = stats.get(available_key)
+    available_text = '-' if available is None else f'{available / 1024.0:.2f}'
+
+    return f'{used / 1024.0:.2f}/{available_text}{unit}'
+
+
+def _occupancy_cell(stats):
+    """Share of the VGPR file left over after one wave of this shader."""
+    if not stats:
+        return '-'
+
+    available = stats.get('vgprAvailable')
+    used = stats.get('vgprUsed')
+
+    if not available or used is None:
+        return '-'
+
+    return f'{(1.0 - used / available) * 100.0:.2f}%'
+
+
+def _variant_stage_text(variant):
+    """Name the stages of one pipeline, for example "MS + PS"."""
+    return ' + '.join(stage for stage in STAGES if stage in variant['stages'])
+
+
+def _variant_stats(variant, platform, stage):
+    """Read the statistics of one stage of a variant."""
+    return parse_rga_stats(
+        stats_file_path(platform, variant['stats_labels'].get(stage, variant['label']), stage)
+    )
+
+
+def _build_graphics_section(platform, variants, shader_type):
     """
-    Read XML file with CompiledShader entries and convert to markdown table.
-    
-    Args:
-        xml_file_path: Path to the input XML file
-        output_file_path: Path to save the markdown table
+    Build the markdown table of one graphics shader type for one platform.
     """
-    # Get RGA executable path
+    rows = [
+        variant for variant in variants
+        if variant['type'] == shader_type
+        and any(stage in variant['stages'] for stage in VS_MS_STAGES)
+    ]
+
+    include_permutation = any(variant['permutation'] for variant in rows)
+
+    columns = ['Name']
+    if include_permutation:
+        columns.append('Permutation')
+    columns.extend([
+        'Stages', 'VS/MS VGPR', 'VS/MS SGPR', 'LDS', 'PS VGPR', 'PS SGPR'
+    ])
+
+    lines = [f'### {shader_type} shaders', '']
+    lines.append('| ' + ' | '.join(columns) + ' |')
+    lines.append('|' + ' | '.join('---' for _ in columns) + '|')
+
+    for variant in rows:
+        vs_ms_stage = next(stage for stage in VS_MS_STAGES if stage in variant['stages'])
+
+        vs_ms = _variant_stats(variant, platform, vs_ms_stage)
+        ps = _variant_stats(variant, platform, 'PS') if 'PS' in variant['stages'] else None
+
+        cells = [variant['name']]
+        if include_permutation:
+            cells.append(variant['permutation'])
+
+        cells.append(_variant_stage_text(variant))
+
+        if not vs_ms and not ps:
+            cells.append('(no RGA stats)')
+            cells.extend('-' for _ in range(len(columns) - len(cells)))
+            lines.append('| ' + ' | '.join(cells) + ' |')
+            continue
+
+        cells.extend([
+            _register_cell(vs_ms, 'vgprUsed', 'vgprAvailable'),
+            _register_cell(vs_ms, 'sgprUsed', 'sgprAvailable'),
+            _memory_cell(vs_ms, 'ldsUsedBytes', 'ldsAvailableBytes', 'Kb')
+        ])
+
+        if 'PS' in variant['null_stages']:
+            cells.extend(['-', '-'])
+        else:
+            cells.extend([
+                _register_cell(ps, 'vgprUsed', 'vgprAvailable'),
+                _register_cell(ps, 'sgprUsed', 'sgprAvailable')
+            ])
+
+        lines.append('| ' + ' | '.join(cells) + ' |')
+
+    return lines
+
+
+def _build_compute_section(platform, variants):
+    """Build the markdown table of the compute shaders of one platform."""
+    lines = ['### Compute shaders', '']
+    lines.append('| Name | VGPR | SGPR | Occupancy | LDS | Scratch |')
+    lines.append('|------|------|------|-----------|-----|---------|')
+
+    for variant in variants:
+        if variant['type'] != SHADER_TYPE_COMPUTE or 'CS' not in variant['stages']:
+            continue
+
+        stats = _variant_stats(variant, platform, 'CS')
+
+        if not stats:
+            lines.append(f"| {variant['name']} | - | - | (no RGA stats) | - | - |")
+            continue
+
+        scratch_bytes = stats.get('scratchBytes')
+
+        lines.append(
+            f"| {variant['name']}"
+            f" | {_register_cell(stats, 'vgprUsed', 'vgprAvailable')}"
+            f" | {_register_cell(stats, 'sgprUsed', 'sgprAvailable')}"
+            f" | {_occupancy_cell(stats)}"
+            f" | {_memory_cell(stats, 'ldsUsedBytes', 'ldsAvailableBytes', 'Kb')}"
+            f" | {'-' if scratch_bytes is None else f'{scratch_bytes}B'} |"
+        )
+
+    return lines
+
+
+def build_markdown(variants):
+    """Build the markdown document: one section per shader type and platform."""
+    lines = []
+
+    for platform, platform_name in PLATFORMS:
+        lines.append(f"## {platform_name}")
+        lines.append("")
+
+        for shader_type in GRAPHICS_SHADER_TYPES:
+            lines.extend(_build_graphics_section(platform, variants, shader_type))
+            lines.append("")
+
+        lines.extend(_build_compute_section(platform, variants))
+        lines.append("")
+
+    return _format_markdown_tables('\n'.join(lines))
+
+
+def build_tasks(rga_exe, variants):
+    """Prepare one RGA invocation per shader variant and platform."""
+    tasks = []
+
+    for platform, platform_name in PLATFORMS:
+        for variant in variants:
+            if variant['null_stages']:
+                continue
+
+            generated_dir = os.path.abspath(
+                os.path.join(RGA_OUTPUT_DIRECTORY, 'Generated', platform, variant['label'])
+            )
+
+            # RGA adds the platform prefix and the stage suffix to these
+            stats_base = os.path.abspath(os.path.join(RGA_OUTPUT_DIRECTORY, variant['label']))
+            isa_base = os.path.abspath(
+                os.path.join(RGA_OUTPUT_DIRECTORY, 'ISA', variant['label'])
+            )
+
+            tasks.append({
+                'platform': platform,
+                'label': variant['label'],
+                'generated_dir': generated_dir,
+                'stats_files': {
+                    stage: os.path.abspath(stats_file_path(platform, variant['label'], stage))
+                    for stage in variant['stages']
+                },
+                'command': build_rga_command(
+                    rga_exe, platform, variant, generated_dir, stats_base, isa_base
+                )
+            })
+
+    return tasks
+
+
+def run_tasks(tasks):
+    """Run every prepared RGA invocation, returning the ones that produced no statistics."""
+    failures = []
+
+    with ProcessPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
+        futures = [executor.submit(run_rga_analysis, task) for task in tasks]
+
+        completed = 0
+        for future in as_completed(futures):
+            completed += 1
+            result = future.result()
+            success = not result['missing']
+            status = 'v' if success else 'x'
+            print(f"[{completed}/{len(tasks)}] {status} {result['label']} on {result['platform']}")
+
+            if not success:
+                failures.append(result)
+
+    print("\n>>> All RGA Analysis Complete\n")
+
+    if failures:
+        print(f">>> {len(failures)} of {len(tasks)} compilations produced no statistics\n")
+
+        for failure in failures[:10]:
+            print(f"--- {failure['label']} on {failure['platform']} ---")
+            for line in failure['output'].splitlines():
+                if 'error' in line.lower():
+                    print(f"    {line.strip()}")
+            print(f"    missing: {', '.join(failure['missing'])}")
+            print("")
+
+        if len(failures) > 10:
+            print(f"... and {len(failures) - 10} more\n")
+
+    return failures
+
+
+def main(xml_file_path, output_file_path):
     rga_exe = get_rga_executable()
     if not rga_exe:
         sys.exit(1)
-    
-    # Create all required directories upfront
+
+    version = get_rga_version(rga_exe)
+    if version is None:
+        print(f"ERROR: Could not read the RGA version from: {rga_exe}")
+        sys.exit(1)
+
+    print(f"Using RGA {version[0]}.{version[1]} at {rga_exe}")
+
+    if version < MINIMUM_RGA_VERSION:
+        print(f"ERROR: RGA {MINIMUM_RGA_VERSION[0]}.{MINIMUM_RGA_VERSION[1]} or newer is required.")
+        print("Mesh shader pipelines are only analyzed by newer releases.")
+        sys.exit(1)
+
+    supported_stages = get_shader_stage_metadata(rga_exe)
+
     cwd = os.getcwd()
-    for (platform, platform_name) in PLATFORMS:
-        os.makedirs(f"{cwd}\\Build\\RGA\\Generated\\{platform}", exist_ok=True)
-    os.makedirs(f"{cwd}\\Build\\RGA\\ISA", exist_ok=True)
+    os.makedirs(os.path.join(cwd, RGA_OUTPUT_DIRECTORY, 'ISA'), exist_ok=True)
+    for platform, platform_name in PLATFORMS:
+        os.makedirs(os.path.join(cwd, RGA_OUTPUT_DIRECTORY, 'Generated', platform), exist_ok=True)
     os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
-    
-    # Parse the XML file
-    tree = ET.parse(xml_file_path)
-    root = tree.getroot()
-    
-    # Collect shader data
-    shaders = []
-    for shader in root.findall('.//CompiledShader'):
-        name = shader.get('Name', '')
-        stage = shader.get('Stage', '')
-        file_path = shader.get('FilePath', '')
-        entry_point = shader.get('EntryPoint', '')
-        dxc_options = shader.get('CommandLineDXC', '')
-        
-        # Extract macro definitions
-        macros = []
-        for macro in shader.findall('MacroDefinition'):
-            macro_name = macro.get('Name', '')
-            if macro_name:
-                macros.append(macro_name)
-        
-        # Append macros to shader permutation (PS only)
-        permutation = ''
-        for macro in macros:
-            permutation += f"`{macro.replace('PERMUTATION_', '')}` " # Strip some stuff to fit on the screen
-        
-        # Only process PS and CS shaders
-        if stage in ['PS', 'CS']:
-            # Only include default entry point variants (skip PS_main_OutlineID and friends)
-            if stage == 'PS' and entry_point != 'PS_main':
-                continue
 
-            shaders.append({
-                'name': name,
-                'permutation': permutation,
-                'stage': stage,
-                'file_path': file_path,
-                'entry_point': entry_point,
-                'dxc_options': dxc_options,
-                'macros': macros
-            })
-    
-    # Run RGA analysis for all platforms and shaders
+    unknown_stages = find_unknown_stages(xml_file_path)
+    if unknown_stages:
+        print(f"WARNING: Ignoring unknown shader stages in the metadata: {', '.join(unknown_stages)}")
+        print("Add them to STAGES to report them.")
+
+    variants = collect_shader_variants(xml_file_path)
+
+    stages_used = set()
+    for variant in variants:
+        stages_used.update(variant['stages'].keys())
+
+    unsupported = sorted(stages_used - supported_stages)
+    if unsupported:
+        print(f"ERROR: This RGA cannot compile: {', '.join(unsupported)}")
+        sys.exit(1)
+
+    tasks = build_tasks(rga_exe, variants)
+
     print("\n>>> Running RGA Analysis\n")
-    print(f"Using {multiprocessing.cpu_count()} CPU cores for parallel processing\n")
-    
-    # Prepare all tasks
-    tasks = []
-    for (platform, platform_name) in PLATFORMS:
-        for shader in shaders:
-            tasks.append((
-                rga_exe,
-                shader['name'],
-                shader['stage'],
-                shader['file_path'],
-                shader['entry_point'],
-                shader['dxc_options'],
-                platform,
-                shader['macros']
-            ))
-    
-    # Run tasks in parallel
-    with ProcessPoolExecutor(max_workers=multiprocessing.cpu_count()) as executor:
-        futures = [executor.submit(run_rga_analysis_wrapper, task) for task in tasks]
-        
-        # Wait for all tasks to complete and collect results
-        completed = 0
-        total = len(tasks)
-        for future in as_completed(futures):
-            completed += 1
-            shader_name, stage, platform, success = future.result()
-            status = "✓" if success else "✗"
-            print(f"[{completed}/{total}] {status} {shader_name} ({stage}) on {platform}")
-    
-    print("\n>>> All RGA Analysis Complete\n")
-    
-    # Generate markdown tables for each platform
+    print(f"Using {multiprocessing.cpu_count()} CPU cores for parallel processing")
+    print(f"{len(variants)} shader variants across {len(PLATFORMS)} platforms = {len(tasks)} compilations\n")
+
+    failures = run_tasks(tasks)
+
     print("\n>>> Generating Markdown Tables\n")
-    markdown_output = []
-    
-    for (platform, platform_name) in PLATFORMS:
-        # Create platform-specific table header
-        markdown_output.append(f"## {platform_name}")
-        
-        # Process each pixel shader for this platform
-        markdown_output.append('')
-        markdown_output.append("### Pixel shaders")
-        markdown_output.append("| Name | Permutation | VGPR | SGPR  | Occupancy |")
-        markdown_output.append("|------|-------------|------|-------|-----------|")
-        for shader in shaders:
-            if shader['stage'] != 'PS':
-                continue
 
-            stats = parse_rga_stats(shader['name'], shader['stage'], platform)
-            vgprTotal = stats.get('numAvailableVgprs', 1)
-            sgprTotal = stats.get('numAvailableSgprs', 1)
-            
-            # Only add to table if we have valid stats
-            if stats:
-                resource_usage = stats.get('resourceUsage', {})
-                vgpr = resource_usage.get('numUsedVgprs', 0)
-                sgpr = resource_usage.get('numUsedSgprs', 0)
-                # ldsUsage = resource_usage.get('ldsUsageSizeInBytes', 0)
-                # ldsSize = resource_usage.get('ldsSizePerLocalWorkGroup', 0)
-                # scratchSize = resource_usage.get('scratchMemUsageInBytes', 0)
-                
-                markdown_output.append(f"| {shader['name']} | {shader['permutation']} | {vgpr}/{vgprTotal} | {sgpr}/{sgprTotal} | {(1.0 - vgpr / vgprTotal)*100.0:.2f}% |")
+    markdown_table = build_markdown(variants)
 
-        # Process each compute shader for this platform
-        markdown_output.append('')
-        markdown_output.append("### Compute shaders\n\n")
-        markdown_output.append("| Name | VGPR | SGPR  | Occupancy | LDS | Scratch |")
-        markdown_output.append("|------|------|-------|-----------|-----|---------|")
-        for shader in shaders:
-            if shader['stage'] != 'CS':
-                continue
-
-            stats = parse_rga_stats(shader['name'], shader['stage'], platform)
-            vgprTotal = stats.get('numAvailableVgprs', 1)
-            sgprTotal = stats.get('numAvailableSgprs', 1)
-            
-            # Only add to table if we have valid stats
-            if stats:
-                resource_usage = stats.get('resourceUsage', {})
-                vgpr = resource_usage.get('numUsedVgprs', 0)
-                sgpr = resource_usage.get('numUsedSgprs', 0)
-                ldsUsage = resource_usage.get('ldsUsageSizeInBytes', 0)
-                ldsSize = resource_usage.get('ldsSizePerLocalWorkGroup', 0)
-                scratchSize = resource_usage.get('scratchMemUsageInBytes', 0)
-                
-                markdown_output.append(f"| {shader['name']} | {vgpr}/{vgprTotal} | {sgpr}/{sgprTotal} | {(1.0 - vgpr / vgprTotal)*100.0:.2f}% | {ldsUsage/1024.0:.2f}/{ldsSize/1024.0:.2f}Kb | {scratchSize}Kb |")
-        
-        # Add spacing between tables
-        markdown_output.append("")
-    
-    # Join all lines and format tables for plaintext readability
-    markdown_table = '\n'.join(markdown_output)
-    markdown_table = _format_markdown_tables(markdown_table)
-
-    # Write to file
     with open(output_file_path, 'w') as f:
         f.write(markdown_table)
-    
-    print(f"\nMarkdown tables saved to {output_file_path}")
-    return markdown_table
 
-# Main execution
+    print(f"\nMarkdown tables saved to {output_file_path}")
+
+    if failures:
+        sys.exit(1)
+
+
 if __name__ == "__main__":
-    input_file = "Build/ShaderStageMetadata.xml"
-    output_file = "Docs/Rendering/ShaderStats.md"
-    
-    xml_to_markdown_table(input_file, output_file)
+    main("Build/ShaderStageMetadata.xml", "Docs/Rendering/ShaderStats.md")

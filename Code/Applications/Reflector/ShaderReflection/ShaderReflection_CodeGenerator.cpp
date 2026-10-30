@@ -81,7 +81,7 @@ namespace EE::Reflection
         //-------------------------------------------------------------------------
 
         stream << "\n";
-        stream << "    struct " << shader.m_name.c_str() << "Parameters : public IReflectedType\n";
+        stream << "    struct " << project.m_exportMacro.c_str() << ( project.m_exportMacro.empty() ? "" : " " ) << shader.m_name.c_str() << "Parameters : public IReflectedType\n";
         stream << "    {\n";
         stream << "        EE_REFLECT_TYPE( " << shader.m_name.c_str() << "Parameters );\n\n";
         stream << "    public:\n";
@@ -395,6 +395,18 @@ namespace EE::Reflection
         return names[(int32_t) stage];
     };
 
+    static char const* GetShaderTypeString( Render::ShaderType type )
+    {
+        static char const* names[] =
+        {
+            "Material",
+            "Surface",
+            "Compute"
+        };
+
+        return names[(int32_t) type];
+    };
+
     bool ShaderCodeGenerator::GenerateMaterialShaderRegistration( std::stringstream& stream, ReflectedShader const& shader )
     {
         stream << "        shaderByteCodeParameters.clear();\n";
@@ -504,6 +516,7 @@ namespace EE::Reflection
                 {
                     xml_node compiledShader = rootNode.append_child( "CompiledShader" );
                     compiledShader.append_attribute( "Name" ).set_value( shader.m_name.c_str() );
+                    compiledShader.append_attribute( "Type" ).set_value( GetShaderTypeString( shader.m_type ) );
                     compiledShader.append_attribute( "FilePath" ).set_value( shader.m_path.c_str() );
                     compiledShader.append_attribute( "EntryPoint" ).set_value( stageToolMetadata.m_pEntryPoint );
                     compiledShader.append_attribute( "Stage" ).set_value( stageToolMetadata.m_pStage );

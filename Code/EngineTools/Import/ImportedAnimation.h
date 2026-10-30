@@ -12,7 +12,7 @@
 
 namespace EE::Import
 {
-    struct EE_ENGINETOOLS_API AnimationClip
+    class EE_ENGINETOOLS_API AnimationClip
     {
 
     public:
@@ -36,6 +36,7 @@ namespace EE::Import
 
     public:
 
+        AnimationClip() = default;
         AnimationClip( Skeleton const& skeleton ) : m_skeleton( skeleton ) {}
 
         inline int32_t GetNumFrames() const { return m_tracks.empty() ? -1 : (int32_t) m_tracks[0].m_parentSpaceTransforms.size(); }
@@ -43,7 +44,7 @@ namespace EE::Import
         inline Skeleton const& GetSkeleton() const { return m_skeleton; }
 
         // Get the number of bones for the skeleton
-        inline uint32_t GetNumBones() const { return m_skeleton.GetNumBones(); }
+        inline int32_t GetNumBones() const { return m_skeleton.GetNumBones(); }
 
         // Get the raw animation data
         inline TVector<TrackData> const& GetTrackData() const { return m_tracks; }
@@ -83,7 +84,7 @@ namespace EE::Import
 
     public:
 
-        Skeleton const              m_skeleton;
+        Skeleton const                      m_skeleton;
         TVector<TrackData>                  m_tracks;
         TVector<FloatChannelData>           m_floatChannels;
         bool                                m_hasData = true;
@@ -96,6 +97,7 @@ namespace EE::Import
 
     public:
 
+        Animation() = default;
         Animation( Skeleton const& primarySkeleton ) : m_primaryClip( primarySkeleton ) {}
         virtual ~Animation() = default;
 
@@ -136,8 +138,8 @@ namespace EE::Import
 
     protected:
 
-        AnimationClip               m_primaryClip;
-        TVector<AnimationClip>      m_secondaryClips;
+        AnimationClip                       m_primaryClip;
+        TVector<AnimationClip>              m_secondaryClips;
         float                               m_samplingFrameRate = 0;
         Seconds                             m_duration = 0.0f;
         int32_t                             m_numFrames = 0;

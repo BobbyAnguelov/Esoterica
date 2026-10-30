@@ -61,9 +61,9 @@ namespace EE
         , m_setupResourcePicker( *pToolsContext )
         , m_animPicker( *pToolsContext )
     {
-        m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, true );
-        m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowCoordinateSpaceSwitching, true );
-        m_gizmo.SetMode( ImGuiX::Gizmo::Mode::Translation );
+        m_gizmo.SetOption( Gizmo::Options::AllowNonUniformScale, true );
+        m_gizmo.SetOption( Gizmo::Options::AllowCoordinateSpaceSwitching, true );
+        m_gizmo.SetMode( Gizmo::Mode::Translation );
 
         auto OnPreEdit = [this] ( PropertyEditInfo const& info ) { BeginDataFileModification(); };
         auto OnPostEdit = [this] ( PropertyEditInfo const& info ) { EE_ASSERT( m_pActiveUndoableAction != nullptr ); EndDataFileModification(); };
@@ -402,7 +402,15 @@ namespace EE
                 // Update instance
                 if ( m_pMeshComponent->IsInitialized() )
                 {
-                    m_pMeshComponent->SetPose( m_pPose );
+                    if ( m_previewAnimation->IsAdditive() )
+                    {
+                        m_pMeshComponent->ResetPose();
+                    }
+                    else
+                    {
+                        m_pMeshComponent->SetPose( m_pPose );
+                    }
+
                     m_pMeshComponent->FinalizePose();
                 }
 
@@ -1316,7 +1324,7 @@ namespace EE
             return true;
         };
 
-        auto ApplyGizmoResult = [this] ( ImGuiX::Gizmo::Result const& result )
+        auto ApplyGizmoResult = [this] ( Gizmo::Result const& result )
         {
             if ( result.IsScale() )
             {
@@ -1338,26 +1346,26 @@ namespace EE
         if ( wasAbleToGetGizmoTransform )
         {
             m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
-            m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, true );
-            m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, pSelectedShape->m_type != HitboxShape::Type::Sphere );
+            m_gizmo.SetOption( Gizmo::Options::AllowScale, true );
+            m_gizmo.SetOption( Gizmo::Options::AllowNonUniformScale, pSelectedShape->m_type != HitboxShape::Type::Sphere );
 
-            auto const gizmoResult = m_gizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, isFocused );
+            auto const gizmoResult = m_gizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, isFocused, isFocused );
             switch ( gizmoResult.m_state )
             {
-                case ImGuiX::GizmoState::StartedManipulating:
+                case GizmoState::StartedManipulating:
                 {
                     BeginDataFileModification();
                     ApplyGizmoResult( gizmoResult );
                 }
                 break;
 
-                case ImGuiX::GizmoState::Manipulating:
+                case GizmoState::Manipulating:
                 {
                     ApplyGizmoResult( gizmoResult );
                 }
                 break;
 
-                case ImGuiX::GizmoState::StoppedManipulating:
+                case GizmoState::StoppedManipulating:
                 {
                     ApplyGizmoResult( gizmoResult );
                     EndDataFileModification();
@@ -1460,7 +1468,10 @@ namespace EE
             PickingID const pickingID = GetPickingID();
             if ( pickingID.IsSet() && !pickingID.HasSecondaryID() )
             {
-                m_selectedItemID = pHitboxDescriptor->m_shapes[pickingID.m_primaryID].m_ID;
+                if ( pickingID.m_primaryID < pHitboxDescriptor->m_shapes.size() )
+                {
+                    m_selectedItemID = pHitboxDescriptor->m_shapes[pickingID.m_primaryID].m_ID;
+                }
             }
             else
             {

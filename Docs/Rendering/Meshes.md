@@ -10,7 +10,7 @@ Vertex positions are encoded as variable-width ( up to 16 bit per axis, 10 bits 
 
 Normals are stored as 16-bit signed normalized values.
 
-We support up to 3 skinning attributes per vertex, each with 4 bone influences (up to 12 influences total). Each skinning attribute adds 32 bytes of data per-vertex.
+We support up to 3 skinning attributes per cluster, each with 4 bone influences (up to 12 influences total). Each skinning attribute adds 32 bytes of data per-vertex.
 
 We support up to 3 UV and vertex color channels per vertex, each of them adds 8 and 4 bytes of data per-vertex.
 

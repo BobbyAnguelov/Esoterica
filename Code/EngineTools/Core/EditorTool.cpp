@@ -16,8 +16,7 @@
 #include "Engine/Physics/Systems/WorldSystem_Physics.h"
 #include "Engine/Physics/Components/Component_PhysicsCollisionMesh.h"
 #include "Engine/Physics/PhysicsWorld.h"
-#include "Engine/Imgui/ImguiOrientationGuide.h"
-#include "Engine/Imgui/ImguiGizmo.h"
+#include "Engine/ToolsUI/ImguiOrientationGuide.h"
 #include "Base/TypeSystem/TypeRegistry.h"
 #include "Base/Imgui/ImguiTextureID.h"
 #include "Base/Resource/ResourceSystem.h"
@@ -55,16 +54,18 @@ namespace EE
 
     EditorTool::EditorTool( ToolsContext const* pToolsContext, String const& displayName, EntityWorld* pWorld )
         : m_pToolsContext( pToolsContext )
-        , m_windowName( displayName ) // Temp storage for display name since we cant call virtuals from CTOR
-        , m_ID( Hash::FNV1a::GetHash32( displayName.c_str() ) )
         , m_pWorld( pWorld )
     {
+        EE_ASSERT( !displayName.empty() );
         EE_ASSERT( m_pToolsContext != nullptr && m_pToolsContext->IsValid() );
 
         if ( HasEntityWorld() )
         {
             CreateCamera();
         }
+
+        SetDisplayName( displayName );
+        SetUniqueID( Hash::FNV1a::GetHash32( m_displayName.c_str() ) );
     }
 
     EditorTool::~EditorTool()
@@ -98,7 +99,6 @@ namespace EE
     void EditorTool::Initialize( UpdateContext const& context )
     {
         m_pResourceSystem = context.GetSystem<Resource::ResourceSystem>();
-        SetDisplayName( m_windowName );
 
         // Entity World
         //-------------------------------------------------------------------------
@@ -300,23 +300,15 @@ namespace EE
         }
     }
 
+    void EditorTool::SetUniqueID( ImGuiID ID )
+    {
+        m_ID = ID;
+    }
+
     void EditorTool::SetDisplayName( String name )
     {
         EE_ASSERT( !name.empty() );
-
-        // Add in title bar icon
-        //-------------------------------------------------------------------------
-
-        if ( HasTitlebarIcon() )
-        {
-            m_windowName.sprintf( "%s %s", GetTitlebarIcon(), name.c_str() );
-        }
-        else
-        {
-            m_windowName = name;
-        }
-
-        //-------------------------------------------------------------------------
+        m_displayName = name;
 
         if ( m_pWorld != nullptr )
         {
@@ -326,6 +318,16 @@ namespace EE
 
     // Docking and Tool Windows
     //-------------------------------------------------------------------------
+
+    InlineString EditorTool::GetUniqueWindowName() const
+    {
+        if ( HasTitlebarIcon() )
+        {
+            return InlineString( InlineString::CtorSprintf(), "%s %s###%s_%u", GetTitlebarIcon(), m_displayName.c_str(), GetUniqueTypeName(), m_ID );
+        }
+
+        return InlineString( InlineString::CtorSprintf(), "%s###%s_%u", m_displayName.c_str(), GetUniqueTypeName(), m_ID );
+    }
 
     EditorTool::ToolWindow* EditorTool::CreateToolWindow( String const& name, TFunction<void( UpdateContext const&, bool )> const& drawFunction, ImVec2 const& windowPadding, bool disableScrolling )
     {
@@ -519,7 +521,7 @@ namespace EE
             {
                 if ( ImGui::MenuItem( "Reset Layout" ) )
                 {
-                    m_requiresLayoutReset = true;
+                    RequestLayoutReset();
                 }
 
                 ImGui::Separator();
@@ -563,7 +565,7 @@ namespace EE
         ImGui::SeparatorText( pLabel );
 
         ImGui::TableNextColumn();
-        ImGui::SeparatorText( "");
+        ImGui::SeparatorText( "" );
     }
 
     void EditorTool::DrawHelpTextRow( char const* pLabel, char const* pText ) const
@@ -1019,6 +1021,8 @@ namespace EE
                         Vector const farPointWS = pRenderViewport->ScreenSpaceToWorldSpaceFarPlane( mouseViewportPos );
                         Vector worldPosition = Vector::Zero;
 
+                        Vector worldSurfaceNormal = ( nearPointWS - farPointWS ).GetNormalized3();
+
                         // Raycast against the environmental collision
                         Physics::CastQuery query( Physics::ObjectCategory::Environment );
                         query.SetCollidesWith( Physics::ObjectCategory::Environment );
@@ -1027,6 +1031,7 @@ namespace EE
                         if ( pPhysicsWorld->RayCast( nearPointWS, farPointWS, query ) )
                         {
                             worldPosition = query.GetFirstHitPosition();
+                            worldSurfaceNormal = query[0].m_contactNormal;
                         }
                         else // Arbitrary position
                         {
@@ -1035,7 +1040,7 @@ namespace EE
                         pPhysicsWorld->UnlockRead();
 
                         // Notify tool of a resource drag and drop operation
-                        DropResourceInViewport( resourceID, worldPosition );
+                        DropResourceInViewport( resourceID, worldPosition, worldSurfaceNormal );
                     }
                 }
             }
@@ -1147,6 +1152,62 @@ namespace EE
         EE_ASSERT( SupportsViewport() );
         auto pRenderWorldSystem = m_pWorld->GetWorldSystem<Render::RenderWorldSystem>();
         pRenderWorldSystem->ClearOutlinedComponents();
+    }
+
+    //-------------------------------------------------------------------------
+
+    bool EditorTool::TryGetWorldSurfaceUnderCursor( Viewport const& viewport, TArrayView<EntityID const> ignoredEntities, TArrayView<ComponentID const> ignoredComponents, Vector& outWorldPosition, Vector& outWorldNormal ) const
+    {
+        if ( m_pWorld == nullptr || !m_isViewportHovered )
+        {
+            return false;
+        }
+
+        ImVec2 const mousePositionSS = ImGui::GetMousePos();
+        if ( mousePositionSS.x == FLT_MAX || mousePositionSS.y == FLT_MAX )
+        {
+            return false;
+        }
+
+        //-------------------------------------------------------------------------
+
+        LineSegment const mouseRay = viewport.ScreenSpaceToWorldSpace( Float2( mousePositionSS.x, mousePositionSS.y ) );
+
+        // Raycast against the environmental collision, same as the viewport resource drop handler
+        //-------------------------------------------------------------------------
+
+        Physics::PhysicsWorldSystem* pPhysicsWorldSystem = m_pWorld->GetWorldSystem<Physics::PhysicsWorldSystem>();
+        if ( pPhysicsWorldSystem == nullptr )
+        {
+            return false;
+        }
+
+        Physics::PhysicsWorld* pPhysicsWorld = pPhysicsWorldSystem->GetPhysicsWorld();
+        EE_ASSERT( pPhysicsWorld != nullptr );
+
+        Physics::CastQuery query( Physics::ObjectCategory::Environment );
+        query.SetCollidesWith( Physics::ObjectCategory::Environment );
+
+        for ( EntityID const& entityID : ignoredEntities )
+        {
+            query.AddIgnoredEntity( entityID );
+        }
+
+        for ( ComponentID const& componentID : ignoredComponents )
+        {
+            query.AddIgnoredComponent( componentID );
+        }
+
+        pPhysicsWorld->LockRead();
+        bool const isHit = pPhysicsWorld->RayCast( mouseRay.GetStartPoint(), mouseRay.GetEndPoint(), query );
+        if ( isHit )
+        {
+            outWorldPosition = query.GetFirstHitPosition();
+            outWorldNormal = query[0].m_contactNormal;
+        }
+        pPhysicsWorld->UnlockRead();
+
+        return isHit;
     }
 
     // Camera
@@ -1514,11 +1575,11 @@ namespace EE::ViewportNotificationWindows
 namespace EE
 {
     DataFileEditor::DataFileEditor( ToolsContext const* pToolsContext, DataPath const& dataPath, EntityWorld* pWorld )
-        : EditorTool( pToolsContext, String( String::CtorSprintf(), "%s##%s", dataPath.GetFilename().c_str(), dataPath.c_str() ), pWorld )
+        : EditorTool( pToolsContext, dataPath.GetFilename().c_str(), pWorld )
         , m_dataFilePath( dataPath )
     {
         EE_ASSERT( m_dataFilePath.IsValid() );
-        m_ID = ImGui::GetID( m_dataFilePath.c_str() );
+        SetUniqueID( ImGui::GetID( m_dataFilePath.c_str() ) );
     }
 
     DataFileEditor::~DataFileEditor()

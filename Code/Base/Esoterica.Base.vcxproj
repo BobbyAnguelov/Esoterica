@@ -506,7 +506,7 @@
     <ClCompile Include="Fonts\Font_Roboto_Regular.cpp" />
     <ClCompile Include="Imgui\ImguiCurveEditor.cpp" />
     <ClCompile Include="Imgui\ImguiFilter.cpp" />
-    <ClCompile Include="Imgui\Imguinputs.cpp" />
+    <ClCompile Include="Imgui\ImguiInputs.cpp" />
     <ClCompile Include="Imgui\ImguiTextureID.cpp" />
     <ClCompile Include="Imgui\ImguiXNotifications.cpp" />
     <ClCompile Include="Input\InputDevice.cpp" />

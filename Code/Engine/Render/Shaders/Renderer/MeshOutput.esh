@@ -1,0 +1,73 @@
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/CommonFlags.esh"
+
+#ifndef _MESH_OUTPUT_ESH_
+#define _MESH_OUTPUT_ESH_
+
+#ifndef __cplusplus
+
+    struct VertexOutput
+    {
+        float4  m_clipPosition          : SV_POSITION;
+        float3  m_worldPosition         : TEXCOORD0;
+        float3  m_worldNormal           : TEXCOORD1;
+        float4  m_uv                    : TEXCOORD2;
+        float4  m_color                 : TEXCOORD3;
+    };
+
+    struct MeshVertexOutput : VertexOutput
+    {
+        float   m_clipDistance0         : SV_ClipDistance0;
+        float   m_clipDistance1         : SV_ClipDistance1;
+        float   m_clipDistance2         : SV_ClipDistance2;
+    };
+
+    struct PrimitiveOutputFlags
+    {
+        RendererGlobalFlags             m_rendererGlobalFlags               : 7;
+        RendererDebugFlags              m_rendererDebugFlags                : 6;
+        RendererDebugVisualizationMode  m_rendererDebugVisualizationMode    : 8;
+        uint                            m_padding0                          : 11;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( PrimitiveOutputFlags ) == 4, "Exactly 4 bytes expected" );
+
+    struct PrimitiveOutput
+    {
+        // TODO: Probably don't need instance index here, pixel shaders are not supposed to fetch instances. But it is useful for debugging.
+        void SetInstanceIndex( uint instanceIndex ) { m_data0.x = instanceIndex; }
+        uint GetInstanceIndex() { return m_data0.x; }
+    
+        void SetClusterIndex( uint clusterIndex ) { m_data0.y = clusterIndex; }
+        uint GetClusterIndex() { return m_data0.y; }
+    
+        void SetShaderParametersOffsetIn32ByteBlocks( uint offset ) { m_data0.z = offset; }
+        uint GetShaderParametersOffsetIn32ByteBlocks() { return m_data0.z; }
+
+        void SetMeshDecal( uint meshDecal ) { m_data0.w = meshDecal; }
+        uint GetMeshDecal() { return m_data0.w; }
+
+        void SetMeshBuffer( uint meshBuffer ) { m_data1.w = meshBuffer; }
+        uint GetMeshBuffer() { return m_data1.w; }
+
+        void SetMeshDecalDataOffset( uint meshDecalDataOffset ) { m_data2.x = meshDecalDataOffset; }
+        uint GetMeshDecalDataOffset() { return m_data2.x; }
+    
+        void SetTriangleNormal( float3 triangleNormal ) { m_data1.xyz = uint3( asuint( triangleNormal.x ), asuint( triangleNormal.y ), asuint( triangleNormal.z ) ); }
+        float3 GetTriangleNormal() { return float3( asfloat( m_data1.x ), asfloat( m_data1.y ), asfloat( m_data1.z ) ); }
+
+        //-------------------------------------------------------------------------
+
+        // NOTE: Do not use floats in this structure, pack into uint4 instead.
+        uint4                   m_data0                     : TEXCOORD4;
+        uint4                   m_data1                     : TEXCOORD5;
+        uint4                   m_data2                     : TEXCOORD6;
+        
+        PrimitiveOutputFlags    m_primitiveFlags            : TEXCOORD7;
+        bool                    m_cullPrimitive             : SV_CullPrimitive;
+    };
+
+#endif
+
+#endif

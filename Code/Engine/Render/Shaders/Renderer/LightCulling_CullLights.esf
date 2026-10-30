@@ -1,13 +1,20 @@
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
+#include "Engine/Render/Shaders/Renderer/LightInstance.esh"
+#include "Engine/Render/Shaders/Renderer/CullingRootConstants.esh"
 #include "Engine/Render/Shaders/SpatialHash.esh"
+#include "Engine/Render/Shaders/DecalInstance.esh"
 
 ESF_PARAMETER string ShaderType = "Compute";
 
 EE_DECLARE_ROOT_CONSTANTS( LightCulling_CullLightsRootConstants, b0, space0 );
 EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
 
-groupshared uint64_t gsPointMask;
-groupshared uint64_t gsSpotMask;
+static uint const s_numInstancesPerPage = 32U;
+static uint const s_numPagesPerGroup   = 2U;
+
+groupshared uint gsPointMask[ s_numPagesPerGroup ];
+groupshared uint gsSpotMask[ s_numPagesPerGroup ];
+groupshared uint gsDecalMask[ s_numPagesPerGroup ];
 
 groupshared uint gsCellSlot;
 
@@ -17,12 +24,17 @@ groupshared uint gsPointLastPage;
 groupshared uint gsSpotFirstPage;
 groupshared uint gsSpotLastPage;
 
+groupshared uint gsDecalFirstPage;
+groupshared uint gsDecalLastPage;
+
 groupshared uint gsPageStart;
 groupshared uint gsPageEnd;
 
 groupshared uint gsParentSlot;
 groupshared uint gsParentHasLights;
-groupshared uint64_t2 gsParentPayload;
+groupshared uint gsParentPayloadPoint[ s_numPagesPerGroup ];
+groupshared uint gsParentPayloadSpot[ s_numPagesPerGroup ];
+groupshared uint gsParentPayloadDecal[ s_numPagesPerGroup ];
 
 bool TestPointLightCell( float3 cellCenter, float3 cellHalfExtents, LightInstance_PointLight light )
 {
@@ -56,8 +68,13 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 {
     if ( groupThreadID == 0 )
     {
-        gsPointMask         = 0;
-        gsSpotMask          = 0;
+        [unroll] for ( uint pageInGroup = 0; pageInGroup < s_numPagesPerGroup; ++pageInGroup )
+        {
+            gsPointMask[ pageInGroup ] = 0;
+            gsSpotMask[ pageInGroup ]  = 0;
+            gsDecalMask[ pageInGroup ] = 0;
+        }
+
         gsCellSlot          = ~0U;
         gsParentSlot        = ~0U;
         gsParentHasLights   = 0;
@@ -65,6 +82,8 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         gsPointLastPage     = 0;
         gsSpotFirstPage     = ~0U;
         gsSpotLastPage      = 0;
+        gsDecalFirstPage    = ~0U;
+        gsDecalLastPage     = 0;
         gsPageStart         = 0;
         gsPageEnd           = 0;
     }
@@ -91,12 +110,14 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 
     GroupMemoryBarrierWithGroupSync();
 
-    // Parent scan: read metadata, compute merged page range, check for lights
+    // Parent scan: read metadata, compute merged page range, check for work
     if ( !isRoot && gsParentSlot != ~0U && groupThreadID == 0 )
     {
-        uint2 pointLightPageRange = hash.LoadMetadata( gsParentSlot, 0 );
-        uint2 spotLightPageRange  = hash.LoadMetadata( gsParentSlot, 1 );
-        gsParentHasLights = ( pointLightPageRange.y != 0 || spotLightPageRange.y != 0 ) ? 1u : 0;
+        uint2 pointLightPageRange = hash.LoadMetadata( gsParentSlot, s_pointLightSlot );
+        uint2 spotLightPageRange  = hash.LoadMetadata( gsParentSlot, s_spotLightSlot );
+        uint2 decalPageRange      = hash.LoadMetadata( gsParentSlot, s_decalSlot );
+
+        gsParentHasLights = ( pointLightPageRange.y != 0 || spotLightPageRange.y != 0 || decalPageRange.y != 0 ) ? 1u : 0;
 
         uint rangeStart = ~0U;
         uint rangeEnd = 0;
@@ -113,6 +134,12 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
             rangeEnd = max( rangeEnd, spotLightPageRange.x + spotLightPageRange.y );
         }
 
+        if ( decalPageRange.y > 0 )
+        {
+            rangeStart = min( rangeStart, decalPageRange.x );
+            rangeEnd = max( rangeEnd, decalPageRange.x + decalPageRange.y );
+        }
+
         if ( rangeStart > rangeEnd )
         {
             rangeStart = 0;
@@ -121,6 +148,14 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
         
         gsPageStart = rangeStart;
         gsPageEnd   = rangeEnd;
+
+        // The parent payload masks are only read when this cell has work, which requires a valid parent slot
+        [unroll] for ( uint pageInGroup = 0; pageInGroup < s_numPagesPerGroup; ++pageInGroup )
+        {
+            gsParentPayloadPoint[ pageInGroup ] = 0;
+            gsParentPayloadSpot[ pageInGroup ]  = 0;
+            gsParentPayloadDecal[ pageInGroup ] = 0;
+        }
     }
 
     GroupMemoryBarrierWithGroupSync();
@@ -136,76 +171,87 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 
     StructuredBuffer<LightInstance_PointLight>  pointLights     = GetBuffer( RootCBV.m_pointLightBuffer );
     StructuredBuffer<LightInstance_SpotLight>   spotLights      = GetBuffer( RootCBV.m_spotLightBuffer );
-    StructuredBuffer<uint64_t>                  pointLightPages = GetBuffer( RootCBV.m_pointLightPageBuffer );
-    StructuredBuffer<uint64_t>                  spotLightPages  = GetBuffer( RootCBV.m_spotLightPageBuffer );
+    StructuredBuffer<DecalInstance>             decals          = GetBuffer( RootCBV.m_decalBuffer );
+    StructuredBuffer<uint>                      pointLightPages = GetBuffer( RootCBV.m_pointLightPageBuffer );
+    StructuredBuffer<uint>                      spotLightPages  = GetBuffer( RootCBV.m_spotLightPageBuffer );
+    StructuredBuffer<uint>                      decalPages      = GetBuffer( RootCBV.m_decalPageBuffer );
 
-    uint maxPages = max( RootCBV.m_numPointLightPages, RootCBV.m_numSpotLightPages );
+    uint const maxPages = max( max( RootCBV.m_numPointLightPages, RootCBV.m_numSpotLightPages ), RootCBV.m_numDecalPages );
 
     if ( hasWork )
     {
-        uint startPage = isRoot ? 0 : gsPageStart;
-        uint endPage   = isRoot ? maxPages : gsPageEnd;
+        uint const startPage = isRoot ? 0 : gsPageStart;
+        uint const endPage   = isRoot ? maxPages : gsPageEnd;
 
-        for ( uint pageIndex = startPage; pageIndex < endPage; ++pageIndex )
+        for ( uint pageIndex = startPage; pageIndex < endPage; pageIndex += s_numPagesPerGroup )
         {
             if ( groupThreadID == 0 )
             {
-                gsPointMask = 0;
-                gsSpotMask  = 0;
+                [unroll] for ( uint pageInGroup = 0; pageInGroup < s_numPagesPerGroup; ++pageInGroup )
+                {
+                    gsPointMask[ pageInGroup ] = 0;
+                    gsSpotMask[ pageInGroup ]  = 0;
+                    gsDecalMask[ pageInGroup ] = 0;
+                }
             }
 
-            if ( !isRoot )
+            if ( !isRoot && groupThreadID == 0 )
             {
-                if ( groupThreadID == 0 )
+                [unroll] for ( uint pageInGroup = 0; pageInGroup < s_numPagesPerGroup; ++pageInGroup )
                 {
-                    gsParentPayload = hash.LoadPayload( gsParentSlot, pageIndex );
+                    uint const maskPage = pageIndex + pageInGroup;
+
+                    gsParentPayloadPoint[ pageInGroup ] = ( maskPage < endPage ) ? hash.LoadMask( gsParentSlot, maskPage, s_pointLightSlot ) : 0;
+                    gsParentPayloadSpot[ pageInGroup ]  = ( maskPage < endPage ) ? hash.LoadMask( gsParentSlot, maskPage, s_spotLightSlot ) : 0;
+                    gsParentPayloadDecal[ pageInGroup ] = ( maskPage < endPage ) ? hash.LoadMask( gsParentSlot, maskPage, s_decalSlot ) : 0;
                 }
             }
 
             GroupMemoryBarrierWithGroupSync();
 
-            uint64_t testBit = 1ULL << groupThreadID;
-
-            uint64_t2 parentPayload = uint64_t2( 0, 0 );
-            if ( !isRoot )
-                parentPayload = gsParentPayload;
+            uint const pageInGroup  = groupThreadID / s_numInstancesPerPage;
+            uint const laneBit      = 1U << ( groupThreadID % s_numInstancesPerPage );
+            uint const page         = pageIndex + pageInGroup;
+            uint const instance     = page * s_numInstancesPerPage + ( groupThreadID % s_numInstancesPerPage );
+            bool const pageInRange  = page < endPage;
+            uint64_t const groupBit = 1ULL << groupThreadID;
 
             // Point lights
             //-------------------------------------------------------------------------
 
-            if ( pageIndex < RootCBV.m_numPointLightPages )
+            if ( pageInRange && page < RootCBV.m_numPointLightPages )
             {
-                uint64_t pageMask = pointLightPages[pageIndex];
-                bool     occupied = ( pageMask & testBit ) != 0;
-                bool     inParent = isRoot || ( ( parentPayload.x & testBit ) != 0 );
+                uint const pageMask = pointLightPages[ page ];
+                bool const occupied = ( pageMask & laneBit ) != 0;
+                bool const inParent = isRoot || ( gsParentPayloadPoint[ pageInGroup ] & laneBit ) != 0;
 
                 bool inCell = false;
                 if ( inParent && occupied )
                 {
-                    uint pointLightIdx = pageIndex * 64 + groupThreadID;
-                    inCell = TestPointLightCell( cellCenter, cellHalfExtents, pointLights[pointLightIdx] );
+                    inCell = TestPointLightCell( cellCenter, cellHalfExtents, pointLights[ instance ] );
                 }
 
-                uint64_t waveMask = WaveActiveBitOr( inCell ? testBit : 0 );
+                uint64_t const waveMask = WaveActiveBitOr( inCell ? groupBit : 0ULL );
                 if ( WaveIsFirstLane() && waveMask != 0 )
                 {
-                    InterlockedOr( gsPointMask, waveMask );
+                    InterlockedOr( gsPointMask[ 0 ], uint( waveMask ) );
+                    InterlockedOr( gsPointMask[ 1 ], uint( waveMask >> 32 ) );
                 }
             }
 
             // Spot lights
             //-------------------------------------------------------------------------
-            if ( pageIndex < RootCBV.m_numSpotLightPages )
+
+            if ( pageInRange && page < RootCBV.m_numSpotLightPages )
             {
-                uint64_t pageMask = spotLightPages[pageIndex];
-                bool     occupied = ( pageMask & testBit ) != 0;
-                bool     inParent = isRoot || ( ( parentPayload.y & testBit ) != 0 );
+                uint const pageMask = spotLightPages[ page ];
+                bool const occupied = ( pageMask & laneBit ) != 0;
+                bool const inParent = isRoot || ( gsParentPayloadSpot[ pageInGroup ] & laneBit ) != 0;
 
                 bool inCell = false;
                 if ( inParent && occupied )
                 {
-                    uint spotLightIndex = pageIndex * 64 + groupThreadID;
-                    LightInstance_SpotLight light = spotLights[spotLightIndex];
+                    LightInstance_SpotLight light = spotLights[ instance ];
 
                     float  sinAngle   = sqrt( saturate( 1.0F - light.m_outerConeAngle * light.m_outerConeAngle ) );
                     float4 testSphere = float4( cellCenter, cellRadius );
@@ -213,10 +259,34 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
                     inCell = TestConeVsSphere( light.m_lightPosition, light.m_lightDirection, light.m_maxRadius, light.m_outerConeAngle, sinAngle, testSphere );
                 }
 
-                uint64_t waveMask = WaveActiveBitOr( inCell ? testBit : 0 );
+                uint64_t const waveMask = WaveActiveBitOr( inCell ? groupBit : 0ULL );
                 if ( WaveIsFirstLane() && waveMask != 0 )
                 {
-                    InterlockedOr( gsSpotMask, waveMask );
+                    InterlockedOr( gsSpotMask[ 0 ], uint( waveMask ) );
+                    InterlockedOr( gsSpotMask[ 1 ], uint( waveMask >> 32 ) );
+                }
+            }
+
+            // Decals
+            //-------------------------------------------------------------------------
+            
+            if ( pageInRange && page < RootCBV.m_numDecalPages )
+            {
+                uint const pageMask = decalPages[ page ];
+                bool const occupied = ( pageMask & laneBit ) != 0;
+                bool const inParent = isRoot || ( gsParentPayloadDecal[ pageInGroup ] & laneBit ) != 0;
+
+                bool inCell = false;
+                if ( inParent && occupied )
+                {
+                    inCell = decals[ instance ].TestCell( cellCenter, cellHalfExtents );
+                }
+
+                uint64_t const waveMask = WaveActiveBitOr( inCell ? groupBit : 0ULL );
+                if ( WaveIsFirstLane() && waveMask != 0 )
+                {
+                    InterlockedOr( gsDecalMask[ 0 ], uint( waveMask ) );
+                    InterlockedOr( gsDecalMask[ 1 ], uint( waveMask >> 32 ) );
                 }
             }
 
@@ -233,28 +303,50 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
 
             GroupMemoryBarrierWithGroupSync();
 
-            // Track first/last non-zero page for cell metadata
+            // Store this span's masks and track the first and last page each slot occupies
             if ( groupThreadID == 0 && gsCellSlot != ~0U )
             {
-                hash.StorePayload( gsCellSlot, pageIndex, uint64_t2( gsPointMask, gsSpotMask ) );
-
-                if ( ( gsPointMask | gsSpotMask ) != 0 )
+                [unroll] for ( uint storedPageInGroup = 0; storedPageInGroup < s_numPagesPerGroup; ++storedPageInGroup )
                 {
-                    if ( gsPointMask != 0 )
+                    uint const maskPage = pageIndex + storedPageInGroup;
+                    if ( maskPage >= endPage )
+                    {
+                        continue;
+                    }
+
+                    uint const pointMask = gsPointMask[ storedPageInGroup ];
+                    uint const spotMask  = gsSpotMask[ storedPageInGroup ];
+                    uint const decalMask = gsDecalMask[ storedPageInGroup ];
+
+                    hash.StoreMask( gsCellSlot, maskPage, s_pointLightSlot, pointMask );
+                    hash.StoreMask( gsCellSlot, maskPage, s_spotLightSlot, spotMask );
+                    hash.StoreMask( gsCellSlot, maskPage, s_decalSlot, decalMask );
+
+                    if ( pointMask != 0 )
                     {
                         if ( gsPointFirstPage == ~0U )
                         {
-                            gsPointFirstPage = pageIndex;
+                            gsPointFirstPage = maskPage;
                         }
-                        gsPointLastPage = pageIndex;
+                        gsPointLastPage = maskPage;
                     }
-                    if ( gsSpotMask != 0 )
+
+                    if ( spotMask != 0 )
                     {
                         if ( gsSpotFirstPage == ~0U )
                         {
-                            gsSpotFirstPage = pageIndex;
+                            gsSpotFirstPage = maskPage;
                         }
-                        gsSpotLastPage = pageIndex;
+                        gsSpotLastPage = maskPage;
+                    }
+
+                    if ( decalMask != 0 )
+                    {
+                        if ( gsDecalFirstPage == ~0U )
+                        {
+                            gsDecalFirstPage = maskPage;
+                        }
+                        gsDecalLastPage = maskPage;
                     }
                 }
             }
@@ -266,10 +358,12 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint3 groupID : SV_GroupID,
     // Write metadata to payload
     if ( groupThreadID == 0 && gsCellSlot != ~0U )
     {
-        uint numPointLights = ( gsPointFirstPage != ~0U ) ? ( gsPointLastPage - gsPointFirstPage + 1 ) : 0;
-        uint numSpotLights  = ( gsSpotFirstPage  != ~0U ) ? ( gsSpotLastPage  - gsSpotFirstPage  + 1 ) : 0;
+        uint numPointLightPages = ( gsPointFirstPage != ~0U ) ? ( gsPointLastPage - gsPointFirstPage + 1 ) : 0;
+        uint numSpotLightPages  = ( gsSpotFirstPage  != ~0U ) ? ( gsSpotLastPage  - gsSpotFirstPage  + 1 ) : 0;
+        uint numDecalPages      = ( gsDecalFirstPage != ~0U ) ? ( gsDecalLastPage - gsDecalFirstPage + 1 ) : 0;
 
-        hash.StoreMetadata( gsCellSlot, 0, uint2( gsPointFirstPage, numPointLights ) );
-        hash.StoreMetadata( gsCellSlot, 1, uint2( gsSpotFirstPage,  numSpotLights ) );
+        hash.StoreMetadata( gsCellSlot, s_pointLightSlot, uint2( gsPointFirstPage, numPointLightPages ) );
+        hash.StoreMetadata( gsCellSlot, s_spotLightSlot, uint2( gsSpotFirstPage, numSpotLightPages ) );
+        hash.StoreMetadata( gsCellSlot, s_decalSlot, uint2( gsDecalFirstPage, numDecalPages ) );
     }
 }

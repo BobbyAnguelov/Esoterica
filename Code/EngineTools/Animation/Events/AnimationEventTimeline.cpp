@@ -20,7 +20,13 @@ namespace EE::Animation
             }
             else
             {
-                if ( m_items[0]->GetStartTime() > 0.0f )
+                float minStartTime = FLT_MAX;
+                for ( auto const& item : m_items )
+                {
+                    minStartTime = Math::Min( minStartTime, item->GetStartTime() );
+                }
+
+                if ( minStartTime > 0.0f )
                 {
                     shouldShowWarning = true;
                     warningMessage = "Sync Track - Last event will wrap around!";

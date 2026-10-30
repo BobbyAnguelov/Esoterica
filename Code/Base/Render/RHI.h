@@ -580,9 +580,13 @@ namespace EE::Render::RHI
 
     struct BufferSubAllocation
     {
+    public:
+
         inline bool IsValid() const { return m_offset != ~0ULL; }
 
         //-------------------------------------------------------------------------
+
+    public:
 
         uint64_t                        m_offset = ~0ULL;
         uint64_t                        m_internal = ~0ULL;
@@ -884,10 +888,14 @@ namespace EE::Render::RHI
 
     struct TextureCopyRegion
     {
+    public:
+
         // Very common operation when iterating mip levels and array slices
         TextureCopyRegion SkipTo( uint32_t newMipLevel, uint32_t newArrayLayer ) const;
 
         //-------------------------------------------------------------------------
+
+    public:
 
         uint32_t                                m_x = 0;
         uint32_t                                m_width = 1;
@@ -1707,6 +1715,8 @@ namespace EE::Render::RHI
 
     struct CommandBufferMarkerScope
     {
+    public:
+
         inline CommandBufferMarkerScope( RHI::CommandBuffer* pCommandBuffer, char const* pName ) : m_pCommandBuffer( pCommandBuffer )
         {
             CmdBeginDebugMarker( m_pCommandBuffer, pName );
@@ -1718,6 +1728,8 @@ namespace EE::Render::RHI
         }
 
         //-------------------------------------------------------------------------
+
+    public:
 
         RHI::CommandBuffer*                                 m_pCommandBuffer = nullptr;
     };

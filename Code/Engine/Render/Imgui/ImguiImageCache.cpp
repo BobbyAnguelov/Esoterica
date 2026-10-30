@@ -43,6 +43,29 @@ namespace EE::Render
         return pTexture;
     }
 
+    static RHI::Texture* LoadTextureFromMemory_Blocking( RenderSystem* pRenderSystem, uint8_t const* pData, int32_t width, int32_t height, int32_t channels )
+    {
+        EE_ASSERT( pRenderSystem );
+        EE_ASSERT( pData != nullptr );
+        EE_ASSERT( width > 0 && height > 0 && channels > 0 );
+
+        //-------------------------------------------------------------------------
+
+        RHI::TextureParameters textureParameters = {};
+        textureParameters.m_width = width;
+        textureParameters.m_height = height;
+        textureParameters.m_format = RHI::DataFormat::RGBA8_UNorm;
+        textureParameters.m_debugName = "<<Texture From Memory>>";
+
+        auto CopyTextureMemory = [&] ( uint8_t* pDstMemory_WriteCombined, size_t srcOffset, uint32_t rowStride, uint32_t row )
+        {
+            Memory::CopyToWriteCombined( pDstMemory_WriteCombined, pData + srcOffset, rowStride );
+        };
+        RHI::Texture* pTexture = pRenderSystem->QueueTextureCreate( CopyTextureMemory, textureParameters );
+
+        return pTexture;
+    }
+
     static RHI::Texture* CreateTextureFromBase64( RenderSystem* pRenderSystem, uint8_t const* pData, size_t size )
     {
         EE_ASSERT( pRenderSystem );
@@ -110,6 +133,35 @@ namespace EE::ImGuiX
 
         Render::RHI::Texture* pTexture = Render::LoadTextureFromFile_Blocking( m_pRenderSystem, path );
         EE_ASSERT( pTexture );
+
+        //-------------------------------------------------------------------------
+
+        ImageInfo info;
+        info.m_ID = ImGuiX::ImTextureID_Pack
+        (
+            0, // TODO: Provide correct sampler
+            Render::RHI::GetTextureHandle( pTexture, Render::RHI::DescriptorTypeFlags::Texture, 0 )
+        );
+        info.m_size = Float2( float( pTexture->m_width ), float( pTexture->m_height ) );
+        info.m_pTexture = pTexture;
+
+        m_loadedImages.emplace_back( info );
+
+        //-------------------------------------------------------------------------
+
+        return info;
+    }
+
+    ImageInfo ImageCache::LoadImageFromMemory( uint8_t const* pData, int32_t width, int32_t height, int32_t channels )
+    {
+        EE_ASSERT( WasInitialized() );
+        EE_ASSERT( pData != nullptr );
+        EE_ASSERT( width > 0 && height > 0 && channels > 0 );
+
+        //-------------------------------------------------------------------------
+
+        Render::RHI::Texture* pTexture = Render::LoadTextureFromMemory_Blocking( m_pRenderSystem, pData, width, height, channels );
+        EE_ASSERT( pTexture != nullptr );
 
         //-------------------------------------------------------------------------
 

@@ -92,48 +92,85 @@ Easiest way to get started, is just set the "Esoterica.Applications.Editor" as t
 * Resource Compiler - This processes resource compilation requests
 * Tester - Empty console app used for random testing
 
-## Thirdparty projects used
+## Third-party libraries
 
-* EASTL
-* DearImgui
-* EnkiTS
-* iniparser
-* PCG
-* rapidhash
-* rpmalloc
-* concurrentqueue
-* MPack
-* Game Networking Sockets
-* ixwebsocket
-* Box3D
-* ufbx
-* cgltf
-* pfd
-* sqlite
-* subprocess
-* optick
-* meshoptimizer
-* ctt
-* D3D12MemoryAllocator
-* STB
-* LZAV
-* pugixml
-* rapidhash
-* delabella
-* tinyexr
-* Freetype
-* LLVM
-* SMAA
-* TonyMcMapFace
-* GTAO
-* FidelityFX Parallel Sort
-* SHforHLSL
+Esoterica would not exist without the open-source projects below. Third-party code remains under its own license, not the MIT license of the engine.
 
-These middleware packages are also integrated but require a license to use (so they are disabled by default)
+### Runtime and data
 
-* Live++
-* Superluminal
-* Navpower
+| Library                     | Used for                                                 | Project                                                                     |
+|-----------------------------|----------------------------------------------------------|-----------------------------------------------------------------------------|
+| EASTL + EABase              | EA's STL replacement (`TVector`, `TString`, ...)         | [electronicarts/EASTL](https://github.com/electronicarts/EASTL)             |
+| rpmalloc                    | Lock-free, thread-caching general purpose allocator      | [mjansson/rpmalloc](https://github.com/mjansson/rpmalloc)                   |
+| EnkiTS                      | Task scheduler backing the engine's job system           | [dougbinks/enkiTS](https://github.com/dougbinks/enkiTS)                     |
+| moodycamel::ConcurrentQueue | Lock-free MPMC queues used by the threading layer        | [cameron314/concurrentqueue](https://github.com/cameron314/concurrentqueue) |
+| rapidhash                   | Hashing (string IDs, resource paths)                     | [Nicoshev/rapidhash](https://github.com/Nicoshev/rapidhash)                 |
+| PCG                         | Random number generation (`MathRandom`)                  | [imneme/pcg-cpp](https://github.com/imneme/pcg-cpp)                         |
+| mINI                        | INI file reading and writing for settings/config         | [metayeti/mINI](https://github.com/metayeti/mINI)                           |
+| MPack                       | MessagePack (de)serialization                            | [ludocode/mpack](https://github.com/ludocode/mpack)                         |
+| pugixml                     | XML serialization of reflected types and resources       | [pugixml.org](https://pugixml.org)                                          |
+| LZAV                        | Compression of embedded payloads (fonts, generated data) | [avaneev/lzav](https://github.com/avaneev/lzav)                             |
+| STB                         | Image load/write/resize and font rasterization helpers   | [nothings/stb](https://github.com/nothings/stb)                             |
+
+### Rendering and simulation
+
+| Library                     | Used for                                                 | Project                                                                                                           |
+|-----------------------------|----------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------|
+| DirectXShaderCompiler (DXC) | HLSL 2021 to DXIL compilation                            | [microsoft/DirectXShaderCompiler](https://github.com/microsoft/DirectXShaderCompiler)                             |
+| D3D12MemoryAllocator        | GPU memory suballocation for the DX12 backend            | [GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator](https://github.com/GPUOpen-LibrariesAndSDKs/D3D12MemoryAllocator) |
+| meshoptimizer               | Mesh optimization, simplification and cluster generation | [zeux/meshoptimizer](https://github.com/zeux/meshoptimizer)                                                       |
+| Box3D                       | Rigid body physics and ragdoll simulation                | [erincatto/box3d](https://github.com/erincatto/box3d)                                                             |
+| AMD AGS                     | AMD driver extension query and device creation           | [GPUOpen-LibrariesAndSDKs/AGS_SDK](https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK)                           |
+| Freetype                    | Font rasterization for runtime and editor text           | [freetype.org](https://freetype.org)                                                                              |
+| SMAA                        | Subpixel morphological anti-aliasing                     | [iryoku/smaa](https://github.com/iryoku/smaa)                                                                     |
+| XeGTAO                      | Ground-truth ambient occlusion (GTAO)                    | [GameTechDev/XeGTAO](https://github.com/GameTechDev/XeGTAO)                                                       |
+| Tony McMap Face             | Filmic tonemapping LUT and evaluation                    | [h3r2tic/tony-mc-mapface](https://github.com/h3r2tic/tony-mc-mapface)                                             |
+| FidelityFX Parallel Sort    | GPU radix sort used by culling/compaction                | [GPUOpen-Effects/FidelityFX-ParallelSort](https://github.com/GPUOpen-Effects/FidelityFX-ParallelSort)             |
+| SHforHLSL                   | Spherical harmonics helpers in HLSL                      | [TheRealMJP/SHforHLSL](https://github.com/TheRealMJP/SHforHLSL)                                                   |
+
+### Editor, tooling and import
+
+| Library         | Used for                                                   | Project                                                           |
+|-----------------|------------------------------------------------------------|-------------------------------------------------------------------|
+| Dear ImGui      | Editor and debug UI                                        | [ocornut/imgui](https://github.com/ocornut/imgui)                 |
+| ImPlot          | Plotting in editor tooling                                 | [epezent/implot](https://github.com/epezent/implot)               |
+| LLVM + libclang | C++ parsing for reflection and code generation (Reflector) | [llvm.org](https://llvm.org)                                      |
+| ctt             | BCn/ASTC texture compression (ResourceCompiler)            | [cwfitzgerald/ctt](https://github.com/cwfitzgerald/ctt)           |
+| ufbx            | FBX import                                                 | [ufbx/ufbx](https://github.com/ufbx/ufbx)                         |
+| cgltf           | glTF import                                                | [jkuhlmann/cgltf](https://github.com/jkuhlmann/cgltf)             |
+| tinyexr         | OpenEXR image import                                       | [syoyo/tinyexr](https://github.com/syoyo/tinyexr)                 |
+| delabella       | Delaunay triangulation for 2D blend spaces                 | [msokalski/delabella](https://github.com/msokalski/delabella)     |
+| subprocess.h    | Spawning out-of-process compilers and servers              | [sheredom/subprocess.h](https://github.com/sheredom/subprocess.h) |
+| SQLite          | Resource compilation database                              | [sqlite.org](https://sqlite.org)                                  |
+
+### Networking, profiling and debugging
+
+| Library               | Used for                                                   | Project                                                                                       |
+|-----------------------|------------------------------------------------------------|-----------------------------------------------------------------------------------------------|
+| GameNetworkingSockets | Reliable UDP networking                                    | [ValveSoftware/GameNetworkingSockets](https://github.com/ValveSoftware/GameNetworkingSockets) |
+| IXWebSocket           | WebSocket transport for networking and editor/server comms | [machinezone/IXWebSocket](https://github.com/machinezone/IXWebSocket)                         |
+| Optick                | CPU profiling instrumentation                              | [bombomby/optick](https://github.com/bombomby/optick)                                         |
+| RenderDoc             | Frame capture API integration                              | [renderdoc.org](https://renderdoc.org)                                                        |
+| WinPixEventRuntime    | PIX GPU event markers and captures                         | [microsoft/PixEvents](https://github.com/microsoft/PixEvents)                                 |
+
+### Fonts and icons
+
+| Asset                 | Used for                              | Project                                                                      | License    |
+|-----------------------|---------------------------------------|------------------------------------------------------------------------------|------------|
+| Roboto                | UI font                               | [fonts.google.com/specimen/Roboto](https://fonts.google.com/specimen/Roboto) | Apache 2.0 |
+| Material Design Icons | Editor icon font and codepoint header | [pictogrammers.com/library/mdi](https://pictogrammers.com/library/mdi/)      | Apache 2.0 |
+
+The Material Design Icons header (`Code/Base/Imgui/MaterialDesignIcons.h`) was generated with [juliettef/IconFontCppHeaders](https://github.com/juliettef/IconFontCppHeaders).
+
+### Commercial middleware
+
+These packages are integrated behind preprocessor switches but are not distributed with the engine — you need your own license to enable them.
+
+| Middleware   | Used for                                   | Website                                         |
+|--------------|--------------------------------------------|-------------------------------------------------|
+| Live++       | Live C++ hot-reload                        | [liveplusplus.tech](https://liveplusplus.tech/) |
+| Superluminal | CPU profiler integration                   | [superluminal.eu](https://superluminal.eu/)     |
+| NavPower     | Navigation mesh generation and pathfinding | [navpower.com](https://navpower.com/)           |
 
 ## Extra Info
 

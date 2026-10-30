@@ -26,9 +26,9 @@ namespace EE::Physics
         , m_propertyGrid( pToolsContext )
         , m_animPicker( *pToolsContext )
     {
-        m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, true );
-        m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowCoordinateSpaceSwitching, true );
-        m_gizmo.SetMode( ImGuiX::Gizmo::Mode::Translation );
+        m_gizmo.SetOption( Gizmo::Options::AllowNonUniformScale, true );
+        m_gizmo.SetOption( Gizmo::Options::AllowCoordinateSpaceSwitching, true );
+        m_gizmo.SetMode( Gizmo::Mode::Translation );
 
         auto OnPreEdit = [this] ( PropertyEditInfo const& info )
         {
@@ -239,7 +239,6 @@ namespace EE::Physics
 
             // Apply physics blend weight
             Animation::Blender::ParentSpaceBlend( Animation::Skeleton::LOD::High, m_pFinalPose, m_pInputPose, m_physicsBlendWeight, nullptr, m_pFinalPose );
-            m_pFinalPose->CalculateModelSpaceTransforms();
 
             // Draw final animation pose
             if ( m_drawFinalAnimationPose )
@@ -256,7 +255,15 @@ namespace EE::Physics
             // Update mesh pose
             if ( m_pMeshComponent->IsInitialized() && m_pMeshComponent->HasMeshResourceSet() )
             {
-                m_pMeshComponent->SetPose( m_pFinalPose );
+                if ( m_pFinalPose->IsAdditivePose() )
+                {
+                    m_pMeshComponent->ResetPose();
+                }
+                else
+                {
+                    m_pMeshComponent->SetPose( m_pFinalPose );
+                }
+
                 m_pMeshComponent->FinalizePose();
             }
 
@@ -1406,7 +1413,7 @@ namespace EE::Physics
                 return false;
             };
 
-            auto ApplyGizmoResult = [this, pRagdollDescriptor] ( ImGuiX::Gizmo::Result const& result )
+            auto ApplyGizmoResult = [this, pRagdollDescriptor] ( Gizmo::Result const& result )
             {
                 if ( result.IsScale() )
                 {
@@ -1423,7 +1430,7 @@ namespace EE::Physics
                     }
                     else if( m_selectedElement.IsJoint() )
                     {
-                        if ( result.m_deltaType == ImGuiX::Gizmo::ResultDeltaType::Rotation )
+                        if ( result.m_deltaType == Gizmo::ResultDeltaType::Rotation )
                         {
                             int32_t const bodyIdx = pRagdollDescriptor->GetBodyIndex( m_selectedElement.m_boneID );
                             Quaternion delta( result.m_delta );
@@ -1445,39 +1452,39 @@ namespace EE::Physics
 
                 if ( m_selectedElement.IsShape() )
                 {
-                    m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, true );
-                    m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, pRagdollDescriptor->GetShapeType( m_selectedElement.m_boneID, m_selectedElement.m_shapeIdx ) != RagdollShapeDefinition::Type::Sphere );
+                    m_gizmo.SetOption( Gizmo::Options::AllowScale, true );
+                    m_gizmo.SetOption( Gizmo::Options::AllowNonUniformScale, pRagdollDescriptor->GetShapeType( m_selectedElement.m_boneID, m_selectedElement.m_shapeIdx ) != RagdollShapeDefinition::Type::Sphere );
                 }
                 else
                 {
-                    m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
+                    m_gizmo.SetOption( Gizmo::Options::AllowScale, false );
                 }
 
                 if ( m_selectedElement.IsJoint() )
                 {
                     if ( !m_gizmo.IsManipulating() )
                     {
-                        m_gizmo.SetMode( ImGuiX::Gizmo::Mode::Rotation );
+                        m_gizmo.SetMode( Gizmo::Mode::Rotation );
                     }
                 }
 
-                auto const gizmoResult = m_gizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, isFocused );
+                auto const gizmoResult = m_gizmo.UpdateAndDraw( gizmoTransform.GetTranslation(), gizmoTransform.GetRotation(), *pViewport, isFocused, isFocused );
                 switch ( gizmoResult.m_state )
                 {
-                    case ImGuiX::GizmoState::StartedManipulating:
+                    case GizmoState::StartedManipulating:
                     {
                         BeginDataFileModification();
                         ApplyGizmoResult( gizmoResult );
                     }
                     break;
 
-                    case ImGuiX::GizmoState::Manipulating:
+                    case GizmoState::Manipulating:
                     {
                         ApplyGizmoResult( gizmoResult );
                     }
                     break;
 
-                    case ImGuiX::GizmoState::StoppedManipulating:
+                    case GizmoState::StoppedManipulating:
                     {
                         ApplyGizmoResult( gizmoResult );
                         EndDataFileModification();
@@ -1994,8 +2001,8 @@ namespace EE::Physics
         auto drawingCtx = GetDebugDrawContext();
 
         Transform previewWorldTransform = m_pMeshComponent->GetWorldTransform();
-        auto const gizmoResult = m_gizmo.UpdateAndDraw( previewWorldTransform.GetTranslation(), previewWorldTransform.GetRotation(), *pViewport );
-        if ( gizmoResult.m_state == ImGuiX::GizmoState::Manipulating )
+        auto const gizmoResult = m_gizmo.UpdateAndDraw( previewWorldTransform.GetTranslation(), previewWorldTransform.GetRotation(), *pViewport, isFocused, isFocused );
+        if ( gizmoResult.m_state == GizmoState::Manipulating )
         {
             gizmoResult.ApplyResult( previewWorldTransform );
             m_pMeshComponent->SetWorldTransform( previewWorldTransform );

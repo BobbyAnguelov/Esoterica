@@ -43,7 +43,11 @@ namespace EE::Reflection
             size_t structureSize = 0;
             for ( ReflectedShader::ParameterInfo const& parameter : members )
             {
-                if ( parameter.m_type == "esf_padding_t" || parameter.m_type == "TBitFlags<MaterialShaderFlags>" )
+                if ( parameter.m_type == "esf_padding_t" && parameter.m_strideInBytes == 2 )
+                {
+                    // Unused half of the last packed word
+                }
+                else if ( parameter.m_type == "esf_padding_t" || parameter.m_type == "TBitFlags<MaterialShaderFlags>" )
                 {
                     stream << "    uint " << parameter.m_name.c_str() << ";\n";
                 }

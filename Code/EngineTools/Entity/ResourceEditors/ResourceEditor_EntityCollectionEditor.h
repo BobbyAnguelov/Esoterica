@@ -5,7 +5,7 @@
 #include "EngineTools/Entity/EntityEditor/EntityEditor_Outliner.h"
 #include "EngineTools/Entity/EntityEditor/EntityEditor_EntityInspector.h"
 #include "EngineTools/Entity/EntityEditor/EntityEditor_ComponentTools.h"
-#include "Engine/Imgui/ImguiGizmo.h"
+#include "EngineTools/Gizmos/Gizmo.h"
 #include "Engine/Entity/EntityDescriptors.h"
 
 //-------------------------------------------------------------------------
@@ -32,14 +32,13 @@ namespace EE::EntityModel
 
         virtual void SetupDockingLayout( ImGuiID dockspaceID, ImVec2 const& dockspaceSize ) const override;
         virtual bool ShouldLoadDefaultEditorMap() const override { return true; }
-        virtual bool SupportsViewport() const override { return true; }
         virtual void ExtendViewportToolBar( UpdateContext const& context, Viewport* pViewport ) override;
         virtual void DrawMenu( UpdateContext const& context ) override;
         virtual void DrawViewportUI( UpdateContext const& context, Viewport const* pViewport, bool isFocused ) override;
         virtual bool SupportsSaving() const override { return true; }
         virtual bool AlwaysAllowSaving() const override { return true; }
         virtual void HandleViewportInteractions() override;
-        virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition ) override;
+        virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition, Vector const& surfaceNormal ) override;
         virtual bool IsEditingFile( DataPath const& dataPath ) const override { return m_collection.GetDataPath() == dataPath; }
 
         virtual String GetFilenameForSave() const override;
@@ -59,7 +58,7 @@ namespace EE::EntityModel
 
         ComponentToolsManager*                          m_pComponentToolsManager = nullptr;
 
-        ImGuiX::Gizmo                                   m_gizmo;
+        Gizmo                                           m_gizmo;
         EntityOutliner                                  m_outliner;
         EntityInspector                                 m_inspector;
         TResourcePtr<EntityCollection>                  m_collection;

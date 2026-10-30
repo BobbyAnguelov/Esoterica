@@ -1,4 +1,5 @@
 #include "Engine/Render/Shaders/Renderer/WorldUpdate.esh"
+#include "Engine/Render/Shaders/Renderer/CullingRootConstants.esh"
 
 #ifndef __cplusplus
 ESF_RESOURCE_TABLE struct ClusterToInstanceUpdateResourceTable

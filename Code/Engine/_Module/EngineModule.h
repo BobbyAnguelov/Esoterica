@@ -18,6 +18,7 @@
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderMaterial.h"
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderMesh.h"
 #include "Engine/Render/ResourceLoaders/ResourceLoader_RenderTexture.h"
+#include "Engine/Render/ResourceLoaders/ResourceLoader_DecalMaterial.h"
 #include "Engine/Render/RenderMaterial.h"
 #include "Engine/Render/RenderSystem.h"
 #include "Engine/Render/Renderer_ForwardShading.h"
@@ -77,6 +78,7 @@ namespace EE
         Render::MeshLoader                              m_meshLoader;
         Render::TextureLoader                           m_textureLoader;
         Render::MaterialLoader                          m_materialLoader;
+        Render::DecalMaterialLoader                     m_decalMaterialLoader;
 
         Render::RenderSystem                            m_renderSystem;
         Render::Window                                  m_renderWindow;

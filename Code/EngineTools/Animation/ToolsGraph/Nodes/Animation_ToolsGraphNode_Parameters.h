@@ -321,7 +321,7 @@ namespace EE::Animation
         virtual char const* GetCategory() const override { return "Parameter"; }
         virtual bool IsUserCreatable() const override { return true; }
         virtual bool IsDestroyable() const override { return true; }
-        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::EntryOverrideTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
+        virtual TBitFlags<GraphType> GetAllowedParentGraphTypes() const override { return TBitFlags<GraphType>( GraphType::BlendTree, GraphType::ValueTree, GraphType::EntryOverrideTree, GraphType::VirtualParameterValueTree, GraphType::TransitionConduit, GraphType::GlobalTransitionConduit ); }
         virtual int16_t Compile( GraphCompilationContext& context ) const override;
 
     private:

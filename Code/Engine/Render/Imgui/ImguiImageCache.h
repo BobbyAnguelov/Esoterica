@@ -52,6 +52,9 @@ namespace EE::ImGuiX
         // Load an image from disk and get back the Imgui ID for it
         ImageInfo LoadImageFromFile( FileSystem::Path const& path );
 
+        // Load an image from memory and get back the Imgui ID for it
+        ImageInfo LoadImageFromMemory( uint8_t const* pData, int32_t width, int32_t height, int32_t channels );
+
         // Load an image from compressed memory and return the Imgui ID for it
         ImageInfo LoadImageFromMemoryBase64( uint8_t const* pData, size_t size );
 

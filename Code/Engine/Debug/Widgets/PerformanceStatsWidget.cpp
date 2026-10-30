@@ -36,7 +36,7 @@ namespace EE
                 m_str_FPS.sprintf( "%4.0f", m_fps );
                 m_fpsExtraSpacing = ( m_fps < 100 ) ? characterSize.x : 0;
                 m_totalSize.x += ImGui::CalcTextSize( "FPS:" ).x;
-                m_totalSize.x += ImGui::CalcTextSize( m_str_FPS.c_str() ).x;
+                m_totalSize.x += ImGui::CalcTextSize( "999" ).x;
                 m_totalSize.x += m_fpsExtraSpacing;
 
                 //-------------------------------------------------------------------------

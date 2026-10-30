@@ -3,6 +3,7 @@
 #include "Engine/_Module/API.h"
 #include "Engine/Render/RenderGeometry.h"
 #include "Engine/Render/RenderProxies.h"
+#include "Engine/Render/RenderDecalMaterial.h"
 #include "Base/Types/StringID.h"
 #include "Base/Math/Matrix43.h"
 
@@ -17,79 +18,18 @@ namespace EE
 
 namespace EE::Render
 {
-    struct EE_ENGINE_API MeshStatistics final
-    {
-        void Accumulate( MeshStatistics const& src );
-
-        //-------------------------------------------------------------------------
-
-        EE_SERIALIZE
-        (
-            m_numVertices, m_numTriangles, m_numClusters,
-            m_compressedSizeBytes, m_uncompressedSizeBytes, m_compressionRatio,
-            m_averagePositionBitsPerAxisX, m_averagePositionBitsPerAxisY, m_averagePositionBitsPerAxisZ,
-            m_minimumPositionBitsPerAxisX, m_minimumPositionBitsPerAxisY, m_minimumPositionBitsPerAxisZ,
-            m_medianPositionBitsPerAxisX, m_medianPositionBitsPerAxisY, m_medianPositionBitsPerAxisZ,
-            m_maximumPositionBitsPerAxisX, m_maximumPositionBitsPerAxisY, m_maximumPositionBitsPerAxisZ,
-            m_minimumPositionBitsPerVertex, m_averagePositionBitsPerVertex, m_maximumPositionBitsPerVertex,
-            m_minimumClusterUtilization, m_maximumClusterUtilization, m_averageClusterUtilization, m_medianClusterUtilization,
-            m_clusterVertexOverhead, m_vertexTriangleReuse,
-            m_minimumCompressionAccuracy, m_averageCompressionAccuracy
-        );
-
-        uint32_t                        m_numVertices = 0;
-        uint32_t                        m_numTriangles = 0;
-        uint32_t                        m_numClusters = 0;
-
-        uint64_t                        m_compressedSizeBytes = 0;
-        uint64_t                        m_uncompressedSizeBytes = 0;
-        float                           m_compressionRatio = 0.0F;
-
-        float                           m_averagePositionBitsPerAxisX = 0.0F;
-        float                           m_averagePositionBitsPerAxisY = 0.0F;
-        float                           m_averagePositionBitsPerAxisZ = 0.0F;
-
-        uint32_t                        m_minimumPositionBitsPerAxisX = 0;
-        uint32_t                        m_minimumPositionBitsPerAxisY = 0;
-        uint32_t                        m_minimumPositionBitsPerAxisZ = 0;
-
-        float                           m_medianPositionBitsPerAxisX = 0.0F;
-        float                           m_medianPositionBitsPerAxisY = 0.0F;
-        float                           m_medianPositionBitsPerAxisZ = 0.0F;
-
-        uint32_t                        m_maximumPositionBitsPerAxisX = 0;
-        uint32_t                        m_maximumPositionBitsPerAxisY = 0;
-        uint32_t                        m_maximumPositionBitsPerAxisZ = 0;
-
-        uint32_t                        m_minimumPositionBitsPerVertex = 0;
-        float                           m_averagePositionBitsPerVertex = 0.0F;
-        uint32_t                        m_maximumPositionBitsPerVertex = 0;
-
-        float                           m_minimumClusterUtilization = 0.0F;
-        float                           m_maximumClusterUtilization = 0.0F;
-        float                           m_averageClusterUtilization = 0.0F;
-        float                           m_medianClusterUtilization = 0.0F;
-
-        float                           m_clusterVertexOverhead = 0.0F;
-        float                           m_vertexTriangleReuse = 0.0F;
-
-        float                           m_minimumCompressionAccuracy = 0.0F;
-        float                           m_averageCompressionAccuracy = 0.0F;
-    };
-
-    //-------------------------------------------------------------------------
-
     class EE_ENGINE_API Mesh : public Resource::IResource
     {
         friend class MeshLoader;
         friend class MeshCompiler;
+        friend class StaticMeshCompiler;
+        friend class SkeletalMeshCompiler;
         friend class RenderSystem;
 
         EE_SERIALIZE
         (
-            m_sockets, m_submeshes, m_submeshLocalTransforms,
-            m_geometry, m_geometryLODDistance, m_statisticsPerLOD, m_numLODs,
-            m_meshBounds
+            m_sockets, m_submeshes, m_submeshLocalTransforms, m_meshDecals,
+            m_geometry, m_geometryLODDistance, m_numLODs, m_meshBounds
         );
 
     public:
@@ -98,30 +38,113 @@ namespace EE::Render
         {
             EE_SERIALIZE( m_ID, m_materialNameID, m_geometryIdx, m_material, m_lodMask );
 
-            StringID                    m_ID;
-            StringID                    m_materialNameID; // The name of the material in the source file
-            uint32_t                    m_geometryIdx = 0xFFFFFFFF;
-            TResourcePtr<Material>      m_material;
-            uint8_t                     m_lodMask = 0;
+            StringID                        m_ID;
+            StringID                        m_materialNameID; // The name of the material in the source file
+            uint32_t                        m_geometryIdx = 0xFFFFFFFF;
+            TResourcePtr<Material>          m_material;
+            uint8_t                         m_lodMask = 0;
         };
 
         struct Socket
         {
             EE_SERIALIZE( m_ID, m_boneIdx, m_offset );
 
-            StringID                    m_ID;
-            int32_t                     m_boneIdx = InvalidIndex;
-            Transform                   m_offset;
+            StringID                        m_ID;
+            int32_t                         m_boneIdx = InvalidIndex;
+            Transform                       m_offset;
         };
+
+        struct MeshDecal
+        {
+            EE_SERIALIZE( m_material, m_localTransform, m_nonUniformScale );
+
+            TResourcePtr<DecalMaterial>     m_material;
+            Transform                       m_localTransform;
+            Float3                          m_nonUniformScale = Float3::One;
+        };
+
+        #if EE_DEVELOPMENT_TOOLS
+        struct EE_ENGINE_API Statistics final
+        {
+            EE_SERIALIZE
+            (
+                m_numVertices, m_numTriangles, m_numClusters,
+                m_compressedSizeBytes, m_uncompressedSizeBytes, m_compressionRatio,
+                m_averagePositionBitsPerAxisX, m_averagePositionBitsPerAxisY, m_averagePositionBitsPerAxisZ,
+                m_minimumPositionBitsPerAxisX, m_minimumPositionBitsPerAxisY, m_minimumPositionBitsPerAxisZ,
+                m_medianPositionBitsPerAxisX, m_medianPositionBitsPerAxisY, m_medianPositionBitsPerAxisZ,
+                m_maximumPositionBitsPerAxisX, m_maximumPositionBitsPerAxisY, m_maximumPositionBitsPerAxisZ,
+                m_minimumPositionBitsPerVertex, m_averagePositionBitsPerVertex, m_maximumPositionBitsPerVertex,
+                m_minimumClusterUtilization, m_maximumClusterUtilization, m_averageClusterUtilization, m_medianClusterUtilization,
+                m_clusterVertexOverhead, m_vertexTriangleReuse,
+                m_minimumCompressionAccuracy, m_averageCompressionAccuracy,
+                m_numMeshDecals, m_numMeshDecalProjectionBases, m_numMeshDecalProjections, m_meshDecalSizeBytes
+            );
+
+        public:
+
+            void Accumulate( Statistics const& src );
+
+        public:
+
+            uint32_t                        m_numVertices = 0;
+            uint32_t                        m_numTriangles = 0;
+            uint32_t                        m_numClusters = 0;
+
+            uint64_t                        m_compressedSizeBytes = 0;
+            uint64_t                        m_uncompressedSizeBytes = 0;
+            float                           m_compressionRatio = 0.0F;
+
+            float                           m_averagePositionBitsPerAxisX = 0.0F;
+            float                           m_averagePositionBitsPerAxisY = 0.0F;
+            float                           m_averagePositionBitsPerAxisZ = 0.0F;
+
+            uint32_t                        m_minimumPositionBitsPerAxisX = 0;
+            uint32_t                        m_minimumPositionBitsPerAxisY = 0;
+            uint32_t                        m_minimumPositionBitsPerAxisZ = 0;
+
+            float                           m_medianPositionBitsPerAxisX = 0.0F;
+            float                           m_medianPositionBitsPerAxisY = 0.0F;
+            float                           m_medianPositionBitsPerAxisZ = 0.0F;
+
+            uint32_t                        m_maximumPositionBitsPerAxisX = 0;
+            uint32_t                        m_maximumPositionBitsPerAxisY = 0;
+            uint32_t                        m_maximumPositionBitsPerAxisZ = 0;
+
+            uint32_t                        m_minimumPositionBitsPerVertex = 0;
+            float                           m_averagePositionBitsPerVertex = 0.0F;
+            uint32_t                        m_maximumPositionBitsPerVertex = 0;
+
+            float                           m_minimumClusterUtilization = 0.0F;
+            float                           m_maximumClusterUtilization = 0.0F;
+            float                           m_averageClusterUtilization = 0.0F;
+            float                           m_medianClusterUtilization = 0.0F;
+
+            float                           m_clusterVertexOverhead = 0.0F;
+            float                           m_vertexTriangleReuse = 0.0F;
+
+            float                           m_minimumCompressionAccuracy = 0.0F;
+            float                           m_averageCompressionAccuracy = 0.0F;
+
+            uint32_t                        m_numMeshDecals = 0;
+            uint32_t                        m_numMeshDecalProjectionBases = 0;
+            uint32_t                        m_numMeshDecalProjections = 0;
+            uint64_t                        m_meshDecalSizeBytes = 0;
+        };
+        #endif
 
     protected:
 
-        constexpr static int32_t const s_sharedMeshVersion = 28;
+        constexpr static int32_t const s_sharedMeshVersion = 40;
 
         struct ResourceUpdateState
         {
             AsyncBufferUpdate*          m_pMeshBufferUpdate = nullptr;
         };
+
+
+
+        //-------------------------------------------------------------------------
 
     public:
 
@@ -161,6 +184,15 @@ namespace EE::Render
         // Get the socket for a given ID
         Socket const* GetSocket( StringID socketID ) const;
 
+        // Mesh Decals
+        //-------------------------------------------------------------------------
+
+        inline int32_t GetNumMeshDecals() const { return int32_t( m_meshDecals.size() ); }
+
+        inline MeshDecal const& GetMeshDecal( int32_t decalIndex ) const { EE_ASSERT( decalIndex >= 0 && decalIndex < int32_t( m_meshDecals.size() ) ); return m_meshDecals[decalIndex]; }
+
+        inline TVector<MeshDecal> const& GetMeshDecals() const { return m_meshDecals; }
+
         // Bounds
         //-------------------------------------------------------------------------
 
@@ -176,11 +208,13 @@ namespace EE::Render
         inline TVector<float> const& GetLODDistances() const { return m_geometryLODDistance; }
 
         // Get the statistics for a specific LOD
-        inline MeshStatistics const& GetStatistics( uint32_t lodIndex ) const
+        #if EE_DEVELOPMENT_TOOLS
+        inline Statistics const& GetStatistics( uint32_t lodIndex ) const
         {
             EE_ASSERT( lodIndex < m_statisticsPerLOD.size() );
             return m_statisticsPerLOD[lodIndex];
         }
+        #endif
 
         // Render Data
         //-------------------------------------------------------------------------
@@ -195,6 +229,7 @@ namespace EE::Render
         //-------------------------------------------------------------------------
 
         TVector<Socket>                     m_sockets;
+        TVector<MeshDecal>                  m_meshDecals;
         OBB                                 m_meshBounds;
 
         // Internal renderer data
@@ -210,12 +245,17 @@ namespace EE::Render
 
         TVector<Geometry>                   m_geometry;
         TVector<float>                      m_geometryLODDistance;
-        TVector<MeshStatistics>             m_statisticsPerLOD;
         uint32_t                            m_numLODs;
 
         TVector<ResourceUpdateState>        m_meshBuffersState;
+
+        #if EE_DEVELOPMENT_TOOLS
+        TVector<Statistics>                 m_statisticsPerLOD;
+        #endif
     };
 
+    //-------------------------------------------------------------------------
+    // Static Mesh
     //-------------------------------------------------------------------------
 
     class EE_ENGINE_API StaticMesh final : public Mesh
@@ -225,16 +265,22 @@ namespace EE::Render
     };
 
     //-------------------------------------------------------------------------
+    // Skeletal Mesh
+    //-------------------------------------------------------------------------
+
+    class ProceduralBoneSettings;
 
     class EE_ENGINE_API SkeletalMesh final : public Mesh
     {
         friend class MeshLoader;
         friend class MeshCompiler;
 
-        EE_RESOURCE( "skelmesh", "Skeletal Mesh", Colors::LightCoral, s_sharedMeshVersion + 33, false );
+        EE_RESOURCE( "skelmesh", "Skeletal Mesh", Colors::LightCoral, s_sharedMeshVersion + 34, false );
         EE_SERIALIZE( EE_SERIALIZE_BASE( Mesh ), m_boneIDs, m_parentBoneIndices, m_parentSpaceBindPose, m_modelSpaceBindPose, m_modelSpaceInverseBindPose );
 
     public:
+
+        virtual ~SkeletalMesh();
 
         virtual bool IsValid() const override;
 
@@ -268,6 +314,9 @@ namespace EE::Render
         // Returns whether the specified bone is a descendant of the specified parent bone (checks entire hierarchy, not just immediate parents)
         bool IsChildBoneOf( int32_t parentBoneIdx, int32_t childBoneIdx ) const;
 
+        // Is this a leaf bone i.e. no children
+        inline bool IsLeafBone( int32_t boneIdx ) const { EE_ASSERT( IsValidBoneIndex( boneIdx ) ); return !VectorContains( m_parentBoneIndices, boneIdx ); }
+
         // Bind Poses
         inline TVector<Transform> const& GetParentSpaceBindPose() const { return m_parentSpaceBindPose; }
         inline TVector<Transform> const& GetModelSpaceBindPose() const { return m_modelSpaceBindPose; }
@@ -291,17 +340,26 @@ namespace EE::Render
             return m_modelSpaceInverseBindPose[idx];
         }
 
+        // Procedural Bones
+        //-------------------------------------------------------------------------
+
+        inline bool HasProceduralBones() const { return m_pProceduralBoneSettings != nullptr; }
+        ProceduralBoneSettings const* GetProceduralBoneSettings() const { return m_pProceduralBoneSettings; }
+
         // Debug
+        //-------------------------------------------------------------------------
+
         #if EE_DEVELOPMENT_TOOLS
         void DrawBindPose( DebugDrawContext& drawingContext, Transform const& worldTransform, bool drawBoneNames = false ) const;
         #endif
 
     private:
 
-        TVector<StringID>               m_boneIDs;
-        TVector<int32_t>                m_parentBoneIndices;
-        TVector<Transform>              m_parentSpaceBindPose;
-        TVector<Transform>              m_modelSpaceBindPose;
-        TVector<Transform>              m_modelSpaceInverseBindPose;
+        TVector<StringID>                   m_boneIDs;
+        TVector<int32_t>                    m_parentBoneIndices;
+        TVector<Transform>                  m_parentSpaceBindPose;
+        TVector<Transform>                  m_modelSpaceBindPose;
+        TVector<Transform>                  m_modelSpaceInverseBindPose;
+        ProceduralBoneSettings*             m_pProceduralBoneSettings = nullptr;
     };
 }

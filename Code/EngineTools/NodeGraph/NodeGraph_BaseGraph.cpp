@@ -198,7 +198,7 @@ namespace EE::NodeGraph
         //-------------------------------------------------------------------------
 
         // Parent graphs should only be null during construction
-        if ( m_pParentGraph )
+        if ( m_pParentGraph != nullptr )
         {
             m_pParentGraph->BeginModification();
         }
@@ -455,7 +455,11 @@ namespace EE::NodeGraph
             if ( pRootGraph != nullptr )
             {
                 PreModify();
-                s_onBeginRootGraphModification.Execute( pRootGraph );
+
+                if ( IsRootGraph() )
+                {
+                    s_onBeginRootGraphModification.Execute( pRootGraph );
+                }
             }
         }
 
@@ -479,7 +483,11 @@ namespace EE::NodeGraph
             if ( pRootGraph != nullptr )
             {
                 PostModify();
-                s_onEndRootGraphModification.Execute( pRootGraph );
+
+                if ( IsRootGraph() )
+                {
+                    s_onEndRootGraphModification.Execute( pRootGraph );
+                }
             }
         }
 

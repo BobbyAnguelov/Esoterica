@@ -10,7 +10,7 @@
 namespace EE::Import
 {
     class Animation;
-    struct AnimationClip;
+    class AnimationClip;
 }
 
 //-------------------------------------------------------------------------

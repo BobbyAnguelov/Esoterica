@@ -207,14 +207,14 @@ namespace EE::EntityModel
 
         if ( m_editorContext.HasSpatialSelection() && !m_pComponentToolsManager->IsManipulatingComponentEditor() )
         {
-            if ( m_gizmo.GetMode() == ImGuiX::Gizmo::Mode::Scale )
+            if ( m_gizmo.GetMode() == Gizmo::Mode::Scale )
             {
-                m_gizmo.SetOption( ImGuiX::Gizmo::Options::AllowNonUniformScale, m_editorContext.DoesSpatialSelectionSupportNonUniformScale() );
+                m_gizmo.SetOption( Gizmo::Options::AllowNonUniformScale, m_editorContext.DoesSpatialSelectionSupportNonUniformScale() );
             }
 
             Transform const& selectionTransform = m_editorContext.GetSpatialSelectionTransform();
             bool const checkGizmoHotkeys = !IsManipulatingCamera() && ( m_isViewportFocused || m_isViewportHovered ) && m_editorContext.HasSpatialSelection();
-            auto const gizmoResult = m_gizmo.UpdateAndDraw( selectionTransform.GetTranslation(), selectionTransform.GetRotation(), *pViewport, checkGizmoHotkeys );
+            auto const gizmoResult = m_gizmo.UpdateAndDraw( selectionTransform.GetTranslation(), selectionTransform.GetRotation(), *pViewport, isFocused, checkGizmoHotkeys );
 
             if ( IsManipulatingCamera() )
             {
@@ -225,21 +225,50 @@ namespace EE::EntityModel
             }
             else // Apply gizmo results
             {
+                // Hold shift to align the manipulated objects to the surface normal under the cursor
+                bool const isManipulating = gizmoResult.m_state == GizmoState::StartedManipulating || gizmoResult.m_state == GizmoState::Manipulating;
+
+                // Exclude the manipulated objects from the surface query, otherwise the ray hits the object itself
+                TInlineVector<EntityID, 8> ignoredEntities;
+                TInlineVector<ComponentID, 8> ignoredComponents;
+                for ( EntityEditorItem const& item : m_editorContext.GetSpatialSelection() )
+                {
+                    if ( item.IsEntity() )
+                    {
+                        ignoredEntities.emplace_back( item.m_pEntity->GetID() );
+                    }
+                    else if ( item.IsSpatialComponent() )
+                    {
+                        ignoredComponents.emplace_back( item.GetSpatialComponent()->GetID() );
+                    }
+                }
+
+                Vector worldSurfacePosition;
+                Vector worldSurfaceNormal;
+                bool const isAligningToSurface = isManipulating && ImGui::GetIO().KeyShift && TryGetWorldSurfaceUnderCursor
+                (
+                    *pViewport,
+                    TArrayView<EntityID const>( ignoredEntities.data(), ignoredEntities.size() ),
+                    TArrayView<ComponentID const>( ignoredComponents.data(), ignoredComponents.size() ),
+                    worldSurfacePosition,
+                    worldSurfaceNormal
+                );
+
                 switch ( gizmoResult.m_state )
                 {
-                    case ImGuiX::GizmoState::StartedManipulating:
+                    case GizmoState::StartedManipulating:
                     {
-                        m_editorContext.BeginManipulatingSpatialSelection( gizmoResult, ImGui::GetIO().KeyAlt );
+                        m_editorContext.BeginManipulatingSpatialSelection( gizmoResult, ImGui::GetIO().KeyAlt, isAligningToSurface, worldSurfacePosition, worldSurfaceNormal );
                     }
                     break;
 
-                    case ImGuiX::GizmoState::Manipulating:
+                    case GizmoState::Manipulating:
                     {
-                        m_editorContext.ManipulateSpatialSelection( gizmoResult );
+                        m_editorContext.ManipulateSpatialSelection( gizmoResult, isAligningToSurface, worldSurfacePosition, worldSurfaceNormal );
                     }
                     break;
 
-                    case ImGuiX::GizmoState::StoppedManipulating:
+                    case GizmoState::StoppedManipulating:
                     {
                         m_editorContext.EndManipulatingSpatialSelection( gizmoResult );
                     }
@@ -252,7 +281,7 @@ namespace EE::EntityModel
         }
     }
 
-    void EntityCollectionEditor::DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition )
+    void EntityCollectionEditor::DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition, Vector const& surfaceNormal )
     {
         EE_ASSERT( resourceID.IsValid() );
 
@@ -268,7 +297,7 @@ namespace EE::EntityModel
         {
             if ( pHandler->CanCreateEntitiesFromResourceType( resourceID.GetResourceTypeID() ) )
             {
-                pHandler->CreateEntitiesFromResource( m_editorContext, pMap, resourceID, worldPosition );
+                pHandler->CreateEntitiesFromResource( m_editorContext, pMap, resourceID, worldPosition, surfaceNormal );
             }
         }
     }

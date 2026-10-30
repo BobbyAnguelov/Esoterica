@@ -1,0 +1,133 @@
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/CommonSamplers.esh"
+
+#ifndef _PARALLAX_ESH_
+#define _PARALLAX_ESH_
+
+#ifndef __cplusplus
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    static const float g_parallaxBakeRadiusUV = 1.0 / 32.0; // Needs to match the same constant in ConeStepMap::Generate!
+    static const uint g_parallaxNumRefineSteps = 8;
+    static const float g_parallaxConvergeThreshold = 1.0 / 256.0;
+
+    //-------------------------------------------------------------------------
+
+    float ParallaxDistanceFade( float2 shiftAtFullDepth, float2 ddxUV, float2 ddyUV, float errorPixels )
+    {
+        float const uvPerPixel  = sqrt( max( length( ddxUV ) * length( ddyUV ), 1e-12F ) );
+        float const shiftPixels = length( shiftAtFullDepth ) / uvPerPixel;
+        float const tolerance   = max( errorPixels, 0.05F );
+
+        return smoothstep( tolerance, 6.0 * tolerance, shiftPixels );
+    }
+
+    //-------------------------------------------------------------------------
+
+    float3 ParallaxMarch // Relaxed Cone Step mapping, from Policarpo and Oliveira, GPU Gems 3 chapter 18.
+    (
+        Texture2D       coneTexture,
+        SamplerState    coneSampler,
+        float2          uv,
+        float2          ddxUV,
+        float2          ddyUV,
+        float3          viewTangent,
+        float2          reliefDepthUV,
+        uint            maxNumSteps,
+        float           errorPixels,
+        float           angleFadeCosLow,
+        float           angleFadeCosHigh,
+        inout uint      numParallaxSteps
+    )
+    {
+        if ( maxNumSteps == 0 || all( reliefDepthUV <= 0.0 ) || viewTangent.z <= 0.0 )
+        {
+            return float3( uv, coneTexture.SampleGrad( coneSampler, uv, ddxUV, ddyUV ).g );
+        }
+
+        float weight = smoothstep( angleFadeCosLow, angleFadeCosHigh, viewTangent.z );
+
+        // Sideways shift of the whole height range, in uv units.
+        float2 const shiftAtFullDepth = ( viewTangent.xy / viewTangent.z ) * reliefDepthUV;
+
+        weight *= ParallaxDistanceFade( shiftAtFullDepth, ddxUV, ddyUV, errorPixels );
+        if ( weight <= 0.0 )
+        {
+            return float3( uv, coneTexture.SampleGrad( coneSampler, uv, ddxUV, ddyUV ).g );
+        }
+
+        float2 const shift         = shiftAtFullDepth * weight;
+        float  const rayRatio      = length( shift ) / g_parallaxBakeRadiusUV;
+        float  const maxHeightStep = 1.0 / max( rayRatio, 1e-6F );
+
+        float rayHeight = 1.0;
+
+        [loop] for ( uint stepIndex = 0; stepIndex < maxNumSteps; ++stepIndex )
+        {
+            numParallaxSteps += 1;
+
+            float2 const coneSample = coneTexture.SampleLevel( coneSampler, uv + shift * rayHeight, 0 ).rg;
+            if ( coneSample.x <= 0.0 )
+            {
+                return float3( uv, coneSample.y );
+            }
+
+            float const gap = saturate( rayHeight - coneSample.y );
+            if ( gap <= g_parallaxConvergeThreshold )
+            {
+                break;
+            }
+
+            float const coneRatio = coneSample.x * coneSample.x;
+            float const step      = coneRatio * gap / ( rayRatio + coneRatio );
+
+            rayHeight -= min( step, maxHeightStep );
+
+            if ( rayHeight <= 0.0 )
+            {
+                break;
+            }
+        }
+
+        float heightLow  = max( rayHeight, 0.0 );
+        float heightHigh = 1.0;
+
+        [unroll] for ( uint refineIndex = 0; refineIndex < g_parallaxNumRefineSteps; ++refineIndex )
+        {
+            float const heightMid = ( heightLow + heightHigh ) * 0.5;
+
+            // Above the surface means the ray has not reached it yet, so the crossing is lower.
+            if ( heightMid > coneTexture.SampleLevel( coneSampler, uv + shift * heightMid, 0 ).g )
+            {
+                heightHigh = heightMid;
+            }
+            else
+            {
+                heightLow = heightMid;
+            }
+        }
+
+        float2 const hitUV = uv + shift * ( ( heightLow + heightHigh ) * 0.5 );
+
+        return float3( hitUV, coneTexture.SampleGrad( coneSampler, hitUV, ddxUV, ddyUV ).g );
+    }
+
+    //-------------------------------------------------------------------------
+
+    float3 ParallaxCostDebugColor( uint numParallaxSteps, uint maxNumSteps )
+    {
+        if ( numParallaxSteps == 0 || maxNumSteps == 0 )
+        {
+            return float3( 0.0, 0.0, 1.0 );
+        }
+
+        return lerp( float3( 0.0, 1.0, 0.0 ), float3( 1.0, 0.0, 0.0 ), saturate( float( numParallaxSteps ) / float( maxNumSteps ) ) );
+    }
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif
+
+#endif

@@ -1,6 +1,7 @@
 
 #include "Base/Render/RHI.esh"
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
+#include "Engine/Render/Shaders/Renderer/MeshOutput.esh"
 #include "Engine/Render/Shaders/Debug/DebugDraw.esh"
 #include "Engine/Render/Shaders/Picking/Picking.esh"
 #include "Engine/Render/Shaders/AppendBuffer.esh"
@@ -11,18 +12,18 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
 struct HLSL_ALIGN_STRUCT DebugDrawMeshRootConstant
 {
     uint                            m_meshBuffer            : 16;
-    uint                            m_renderViewBuffer      : 16;
+    uint                            m_padding0              : 16;
         
-    uint                            m_mainCameraRenderView;
     uint                            m_packedColorTint;
     
     uint                            m_wireframe             : 1;
     uint                            m_fakeLighting          : 1;
-    uint                            m_padding2              : 30;
+    uint                            m_padding1              : 30;
     
     uint                            m_pickingSortPriority;
     uint                            m_objectID;
 
+    uint                            m_padding2;
     uint                            m_padding3;
     uint                            m_padding4;
 };
@@ -43,6 +44,8 @@ struct HLSL_ALIGN_STRUCT DebugDrawMeshArgument
     uint                            m_padding;
 };
 
+HLSL_STATIC_ASSERT( sizeof( DebugDrawMeshArgument ) == 64, "Indirect argument must be aligned to 16 bytes" );
+
 EE_END_SHADER_TYPES_NAMESPACE
 
 #ifndef __cplusplus
@@ -57,7 +60,7 @@ ESF_PARAMETER bool UseOutlineIDPixelShader = true;
                                     "SRV( t2, space = 0 )"
 
 EE_DECLARE_ROOT_CONSTANTS( DebugDrawMeshRootConstant, b0, space0 );
-EE_DECLARE_ROOT_CBV( DebugDrawParameters, b1, space0 );
+EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
 EE_DECLARE_ROOT_SRV( DebugDrawMeshParameters, t2, space0 );
 
 groupshared uint gsNumIntersections;
@@ -84,9 +87,6 @@ void MS_main
     }
     
     GroupMemoryBarrierWithGroupSync();
-    
-    StructuredBuffer<RenderView>        renderViewBuffer        = GetBuffer( RootConstants.m_renderViewBuffer );
-    RenderView                          mainCameraRenderView    = renderViewBuffer[RootConstants.m_mainCameraRenderView];
     
     ByteAddressBuffer                   meshBuffer              = GetBuffer( RootConstants.m_meshBuffer );
     
@@ -147,7 +147,7 @@ void MS_main
         precise float3 worldPosition = mul( RootSRV[0].m_transform, float4( vertexPosition, 1.0 ) ).xyz;
         float3 worldNormal = mul( Adjugate( RootSRV[0].m_transform ), vertexNormal );
         
-        precise float4 clipPosition = mul( mainCameraRenderView.m_viewProjectionMatrix, float4( worldPosition, 1.0 ) );
+        precise float4 clipPosition = mul( RootCBV.m_mainCameraViewProjectionMatrix, float4( worldPosition, 1.0 ) );
 
         VertexOutput output;
         output.m_clipPosition   = clipPosition;
@@ -185,7 +185,7 @@ void MS_main
         clipVertices[2] = gsClipVertices[triangleIndices.z];
             
         PrimitiveOutput output = ( PrimitiveOutput ) 0;
-        output.m_cullPrimitive      = IsTriangleCulled( clipVertices, mainCameraRenderView.m_renderTargetSize.xy, false );
+        output.m_cullPrimitive      = IsTriangleCulled( clipVertices, RootCBV.m_viewportSize.xy, false );
         outPrimitives[groupThreadID] = output;
             
         if ( hitTestID != ~0ULL )

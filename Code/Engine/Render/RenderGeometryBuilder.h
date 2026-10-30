@@ -2,7 +2,9 @@
 
 #include "Engine/_Module/API.h"
 #include "Engine/Render/RenderGeometry.h"
+#include "Engine/Render/Shaders/MeshData.esh"
 #include "Base/Math/BoundingVolumes.h"
+#include "Base/Math/Transform.h"
 #include "Base/Math/Vector.h"
 #include "Base/Types/Color.h"
 #include "Base/Types/BitFlags.h"
@@ -45,6 +47,17 @@ namespace EE::Render
         {
             Int4                m_boneIndices = {};
             Float4              m_boneWeights = {};
+        };
+
+        //-------------------------------------------------------------------------
+
+        using DecalProjectionAttribute = uint32_t;
+
+        struct DecalBasisAttribute final
+        {
+            TVector<ShaderTypes::MeshDecalProjectionBasis>  m_projectionBases;
+            TVector<ShaderTypes::MeshDecalProjection>       m_projections;
+            uint32_t                                        m_numMaterials = 0;
         };
 
     public:
@@ -91,6 +104,16 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
+        void SetDecalProjectionAttribute( size_t triangleIndex, DecalProjectionAttribute const& decalProjectionAttribute );
+        DecalProjectionAttribute GetDecalProjectionAttribute( size_t triangleIndex ) const;
+
+        inline void SetDecalBasisAttribute( DecalBasisAttribute const& decalBasisAttribute ) { m_decalBasisAttribute = decalBasisAttribute; }
+        inline DecalBasisAttribute const& GetDecalBasisAttribute() const { return m_decalBasisAttribute; }
+
+        inline bool HasDecalAttributes() const { return !m_decalProjectionAttributes.empty() || m_decalBasisAttribute.m_numMaterials != 0; }
+
+        //-------------------------------------------------------------------------
+
         bool Simplify( float normalsWeight, float uvWeight, float targetAttributeError, uint32_t targetTriangleCount, float targetTrianglePercentage );
 
         void Optimize( TBitFlags<GeometryOptimizeFlags> flags = TBitFlags<GeometryOptimizeFlags>( GeometryOptimizeFlags::VertexCache, GeometryOptimizeFlags::VertexFetch ) );
@@ -110,9 +133,15 @@ namespace EE::Render
         inline TAlignedVector<uint8_t> const& GetVertices() const { return m_vertices; }
         inline TAlignedVector<uint32_t> const& GetIndices() const { return m_indices; }
 
+        inline uint32_t GetNumTriangles() const { return uint32_t( m_indices.size() ) / 3; }
+
     private:
 
         uint32_t BuildClusters( AlignedBlob& packedMeshData ) const;
+
+        //-------------------------------------------------------------------------
+
+    private:
 
         uint32_t                    m_numTextureCoordinateAttributes = 0;
         uint32_t                    m_numColorAttributes = 0;
@@ -122,5 +151,8 @@ namespace EE::Render
 
         TAlignedVector<uint8_t>     m_vertices;
         TAlignedVector<uint32_t>    m_indices;
+
+        TVector<DecalProjectionAttribute>   m_decalProjectionAttributes;
+        DecalBasisAttribute                 m_decalBasisAttribute;
     };
 }

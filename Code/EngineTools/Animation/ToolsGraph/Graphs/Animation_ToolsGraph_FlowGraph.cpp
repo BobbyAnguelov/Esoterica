@@ -469,6 +469,11 @@ namespace EE::Animation
 
             if ( resourceID.GetResourceTypeID() == AnimationClip::GetStaticResourceTypeID() )
             {
+                if ( GetType() != GraphType::BlendTree )
+                {
+                    return false;
+                }
+
                 constexpr static char const* const popupID = "ResourceDropMenu";
                 if ( !ImGui::IsPopupOpen( popupID ) )
                 {
@@ -521,12 +526,18 @@ namespace EE::Animation
         {
             char* pPayloadStr = (char*) dragAndDropState.m_payloadData.data();
 
-            for ( auto pControlParameter : pToolsGraphContext->GetParameters() )
+            for ( auto pParameter : pToolsGraphContext->GetParameters() )
             {
-                if ( pControlParameter->GetParameterName().comparei( pPayloadStr ) == 0 )
+                // Do not allow dropping of virtual parameters into virtual parameter graphs
+                if ( GetType() == GraphType::VirtualParameterValueTree && TryCast<VirtualParameterToolsNode>( pParameter ) != nullptr )
+                {
+                    continue;
+                }
+
+                if ( pParameter->GetParameterName().comparei( pPayloadStr ) == 0 )
                 {
                     NodeGraph::ScopedGraphModification sgm( this );
-                    auto pNode = ParameterReferenceToolsNode::Create( this, pControlParameter );
+                    auto pNode = ParameterReferenceToolsNode::Create( this, pParameter );
                     pNode->SetPosition( dragAndDropState.m_mouseCanvasPos );
                     break;
                 }

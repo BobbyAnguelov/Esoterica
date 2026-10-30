@@ -27,10 +27,10 @@ using uint4x3 = uint32_t[12];
 using float3x4 = float[12];
 using uint3x4 = uint32_t[12];
 
-using float16_t = int16_t;
-using float16_t2 = int16_t[2];
-using float16_t3 = int16_t[3];
-using float16_t4 = int16_t[4];
+using float16_t = uint16_t;
+using float16_t2 = uint16_t[2];
+using float16_t3 = uint16_t[3];
+using float16_t4 = uint16_t[4];
 
 using int16_t2 = int16_t[2];
 using int16_t3 = int16_t[3];
@@ -96,20 +96,11 @@ typedef uint Color;
 // Limit mesh dispatch group size, API doesn't allow more than this.
 #define RHI_MAX_DISPATCH_SIZE 65535U
 
-#ifdef EE_RGA_ANALYZE
-#define EE_BEGIN_ROOT_SIGNATURE     "RootFlags( CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |"    \
-                                              " SAMPLER_HEAP_DIRECTLY_INDEXED |"        \
-                                              " DENY_GEOMETRY_SHADER_ROOT_ACCESS |"     \
-                                              " DENY_HULL_SHADER_ROOT_ACCESS |"         \
-                                              " DENY_DOMAIN_SHADER_ROOT_ACCESS |"       \
-                                              " ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT ),"
-#else
 #define EE_BEGIN_ROOT_SIGNATURE     "RootFlags( CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |"    \
                                               " SAMPLER_HEAP_DIRECTLY_INDEXED |"        \
                                               " DENY_GEOMETRY_SHADER_ROOT_ACCESS |"     \
                                               " DENY_HULL_SHADER_ROOT_ACCESS |"         \
                                               " DENY_DOMAIN_SHADER_ROOT_ACCESS ),"
-#endif
 
 #define EE_DECLARE_ROOT_CONSTANTS( Type, Register, Space )  ConstantBuffer<Type>        RootConstants : register( Register, Space )
 #define EE_DECLARE_ROOT_CBV( Type, Register, Space )        ConstantBuffer<Type>        RootCBV : register( Register, Space )

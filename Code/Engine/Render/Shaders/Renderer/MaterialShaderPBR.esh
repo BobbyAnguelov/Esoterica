@@ -1,80 +1,16 @@
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
+#include "Engine/Render/Shaders/Renderer/LightInstance.esh"
+#include "Engine/Render/Shaders/Renderer/DrawRootConstants.esh"
+#include "Engine/Render/Shaders/Materials/MaterialInput.esh"
+#include "Engine/Render/Shaders/Materials/MaterialOutput.esh"
 #include "Engine/Render/Shaders/Renderer/ShadowMapSampling.esh"
 #include "Engine/Render/Shaders/PBR/PBR.esh"
 #include "Engine/Render/Shaders/CommonSamplers.esh"
 #include "Engine/Render/Shaders/SpatialHash.esh"
-
-struct MaterialShaderInput
-{
-    VertexOutput    m_vertex;
-    PrimitiveOutput m_primitive;
-    
-    float3          m_view;
-    
-    static MaterialShaderInput New( VertexOutput vertex, PrimitiveOutput primitive, float3 cameraPosition )
-    {
-        MaterialShaderInput materialInput;
-        materialInput.m_vertex               = vertex;
-        materialInput.m_vertex.m_worldNormal = normalize( materialInput.m_vertex.m_worldNormal );
-        materialInput.m_primitive            = primitive;
-        materialInput.m_view                 = normalize( cameraPosition - vertex.m_worldPosition );
-        return materialInput;
-    }
- 
-    float3x3 ComputeTBN( float2 uv )
-    {
-        float3  dp1     = ddx( m_vertex.m_worldPosition );
-        float3  dp2     = -ddy( m_vertex.m_worldPosition );
-        float2  duv1    = ddx( uv );
-        float2  duv2    = -ddy( uv );
-    
-        float3  dp2perp = cross( dp2, m_vertex.m_worldNormal );
-        float3  dp1perp = cross( m_vertex.m_worldNormal, dp1 );
-    
-        float3  T       = dp2perp * duv1.x + dp1perp * duv2.x;
-        float3  B       = dp2perp * duv1.y + dp1perp * duv2.y;
-    
-        float invmax = rsqrt( max( dot( T, T ), dot( B, B ) ) );
-        return float3x3( T * invmax, B * invmax, m_vertex.m_worldNormal );
-    }
-    
-    float3 UnpackNormalMap( float3x3 TBN, float2 normalSample )
-    {    
-        float3 tangentNormal;
-        tangentNormal.xy = normalSample * 2.0 - 1.0.xx;
-        tangentNormal.z  = sqrt( 1.0 - saturate( dot( tangentNormal.xy, tangentNormal.xy ) ) );
-        
-        return normalize( mul( tangentNormal, TBN ) );
-    }
-};
-
-struct MaterialShaderOutput
-{
-    float3 m_albedo;
-    float  m_opacity;
-    float  m_metalness;
-    float  m_roughness;
-    float  m_occlusion;
-    float3 m_normal;
-    float3 m_emissiveColor;
-    
-    PrimitiveOutputFlags m_primitiveFlags;
-    
-    static MaterialShaderOutput New( MaterialShaderInput materialInput )
-    {
-        MaterialShaderOutput materialOutput;
-        materialOutput.m_albedo                 = 0.5.xxx;
-        materialOutput.m_opacity                = 1.0;
-        materialOutput.m_metalness              = 0.0;
-        materialOutput.m_roughness              = 1.0;
-        materialOutput.m_occlusion              = 1.0;
-        materialOutput.m_normal                 = materialInput.m_vertex.m_worldNormal;
-        materialOutput.m_emissiveColor          = 0.0.xxx;
-        materialOutput.m_primitiveFlags         = ( PrimitiveOutputFlags ) 0;
-        return materialOutput;
-    }
-};
+#include "Engine/Render/Shaders/DecalResolve.esh"
+#include "Engine/Render/Shaders/MeshInstance.esh"
+#include "Engine/Render/Shaders/Materials/Parallax.esh"
 
 MaterialShaderOutput MaterialShaderMain( in MaterialShaderInput materialInput );
 
@@ -83,24 +19,6 @@ MaterialShaderOutput MaterialShaderMain( in MaterialShaderInput materialInput );
 #else
 #define PS_DEVTOOLS_ARGS
 #endif
-
-uint firstbitlow64( uint64_t v )
-{
-    uint const low  = uint( v & 0xFFFFFFFF );
-    uint const high = uint( v >> 32 );
-
-    if ( low != 0 )
-    {
-        return firstbitlow( low );
-    }
-
-    if ( high != 0 )
-    {
-        return firstbitlow( high ) + 32;
-    }
-
-    return ~0U;
-}
 
 [RootSignature( DrawRootSignature )]
 #ifdef PERMUTATION_DEPTH_ONLY
@@ -114,26 +32,160 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
     StructuredBuffer<LightInstance_DirectionalLight>    directionalLightBuffer      = GetBuffer( RootCBV.m_directionalLightBuffer );
     StructuredBuffer<LightInstance_PointLight>          pointLightBuffer            = GetBuffer( RootCBV.m_pointLightBuffer );
     StructuredBuffer<LightInstance_SpotLight>           spotLightBuffer             = GetBuffer( RootCBV.m_spotLightBuffer );
+    StructuredBuffer<DecalInstance>                     decalBuffer                 = GetBuffer( RootCBV.m_decalBuffer );
 
-    StructuredBuffer<uint64_t>                          directionalLightPageBuffer  = GetBuffer( RootCBV.m_directionalLightPageBuffer );
+    StructuredBuffer<uint>                              directionalLightPageBuffer  = GetBuffer( RootCBV.m_directionalLightPageBuffer );
 
-    Texture2D<float>                    ssaoTexture                 = GetTexture( RootCBV.m_ssaoTexture );
+    Texture2D<float>                                    ssaoTexture                 = GetTexture( RootCBV.m_ssaoTexture );
 
-    SamplerState                        pointClampSampler           = GetPointClampSampler();
-    SamplerState                        linearClampSampler          = GetLinearClampSampler();
+    SamplerState                                        pointClampSampler           = GetPointClampSampler();
+    SamplerState                                        linearClampSampler          = GetLinearClampSampler();
     
     //-------------------------------------------------------------------------
 
-    MaterialShaderInput  materialInput    = MaterialShaderInput::New( vertex, primitive, RootCBV.m_cameraPosition.xyz );
-    MaterialShaderOutput materialOutput   = MaterialShaderMain( materialInput );
+    MaterialShaderInput materialInput   = MaterialShaderInput::New( vertex, primitive, RootCBV.m_cameraPosition.xyz );
+
+    ByteAddressBuffer   meshBuffer      = GetBuffer( NonUniformResourceIndex( materialInput.m_primitive.GetMeshBuffer() ) );
+
+    //-------------------------------------------------------------------------
+
+    uint spatialHashSlotIndex       = 0;
+    uint spatialHashNumCollisions   = 0;
+    uint spatialHashChecksum        = 0;
+
+    bool const hasSpatialHashCell = spatialHash.LoadPayloadCell( materialInput.m_vertex.m_worldPosition, RootCBV.m_cameraPosition.xyz, spatialHashSlotIndex, spatialHashNumCollisions, spatialHashChecksum );
     
-    float3 triangleNormal = primitive.GetTriangleNormal();
+    //-------------------------------------------------------------------------
+
+    MaterialShaderOutput materialOutput = MaterialShaderMain( materialInput );
+
     if ( !isFrontFace )
     {
         materialOutput.m_normal = -materialOutput.m_normal;
-        triangleNormal = -triangleNormal;
     }
-    
+
+    //-------------------------------------------------------------------------
+
+    #ifndef MATERIAL_NO_NORMAL_MAP
+        static const bool s_receivesDecalNormal = true;
+    #else
+        static const bool s_receivesDecalNormal = false;
+    #endif
+
+    #if EE_DEVELOPMENT_TOOLS
+        float3 debugDirectLight                 = 0.0.xxx;
+        float3 debugEnvironmentMapLight         = 0.0.xxx;
+        float  debugShadow                      = 1.0;
+        float  debugLightComplexity             = 0.0F;
+        float  debugSSAO                        = 1.0F;
+        uint   numDebugSpatialHashCollisions    = 0;
+        uint   debugSpatialHashCellChecksum     = 0;
+        uint   numDebugPayloadPages             = 0;
+    #endif
+
+    // Decals only affect shading, so they are compiled out of the depth-only permutations
+    #ifndef PERMUTATION_DEPTH_ONLY
+
+    DecalCoverage decalCoverage = DecalCoverage::Neutral();
+
+    // Mesh decals
+    //-------------------------------------------------------------------------
+
+    uint const meshDecal = materialInput.m_primitive.GetMeshDecal();
+    if ( meshDecal != 0 && ( materialInput.m_primitive.m_primitiveFlags.m_rendererGlobalFlags & g_rendererGlobalFlagDisableDecals ) == 0 )
+    {
+        uint const meshDecalDataOffset = materialInput.m_primitive.GetMeshDecalDataOffset();
+        if ( meshDecalDataOffset != 0 )
+        {
+            uint const firstMeshDecalProjection = meshDecal & g_meshDecalOffsetMask;
+            uint const numMeshDecalProjections = meshDecal >> g_meshDecalCountShift;
+
+            MeshDecalData const meshDecalData = meshBuffer.Load<MeshDecalData>( meshDecalDataOffset );
+            float2 const meshDecalUV = materialInput.m_vertex.m_uv.xy;
+
+            [loop] for ( uint decalIdx = 0; decalIdx < numMeshDecalProjections; decalIdx++ )
+            {
+                MeshDecalProjection const       projection      = meshBuffer.Load<MeshDecalProjection>( meshDecalData.m_projectionOffset + ( firstMeshDecalProjection + decalIdx ) * sizeof( MeshDecalProjection ) );
+                MeshDecalProjectionBasis const  projectionBasis = meshBuffer.Load<MeshDecalProjectionBasis>( meshDecalData.m_projectionBasisOffset + projection.m_basisIndex * sizeof( MeshDecalProjectionBasis ) );
+                MeshDecal const                 decal           = meshBuffer.Load<MeshDecal>( meshDecalData.m_decalTableOffset + projection.m_decalIndex * sizeof( MeshDecal ) );
+
+                float2 const anchorDelta    = meshDecalUV - projectionBasis.m_anchorUV;
+                float4 const linearPart     = float4( projectionBasis.m_linear );
+
+                float2 const decalSpace = float2
+                (
+                    dot( linearPart.xy, anchorDelta ) + projection.m_offset[0],
+                    dot( linearPart.zw, anchorDelta ) + projection.m_offset[1]
+                );
+
+                float2 const ddxDecalSpace = float2( dot( linearPart.xy, materialInput.m_ddxUV ), dot( linearPart.zw, materialInput.m_ddxUV ) );
+                float2 const ddyDecalSpace = float2( dot( linearPart.xy, materialInput.m_ddyUV ), dot( linearPart.zw, materialInput.m_ddyUV ) );
+
+                ResolveMeshDecal( materialOutput, decalCoverage, decal, decalSpace, ddxDecalSpace, ddyDecalSpace, materialInput, isFrontFace, s_receivesDecalNormal );
+            }
+        }
+    }
+
+    // World decals
+    //-------------------------------------------------------------------------
+
+    if ( ( materialInput.m_primitive.m_primitiveFlags.m_rendererGlobalFlags & g_rendererGlobalFlagDisableDecals ) == 0 && RootCBV.m_numDecalPages != 0 && hasSpatialHashCell )
+    {
+        uint2 const decalPageRange = spatialHash.LoadMetadata( spatialHashSlotIndex, s_decalSlot );
+
+        if ( decalPageRange.y != 0 )
+        {
+            uint const decalMaskStart = decalPageRange.x;
+            uint const decalMaskEnd   = decalPageRange.x + decalPageRange.y;
+            uint const numDecalPages  = RootCBV.m_numDecalPages;
+
+            #if EE_DEVELOPMENT_TOOLS
+                numDebugPayloadPages += min( decalPageRange.y, RootCBV.m_numDecalPages );
+            #endif
+
+            uint const pageRangeStart = WaveActiveMin( decalMaskStart );
+            uint const pageRangeEnd   = WaveActiveMax( decalMaskEnd );
+
+            [loop] for ( uint pageIndex = pageRangeStart; pageIndex < pageRangeEnd; ++pageIndex )
+            {
+                bool const hasDecalPage = ( pageIndex < numDecalPages ) && ( pageIndex >= decalMaskStart ) && ( pageIndex < decalMaskEnd );
+
+                uint decalMask = hasDecalPage ? spatialHash.LoadMask( spatialHashSlotIndex, pageIndex, s_decalSlot ) : 0;
+                decalMask = WaveReadLaneFirst( WaveActiveBitOr( decalMask ) );
+
+                #if EE_DEVELOPMENT_TOOLS
+                    debugLightComplexity += float( countbits( decalMask ) );
+                #endif
+
+                [loop] while ( decalMask != 0 )
+                {
+                    uint const bit = firstbitlow( decalMask );
+                    decalMask ^= ( 1U << bit );
+
+                    ResolveDecal
+                    (
+                        materialOutput,
+                        decalCoverage,
+                        decalBuffer[pageIndex * 32 + bit],
+                        materialInput,
+                        isFrontFace,
+                        s_receivesDecalNormal
+                    );
+                }
+            }
+        }
+    }
+
+    #endif // PERMUTATION_DEPTH_ONLY
+
+    //-------------------------------------------------------------------------
+
+    float3 const triangleNormal = isFrontFace ? primitive.GetTriangleNormal() : -primitive.GetTriangleNormal();
+
+    float3 const shadingPositionOffset = materialOutput.m_normal * ( materialOutput.m_height * materialOutput.m_maxDisplacement );
+    float3 const shadingWorldPosition  = materialInput.m_vertex.m_worldPosition + shadingPositionOffset;
+    float3 const shadingView           = normalize( RootCBV.m_cameraPosition.xyz - shadingWorldPosition );
+
     PBR pbr = PBR::New
     (
         materialOutput.m_albedo,
@@ -141,35 +193,24 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
         materialOutput.m_roughness,
         materialOutput.m_occlusion,
         materialOutput.m_normal,
-        materialInput.m_view
+        shadingView
     );
       
     float  shadow = 1.0;
     float3 debugShadowColor = 0.0.xxx;
 
-    #if EE_DEVELOPMENT_TOOLS
-            float3 debugDirectLight                 = 0.0.xxx;
-            float3 debugEnvironmentMapLight         = 0.0.xxx;
-            float  debugShadow                      = 1.0;
-            float  debugLightComplexity             = 0.0F;
-            float  debugSSAO                        = 1.0F;
-            uint   debugSpatialHashNumCollisions    = 0;
-            uint   debugSpatialHashCellChecksum     = 0;
-            uint   debugPayloadPages                = 0;
-        #endif
-
     float4 result = float4( 0.0.xxx, materialOutput.m_opacity );
 
-    [branch] if ( ( primitive.m_primitiveFlags.m_rendererGlobalFlags & RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING ) == 0 )
+    [branch] if ( ( primitive.m_primitiveFlags.m_rendererGlobalFlags & g_rendererGlobalFlagDisableLighting ) == 0 )
     {
-        Texture2D                   dfgTexture          = GetTexture( RootCBV.m_dfgTexture );
-        TextureCube                 radianceTexture     = GetTexture( RootCBV.m_radianceTexture );
-        StructuredBuffer<SH::L2_RGB> shCoefficients      = GetBuffer( RootCBV.m_shCoefficientsBuffer );
+        Texture2D                       dfgTexture          = GetTexture( RootCBV.m_dfgTexture );
+        TextureCube                     radianceTexture     = GetTexture( RootCBV.m_radianceTexture );
+        StructuredBuffer<SH::L2_RGB>    shCoefficients      = GetBuffer( RootCBV.m_shCoefficientsBuffer );
         
         float3      IBL                 = pbr.ComputeIBL( shCoefficients, dfgTexture, radianceTexture, RootCBV.m_radianceTextureMipLevels );
         float2      screenUV            = vertex.m_clipPosition.xy * RootCBV.m_viewportSize.zw;
         
-        static const RendererGlobalFlags SSAO_EXCLUDE_FLAGS = RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING | RENDERER_GLOBAL_FLAG_DISABLE_SSAO;
+        static const RendererGlobalFlags SSAO_EXCLUDE_FLAGS = g_rendererGlobalFlagDisableLighting | g_rendererGlobalFlagDisableSSAO;
         [branch] if ( ( primitive.m_primitiveFlags.m_rendererGlobalFlags & SSAO_EXCLUDE_FLAGS ) == 0 )
         {
             float ssao = ssaoTexture.SampleLevel( linearClampSampler, screenUV, 0 ).r;
@@ -188,16 +229,17 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
 
         // Directional lights - page buffer is uniform across all lanes, no wave ops needed
         //-------------------------------------------------------------------------
-        for ( uint pageIdx = 0; pageIdx < RootCBV.m_numDirectionalLightPages; ++pageIdx )
+
+        [loop] for ( uint pageIndex = 0; pageIndex < RootCBV.m_numDirectionalLightPages; ++pageIndex )
         {
-            uint64_t mask = directionalLightPageBuffer[pageIdx];
+            uint directionalLightMask = directionalLightPageBuffer[pageIndex];
 
-            [loop] while ( mask )
+            [loop] while ( directionalLightMask != 0 )
             {
-                uint bit = firstbitlow64( mask );
-                mask ^= ( 1ULL << bit );
+                uint const bit = firstbitlow( directionalLightMask );
+                directionalLightMask ^= ( 1U << bit );
 
-                LightInstance_DirectionalLight directionalLight = directionalLightBuffer[pageIdx * 64 + bit];
+                LightInstance_DirectionalLight directionalLight = directionalLightBuffer[ ( pageIndex * 32 ) + bit ];
 
                 float3 lightDirection       = directionalLight.m_lightDirection;
                 float  shadowDirectional    = 1.0;
@@ -206,7 +248,8 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
 
                 if ( directionalLight.m_shadowCascades != 0xFFFF )
                 {
-                    shadowDirectional = SampleDirectionalLightShadow( directionalLight, vertex.m_worldPosition, triangleNormal, debugShadowColor );
+                    // Rasterized position, per the shadow ray origin rule above.
+                    shadowDirectional = SampleDirectionalLightShadow( directionalLight, materialInput.m_vertex.m_worldPosition, triangleNormal, debugShadowColor );
 
                     #if EE_DEVELOPMENT_TOOLS
                         debugShadow = min( debugShadow, shadowDirectional );
@@ -223,24 +266,21 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
             }
         }
 
-        // Point + Spot lights via spatial hash
+        // Point + Spot lights via spatial hash.
         //-------------------------------------------------------------------------
 
-        uint slotIndex;
-        uint numCollisions;
-        uint checksum;
-        if ( spatialHash.LoadPayloadCell( materialInput.m_vertex.m_worldPosition, RootCBV.m_cameraPosition.xyz, slotIndex, numCollisions, checksum ) )
+        if ( hasSpatialHashCell )
         {
             #if EE_DEVELOPMENT_TOOLS
-                debugSpatialHashNumCollisions = numCollisions;
-                debugSpatialHashCellChecksum = checksum;
+                numDebugSpatialHashCollisions = spatialHashNumCollisions;
+                debugSpatialHashCellChecksum = spatialHashChecksum;
             #endif
 
-            uint2 pointLightPageRange = spatialHash.LoadMetadata( slotIndex, 0 );
-            uint2 spotLightPageRange  = spatialHash.LoadMetadata( slotIndex, 1 );
+            uint2 pointLightPageRange = spatialHash.LoadMetadata( spatialHashSlotIndex, 0 );
+            uint2 spotLightPageRange  = spatialHash.LoadMetadata( spatialHashSlotIndex, 1 );
 
             #if EE_DEVELOPMENT_TOOLS
-                debugPayloadPages = pointLightPageRange.y + spotLightPageRange.y;
+                numDebugPayloadPages += pointLightPageRange.y + spotLightPageRange.y;
             #endif
 
             // Compute unified page range across both light types for linear memory access
@@ -253,35 +293,30 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
 
             [loop] for ( uint pageIndex = pageRangeStart; pageIndex < pageRangeEnd; ++pageIndex )
             {
-                bool hasPointPage = ( pageIndex >= pointLightPageRange.x ) && ( pageIndex < pointLightPageRange.x + pointLightPageRange.y );
-                bool hasSpotPage  = ( pageIndex >= spotLightPageRange.x  ) && ( pageIndex < spotLightPageRange.x  + spotLightPageRange.y  );
-
-                uint64_t2 payload = uint64_t2( 0, 0 );
-                if ( hasPointPage || hasSpotPage )
-                {
-                    payload = spatialHash.LoadPayload( slotIndex, pageIndex );
-                }
+                bool hasPointLightPage = ( pageIndex >= pointLightPageRange.x ) && ( pageIndex < pointLightPageRange.x + pointLightPageRange.y );
+                bool hasSpotLightPage  = ( pageIndex >= spotLightPageRange.x  ) && ( pageIndex < spotLightPageRange.x  + spotLightPageRange.y  );
 
                 // Point lights
                 //-------------------------------------------------------------------------
                 
-                uint64_t pointLightMask = WaveReadLaneFirst( WaveActiveBitOr( hasPointPage ? payload.x : 0 ) );
+                uint pointLightMask = hasPointLightPage ? spatialHash.LoadMask( spatialHashSlotIndex, pageIndex, s_pointLightSlot ) : 0;
+                pointLightMask = WaveReadLaneFirst( WaveActiveBitOr( pointLightMask ) );
 
                 #if EE_DEVELOPMENT_TOOLS
                     debugLightComplexity += float( countbits( pointLightMask ) );
                 #endif
 
-                [loop] while ( pointLightMask )
+                [loop] while ( pointLightMask != 0 )
                 {
-                    uint bit = firstbitlow64( pointLightMask );
-                    pointLightMask ^= ( 1ULL << bit );
+                    uint const bit = firstbitlow( pointLightMask );
+                    pointLightMask ^= ( 1U << bit );
 
-                    LightInstance_PointLight pointLight = pointLightBuffer[pageIndex * 64 + bit];
+                    LightInstance_PointLight pointLight = pointLightBuffer[ ( pageIndex * 32 ) + bit ];
 
-                    float3 lightVector      = pointLight.m_lightPosition - materialInput.m_vertex.m_worldPosition;
+                    float3 lightVector      = pointLight.m_lightPosition - shadingWorldPosition;
                     float3 lightDirection   = normalize( lightVector );
-                    float  atten            = AttenuationNoCusp( length( lightVector ), pointLight.m_maxRadius, pointLight.m_maxIntensity, pointLight.m_falloff );
-                    float3 lightRadiance    = UnpackColor( pointLight.m_packedTintedColor ).rgb * atten;
+                    float  attenuation      = AttenuationNoCusp( length( lightVector ), pointLight.m_maxRadius, pointLight.m_maxIntensity, pointLight.m_falloff );
+                    float3 lightRadiance    = UnpackColor( pointLight.m_packedTintedColor ).rgb * attenuation;
 
                     float  shadowPoint      = 1.0;
                     if ( pointLight.m_shadowMapHandle != 0xFFFF )
@@ -305,25 +340,26 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
                 // Spot lights
                 //-------------------------------------------------------------------------
                 
-                uint64_t spotLightMask = WaveReadLaneFirst( WaveActiveBitOr( hasSpotPage ? payload.y : 0 ) );
+                uint spotLightMask = hasSpotLightPage ? spatialHash.LoadMask( spatialHashSlotIndex, pageIndex, s_spotLightSlot ) : 0;
+                spotLightMask = WaveReadLaneFirst( WaveActiveBitOr( spotLightMask ) );
 
                 #if EE_DEVELOPMENT_TOOLS
                     debugLightComplexity += float( countbits( spotLightMask ) * 2 );
                 #endif
 
-                [loop] while ( spotLightMask )
+                [loop] while ( spotLightMask != 0 )
                 {
-                    uint bit = firstbitlow64( spotLightMask );
-                    spotLightMask ^= ( 1ULL << bit );
+                    uint const bit = firstbitlow( spotLightMask );
+                    spotLightMask ^= ( 1U << bit );
 
-                    LightInstance_SpotLight spotLight = spotLightBuffer[pageIndex * 64 + bit];
+                    LightInstance_SpotLight spotLight = spotLightBuffer[ ( pageIndex * 32 ) + bit ];
 
-                    float3  lightVector     = spotLight.m_lightPosition - materialInput.m_vertex.m_worldPosition;
+                    float3  lightVector     = spotLight.m_lightPosition - shadingWorldPosition;
                     float3  lightDirection  = normalize( lightVector );
                     float   cosTheta        = dot( lightDirection, -spotLight.m_lightDirection );
-                    float   coneAtten       = smoothstep( spotLight.m_outerConeAngle, spotLight.m_innerConeAngle, cosTheta );
-                    float   atten           = AttenuationNoCusp( length( lightVector ), spotLight.m_maxRadius, spotLight.m_maxIntensity, spotLight.m_falloff );
-                    float3  lightRadiance   = UnpackColor( spotLight.m_packedTintedColor ).rgb * atten * coneAtten;
+                    float   coneAttenuation = smoothstep( spotLight.m_outerConeAngle, spotLight.m_innerConeAngle, cosTheta );
+                    float   attenuation     = AttenuationNoCusp( length( lightVector ), spotLight.m_maxRadius, spotLight.m_maxIntensity, spotLight.m_falloff );
+                    float3  lightRadiance   = UnpackColor( spotLight.m_packedTintedColor ).rgb * attenuation * coneAttenuation;
 
                     float   shadowSpot      = 1.0;
                     if ( spotLight.m_shadowMapHandle != 0xFFFF )
@@ -349,68 +385,68 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
 
     result.rgb += materialOutput.m_emissiveColor;
 
+    // Debug stuff
+    //-------------------------------------------------------------------------
+
     #if EE_DEVELOPMENT_TOOLS
-        RendererGlobalFlags rendererGlobalFlags = materialOutput.m_primitiveFlags.m_rendererGlobalFlags;
-        rendererGlobalFlags |= primitive.m_primitiveFlags.m_rendererGlobalFlags;
-        
         RendererDebugVisualizationMode debugVisMode = primitive.m_primitiveFlags.m_rendererDebugVisualizationMode;
-        
+
         RendererDebugFlags debugFlags = materialOutput.m_primitiveFlags.m_rendererDebugFlags;
         debugFlags |= primitive.m_primitiveFlags.m_rendererDebugFlags;
     
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_DIRECT_LIGHT )
+        if ( debugVisMode == g_rendererDebugVisualizationModeDirectLight )
         {
             result.rgb = debugDirectLight;
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ENVIRONMENT_MAP_LIGHT )
+        if ( debugVisMode == g_rendererDebugVisualizationModeEnvironmentMapLight )
         {
             result.rgb = debugEnvironmentMapLight;
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_SHADOWS )
+        if ( debugVisMode == g_rendererDebugVisualizationModeShadows )
         {
             result.rgb = debugShadow.xxx;
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ALBEDO )
+        if ( debugVisMode == g_rendererDebugVisualizationModeAlbedo )
         {
             result.rgb = materialOutput.m_albedo.rgb;
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_NORMALS )
+        if ( debugVisMode == g_rendererDebugVisualizationModeNormals )
         {
             result.rgb = materialOutput.m_normal * 0.5 + 0.5.xxx;
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_METALNESS )
+        if ( debugVisMode == g_rendererDebugVisualizationModeMetalness )
         {
             result.rgb = materialOutput.m_metalness.xxx;
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_ROUGHNESS )
+        if ( debugVisMode == g_rendererDebugVisualizationModeRoughness )
         {
             result.rgb = materialOutput.m_roughness.xxx;
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_AMBIENT_OCCLUSION )
+        if ( debugVisMode == g_rendererDebugVisualizationModeAmbientOcclusion )
         {
             result.rgb = materialOutput.m_occlusion.xxx;
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_COMPLEXITY )
+        if ( debugVisMode == g_rendererDebugVisualizationModeLightComplexity )
         {
             result.rgb = lerp( float3(0.0, 1.0, 0.0 ), float3( 1.0, 0.0, 0.0 ), saturate( debugLightComplexity / 32.0 ) );
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_SSAO )
+        if ( debugVisMode == g_rendererDebugVisualizationModeSSAO )
         {
             result.rgb = debugSSAO.xxx;
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_CELLS )
+        if ( debugVisMode == g_rendererDebugVisualizationModeLightHashCells )
         {
-            if ( debugSpatialHashNumCollisions == 0 )
+            if ( numDebugSpatialHashCollisions == 0 )
             {
                 result.rgb = 0.0.xxx; // no cell found
             }
@@ -424,19 +460,19 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
             }
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_COLLISIONS )
+        if ( debugVisMode == g_rendererDebugVisualizationModeLightHashCollisions )
         {
-            if ( debugSpatialHashNumCollisions == 0 )
+            if ( numDebugSpatialHashCollisions == 0 )
             {
                 result.rgb = float3( 0.2, 0.2, 0.2 );
             }
-            else if ( debugSpatialHashNumCollisions <= 5 )
+            else if ( numDebugSpatialHashCollisions <= 5 )
             {
-                result.rgb = lerp( float3( 0.0, 1.0, 0.0 ), float3( 1.0, 0.0, 0.0 ), saturate( ( debugSpatialHashNumCollisions - 1 ) / 4.0 ) );
+                result.rgb = lerp( float3( 0.0, 1.0, 0.0 ), float3( 1.0, 0.0, 0.0 ), saturate( ( numDebugSpatialHashCollisions - 1 ) / 4.0 ) );
             }
-            else if ( debugSpatialHashNumCollisions <= 10 )
+            else if ( numDebugSpatialHashCollisions <= 10 )
             {
-                result.rgb = lerp( float3( 1.0, 0.0, 0.0 ), float3( 0.5, 0.0, 0.5 ), saturate( ( debugSpatialHashNumCollisions - 5 ) / 5.0 ) );
+                result.rgb = lerp( float3( 1.0, 0.0, 0.0 ), float3( 0.5, 0.0, 0.5 ), saturate( ( numDebugSpatialHashCollisions - 5 ) / 5.0 ) );
             }
             else
             {
@@ -444,20 +480,20 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
             }
         }
 
-        if ( debugVisMode == RENDERER_DEBUG_VISUALIZATION_MODE_LIGHT_HASH_PAYLOAD_COMPLEXITY )
+        if ( debugVisMode == g_rendererDebugVisualizationModeLightHashPayloadComplexity )
         {
-            float t = saturate( float( debugPayloadPages ) / 8.0 );
-            if ( debugPayloadPages <= 8 )
+            float t = saturate( float( numDebugPayloadPages ) / 8.0 );
+            if ( numDebugPayloadPages <= 8 )
             {
                 result.rgb = lerp( float3( 0.0, 1.0, 0.0 ), float3( 1.0, 0.0, 0.0 ), t );
             }
             else
             {
-                result.rgb = lerp( float3( 1.0, 0.0, 0.0 ), float3( 0.5, 0.0, 0.5 ), saturate( ( float( debugPayloadPages ) - 8.0 ) / 8.0 ) );
+                result.rgb = lerp( float3( 1.0, 0.0, 0.0 ), float3( 0.5, 0.0, 0.5 ), saturate( ( float( numDebugPayloadPages ) - 8.0 ) / 8.0 ) );
             }
         }
     
-        if ( debugFlags & RENDERER_DEBUG_FLAG_SHOW_WIREFRAME )
+        if ( debugFlags & g_rendererDebugFlagShowWireframe )
         {
             float3 edgeDistance = barycentrics;
             edgeDistance.z = 1.0 - edgeDistance.x - edgeDistance.y;
@@ -470,11 +506,18 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
             result.rgb = lerp( float3( 1.0, 0.4, 0.0 ), result.rgb, minWidth );
         }
 
-        if ( debugFlags & RENDERER_DEBUG_FLAG_SHOW_SHADOW_CASCADES )
+        if ( debugFlags & g_rendererDebugFlagShowShadowCascades )
         {
             result.rgb = debugShadowColor * shadow;
         }
+
+        if ( debugFlags & g_rendererDebugFlagShowParallaxCost )
+        {
+            result.rgb = ParallaxCostDebugColor( materialOutput.m_numParallaxSteps, RootCBV.m_parallaxMaxSteps );
+        }
     #endif
+
+    //-------------------------------------------------------------------------
 
     #ifdef PERMUTATION_ALPHA_TEST
     clip( result.a - 0.1 ); // TODO: Make it a parameter
@@ -489,10 +532,6 @@ float4 PS_main( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, Primitiv
 [RootSignature( DrawRootSignature )]
 uint PS_main_OutlineID( bool isFrontFace : SV_IsFrontFace, VertexOutput vertex, PrimitiveOutput primitive ) : SV_Target
 {
-    // MaterialShaderInput  materialInput  = MaterialShaderInput::New( vertex, primitive, RootCBV.m_cameraPosition.xyz );
-    // MaterialShaderOutput materialOutput = MaterialShaderMain( materialInput );
-    // clip( materialOutput.m_opacity - 0.1 );
-
     StructuredBuffer<MeshInstance> meshInstanceBuffer = GetBuffer( RootConstants.m_instanceBuffer );
     return meshInstanceBuffer[primitive.GetInstanceIndex()].m_meshInstanceRootIndex;
 }

@@ -6,9 +6,18 @@
 
 namespace EE
 {
+    Viewport::Viewport()
+        #if EE_DEVELOPMENT_TOOLS
+        : m_debugDrawSystem( &m_viewVolume, &m_topLeftPosition, &m_size )
+        #endif
+    {}
+
     Viewport::Viewport( Int2 const& topLeft, Int2 const& dimensions, Math::ViewVolume const& viewVolume )
         : m_topLeftPosition( topLeft )
         , m_size( dimensions )
+        #if EE_DEVELOPMENT_TOOLS
+        , m_debugDrawSystem( &m_viewVolume, &m_topLeftPosition, &m_size )
+        #endif
     {
         EE_ASSERT( IsValid() );
         SetViewVolume( viewVolume );

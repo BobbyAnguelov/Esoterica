@@ -30,7 +30,7 @@ namespace EE::NodeGraph
 
         if ( rect.Contains( mousePosition ) )
         {
-            ImVec2 const closetPointToCurve = ImBezierCubicClosestPointCasteljau( p1, p2, p3, p4, mousePosition, ImGui::GetStyle().CurveTessellationTol );
+            ImVec2 const closetPointToCurve = ImBezierCubicClosestPointCasteljau( p1, p2, p3, p4, mousePosition, Math::Sqr( ImGui::GetStyle().CurveTessellationMaxError ) );
             if ( Vector( closetPointToCurve ).GetDistance2( mousePosition ) < hoverThreshold )
             {
                 return true;
@@ -435,18 +435,18 @@ namespace EE::NodeGraph
             {
                 outlineColor = AdjustColorBasedOnVisualState( outlineColor, visualState );
                 ImVec2 const activeBorderPadding( Style::s_activeBorderIndicatorPadding, Style::s_activeBorderIndicatorPadding );
-                ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, outlineColor, scaledCornerRounding, Style::s_activeBorderIndicatorThickness, ImDrawFlags_RoundCornersAll );
+                ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, outlineColor, scaledCornerRounding, Style::s_activeBorderIndicatorThickness, ImDrawFlags_RoundAll );
             }
 
-            ctx.m_pDrawList->AddRectFilled( backgroundRectMin, backgroundRectMax, nodeBackgroundColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll );
-            ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarMax, Style::s_defaultTitleColor, scaledCornerRounding, ImDrawFlags_RoundCornersTop );
-            ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarColorItemMax, pNode->GetTitleBarColor(), scaledCornerRounding, ImDrawFlags_RoundCornersTopLeft );
-            ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, scaledBorderThickness, ImDrawFlags_RoundCornersAll );
+            ctx.m_pDrawList->AddRectFilled( backgroundRectMin, backgroundRectMax, nodeBackgroundColor, scaledCornerRounding, ImDrawFlags_RoundAll );
+            ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarMax, Style::s_defaultTitleColor, scaledCornerRounding, ImDrawFlags_RoundTop );
+            ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarColorItemMax, pNode->GetTitleBarColor(), scaledCornerRounding, ImDrawFlags_RoundTopLeft );
+            ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, scaledBorderThickness, ImDrawFlags_RoundAll );
         }
         else // Non-state node
         {
             ctx.m_pDrawList->AddRectFilled( backgroundRectMin, backgroundRectMax, nodeBackgroundColor, scaledCornerRounding );
-            ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, scaledBorderThickness, ImDrawFlags_RoundCornersAll );
+            ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, scaledBorderThickness, ImDrawFlags_RoundAll );
         }
 
         //-------------------------------------------------------------------------
@@ -821,13 +821,13 @@ namespace EE::NodeGraph
         {
             outlineColor = AdjustColorBasedOnVisualState( outlineColor, visualState );
             ImVec2 const activeBorderPadding( Style::s_activeBorderIndicatorPadding, Style::s_activeBorderIndicatorPadding );
-            ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, outlineColor, scaledCornerRounding, Style::s_activeBorderIndicatorThickness, ImDrawFlags_RoundCornersAll );
+            ctx.m_pDrawList->AddRect( backgroundRectMin - activeBorderPadding, backgroundRectMax + activeBorderPadding, outlineColor, scaledCornerRounding, Style::s_activeBorderIndicatorThickness, ImDrawFlags_RoundAll );
         }
 
-        ctx.m_pDrawList->AddRectFilled( backgroundRectMin, backgroundRectMax, nodeBackgroundColor, scaledCornerRounding, ImDrawFlags_RoundCornersAll );
-        ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarMax, nodeTitleBarColor, scaledCornerRounding, ImDrawFlags_RoundCornersTop);
-        ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarColorItemMax, pNode->GetTitleBarColor(), scaledCornerRounding, ImDrawFlags_RoundCornersTopLeft );
-        ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, scaledBorderThickness, ImDrawFlags_RoundCornersAll );
+        ctx.m_pDrawList->AddRectFilled( backgroundRectMin, backgroundRectMax, nodeBackgroundColor, scaledCornerRounding, ImDrawFlags_RoundAll );
+        ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarMax, nodeTitleBarColor, scaledCornerRounding, ImDrawFlags_RoundTop );
+        ctx.m_pDrawList->AddRectFilled( backgroundRectMin, rectTitleBarColorItemMax, pNode->GetTitleBarColor(), scaledCornerRounding, ImDrawFlags_RoundTopLeft );
+        ctx.m_pDrawList->AddRect( backgroundRectMin, backgroundRectMax, nodeBorderColor, scaledCornerRounding, scaledBorderThickness, ImDrawFlags_RoundAll );
 
         //-------------------------------------------------------------------------
         // Merge Channels
@@ -905,10 +905,10 @@ namespace EE::NodeGraph
         GetNodeBackgroundAndBorderColors( pNode->GetCommentBoxColor(), pNode->GetCommentBoxColor(), visualState, nodeTitleBarColor, nodeBackgroundColor, nodeBorderColor );
 
         ctx.SetDrawChannel( (uint8_t) DrawChannel::Background );
-        ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, nodeBackgroundColor.GetAlphaVersion( 0.1f ), 0, ImDrawFlags_RoundCornersNone );
-        ctx.m_pDrawList->AddRectFilled( rectMin, titleRectMax, nodeBackgroundColor.GetAlphaVersion( 0.3f ), 0, ImDrawFlags_RoundCornersNone );
-        ctx.m_pDrawList->AddRect( rectMin, rectMax, nodeBackgroundColor, 0, scaledBorderThickness, ImDrawFlags_RoundCornersNone );
-        ctx.m_pDrawList->AddRect( rectMin - ImVec2( scaledBorderThickness, scaledBorderThickness ), rectMax + ImVec2( scaledBorderThickness, scaledBorderThickness ), nodeBorderColor, 0, scaledBorderThickness, ImDrawFlags_RoundCornersNone );
+        ctx.m_pDrawList->AddRectFilled( rectMin, rectMax, nodeBackgroundColor.GetAlphaVersion( 0.1f ), 0, ImDrawFlags_RoundNone );
+        ctx.m_pDrawList->AddRectFilled( rectMin, titleRectMax, nodeBackgroundColor.GetAlphaVersion( 0.3f ), 0, ImDrawFlags_RoundNone );
+        ctx.m_pDrawList->AddRect( rectMin, rectMax, nodeBackgroundColor, 0, scaledBorderThickness, ImDrawFlags_RoundNone );
+        ctx.m_pDrawList->AddRect( rectMin - ImVec2( scaledBorderThickness, scaledBorderThickness ), rectMax + ImVec2( scaledBorderThickness, scaledBorderThickness ), nodeBorderColor, 0, scaledBorderThickness, ImDrawFlags_RoundNone );
 
         //-------------------------------------------------------------------------
         // Merge Channels

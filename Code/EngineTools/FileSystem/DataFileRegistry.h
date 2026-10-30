@@ -1,9 +1,7 @@
 #pragma once
 #include "FileSystemWatcher.h"
 #include "Base/Resource/ResourceID.h"
-#include "Base/Types/StringID.h"
 #include "Base/Types/Event.h"
-#include "Base/Types/HashMap.h"
 #include "Base/Threading/TaskSystem.h"
 #include "Base/Threading/Threading.h"
 #include "Base/Types/Function.h"
@@ -42,6 +40,7 @@ namespace EE
             Empty,
             BuildingFileSystemCache,
             BuildingDataFileCache,
+            BuildingDependencyCache,
             Ready
         };
 
@@ -52,8 +51,28 @@ namespace EE
             ResourceDescriptor,
         };
 
+        struct CompileDependencyInfo
+        {
+            inline bool operator==( CompileDependencyInfo const& rhs ) const { return m_resourceID == rhs.m_resourceID && m_compileDependency == rhs.m_compileDependency; }
+
+            ResourceID                          m_resourceID; // The resource that depends on this compile dependency
+            DataPath                            m_compileDependency;
+        };
+
+        struct InstallDependencyInfo
+        {
+            inline bool operator==( InstallDependencyInfo const& rhs ) const { return m_resourceID == rhs.m_resourceID && m_installDependency == rhs.m_installDependency; }
+
+            ResourceID                          m_resourceID; // The resource that depends on this install dependency
+            ResourceID                          m_installDependency;
+        };
+
         struct FileInfo
         {
+            friend class DataFileRegistry;
+
+        public:
+
             FileInfo() = default;
             ~FileInfo();
 
@@ -64,6 +83,9 @@ namespace EE
             // Custom move - transfers datafile ptr!
             FileInfo( FileInfo&& rhs ) { operator=( eastl::move( rhs ) ); }
             FileInfo& operator=( FileInfo&& rhs );
+
+            // Unknown/Raw files
+            inline bool IsUnknownFileType() const { return m_fileType == FileType::Unknown; }
 
             // Data file
             inline bool IsDataFile() const { return m_fileType == FileType::DataFile; }
@@ -89,6 +111,17 @@ namespace EE
                 return ResourceID( m_dataPath );
             }
 
+            // Get any resource/sub-resource IDs generated from this file that have a compile dependency on the specified path
+            TInlineVector<ResourceID, 10> GetCompileDependents( DataPath const& path ) const;
+
+            // Get any resource/sub-resource IDs generated from this file that have a install dependency on the specified resource ID
+            TInlineVector<ResourceID, 10> GetInstallDependents( ResourceID const& resourceID ) const;
+
+        private:
+
+            void ClearDependencyCache();
+            void BuildDependencyCache( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceDataDirPath );
+
         public:
 
             DataPath                                                m_dataPath;
@@ -97,10 +130,21 @@ namespace EE
             DataFileExtension                                       m_dataFileExtension;
             FileType                                                m_fileType = FileType::Unknown;
             IDataFile*                                              m_pDataFile = nullptr;
+
+            TVector<CompileDependencyInfo>                          m_compileDependencies;
+            TVector<InstallDependencyInfo>                          m_installDependencies;
+            TVector<DataPath>                                       m_referencedPaths;
         };
 
         struct DirectoryInfo
         {
+            friend class DataFileRegistry;
+
+        public:
+
+            DirectoryInfo() = default;
+            ~DirectoryInfo();
+
             inline bool IsEmpty() const { return m_directories.empty() && m_files.empty(); }
             void ChangePath( FileSystem::Path const& rawResourceDirectoryPath, FileSystem::Path const& newPath );
 
@@ -111,12 +155,19 @@ namespace EE
 
             void GetAllResourceOrDataFiles( TVector<FileInfo const*>& files, bool recurseIntoChildDirectories = false ) const;
 
+        private:
+
+            DirectoryInfo( DirectoryInfo&& ) = delete;
+            DirectoryInfo( DirectoryInfo const& ) = delete;
+            DirectoryInfo& operator=( DirectoryInfo&& ) = delete;
+            DirectoryInfo& operator=( DirectoryInfo const& ) = delete;
+
         public:
 
             String                                                  m_name;
             FileSystem::Path                                        m_filePath;
             DataPath                                                m_dataPath;
-            TVector<DirectoryInfo>                                  m_directories;
+            TVector<DirectoryInfo*>                                 m_directories;
             TVector<FileInfo*>                                      m_files;
         };
 
@@ -135,24 +186,32 @@ namespace EE
         //-------------------------------------------------------------------------
 
         // Request a full rebuild of the resource DB, this is currently needed only since we somehow fail to track newly created assets
-        // TODO: fix root cause and delete this
         void RequestRebuild();
+
+        // Get the state of the database
+        DatabaseState GetState() const { return m_state; }
 
         // Did we finish building the file system cache?
         bool IsFileSystemCacheBuilt() const { return m_state > DatabaseState::BuildingFileSystemCache; }
 
-        // Event that fires whenever the database is updated
-        TEventHandle<> OnFileSystemCacheUpdated() const { return m_fileCacheUpdatedEvent; }
-
         // Did we finish building the descriptor cache
         bool IsDataFileCacheBuilt() const { return m_state > DatabaseState::BuildingDataFileCache; }
 
+        // Did we finish building the dependency cache
+        bool IsDependencyCacheBuilt() const { return m_state > DatabaseState::BuildingDependencyCache; }
+
         // Are we currently rebuilding the DB?
-        bool IsBuildingCaches() const { return m_state > DatabaseState::Empty && m_state <= DatabaseState::BuildingDataFileCache; }
+        bool IsBuildingCaches() const { return m_state > DatabaseState::Empty && m_state < DatabaseState::Ready; }
 
         // Get the current progress where 0 mean no progress and 1.0f means complete!
         // Progress is per state i.e. progress will reset when we start building the descriptor cache
         float GetCacheBuildProgress() const;
+
+        // Event that fires whenever the file system cache is updated
+        TEventHandle<> OnFileSystemCacheUpdated() const { return m_fileCacheUpdatedEvent; }
+
+        // Event that fires whenever the dependency cache is updated
+        TEventHandle<> OnDependencyCacheUpdated() const { return m_dependencyCacheUpdatedEvent; }
 
         // General Info
         //-------------------------------------------------------------------------
@@ -256,6 +315,9 @@ namespace EE
 
         void StartDataFileCacheBuild();
 
+        // Calling this function will rebuild the dependency cache
+        void StartDependencyCacheBuild();
+
         // Cancel the rebuild of the database
         void CancelDatabaseBuild();
 
@@ -265,11 +327,15 @@ namespace EE
         DirectoryInfo* FindDirectory( FileSystem::Path const& dirPath );
         DirectoryInfo const* FindDirectory( FileSystem::Path const& dirPath ) const { return const_cast<DataFileRegistry*>( this )->FindDirectory( dirPath ); }
         DirectoryInfo* FindOrCreateDirectory( FileSystem::Path const& dirPath );
+        void RemoveDirectory( FileSystem::Path const& dirPath );
+        void RemoveDirectory( DirectoryInfo* pParentDirectory, int32_t directoryIdx );
+        void RemoveAllFilesFromDirectory( DirectoryInfo* pDirectory, bool fireDeletedEvent = true );
 
         // Add/Remove records
         bool HasFileRecord( FileSystem::Path const& path ) const;
         FileInfo* AddFileRecord( FileSystem::Path const& path, bool shouldLoadDataFile );
         void RemoveFileRecord( FileSystem::Path const& path, bool fireDeletedEvent = true );
+        void RemoveFileRecord( DirectoryInfo* pDirectory, int32_t fileIdx, bool fireDeletedEvent = true );
 
         // File system listener
         void ProcessFileSystemChanges();
@@ -293,6 +359,7 @@ namespace EE
         THashMap<DataFileExtension, TVector<FileInfo*>>             m_dataFilesPerExtension;
         THashMap<DataPath, FileInfo*>                               m_filesPerPath;
         mutable TEvent<>                                            m_fileCacheUpdatedEvent;
+        mutable TEvent<>                                            m_dependencyCacheUpdatedEvent;
         mutable TEvent<DataPath>                                    m_fileDeletedEvent;
 
         // Build state

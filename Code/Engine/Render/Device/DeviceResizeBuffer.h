@@ -7,6 +7,8 @@ namespace EE::Render
 {
     struct DeviceResizeBuffer final
     {
+    public:
+
         void Initialize( RHI::Context* pContextRHI, bool allowShrink );
         void Shutdown( RHI::Context* pContextRHI );
 
@@ -14,6 +16,8 @@ namespace EE::Render
         void UpdateDeviceResources( size_t newBufferSize, F fn );
 
         //-------------------------------------------------------------------------
+
+    public:
 
         RHI::Buffer*    m_pBuffer = nullptr;
 

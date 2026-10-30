@@ -5,7 +5,8 @@
 #include "Engine/Entity/EntityWorld.h"
 #include "Engine/Render/RenderViewport.h"
 #include "Engine/Render/RenderSystem.h"
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
+#include "Engine/Render/Shaders/Renderer/DrawRootConstants.esh"
 
 namespace EE::Render
 {
@@ -452,7 +453,7 @@ namespace EE::Render
             EE_ASSERT( renderViewProxy.GetNumRenderViews() == 1 );
 
             renderViewProxy.StartRenderViewWrite();
-            renderViewProxy.WriteRenderView( 0, pRenderViewport->GetViewVolume(), pRenderViewport->GetSize(), ShaderTypes::RENDER_VIEW_FLAG_NONE );
+            renderViewProxy.WriteRenderView( 0, pRenderViewport->GetViewVolume(), pRenderViewport->GetSize(), ShaderTypes::g_renderViewFlagNone );
             renderViewProxy.SubmitRenderViewWrite();
         }
     }

@@ -5,8 +5,12 @@
 #include "EngineTools/Import/Importer.h"
 #include "Engine/Render/RenderMesh.h"
 #include "Engine/Render/RenderGeometryBuilder.h"
+#include "Engine/Render/RenderMeshDecalBuilder.h"
+#include "Engine/Render/Shaders/MeshData.esh"
 #include "Base/Serialization/BinarySerialization.h"
 #include "EASTL/sort.h"
+#include "Engine/Render/ProceduralBones/ProceduralBoneConstraint_Twist.h"
+#include "Base/TypeSystem/TypeDescriptors.h"
 
 //-------------------------------------------------------------------------
 
@@ -133,9 +137,9 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
-    static MeshStatistics ComputeGeometryStats( Geometry const& geometry, uint64_t uncompressedSizeBytes )
+    static Mesh::Statistics ComputeGeometryStats( Geometry const& geometry, uint64_t uncompressedSizeBytes )
     {
-        MeshStatistics stats = {};
+        Mesh::Statistics stats = {};
 
         stats.m_numVertices = geometry.GetNumVertices();
         stats.m_numTriangles = geometry.GetNumTriangles();
@@ -146,6 +150,21 @@ namespace EE::Render
         stats.m_compressionRatio = stats.m_uncompressedSizeBytes > 0 ? float( stats.m_compressedSizeBytes ) / float( stats.m_uncompressedSizeBytes ) : 0.0F;
 
         stats.m_vertexTriangleReuse = stats.m_numVertices > 0 ? float( stats.m_numTriangles ) * 3.0F / float( stats.m_numVertices ) : 0.0F;
+
+        // Mesh decals
+        //-------------------------------------------------------------------------
+
+        MeshHeader const& meshHeader = geometry.GetMeshHeader();
+        if ( meshHeader.m_meshDecalOffset != 0 )
+        {
+            ShaderTypes::MeshDecalData const& meshDecalData = *reinterpret_cast<ShaderTypes::MeshDecalData const*>( geometry.GetMeshData().data() + meshHeader.m_meshDecalOffset );
+
+            uint32_t const meshDataSize = uint32_t( geometry.GetMeshData().size() );
+            stats.m_numMeshDecalProjectionBases = ( meshDecalData.m_projectionOffset - meshDecalData.m_projectionBasisOffset ) / uint32_t( sizeof( ShaderTypes::MeshDecalProjectionBasis ) );
+            stats.m_numMeshDecalProjections = meshDecalData.m_numProjections;
+            stats.m_numMeshDecals = ( meshDataSize - meshDecalData.m_decalTableOffset ) / uint32_t( sizeof( ShaderTypes::MeshDecal ) );
+            stats.m_meshDecalSizeBytes = meshDataSize - meshHeader.m_meshDecalOffset;
+        }
 
         if ( stats.m_numClusters == 0 )
         {
@@ -261,6 +280,52 @@ namespace EE::Render
 
     //-------------------------------------------------------------------------
 
+    // Submesh transforms are expected to be rigid or uniformly scaled
+    static Transform TransformFromMatrix( Matrix const& matrix )
+    {
+        Quaternion const rotation = matrix.GetRotation();
+        Vector const translation = matrix.GetTranslation();
+        float const scale = matrix.GetRow( 0 ).GetLength3();
+        return Transform( rotation, translation, scale );
+    }
+
+    //-------------------------------------------------------------------------
+
+    static void LogMeshDecalBakeError( Resource::CompileContext const& ctx, MeshDecalBuilder::Error error, size_t geometryIndex )
+    {
+        switch ( error )
+        {
+            case MeshDecalBuilder::Error::TooManyDecals:
+            {
+                ctx.LogError( "Mesh decals: geometry %u has more than 65535 decals", uint32_t( geometryIndex ) );
+            }
+            break;
+
+            case MeshDecalBuilder::Error::TooManyDecalsPerTriangle:
+            {
+                ctx.LogError( "Mesh decals: geometry %u has a triangle covered by more than %u decals", uint32_t( geometryIndex ), ShaderTypes::g_meshDecalMaxCountPerTriangle );
+            }
+            break;
+
+            case MeshDecalBuilder::Error::TooManyProjectionBases:
+            {
+                ctx.LogError( "Mesh decals: geometry %u has too many projection bases", uint32_t( geometryIndex ) );
+            }
+            break;
+
+            case MeshDecalBuilder::Error::TooManyProjections:
+            {
+                ctx.LogError( "Mesh decals: geometry %u has too many decal projections", uint32_t( geometryIndex ) );
+            }
+            break;
+
+            default:
+            break;
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     Resource::CompilationResult MeshCompiler::CompileMesh( Resource::CompileContext const& ctx, Mesh& mesh, MeshResourceDescriptor const& resourceDescriptor, MeshGroup const& meshGroup ) const
     {
         bool hasWarnings = false;
@@ -269,7 +334,8 @@ namespace EE::Render
 
         Import::ReaderContext readerCtx =
         {
-            [&ctx]( char const* pString ) { ctx.LogWarning( pString ); },
+            ctx.m_sourceDataDirectoryPath,
+            [&ctx] ( char const* pString ) { ctx.LogWarning( pString ); },
             [&ctx] ( char const* pString ) { ctx.LogError( pString ); },
         };
 
@@ -284,6 +350,20 @@ namespace EE::Render
         if ( meshGroup.m_lodSettings.size() > 8 )
         {
             return ctx.LogError( "Only 8 LODs are supported at the moment" );
+        }
+
+        // Mesh Decals
+        //-------------------------------------------------------------------------
+
+        mesh.m_meshDecals.resize( resourceDescriptor.m_meshDecals.size() );
+        for ( size_t decalIndex = 0; decalIndex < resourceDescriptor.m_meshDecals.size(); decalIndex++ )
+        {
+            MeshDecalDefinition const& srcDecal = resourceDescriptor.m_meshDecals[decalIndex];
+            Mesh::MeshDecal& dstDecal = mesh.m_meshDecals[decalIndex];
+
+            dstDecal.m_material = srcDecal.m_material;
+            dstDecal.m_localTransform = srcDecal.m_localTransform;
+            dstDecal.m_nonUniformScale = srcDecal.m_nonUniformScale;
         }
 
         // LODs
@@ -305,7 +385,7 @@ namespace EE::Render
             }
 
             // TODO: Don't load the same mesh multiple times!
-            FileSystem::Path const lodMeshFilePath = lodMeshDataPath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath );
+            FileSystem::Path const lodMeshFilePath = lodMeshDataPath.GetFileSystemPath( ctx.m_sourceDataDirectoryPath );
             Import::Source const fileSource( lodMeshFilePath, ctx.GetRawData( lodMeshDataPath ) );
 
             TUniquePtr<Import::Mesh> importedMesh;
@@ -378,15 +458,66 @@ namespace EE::Render
             //-------------------------------------------------------------------------
 
             bool isValidMeshData = false;
-            TVector<MeshStatistics> lodGeometryStats;
+            TVector<Mesh::Statistics> lodGeometryStats;
 
-            for ( GeometryBuilder const& geometryBuilder : convertedMesh.m_geometryBuilders )
+            for ( size_t geometryBuilderIndex = 0; geometryBuilderIndex < convertedMesh.m_geometryBuilders.size(); geometryBuilderIndex++ )
             {
+                GeometryBuilder geometryBuilder = convertedMesh.m_geometryBuilders[geometryBuilderIndex];
+
                 if ( geometryBuilder.GetVertices().empty() || geometryBuilder.GetIndices().empty() )
                 {
                     ctx.LogWarning( "Empty geometry skipped" );
                     continue;
                 }
+
+                // Geometry space mesh decals, the decals are authored in mesh space
+                //-------------------------------------------------------------------------
+
+                Transform submeshTransform = Transform::Identity;
+                for ( Import::Mesh::Submesh const& importedSubmesh : importedMesh->GetSubmeshes() )
+                {
+                    if ( importedSubmesh.m_geometryIdx == int32_t( geometryBuilderIndex ) )
+                    {
+                        submeshTransform = TransformFromMatrix( importedSubmesh.m_transform );
+                        break;
+                    }
+                }
+
+                TVector<MeshDecalBakeData> meshDecalBakeData;
+                meshDecalBakeData.reserve( mesh.m_meshDecals.size() );
+
+                Transform const inverseSubmeshTransform = submeshTransform.GetInverse();
+                for ( Mesh::MeshDecal const& meshDecal : mesh.m_meshDecals )
+                {
+                    MeshDecalBakeData& bakeData = meshDecalBakeData.emplace_back();
+                    bakeData.m_localTransform = meshDecal.m_localTransform * inverseSubmeshTransform;
+                    bakeData.m_nonUniformScale = meshDecal.m_nonUniformScale;
+                }
+
+                auto BakeMeshDecals = [&] ( GeometryBuilder& builder ) -> bool
+                {
+                    if ( meshDecalBakeData.empty() )
+                    {
+                        return true;
+                    }
+
+                    MeshDecalBuilder::Error const bakeError = MeshDecalBuilder::Build( builder, meshDecalBakeData );
+                    if ( bakeError == MeshDecalBuilder::Error::NoTextureCoordinates )
+                    {
+                        ctx.LogWarning( "Mesh decals: geometry %u has no texture coordinates, mesh decals are ignored", uint32_t( geometryBuilderIndex ) );
+                        return true;
+                    }
+
+                    if ( bakeError != MeshDecalBuilder::Error::None )
+                    {
+                        LogMeshDecalBakeError( ctx, bakeError, geometryBuilderIndex );
+                        return false;
+                    }
+
+                    return true;
+                };
+
+                //-------------------------------------------------------------------------
 
                 Geometry geometry = {};
                 uint64_t geometryUncompressedSizeBytes = 0;
@@ -408,6 +539,12 @@ namespace EE::Render
                     if ( simplificationSuccess || &lod == meshGroup.m_lodSettings.begin() )
                     {
                         lodGeometryBuilder.Optimize();
+
+                        if ( !BakeMeshDecals( lodGeometryBuilder ) )
+                        {
+                            return Resource::CompilationResult::Failure;
+                        }
+
                         geometry = lodGeometryBuilder.BuildGeometry();
                         geometryUncompressedSizeBytes = uint64_t( lodGeometryBuilder.GetVertices().size() ) + uint64_t( lodGeometryBuilder.GetIndices().size() ) * 4;
 
@@ -418,6 +555,11 @@ namespace EE::Render
                 }
                 else
                 {
+                    if ( !BakeMeshDecals( geometryBuilder ) )
+                    {
+                        return Resource::CompilationResult::Failure;
+                    }
+
                     geometry = geometryBuilder.BuildGeometry();
                     geometryUncompressedSizeBytes = uint64_t( geometryBuilder.GetVertices().size() ) + uint64_t( geometryBuilder.GetIndices().size() ) * 4;
 
@@ -434,6 +576,38 @@ namespace EE::Render
                         continue;
                     }
 
+                    // Mesh decal statistics
+                    if ( !meshDecalBakeData.empty() )
+                    {
+                        MeshHeader const& meshHeader = geometry.GetMeshHeader();
+                        if ( meshHeader.m_meshDecalOffset != 0 )
+                        {
+                            ShaderTypes::MeshDecalData const& meshDecalData = *reinterpret_cast<ShaderTypes::MeshDecalData const*>( geometry.GetMeshData().data() + meshHeader.m_meshDecalOffset );
+
+                            uint32_t numClustersWithDecals = 0;
+                            uint64_t decalAttributeSize = 0;
+                            for ( uint32_t clusterIndex = 0; clusterIndex < geometry.GetNumClusters(); clusterIndex++ )
+                            {
+                                MeshCluster const& cluster = geometry.GetCluster( clusterIndex );
+                                if ( cluster.HasMeshDecalData() )
+                                {
+                                    numClustersWithDecals++;
+                                    decalAttributeSize += uint64_t( cluster.GetNumTriangles() ) * sizeof( uint32_t );
+                                }
+                            }
+
+                            ctx.LogMessage
+                            (
+                                "Mesh decals: %u projection bases, %u projections, %.1f KB of attributes in %u/%u clusters",
+                                ( meshDecalData.m_projectionOffset - meshDecalData.m_projectionBasisOffset ) / uint32_t( sizeof( ShaderTypes::MeshDecalProjectionBasis ) ),
+                                meshDecalData.m_numProjections,
+                                float( decalAttributeSize ) / 1024.0F,
+                                numClustersWithDecals,
+                                geometry.GetNumClusters()
+                            );
+                        }
+                    }
+
                     lodGeometryStats.emplace_back( ComputeGeometryStats( geometry, geometryUncompressedSizeBytes ) );
                     mesh.m_geometry.emplace_back( eastl::move( geometry ) );
                 }
@@ -443,17 +617,29 @@ namespace EE::Render
 
             if ( isValidMeshData )
             {
-                uint32_t geometryIndex = 0;
                 for ( Import::Mesh::Submesh const& importedSubmesh : importedMesh->GetSubmeshes() )
                 {
+                    if ( importedSubmesh.m_geometryIdx == InvalidIndex || importedSubmesh.m_geometryIdx >= int32_t( convertedMesh.m_geometryBuilders.size() ) )
+                    {
+                        ctx.LogWarning( "Submesh %s references invalid geometry index %d, skipping it", importedSubmesh.m_ID.c_str(), importedSubmesh.m_geometryIdx );
+                        continue;
+                    }
+
                     // Need to account for empty geometries that are skipped earlier
-                    GeometryBuilder const& sourceGeometryBuilder = convertedMesh.m_geometryBuilders[geometryIndex];
+                    GeometryBuilder const& sourceGeometryBuilder = convertedMesh.m_geometryBuilders[importedSubmesh.m_geometryIdx];
                     if ( sourceGeometryBuilder.GetVertices().empty() || sourceGeometryBuilder.GetIndices().empty() )
                     {
                         continue;
                     }
 
-                    Geometry const& geometry = mesh.m_geometry[lodGeometryBaseIndex + geometryIndex];
+                    uint32_t const geometryIdx = lodGeometryBaseIndex + uint32_t( importedSubmesh.m_geometryIdx );
+                    if ( geometryIdx >= mesh.m_geometry.size() )
+                    {
+                        ctx.LogWarning( "Submesh %s references geometry %u which was not generated, skipping it", importedSubmesh.m_ID.c_str(), geometryIdx );
+                        continue;
+                    }
+
+                    Geometry const& geometry = mesh.m_geometry[geometryIdx];
                     if ( geometry.GetMeshData().empty() )
                     {
                         continue;
@@ -462,7 +648,7 @@ namespace EE::Render
                     Mesh::Submesh submesh = {};
                     submesh.m_ID = importedSubmesh.m_ID;
                     submesh.m_materialNameID = importedSubmesh.m_materialID;
-                    submesh.m_geometryIdx = lodGeometryBaseIndex + geometryIndex;
+                    submesh.m_geometryIdx = geometryIdx;
                     submesh.m_lodMask = uint8_t( 1 ) << uint8_t( mesh.m_geometryLODDistance.size() );
 
                     mesh.m_submeshes.emplace_back( eastl::move( submesh ) );
@@ -478,15 +664,17 @@ namespace EE::Render
                     {
                         combinedAABB = AABB::GetCombinedBox( transformedAABB, combinedAABB );
                     }
-
-                    geometryIndex++;
                 }
 
-                MeshStatistics lodStatistics = {};
-                for ( MeshStatistics const& geometryStats : lodGeometryStats )
+                Mesh::Statistics lodStatistics = {};
+                for ( Mesh::Statistics const& geometryStats : lodGeometryStats )
                 {
                     lodStatistics.Accumulate( geometryStats );
                 }
+
+                // Decal count is authored per mesh, not per geometry
+                lodStatistics.m_numMeshDecals = uint32_t( mesh.m_meshDecals.size() );
+
                 mesh.m_statisticsPerLOD.push_back( lodStatistics );
                 mesh.m_geometryLODDistance.push_back( lod.m_lodDistance );
             }
@@ -500,7 +688,7 @@ namespace EE::Render
 
         for ( Mesh::Submesh& submesh : mesh.m_submeshes )
         {
-            StringID const submeshMaterialMappingID = MeshMaterialMapping::GetMappingID( submesh );
+            StringID const submeshMaterialMappingID = MeshMaterialMapping::CreateMappingID( submesh );
 
             for ( MeshMaterialMapping const& mapping : resourceDescriptor.m_materialMappings )
             {
@@ -589,6 +777,14 @@ namespace EE::Render
                 hdr.AddInstallDependency( submesh.m_material.GetResourceID() );
             }
         }
+
+        for ( Mesh::MeshDecal const& meshDecal : mesh.m_meshDecals )
+        {
+            if ( meshDecal.m_material.IsSet() )
+            {
+                hdr.AddInstallDependency( meshDecal.m_material.GetResourceID() );
+            }
+        }
     }
 
     //-------------------------------------------------------------------------
@@ -634,6 +830,11 @@ namespace EE::Render
         Serialization::BinaryOutputArchive archive;
         archive << hdr << staticMesh;
 
+        if ( ctx.IsCompilingForDevelopmentBuild() )
+        {
+            archive << staticMesh.m_statisticsPerLOD;
+        }
+
         if ( archive.WriteToFile( ctx.GetOutputPath() ) )
         {
             return result;
@@ -661,7 +862,7 @@ namespace EE::Render
             return ctx.LogError( "There is no mesh group set" );
         }
 
-        // Reflect FBX data into runtime format
+        // Reflect imported data into runtime format
         //-------------------------------------------------------------------------
 
         SkeletalMesh skeletalMesh = {};
@@ -673,6 +874,32 @@ namespace EE::Render
             return result;
         }
 
+        // Create procedural bone settings
+        //-------------------------------------------------------------------------
+
+        TypeSystem::TypeDescriptorCollection constraintSettingsDesc;
+        bool hasProceduralBones = false;
+        if ( hasProceduralBones )
+        {
+            TwistConstraint::Settings settings0;
+            settings0.m_sourceBone = StringID( "arm_upper_l" );
+            settings0.m_targetBone = StringID( "arm_upper_twist_01_l" );
+            settings0.m_weight = 0.5f;
+
+            TwistConstraint::Settings settings1;
+            settings1.m_sourceBone = StringID( "arm_lower_l" );
+            settings1.m_targetBone = StringID( "arm_lower_twist_01_l" );
+            settings1.m_weight = 0.5f;
+
+            TwistConstraint::Settings settings2;
+            settings2.m_sourceBone = StringID( "arm_upper_r" );
+            settings2.m_targetBone = StringID( "arm_upper_twist_01_r" );
+            settings2.m_weight = 0.5f;
+
+            TVector<IReflectedType*> ptrs = { &settings0, &settings1, &settings2 };
+            constraintSettingsDesc.Create( ctx.m_typeRegistry, ptrs );
+        }
+
         // Serialize
         //-------------------------------------------------------------------------
 
@@ -681,6 +908,17 @@ namespace EE::Render
 
         Serialization::BinaryOutputArchive archive;
         archive << hdr << skeletalMesh;
+
+        if ( ctx.IsCompilingForDevelopmentBuild() )
+        {
+            archive << skeletalMesh.m_statisticsPerLOD;
+        }
+
+        archive << hasProceduralBones;
+        if ( hasProceduralBones )
+        {
+            archive << constraintSettingsDesc;
+        }
 
         if ( archive.WriteToFile( ctx.GetOutputPath() ) )
         {

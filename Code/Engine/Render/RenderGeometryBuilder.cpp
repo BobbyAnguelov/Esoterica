@@ -1,7 +1,10 @@
 #include "RenderGeometryBuilder.h"
 #include "Engine/Render/RenderMesh.h"
+#include "Engine/Render/Shaders/MeshData.esh"
 #include "Engine/ThirdParty/meshoptimizer/meshoptimizer_esoterica.h"
 #include "Base/Math/Math.h"
+#include "EASTL/sort.h"
+#include "EASTL/algorithm.h"
 
 //-------------------------------------------------------------------------
 
@@ -9,6 +12,8 @@ namespace EE::Render
 {
     void GeometryBuilder::SetIndices( TArrayView<uint32_t const> indices, bool flipWinding )
     {
+        EE_ASSERT( !HasDecalAttributes() );
+
         m_indices = { indices.begin(), indices.end() };
 
         if ( flipWinding )
@@ -22,7 +27,9 @@ namespace EE::Render
 
     void GeometryBuilder::SetNumVertices( size_t numVertices )
     {
+        EE_ASSERT( !HasDecalAttributes() );
         EE_ASSERT( m_vertexStride );
+
         m_vertices.resize( numVertices * m_vertexStride );
     }
 
@@ -30,6 +37,7 @@ namespace EE::Render
 
     void GeometryBuilder::SetPositionAttribute( size_t vertexIndex, PositionAttribute const& positionAttribute )
     {
+        EE_ASSERT( !HasDecalAttributes() );
         EE_ASSERT( m_vertexStride );
         EE_ASSERT( ( m_vertices.size() % m_vertexStride ) == 0 );
 
@@ -51,6 +59,7 @@ namespace EE::Render
 
     void GeometryBuilder::SetTextureCoordinateAttribute( size_t vertexIndex, size_t attributeIndex, TextureCoordinateAttribute const& textureCoordinateAttribute )
     {
+        EE_ASSERT( !HasDecalAttributes() );
         EE_ASSERT( m_vertexStride );
         EE_ASSERT( attributeIndex < m_numTextureCoordinateAttributes );
         EE_ASSERT( ( m_vertices.size() % m_vertexStride ) == 0 );
@@ -175,10 +184,30 @@ namespace EE::Render
         return false;
     }
 
+    void GeometryBuilder::SetDecalProjectionAttribute( size_t triangleIndex, DecalProjectionAttribute const& decalProjectionAttribute )
+    {
+        EE_ASSERT( triangleIndex < GetNumTriangles() );
+
+        if ( m_decalProjectionAttributes.size() != GetNumTriangles() )
+        {
+            m_decalProjectionAttributes.resize( GetNumTriangles(), 0 );
+        }
+
+        m_decalProjectionAttributes[triangleIndex] = decalProjectionAttribute;
+    }
+
+    GeometryBuilder::DecalProjectionAttribute GeometryBuilder::GetDecalProjectionAttribute( size_t triangleIndex ) const
+    {
+        EE_ASSERT( triangleIndex < GetNumTriangles() );
+
+        return triangleIndex < m_decalProjectionAttributes.size() ? m_decalProjectionAttributes[triangleIndex] : DecalProjectionAttribute();
+    }
+
     //-------------------------------------------------------------------------
 
     bool GeometryBuilder::Simplify( float normalsWeight, float uvWeight, float targetAttributeError, uint32_t targetTriangleCount, float targetTrianglePercentage )
     {
+        EE_ASSERT( !HasDecalAttributes() );
         EE_ASSERT( m_vertexStride );
 
         bool simplificationSuccess = false;
@@ -228,6 +257,7 @@ namespace EE::Render
 
     void GeometryBuilder::Optimize( TBitFlags<GeometryOptimizeFlags> flags )
     {
+        EE_ASSERT( !HasDecalAttributes() );
         EE_ASSERT( m_vertexStride );
         EE_ASSERT( flags.IsAnyFlagSet() );
 
@@ -373,6 +403,107 @@ namespace EE::Render
         size_t dataCursor = packedMeshData.size();
         EE_ASSERT( ( dataCursor % 8 ) == 0 );
 
+        // Per triangle attributes, meshopt reorders the triangles so each meshlet triangle has to be mapped back to
+        // its source triangle to look up its attribute
+        //-------------------------------------------------------------------------
+
+        struct SourceTriangle
+        {
+            uint32_t                    m_vertices[3] = {};
+            uint32_t                    m_triangleIndex = 0;
+        };
+
+        TVector<SourceTriangle> sourceTriangles;
+
+        if ( !m_decalProjectionAttributes.empty() )
+        {
+            sourceTriangles.resize( m_indices.size() / 3 );
+
+            for ( size_t triangleIndex = 0; triangleIndex < sourceTriangles.size(); ++triangleIndex )
+            {
+                SourceTriangle& sourceTriangle = sourceTriangles[triangleIndex];
+                sourceTriangle.m_triangleIndex = uint32_t( triangleIndex );
+
+                for ( uint32_t cornerIdx = 0; cornerIdx < 3; cornerIdx++ )
+                {
+                    sourceTriangle.m_vertices[cornerIdx] = m_indices[triangleIndex * 3 + cornerIdx];
+                }
+
+                if ( sourceTriangle.m_vertices[0] > sourceTriangle.m_vertices[1] )
+                {
+                    eastl::swap( sourceTriangle.m_vertices[0], sourceTriangle.m_vertices[1] );
+                }
+
+                if ( sourceTriangle.m_vertices[1] > sourceTriangle.m_vertices[2] )
+                {
+                    eastl::swap( sourceTriangle.m_vertices[1], sourceTriangle.m_vertices[2] );
+                }
+
+                if ( sourceTriangle.m_vertices[0] > sourceTriangle.m_vertices[1] )
+                {
+                    eastl::swap( sourceTriangle.m_vertices[0], sourceTriangle.m_vertices[1] );
+                }
+            }
+
+            eastl::sort
+            (
+                sourceTriangles.begin(), sourceTriangles.end(),
+                [] ( SourceTriangle const& lhs, SourceTriangle const& rhs )
+            {
+                if ( lhs.m_vertices[0] != rhs.m_vertices[0] )
+                {
+                    return lhs.m_vertices[0] < rhs.m_vertices[0];
+                }
+
+                if ( lhs.m_vertices[1] != rhs.m_vertices[1] )
+                {
+                    return lhs.m_vertices[1] < rhs.m_vertices[1];
+                }
+
+                return lhs.m_vertices[2] < rhs.m_vertices[2];
+            }
+            );
+        }
+
+        auto findSourceTriangleAttribute = [&] ( uint32_t vertex0, uint32_t vertex1, uint32_t vertex2 ) -> DecalProjectionAttribute
+        {
+            if ( sourceTriangles.empty() )
+            {
+                return 0;
+            }
+
+            if ( vertex0 > vertex1 )
+            {
+                eastl::swap( vertex0, vertex1 );
+            }
+
+            if ( vertex1 > vertex2 )
+            {
+                eastl::swap( vertex1, vertex2 );
+            }
+
+            if ( vertex0 > vertex1 )
+            {
+                eastl::swap( vertex0, vertex1 );
+            }
+
+            auto const it = eastl::lower_bound
+            (
+                sourceTriangles.begin(), sourceTriangles.end(), vertex0,
+                [] ( SourceTriangle const& sourceTriangle, uint32_t vertex ) { return sourceTriangle.m_vertices[0] < vertex; }
+            );
+
+            for ( auto searchIt = it; searchIt != sourceTriangles.end() && searchIt->m_vertices[0] == vertex0; ++searchIt )
+            {
+                if ( searchIt->m_vertices[1] == vertex1 && searchIt->m_vertices[2] == vertex2 )
+                {
+                    return m_decalProjectionAttributes[searchIt->m_triangleIndex];
+                }
+            }
+
+            return 0;
+        };
+
         // Optimize meshlets and compute the shared exponent
         //-------------------------------------------------------------------------
 
@@ -492,8 +623,30 @@ namespace EE::Render
             size_t const skinningOffset = colorsOffset + colorsSize;
             size_t const skinningSize = meshlet.vertex_count * m_numSkinningAttributes * sizeof( MeshCluster::SkinningAttribute );
             size_t const triangleDataSize = MeshCluster::GetTriangleDataSize( meshlet.triangle_count );
+            size_t const trianglesOffset = skinningOffset + skinningSize;
 
-            size_t const clusterDataSize = ( skinningOffset + skinningSize + triangleDataSize + 7 ) & ~size_t( 7 );
+            // Per triangle decal attributes, the section is only present when a triangle of this cluster has one
+            TArray<DecalProjectionAttribute, MeshCluster::s_maxTrianglesPerCluster> triangleDecalAttributes;
+            bool hasDecalProjectionAttributes = false;
+
+            for ( uint32_t meshletTriangleIndex = 0; meshletTriangleIndex < meshlet.triangle_count; ++meshletTriangleIndex )
+            {
+                uint32_t const vertex0 = tempMeshletVertices[meshlet.vertex_offset + tempMeshletTriangles[meshlet.triangle_offset + meshletTriangleIndex * 3]];
+                uint32_t const vertex1 = tempMeshletVertices[meshlet.vertex_offset + tempMeshletTriangles[meshlet.triangle_offset + meshletTriangleIndex * 3 + 1]];
+                uint32_t const vertex2 = tempMeshletVertices[meshlet.vertex_offset + tempMeshletTriangles[meshlet.triangle_offset + meshletTriangleIndex * 3 + 2]];
+
+                DecalProjectionAttribute const attribute = findSourceTriangleAttribute( vertex0, vertex1, vertex2 );
+                triangleDecalAttributes[meshletTriangleIndex] = attribute;
+
+                if ( attribute != 0 )
+                {
+                    hasDecalProjectionAttributes = true;
+                }
+            }
+
+            size_t const decalProjectionAttributesSize = hasDecalProjectionAttributes ? meshlet.triangle_count * sizeof( DecalProjectionAttribute ) : 0;
+
+            size_t const clusterDataSize = ( trianglesOffset + triangleDataSize + decalProjectionAttributesSize + 7 ) & ~size_t( 7 );
             EE_ASSERT( ( clusterDataSize % 8 ) == 0 );
             EE_ASSERT( dataCursor <= UINT32_MAX );
             size_t const requiredSize = dataCursor + clusterDataSize;
@@ -510,7 +663,7 @@ namespace EE::Render
             uint8_t* const pUVs = pClusterData + uvsOffset;
             uint8_t* const pColors = pClusterData + colorsOffset;
             uint8_t* const pSkinning = pClusterData + skinningOffset;
-            uint8_t* const pTriangleBits = pClusterData + skinningOffset + skinningSize;
+            uint8_t* const pTriangleBits = pClusterData + trianglesOffset;
 
             uint8_t const* const pBufferEnd = packedMeshData.data() + packedMeshData.size();
             EE_ASSERT( pPositionBits + positionBitsSize + sizeof( uint64_t ) <= pBufferEnd );
@@ -531,6 +684,7 @@ namespace EE::Render
             pCluster->SetAnchorAndExponent( compressedVertexAnchor, compressedVertexExponent );
             pCluster->SetAABB( compressedAABBMin, compressedAABBMax );
             pCluster->SetDataOffsetIn8ByteBlocks( uint32_t( dataCursor / 8 ) );
+            pCluster->SetHasMeshDecalData( hasDecalProjectionAttributes );
 
             // Position bits
             //-------------------------------------------------------------------------
@@ -569,6 +723,19 @@ namespace EE::Render
                 uint16_t unpackedVertex2 = 0;
                 MeshCluster::UnpackTriangleBits( pTriangleBits, meshletTriangleIndex, unpackedVertex0, unpackedVertex1, unpackedVertex2 );
                 EE_ASSERT( unpackedVertex0 == srcVertex0 && unpackedVertex1 == srcVertex1 && unpackedVertex2 == srcVertex2 );
+            }
+
+            // Per triangle decal attributes
+            //-------------------------------------------------------------------------
+
+            if ( hasDecalProjectionAttributes )
+            {
+                uint32_t* const pDecalProjectionAttributes = reinterpret_cast<uint32_t*>( pClusterData + trianglesOffset + triangleDataSize );
+
+                for ( uint32_t meshletTriangleIndex = 0; meshletTriangleIndex < meshlet.triangle_count; ++meshletTriangleIndex )
+                {
+                    pDecalProjectionAttributes[meshletTriangleIndex] = triangleDecalAttributes[meshletTriangleIndex];
+                }
             }
 
             // Compress vertices
@@ -670,9 +837,53 @@ namespace EE::Render
 
         uint32_t const meshNumClusters = BuildClusters( geometry.m_meshData );
 
+        // Global mesh decal attribute, appended after the cluster data
+        //-------------------------------------------------------------------------
+
+        size_t meshDecalOffset = 0;
+
+        if ( m_decalBasisAttribute.m_numMaterials > 0 )
+        {
+            size_t const tailOffset = geometry.m_meshData.size();
+            EE_ASSERT( ( tailOffset % 8 ) == 0 );
+
+            size_t const projectionBasisOffset = ( tailOffset + sizeof( ShaderTypes::MeshDecalData ) + 15 ) & ~size_t( 15 );
+            size_t const projectionBasisSize = m_decalBasisAttribute.m_projectionBases.size() * sizeof( ShaderTypes::MeshDecalProjectionBasis );
+            size_t const projectionOffset = ( projectionBasisOffset + projectionBasisSize + 7 ) & ~size_t( 7 );
+            size_t const projectionSize = m_decalBasisAttribute.m_projections.size() * sizeof( ShaderTypes::MeshDecalProjection );
+            size_t const decalTableOffset = projectionOffset + projectionSize;
+            size_t const decalTableSize = m_decalBasisAttribute.m_numMaterials * sizeof( ShaderTypes::MeshDecal );
+
+            geometry.m_meshData.resize( decalTableOffset + decalTableSize );
+
+            // Zero the header, the padding and the decal material table, the table is filled in at load time
+            memset( geometry.m_meshData.data() + tailOffset, 0, decalTableOffset + decalTableSize - tailOffset );
+
+            if ( !m_decalBasisAttribute.m_projectionBases.empty() )
+            {
+                memcpy( geometry.m_meshData.data() + projectionBasisOffset, m_decalBasisAttribute.m_projectionBases.data(), projectionBasisSize );
+            }
+
+            if ( !m_decalBasisAttribute.m_projections.empty() )
+            {
+                memcpy( geometry.m_meshData.data() + projectionOffset, m_decalBasisAttribute.m_projections.data(), projectionSize );
+            }
+
+            ShaderTypes::MeshDecalData& meshDecalData = *reinterpret_cast<ShaderTypes::MeshDecalData*>( geometry.m_meshData.data() + tailOffset );
+            meshDecalData.m_projectionBasisOffset = uint32_t( projectionBasisOffset );
+            meshDecalData.m_projectionOffset = uint32_t( projectionOffset );
+            meshDecalData.m_decalTableOffset = uint32_t( decalTableOffset );
+            meshDecalData.m_numProjections = uint32_t( m_decalBasisAttribute.m_projections.size() );
+
+            meshDecalOffset = tailOffset;
+        }
+
+        //-------------------------------------------------------------------------
+
         MeshHeader& meshHeader = geometry.GetMeshHeader();
         meshHeader = {};
         meshHeader.m_numClusters = meshNumClusters;
+        meshHeader.m_meshDecalOffset = uint32_t( meshDecalOffset );
         clustersAABB.GetCenter().StoreFloat3( meshHeader.m_aabbCenterLocal );
         clustersAABB.GetExtents().StoreFloat3( meshHeader.m_aabbHalfExtentsLocal );
 

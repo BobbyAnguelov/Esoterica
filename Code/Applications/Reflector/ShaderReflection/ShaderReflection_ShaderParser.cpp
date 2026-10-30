@@ -299,6 +299,8 @@ namespace EE::Reflection
         {
             // means that the struct has free 16 bits in the last packed member, just adjust the offset
             EE_ASSERT( ( currentOffsetInBytes % 2 ) == 0 );
+
+            members.emplace_back( "esf_padding_t", "esf_tail_padding", 2, currentOffsetInBytes );
             currentOffsetInBytes += 2;
         }
 

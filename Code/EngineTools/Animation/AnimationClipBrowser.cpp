@@ -63,6 +63,7 @@ namespace EE::Animation
 
         auto SkeletonFilter = [this] ( Resource::ResourceDescriptor const* pDescriptor )
         {
+            EE_ASSERT( pDescriptor != nullptr );
             auto pClipDescriptor = Cast<AnimationClipResourceDescriptor>( pDescriptor );
             return pClipDescriptor->m_skeleton.GetResourceID() == m_skeleton;
         };

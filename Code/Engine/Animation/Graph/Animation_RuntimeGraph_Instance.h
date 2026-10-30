@@ -335,7 +335,7 @@ namespace EE::Animation
         inline bool IsExternalPoseSlotNodeActive( StringID slotID ) const { return IsNodeActive( GetExternalPoseNodeIndex( slotID ) ); }
 
         // Sets a supplied external pose to the specified slot. Note, it is the callers responsibility to ensure that the slot ID is valid!
-        bool SetExternalPose( StringID slotID, Pose const &primaryPose, TVector<Pose const*> const& secondaryPoses, Transform const& rootMotionDelta, StringID boneMaskID );
+        bool SetExternalPose( StringID slotID, Pose const &primaryPose, TVector<Pose const*> const& secondaryPoses, Transform const& rootMotionDelta, StringID boneMaskID, TVector<SampledEvent> const& events = TVector<SampledEvent>() );
 
         // Clear an external pose, will destroy the created instance
         void ClearExternalPose( StringID slotID );
@@ -480,6 +480,7 @@ namespace EE::Animation
         int32_t GetExternalGraphSlotIndex( StringID slotID ) const;
         int16_t GetExternalGraphNodeIndex( StringID slotID ) const;
         ReferencedGraphNode* GetExternalGraphNode( StringID slotID ) const;
+        StringID GetExternalGraphSlotID( GraphInstance* pExternalGraphInstance ) const;
 
         void InitializeReferencedGraphContexts( GraphContext *pParentContext, bool initializeGraphInstances );
         void ShutdownReferencedGraphContexts( bool shutdownGraphInstances );
@@ -500,18 +501,8 @@ namespace EE::Animation
         // Generate a resource mapping for all resources used by this graph instance
         TaskSerializationContext& UpdateTaskSerializationContext();
 
-        // Debug
-        //-------------------------------------------------------------------------
-
-        #if EE_DEVELOPMENT_TOOLS
-        void GetReferencedGraphsForDebug( TVector<DebuggableGraphInstance>& outReferencedGraphInstances, SourcePath const& parentPath ) const;
-        #endif
-
         // Recording
         //-------------------------------------------------------------------------
-
-        // Get the current active layer states
-        void GetUpdateStateForActiveLayers( TVector<GraphLayerUpdateState>& outRanges ) const;
 
         void RecordPreGraphEvaluateState( RecordedUpdateType updateType, Seconds deltaTime, Transform const& startWorldTransform );
 
@@ -525,8 +516,18 @@ namespace EE::Animation
 
         void RestoreRecordedGraphParameters( RecordedGraphUpdateData const &updateData );
 
+        // This will restore the poses for any buffers that the graph claims are used and that we have recorded data for
+        void RestoreRecordedCachedPoses( RecordedGraphUpdateData const &updateData );
+
         // Record all the registered tasks for this update
-        void RecordTasks();
+        void RecordTaskSystemState();
+
+        // Debug
+        //-------------------------------------------------------------------------
+
+        #if EE_DEVELOPMENT_TOOLS
+        void GetReferencedGraphsForDebug( TVector<DebuggableGraphInstance>& outReferencedGraphInstances, SourcePath const& parentPath ) const;
+        #endif
 
     private:
 

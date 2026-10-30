@@ -71,6 +71,12 @@ namespace EE
             }
             break;
 
+            case Mode::Gizmos:
+            {
+                UpdateAndDrawGizmos( context, pViewport, isViewportFocused );
+            }
+            break;
+
             default:
             break;
         }
@@ -80,6 +86,12 @@ namespace EE
     {
         switch ( m_mode )
         {
+            case Mode::Gizmos:
+            {
+                return false;
+            }
+            break;
+
             case Mode::DebugMeshTests:
             case Mode::IntersectionTests:
             default:
@@ -105,6 +117,11 @@ namespace EE
             }
             break;
 
+            case Mode::Gizmos:
+            {
+                return true;
+            }
+            break;
 
             default:
             break;
@@ -168,6 +185,8 @@ namespace EE
         drawingCtx.DrawCapsule( Transform( Quaternion::Identity, Vector( 14, -2, 0 ) ), 0.5f, 1.0f, Colors::Blue );
 
         //-------------------------------------------------------------------------
+
+        
 
         //auto pRegistry = context.GetSystem<Render::DebugMeshRegistry>();
         //Render::DebugMesh const* pDebugMeshHemisphere = pRegistry->GetDebugMesh( (uint64_t) DebugMeshID::Hemisphere );
@@ -319,5 +338,27 @@ namespace EE
         {
             drawingCtx.DrawPoint( r2.GetStartPoint() + ( r2.GetDirection() * hitOBB.m_T ), Colors::Gold, 10 );
         }*/
+    }
+
+    void DeveloperToolsMapEditorMode::UpdateAndDrawGizmos( UpdateContext const& context, Viewport const* pViewport, bool isFocused )
+    {
+        auto drawingCtx = GetDebugDrawContext();
+
+        drawingCtx.DrawWireBox( m_t, Vector::One, Colors::Gold, 2.0f, DebugDrawLayer::Screen );
+
+        /*auto result = m_gizmoT.UpdateAndDraw( m_t.GetTranslation(), m_t.GetRotation(), *pViewport );
+        if ( result != GizmoState::None )
+        {
+            m_t.AddTranslation( m_gizmoT.GetDelta() );
+        }*/
+
+        m_gizmo.SetCoordinateSystemSpace( CoordinateSpace::Local );
+        auto result = m_gizmo.UpdateAndDraw( m_t.GetTranslation(), m_t.GetRotation(), *pViewport, isFocused, isFocused );
+        if ( result.IsManipulating() )
+        {
+            result.ApplyResult( m_t );
+        }
+
+        //m_gizmoR.UpdateAndDraw( m_r.GetTranslation(), m_r.GetRotation(), *pViewport );
     }
 }

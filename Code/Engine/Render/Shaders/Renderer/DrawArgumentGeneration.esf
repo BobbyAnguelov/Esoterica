@@ -1,4 +1,8 @@
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
+#include "Engine/Render/Shaders/Renderer/DrawRootConstants.esh"
+#include "Engine/Render/Shaders/Renderer/CullingRootConstants.esh"
+#include "Engine/Render/Shaders/Renderer/ShadowProjection.esh"
 #include "Engine/Render/Shaders/Renderer/RendererSurfaceShaderLayout.esh"
 #include "Engine/Render/Shaders/EngineShader.esh"
 #include "Engine/Render/Shaders/MeshInstance.esh"
@@ -46,7 +50,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
             StructuredBuffer<uint16_t>   renderViewIndirectionBuffer = GetBuffer( RootCBV.m_renderViewIndirectionBuffer );
 
             const RenderView renderView = renderViewBuffer[renderViewIndirectionBuffer[viewIndex]];
-            const uint numFaces = ( ( renderView.m_renderViewFlags & RENDER_VIEW_FLAG_SHADOW_FACE ) != 0 ) ? g_OctahedralShadowNumFaces : 1;
+            const uint numFaces = ( ( renderView.m_renderViewFlags & g_renderViewFlagShadowFace ) != 0 ) ? g_OctahedralShadowNumFaces : 1;
 
             RWByteAddressBuffer drawArgumentCounter = GetRWBuffer( NonUniformResourceIndex( renderBucket.m_drawCounterBuffer ) );
             RWStructuredBuffer<DrawArgument> drawArgumentBuffer = GetRWBuffer( NonUniformResourceIndex( renderBucket.m_drawArgumentBuffer ) );

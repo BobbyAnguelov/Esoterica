@@ -21,7 +21,7 @@ namespace EE::Render
 namespace EE::Animation
 {
     class GraphComponent;
-    class AnimationClipPlayerComponent;
+    class AnimationPlayerComponent;
     class Pose;
 
     //-------------------------------------------------------------------------
@@ -47,7 +47,7 @@ namespace EE::Animation
 
     private:
 
-        TVector<AnimationClipPlayerComponent*>          m_animPlayers;
+        TVector<AnimationPlayerComponent*>              m_animPlayers;
         TVector<GraphComponent*>                        m_animGraphs;
         TVector<Render::SkeletalMeshComponent*>         m_meshComponents;
         SpatialEntityComponent*                         m_pRootComponent = nullptr;

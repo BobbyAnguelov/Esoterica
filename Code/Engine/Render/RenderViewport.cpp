@@ -101,7 +101,6 @@ namespace EE::Render
             m_debugMeshArgumentBuffersOutline[frameIndex].Shutdown( pContextRHI );
             m_debugMeshParametersBuffersOutline[frameIndex].Shutdown( pContextRHI );
             RHI::DestroyBuffer( pContextRHI, eastl::move( m_shaderDebugDrawBuffers[frameIndex] ) );
-            RHI::DestroyBuffer( pContextRHI, eastl::move( m_debugParametersBuffers[frameIndex] ) );
 
             m_meshParametersBuffers[frameIndex].Shutdown( pContextRHI );
             m_meshArgumentBuffers[frameIndex].Shutdown( pContextRHI );

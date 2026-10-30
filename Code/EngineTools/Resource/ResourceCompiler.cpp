@@ -47,7 +47,7 @@ namespace EE::Resource
         // Prepare for compilation
         //-------------------------------------------------------------------------
 
-        EE_ASSERT( ctx.m_sourceResourceDirectoryPath.IsValid() );
+        EE_ASSERT( ctx.m_sourceDataDirectoryPath.IsValid() );
         EE_ASSERT( ctx.m_compiledResourceDirectoryPath.IsValid() );
 
         //-------------------------------------------------------------------------

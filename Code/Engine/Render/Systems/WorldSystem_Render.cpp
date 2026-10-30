@@ -3,10 +3,12 @@
 #include "Engine/Entity/Entity.h"
 #include "Engine/Entity/EntityWorldUpdateContext.h"
 #include "Engine/Render/Components/Component_EnvironmentMaps.h"
+#include "Engine/Render/Components/Component_Decals.h"
 #include "Engine/Render/Components/Component_Lights.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
 #include "Engine/Render/Components/Component_StaticMesh.h"
 #include "Engine/Render/Device/DeviceRenderWorld.h"
+#include "Engine/Render/Shaders/Renderer/LightInstance.esh"
 #include "Engine/Render/RenderViewport.h"
 #include "Base/Types/Arrays.h"
 #include "Base/Profiling.h"
@@ -537,6 +539,45 @@ namespace EE::Render
             }
         }
 
+        // Decals
+        //-------------------------------------------------------------------------
+
+        else if ( auto pDecalComponent = TryCast<DecalComponent>( pComponent ) )
+        {
+            DecalMaterial const* const pDecalMaterial = pDecalComponent->GetDecalMaterial();
+            if ( pDecalMaterial == nullptr )
+            {
+                return;
+            }
+
+            TextureResource const* const pAlbedoTexture = pDecalMaterial->GetAlbedoTexture();
+            TextureResource const* const pPBRTexture = pDecalMaterial->GetPBRTexture();
+            TextureResource const* const pNormalTexture = pDecalMaterial->GetNormalTexture();
+            TextureResource const* const pEmissiveTexture = pDecalMaterial->GetEmissiveTexture();
+            TextureResource const* const pParallaxTexture = pDecalMaterial->GetParallaxTexture();
+
+            EE_ASSERT( pAlbedoTexture != nullptr );
+            EE_ASSERT( pPBRTexture != nullptr );
+            EE_ASSERT( pNormalTexture != nullptr );
+            EE_ASSERT( pEmissiveTexture != nullptr );
+            EE_ASSERT( pParallaxTexture != nullptr );
+
+            pDecalComponent->m_decalInstanceProxy = m_deviceRenderWorld.AllocateDecal();
+            m_deviceRenderWorld.QueueDecalInitialize
+            (
+                pDecalComponent->m_decalInstanceProxy,
+                RHI::GetTextureHandle( pAlbedoTexture->GetTexture(), RHI::DescriptorTypeFlags::Texture, 0 ),
+                RHI::GetTextureHandle( pPBRTexture->GetTexture(), RHI::DescriptorTypeFlags::Texture, 0 ),
+                RHI::GetTextureHandle( pNormalTexture->GetTexture(), RHI::DescriptorTypeFlags::Texture, 0 ),
+                RHI::GetTextureHandle( pEmissiveTexture->GetTexture(), RHI::DescriptorTypeFlags::Texture, 0 ),
+                RHI::GetTextureHandle( pParallaxTexture->GetTexture(), RHI::DescriptorTypeFlags::Texture, 0 ),
+                pDecalMaterial->GetFlagsMask()
+            );
+            pDecalComponent->WriteDecalTransform();
+
+            m_decalComponents.Add( pDecalComponent );
+        }
+
         // Environment Maps
         //-------------------------------------------------------------------------
 
@@ -625,6 +666,21 @@ namespace EE::Render
             }
         }
 
+        // Decals
+        //-------------------------------------------------------------------------
+
+        else if ( auto pDecalComponent = TryCast<DecalComponent>( pComponent ) )
+        {
+            if ( !pDecalComponent->m_decalInstanceProxy.IsValid() )
+            {
+                return;
+            }
+
+            m_decalComponents.Remove( pDecalComponent->GetID() );
+
+            m_deviceRenderWorld.DeallocateDecal( eastl::move( pDecalComponent->m_decalInstanceProxy ) );
+        }
+
         // Environment Maps
         //-------------------------------------------------------------------------
 
@@ -693,6 +749,8 @@ namespace EE::Render
 
             m_skeletalMeshComponentInstanceUpdateQueue.ClearIgnoredComponents();
         }
+
+        //-------------------------------------------------------------------------
 
         m_deviceRenderWorld.UpdateDeviceResources_AfterInstanceInitialize( m_pRenderSystem );
 

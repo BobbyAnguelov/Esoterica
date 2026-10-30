@@ -113,6 +113,6 @@ namespace EE::Resource
             return;
         }
 
-        m_pToolsContext->TryOpenDataFile( DataPath( result.m_filePaths[0], m_pToolsContext->GetSourceDataDirectory() ) );
+        m_pToolsContext->TryOpenFile( DataPath( result.m_filePaths[0], m_pToolsContext->GetSourceDataDirectory() ) );
     }
 }

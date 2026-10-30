@@ -13,8 +13,7 @@ float4 QuaternionConjugate( float4 q )
 
 float4 MulQuaternion( float4 q1, float4 q2 )
 {
-    return float4( q2.xyz * q1.w + q1.xyz * q2.w + cross( q1.xyz, q2.xyz ),
-                   q1.w * q2.w - dot( q1.xyz, q2.xyz ) );
+    return float4( q2.xyz * q1.w + q1.xyz * q2.w + cross( q1.xyz, q2.xyz ), q1.w * q2.w - dot( q1.xyz, q2.xyz ) );
 }
 
 float3 RotateVector( float4 q, float3 v )
@@ -59,14 +58,13 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
             position += m_translation;
             return position;
         }
-    
+
         float3 TransformNormal( float3 normal )
         {
-            return normalize( RotateVector( m_rotation, normalize( normal * m_scale ) ) );
+            return normalize( RotateVector( m_rotation, normal / m_scale ) );
         }
 
-        void TransformAABB( float3 aabbCenter, float3 aabbHalfExtents,
-                            out float3 newCenter, out float3 newHalfExtents )
+        void TransformAABB( float3 aabbCenter, float3 aabbHalfExtents, out float3 newCenter, out float3 newHalfExtents )
         {
             // TODO: Brute-force approach, there might be a better way to do it
 

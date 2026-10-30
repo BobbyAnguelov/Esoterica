@@ -140,11 +140,6 @@ namespace EE::Animation
         // Clear an existing cached pose buffer
         void ClearCachedPoseBuffer( CachedPoseID cachedPoseID );
 
-        #if EE_DEVELOPMENT_TOOLS
-        // Ensure that we have a valid cached pose buffer with the given ID. Needed for restoring from a recorded state
-        void RestoreCachedPoseBuffer( CachedPoseID cachedPoseID );
-        #endif
-
         // Task Registration
         //-------------------------------------------------------------------------
 
@@ -154,7 +149,7 @@ namespace EE::Animation
         template< typename T, typename ... ConstructorParams >
         inline int8_t RegisterTask( SourcePath const& sourcePath, ConstructorParams&&... params )
         {
-            EE_ASSERT( m_tasks.size() < 0xFF );
+            EE_ASSERT( m_tasks.size() < 127 );
 
             auto pNewTask = m_tasks.emplace_back( EE::New<T>( eastl::forward<ConstructorParams>( params )... ) );
             pNewTask->m_sourcePath = sourcePath;
@@ -166,7 +161,7 @@ namespace EE::Animation
         template< typename T, typename ... ConstructorParams >
         inline int8_t RegisterTask( SourcePath&& sourcePath, ConstructorParams&&... params )
         {
-            EE_ASSERT( m_tasks.size() < 0xFF );
+            EE_ASSERT( m_tasks.size() < 127 );
 
             auto pNewTask = m_tasks.emplace_back( EE::New<T>( eastl::forward<ConstructorParams>( params )... ) );
             pNewTask->m_sourcePath = eastl::move( sourcePath );
@@ -199,6 +194,13 @@ namespace EE::Animation
 
         inline TVector<TaskLogEntry> const &GetLog() const { return m_log; }
         #endif
+
+        // Recording
+        //-------------------------------------------------------------------------
+
+        inline void RecordPosePoolState( struct RecordedPosePoolData& outData ) { m_posePool.RecordState( outData ); }
+        inline void SetPosePoolToRecordedState( struct RecordedPosePoolData const& data ) { m_posePool.SetToRecordedState( data, false ); }
+        inline void SetCachedBufferPosesToRecordedState( struct RecordedPosePoolData const& data ) { m_posePool.SetToRecordedState( data, true ); }
 
     private:
 

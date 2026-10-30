@@ -88,7 +88,7 @@ namespace EE::Animation
 
             //-------------------------------------------------------------------------
 
-            pDefinition->m_isOffsetRelativeToCharacter = ( m_offsetType == OffsetType::RelativeToCharacter );
+            pDefinition->m_offsetType = m_offsetType;
             pDefinition->m_samplingMode = m_samplingMode;
             pDefinition->m_alignmentMode = m_alignmentMode;
         }

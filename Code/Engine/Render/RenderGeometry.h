@@ -24,6 +24,8 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
+    public:
+
         inline static void WriteBits( uint8_t* pData, uint32_t bitOffset, uint32_t numBits, uint32_t value )
         {
             EE_ASSERT( numBits >= 1 && numBits <= 16 );
@@ -127,6 +129,8 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
+    public:
+
         struct VertexNormalAttribute final
         {
             int16_t                         m_compressedNormalX = 0;
@@ -173,9 +177,9 @@ namespace EE::Render
 
         static_assert( sizeof( SkinningAttribute ) == 32, "Expected to be exactly 32 bytes" );
 
-    public:
-
         //-------------------------------------------------------------------------
+
+    public:
 
         inline void SetNumVertices( uint32_t numVertices )
         {
@@ -349,9 +353,17 @@ namespace EE::Render
             return GetSkinningOffset() + m_numSkinningAttributes * ( m_numVertices + 1 ) * uint32_t( sizeof( SkinningAttribute ) );
         }
 
-    private:
+        inline uint32_t GetMeshDecalDataOffset() const
+        {
+            return GetTrianglesOffset() + GetTriangleDataSize( GetNumTriangles() );
+        }
+
+        inline bool HasMeshDecalData() const { return m_hasMeshDecalData != 0; }
+        inline void SetHasMeshDecalData( bool hasData ) { m_hasMeshDecalData = hasData ? 1 : 0; }
 
         //-------------------------------------------------------------------------
+
+    private:
 
         int32_t                         m_anchorX : 24 = 0;
         uint32_t                        m_numVertices : 6 = 0;                  // Stored as ( count - 1 ), max 64 vertices per cluster, hard limit
@@ -368,7 +380,8 @@ namespace EE::Render
         uint32_t                        m_numPositionBitsX : 4 = 0;             // Bits used to store ( position - anchor ) per axis, stored as ( numBits - 1 ), max 16 per axis
         uint32_t                        m_numPositionBitsY : 4 = 0;
         uint32_t                        m_numPositionBitsZ : 4 = 0;
-        uint32_t                        m_reserved : 18 = 0;
+        uint32_t                        m_hasMeshDecalData : 1 = 0;             // Does this cluster contain per triangle mesh decal data
+        uint32_t                        m_reserved : 17 = 0;
 
         uint16_t                        m_aabb[6] = {};                         // Anchor-relative AABB min/max offsets
 
@@ -384,7 +397,7 @@ namespace EE::Render
         float                           m_aabbCenterLocal[3] = {};
         float                           m_aabbHalfExtentsLocal[3] = {};
 
-        uint32_t                        m_reserved = 0;
+        uint32_t                        m_meshDecalOffset = 0;                  // Byte offset of the DecalInstance array at the end of the buffer, 0 if there are no mesh decals
         uint32_t                        m_numClusters = 0;
     };
 
@@ -394,6 +407,8 @@ namespace EE::Render
 
     struct Geometry final
     {
+        EE_SERIALIZE( m_bounds, m_meshData );
+
     public:
 
         static constexpr size_t         s_maxMeshVertices = UINT32_MAX;
@@ -401,7 +416,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        EE_SERIALIZE( m_bounds, m_meshData );
+    public:
 
         // Bounds
         //-------------------------------------------------------------------------
@@ -418,6 +433,16 @@ namespace EE::Render
 
             MeshCluster::VertexNormalAttribute const* pVertexNormalAttribute = reinterpret_cast<MeshCluster::VertexNormalAttribute const*>( m_meshData.data() + cluster.GetDataOffsetInBytes() + cluster.GetNormalsOffset() + vertexIndex * sizeof( MeshCluster::VertexNormalAttribute ) );
             return *pVertexNormalAttribute;
+        }
+
+        inline Float2 GetVertexUV( uint32_t clusterIndex, uint32_t vertexIndex, uint32_t attributeIndex ) const
+        {
+            MeshCluster const& cluster = GetCluster( clusterIndex );
+            EE_ASSERT( vertexIndex < cluster.GetNumVertices() );
+            EE_ASSERT( attributeIndex < cluster.GetNumTextureCoordinateAttributes() );
+
+            MeshCluster::TextureCoordinateAttribute const* pTextureCoordinates = reinterpret_cast<MeshCluster::TextureCoordinateAttribute const*>( m_meshData.data() + cluster.GetDataOffsetInBytes() + cluster.GetUVsOffset() );
+            return pTextureCoordinates[attributeIndex * cluster.GetNumVertices() + vertexIndex];
         }
 
         inline Float3 GetVertexPosition( uint32_t clusterIndex, uint32_t vertexIndex ) const
@@ -534,6 +559,8 @@ namespace EE::Render
         }
 
         //-------------------------------------------------------------------------
+
+    public:
 
         OBB                             m_bounds;
         AlignedBlob                     m_meshData;

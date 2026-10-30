@@ -41,7 +41,7 @@ namespace EE::Physics
     public:
 
         EE_REFLECT();
-        DataPath        m_sourcePath;
+        DataPath            m_sourcePath;
 
         // Optional: specifies the specific sub-meshes to compile, if this is not set, all sub-meshes contained in the source will be combined into a single mesh object
         EE_REFLECT();

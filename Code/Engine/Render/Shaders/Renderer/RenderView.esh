@@ -1,0 +1,169 @@
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/CommonFlags.esh"
+
+#ifndef _RENDER_VIEW_ESH_
+#define _RENDER_VIEW_ESH_
+
+// Maximum number of render views supported by the cluster culling pipeline.
+// Per-cluster visibility is packed into a 64-bit mask ( 1 bit per view ).
+#define EE_MAX_CULLING_VIEWS 64
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    struct HLSL_ALIGN_STRUCT RenderView
+    {
+        float4x4                        m_viewProjectionMatrix;
+        float4x4                        m_viewMatrix;
+
+        float4x4                        m_inverseViewProjectionMatrix;
+        float4x4                        m_inverseViewMatrix;
+        float4x4                        m_inverseProjectionMatrix;
+
+        float4                          m_renderTargetSize;
+        
+        RenderViewFlags                 m_renderViewFlags               : 3;
+        RenderViewLayerFlags            m_renderViewLayerFlags          : 8;
+        RendererGlobalFlags             m_rendererGlobalFlags           : 7;
+        uint                            m_padding                       : 14;
+    
+        float                           m_projectionP00;
+        float                           m_projectionP11;
+        float                           m_znear;
+
+        float4                          m_shadowLightSphere;
+
+        #ifndef __cplusplus
+
+        void ComputeViewPlanes( out float4 viewPlanes[6] )
+        {
+            // Left clipping plane
+            viewPlanes[0] = m_viewProjectionMatrix[3] + m_viewProjectionMatrix[0];
+
+            // Right clipping plane
+            viewPlanes[1] = m_viewProjectionMatrix[3] - m_viewProjectionMatrix[0];
+
+            // Bottom clipping plane
+            viewPlanes[3] = m_viewProjectionMatrix[3] + m_viewProjectionMatrix[1];
+
+            // Top clipping plane
+            viewPlanes[2] = m_viewProjectionMatrix[3] - m_viewProjectionMatrix[1];
+
+            // Near clipping plane
+            viewPlanes[4] = m_viewProjectionMatrix[3] + m_viewProjectionMatrix[2];
+
+            // Far clipping plane
+            viewPlanes[5] = m_viewProjectionMatrix[3] - m_viewProjectionMatrix[2];
+
+            // Normalize planes
+            for ( uint planeIndex = 0; planeIndex < 6; ++planeIndex )
+            {
+                viewPlanes[planeIndex] *= rsqrt( dot( viewPlanes[planeIndex].xyz, viewPlanes[planeIndex].xyz ) );
+            }
+        }
+    
+        // https://zeux.io/2023/01/12/approximate-projected-bounds/
+        bool ProjectBox( float3 bmin, float3 bmax, out float4 aabb )
+        {
+            float4 SX = mul( m_viewProjectionMatrix, float4( bmax.x - bmin.x, 0.0, 0.0, 0.0 ) );
+            float4 SY = mul( m_viewProjectionMatrix, float4( 0.0, bmax.y - bmin.y, 0.0, 0.0 ) );
+            float4 SZ = mul( m_viewProjectionMatrix, float4( 0.0, 0.0, bmax.z - bmin.z, 0.0 ) );
+
+            float4 P0 = mul( m_viewProjectionMatrix, float4( bmin.x, bmin.y, bmin.z, 1.0 ) );
+            float4 P1 = P0 + SZ;
+            float4 P2 = P0 + SY;
+            float4 P3 = P2 + SZ;
+            float4 P4 = P0 + SX;
+            float4 P5 = P4 + SZ;
+            float4 P6 = P4 + SY;
+            float4 P7 = P6 + SZ;
+
+            if ( min( P0.w, min( P1.w, min( P2.w, min( P3.w, min( P4.w, min( P5.w, min( P6.w, P7.w ) ) ) ) ) ) ) < m_znear )
+            {
+                aabb = 0.0.xxxx;
+                return false;
+            }
+
+            P0.xy /= P0.w;
+            P1.xy /= P1.w;
+            P2.xy /= P2.w;
+            P3.xy /= P3.w;
+            P4.xy /= P4.w;
+            P5.xy /= P5.w;
+            P6.xy /= P6.w;
+            P7.xy /= P7.w;
+    
+            aabb.xy = min(P0.xy, min( P1.xy, min( P2.xy, min( P3.xy, min( P4.xy, min( P5.xy, min( P6.xy, P7.xy ) ) ) ) ) ) );
+            aabb.zw = max(P0.xy, max( P1.xy, max( P2.xy, max( P3.xy, max( P4.xy, max( P5.xy, max( P6.xy, P7.xy ) ) ) ) ) ) );
+
+            // clip space -> uv space
+            aabb = aabb.xwzy * float4( 0.5, -0.5, 0.5, -0.5 ) + 0.5.xxxx;
+
+            return true;
+        }
+    
+        // 2D Polyhedral Bounds of a Clipped, Perspective-Projected 3D Sphere. Michael Mara, Morgan McGuire. 2013
+        bool ProjectSphere( float3 c, float r, out float4 aabb )
+        {
+            c.z = -c.z; 
+
+            if ( c.z < r + m_znear )
+            {
+                return false;
+            }
+
+            float3 cr = c * r;
+            float czr2 = c.z * c.z - r * r;
+
+            float vx = sqrt( c.x * c.x + czr2 );
+            float minx = ( vx * c.x - cr.z ) / ( vx * c.z + cr.x );
+            float maxx = ( vx * c.x + cr.z ) / ( vx * c.z - cr.x );
+
+            float vy = sqrt( c.y * c.y + czr2 );
+            float miny = ( vy * c.y - cr.z ) / ( vy * c.z + cr.y );
+            float maxy = ( vy * c.y + cr.z ) / ( vy * c.z - cr.y );
+
+            aabb = float4( minx * m_projectionP00, miny * m_projectionP11, maxx * m_projectionP00, maxy * m_projectionP11 );
+            aabb = aabb.xwzy * float4( 0.5, -0.5, 0.5, -0.5 ) + 0.5.xxxx; // clip space -> uv space
+
+            return true;
+        }
+
+        #endif
+    };
+
+    #ifndef __cplusplus
+
+    bool IsFrustumVisible( float3 aabbCenter, float3 aabbHalfExtents, float4 viewPlanes[6] )
+    {
+        [unroll( 6 )]
+        for ( uint planeIndex = 0; planeIndex < 6; ++planeIndex )
+        {
+            float distanceToCenter = dot( float4( aabbCenter, 1.0 ), viewPlanes[planeIndex] );
+            float extentsRadius = dot( aabbHalfExtents, abs( viewPlanes[planeIndex].xyz ) );
+
+            if ( ( distanceToCenter + extentsRadius ) < 0.0 )
+            {
+                return false;
+            }
+        
+            if ( ( distanceToCenter - extentsRadius ) < 0.0 )
+            {
+                return true;
+            }
+        }
+        return true;
+    }
+
+    bool IsSphereVisible( float3 aabbCenter, float3 aabbHalfExtents, float3 sphereCenter, float sphereRadius )
+    {
+        float3 const centerToSphere = aabbCenter - sphereCenter;
+        float const combinedRadius = sphereRadius + length( aabbHalfExtents );
+        return dot( centerToSphere, centerToSphere ) <= ( combinedRadius * combinedRadius );
+    }
+
+    #endif
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

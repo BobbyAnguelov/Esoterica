@@ -13,11 +13,15 @@ namespace EE::Render
 
     struct EE_ENGINE_API DeviceAppendBufferBase
     {
+    public:
+
         void Initialize( RHI::Context* pContextRHI, StringView name );
         void Shutdown( RHI::Context* pContextRHI );
         uint64_t GetAppendBufferHandle() const;
 
         //-------------------------------------------------------------------------
+
+    public:
 
         String                                                      m_bufferName;
 
@@ -35,6 +39,8 @@ namespace EE::Render
     template <typename T>
     struct DeviceAppendBuffer final : public DeviceAppendBufferBase
     {
+    public:
+
         void UpdateBuffers( RenderSystem* pRenderSystem, uint32_t frameIndex, size_t stride, TBitFlags<RHI::DescriptorTypeFlags> descriptorTypeFlags );
 
         void Clear( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
@@ -42,6 +48,8 @@ namespace EE::Render
         void Barrier( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex ) const;
 
         //-------------------------------------------------------------------------
+
+    public:
 
         eastl::conditional_t<eastl::is_same_v<T, void>,
             uint32_t,

@@ -422,7 +422,7 @@ namespace EE::TypeSystem
 
     //-------------------------------------------------------------------------
 
-    void TypeDescriptorCollection::Reset()
+    void TypeDescriptorCollection::Clear()
     {
         m_descriptors.clear();
         m_totalRequiredSize = -1;

@@ -228,7 +228,7 @@ namespace EE
     bool ResourceServerApplication::Initialize( int32_t argc, char** argv )
     {
         #if EE_ENABLE_LPP
-        LivePP_CreateAgent();
+        //LivePP_CreateAgent();
         #endif
 
         m_busyOverlayIcon = LoadIcon( m_pInstance, MAKEINTRESOURCE( IDI_RESOURCESERVER_BUSYOVERLAY ) );
@@ -297,7 +297,7 @@ namespace EE
         EE_ASSERT( WasInitialized() );
 
         #if EE_ENABLE_LPP
-        LivePP_DestroyAgent();
+        //LivePP_DestroyAgent();
         #endif
 
         m_renderSystem.WaitAllQueuesIdle();

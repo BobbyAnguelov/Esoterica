@@ -157,7 +157,7 @@ namespace EE::Animation
             Radians const offset = m_pTargetValueNode->GetValue<float>( context ) * Math::DegreesToRadians;
             Quaternion const offsetRotation( AxisAngle( Float3::WorldUp, offset ) );
 
-            if ( pNodeDefinition->m_isOffsetRelativeToCharacter )
+            if ( pNodeDefinition->m_offsetType == OffsetType::RelativeToCharacter )
             {
                 targetDirCS = offsetRotation.RotateVector( Vector::WorldForward );
             }

@@ -91,8 +91,8 @@
   </Folder>
   <Folder Name="/7. Docs/Rendering/">
     <File Path="Docs/Rendering/AppendBuffer.md" />
+    <File Path="Docs/Rendering/Decals.md" />
     <File Path="Docs/Rendering/HandleAllocator.md" />
-    <File Path="Docs/Rendering/image.png" />
     <File Path="Docs/Rendering/Material Rendering Pipeline.md" />
     <File Path="Docs/Rendering/Meshes.md" />
     <File Path="Docs/Rendering/RHI.md" />

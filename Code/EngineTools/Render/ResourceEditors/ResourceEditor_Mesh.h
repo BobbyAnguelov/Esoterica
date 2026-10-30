@@ -4,7 +4,7 @@
 #include "Engine/Render/RenderMesh.h"
 #include "Base/Imgui/ImguiX.h"
 #include "Base/Imgui/ImguiCommandStack.h"
-#include "Engine/Imgui/ImguiGizmo.h"
+#include "EngineTools/Gizmos/Gizmo.h"
 
 //-------------------------------------------------------------------------
 
@@ -104,16 +104,33 @@ namespace EE::Render
         Transform GetSelectedSocketTransform() const;
         void SetSelectedSocketTransform( Transform const& transform );
 
+        // Mesh Decals
+        //-------------------------------------------------------------------------
+
+        void AddMeshDecal( ResourceID const& materialResourceID );
+        void RemoveMeshDecal( int32_t decalIdx );
+        Transform GetSelectedMeshDecalTransform() const;
+        void SetSelectedMeshDecalTransform( Transform const& transform );
+        Float3 GetSelectedMeshDecalNonUniformScale() const;
+        void SetSelectedMeshDecalNonUniformScale( Float3 const& nonUniformScale );
+
+        // Materials
+        //-------------------------------------------------------------------------
+
+        /*void ImportMaterials();*/
+
         // Windows + Widgets
         //-------------------------------------------------------------------------
 
         void DrawMeshInfoWindow( UpdateContext const& context, bool isFocused );
         void DrawSubmeshesWindow( UpdateContext const& context, bool isFocused );
         void DrawSocketsWindow( UpdateContext const& context, bool isFocused );
+        void DrawMeshDecalsWindow( UpdateContext const& context, bool isFocused );
         void DrawSkeletonWindow( UpdateContext const& context, bool isFocused );
 
         void DrawSkeletonTreeRow( BoneItem* pBone );
         void DrawSocketGizmo( Viewport const* pViewport, bool isFocused );
+        void DrawMeshDecalGizmo( Viewport const* pViewport, bool isFocused );
 
     private:
 
@@ -131,7 +148,16 @@ namespace EE::Render
         EventBindingID                  m_preEditSocketBindingID;
         EventBindingID                  m_postEditSocketBindingID;
         int32_t                         m_selectedSocketIdx = InvalidIndex;
-        ImGuiX::Gizmo                   m_socketGizmo;
+        Gizmo                           m_socketGizmo;
+
+        //-------------------------------------------------------------------------
+
+        PropertyGrid                    m_decalPropertyGrid;
+        EventBindingID                  m_preEditDecalBindingID;
+        EventBindingID                  m_postEditDecalBindingID;
+        int32_t                         m_selectedDecalIndex = InvalidIndex;
+        Gizmo                           m_decalGizmo;
+        bool                            m_isEditingMeshDecals = false;
 
         //-------------------------------------------------------------------------
 
@@ -139,6 +165,8 @@ namespace EE::Render
         TVector<int16_t>                m_selectedSubmeshes;
         TVector<int16_t>                m_hiddenSubmeshes;
         TVector<ResourcePicker*>        m_materialPickers;
+
+        String                          m_importMaterialsResultMessage = {};
 
         //-------------------------------------------------------------------------
 

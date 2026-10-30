@@ -1,5 +1,7 @@
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
+#include "Engine/Render/Shaders/Renderer/CullingRootConstants.esh"
 #include "Engine/Render/Shaders/Renderer/RendererSurfaceShaderLayout.esh"
 #include "Engine/Render/Shaders/EngineShader.esh"
 #include "Engine/Render/Shaders/MeshInstance.esh"
@@ -90,7 +92,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
             float4 viewPlanes[6];
             renderView.ComputeViewPlanes( viewPlanes );
 
-            if ( ( renderView.m_renderViewFlags & RENDER_VIEW_FLAG_SHADOW_FACE ) != 0 )
+            if ( ( renderView.m_renderViewFlags & g_renderViewFlagShadowFace ) != 0 )
             {
                 visibleInThisView = IsSphereVisible( clusterCenterGlobal, clusterExtentGlobal, renderView.m_shadowLightSphere.xyz, renderView.m_shadowLightSphere.w );
             }
@@ -135,7 +137,7 @@ void CS_main( uint groupID : SV_GroupID, uint groupThreadID : SV_GroupThreadID, 
         {
             if ( clusterMask & ( 1ULL << viewIndex ) )
             {
-                const bool depthOnlyView = ( renderViewBuffer[renderViewIndirectionBuffer[viewIndex]].m_renderViewFlags & RENDER_VIEW_FLAG_DEPTH_ONLY ) != 0;
+                const bool depthOnlyView = ( renderViewBuffer[renderViewIndirectionBuffer[viewIndex]].m_renderViewFlags & g_renderViewFlagDepthOnly ) != 0;
                 const uint bucket = ( depthOnlyView && baseBucket == 2 ) ? 0 : baseBucket;
 
                 drawClusterCountersBuffer.InterlockedAdd( ( viewIndex * EE_NUM_RENDER_BUCKETS_PER_SHADER_PER_VIEW + bucket ) * 4, 1 );

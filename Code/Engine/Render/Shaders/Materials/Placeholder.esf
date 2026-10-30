@@ -1,4 +1,6 @@
 
+#define MATERIAL_NO_NORMAL_MAP 1
+
 #include "Engine/Render/Shaders/Renderer/DefaultMeshShader.esh"
 #include "Engine/Render/Shaders/Renderer/MaterialShaderPBR.esh"
 
@@ -9,7 +11,7 @@ MaterialShaderOutput MaterialShaderMain( in MaterialShaderInput materialInput )
     MaterialShaderOutput materialOutput   = MaterialShaderOutput::New( materialInput );
 
     materialOutput.m_albedo                                 = float3( 1.0, 0.255, 0.385 );
-    materialOutput.m_primitiveFlags.m_rendererDebugFlags    = RENDERER_DEBUG_FLAG_SHOW_WIREFRAME;
-    
+    materialOutput.m_primitiveFlags.m_rendererDebugFlags    = g_rendererDebugFlagShowWireframe;
+
     return materialOutput;
 }

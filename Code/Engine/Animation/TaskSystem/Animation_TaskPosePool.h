@@ -35,7 +35,7 @@ namespace EE::Animation
         bool IsPoseSet() const { return m_poses[0].IsPoseSet(); }
         bool IsParentSpacePose() const { return m_poses[0].IsParentSpacePose(); }
         bool IsAdditivePose() const { return m_poses[0].IsAdditivePose(); }
-        void ResetPose( Pose::Init poseInit = Pose::Init::None, bool calculateGlobalPose = false );
+        void ResetPose( Pose::Init poseInit = Pose::Init::None );
         void CalculateModelSpaceTransforms();
 
         inline Pose* GetPrimaryPose() { return &m_poses[0]; }
@@ -47,7 +47,7 @@ namespace EE::Animation
     protected:
 
         // Releases this buffer and resets the poses
-        void Release( Pose::Init poseInit = Pose::Init::None, bool calculateGlobalPose = false );
+        void Release( Pose::Init poseInit = Pose::Init::None );
 
         // Changes the set of poses we store
         void UpdateSecondarySkeletonList( SecondarySkeletonList const& secondarySkeletons );
@@ -189,9 +189,6 @@ namespace EE::Animation
         // Try to get a pose-buffer with the specified ID, returns null if it cant find a buffer with the specified ID
         PoseBuffer* GetCachedPoseBuffer( CachedPoseID cachedPoseID ) { return GetCachedPoseBufferInternal( cachedPoseID ); }
 
-        // Create a buffer for a specific ID
-        PoseBuffer* CreateBufferForSpecificID( CachedPoseID cachedPoseID );
-
         // Get an existing buffer or create a temporary buffer if one doesnt exist (used for networked write tasks)
         PoseBuffer* GetOrCreateTemporaryBufferForSpecificID( CachedPoseID cachedPoseID );
 
@@ -206,6 +203,12 @@ namespace EE::Animation
         bool HasRecordedPoseBufferForTask( int8_t taskIdx ) const;
         PoseBuffer* GetRecordedPoseBufferForTask( int8_t taskIdx ) const;
         #endif
+
+        // Recording
+        //-------------------------------------------------------------------------
+
+        void RecordState( struct RecordedPosePoolData &outData );
+        void SetToRecordedState( struct RecordedPosePoolData const &data, bool transferMatchingBuffersOnly = false );
 
     private:
 

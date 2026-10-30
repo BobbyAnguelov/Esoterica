@@ -3,6 +3,7 @@
 #include "Engine/Render/Components/Component_Lights.h"
 #include "Engine/Viewport/Viewport.h"
 #include "Base/Imgui/EsotericaIcons.h"
+#include "Base/Imgui/ImguiX.h"
 
 namespace EE::Render
 {

@@ -31,7 +31,7 @@ namespace EE::Physics
                 // Validity check
                 if ( !material.IsValid() )
                 {
-                    return ctx.LogError( "Invalid physics material encountered in library: %s (%s)", libraryPath.c_str() ,libraryPath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath ).c_str() );
+                    return ctx.LogError( "Invalid physics material encountered in library: %s (%s)", libraryPath.c_str() ,libraryPath.GetFileSystemPath( ctx.m_sourceDataDirectoryPath ).c_str() );
                 }
 
                 // Duplicate check

@@ -36,14 +36,14 @@ namespace EE::Animation
 
         GraphDefinition const *pCompiledGraphDef = definitionCompiler.GetCompiledGraph();
 
-        outDependencies.emplace_back( pCompiledGraphDef->GetPrimarySkeletonResourceID() );
+        VectorEmplaceBackUnique( outDependencies, pCompiledGraphDef->GetPrimarySkeletonResourceID() );
 
         int32_t const numSlots = pCompiledGraphDef->GetNumSlots();
         for ( int16_t i = 0; i < numSlots; i++ )
         {
             ResourceID const& referencedResourceID = pCompiledGraphDef->GetResourceIDForSlot( i );
             EE_ASSERT( referencedResourceID.IsValid() );
-            outDependencies.emplace_back( referencedResourceID );
+            VectorEmplaceBackUnique( outDependencies, referencedResourceID );
         }
     }
 

@@ -504,6 +504,8 @@ namespace EE::Resource
                 break;
             }
         }
+
+        m_completionResults.clear();
     }
 
     void ResourceServerWorker::GenerateHeartbeats()

@@ -1,5 +1,5 @@
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
 #include "Engine/Render/Shaders/Debug/DebugDraw.esh"
 #include "Engine/Render/Shaders/Picking/Picking.esh"
 #include "Engine/Render/Shaders/CommonSamplers.esh"
@@ -14,10 +14,8 @@ ESF_RESOURCE_TABLE struct DebugDrawResourceTable
 {
     AppendBuffer<PickingResult>     m_pickingResultsBuffer;
     
-    StructuredBuffer<RenderView>    m_renderViewBuffer;
     ByteAddressBuffer               m_debugDrawCommandsBuffer;
 
-    uint                            m_mainCameraRenderView;
     uint                            m_commandsOffset;
     uint                            m_numDebugDrawCommands;
     uint                            m_pickingSortPriority;
@@ -34,8 +32,10 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         DebugDrawResourceTableData  m_resourceTable;
         uint64_t                    m_rootCBV;
         uint3                       m_dispatchArguments;
-        uint3                       m_padding;
+        uint                        m_padding;
     };
+
+    HLSL_STATIC_ASSERT( sizeof( DebugDrawArgument ) == 48, "Indirect argument must be aligned to 16 bytes" );
 
 EE_END_SHADER_TYPES_NAMESPACE
 
@@ -45,7 +45,7 @@ EE_END_SHADER_TYPES_NAMESPACE
                                     "CBV( b1, space = 0 )"
 
 EE_DECLARE_ROOT_CONSTANTS( DebugDrawResourceTableData, b0, space0 );
-EE_DECLARE_ROOT_CBV( DebugDrawParameters, b1, space0 );
+EE_DECLARE_ROOT_CBV( GlobalParameters, b1, space0 );
 
 struct DebugDrawVertexOutput
 {
@@ -77,7 +77,6 @@ void MS_main(
 )
 {
     DebugDrawResourceTable              resourceTable           = CreateDebugDrawResourceTable( RootConstants );
-    RenderView                          mainCameraRenderView    = resourceTable.m_renderViewBuffer[resourceTable.m_mainCameraRenderView];
     
     //-------------------------------------------------------------------------
 
@@ -85,13 +84,13 @@ void MS_main(
 
     //-------------------------------------------------------------------------
 
-    float   pixelSize = min( mainCameraRenderView.m_renderTargetSize.z, mainCameraRenderView.m_renderTargetSize.w );
-    float   aspectRatio = mainCameraRenderView.m_renderTargetSize.y / mainCameraRenderView.m_renderTargetSize.x;
+    float   pixelSize = min( RootCBV.m_viewportSize.z, RootCBV.m_viewportSize.w );
+    float   aspectRatio = RootCBV.m_viewportSize.y / RootCBV.m_viewportSize.x;
     
     uint    commandAddress = ( dispatchThreadID + resourceTable.m_commandsOffset ) * sizeof( DebugDrawCommand_Raw );
     uint    basePrimitiveIndex = groupThreadID * 2;
     uint    baseVertexIndex = groupThreadID * 4;
-    uint    objectID = RootCBV.m_objectIDOffset + dispatchThreadID + resourceTable.m_commandsOffset;
+    uint    objectID = RootCBV.m_debugDrawObjectIDOffset + dispatchThreadID + resourceTable.m_commandsOffset;
 
     if ( dispatchThreadID < RootConstants.m_numDebugDrawCommands )
     {
@@ -101,7 +100,7 @@ void MS_main(
         {
             DebugDrawPointCommand pointCommand = resourceTable.m_debugDrawCommandsBuffer.Load < DebugDrawPointCommand > (commandAddress);
 
-            float4 pointCenterCS = mul( mainCameraRenderView.m_viewProjectionMatrix, float4( pointCommand.m_position, 1.0 ) );
+            float4 pointCenterCS = mul( RootCBV.m_mainCameraViewProjectionMatrix, float4( pointCommand.m_position, 1.0 ) );
             float2 pointCenterNDC = pointCenterCS.xy / pointCenterCS.w;
 
             bool disablePointAA = ( commandFlags & DEBUG_DRAW_COMMAND_FLAG_DISABLE_AA ) > 0;
@@ -110,7 +109,7 @@ void MS_main(
             // Actual distance in the shader is still computed for the initial amount of pixels, but we get more pixels for antialiasing.
             float numPaddingPixels = disablePointAA ? 0.0F : 2.0F;
             
-            float2 pointThickness = mainCameraRenderView.m_renderTargetSize.zw * ( pointCommand.m_thickness + numPaddingPixels );
+            float2 pointThickness = RootCBV.m_viewportSize.zw * ( pointCommand.m_thickness + numPaddingPixels );
 
             // Generate a quad with 2 triangles and CCW winding order
             //
@@ -192,8 +191,8 @@ void MS_main(
         {
             DebugDrawLineCommand lineCommand = resourceTable.m_debugDrawCommandsBuffer.Load<DebugDrawLineCommand>( commandAddress );
             
-            float4 lineStartCS = mul( mainCameraRenderView.m_viewProjectionMatrix, float4( lineCommand.m_startPosition, 1.0 ) );
-            float4 lineEndCS = mul( mainCameraRenderView.m_viewProjectionMatrix, float4( lineCommand.m_endPosition, 1.0 ) );
+            float4 lineStartCS = mul( RootCBV.m_mainCameraViewProjectionMatrix, float4( lineCommand.m_startPosition, 1.0 ) );
+            float4 lineEndCS = mul( RootCBV.m_mainCameraViewProjectionMatrix, float4( lineCommand.m_endPosition, 1.0 ) );
             
             float2 lineStartNDC = lineStartCS.xy / lineStartCS.w;
             float2 lineEndNDC = lineEndCS.xy / lineEndCS.w;
@@ -202,7 +201,7 @@ void MS_main(
             lineDirection = normalize( float2( lineDirection.x, lineDirection.y * aspectRatio ) );
             lineDirection = float2( -lineDirection.y, lineDirection.x );
             
-            float2 sideDirection = lineDirection * mainCameraRenderView.m_renderTargetSize.zw;
+            float2 sideDirection = lineDirection * RootCBV.m_viewportSize.zw;
             
             bool disableLineAA = ( commandFlags & DEBUG_DRAW_COMMAND_FLAG_DISABLE_AA ) > 0;
             
@@ -311,21 +310,21 @@ void MS_main(
             
             float4 clipVertices[3];
             
-            vertexOutput.m_position = mul( mainCameraRenderView.m_viewProjectionMatrix, float4( triangleCommand.m_vertex0, 1.0 ) );
+            vertexOutput.m_position = mul( RootCBV.m_mainCameraViewProjectionMatrix, float4( triangleCommand.m_vertex0, 1.0 ) );
             //vertexOutput.m_position.z += 0.1; // Bias debug meshes to avoid zfighting with world geometry
             vertexOutput.m_color = UnpackColor( triangleCommand.m_packedColor0 );
             outVertices[baseVertexIndex] = vertexOutput;
             
             clipVertices[0] = vertexOutput.m_position;
 
-            vertexOutput.m_position = mul( mainCameraRenderView.m_viewProjectionMatrix, float4( triangleCommand.m_vertex1, 1.0 ) );
+            vertexOutput.m_position = mul( RootCBV.m_mainCameraViewProjectionMatrix, float4( triangleCommand.m_vertex1, 1.0 ) );
             //vertexOutput.m_position.z += 0.1; // Bias debug meshes to avoid zfighting with world geometry
             vertexOutput.m_color = UnpackColor( triangleCommand.m_packedColor1 );
             outVertices[baseVertexIndex + 1] = vertexOutput;
             
             clipVertices[1] = vertexOutput.m_position;
 
-            vertexOutput.m_position = mul( mainCameraRenderView.m_viewProjectionMatrix, float4( triangleCommand.m_vertex2, 1.0 ) );
+            vertexOutput.m_position = mul( RootCBV.m_mainCameraViewProjectionMatrix, float4( triangleCommand.m_vertex2, 1.0 ) );
             //vertexOutput.m_position.z += 0.1; // Bias debug meshes to avoid zfighting with world geometry
             vertexOutput.m_color = UnpackColor( triangleCommand.m_packedColor2 );
             outVertices[baseVertexIndex + 2] = vertexOutput;
@@ -397,19 +396,19 @@ void MS_main(
             DebugDrawVertexOutput vertexOutput = ( DebugDrawVertexOutput )0;
             vertexOutput.m_color = UnpackColor( textLetterCommand.m_textColor );
 
-            vertexOutput.m_position = float4( mainCameraRenderView.m_renderTargetSize.zw * triangleVertex0.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
+            vertexOutput.m_position = float4( RootCBV.m_viewportSize.zw * triangleVertex0.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
             vertexOutput.m_uv = float2( textLetterCommand.m_alignedQuadTopLeft.z, textLetterCommand.m_alignedQuadBottomRight.w );
             outVertices[baseVertexIndex] = vertexOutput;
 
-            vertexOutput.m_position = float4( mainCameraRenderView.m_renderTargetSize.zw * triangleVertex1.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
+            vertexOutput.m_position = float4( RootCBV.m_viewportSize.zw * triangleVertex1.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
             vertexOutput.m_uv = float2( textLetterCommand.m_alignedQuadBottomRight.z, textLetterCommand.m_alignedQuadBottomRight.w );
             outVertices[baseVertexIndex + 1] = vertexOutput;
 
-            vertexOutput.m_position = float4( mainCameraRenderView.m_renderTargetSize.zw * triangleVertex2.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
+            vertexOutput.m_position = float4( RootCBV.m_viewportSize.zw * triangleVertex2.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
             vertexOutput.m_uv = float2( textLetterCommand.m_alignedQuadBottomRight.z, textLetterCommand.m_alignedQuadTopLeft.w );
             outVertices[baseVertexIndex + 2] = vertexOutput;
 
-            vertexOutput.m_position = float4( mainCameraRenderView.m_renderTargetSize.zw * triangleVertex3.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
+            vertexOutput.m_position = float4( RootCBV.m_viewportSize.zw * triangleVertex3.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
             vertexOutput.m_uv = float2( textLetterCommand.m_alignedQuadTopLeft.z, textLetterCommand.m_alignedQuadTopLeft.w );
             outVertices[baseVertexIndex + 3] = vertexOutput;
 
@@ -451,16 +450,16 @@ void MS_main(
             DebugDrawVertexOutput vertexOutput = ( DebugDrawVertexOutput )0;
             vertexOutput.m_color = UnpackColor( textBoxCommand.m_textColor );
 
-            vertexOutput.m_position = float4( mainCameraRenderView.m_renderTargetSize.zw * triangleVertex0.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
+            vertexOutput.m_position = float4( RootCBV.m_viewportSize.zw * triangleVertex0.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
             outVertices[baseVertexIndex] = vertexOutput;
 
-            vertexOutput.m_position = float4( mainCameraRenderView.m_renderTargetSize.zw * triangleVertex1.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
+            vertexOutput.m_position = float4( RootCBV.m_viewportSize.zw * triangleVertex1.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
             outVertices[baseVertexIndex + 1] = vertexOutput;
 
-            vertexOutput.m_position = float4( mainCameraRenderView.m_renderTargetSize.zw * triangleVertex2.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
+            vertexOutput.m_position = float4( RootCBV.m_viewportSize.zw * triangleVertex2.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
             outVertices[baseVertexIndex + 2] = vertexOutput;
 
-            vertexOutput.m_position = float4( mainCameraRenderView.m_renderTargetSize.zw * triangleVertex3.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
+            vertexOutput.m_position = float4( RootCBV.m_viewportSize.zw * triangleVertex3.xy * 2.0 - 1.0.xx, 1.0, 1.0 );
             outVertices[baseVertexIndex + 3] = vertexOutput;
 
             outIndices[basePrimitiveIndex] = uint3( baseVertexIndex, baseVertexIndex + 1, baseVertexIndex + 2 );

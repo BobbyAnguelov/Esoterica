@@ -110,6 +110,16 @@ namespace EE::Animation
 
         EE_FORCE_INLINE Transform const& GetParentSpaceTransform( int32_t boneIdx ) const { return GetTransform( boneIdx ); }
 
+        // Get the raw transforms for modification (will also clear the model space transforms). Requires the user to specify what state the final pose will be in after the modification
+        TVector<Transform>& GetTransformsForModification( State resultingStateAfterModification )
+        {
+            EE_ASSERT( resultingStateAfterModification != State::Unset && resultingStateAfterModification != State::ReferencePose && resultingStateAfterModification != State::ZeroPose );
+            m_state = resultingStateAfterModification;
+            ClearModelSpaceTransforms();
+
+            return m_parentSpaceTransforms;
+        }
+
         inline void SetTransform( int32_t boneIdx, Transform const& transform )
         {
             EE_ASSERT( boneIdx < GetNumBones() && boneIdx >= 0 );

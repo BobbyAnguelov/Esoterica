@@ -1,5 +1,5 @@
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
 #include "Engine/Render/Shaders/Picking/Picking.esh"
 
 ESF_PARAMETER string ShaderType = "Compute";

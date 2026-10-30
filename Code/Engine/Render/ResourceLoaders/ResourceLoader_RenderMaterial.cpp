@@ -7,12 +7,7 @@
 
 namespace EE::Render
 {
-    namespace ParameterIDs
-    {
-        static StaticStringID const g_shaderIndexID( "m_shaderIndex" );
-        static StaticStringID const g_textureSamplerLinear( "m_textureSamplerLinear" );
-        static StaticStringID const g_textureSamplerPoint( "m_textureSamplerPoint" );
-    }
+    static StaticStringID const s_shaderIndexParameterID( "m_shaderIndex" );
 
     //-------------------------------------------------------------------------
 
@@ -63,7 +58,7 @@ namespace EE::Render
                 EE_ASSERT( !pMaterial->m_shaderParametersInstance.IsValid() );
                 pMaterial->m_shaderParametersInstance = pMaterial->m_pMaterialParametersUpdate->m_materialShaderParameters;
 
-                MaterialShaderParameterHandle shaderIndexHandle = pMaterial->m_shaderParametersInstance.FindParameter( ParameterIDs::g_shaderIndexID );
+                MaterialShaderParameterHandle shaderIndexHandle = pMaterial->m_shaderParametersInstance.FindParameter( s_shaderIndexParameterID );
                 pMaterial->m_shaderParametersInstance.SetScalar( shaderIndexHandle, pMaterial->m_shaderIndex );
 
                 for ( auto& texture : pMaterial->m_parameterStorage.m_textures )
@@ -143,17 +138,6 @@ namespace EE::Render
                 }
 
                 // TODO: Sampler parameters are not implemented yet!
-                MaterialShaderParameterHandle samplerHandle = pMaterial->m_shaderParametersInstance.FindParameter( ParameterIDs::g_textureSamplerLinear );
-                if ( samplerHandle.IsValid() )
-                {
-                    pMaterial->m_shaderParametersInstance.SetSampler( samplerHandle, RHI::GetSamplerStateHandle( m_pRenderSystem->GetLinearWrapSampler() ) );
-                }
-
-                samplerHandle = pMaterial->m_shaderParametersInstance.FindParameter( ParameterIDs::g_textureSamplerPoint );
-                if ( samplerHandle.IsValid() )
-                {
-                    pMaterial->m_shaderParametersInstance.SetSampler( samplerHandle, RHI::GetSamplerStateHandle( m_pRenderSystem->GetPointWrapSampler() ) );
-                }
 
                 pMaterial->m_pMaterialParametersUpdate->m_updateState.store( AsyncResourceUpdateState::SubmitPending );
             }

@@ -25,6 +25,7 @@ namespace EE::Render
     class SpotLightComponent;
     class GlobalEnvironmentMapComponent;
     class LocalEnvironmentMapComponent;
+    class DecalComponent;
     class Mesh;
     class Material;
     class RenderSystem;
@@ -96,6 +97,7 @@ namespace EE::Render
         TIDVector<ComponentID, DirectionalLightComponent*>                  m_directionalLightComponents;
         TIDVector<ComponentID, PointLightComponent*>                        m_pointLightComponents;
         TIDVector<ComponentID, SpotLightComponent*>                         m_spotLightComponents;
+        TIDVector<ComponentID, DecalComponent const*>                       m_decalComponents;
 
         TEntityMessageQueue<StaticMeshComponent>                            m_staticMeshComponentInstanceUpdateQueue;
         TEntityMessageQueue<SkeletalMeshComponent>                          m_skeletalMeshComponentInstanceUpdateQueue;

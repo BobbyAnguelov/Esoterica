@@ -32,9 +32,9 @@ namespace EE::Animation
         // Read Skeleton Data
         //-------------------------------------------------------------------------
 
-        FileSystem::Path const skeletonFilePath = resourceDescriptor.m_skeletonPath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath );
+        FileSystem::Path const skeletonFilePath = resourceDescriptor.m_skeletonPath.GetFileSystemPath( ctx.m_sourceDataDirectoryPath );
 
-        Import::ReaderContext readerCtx = { [&ctx]( char const* pString ) { ctx.LogWarning( pString ); }, [&ctx] ( char const* pString ) { ctx.LogError( pString ); } };
+        Import::ReaderContext readerCtx = { ctx.m_sourceDataDirectoryPath, [&ctx]( char const* pString ) { ctx.LogWarning( pString ); }, [&ctx] ( char const* pString ) { ctx.LogError( pString ); } };
         Import::Source const fileSource( skeletonFilePath, ctx.GetRawData( resourceDescriptor.m_skeletonPath ) );
         TUniquePtr<Import::Skeleton> pImportedSkeleton = Import::Importer::ReadSkeleton( readerCtx, fileSource, resourceDescriptor.m_skeletonRootBoneName, resourceDescriptor.m_highLODBones );
         if ( pImportedSkeleton == nullptr )

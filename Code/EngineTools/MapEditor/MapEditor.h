@@ -5,8 +5,8 @@
 #include "EngineTools/Entity/EntityEditor/EntityEditor_Outliner.h"
 #include "EngineTools/Entity/EntityEditor/EntityEditor_EntityInspector.h"
 #include "EngineTools/Entity/EntityEditor/EntityEditor_ComponentTools.h"
+#include "EngineTools/Gizmos/Gizmo.h"
 #include "EngineTools/Core/EditorTool.h"
-#include "Engine/Imgui/ImguiGizmo.h"
 
 //-------------------------------------------------------------------------
 
@@ -61,7 +61,6 @@ namespace EE::EntityModel
         virtual bool HasTitlebarIcon() const override { return true; }
         virtual char const* GetTitlebarIcon() const override { EE_ASSERT( HasTitlebarIcon() ); return EE_ICON_EARTH; }
         virtual bool ShouldLoadDefaultEditorMap() const override { return false; }
-        virtual bool SupportsViewport() const override { return true; }
         virtual bool SupportsToolbar() const override { return true; }
         virtual void DrawToolbar( UpdateContext const& context ) override;
         virtual void DrawMenu( UpdateContext const& context ) override;
@@ -72,7 +71,7 @@ namespace EE::EntityModel
         virtual void Update( UpdateContext const& context, bool isVisible, bool isFocused ) override;
 
         virtual void HandleViewportInteractions() override;
-        virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition ) override;
+        virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition, Vector const& surfaceNormal ) override;
 
         virtual void PreUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
         virtual void PostUndoRedo( UndoStack::Operation operation, IUndoableAction const* pAction ) override;
@@ -114,7 +113,7 @@ namespace EE::EntityModel
 
         ComponentToolsManager*                          m_pComponentToolsManager = nullptr;
 
-        ImGuiX::Gizmo                                   m_gizmo;
+        Gizmo                                           m_gizmo;
 
         EntityOutliner                                  m_outliner;
         EntityInspector                                 m_inspector;

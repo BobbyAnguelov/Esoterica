@@ -92,13 +92,15 @@ namespace EE
 
         //-------------------------------------------------------------------------
 
-        m_meshLoader.SetRenderSystem( &m_renderSystem );
-        m_textureLoader.SetRenderSystem( &m_renderSystem );
-        m_materialLoader.SetRenderSystem( &m_renderSystem );
+        m_meshLoader.SetRenderSystemPtr( &m_renderSystem );
+        m_meshLoader.SetTypeRegistryPtr( context.m_pTypeRegistry );
+        m_textureLoader.SetRenderSystemPtr( &m_renderSystem );
+        m_materialLoader.SetRenderSystemPtr( &m_renderSystem );
 
         context.m_pResourceSystem->RegisterResourceLoader( &m_meshLoader );
         context.m_pResourceSystem->RegisterResourceLoader( &m_textureLoader );
         context.m_pResourceSystem->RegisterResourceLoader( &m_materialLoader );
+        context.m_pResourceSystem->RegisterResourceLoader( &m_decalMaterialLoader );
 
         //-------------------------------------------------------------------------
 
@@ -188,6 +190,12 @@ namespace EE
         context.m_pResourceSystem->UnregisterResourceLoader( &m_meshLoader );
         context.m_pResourceSystem->UnregisterResourceLoader( &m_textureLoader );
         context.m_pResourceSystem->UnregisterResourceLoader( &m_materialLoader );
+        context.m_pResourceSystem->UnregisterResourceLoader( &m_decalMaterialLoader );
+
+        m_meshLoader.ClearTypeRegistryPtr();
+        m_meshLoader.ClearRenderSystemPtr();
+        m_textureLoader.ClearRenderSystemPtr();
+        m_materialLoader.ClearRenderSystemPtr();
 
         //-------------------------------------------------------------------------
 

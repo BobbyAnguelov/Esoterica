@@ -78,7 +78,7 @@ namespace EE
 
         virtual EntityWorldManager* GetWorldManager() const override final { return m_pWorldManager; }
 
-        virtual bool TryOpenDataFile( DataPath const& path ) const override;
+        virtual bool TryOpenFile( DataPath const& path ) const override;
         virtual bool TryFindInResourceBrowser( DataPath const& path ) const override;
         virtual void TryCreateNewResourceDescriptorOrDataFile( TypeSystem::TypeID typeID, FileSystem::Path const& startingDir = FileSystem::Path() ) const override;
         virtual void OpenResourceImporter() const override;

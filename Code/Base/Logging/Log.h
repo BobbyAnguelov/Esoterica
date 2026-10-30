@@ -15,86 +15,87 @@ namespace EE
 
         struct Entry
         {
-            Severity    m_severity;
+            Severity    m_severity = Severity::Info;
             String      m_timestamp;
             String      m_message;
+            uint64_t    m_userData = 0;
+        };
+
+        enum class Mode
+        {
+            NotThreadSafe,
+            ThreadSafe
         };
 
     public:
 
-        Log() = default;
+        explicit Log( Mode mode = Mode::NotThreadSafe ) : m_mode( mode ) {}
 
         // Create a log that will automatically dump its contents to the system log on destruction
-        Log( LogCategory category, char const* pSourceInfo );
+        Log( LogCategory category, char const* pSourceInfo, Mode mode = Mode::NotThreadSafe );
 
         // Create a log that will automatically dump its contents to the system log on destruction
-        Log( LogCategory category, String const& sourceInfo );
+        Log( LogCategory category, String const& sourceInfo, Mode mode = Mode::NotThreadSafe );
+
+        // Copy Ctor
+        Log( Log const& log );
 
         ~Log();
 
-        void ClearLog() 
-        {
-            m_entries.clear();
-            m_numWarnings = m_numErrors = 0;
-        }
+        Log& operator=( Log const& log );
+
+        void Clear();
 
         inline bool HasWarnings() const { return m_numWarnings > 0; }
         inline bool HasErrors() const { return m_numErrors > 0; }
         int32_t GetNumWarnings() const { return m_numWarnings; }
         int32_t GetNumErrors() const { return m_numErrors; }
 
-        bool LogError( char const* pFormat, va_list args );
-        inline bool LogError( char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); LogError( pFormat, args ); va_end( args ); return false; }
+        void AddLogEntryVarArgs( Severity severity, uint64_t userData, char const* pFormat, va_list args );
+        inline void AddLogEntry( Severity severity, uint64_t userData, char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( severity, userData, pFormat, args ); va_end( args ); }
+        template<typename T> inline void AddLogEntry( Severity severity, T const* pUserData, char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( severity, uintptr_t( pUserData ), pFormat, args ); va_end( args ); }
 
-        void LogWarning( char const* pFormat, va_list args );
-        inline void LogWarning( char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); LogWarning( pFormat, args ); va_end( args ); }
-      
-        void LogInfo( char const* pFormat, va_list args );
-        inline void LogInfo( char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); LogInfo( pFormat, args ); va_end( args ); }
+        inline bool LogErrorVarArgs( char const* pFormat, va_list args ) { AddLogEntryVarArgs( Severity::Error, 0, pFormat, args ); return false; }
+        inline bool LogError( char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( Severity::Error, 0, pFormat, args ); va_end( args ); return false; }
 
-        int32_t GetNumLogEntries() const { return (int32_t) m_entries.size(); }
-        TVector<Entry> const& GetLogEntries() const { return m_entries; }
+        inline void LogWarningVarArgs( char const* pFormat, va_list args ) { AddLogEntryVarArgs( Severity::Warning, 0, pFormat, args ); }
+        inline void LogWarning( char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( Severity::Warning, 0, pFormat, args ); va_end( args ); }
 
-        void IterateLogEntries( TFunction<void( Entry const& entry )> const& perEntryFunction )
-        {
-            for ( auto const& entry : m_entries )
-            {
-                perEntryFunction( entry );
-            }
-        }
+        inline void LogInfoVarArgs( char const* pFormat, va_list args ) { AddLogEntryVarArgs( Severity::Info, 0, pFormat, args ); }
+        inline void LogInfo( char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( Severity::Info, 0, pFormat, args ); va_end( args ); }
 
-        void IterateInfos( TFunction<void( Entry const& entry )> const& perEntryFunction )
-        {
-            for ( auto const& entry : m_entries )
-            {
-                if ( entry.m_severity == Severity::Info )
-                {
-                    perEntryFunction( entry );
-                }
-            }
-        }
+        inline bool LogErrorWithUserDataVarArgs( uint64_t userData, char const* pFormat, va_list args ) { AddLogEntryVarArgs( Severity::Error, userData, pFormat, args ); return false; }
+        inline bool LogErrorWithUserData( uint64_t userData, char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( Severity::Error, userData, pFormat, args ); va_end( args ); return false; }
+        template<typename T> inline bool LogErrorWithUserData( T const* pUserData, char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( Severity::Error, uintptr_t( pUserData ), pFormat, args ); va_end( args ); return false; }
 
-        void IterateWarnings( TFunction<void( Entry const& entry )> const& perEntryFunction )
-        {
-            for ( auto const& entry : m_entries )
-            {
-                if ( entry.m_severity == Severity::Warning )
-                {
-                    perEntryFunction( entry );
-                }
-            }
-        }
+        inline void LogWarningWithUserDataVarArgs( uint64_t userData, char const* pFormat, va_list args ) { AddLogEntryVarArgs( Severity::Warning, userData, pFormat, args ); }
+        inline void LogWarningWithUserData( uint64_t userData, char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( Severity::Warning, userData, pFormat, args ); va_end( args ); }
+        template<typename T> inline void LogWarningWithUserData( T const* pUserData, char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( Severity::Warning, uintptr_t( pUserData ), pFormat, args ); va_end( args ); }
 
-        void IterateErrors( TFunction<void( Entry const& entry )> const& perEntryFunction )
-        {
-            for ( auto const& entry : m_entries )
-            {
-                if ( entry.m_severity == Severity::Error || entry.m_severity == Severity::FatalError )
-                {
-                    perEntryFunction( entry );
-                }
-            }
-        }
+        inline void LogInfoWithUserDataVarArgs( uint64_t userData, char const* pFormat, va_list args ) { AddLogEntryVarArgs( Severity::Info, userData, pFormat, args ); }
+        inline void LogInfoWithUserData( uint64_t userData, char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( Severity::Info, userData, pFormat, args ); va_end( args ); }
+        template<typename T> inline void LogInfoWithUserData( T const* pUserData, char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); AddLogEntryVarArgs( Severity::Info, uintptr_t( pUserData ), pFormat, args ); va_end( args ); }
+
+        // Get the number of log entries
+        int32_t GetNumLogEntries() const;
+
+        // Get the set of log entries directly (Not threadsafe)
+        TVector<Entry> const& GetLogEntries() const { EE_ASSERT( m_mode == Mode::NotThreadSafe ); return m_entries; }
+
+        // Returns the log entries by value and takes a lock (Threadsafe)
+        TVector<Entry> GetLogEntriesThreadsafe() const;
+
+        // Iterate over all log entries
+        void IterateLogEntries( TFunction<void( Entry const& entry )> const& perEntryFunction ) const;
+
+        // Iterate over all log info messages
+        void IterateInfos( TFunction<void( Entry const& entry )> const& perEntryFunction ) const;
+
+        // Iterate over all log warnings
+        void IterateWarnings( TFunction<void( Entry const& entry )> const& perEntryFunction ) const;
+
+        // Iterate over all log errors
+        void IterateErrors( TFunction<void( Entry const& entry )> const& perEntryFunction ) const;
 
         // Append another logs contents to this log
         void Append( Log const& otherLog );
@@ -106,210 +107,19 @@ namespace EE
         void ReflectToSystemLogAndClear( LogCategory category, char const* pSourceInfo );
 
         // Saves the log out to a single string
-        void SaveLogToString( String& logString );
+        void SaveLogToString( String& logString ) const;
 
         // Saves the log out to a file
-        void SaveLogToFile( FileSystem::Path const& logFilePath );
+        void SaveLogToFile( FileSystem::Path const& logFilePath ) const;
 
     private:
 
-        TVector<Entry>              m_entries;
-        int32_t                     m_numWarnings = 0;
-        int32_t                     m_numErrors = 0;
-        LogCategory                 m_category = LogCategory::Invalid;
-        String                      m_sourceInfo;
-    };
-
-    //-------------------------------------------------------------------------
-
-    class EE_BASE_API LogThreadSafe
-    {
-
-    public:
-
-        LogThreadSafe() = default;
-
-        // Create a log that will automatically dump its contents to the system log on destruction
-        LogThreadSafe( LogCategory category, char const* pSourceInfo );
-
-        // Create a log that will automatically dump its contents to the system log on destruction
-        LogThreadSafe( LogCategory category, String const& sourceInfo );
-
-        ~LogThreadSafe();
-
-        void ClearLog()
-        {
-            Threading::ScopeLockRead sl( m_mutex );
-            m_entries.clear();
-        }
-
-        inline bool HasWarnings() const { return m_numWarnings > 0; }
-        inline bool HasErrors() const { return m_numErrors > 0; }
-        int32_t GetNumWarnings() const { return m_numWarnings; }
-        int32_t GetNumErrors() const { return m_numErrors; }
-
-        bool LogError( char const* pFormat, va_list args );
-        inline bool LogError( char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); LogError( pFormat, args ); va_end( args ); return false; }
- 
-        void LogWarning( char const* pFormat, va_list args );
-        inline void LogWarning( char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); LogWarning( pFormat, args ); va_end( args ); }
-    
-        void LogInfo( char const* pFormat, va_list args );
-        inline void LogInfo( char const* pFormat, ... ) { va_list args; va_start( args, pFormat ); LogInfo( pFormat, args ); va_end( args ); }
-
-        void IterateLogEntries( TFunction<void( Log::Entry const& entry )> const& perEntryFunction )
-        {
-            Threading::ScopeLockRead sl( m_mutex );
-            for ( auto const& entry : m_entries )
-            {
-                perEntryFunction( entry );
-            }
-        }
-
-        int32_t GetNumLogEntries() const
-        {
-            Threading::ScopeLockRead sl( m_mutex );
-            return (int32_t) m_entries.size();
-        }
-
-        // Returns a copy of the entire log
-        TVector<Log::Entry> GetLogEntries() const
-        {
-            Threading::ScopeLockRead sl( m_mutex );
-            return m_entries;
-        }
-
-        // Append another logs contents to this log
-        void Append( Log const& otherLog );
-
-        // Append another logs contents to this log
-        void Append( LogThreadSafe const& otherLog );
-
-        // Prints log contents out to the system log for the given category and source
-        void ReflectToSystemLog( LogCategory category, char const* pSourceInfo );
-
-        // Prints log contents out to the system log for the given category and source, clears the log after
-        void ReflectToSystemLogAndClear( LogCategory category, char const* pSourceInfo );
-
-        // Saves the log out to a single string
-        void SaveLogToString( String& logString );
-
-        // Saves the log out to a file
-        void SaveLogToFile( FileSystem::Path const& logFilePath );
-
-    private:
-
+        Mode                                    m_mode = Mode::NotThreadSafe;
         mutable Threading::ReadWriteMutex       m_mutex;
-        TVector<Log::Entry>                     m_entries;
+        TVector<Entry>                          m_entries;
         std::atomic<int32_t>                    m_numWarnings = 0;
         std::atomic<int32_t>                    m_numErrors = 0;
         LogCategory                             m_category = LogCategory::Invalid;
         String                                  m_sourceInfo;
     };
 }
-
-// Mixin Macros
-//-------------------------------------------------------------------------
-// If you dont want to derive from log::storage, use these macros to mix in the functionality
-
-#define EE_EMBED_LOGGING_METHODS( logStorageName )\
-inline bool HasWarnings() const { return !logStorageName.HasWarnings(); }\
-inline bool HasErrors() const { return !logStorageName.HasErrors(); }\
-bool LogError( char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogWarning( pFormat, args );\
-    va_end( args );\
-    return false;\
-}\
-bool LogErrorWithCategory( char const* pCategory, char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogErrorWithCategory( pCategory, pFormat, args );\
-    va_end( args );\
-    return false;\
-}\
-void LogWarning( char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogWarning( pFormat, args );\
-    va_end( args );\
-}\
-void LogWarningWithCategory( char const* pCategory, char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogWarningWithCategory( pCategory, pFormat, args );\
-    va_end( args );\
-}\
-void LogInfo( char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogInfo( pFormat, args );\
-    va_end( args );\
-}\
-void LogInfoWithCategory( char const* pCategory, char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogInfoWithCategory( pCategory, pFormat, args );\
-    va_end( args );\
-}\
-TVector<LogCategory::Entry> const& GetLogEntries() const { return logStorageName.GetLogEntries(); }\
-void IterateLogEntries( TFunction<bool( LogCategory::Entry const& entry )> const& perEntryFunction ) { logStorageName.IterateLogEntries( perEntryFunction ); }\
-
-//-------------------------------------------------------------------------
-
-#define EE_EMBED_LOGGING_METHODS_THREADSAFE( logStorageName );\
-inline bool HasWarnings() const { return !logStorageName.HasWarnings(); }\
-inline bool HasErrors() const { return !logStorageName.HasErrors(); }\
-bool LogError( char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogWarning( pFormat, args );\
-    va_end( args );\
-    return false;\
-}\
-bool LogErrorWithCategory( char const* pCategory, char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogErrorWithCategory( pCategory, pFormat, args );\
-    va_end( args );\
-    return false;\
-}\
-void LogWarning( char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogWarning( pFormat, args );\
-    va_end( args );\
-}\
-void LogWarningWithCategory( char const* pCategory, char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogWarningWithCategory( pCategory, pFormat, args );\
-    va_end( args );\
-}\
-void LogInfo( char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogInfo( pFormat, args );\
-    va_end( args );\
-}\
-void LogInfoWithCategory( char const* pCategory, char const* pFormat, ... )\
-{\
-    va_list args;\
-    va_start( args, pFormat );\
-    logStorageName.LogInfoWithCategory( pCategory, pFormat, args );\
-    va_end( args );\
-}\
-TVector<LogCategory::Entry> GetLogEntries() const { return logStorageName.GetLogEntries(); }\
-void IterateLogEntries( TFunction<bool( LogCategory::Entry const& entry )> const& perEntryFunction ) { logStorageName.IterateLogEntries( perEntryFunction ); }\

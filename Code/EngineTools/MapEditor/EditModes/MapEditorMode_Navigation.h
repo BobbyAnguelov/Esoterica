@@ -9,7 +9,7 @@
 //-------------------------------------------------------------------------
 
 namespace EE::Render { class SkeletalMeshComponent; }
-namespace EE::Animation { class AnimationClipPlayerComponent; }
+namespace EE::Animation { class AnimationPlayerComponent; }
 
 //-------------------------------------------------------------------------
 
@@ -89,11 +89,11 @@ namespace EE::Navmesh
         bool                                                m_isInTestMode = false;
         Transform                                           m_startTransform;
         Transform                                           m_endTransform;
-        ImGuiX::Gizmo                                       m_startGizmo;
-        ImGuiX::Gizmo                                       m_endGizmo;
+        Gizmo                                               m_startGizmo;
+        Gizmo                                               m_endGizmo;
         Entity*                                             m_pTestEntity = nullptr;
         Render::SkeletalMeshComponent*                      m_pTestMeshComponent = nullptr;
-        Animation::AnimationClipPlayerComponent*            m_pTestAnimComponent = nullptr;
+        Animation::AnimationPlayerComponent*                m_pTestAnimComponent = nullptr;
         Milliseconds                                        m_pathCalculationTime;
         bool                                                m_pathNeedsUpdate = false;
 

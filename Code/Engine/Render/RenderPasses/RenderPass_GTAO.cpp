@@ -286,7 +286,6 @@ namespace EE::Render
         DeviceResourceStates&    resourceStates,
         RHI::CommandBuffer*      pCommandBuffer,
         RHI::BufferHandle        renderViewBuffer,
-        uint32_t                 mainCameraRenderView,
         uint32_t                 frameIndex
     )
     {
@@ -318,7 +317,7 @@ namespace EE::Render
         resourceStates.FlushBarriers( pCommandBuffer );
 
         rootConstants.SetRenderViewBuffer( renderViewBuffer );
-        rootConstants.m_mainCameraRenderView = mainCameraRenderView;
+        rootConstants.SetRenderViewIndirectionBuffer( RHI::GetBufferHandle( pRenderViewport->m_renderViewIndirectionBuffers[frameIndex], RHI::DescriptorTypeFlags::Buffer ) );
 
         RHI::CmdSetPipeline( pCommandBuffer, m_pMainPassComputeShader->m_pPipeline );
         RHI::CmdSetRootConstants( pCommandBuffer, 0, &rootConstants, sizeof( rootConstants ) );

@@ -36,6 +36,8 @@ namespace EE::Render
 
     struct MaterialShaderParameterInfo
     {
+    public:
+
         StringID                                        m_parameterType;
         StringID                                        m_parameterName;
         uint32_t                                        m_parameterStrideInBytes;
@@ -44,12 +46,16 @@ namespace EE::Render
 
     struct MaterialShaderParameterHandle
     {
+    public:
+
         inline bool IsValid() const
         {
             return m_parameterStrideInBytes != 0;
         }
 
         //-------------------------------------------------------------------------
+
+    public:
 
         uint32_t                                        m_parameterStrideInBytes = 0;
         uint32_t                                        m_parameterOffsetInBytes = 0;
@@ -60,7 +66,6 @@ namespace EE::Render
     public:
 
         friend class RenderSystem;
-
         inline bool IsValid() const
         {
             return m_handle.m_handle.IsValid();
@@ -188,6 +193,8 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
+    public:
+
         StringID                                        m_shaderName;
         bool                                            m_allowBufferWritesInPixelShader = false;
         bool                                            m_showInResourceEditor = true;
@@ -216,6 +223,8 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
+    public:
+
         StringID                                        m_shaderName;
         RHI::RootSignature*                             m_pRootSignature = nullptr;
 
@@ -239,6 +248,8 @@ namespace EE::Render
         ComputeShader( RHI::Context* contextRHI, StringID shaderName, ByteCodeList const& stageByteCodes );
 
         void Shutdown( RHI::Context* contextRHI );
+
+        //-------------------------------------------------------------------------
 
     public:
 

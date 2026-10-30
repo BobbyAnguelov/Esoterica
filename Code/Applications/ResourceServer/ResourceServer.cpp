@@ -316,7 +316,7 @@ namespace EE::Resource
                 DataPath modifiedFileDataPath = DataPath( fsEvent.m_path, m_context.m_pSettings->m_sourceDataDirectoryPath );
                 if ( !modifiedFileDataPath.IsValid() )
                 {
-                    return;
+                    continue;
                 }
 
                 // Check if this is a resource ID, if so then just notify everyone that something has changed

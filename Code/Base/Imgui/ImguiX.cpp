@@ -112,6 +112,48 @@ namespace EE::ImGuiX
         }
     }
 
+    void DrawShadowedText( Color textColor, Color shadowColor, TFunction<void( Color )> const& drawFunc )
+    {
+        ImVec2 const cursorPos = ImGui::GetCursorPos();
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, 0 ) );
+        ImGui::Dummy( ImVec2( 0, 1 ) );
+        ImGui::PopStyleVar();
+        ImGui::Indent( 1 );
+        drawFunc( shadowColor );
+        ImGui::Unindent( 1 );
+        ImGui::SetCursorPos( cursorPos );
+        drawFunc( textColor );
+    }
+
+    static inline void DrawShadowedText( Color textColor, Color shadowColor, char const* pFormat, va_list args )
+    {
+        ImVec2 const cursorPos = ImGui::GetCursorPos();
+        ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, 0 ) );
+        ImGui::Dummy( ImVec2( 0, 1 ) );
+        ImGui::PopStyleVar();
+        ImGui::Indent( 1 );
+        ImGui::TextColoredV( shadowColor, pFormat, args );
+        ImGui::Unindent( 1 );
+        ImGui::SetCursorPos( cursorPos );
+        ImGui::TextColoredV( textColor, pFormat, args );
+    }
+
+    void DrawShadowedText( Color textColor, Color shadowColor, char const* pFormat, ... )
+    {
+        va_list args;
+        va_start( args, pFormat );
+        DrawShadowedText( textColor, shadowColor, pFormat, args );
+        va_end( args );
+    }
+
+    void DrawShadowedText( Color textColor, char const* pFormat, ... )
+    {
+        va_list args;
+        va_start( args, pFormat );
+        DrawShadowedText( textColor, Colors::Black, pFormat, args );
+        va_end( args );
+    }
+
     void DrawSeverityIcon( Severity severity )
     {
         switch ( severity )

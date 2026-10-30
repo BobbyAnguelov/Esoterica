@@ -68,7 +68,7 @@ namespace EE::Navmesh
     {
         NavmeshData navmeshData;
 
-        FileSystem::Path const userGeneratedNavmeshPath = NavmeshData::GetUserGeneratedNavmeshFilePathForMap( ctx.GetResourceID().GetParentResourceID(), ctx.m_sourceResourceDirectoryPath );
+        FileSystem::Path const userGeneratedNavmeshPath = NavmeshData::GetUserGeneratedNavmeshFilePathForMap( ctx.GetResourceID().GetParentResourceID(), ctx.m_sourceDataDirectoryPath );
         if ( userGeneratedNavmeshPath.Exists() )
         {
             if ( !LoadUserGeneratedNavmeshData( ctx, userGeneratedNavmeshPath, navmeshData ) )
@@ -161,11 +161,11 @@ namespace EE::Navmesh
                 auto pPhysCollisionMeshDesc = ctx.GetDescriptor<Physics::PhysicsCollisionMeshResourceDescriptor>( resourceID );
                 outMeshesToInclude = pPhysCollisionMeshDesc->m_meshesToInclude;
 
-                outSource.m_path = pPhysCollisionMeshDesc->m_sourcePath.GetFileSystemPath( ctx.m_sourceResourceDirectoryPath );
+                outSource.m_path = pPhysCollisionMeshDesc->m_sourcePath.GetFileSystemPath( ctx.m_sourceDataDirectoryPath );
                 outSource.m_pFileData = ctx.GetRawData( pPhysCollisionMeshDesc->m_sourcePath );
             };
 
-            buildData.LoadCollisionMeshes( ctx.m_typeRegistry, ctx.m_sourceResourceDirectoryPath, GetMeshLoadInfo );
+            buildData.LoadCollisionMeshes( ctx.m_typeRegistry, ctx.m_sourceDataDirectoryPath, GetMeshLoadInfo );
         }
 
         ctx.LogMessage( "Build Data Setup: %.2fms", time.ToFloat() );

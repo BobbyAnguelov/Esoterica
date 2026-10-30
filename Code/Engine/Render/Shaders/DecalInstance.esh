@@ -1,0 +1,96 @@
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/Transform.esh"
+
+#ifndef _DECAL_INSTANCE_ESH_
+#define _DECAL_INSTANCE_ESH_
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    // Has to match flags in RenderDecalMaterial.h
+    static const uint g_decalFlagTilingXY                   = 1U << 0U;
+    static const uint g_decalFlagTilingXStretchY            = 1U << 1U;
+    static const uint g_decalFlagDisableAlbedo              = 1U << 2U;
+    static const uint g_decalFlagDisableNormal              = 1U << 3U;
+    static const uint g_decalFlagDisableRoughness           = 1U << 4U;
+    static const uint g_decalFlagDisableMetalness           = 1U << 5U;
+    static const uint g_decalFlagDisableOcclusion           = 1U << 6U;
+    static const uint g_decalFlagDisableEmissive            = 1U << 7U;
+    static const uint g_decalFlagAlphaCircle                = 1U << 8U;
+    static const uint g_decalFlagAlphaRoundBox              = 1U << 9U;
+    static const uint g_decalFlagParallax                   = 1U << 10U;
+    static const uint g_decalFlagTwoSided                   = 1U << 11U;
+    static const uint g_decalFlagOmnidirectional            = 1U << 12U;
+
+    //-------------------------------------------------------------------------
+
+    struct HLSL_ALIGN_STRUCT DecalInstance
+    {
+        Transform                           m_transform;
+
+        uint16_t                            m_albedoTexture;
+        uint16_t                            m_pbrTexture;
+        uint16_t                            m_normalTexture;
+        uint16_t                            m_emissiveTexture;
+        uint16_t                            m_parallaxTexture;
+        float16_t                           m_tiling;
+
+        uint                                m_flags                         : 16;
+        uint                                m_shapeRadius                   : 8;
+        uint                                m_heightOffset                  : 8;
+
+        uint                                m_packedTintedColor;
+        uint                                m_packedEmissiveColor;
+
+        #ifndef __cplusplus
+
+        bool HasFlag( uint flag ) { return ( m_flags & flag ) == flag; }
+
+        float GetHeight( float heightSample ) { return saturate( heightSample ); }
+
+        float GetShapeRadius() { return float( m_shapeRadius ) / 255.0; }
+        float GetHeightOffset() { return ( float( m_heightOffset ) - 128.0 ) * ( 1.0 / 127.0 ); }
+
+        // The decal transform is an inverse of the component transform (negated translation, world -> local rotation, inverse scale)
+        // Mapping a world position through it yields decal space: -0.5 to 0.5 across the decal volume.
+        float3 WorldPositionToDecalSpace( float3 worldPosition )
+        {
+            return RotateVector( m_transform.m_rotation, worldPosition + m_transform.m_translation ) * m_transform.m_scale;
+        }
+
+        float3 TransformNormalToWorld( float3 normal )
+        {
+            return normalize( RotateVector( QuaternionConjugate( m_transform.m_rotation ), normal * m_transform.m_scale ) );
+        }
+
+        float3 DirectionToLocal( float3 directionWS )
+        {
+            return normalize( RotateVector( m_transform.m_rotation, directionWS ) );
+        }
+
+        float3 ProjectionAxisWS()
+        {
+            return RotateVector( QuaternionConjugate( m_transform.m_rotation ), float3( 0, 0, 1 ) );
+        }
+
+        bool TestCell( float3 cellCenter, float3 cellHalfExtents )
+        {
+            float3 const d = RotateVector( m_transform.m_rotation, cellCenter + m_transform.m_translation );
+
+            float3 const c0 = abs( RotateVector( QuaternionConjugate( m_transform.m_rotation ), float3( 1, 0, 0 ) ) );
+            float3 const c1 = abs( RotateVector( QuaternionConjugate( m_transform.m_rotation ), float3( 0, 1, 0 ) ) );
+            float3 const c2 = abs( RotateVector( QuaternionConjugate( m_transform.m_rotation ), float3( 0, 0, 1 ) ) );
+
+            float3 const bound = float3( dot( c0, cellHalfExtents ), dot( c1, cellHalfExtents ), dot( c2, cellHalfExtents ) ) + 0.5 / m_transform.m_scale;
+
+            return all( abs( d ) <= bound );
+        }
+
+        #endif
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( DecalInstance ) == 64, "Don't exceed 64 bytes for this structure, it is performance critical" );
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

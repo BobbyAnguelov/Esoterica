@@ -21,30 +21,48 @@ namespace EE::Render
 
     struct DebugDrawRenderPass final
     {
-    public:
-
-        ~DebugDrawRenderPass() { EE_ASSERT( m_pDebugMeshRegistry == nullptr ); }
+        static constexpr uint32_t s_numDepthTestBuckets = 3;
 
         //-------------------------------------------------------------------------
+
+    public:
+
+        enum DepthTestBucketID
+        {
+            DEPTH_TEST_ON_WRITE,
+            DEPTH_TEST_ON,
+            DEPTH_TEST_SEPARATE_WRITE,
+        };
+
+        struct DepthTestBucket
+        {
+            uint32_t                                    m_pickingSortPriority = 0;
+            RHI::Buffer*                                m_pArgumentBuffer = nullptr;
+            DeviceAppendBuffer<void>                    m_commandsBuffer = {};
+        };
+
+        //-------------------------------------------------------------------------
+
+    public:
 
         void Initialize( RenderPassContext const& context );
         void Shutdown( RenderSystem* pRenderSystem );
 
         void UpdateDeviceResources( RenderSystem* pRenderSystem );
-        void UpdateViewportDeviceResources( RenderSystem* pRenderSystem,
-                                            DeviceRenderWorld const& deviceRenderWorld,
-                                            DebugDrawSystem* pDebugDrawingSystem, Seconds const deltaTime,
-                                            RenderViewport* pRenderViewport );
+        void UpdateViewportDeviceResources
+        (
+            RenderSystem* pRenderSystem,
+            DebugDrawSystem* pDebugDrawingSystem,
+            Seconds const deltaTime,
+            RenderViewport* pRenderViewport
+        );
 
         void ClearBuffers( RHI::CommandBuffer* pCommandBuffer, uint32_t frameIndex );
 
         void DrawToViewport
         (
             RenderViewport const*          pRenderViewport,
-            DeviceRenderWorld const&       deviceRenderWorld,
             DeviceTextureState&            finalRenderTarget,
-            RHI::BufferHandle              renderViewBuffer,
-            uint32_t                       mainCameraViewIndex,
             DeviceResourceStates&          resourceStates,
             RHI::CommandBuffer*            pCommandBuffer,
             uint32_t                       frameIndex
@@ -53,8 +71,6 @@ namespace EE::Render
         void DrawOutlineToViewport
         (
             RenderViewport const*          pRenderViewport,
-            RHI::BufferHandle              renderViewBuffer,
-            uint32_t                       mainCameraViewIndex,
             uint32_t                       objectIDOffset,
             DeviceResourceStates&          resourceStates,
             RHI::CommandBuffer*            pCommandBuffer,
@@ -83,25 +99,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        enum DepthTestBucketID
-        {
-            DEPTH_TEST_ON_WRITE,
-            DEPTH_TEST_ON,
-            DEPTH_TEST_SEPARATE_WRITE,
-        };
-
-        static constexpr uint32_t s_numDepthTestBuckets = 3;
-
-        struct DepthTestBucket
-        {
-            uint32_t                                    m_pickingSortPriority = 0;
-            RHI::Buffer*                                m_pArgumentBuffer = nullptr;
-            DeviceAppendBuffer<void>                    m_commandsBuffer = {};
-        };
-
     private:
-
-        //-------------------------------------------------------------------------
 
         RenderSettings const*                           m_pRenderSettings = nullptr;
         DebugMeshRegistry*                              m_pDebugMeshRegistry = nullptr;

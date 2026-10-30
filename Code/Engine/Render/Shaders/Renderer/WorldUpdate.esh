@@ -2,9 +2,10 @@
 #ifndef _WORLD_UPDATE_ESH_
 #define _WORLD_UPDATE_ESH_
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
 #include "Engine/Render/Shaders/Transform.esh"
 #include "Engine/Render/Shaders/MeshInstance.esh"
+#include "Engine/Render/Shaders/DecalInstance.esh"
 
 #ifdef __cplusplus
 #include "Base/Math/Math.h"
@@ -160,6 +161,45 @@ HLSL_STATIC_ASSERT( sizeof( SpotLightTransformUpdateCommand ) == 128, "Expected 
 
 //-------------------------------------------------------------------------
 
+struct HLSL_ALIGN_STRUCT DecalInstanceInitializeCommand
+{
+    uint16_t                m_albedoTexture;
+    uint16_t                m_pbrTexture;           // R = metalness, G = occlusion, B = height, A = roughness
+    uint16_t                m_normalTexture;
+    uint16_t                m_emissiveTexture;
+    uint16_t                m_flags;
+    uint16_t                m_parallaxTexture;
+
+    uint                    m_instanceID;
+
+    uint                    m_padding1;
+    uint                    m_padding2;
+    uint                    m_padding3;
+    uint                    m_padding4;
+};
+
+HLSL_STATIC_ASSERT( sizeof( DecalInstanceInitializeCommand ) == 32, "Expected exactly 32 bytes" );
+
+//-------------------------------------------------------------------------
+
+struct HLSL_ALIGN_STRUCT DecalInstanceUpdateCommand
+{
+    Transform               m_transform;
+
+    uint                    m_instanceID;
+    uint                    m_packedTintedColor;    // RGBA8888 = RGB tint + A opacity, use UnpackColor()
+    uint                    m_packedEmissiveColor;  // RGBA8888 = linear RGB emissive color + A emissive strength
+    float                   m_tiling;               // narrowed to float16_t when written to the instance
+    float                   m_shapeRadius;          // narrowed to float16_t when written to the instance
+
+    float16_t               m_heightOffset;
+    uint16_t                m_padding0;
+};
+
+HLSL_STATIC_ASSERT( sizeof( DecalInstanceUpdateCommand ) == 64, "Expected exactly 64 bytes" );
+
+//-------------------------------------------------------------------------
+
 struct HLSL_ALIGN_STRUCT SkinningTransformUpdateCommand
 {
     float4                  m_compressedData0;
@@ -216,7 +256,8 @@ struct HLSL_ALIGN_STRUCT WorldUpdateConstants
     uint                    m_numUpdateCommands_SkinningTransform;
     uint                    m_numUpdateCommands_RenderView;
 
-    uint2                   m_padding;
+    uint                    m_numInitializeCommands_Decal;
+    uint                    m_numUpdateCommands_Decal;
 };
 
 EE_END_SHADER_TYPES_NAMESPACE

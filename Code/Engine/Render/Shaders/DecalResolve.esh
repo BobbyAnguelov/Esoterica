@@ -1,0 +1,613 @@
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/Transform.esh"
+#include "Engine/Render/Shaders/DecalInstance.esh"
+#include "Engine/Render/Shaders/MeshData.esh"
+#include "Engine/Render/Shaders/CommonSamplers.esh"
+#include "Engine/Render/Shaders/Materials/MaterialInput.esh"
+#include "Engine/Render/Shaders/Materials/MaterialOutput.esh"
+#include "Engine/Render/Shaders/Materials/Parallax.esh"
+
+#ifndef _DECAL_RESOLVE_ESH_
+#define _DECAL_RESOLVE_ESH_
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    #ifndef __cplusplus
+
+
+    static const float g_decalHeightBlendWidth = 0.05F;
+    static const float g_decalShapeFeatherMin = 0.002F;
+    static const float g_decalShapeFeatherMax = 0.05F;
+    static const float g_decalSquareCorner = 0.70710678F;
+    static const float g_decalMinWorldExtent = 0.002F;
+    static const float g_decalBaseUVOffset = 0.5F;
+    static const float g_decalCoverageFadeCosLow  = 0.17364818F;
+    static const float g_decalCoverageFadeCosHigh = 0.5F;
+
+    uint DecalProjectionAxisFromNormal( float3 normalLocal )
+    {
+        float3 const normalAbs = abs( normalLocal );
+
+        if ( ( normalAbs.x >= normalAbs.y ) && ( normalAbs.x >= normalAbs.z ) )
+        {
+            return 0U;
+        }
+
+        return ( normalAbs.y >= normalAbs.z ) ? 1U : 2U;
+    }
+
+    float DecalAxisComponent( float3 vec, uint axisIndex )
+    {
+        return ( axisIndex == 0U ) ? vec.x : ( ( axisIndex == 1U ) ? vec.y : vec.z );
+    }
+
+    void DecalProjectionRows( uint projectionAxis, out uint uAxis, out uint vAxis )
+    {
+        uAxis = ( projectionAxis == 0U ) ? 1U : 0U;
+        vAxis = ( projectionAxis == 2U ) ? 1U : 2U;
+    }
+
+    float3 DecalLocalAxis( uint axisIndex )
+    {
+        if ( axisIndex == 0U )
+        {
+            return float3( 1.0, 0.0, 0.0 );
+        }
+
+        return ( axisIndex == 1U ) ? float3( 0.0, 1.0, 0.0 ) : float3( 0.0, 0.0, 1.0 );
+    }
+
+    //-------------------------------------------------------------------------
+
+    struct DecalFrame
+    {
+        float2 ProjectToFace( float3 localVector )
+        {
+            return float2( DecalAxisComponent( localVector, m_uAxis ), DecalAxisComponent( localVector, m_vAxis ) );
+        }
+
+        float3 ProjectToFace3( float3 localVector )
+        {
+            float const height = DecalAxisComponent( localVector, m_heightAxis );
+
+            return float3
+            (
+                DecalAxisComponent( localVector, m_uAxis ),
+                DecalAxisComponent( localVector, m_vAxis ),
+                m_heightAxisIsNegative ? -height : height
+            );
+        }
+
+        float3 Unproject( float uValue, float vValue, float heightValue )
+        {
+            float3 result;
+            result.x = ( m_uAxis == 0U ) ? uValue : ( ( m_vAxis == 0U ) ? vValue : heightValue );
+            result.y = ( m_uAxis == 1U ) ? uValue : ( ( m_vAxis == 1U ) ? vValue : heightValue );
+            result.z = ( m_uAxis == 2U ) ? uValue : ( ( m_vAxis == 2U ) ? vValue : heightValue );
+
+            return result;
+        }
+
+        bool IsPlane()
+        {
+            return m_isPlanar;
+        }
+
+        //-------------------------------------------------------------------------
+
+        uint    m_uAxis;
+        uint    m_vAxis;
+        uint    m_heightAxis;
+        bool    m_heightAxisIsNegative;
+        bool    m_isPlanar;
+    };
+
+    DecalFrame ComputeDecalFrame( DecalInstance decal, float3 triangleNormal )
+    {
+        DecalFrame frame;
+
+        frame.m_uAxis      = 0U;
+        frame.m_vAxis      = 1U;
+        frame.m_heightAxis = 2U;
+        frame.m_isPlanar   = true;
+
+        float3 const normalLocal = RotateVector( decal.m_transform.m_rotation, triangleNormal );
+
+        if ( decal.HasFlag( g_decalFlagOmnidirectional ) )
+        {
+            uint const projectionAxis = DecalProjectionAxisFromNormal( normalLocal );
+
+            DecalProjectionRows( projectionAxis, frame.m_uAxis, frame.m_vAxis );
+            frame.m_heightAxis = projectionAxis;
+            frame.m_isPlanar = false;
+        }
+
+        frame.m_heightAxisIsNegative = DecalAxisComponent( normalLocal, frame.m_heightAxis ) < 0.0;
+
+        return frame;
+    }
+
+    float DecalShapeAlphaFromDistance( float signedDistance, float shapeFeather )
+    {
+        return 1.0 - smoothstep( -shapeFeather, shapeFeather, signedDistance );
+    }
+
+    float ComputeDecalCoverageFade( DecalInstance decal, DecalFrame frame, float3 worldNormalWS )
+    {
+        if ( !frame.IsPlane() )
+        {
+            return 1.0;
+        }
+
+        float3 const normalLocal = RotateVector( decal.m_transform.m_rotation, worldNormalWS );
+        return smoothstep( g_decalCoverageFadeCosLow, g_decalCoverageFadeCosHigh, abs( normalLocal.z ) );
+    }
+
+    float ComputeDecalShapeAlpha( DecalInstance decal, DecalFrame frame, float3 localPosition )
+    {
+        float const shapeRadius = saturate( decal.GetShapeRadius() );
+        float const shapeFeather = lerp( g_decalShapeFeatherMin, g_decalShapeFeatherMax, shapeRadius );
+
+        float2 const shapePos = frame.ProjectToFace( localPosition );
+
+        if ( decal.HasFlag( g_decalFlagAlphaCircle ) )
+        {
+            float const circleRadius = lerp( g_decalSquareCorner + g_decalShapeFeatherMin, 0.425, shapeRadius );
+            return DecalShapeAlphaFromDistance( length( shapePos ) - circleRadius, shapeFeather );
+        }
+
+        if ( decal.HasFlag( g_decalFlagAlphaRoundBox ) )
+        {
+            float const boxRadius = 0.5 * shapeRadius;
+            float const boxExtent = 0.5 - boxRadius;
+
+            float2 const boxOffset = abs( shapePos ) - boxExtent;
+            float const boxDistance = length( max( boxOffset, 0.0 ) ) + min( max( boxOffset.x, boxOffset.y ), 0.0 ) - boxRadius;
+
+            return DecalShapeAlphaFromDistance( boxDistance, shapeFeather );
+        }
+
+        return 1.0;
+    }
+
+    void ComputeDecalTilingUV( DecalInstance decal, DecalFrame frame, float3 localPosition, float3 ddxLocalPosition, float3 ddyLocalPosition, bool tileX, bool stretchY, out float2 uv, out float2 ddxUV, out float2 ddyUV, out float2 uvPerLocalUnit )
+    {
+        float  const tiling = decal.m_tiling;
+        float3 const worldSize = max( abs( 1.0 / decal.m_transform.m_scale ), g_decalMinWorldExtent.xxx );
+        float3 const tiledScale = float3( tiling, tiling, tiling ) * worldSize;
+
+        float3 const uAxis = DecalLocalAxis( frame.m_uAxis );
+        float3 const vAxis = DecalLocalAxis( frame.m_vAxis );
+
+        float2 const localUV    = frame.ProjectToFace( localPosition );
+        float2 const ddxLocalUV = frame.ProjectToFace( ddxLocalPosition );
+        float2 const ddyLocalUV = frame.ProjectToFace( ddyLocalPosition );
+
+        uvPerLocalUnit = float2( tileX ? dot( tiledScale, uAxis ) : tiling, stretchY ? tiling : dot( tiledScale, vAxis ) );
+
+        uv.x = tileX ? ( localUV.x * uvPerLocalUnit.x ) : ( ( localUV.x + g_decalBaseUVOffset ) * tiling );
+        uv.y = stretchY ? ( ( localUV.y + g_decalBaseUVOffset ) * tiling ) : ( localUV.y * uvPerLocalUnit.y );
+
+        ddxUV = ddxLocalUV * uvPerLocalUnit;
+        ddyUV = ddyLocalUV * uvPerLocalUnit;
+    }
+
+    //-------------------------------------------------------------------------
+
+    struct DecalCoverage
+    {
+        static DecalCoverage Neutral()
+        {
+            DecalCoverage coverage;
+            coverage.m_albedo       = 0.0;
+            coverage.m_roughness    = 0.0;
+            coverage.m_metalness    = 0.0;
+            coverage.m_occlusion    = 0.0;
+            coverage.m_normal       = 0.0;
+            coverage.m_height       = 0.0;
+            return coverage;
+        }
+
+        //-------------------------------------------------------------------------
+
+        float   m_albedo;
+        float   m_roughness;
+        float   m_metalness;
+        float   m_occlusion;
+        float   m_normal;
+        float   m_height;
+    };
+
+    //-------------------------------------------------------------------------
+
+    float3 UnpackDecalNormal( DecalFrame frame, float2 normalSample )
+    {
+        float2 const normalXY = ( normalSample * 2.0 ) - 1.0.xx;
+        float const normalZ = sqrt( saturate( 1.0 - dot( normalXY, normalXY ) ) );
+
+        return frame.Unproject( normalXY.x, normalXY.y, frame.m_heightAxisIsNegative ? -normalZ : normalZ );
+    }
+
+    //-------------------------------------------------------------------------
+
+    void ResolveDecal
+    (
+        inout MaterialShaderOutput   materialOutput,
+        inout DecalCoverage          coverage,
+        DecalInstance                decal,
+        MaterialShaderInput          materialInput,
+        bool                         isFrontFace,
+        bool                         receivesNormal
+    )
+    {
+        SamplerState const decalSampler = GetLinearWrapSampler();
+
+        float3 const facingTriangleNormal = isFrontFace ? materialInput.m_primitive.GetTriangleNormal() : -materialInput.m_primitive.GetTriangleNormal();
+
+        DecalFrame const decalFrame = ComputeDecalFrame( decal, facingTriangleNormal );
+
+        if ( decalFrame.IsPlane() && !decal.HasFlag( g_decalFlagTwoSided ) && dot( materialInput.m_view, decal.ProjectionAxisWS() ) < 0.0 )
+        {
+            return;
+        }
+
+        float3 const localPosition = decal.WorldPositionToDecalSpace( materialInput.m_vertex.m_worldPosition );
+        if ( !all( abs( localPosition ) <= 0.5.xxx ) )
+        {
+            return;
+        }
+
+        //-------------------------------------------------------------------------
+
+        bool const tileX    = decal.HasFlag( g_decalFlagTilingXY ) || decal.HasFlag( g_decalFlagTilingXStretchY );
+        bool const stretchY = !decal.HasFlag( g_decalFlagTilingXY );
+
+        float3 const ddxLocalPosition = RotateVector( decal.m_transform.m_rotation, materialInput.m_ddxWorldPosition ) * decal.m_transform.m_scale;
+        float3 const ddyLocalPosition = RotateVector( decal.m_transform.m_rotation, materialInput.m_ddyWorldPosition ) * decal.m_transform.m_scale;
+
+        float2 uv;
+        float2 ddxUV;
+        float2 ddyUV;
+        float2 uvPerLocalUnit;
+        ComputeDecalTilingUV( decal, decalFrame, localPosition, ddxLocalPosition, ddyLocalPosition, tileX, stretchY, uv, ddxUV, ddyUV, uvPerLocalUnit );
+
+        Texture2D decalAlbedoTexture    = GetTexture( NonUniformResourceIndex( decal.m_albedoTexture ) );
+        Texture2D decalPBRTexture       = GetTexture( NonUniformResourceIndex( decal.m_pbrTexture ) );
+        Texture2D decalEmissiveTexture  = GetTexture( NonUniformResourceIndex( decal.m_emissiveTexture ) );
+        Texture2D decalNormalTexture    = GetTexture( NonUniformResourceIndex( decal.m_normalTexture ) );
+        Texture2D decalParallaxTexture  = GetTexture( NonUniformResourceIndex( decal.m_parallaxTexture ) );
+
+        //-------------------------------------------------------------------------
+
+        float const shapeAlpha    = ComputeDecalShapeAlpha( decal, decalFrame, localPosition );
+        float const coverageFade  = ComputeDecalCoverageFade( decal, decalFrame, materialInput.m_vertex.m_worldNormal );
+
+        if ( shapeAlpha * coverageFade <= 0.0 )
+        {
+            return;
+        }
+
+        // Parallax
+        //-------------------------------------------------------------------------
+
+        float heightSample = 0.0;
+
+        #ifdef ENABLE_PARALLAX
+        if ( decal.HasFlag( g_decalFlagParallax ) )
+        {
+            float3 const uAxisWS = RotateVector( QuaternionConjugate( decal.m_transform.m_rotation ), DecalLocalAxis( decalFrame.m_uAxis ) );
+            float3 const vAxisWS = RotateVector( QuaternionConjugate( decal.m_transform.m_rotation ), DecalLocalAxis( decalFrame.m_vAxis ) );
+
+            float3 const viewTangent = float3
+            (
+                dot( materialInput.m_view, uAxisWS ),
+                dot( materialInput.m_view, vAxisWS ),
+                dot( materialInput.m_view, facingTriangleNormal )
+            );
+
+            float3 const inverseSize = abs( decal.m_transform.m_scale );
+            float2 const uvPerWorld = uvPerLocalUnit * float2
+            (
+                dot( inverseSize, DecalLocalAxis( decalFrame.m_uAxis ) ),
+                dot( inverseSize, DecalLocalAxis( decalFrame.m_vAxis ) )
+            );
+
+            float3 const parallax = ParallaxMarch
+            (
+                decalParallaxTexture,
+                decalSampler,
+                uv,
+                ddxUV,
+                ddyUV,
+                viewTangent,
+                materialOutput.m_maxDisplacement * uvPerWorld,
+                RootCBV.m_parallaxMaxSteps,
+                RootCBV.m_parallaxErrorPixels,
+                RootCBV.m_parallaxReliefFadeCosLow,
+                RootCBV.m_parallaxReliefFadeCosHigh,
+                materialOutput.m_numParallaxSteps
+            );
+
+            uv = parallax.xy;
+            heightSample = parallax.z;
+        }
+        else
+        #endif
+        {
+            heightSample = decalParallaxTexture.SampleGrad( decalSampler, uv, ddxUV, ddyUV ).g;
+        }
+
+        //-------------------------------------------------------------------------
+
+        float const tintOpacity = UnpackColor( decal.m_packedTintedColor ).a;
+        float const decalAlpha = decalAlbedoTexture.SampleGrad( decalSampler, uv, ddxUV, ddyUV ).a * tintOpacity * shapeAlpha * coverageFade;
+
+        if ( decalAlpha <= 0.0 )
+        {
+            return;
+        }
+
+        float2 const decalUV = uv;
+        float4 const pbrSample = decalPBRTexture.SampleGrad( decalSampler, decalUV, ddxUV, ddyUV );
+
+        //-------------------------------------------------------------------------
+
+        float const decalHeight = decal.GetHeight( heightSample ) * decalAlpha + decal.GetHeightOffset();
+        float const underHeight = max( materialOutput.m_height, coverage.m_height );
+        float const heightWeight = smoothstep( -g_decalHeightBlendWidth, g_decalHeightBlendWidth, decalHeight - underHeight );
+        float const inverseHeightWeight = ( 1.0 - heightWeight );
+        float const weight = decalAlpha;
+
+        float3 decalAlbedo = 0.0.xxx;
+        if ( !decal.HasFlag( g_decalFlagDisableAlbedo ) )
+        {
+            float4 const albedoSample = decalAlbedoTexture.SampleGrad( decalSampler, decalUV, ddxUV, ddyUV );
+            decalAlbedo = albedoSample.rgb * UnpackColor( decal.m_packedTintedColor ).rgb;
+        }
+
+        float3 decalNormalWS = 0.0.xxx;
+        if ( !decal.HasFlag( g_decalFlagDisableNormal ) )
+        {
+            float2 const normalSample = decalNormalTexture.SampleGrad( decalSampler, decalUV, ddxUV, ddyUV ).rg;
+            decalNormalWS = decal.TransformNormalToWorld( UnpackDecalNormal( decalFrame, normalSample ) );
+        }
+
+        float const decalRoughness = pbrSample.a;
+        float const decalMetalness = pbrSample.r;
+        float const decalOcclusion = pbrSample.g;
+
+        float3 decalEmissive = 0.0.xxx;
+        if ( !decal.HasFlag( g_decalFlagDisableEmissive ) )
+        {
+            float4 const emissiveSample = decalEmissiveTexture.SampleGrad( decalSampler, decalUV, ddxUV, ddyUV );
+            float4 const emissiveColor = UnpackColor( decal.m_packedEmissiveColor );
+            decalEmissive = emissiveSample.rgb * emissiveColor.rgb * emissiveColor.a;
+        }
+
+        float const overWeight = weight * heightWeight;
+        float const inverseOverWeight = ( 1.0 - overWeight );
+
+        if ( !decal.HasFlag( g_decalFlagDisableAlbedo ) )
+        {
+            float const underWeight = weight * inverseHeightWeight * ( 1.0 - coverage.m_albedo );
+            materialOutput.m_albedo = materialOutput.m_albedo * inverseOverWeight + decalAlbedo * ( overWeight + underWeight );
+            coverage.m_albedo       = coverage.m_albedo * inverseOverWeight + overWeight + underWeight;
+        }
+
+        if ( !decal.HasFlag( g_decalFlagDisableNormal ) && receivesNormal )
+        {
+            materialOutput.m_normal = normalize( lerp( materialOutput.m_normal, decalNormalWS, overWeight ) );
+            coverage.m_normal       = coverage.m_normal * inverseOverWeight + overWeight;
+        }
+
+        if ( !decal.HasFlag( g_decalFlagDisableRoughness ) )
+        {
+            float const underWeight     = weight * inverseHeightWeight * ( 1.0 - coverage.m_roughness );
+            materialOutput.m_roughness  = materialOutput.m_roughness * inverseOverWeight + decalRoughness * ( overWeight + underWeight );
+            coverage.m_roughness        = coverage.m_roughness * inverseOverWeight + overWeight + underWeight;
+        }
+
+        if ( !decal.HasFlag( g_decalFlagDisableMetalness ) )
+        {
+            float const underWeight     = weight * inverseHeightWeight * ( 1.0 - coverage.m_metalness );
+            materialOutput.m_metalness  = materialOutput.m_metalness * inverseOverWeight + decalMetalness * ( overWeight + underWeight );
+            coverage.m_metalness        = coverage.m_metalness * inverseOverWeight + overWeight + underWeight;
+        }
+
+        if ( !decal.HasFlag( g_decalFlagDisableOcclusion ) )
+        {
+            float const underWeight     = weight * inverseHeightWeight * ( 1.0 - coverage.m_occlusion );
+            materialOutput.m_occlusion  = materialOutput.m_occlusion * inverseOverWeight + decalOcclusion * ( overWeight + underWeight );
+            coverage.m_occlusion        = coverage.m_occlusion * inverseOverWeight + overWeight + underWeight;
+        }
+
+        materialOutput.m_emissiveColor += decalEmissive * overWeight;
+        coverage.m_height = max( coverage.m_height, decalHeight );
+    }
+
+    //-------------------------------------------------------------------------
+
+    float ComputeMeshDecalShapeAlpha( MeshDecal decal, float2 decalSpace )
+    {
+        float const shapeRadius = saturate( decal.GetShapeRadius() );
+        float const shapeFeather = lerp( g_decalShapeFeatherMin, g_decalShapeFeatherMax, shapeRadius );
+
+        if ( decal.HasFlag( g_decalFlagAlphaCircle ) )
+        {
+            float const circleRadius = lerp( g_decalSquareCorner + g_decalShapeFeatherMin, 0.425, shapeRadius );
+            return DecalShapeAlphaFromDistance( length( decalSpace ) - circleRadius, shapeFeather );
+        }
+
+        if ( decal.HasFlag( g_decalFlagAlphaRoundBox ) )
+        {
+            float const boxRadius = 0.5 * shapeRadius;
+            float const boxExtent = 0.5 - boxRadius;
+
+            float2 const boxOffset = abs( decalSpace ) - boxExtent;
+            float const boxDistance = length( max( boxOffset, 0.0 ) ) + min( max( boxOffset.x, boxOffset.y ), 0.0 ) - boxRadius;
+
+            return DecalShapeAlphaFromDistance( boxDistance, shapeFeather );
+        }
+
+        return 1.0;
+    }
+
+    void ResolveMeshDecal
+    (
+        inout MaterialShaderOutput   materialOutput,
+        inout DecalCoverage          coverage,
+        MeshDecal                    decal,
+        float2                       decalSpace,
+        float2                       ddxDecalSpace,
+        float2                       ddyDecalSpace,
+        MaterialShaderInput          materialInput,
+        bool                         isFrontFace,
+        bool                         receivesNormal
+    )
+    {
+        if ( !decal.HasFlag( g_decalFlagTwoSided ) && !isFrontFace )
+        {
+            return;
+        }
+
+        if ( any( abs( decalSpace ) > 0.5 ) )
+        {
+            return;
+        }
+
+        float const shapeAlpha = ComputeMeshDecalShapeAlpha( decal, decalSpace );
+        if ( shapeAlpha <= 0.0 )
+        {
+            return;
+        }
+
+        // Tiling, identical semantics to ComputeDecalTilingUV using the decal face coordinates
+        bool const tileX    = decal.HasFlag( g_decalFlagTilingXY ) || decal.HasFlag( g_decalFlagTilingXStretchY );
+        bool const stretchY = !decal.HasFlag( g_decalFlagTilingXY );
+
+        float const tiling = decal.m_tiling;
+        float2 const worldSize = max( float2( decal.m_worldSize[0], decal.m_worldSize[1] ), float2( g_decalMinWorldExtent, g_decalMinWorldExtent ) );
+        float2 const uvPerLocalUnit = float2( tileX ? tiling * worldSize.x : tiling, stretchY ? tiling : tiling * worldSize.y );
+
+        float2 decalUV;
+        decalUV.x = tileX ? ( decalSpace.x * uvPerLocalUnit.x ) : ( ( decalSpace.x + g_decalBaseUVOffset ) * tiling );
+        decalUV.y = stretchY ? ( ( decalSpace.y + g_decalBaseUVOffset ) * tiling ) : ( decalSpace.y * uvPerLocalUnit.y );
+
+        float2 ddxDecalUV = ddxDecalSpace * uvPerLocalUnit;
+        float2 ddyDecalUV = ddyDecalSpace * uvPerLocalUnit;
+
+        SamplerState const decalSampler = GetLinearWrapSampler();
+
+        // Per lane decal handles, adjacent pixels can resolve different decals
+        Texture2D decalAlbedoTexture = GetTexture( NonUniformResourceIndex( decal.m_albedoTexture ) );
+        Texture2D decalPBRTexture = GetTexture( NonUniformResourceIndex( decal.m_pbrTexture ) );
+        Texture2D decalEmissiveTexture = GetTexture( NonUniformResourceIndex( decal.m_emissiveTexture ) );
+        Texture2D decalNormalTexture = GetTexture( NonUniformResourceIndex( decal.m_normalTexture ) );
+        Texture2D decalParallaxTexture = GetTexture( NonUniformResourceIndex( decal.m_parallaxTexture ) );
+
+        float const heightSample = decalParallaxTexture.SampleGrad( decalSampler, decalUV, ddxDecalUV, ddyDecalUV ).g;
+
+        //-------------------------------------------------------------------------
+
+        float4 const albedoSample = decalAlbedoTexture.SampleGrad( decalSampler, decalUV, ddxDecalUV, ddyDecalUV );
+
+        float const tintOpacity = UnpackColor( decal.m_packedTintedColor ).a;
+        float const decalAlpha = albedoSample.a * tintOpacity * shapeAlpha;
+
+        if ( decalAlpha <= 0.0 )
+        {
+            return;
+        }
+
+        bool const needsPbrSample = !decal.HasFlag( g_decalFlagDisableRoughness ) || !decal.HasFlag( g_decalFlagDisableMetalness ) || !decal.HasFlag( g_decalFlagDisableOcclusion );
+        float4 pbrSample = float4( 0.0, 0.0, 0.0, 0.0 );
+        if ( needsPbrSample )
+        {
+            pbrSample = decalPBRTexture.SampleGrad( decalSampler, decalUV, ddxDecalUV, ddyDecalUV );
+        }
+
+        //-------------------------------------------------------------------------
+
+        float const decalHeight = saturate( heightSample ) * decalAlpha + decal.GetHeightOffset();
+        float const underHeight = max( materialOutput.m_height, coverage.m_height );
+        float const heightWeight = smoothstep( -g_decalHeightBlendWidth, g_decalHeightBlendWidth, decalHeight - underHeight );
+        float const inverseHeightWeight = ( 1.0 - heightWeight );
+        float const weight = decalAlpha;
+
+        float3 decalAlbedo = 0.0.xxx;
+        if ( !decal.HasFlag( g_decalFlagDisableAlbedo ) )
+        {
+            decalAlbedo = albedoSample.rgb * UnpackColor( decal.m_packedTintedColor ).rgb;
+        }
+
+        float3 decalNormalWS = 0.0.xxx;
+        if ( !decal.HasFlag( g_decalFlagDisableNormal ) )
+        {
+            float2 const normalSample = decalNormalTexture.SampleGrad( decalSampler, decalUV, ddxDecalUV, ddyDecalUV ).rg;
+            decalNormalWS = materialInput.UnpackNormalMap( materialInput.ComputeTBN( ddxDecalUV, ddyDecalUV ), normalSample );
+
+            if ( !isFrontFace )
+            {
+                decalNormalWS = -decalNormalWS;
+            }
+        }
+
+        float const decalRoughness = pbrSample.a;
+        float const decalMetalness = pbrSample.r;
+        float const decalOcclusion = pbrSample.g;
+
+        float3 decalEmissive = 0.0.xxx;
+        if ( !decal.HasFlag( g_decalFlagDisableEmissive ) )
+        {
+            float4 const emissiveSample = decalEmissiveTexture.SampleGrad( decalSampler, decalUV, ddxDecalUV, ddyDecalUV );
+            float4 const emissiveColor = UnpackColor( decal.m_packedEmissiveColor );
+            decalEmissive = emissiveSample.rgb * emissiveColor.rgb * emissiveColor.a;
+        }
+
+        float const overWeight = weight * heightWeight;
+        float const inverseOverWeight = ( 1.0 - overWeight );
+
+        if ( !decal.HasFlag( g_decalFlagDisableAlbedo ) )
+        {
+            float const underWeight = weight * inverseHeightWeight * ( 1.0 - coverage.m_albedo );
+            materialOutput.m_albedo = materialOutput.m_albedo * inverseOverWeight + decalAlbedo * ( overWeight + underWeight );
+            coverage.m_albedo       = coverage.m_albedo * inverseOverWeight + overWeight + underWeight;
+        }
+
+        if ( !decal.HasFlag( g_decalFlagDisableNormal ) && receivesNormal )
+        {
+            materialOutput.m_normal = normalize( lerp( materialOutput.m_normal, decalNormalWS, overWeight ) );
+            coverage.m_normal       = coverage.m_normal * inverseOverWeight + overWeight;
+        }
+
+        if ( !decal.HasFlag( g_decalFlagDisableRoughness ) )
+        {
+            float const underWeight     = weight * inverseHeightWeight * ( 1.0 - coverage.m_roughness );
+            materialOutput.m_roughness  = materialOutput.m_roughness * inverseOverWeight + decalRoughness * ( overWeight + underWeight );
+            coverage.m_roughness        = coverage.m_roughness * inverseOverWeight + overWeight + underWeight;
+        }
+
+        if ( !decal.HasFlag( g_decalFlagDisableMetalness ) )
+        {
+            float const underWeight     = weight * inverseHeightWeight * ( 1.0 - coverage.m_metalness );
+            materialOutput.m_metalness  = materialOutput.m_metalness * inverseOverWeight + decalMetalness * ( overWeight + underWeight );
+            coverage.m_metalness        = coverage.m_metalness * inverseOverWeight + overWeight + underWeight;
+        }
+
+        if ( !decal.HasFlag( g_decalFlagDisableOcclusion ) )
+        {
+            float const underWeight     = weight * inverseHeightWeight * ( 1.0 - coverage.m_occlusion );
+            materialOutput.m_occlusion  = materialOutput.m_occlusion * inverseOverWeight + decalOcclusion * ( overWeight + underWeight );
+            coverage.m_occlusion        = coverage.m_occlusion * inverseOverWeight + overWeight + underWeight;
+        }
+
+        materialOutput.m_emissiveColor += decalEmissive * overWeight;
+        coverage.m_height = max( coverage.m_height, decalHeight );
+    }
+
+    #endif
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

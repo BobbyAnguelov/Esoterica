@@ -1,12 +1,13 @@
 #pragma once
 #include "Engine/_Module/API.h"
 #include "Animation_RuntimeGraph_Context.h"
+#include "Animation_RuntimeGraph_TimingInfo.h"
 #include "Engine/Animation/AnimationTarget.h"
 #include "Engine/Animation/AnimationSyncTrack.h"
+#include "Engine/Animation/TaskSystem/Animation_TaskPosePool.h"
 #include "Base/Time/Time.h"
 #include "Base/Serialization/BinarySerialization.h"
 #include "Base/Resource/ResourceID.h"
-#include "Animation_RuntimeGraph_TimingInfo.h"
 
 //-------------------------------------------------------------------------
 
@@ -99,6 +100,39 @@ namespace EE::Animation
     };
 
     //-------------------------------------------------------------------------
+    // 
+    //-------------------------------------------------------------------------
+
+    struct RecordedPosePoolData
+    {
+        RecordedPosePoolData() = default;
+
+        ~RecordedPosePoolData() { DestroyRecordedBuffers(); }
+
+        RecordedPosePoolData( RecordedPosePoolData const & ) = delete;
+        RecordedPosePoolData( RecordedPosePoolData && ) = delete;
+        RecordedPosePoolData &operator=( RecordedPosePoolData const & ) = delete;
+        RecordedPosePoolData &operator=( RecordedPosePoolData && ) = delete;
+
+        inline bool HasData() const { return m_bHasData; }
+
+        inline void DestroyRecordedBuffers()
+        {
+            for ( auto pBuffer : m_buffers ) { EE::Delete( pBuffer ); }
+            m_buffers.clear();
+        }
+
+    public:
+
+        TVector<CachedPoseBuffer*>              m_buffers;
+        TVector<int8_t>                         m_bufferIndices; // The indices for the recorded buffers
+        int8_t                                  m_nFirstFreeCachedBufferIdx = InvalidIndex;
+        CachedPoseID                            m_nextCachedPoseID;
+        bool                                    m_bHasData = false;
+    };
+
+
+    //-------------------------------------------------------------------------
     // Recorded Per-Frame Graph Data
     //-------------------------------------------------------------------------
 
@@ -137,8 +171,6 @@ namespace EE::Animation
         RecordedExternalGraphData* TryGetExternalGraphData( int16_t nodeIdx );
         inline RecordedExternalGraphData const *TryGetExternalGraphData( int16_t nodeIdx ) const { return const_cast<RecordedGraphUpdateData*>( this )->TryGetExternalGraphData( nodeIdx ); }
 
-        RecordedExternalPoseData *CreateExternalPoseData();
-
         RecordedGraphUpdateData( RecordedGraphUpdateData const & ) = delete;
         RecordedGraphUpdateData( RecordedGraphUpdateData && ) = delete;
         RecordedGraphUpdateData &operator=( RecordedGraphUpdateData const & ) = delete;
@@ -160,7 +192,7 @@ namespace EE::Animation
         RecordedUpdateType                                  m_updateType = RecordedUpdateType::Unknown;
         TVector<ResourceID>                                 m_secondarySkeletons;
         TVector<RecordedExternalGraphData*>                 m_externalGraphData;
-        TVector<RecordedExternalPoseData*>                  m_externalPoseData;
+        RecordedPosePoolData                                m_recordedPosePoolData;
     };
 
     struct RecordedExternalGraphData
@@ -168,22 +200,6 @@ namespace EE::Animation
         int16_t                                             m_externalGraphNodeIdx = InvalidIndex;
         ResourceID                                          m_graphResourceID;
         RecordedGraphUpdateData                             m_updateData;
-    };
-
-    struct RecordedExternalPoseData
-    {
-        int16_t                                             m_externalPoseNodeIdx = InvalidIndex;
-        StringID                                            m_slotID;
-
-        ResourceID                                          m_clipResourceID0;
-        Percentage                                          m_startTime0 = 0.0f;
-        Percentage                                          m_endTime0 = 0.0f;
-
-        ResourceID                                          m_clipResourceID1;
-        Percentage                                          m_startTime1 = 0.0f;
-        Percentage                                          m_endTime1 = 0.0f;
-
-        float                                               m_blendWeight = 0.0f;
     };
 
     //-------------------------------------------------------------------------
@@ -217,7 +233,6 @@ namespace EE::Animation
         inline bool IsValidRecordedUpdateIndex( int32_t updateIdx ) const { return updateIdx >= 0 && updateIdx < m_recordedUpdateData.size(); }
 
         TInlineVector<ResourceID, 2> GetAllRecordedGraphResourceIDs() const;
-        TInlineVector<ResourceID, 2> GetAllRecordedExternalClipResourceIDs() const;
         TInlineVector<ResourceID, 2> GetAllRecordedSkeletonResourceIDs() const;
 
     private:

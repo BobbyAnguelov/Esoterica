@@ -210,7 +210,23 @@ namespace EE::TypeSystem
 
     public:
 
-        void Reset();
+        TypeDescriptorCollection() = default;
+
+        // Clear the collection
+        void Clear();
+
+        // Create from an array of type instances
+        void Create( TypeRegistry const& typeRegistry, TArrayView<IReflectedType*> const& typeInstances )
+        {
+            Clear();
+
+            for ( auto pTypeInstance : typeInstances )
+            {
+                m_descriptors.emplace_back( typeRegistry, pTypeInstance );
+            }
+
+            CalculateCollectionRequirements( typeRegistry );
+        }
 
         // Calculates all the necessary information needed to instantiate this collection statically (aka in a single immutable block)
         void CalculateCollectionRequirements( TypeRegistry const& typeRegistry );

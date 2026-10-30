@@ -23,6 +23,8 @@ namespace EE::Render
             A
         };
 
+    public:
+
         EE_REFLECT();
         String                          m_channelName = {};
 
@@ -45,19 +47,26 @@ namespace EE::Render
     {
         EE_REFLECT_TYPE( TextureGroupMipSettings );
 
-        enum class MipFilter
-        {
-            EE_REFLECT_ENUM
-
-            LinearDownscale,
-            EnvironmentMapConvolution,
-        };
+    public:
 
         EE_REFLECT();
         bool                            m_generateMipmaps = false;
+    };
+
+    // Cone step map generation for parallax
+    //-------------------------------------------------------------------------
+
+    struct EE_ENGINETOOLS_API TextureGroupConeStepSettings final : public IReflectedType
+    {
+        EE_REFLECT_TYPE( TextureGroupConeStepSettings );
+
+    public:
 
         EE_REFLECT();
-        MipFilter                       m_mipmapFilter = MipFilter::LinearDownscale;
+        bool                            m_generateConeStepMap = false;
+
+        EE_REFLECT( Min = "1", Max = "512" );
+        uint32_t                        m_radiusInTexels = 16;
     };
 
     //-------------------------------------------------------------------------
@@ -78,6 +87,8 @@ namespace EE::Render
             Grayscale2Channel,
             FloatingPoint3Channel,
         };
+
+    public:
 
         EE_REFLECT();
         TextureType                     m_textureType = TextureType::Uncompressed;
@@ -102,6 +113,9 @@ namespace EE::Render
 
         EE_REFLECT();
         TextureGroupCompressionSettings m_compressionSettings;
+
+        EE_REFLECT();
+        TextureGroupConeStepSettings    m_coneStepSettings;
     };
 
     //-------------------------------------------------------------------------
@@ -117,27 +131,12 @@ namespace EE::Render
         virtual FileSystem::Extension GetExtension() const override { return TextureResource::GetStaticResourceTypeID().ToString(); }
         virtual char const* GetFriendlyName() const override { return TextureResource::s_friendlyName; }
 
-        virtual void GetCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<Resource::CompileDependency>& outDependencies ) const override
-        {
-            for ( DataPath const& path : m_sourcePaths )
-            {
-                if ( path.IsValid() )
-                {
-                    outDependencies.emplace_back( path, false );
-                }
-            }
-
-            if ( m_textureGroup.IsValid() )
-            {
-                outDependencies.emplace_back( m_textureGroup, false );
-            }
-        }
+        virtual void GetCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<Resource::CompileDependency>& outDependencies ) const override;
 
         virtual void Clear() override
         {
             m_sourcePaths.clear();
             m_textureGroup.Clear();
-            m_name.clear();
         }
 
     public:
@@ -149,9 +148,24 @@ namespace EE::Render
         TDataFilePath<TextureGroup>     m_textureGroup;
 
         EE_REFLECT();
-        String                          m_name; // Optional: needed for extracting textures out of container files (e.g. glb, fbx)
+        bool                            m_invertNormalMap = false; // Inverts the green channel in the input texture
 
         EE_REFLECT();
-        bool                            m_invertNormalMap = false; // Inverts the green channel in the input texture
+        bool                            m_computeOcclusionFromHeight = false;
+
+        EE_REFLECT();
+        DataPath                        m_occlusionHeightSource = {};
+
+        EE_REFLECT();
+        TextureGroupFileMask::ChannelMask m_occlusionHeightChannel = TextureGroupFileMask::ChannelMask::R;
+
+        EE_REFLECT( Min = "0.0F", Max = "2.0F" );
+        float                           m_occlusionStrength = 1.0F;
+
+        EE_REFLECT( Min = "0", Max = "8" );
+        int32_t                         m_occlusionBlurRadius = 1;
+
+        EE_REFLECT( Min = "0.1F", Max = "4.0F" );
+        float                           m_occlusionContrast = 1.0F;
     };
 }

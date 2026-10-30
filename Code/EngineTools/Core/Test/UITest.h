@@ -48,8 +48,12 @@ namespace EE
     private:
 
         ToolsContext*                   m_pContext = nullptr;
+
         ResourcePicker                  m_picker;
         ResourcePicker                  m_compactPicker;
+        ResourceID                      m_resourceID0;
+        ResourceID                      m_resourceID1;
+
         ImGuiX::TextBuffer              m_buffer;
         ImGuiX::OptionData              m_optionData0;
         ImGuiX::OptionData              m_optionData1;

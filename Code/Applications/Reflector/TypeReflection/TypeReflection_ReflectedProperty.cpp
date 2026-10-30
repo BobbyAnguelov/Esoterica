@@ -37,7 +37,7 @@ namespace EE::Reflection
     {
         EE_ASSERT( pLog != nullptr );
 
-        pLog->ClearLog();
+        pLog->Clear();
         m_metaData.Clear();
         m_metaData.AppendMetaDataFromString( m_rawMetaDataStr.data(), pLog );
 

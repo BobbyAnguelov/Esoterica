@@ -46,8 +46,41 @@ namespace EE
         // Preview
         //-------------------------------------------------------------------------
 
+        if ( m_isCompact )
         {
-            TInlineString<7> const previewStr = GetPreviewLabel();
+            TInlineString<9> const fullPreviewLabel = GetPreviewLabel();
+            TInlineString<9> const previewLabel = TInlineString<9>( TInlineString<9>::CtorSprintf(), "%c", eastl::CharToUpper( fullPreviewLabel[0] ) );
+            Color const previewColor = GetPreviewColor();
+
+            ImGui::PushStyleColor( ImGuiCol_Button, ImGuiX::Style::s_colorGray0 );
+            ImGui::BeginDisabled( !isValidAndExistingPath );
+            {
+                ImGuiX::ScopedFont const sf( ImGuiX::Font::Tiny, previewColor );
+                ImGui::Button( previewLabel.c_str(), ImVec2( 0, m_height ) );
+                ImGui::SetItemTooltip( fullPreviewLabel.c_str() );
+
+                if ( ImGui::BeginDragDropTarget() )
+                {
+                    valueUpdated = TryUpdatePathFromDragAndDrop();
+                    ImGui::EndDragDropTarget();
+                }
+            }
+            ImGui::EndDisabled();
+            ImGui::PopStyleColor();
+
+            if ( ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked( ImGuiMouseButton_Left ) )
+            {
+                if ( isValidAndExistingPath && m_path.IsValid() )
+                {
+                    m_toolsContext.TryOpenFile( m_path );
+                }
+            }
+
+            ImGui::SameLine();
+        }
+        else
+        {
+            TInlineString<9> const previewStr = GetPreviewLabel();
             Color const previewColor = GetPreviewColor();
 
             ImGui::PushStyleColor( ImGuiCol_Button, ImGuiX::Style::s_colorGray0 );
@@ -69,7 +102,7 @@ namespace EE
             {
                 if ( isValidAndExistingPath && m_path.IsValid() )
                 {
-                    m_toolsContext.TryOpenDataFile( m_path );
+                    m_toolsContext.TryOpenFile( m_path );
                 }
             }
 
@@ -129,7 +162,7 @@ namespace EE
             };
 
             ImGui::SetNextItemWidth( textWidgetWidth );
-            if ( ImGuiX::InputTextWithOptions( "IT", m_buffer.Data(), m_buffer.Size(), &m_optionData, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_CallbackResize | ImGuiInputTextFlags_EnterReturnsTrue, Callback, this ) )
+            if ( ImGuiX::InputTextWithOptions( "IT", m_buffer.Data(), m_buffer.Size(), &m_optionData, ImGuiInputTextFlags_AutoSelectAll | ImGuiInputTextFlags_ElideLeft | ImGuiInputTextFlags_CallbackResize, Callback, this ) )
             {
                 if ( UpdateDataPathFromString( m_buffer.GetString() ) )
                 {
@@ -162,7 +195,6 @@ namespace EE
             ImGuiX::ScopedFont const sf( ImGuiX::Font::Small );
             static ImVec2 const buttonSize( ImGuiX::Style::s_iconButtonWidthSmall, 0 );
 
-            // Open Resource
             ImGui::BeginDisabled( !m_path.IsValid() );
             if ( ImGui::Button( EE_ICON_CONTENT_COPY "##Copy", buttonSize ) )
             {
@@ -203,6 +235,14 @@ namespace EE
 
         if ( ImGui::BeginPopup( "##DataFilePathPickerOptions" ) )
         {
+            if ( isValidAndExistingPath && m_path.IsValid() )
+            {
+                if ( ImGui::MenuItem( EE_ICON_OPEN_IN_NEW " Open" ) )
+                {
+                    m_toolsContext.TryOpenFile( m_path );
+                }
+            }
+
             if ( ImGui::MenuItem( EE_ICON_FILE_OUTLINE " Copy Data Path" ) )
             {
                 ImGui::SetClipboardText( m_path.c_str() );
@@ -262,18 +302,17 @@ namespace EE
         SetDataPath( DataPath() );
     }
 
-    TInlineString<7> DataPickerBase::GetPreviewLabel() const
+    TInlineString<9> DataPickerBase::GetPreviewLabel() const
     {
-        TInlineString<7> previewStr;
+        TInlineString<9> previewStr;
 
-        DataPath const& currentPath = GetDataPath();
-        if ( currentPath.IsValid() )
+        if ( m_path.IsValid() )
         {
-            previewStr = TInlineString<7>( TInlineString<7>::CtorSprintf(), "%s##Preview", currentPath.GetExtension().c_str() );
+            previewStr = TInlineString<9>( TInlineString<9>::CtorSprintf(), "%s", m_path.GetExtension().c_str() );
         }
         else
         {
-            previewStr = "##Preview";
+            previewStr = "";
         }
 
         return previewStr;
@@ -412,13 +451,13 @@ namespace EE
         m_showDependenciesButton = true;
     }
 
-    TInlineString<7> ResourcePicker::GetPreviewLabel() const
+    TInlineString<9> ResourcePicker::GetPreviewLabel() const
     {
-        TInlineString<7> previewStr;
+        TInlineString<9> previewStr;
 
         if ( m_resourceTypeID.IsValid() )
         {
-            previewStr = TInlineString<7>( TInlineString<7>::CtorSprintf(), "%s##Preview", m_resourceTypeID.ToString().c_str() );
+            previewStr = TInlineString<9>( TInlineString<9>::CtorSprintf(), "%s", m_resourceTypeID.ToString().c_str() );
         }
         else
         {
@@ -587,6 +626,13 @@ namespace EE
 
     void ResourcePicker::SetResourceID( ResourceID const& resourceID )
     {
+        // Dont do anything if the resource ID's are the same
+        if ( resourceID == GetResourceID() )
+        {
+            return;
+        }
+
+        // Validate resource ID type
         if ( resourceID.IsValid() && m_resourceTypeID.IsValid() )
         {
             EE_ASSERT( resourceID.GetResourceTypeID() == m_resourceTypeID );

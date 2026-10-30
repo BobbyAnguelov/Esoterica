@@ -1,0 +1,80 @@
+
+#include "Base/Render/RHI.esh"
+
+#ifndef _SHADOW_PROJECTION_ESH_
+#define _SHADOW_PROJECTION_ESH_
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    static const float PUNCTUAL_SHADOW_NEAR_PLANE_FRACTION = 0.005F;   // of the light's radius
+    static const float PUNCTUAL_SHADOW_NEAR_PLANE_MINIMUM = 0.001F;
+
+    inline float PunctualShadowNearPlane( float maxRadius )
+    {
+        float const scaledNearPlane = maxRadius * PUNCTUAL_SHADOW_NEAR_PLANE_FRACTION;
+        return ( PUNCTUAL_SHADOW_NEAR_PLANE_MINIMUM > scaledNearPlane ) ? PUNCTUAL_SHADOW_NEAR_PLANE_MINIMUM : scaledNearPlane;
+    }
+
+    inline float PunctualShadowFarPlane( float maxRadius )
+    {
+        float const nearPlane = PunctualShadowNearPlane( maxRadius );
+        return ( maxRadius > nearPlane * 2.0F ) ? maxRadius : nearPlane * 2.0F;
+    }
+
+    inline float PunctualShadowTexelSize( float halfFOVTangent, uint32_t resolution )
+    {
+        return ( resolution > 0 ) ? ( 2.0F * halfFOVTangent / float( resolution ) ) : 0.0F;
+    }
+
+    //-------------------------------------------------------------------------
+
+    static const uint   g_OctahedralShadowNumFaces          = 8;
+    static const float  g_OctahedralShadowInverseSqrt3      = 0.57735026919F;
+    static const float  g_OctahedralShadowHalfFOVTangent    = 2.4494897427831781F;    // sqrt( 6 )
+
+    #ifndef __cplusplus
+    float3 OctahedralShadowFaceSigns( uint faceIndex )
+    {
+        return float3
+        (
+            ( ( faceIndex & 1 ) != 0 ) ? -1.0 : 1.0,
+            ( ( faceIndex & 2 ) != 0 ) ? -1.0 : 1.0,
+            ( ( faceIndex & 4 ) != 0 ) ? -1.0 : 1.0
+        );
+    }
+
+    float4 ProjectOctahedralShadowFacePosition( uint faceIndex, float3 lightPosition, float3 worldPosition, float nearPlane, float farPlane )
+    {
+        float3 const signs          = OctahedralShadowFaceSigns( faceIndex );
+        float3 const lightVector    = worldPosition - lightPosition;
+
+        float const fold        = ( signs.z < 0.0 ) ? 1.0 : 0.0;
+        float const numeratorXZ = fold * signs.x * signs.z;
+        float const numeratorYZ = fold * signs.y * signs.z;
+
+        float const depthScale  = nearPlane / ( farPlane - nearPlane );
+        float const depthOffset = nearPlane * farPlane / ( farPlane - nearPlane );
+        float const axisDepth   = g_OctahedralShadowInverseSqrt3 * dot( signs, lightVector );
+
+        return float4
+        (
+            g_OctahedralShadowInverseSqrt3 * ( lightVector.x + numeratorXZ * lightVector.z ),
+            -g_OctahedralShadowInverseSqrt3 * ( lightVector.y + numeratorYZ * lightVector.z ),
+            depthOffset - depthScale * axisDepth,
+            axisDepth
+        );
+    }
+
+    float3 ComputeOctahedralShadowClipDistances( uint faceIndex, float3 lightPosition, float3 worldPosition )
+    {
+        float3 const signs = OctahedralShadowFaceSigns( faceIndex );
+        float3 const lightVector = worldPosition - lightPosition;
+
+        return float3( signs.x * lightVector.x, signs.y * lightVector.y, signs.z * lightVector.z );
+    }
+
+    #endif
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

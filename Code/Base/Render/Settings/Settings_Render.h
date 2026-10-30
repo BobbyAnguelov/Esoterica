@@ -109,6 +109,20 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
+        EE_REFLECT( Category = "Parallax" );
+        float                   m_parallaxReliefFadeStartAngle = 85.0F;
+
+        EE_REFLECT( Category = "Parallax" );
+        float                   m_parallaxReliefFadeEndAngle = 90.0F;
+
+        EE_REFLECT( Category = "Parallax" );
+        uint32_t                m_parallaxMaxSteps = 24;
+
+        EE_REFLECT( Category = "Parallax" );
+        float                   m_parallaxErrorPixels = 1.0F;
+
+        //-------------------------------------------------------------------------
+
         EE_REFLECT( Category = "RHI" );
         bool                    m_enableHostValidation = false;
 

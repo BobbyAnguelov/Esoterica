@@ -1,0 +1,139 @@
+
+#include "Base/Render/RHI.esh"
+#include "Engine/Render/Shaders/CommonFlags.esh"
+
+#ifndef _GLOBAL_PARAMETERS_ESH_
+#define _GLOBAL_PARAMETERS_ESH_
+
+EE_BEGIN_SHADER_TYPES_NAMESPACE
+
+    struct HLSL_ALIGN_INDIRECT_ARGUMENT GlobalParameters                                // THIS IS IN A CONSTANT BUFFER! 16-byte CBV alignment rules
+    {
+    // 16-byte row
+        float3                          m_cameraPosition;
+        uint                            m_paddingCameraPosition;
+
+    // 16-byte row
+        float3                          m_cameraForwardDirection;
+        uint                            m_numRenderViewBucketsPerView;
+
+    // 16-byte row
+        float3                          m_cameraUpDirection;
+        uint                            m_numActiveRenderViews;
+
+    // 16-byte row
+        float3                          m_cameraRightDirection;
+
+        RendererGlobalFlags             m_rendererGlobalFlags               : 7;
+        RendererDebugFlags              m_rendererDebugFlags                : 6;
+        RendererDebugVisualizationMode  m_rendererDebugVisualizationMode    : 8;
+        uint                            m_padding0                          : 11;
+
+    // 16-byte row
+        float4                          m_viewportSize;
+
+    // 16-byte row
+        uint                            m_shaderDataBuffer                  : 16;
+        uint                            m_renderViewBuffer                  : 16;
+
+        uint                            m_meshInstanceRootBuffer            : 16;
+        uint                            m_renderViewIndirectionBuffer       : 16;
+
+        uint                            m_skinningTransformBuffer           : 16;
+        uint                            m_renderBucketBuffer                : 16;
+
+        uint                            m_numRenderBuckets;
+
+    // 16-byte row
+        uint                            m_ssaoTexture                       : 16;
+        uint                            m_dfgTexture                        : 16;
+
+        uint                            m_radianceTexture                   : 16;
+        uint                            m_shCoefficientsBuffer              : 16;
+
+        float                           m_radianceTextureMipLevels;
+        uint                            m_pointShadowResolution             : 16;
+        uint                            m_spotShadowResolution              : 16;
+
+    // 16-byte row
+        uint                            m_directionalLightBuffer            : 16;
+        uint                            m_directionalLightPageBuffer        : 16;
+
+        uint                            m_pointLightBuffer                  : 16;
+        uint                            m_pointLightPageBuffer              : 16;
+
+        uint                            m_spotLightBuffer                   : 16;
+        uint                            m_spotLightPageBuffer               : 16;
+
+        float                           m_lightCulling_MinCellSize;
+
+    // 16-byte row
+        uint                            m_numDirectionalLightPages;
+        uint                            m_numPointLightPages;
+        uint                            m_numSpotLightPages;
+
+        uint                            m_decalBuffer                       : 16;
+        uint                            m_decalPageBuffer                   : 16;
+
+    // 16-byte row
+        uint64_t                        m_lightCulling_SpatialHashLow;
+        uint64_t                        m_lightCulling_SpatialHashHigh;
+
+    // 16-byte row
+        float4                          m_pickingInput;
+
+    // 16-byte row
+        uint64_t                        m_instancePickingResultsBuffer;
+
+        uint                            m_instancePickingDistancesBuffer    : 16;
+        uint                            m_pickingEnabled                    : 16;
+
+        uint                            m_numDecalPages;
+
+    // 16-byte row
+        uint                            m_editorOutlineRenderViewIndex      : 16;
+        uint                            m_editorOutlineEnabled              : 16;
+        uint                            m_meshInstanceRootPageBuffer        : 16;
+        uint                            m_meshInstanceRootOutlineBuffer     : 16;
+
+        uint                            m_shaderDebugDrawBuffer             : 16;
+        uint                            m_paddingEditor                     : 16;
+
+        uint                            m_paddingRender0;
+
+    // 16-byte row
+        float                           m_directionalShadowNormalOffsetScale;
+        float                           m_spotShadowNormalOffsetScale;
+        float                           m_pointShadowNormalOffsetScale;
+        float                           m_paddingShadowBias0;
+
+    // 16-byte row
+        float                           m_directionalShadowDepthBias;
+        float                           m_spotShadowDepthBias;
+        float                           m_pointShadowDepthBias;
+        float                           m_paddingShadowBias1;
+
+    // 16-byte row
+        uint64_t                        m_deviceAddress;
+        uint64_t                        m_paddingDeviceAddress;
+
+    // 16-byte row
+        float4x4                        m_mainCameraViewProjectionMatrix;
+
+    // 16-byte row
+        uint                            m_debugDrawObjectIDOffset;              // Offset applied to debug draw object IDs to avoid collisions with mesh instances
+        uint3                           m_paddingMainCameraSnapshot;
+
+    // 16-byte row
+        float                           m_parallaxReliefFadeCosLow;
+        float                           m_parallaxReliefFadeCosHigh;
+
+        uint                            m_parallaxMaxSteps;
+        float                           m_parallaxErrorPixels;
+    };
+
+    HLSL_STATIC_ASSERT( ( sizeof( GlobalParameters ) % 16 ) == 0, "Constant buffer must be a multiple of 16 bytes in C++ and HLSL" );
+
+EE_END_SHADER_TYPES_NAMESPACE
+
+#endif

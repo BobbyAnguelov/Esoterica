@@ -13,6 +13,40 @@
 
 namespace EE::Render
 {
+    void MaterialResourceDescriptor::GetCompileDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<Resource::CompileDependency>& outDependencies ) const
+    {
+        EE_ASSERT( m_shaderParameters.IsSet() );
+        for ( TypeSystem::PropertyInfo const& property : m_shaderParameters.GetInstanceTypeInfo()->m_properties )
+        {
+            if ( property.IsResourcePtrProperty() )
+            {
+                Resource::ResourcePtr const* pResource = property.GetPropertyAddress<Resource::ResourcePtr>( m_shaderParameters.Get() );
+                if ( pResource->IsSet() )
+                {
+                    VectorEmplaceBackUnique( outDependencies, Resource::CompileDependency( pResource->GetDataPath(), true ) );
+                }
+            }
+        }
+    }
+
+    void MaterialResourceDescriptor::GetInstallDependencies( TypeSystem::TypeRegistry const& typeRegistry, FileSystem::Path const& sourceResourceDirectoryPath, String const& subResourceName, TVector<ResourceID>& outDependencies ) const
+    {
+        EE_ASSERT( m_shaderParameters.IsSet() );
+        for ( TypeSystem::PropertyInfo const& property : m_shaderParameters.GetInstanceTypeInfo()->m_properties )
+        {
+            if ( property.IsResourcePtrProperty() )
+            {
+                Resource::ResourcePtr const* pResource = property.GetPropertyAddress<Resource::ResourcePtr>( m_shaderParameters.Get() );
+                if ( pResource->IsSet() )
+                {
+                    VectorEmplaceBackUnique( outDependencies, pResource->GetResourceID() );
+                }
+            }
+        }
+    }
+
+    //-------------------------------------------------------------------------
+
     class SurfaceShaderPicker final : public PG::PropertyEditor
     {
     public:

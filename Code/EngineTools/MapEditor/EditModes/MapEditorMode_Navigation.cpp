@@ -6,7 +6,7 @@
 #include "Engine/Navmesh/Systems/WorldSystem_Navmesh.h"
 #include "Engine/Entity/EntityMap.h"
 #include "Engine/Render/Components/Component_SkeletalMesh.h"
-#include "Engine/Animation/Components/Component_AnimationClipPlayer.h"
+#include "Engine/Animation/Components/Component_AnimationPlayer.h"
 #include "Engine/Animation/Systems/EntitySystem_Animation.h"
 #include "Base/Resource/ResourceSystem.h"
 #include "Base/FileSystem/FileSystem.h"
@@ -163,14 +163,14 @@ namespace EE::Navmesh
         {
             m_pEntityEditorContext->ClearSelection();
 
-            ImGuiX::Gizmo::Result const startResult = m_startGizmo.UpdateAndDraw( m_startTransform.GetTranslation(), m_startTransform.GetRotation(), *pViewport, isViewportFocused );
+            Gizmo::Result const startResult = m_startGizmo.UpdateAndDraw( m_startTransform.GetTranslation(), m_startTransform.GetRotation(), *pViewport, isViewportFocused, isViewportFocused );
             if ( startResult.IsManipulating() )
             {
                 startResult.ApplyResult( m_startTransform );
                 m_pathNeedsUpdate = true;
             }
 
-            ImGuiX::Gizmo::Result const endResult = m_endGizmo.UpdateAndDraw( m_endTransform.GetTranslation(), m_endTransform.GetRotation(), *pViewport, isViewportFocused );
+            Gizmo::Result const endResult = m_endGizmo.UpdateAndDraw( m_endTransform.GetTranslation(), m_endTransform.GetRotation(), *pViewport, isViewportFocused, isViewportFocused );
             if ( !startResult.IsManipulating() && endResult.IsManipulating() )
             {
                 endResult.ApplyResult( m_endTransform );
@@ -589,7 +589,7 @@ namespace EE::Navmesh
         m_pTestMeshComponent->SetSkeleton( "data://packs/amplify/amplifyskeleton.skeleton" );
         m_pTestMeshComponent->SetMesh( "data://packs/br/characters/sk_chr_mercenarymale_01.skelmesh" );
 
-        m_pTestAnimComponent = EE::New<Animation::AnimationClipPlayerComponent>( StringID( "Anim Component" ) );
+        m_pTestAnimComponent = EE::New<Animation::AnimationPlayerComponent>( StringID( "Anim Component" ) );
         m_pTestAnimComponent->SetAnimation( "data://packs/amplify/walk_fwd_v2.anim" );
 
         m_pTestEntity = EE::New<Entity>( StringID( "Nav Test Character" ) );
@@ -599,10 +599,10 @@ namespace EE::Navmesh
         pTransientMap->AddEntity( m_pTestEntity );
 
         m_startGizmo.SetLabel( "Start" );
-        m_startGizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
+        m_startGizmo.SetOption( Gizmo::Options::AllowScale, false );
 
         m_endGizmo.SetLabel( "End" );
-        m_endGizmo.SetOption( ImGuiX::Gizmo::Options::AllowScale, false );
+        m_endGizmo.SetOption( Gizmo::Options::AllowScale, false );
 
         m_isInTestMode = true;
         m_pathNeedsUpdate = true;

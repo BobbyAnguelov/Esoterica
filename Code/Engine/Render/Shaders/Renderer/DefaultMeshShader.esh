@@ -1,5 +1,10 @@
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
+#include "Engine/Render/Shaders/Renderer/CullingRootConstants.esh"
+#include "Engine/Render/Shaders/Renderer/DrawRootConstants.esh"
+#include "Engine/Render/Shaders/Renderer/MeshOutput.esh"
+#include "Engine/Render/Shaders/Renderer/ShadowProjection.esh"
 #include "Engine/Render/Shaders/EngineShader.esh"
 #include "Engine/Render/Shaders/MeshInstance.esh"
 #include "Engine/Render/Shaders/Picking/Picking.esh"
@@ -51,10 +56,11 @@ void MS_main
     const MeshInstance                  meshInstance                = meshInstanceBuffer[instanceIndex];
     const RenderView                    renderView                  = renderViewBuffer[renderViewIndirectionBuffer[RootConstants.m_renderViewIndex]];
 
-    const bool                          isShadowFace                = ( renderView.m_renderViewFlags & RENDER_VIEW_FLAG_SHADOW_FACE ) != 0;
+    const bool                          isShadowFace                = ( renderView.m_renderViewFlags & g_renderViewFlagShadowFace ) != 0;
     const uint                          shadowFaceIndex             = groupID.y;
     
-    ByteAddressBuffer                   meshBuffer                  = GetBuffer( NonUniformResourceIndex( meshInstance.m_meshBuffer ) );
+    ByteAddressBuffer                   meshBuffer                  = GetBuffer( meshInstance.m_meshBuffer );
+    const MeshHeader                    meshHeader                  = meshBuffer.Load<MeshHeader>( 0 );
     const uint                          clusterAddress              = GetMeshClusterAddress( clusterOffset );
     const MeshCluster                   cluster                     = meshBuffer.Load<MeshCluster>( clusterAddress );
     
@@ -84,19 +90,21 @@ void MS_main
     RendererGlobalFlags rendererGlobalFlags     = RootCBV.m_rendererGlobalFlags;
 
     // Shadow map views must not evaluate lighting, when alpha test is enabled this runs the full pixel shader.
-    if ( ( renderView.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_SHADOW_MAP ) != 0 )
+    if ( ( renderView.m_renderViewLayerFlags & g_renderViewLayerFlagShadowMap ) != 0 )
     {
-        rendererGlobalFlags |= RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING;
+        rendererGlobalFlags |= g_rendererGlobalFlagDisableLighting;
     }
     
+    rendererGlobalFlags |= renderView.m_rendererGlobalFlags;
+
     // Special case - global environment map view shouldn't compute lighting
     float3 worldPositionOffset = 0.0.xxx;
-    if ( ( meshInstanceRoot.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP ) )
+    if ( ( meshInstanceRoot.m_renderViewLayerFlags & g_renderViewLayerFlagGlobalEnvironmentMap ) )
     {
-        rendererGlobalFlags |= RENDERER_GLOBAL_FLAG_DISABLE_LIGHTING;
+        rendererGlobalFlags |= g_rendererGlobalFlagDisableLighting;
         
         // Envmap geometry is rendered in other views as well, but in that case it is always relative to camera
-        if ( ( renderView.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP ) == 0 )
+        if ( ( renderView.m_renderViewLayerFlags & g_renderViewLayerFlagGlobalEnvironmentMap ) == 0 )
         {
             worldPositionOffset = RootCBV.m_cameraPosition.xyz;
         }
@@ -227,7 +235,7 @@ void MS_main
 
         if ( !isDoubleSided )
         {
-            if ( renderView.m_renderViewFlags & RENDER_VIEW_FLAG_FLIP_WINDING )
+            if ( renderView.m_renderViewFlags & g_renderViewFlagFlipWinding )
             {
                 triangleIndices = triangleIndices.zyx;
             }
@@ -251,6 +259,12 @@ void MS_main
         worldVertices[2] = gsWorldVertices[triangleIndices.z];
         
         float3 triangleNormal = normalize( cross( worldVertices[1] - worldVertices[0], worldVertices[2] - worldVertices[0] ) );
+
+        uint meshDecal = 0;
+        if ( cluster.m_hasMeshDecalData != 0 )
+        {
+            meshDecal = meshBuffer.Load<uint>( cluster.GetDataOffsetInBytes() + cluster.GetMeshDecalDataOffset() + groupThreadID * sizeof( uint ) );
+        }
             
         PrimitiveOutput output = ( PrimitiveOutput ) 0;
         output.m_cullPrimitive      = IsTriangleCulled( clipVertices, renderView.m_renderTargetSize.xy, isDoubleSided );
@@ -258,6 +272,9 @@ void MS_main
         output.SetClusterIndex( clusterOffset );
         output.SetShaderParametersOffsetIn32ByteBlocks( meshInstance.m_shaderParametersOffsetIn32ByteBlocks );
         output.SetTriangleNormal( triangleNormal );
+        output.SetMeshDecal( meshDecal );
+        output.SetMeshBuffer( meshInstance.m_meshBuffer );
+        output.SetMeshDecalDataOffset( meshHeader.m_meshDecalOffset );
             
         output.m_primitiveFlags.m_rendererGlobalFlags               = rendererGlobalFlags;
         output.m_primitiveFlags.m_rendererDebugFlags                = RootCBV.m_rendererDebugFlags;
@@ -265,7 +282,7 @@ void MS_main
         outPrimitives[groupThreadID] = output;
         
         #if EE_DEVELOPMENT_TOOLS
-        if ( RootCBV.m_pickingEnabled && ( RootConstants.m_renderViewIndex == RootCBV.m_mainCameraRenderView ) )
+        if ( RootCBV.m_pickingEnabled && ( RootConstants.m_renderViewIndex == 0 ) ) // The main camera is always the first active render view
         {
             float hitDistance = 0.0;
             if ( PickTriangleClipSpace( RootCBV.m_pickingInput.xy, RootCBV.m_pickingInput.z, clipVertices[0], clipVertices[1], clipVertices[2], hitDistance ) )

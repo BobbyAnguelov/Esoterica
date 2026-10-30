@@ -31,6 +31,10 @@
       "Command": "-compile data://packs/military/vehicles/sm_veh_jet_02.mesh"
     },
     {
+      "Id": "27a15fad-fef9-4bed-94d7-3bef0cc99106",
+      "Command": "-compile data://render/smaa/searchtexture.texture"
+    },
+    {
       "Id": "868f20c3-b520-4ba0-a235-b2eb8b47157b",
       "Command": "-compile data://packs/br/environment/sm_prop_tirestack_01.mesh"
     },

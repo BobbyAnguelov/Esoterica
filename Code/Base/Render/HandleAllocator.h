@@ -38,6 +38,8 @@ namespace EE::Render
         static_assert( NumHierarchyLevels >= 1, "At least 1 level is required" );
         static_assert( NumHierarchyLevels <= 5, "Page spans are stored as uint32_t; 64^6 slots would overflow" );
 
+        //-------------------------------------------------------------------------
+
     public:
 
         static constexpr OffsetType  s_invalidOffset = OffsetType( -1 );
@@ -45,11 +47,7 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        HandleAllocator() = default;
-        HandleAllocator( HandleAllocator const& ) = delete;
-        HandleAllocator& operator=( HandleAllocator const& ) = delete;
-        HandleAllocator( HandleAllocator&& ) = default;
-        HandleAllocator& operator=( HandleAllocator&& ) = default;
+    public:
 
         struct Handle
         {
@@ -62,6 +60,14 @@ namespace EE::Render
         };
 
         //-------------------------------------------------------------------------
+
+    public:
+
+        HandleAllocator() = default;
+        HandleAllocator( HandleAllocator const& ) = delete;
+        HandleAllocator& operator=( HandleAllocator const& ) = delete;
+        HandleAllocator( HandleAllocator&& ) = default;
+        HandleAllocator& operator=( HandleAllocator&& ) = default;
 
         inline void Initialize( uint32_t initialCapacityInPages )
         {
@@ -159,9 +165,15 @@ namespace EE::Render
         inline void SetIsGrowable( bool isGrowable ) { m_isGrowable = isGrowable; }
         inline bool IsGrowable() const { return m_isGrowable; }
 
+        //-------------------------------------------------------------------------
+
     private:
 
+        static constexpr uint64_t s_notFoundOffset = ~0ULL;
+
         //-------------------------------------------------------------------------
+
+    private:
 
         struct Level
         {
@@ -173,20 +185,18 @@ namespace EE::Render
             TAlignedVector<uint64_t> m_dirty{ Memory::Allocators::g_handleAllocator_Hint };
         };
 
-        static constexpr uint64_t s_notFoundOffset = ~0ULL;
+        //-------------------------------------------------------------------------
 
     private:
 
-        //-------------------------------------------------------------------------
-
         // Slots per unit at a given level: level 0 units are single slots, level k units are 64^k slots (one level-(k-1) page).
-        static constexpr uint64_t UnitSpan( uint32_t level )
+        EE_FORCE_INLINE static constexpr uint64_t UnitSpan( uint32_t level )
         {
             return 1ULL << ( level * 6 );
         }
 
         // Slots per page (64 units) at a given level.
-        static constexpr uint64_t PageSpan( uint32_t level )
+        EE_FORCE_INLINE static constexpr uint64_t PageSpan( uint32_t level )
         {
             return UnitSpan( level + 1 );
         }
@@ -234,7 +244,61 @@ namespace EE::Render
             return uint32_t( _lzcnt_u64( pageMask ) );
         }
 
+        EE_FORCE_INLINE static uint8_t ComputeMaxFreeRun( uint64_t pageMask )
+        {
+            uint64_t freeBits = ~pageMask;
+
+            // Fully-free page - maxRun = 64, bail early
+            if ( freeBits == ~0ULL )
+            {
+                return 64;
+            }
+
+            uint8_t maxRun = 0;
+            while ( freeBits )
+            {
+                uint32_t const tz = CountTrailingZeros( freeBits );
+                freeBits >>= tz;
+
+                // Count the run of consecutive ones (free slots)
+                // freeBits is non-zero and not ~0ULL, so ~freeBits is non-zero
+                uint32_t const run = CountTrailingZeros( ~freeBits );
+                freeBits >>= run;
+
+                if ( run > maxRun )
+                {
+                    maxRun = uint8_t( run );
+                    if ( maxRun == 64 )
+                    {
+                        break;
+                    }
+                }
+            }
+
+            return maxRun;
+        }
+
+        inline static uint32_t FindRunInPage( uint64_t pageMask, uint32_t numSlots )
+        {
+            uint64_t freeBits = ~pageMask;
+
+            uint64_t pattern = ( numSlots == 64 ) ? ~0ULL : ( ( 1ULL << numSlots ) - 1 );
+
+            for ( uint32_t bit = 0; bit <= 64 - numSlots; ++bit )
+            {
+                if ( ( freeBits & pattern ) == pattern )
+                {
+                    return bit;
+                }
+                pattern <<= 1;
+            }
+
+            return ~0U;
+        }
+
         //-------------------------------------------------------------------------
+
+    private:
 
         inline void ResizeLevels( uint32_t numLeaves )
         {
@@ -636,42 +700,6 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
-        EE_FORCE_INLINE static uint8_t ComputeMaxFreeRun( uint64_t pageMask )
-        {
-            uint64_t freeBits = ~pageMask;
-
-            // Fully-free page - maxRun = 64, bail early
-            if ( freeBits == ~0ULL )
-            {
-                return 64;
-            }
-
-            uint8_t maxRun = 0;
-            while ( freeBits )
-            {
-                uint32_t const tz = CountTrailingZeros( freeBits );
-                freeBits >>= tz;
-
-                // Count the run of consecutive ones (free slots)
-                // freeBits is non-zero and not ~0ULL, so ~freeBits is non-zero
-                uint32_t const run = CountTrailingZeros( ~freeBits );
-                freeBits >>= run;
-
-                if ( run > maxRun )
-                {
-                    maxRun = uint8_t( run );
-                    if ( maxRun == 64 )
-                    {
-                        break;
-                    }
-                }
-            }
-
-            return maxRun;
-        }
-
-        //-------------------------------------------------------------------------
-
         inline bool IsBitmaskEmpty() const
         {
             for ( uint64_t const pageMask : m_levels[0].m_slotMask )
@@ -757,28 +785,6 @@ namespace EE::Render
             // Multi-page scan: search for numSlots consecutive zero bits using the hint hierarchy - skips whole ranges whose max free run is too small.
             return FindRunInHierarchy( uint32_t( numSlots ) );
         }
-
-        //-------------------------------------------------------------------------
-
-        inline static uint32_t FindRunInPage( uint64_t pageMask, uint32_t numSlots )
-        {
-            uint64_t freeBits = ~pageMask;
-
-            uint64_t pattern = ( numSlots == 64 ) ? ~0ULL : ( ( 1ULL << numSlots ) - 1 );
-
-            for ( uint32_t bit = 0; bit <= 64 - numSlots; ++bit )
-            {
-                if ( ( freeBits & pattern ) == pattern )
-                {
-                    return bit;
-                }
-                pattern <<= 1;
-            }
-
-            return ~0U;
-        }
-
-        //-------------------------------------------------------------------------
 
         // Fully covers numPages pages [firstLeaf, firstLeaf + numPages) with allocated slots: slot masks = ~0, page hints zeroed, availability bits cleared in bulk.
         // 256-bit stores for the wide path.

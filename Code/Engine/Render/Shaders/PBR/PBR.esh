@@ -49,43 +49,8 @@ float AttenuationNoCusp( float distance, float radius, float maxIntensity, float
     return maxIntensity * Square( 1.0 - s2 ) / ( 1.0 + faloff * s2 );
 }
 
-// https://lisyarus.github.io/blog/posts/point-light-attenuation.html
-float AttenuationCusp( float distance, float radius, float maxIntensity, float faloff )
-{
-    float s = distance / radius;
-
-    if ( s >= 1.0 )
-    {
-        return 0.0;
-    }
-
-    float s2 = Square( s );
-
-    return maxIntensity * Square( 1.0 - s2 ) / ( 1.0 + faloff * s2 );
-}
-
 struct PBR
 {
-    float3 F0;
-    
-    float3 m_view;
-    float3 m_normal;
-    float3 m_reflection;
-    
-    float  m_dotNV;
-    
-    float3 m_albedo;
-    float  m_metalness;
-    float  m_roughness;
-    float  m_occlusion;
-    
-    float  m_inverseMetalness;
-    float  m_roughness05;
-    float  m_roughness2;
-    float  m_roughness4;
-    
-    float  m_specularOcclusion;
-    
     static PBR New( float3 albedo, float metalness, float roughness, float occlusion, float3 normal, float3 view )
     {
         PBR pbr;
@@ -111,7 +76,7 @@ struct PBR
         return F0 + ( 1.0.xxx - F0 ) * pow( saturate( 1.0 - cosTheta ), 5.0 );
     }
 
-    float3 FresnelSchlickRoughness( float cosTheta )
+    float3 FresnelSchlickRoughness()
     {
         return F0 + ( max( 1.0.xxx - m_roughness.xxx, F0 ) - F0 ) * pow( saturate( 1.0 - m_dotNV ), 5.0 );
     }
@@ -127,7 +92,7 @@ struct PBR
 
         float   radianceLevel   = m_roughness * ( radianceMipLevels - 1.0 );
         float3  radiance        = radianceTexture.SampleLevel( linearWrapSampler, m_reflection, radianceLevel ).rgb;
-        float3  F               = FresnelSchlickRoughness( m_dotNV );
+        float3  F               = FresnelSchlickRoughness();
     
         float3  diffuse         = ( 1.0.xxx - F ) * m_inverseMetalness * irradiance * m_albedo * m_occlusion;
         float3  specular        = radiance * ( F * dfg.x + dfg.y ) * m_specularOcclusion;
@@ -146,11 +111,33 @@ struct PBR
         float   G               = GeometrySmith( m_dotNV, dotNL, m_roughness05 );
         float3  F               = FresnelSchlick( dotHV );
     
-        float3 diffuse          = ( 1.0.xxx - F ) * m_inverseMetalness * m_albedo * ( 1.0 / PI );
-        float3 specular         = NDF * G * F * ( 1.0 / max( 4.0 * m_dotNV * dotNL, 0.0001 ) );
+        float3  diffuse         = ( 1.0.xxx - F ) * m_inverseMetalness * m_albedo * ( 1.0 / PI );
+        float3  specular        = NDF * G * F * ( 1.0 / max( 4.0 * m_dotNV * dotNL, 0.0001 ) );
     
         return ( diffuse + specular ) * radiance * dotNL;
     }
+
+    //-------------------------------------------------------------------------
+
+    float3 F0;
+    
+    float3 m_view;
+    float3 m_normal;
+    float3 m_reflection;
+    
+    float  m_dotNV;
+    
+    float3 m_albedo;
+    float  m_metalness;
+    float  m_roughness;
+    float  m_occlusion;
+    
+    float  m_inverseMetalness;
+    float  m_roughness05;
+    float  m_roughness2;
+    float  m_roughness4;
+    
+    float  m_specularOcclusion;
 };
 
 #endif

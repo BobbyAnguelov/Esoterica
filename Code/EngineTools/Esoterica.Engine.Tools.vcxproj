@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|x64">
@@ -126,6 +126,12 @@
     <ClCompile Include="Animation\ResourceEditors\ResourceEditor_Skeleton.cpp" />
     <ClCompile Include="Core\DataFileUtils.cpp" />
     <ClCompile Include="Core\DialogManager.cpp" />
+    <ClCompile Include="Core\Gizmos\Gizmo_Translation.cpp" />
+    <ClCompile Include="Gizmos\Gizmo.cpp" />
+    <ClCompile Include="Gizmos\Gizmo_Base.cpp" />
+    <ClCompile Include="Gizmos\Gizmo_Rotate.cpp" />
+    <ClCompile Include="Gizmos\Gizmo_Scale.cpp" />
+    <ClCompile Include="Gizmos\Gizmo_Translate.cpp" />
     <ClCompile Include="Core\Test\Component_SerializationTest.cpp" />
     <ClCompile Include="Core\Tools\EditorTool_SystemSettings.cpp" />
     <ClCompile Include="Core\Test\UITest.cpp" />
@@ -142,8 +148,18 @@
     <ClCompile Include="Game\ResourceCompilers\ResourceCompiler_Hitbox.cpp" />
     <ClCompile Include="Game\ResourceDescriptors\ResourceDescriptor_Hitbox.cpp" />
     <ClCompile Include="Game\ResourceEditors\ResourceEditor_Hitbox.cpp" />
+    <ClCompile Include="Import\BulkImporters\BulkImporter.cpp" />
+    <ClCompile Include="Import\BulkImporters\BulkImporter_Animation.cpp" />
+    <ClCompile Include="Import\BulkImporters\BulkImporter_Physics.cpp" />
+    <ClCompile Include="Import\BulkImporters\BulkImporter_Render.cpp" />
+    <ClCompile Include="Import\Formats\Bitmaps.cpp" />
+    <ClCompile Include="Import\Formats\FormatFile.cpp" />
+    <ClCompile Include="Import\Formats\HDR.cpp" />
+    <ClCompile Include="Import\Formats\EXR.cpp" />
     <ClCompile Include="Import\Formats\FBX.cpp" />
     <ClCompile Include="Core\Tools\EditorTool_MemoryTracker.cpp" />
+    <ClCompile Include="Import\ImportedMaterial.cpp" />
+    <ClCompile Include="Import\Tools\EditorTool_RawFileInspector.cpp" />
     <ClCompile Include="MapEditor\EditModes\MapEditorMode_Navigation.cpp" />
     <ClCompile Include="Entity\ResourceDescriptors\ResourceDescriptor_EntityCollection.cpp" />
     <ClCompile Include="Entity\ResourceDescriptors\ResourceDescriptor_EntityMap.cpp" />
@@ -153,10 +169,10 @@
     <ClCompile Include="MapEditor\EditModes\MapEditorMode_Physics.cpp" />
     <ClCompile Include="Navmesh\NavmeshBuildData.cpp" />
     <ClCompile Include="NodeGraph\NodeGraph_Comment.cpp" />
-    <ClCompile Include="Import\RawFileInspector.cpp" />
     <ClCompile Include="Core\Tools\EditorTool_SystemLog.cpp" />
     <ClCompile Include="Render\BulkUpdateOperations\BulkUpdateOperation_Render.cpp" />
     <ClCompile Include="Render\ComponentTools\ComponentTools_Light.cpp" />
+    <ClCompile Include="Render\ComponentTools\ComponentTools_Decal.cpp" />
     <ClCompile Include="Render\PropertyGrid\PropertyGrid_SubmeshSettings.cpp" />
     <ClCompile Include="Render\PropertyGrid\PropertyGrid_Mesh.cpp" />
     <ClCompile Include="Render\ResourceDescriptors\ResourceDescriptor_RenderMaterial.cpp" />
@@ -184,6 +200,9 @@
     <ClCompile Include="Physics\ResourceEditors\ResourceEditor_Ragdoll.cpp" />
     <ClCompile Include="PropertyGrid\PropertyGrid.cpp" />
     <ClCompile Include="Import\Formats\GLTF.cpp" />
+    <ClCompile Include="Render\ConeStepMapping\ConeStepMapping.cpp" />
+    <ClCompile Include="Render\Occlusion\Occlusion.cpp" />
+    <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_DecalMaterial.cpp" />
     <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_RenderMaterial.cpp" />
     <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_RenderMesh.cpp" />
     <ClCompile Include="Render\ResourceCompilers\ResourceCompiler_RenderTexture.cpp" />
@@ -197,9 +216,8 @@
     <ClCompile Include="Resource\Tools\EditorTool_ResourceDependencyViewer.cpp" />
     <ClCompile Include="Resource\ResourceCompilationDatabase.cpp" />
     <ClCompile Include="Resource\ResourceCompilerContext.cpp" />
-    <ClCompile Include="Resource\ResourceImportSettings.cpp" />
     <ClCompile Include="Resource\Tools\EditorTool_ResourceBrowser.cpp" />
-    <ClCompile Include="Resource\Tools\EditorTool_ResourceImporter.cpp" />
+    <ClCompile Include="Import\Tools\EditorTool_BulkImporter.cpp" />
     <ClCompile Include="Resource\Tools\EditorTool_ResourceSystem.cpp" />
     <ClCompile Include="Resource\ResourceCompiler.cpp" />
     <ClCompile Include="Resource\ResourceCompilerRegistry.cpp" />
@@ -285,6 +303,12 @@
     <ClInclude Include="Core\CommonToolTypes.h" />
     <ClInclude Include="Core\DataFileUtils.h" />
     <ClInclude Include="Core\DialogManager.h" />
+    <ClInclude Include="Core\Gizmos\Gizmo_Translation.h" />
+    <ClInclude Include="Gizmos\Gizmo.h" />
+    <ClInclude Include="Gizmos\Gizmo_Base.h" />
+    <ClInclude Include="Gizmos\Gizmo_Rotate.h" />
+    <ClInclude Include="Gizmos\Gizmo_Scale.h" />
+    <ClInclude Include="Gizmos\Gizmo_Translate.h" />
     <ClInclude Include="Core\Test\Component_SerializationTest.h" />
     <ClInclude Include="Core\Tools\EditorTool_SystemSettings.h" />
     <ClInclude Include="Core\Test\UITest.h" />
@@ -302,8 +326,18 @@
     <ClInclude Include="Game\ResourceCompilers\ResourceCompiler_Hitbox.h" />
     <ClInclude Include="Game\ResourceDescriptors\ResourceDescriptor_Hitbox.h" />
     <ClInclude Include="Game\ResourceEditors\ResourceEditor_Hitbox.h" />
+    <ClInclude Include="Import\BulkImporters\BulkImporter.h" />
+    <ClInclude Include="Import\BulkImporters\BulkImporter_Animation.h" />
+    <ClInclude Include="Import\BulkImporters\BulkImporter_Physics.h" />
+    <ClInclude Include="Import\BulkImporters\BulkImporter_Render.h" />
+    <ClInclude Include="Import\Formats\Bitmaps.h" />
+    <ClInclude Include="Import\Formats\FormatFile.h" />
+    <ClInclude Include="Import\Formats\HDR.h" />
+    <ClInclude Include="Import\Formats\EXR.h" />
     <ClInclude Include="Import\Formats\FBX.h" />
     <ClInclude Include="Core\Tools\EditorTool_MemoryTracker.h" />
+    <ClInclude Include="Import\ImportedMaterial.h" />
+    <ClInclude Include="Import\Tools\EditorTool_RawFileInspector.h" />
     <ClInclude Include="MapEditor\MapEditorMode.h" />
     <ClInclude Include="MapEditor\EditModes\MapEditorMode_Navigation.h" />
     <ClInclude Include="Entity\ResourceDescriptors\ResourceDescriptor_EntityCollection.h" />
@@ -314,7 +348,6 @@
     <ClInclude Include="MapEditor\EditModes\MapEditorMode_Physics.h" />
     <ClInclude Include="Navmesh\NavmeshBuildData.h" />
     <ClInclude Include="NodeGraph\NodeGraph_Comment.h" />
-    <ClInclude Include="Import\RawFileInspector.h" />
     <ClInclude Include="Core\Tools\EditorTool_SystemLog.h" />
     <ClInclude Include="NodeGraph\NodeGraph_Style.h" />
     <ClCompile Include="Physics\ResourceDescriptors\ResourceDescriptor_PhysicsRagdoll.cpp" />
@@ -341,9 +374,13 @@
     <ClInclude Include="PropertyGrid\PropertyGrid.h" />
     <ClInclude Include="Import\Formats\GLTF.h" />
     <ClInclude Include="Render\BulkUpdateOperations\BulkUpdateOperation_Render.h" />
+    <ClInclude Include="Render\ConeStepMapping\ConeStepMapping.h" />
+    <ClInclude Include="Render\Occlusion\Occlusion.h" />
+    <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_DecalMaterial.h" />
     <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_RenderMaterial.h" />
     <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_RenderMesh.h" />
     <ClInclude Include="Render\ResourceCompilers\ResourceCompiler_RenderTexture.h" />
+    <ClInclude Include="Render\ResourceDescriptors\ResourceDescriptor_DecalMaterial.h" />
     <ClInclude Include="Render\ResourceDescriptors\ResourceDescriptor_RenderMaterial.h" />
     <ClInclude Include="Render\ResourceDescriptors\ResourceDescriptor_RenderMesh.h" />
     <ClInclude Include="Render\ResourceDescriptors\ResourceDescriptor_RenderTexture.h" />
@@ -359,9 +396,8 @@
     <ClInclude Include="Resource\Tools\EditorTool_ResourceDependencyViewer.h" />
     <ClInclude Include="Resource\ResourceCompilationDatabase.h" />
     <ClInclude Include="Resource\ResourceCompilerContext.h" />
-    <ClInclude Include="Resource\ResourceImportSettings.h" />
     <ClInclude Include="Resource\Tools\EditorTool_ResourceBrowser.h" />
-    <ClInclude Include="Resource\Tools\EditorTool_ResourceImporter.h" />
+    <ClInclude Include="Import\Tools\EditorTool_BulkImporter.h" />
     <ClInclude Include="Resource\Tools\EditorTool_ResourceSystem.h" />
     <ClInclude Include="Resource\ResourceCompiler.h" />
     <ClInclude Include="Resource\ResourceCompilerRegistry.h" />

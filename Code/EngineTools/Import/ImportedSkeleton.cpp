@@ -113,7 +113,7 @@ namespace EE::Import
                         highLODBoneIndices.emplace_back( highLODBoneIdx );
 
                         // Children are always listed after their parents
-                        for ( uint32_t childBoneIdx = i + 1; childBoneIdx < GetNumBones(); childBoneIdx++ )
+                        for ( int32_t childBoneIdx = i + 1; childBoneIdx < GetNumBones(); childBoneIdx++ )
                         {
                             if ( IsChildBoneOf( highLODBoneIdx, childBoneIdx ) )
                             {

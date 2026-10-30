@@ -1,5 +1,7 @@
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
+#include "Engine/Render/Shaders/Renderer/CullingRootConstants.esh"
 #include "Engine/Render/Shaders/Renderer/RendererSurfaceShaderLayout.esh"
 #include "Engine/Render/Shaders/EngineShader.esh"
 #include "Engine/Render/Shaders/Debug/DebugDraw.esh"
@@ -108,17 +110,17 @@ void CS_main( uint groupThreadID : SV_GroupThreadID, uint groupID : SV_GroupID, 
 
                     // Special case - global environment map view shouldn't compute lighting
                     float3 worldPositionOffset = 0.0.xxx;
-                    if ( ( meshInstanceRoot.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP ) )
+                    if ( ( meshInstanceRoot.m_renderViewLayerFlags & g_renderViewLayerFlagGlobalEnvironmentMap ) )
                     {
                         // Envmap geometry is rendered in other views as well, but in that case it is always relative to camera
-                        if ( ( renderView.m_renderViewLayerFlags & RENDER_VIEW_LAYER_FLAG_GLOBAL_ENVIRONMENT_MAP ) == 0 )
+                        if ( ( renderView.m_renderViewLayerFlags & g_renderViewLayerFlagGlobalEnvironmentMap ) == 0 )
                         {
                             worldPositionOffset = RootCBV.m_cameraPosition.xyz;
                         }
                     }
 
                     bool visibleInThisView;
-                    if ( ( renderView.m_renderViewFlags & RENDER_VIEW_FLAG_SHADOW_FACE ) != 0 )
+                    if ( ( renderView.m_renderViewFlags & g_renderViewFlagShadowFace ) != 0 )
                     {
                         visibleInThisView = IsSphereVisible( aabbCenterWorld + worldPositionOffset, aabbHalfExtentsWorld, renderView.m_shadowLightSphere.xyz, renderView.m_shadowLightSphere.w );
                     }

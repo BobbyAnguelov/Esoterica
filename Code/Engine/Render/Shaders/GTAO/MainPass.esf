@@ -1,5 +1,5 @@
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
 #include "Engine/Render/Shaders/CommonSamplers.esh"
 
 #include "Engine/Render/Shaders/Debug/DebugDraw.esh"
@@ -15,7 +15,7 @@ ESF_RESOURCE_TABLE struct MainPassResourceTable
     RWTexture2D<float>              m_resultTextureNoisy;
     
     uint16_t                        m_renderViewBuffer;
-    uint                            m_mainCameraRenderView;
+    uint16_t                        m_renderViewIndirectionBuffer;
 };
 #endif
 
@@ -96,8 +96,9 @@ void CS_main(
     uint groupThreadID       : SV_GroupThreadID,
     uint3 dispatchThreadID   : SV_DispatchThreadID )
 {
-    StructuredBuffer<RenderView>     renderViewBuffer       = GetBuffer( RootConstants.GetRenderViewBuffer() );
-    const RenderView                 renderView             = renderViewBuffer[RootConstants.m_mainCameraRenderView]; 
+    StructuredBuffer<RenderView>     renderViewBuffer            = GetBuffer( RootConstants.GetRenderViewBuffer() );
+    StructuredBuffer<uint16_t>       renderViewIndirectionBuffer = GetBuffer( RootConstants.GetRenderViewIndirectionBuffer() );
+    const RenderView                 renderView                  = renderViewBuffer[renderViewIndirectionBuffer[0]];
     
     if ( any( dispatchThreadID.xy >= RootCBV.ViewportSize ) )
     {

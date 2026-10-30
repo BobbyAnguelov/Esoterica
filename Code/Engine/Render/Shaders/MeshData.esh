@@ -52,7 +52,8 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         uint32_t                        m_numPositionBitsX : 4;                 // Bits used to store ( position - anchor ) per axis, stored as ( numBits - 1 ), max 16 per axis
         uint32_t                        m_numPositionBitsY : 4;
         uint32_t                        m_numPositionBitsZ : 4;
-        uint32_t                        m_reserved : 18;
+        uint32_t                        m_hasMeshDecalData : 1;                 // Does this cluster contain per triangle mesh decal data
+        uint32_t                        m_reserved : 17;
 
         uint16_t                        m_aabb[6];                              // Anchor-relative AABB min/max offsets
 
@@ -117,6 +118,19 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
             return GetSkinningOffset() + m_numSkinningAttributes * ( m_numVertices + 1 ) * sizeof( SkinningAttribute );
         }
 
+        uint GetTriangleDataSize()
+        {
+            uint const numTriangles = m_numTriangles + 1;
+            uint const dataSize = ( numTriangles * 3 * TRIANGLE_INDEX_BITS + 31 ) / 32 * 4;
+            uint const dataSizeWithPadding = ( m_numTriangles * 3 * TRIANGLE_INDEX_BITS / 32 ) * 4 + 8;
+            return max( dataSize, dataSizeWithPadding );
+        }
+
+        uint GetMeshDecalDataOffset()
+        {
+            return GetTrianglesOffset() + GetTriangleDataSize();
+        }
+
         uint GetVertexNormalOffset( uint vertexIndex )
         {
             return GetNormalsOffset() + vertexIndex * sizeof( VertexNormalAttribute );
@@ -153,11 +167,72 @@ EE_BEGIN_SHADER_TYPES_NAMESPACE
         float3                          m_aabbCenterLocal;
         float3                          m_aabbHalfExtentsLocal;
 
-        uint                            m_reserved;
+        uint                            m_meshDecalOffset;                      // Byte offset of the MeshDecal array at the end of the buffer, 0 if there are no mesh decals
         uint                            m_numClusters;
     };
 
     HLSL_STATIC_ASSERT( sizeof( MeshHeader ) == 32, "Mesh header must be exactly 32 bytes" );
+
+    //-------------------------------------------------------------------------
+
+    struct HLSL_ALIGN_STRUCT MeshDecalData
+    {
+        uint                            m_projectionBasisOffset;
+        uint                            m_projectionOffset;
+        uint                            m_decalTableOffset;
+        uint                            m_numProjections;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( MeshDecalData ) == 16, "Mesh decal data must be exactly 16 bytes" );
+
+    struct HLSL_ALIGN_STRUCT MeshDecal
+    {
+        uint16_t                        m_albedoTexture;
+        uint16_t                        m_pbrTexture;
+        uint16_t                        m_normalTexture;
+        uint16_t                        m_emissiveTexture;
+        uint16_t                        m_parallaxTexture;
+        float16_t                       m_tiling;
+
+        uint                            m_flags                         : 16;
+        uint                            m_shapeRadius                   : 8;
+        uint                            m_heightOffset                  : 8;
+
+        uint                            m_packedTintedColor;
+        uint                            m_packedEmissiveColor;
+
+        float2                          m_worldSize;                            // Full extent of the decal face, used for tiling
+
+        #ifndef __cplusplus
+        bool HasFlag( uint flag ) { return ( m_flags & flag ) == flag; }
+
+        float GetShapeRadius() { return float( m_shapeRadius ) / 255.0; }
+        float GetHeightOffset() { return ( float( m_heightOffset ) - 128.0 ) * ( 1.0 / 127.0 ); }
+        #endif
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( MeshDecal ) == 32, "Mesh decal must be exactly 32 bytes" );
+
+    struct HLSL_ALIGN_STRUCT MeshDecalProjectionBasis
+    {
+        float16_t4                      m_linear;                               // 2x2 linear part applied to ( uv - m_anchorUV )
+        float2                          m_anchorUV;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( MeshDecalProjectionBasis ) == 16, "Mesh decal projection basis must be exactly 16 bytes" );
+
+    struct HLSL_ALIGN_STRUCT MeshDecalProjection
+    {
+        uint16_t                        m_basisIndex;
+        uint16_t                        m_decalIndex;
+        float16_t2                      m_offset;
+    };
+
+    HLSL_STATIC_ASSERT( sizeof( MeshDecalProjection ) == 8, "Mesh decal projection must be exactly 8 bytes" );
+
+    static const uint                   g_meshDecalOffsetMask = 0x00FFFFFFU;
+    static const uint                   g_meshDecalCountShift = 24U;
+    static const uint                   g_meshDecalMaxCountPerTriangle = 255U;
 
 EE_END_SHADER_TYPES_NAMESPACE
 

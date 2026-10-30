@@ -1,4 +1,6 @@
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/GlobalParameters.esh"
+#include "Engine/Render/Shaders/Renderer/CullingRootConstants.esh"
+#include "Engine/Render/Shaders/Renderer/DrawRootConstants.esh"
 #include "Engine/Render/Shaders/Renderer/RendererSurfaceShaderLayout.esh"
 #include "Engine/Render/Shaders/EngineShader.esh"
 #include "Engine/Render/Shaders/MeshInstance.esh"

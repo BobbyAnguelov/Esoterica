@@ -55,6 +55,8 @@ namespace EE::Render
             return m_pageMemoryComitted;
         }
 
+        //-------------------------------------------------------------------------
+
     private:
 
         T*     m_pPageMemory = nullptr;
@@ -73,6 +75,10 @@ namespace EE::Render
             HandleAllocator<H>::Handle          m_handle;
             TArrayView<T>                       m_data;
         };
+
+        //-------------------------------------------------------------------------
+
+    public:
 
         inline void Initialize( uint32_t initialCapacityInPages, uint32_t numVirtualMemoryReservedElements = 1 << 30 )
         {
@@ -145,7 +151,7 @@ namespace EE::Render
         template <typename Fn>
         inline void ForEachAllocatedItem( Fn fn )
         {
-            for ( uint32_t pageIndex = 0; pageIndex < GetNumPages(); ++pageIndex )
+            for ( uint32_t pageIndex = 0; pageIndex < GetCapacityInPages(); ++pageIndex )
             {
                 uint64_t pageMask = GetPageData()[pageIndex];
                 T* pItemData = GetData() + pageIndex * GetNumItemsPerPage();
@@ -168,7 +174,7 @@ namespace EE::Render
         template <typename Fn>
         inline void ForEachAllocatedItem( Fn fn ) const
         {
-            for ( uint32_t pageIndex = 0; pageIndex < GetNumPages(); ++pageIndex )
+            for ( uint32_t pageIndex = 0; pageIndex < GetCapacityInPages(); ++pageIndex )
             {
                 uint64_t pageMask = GetPageData()[pageIndex];
                 T const* pItemData = GetItemData( pageIndex );
@@ -189,9 +195,9 @@ namespace EE::Render
         }
 
         inline uint32_t GetNumItemsPerPage() const { return 64; }
-        inline size_t   GetCapacityInBytes() const { return GetNumPages() * GetNumItemsPerPage() * sizeof( T ); }
-        inline uint32_t GetCapacityInItems() const { return GetNumPages() * GetNumItemsPerPage(); }
-        inline uint32_t GetNumPages() const { return (uint32_t) m_handleAllocator.GetCapacityInPages(); }
+        inline size_t   GetCapacityInBytes() const { return GetCapacityInPages() * GetNumItemsPerPage() * sizeof( T ); }
+        inline uint32_t GetCapacityInItems() const { return GetCapacityInPages() * GetNumItemsPerPage(); }
+        inline uint32_t GetCapacityInPages() const { return (uint32_t) m_handleAllocator.GetCapacityInPages(); }
 
         inline T const* GetItemData( size_t pageIndex ) const
         {
@@ -213,6 +219,8 @@ namespace EE::Render
         {
             return m_memoryPool.GetData();
         }
+
+        //-------------------------------------------------------------------------
 
     private:
 

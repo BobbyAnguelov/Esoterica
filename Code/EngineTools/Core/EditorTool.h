@@ -34,10 +34,7 @@ namespace EE
         class CollisionMeshComponent;
     }
 
-    namespace ImGuiX 
-    {
-        class Gizmo;
-    }
+    class Gizmo;
 }
 
 //-------------------------------------------------------------------------
@@ -157,9 +154,6 @@ namespace EE
         // Get the unique typename for this tool to be used for docking
         virtual char const* GetUniqueTypeName() const = 0;
 
-        // Get a descriptive name for this tool that includes the type and the file open if applicable
-        virtual InlineString GetName() const { return GetUniqueTypeName(); }
-
         // Was the base initialization function called
         inline bool WasInitialized() const { return m_wasInitializedCalled; }
 
@@ -181,7 +175,7 @@ namespace EE
         virtual bool IsDataFileTool() const { return false; }
 
         // Get the display name for this tool (shown on tab, dialogs, etc...)
-        inline char const* GetDisplayName() const { return m_windowName.c_str(); }
+        inline char const* GetDisplayName() const { return m_displayName.c_str(); }
 
         // Does this tool have a title bar icon
         virtual bool HasTitlebarIcon() const { return false; }
@@ -310,7 +304,7 @@ namespace EE
         //-------------------------------------------------------------------------
 
         // Should this tool display a viewport?
-        virtual bool SupportsViewport() const { return m_pWorld != nullptr; }
+        bool SupportsViewport() const { return m_pWorld != nullptr; }
 
         // Does this tool's viewport have a orientation guide drawn?
         virtual bool HasViewportOrientationGuide() const { return true; }
@@ -343,8 +337,11 @@ namespace EE
 
     protected:
 
+        // Set the unique ID for this tool (used to create a unique window name)
+        void SetUniqueID( ImGuiID ID );
+
         // Set the tool tab-title (pass by value is intentional)
-        virtual void SetDisplayName( String name );
+        void SetDisplayName( String name );
 
         // Save
         //-------------------------------------------------------------------------
@@ -357,6 +354,9 @@ namespace EE
 
         // Set up initial docking layout, if the tool has a viewport window, then that viewport is docked to the central node
         virtual void SetupDockingLayout( ImGuiID const dockspaceID, ImVec2 const& dockspaceSize ) const {}
+
+        // Request a layout reset
+        inline void RequestLayoutReset() { m_requiresLayoutReset = true; }
 
         // Get the tool window class
         ImGuiWindowClass* GetToolWindowClass() { return &m_toolWindowClass; }
@@ -431,11 +431,16 @@ namespace EE
         // Get all the picking data for this update
         PickingData const& GetPickingData() const { return m_pickingData; }
 
+        // Get the world position and surface normal under the mouse cursor, returns false if no surface was found
+        // The ignored entities and components are excluded from the query, use this to avoid hitting the object being manipulated
+        bool TryGetWorldSurfaceUnderCursor( Viewport const& viewport, TArrayView<EntityID const> ignoredEntities, TArrayView<ComponentID const> ignoredComponents, Vector& outWorldPosition, Vector& outWorldNormal ) const;
+
         // Called during the viewport drawing allowing the editor tools to handle drag and drop requests
         virtual void OnDragAndDropIntoViewport( Viewport* pViewport ) {}
 
         // Called whenever we have a valid resource being dropped into the viewport, users can override to provide custom handling
-        virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition ) {}
+        // The surface normal is the normal of the surface under the drop position, or the direction towards the camera if the drop position was arbitrary
+        virtual void DropResourceInViewport( ResourceID const& resourceID, Vector const& worldPosition, Vector const& surfaceNormal ) {}
 
         // Draws the viewport toolbar
         void DrawViewportToolbar( UpdateContext const& context, Viewport* pViewport );
@@ -591,6 +596,8 @@ namespace EE
         // Docking And Tool Windows
         //-------------------------------------------------------------------------
 
+        InlineString GetUniqueWindowName() const;
+
         // Calculate the dockspace ID for this tool relative to its parent
         inline ImGuiID CalculateDockspaceID() const
         {
@@ -621,8 +628,7 @@ namespace EE
 
         ToolsContext const*                         m_pToolsContext = nullptr;
         Resource::ResourceSystem*                   m_pResourceSystem = nullptr;
-        String                                      m_windowName;
-        ImGuiID                                     m_ID = 0; // Document identifier (unique)
+        String                                      m_displayName;
 
         // World
         EntityWorld*                                m_pWorld = nullptr;
@@ -637,6 +643,8 @@ namespace EE
         IUndoableAction*                            m_pActiveUndoableAction = nullptr;
 
     private:
+
+        ImGuiID                                     m_ID = 0; // Document identifier (unique)
 
         ImGuiID                                     m_currentDockID = 0;        // The dock we are currently in
         ImGuiID                                     m_desiredDockID = 0;        // The dock we wish to be in
@@ -726,8 +734,6 @@ namespace EE
 
         // Editor Tool
         //-------------------------------------------------------------------------
-
-        virtual InlineString GetName() const override { return InlineString( GetUniqueTypeName() ) + " (" + GetDataFilePath().c_str() + ")"; }
 
         // Note: We try to load the data file during initialize, derived classes will have access to the data file in their initialize if the load was successful
         virtual void Initialize( UpdateContext const& context ) override;

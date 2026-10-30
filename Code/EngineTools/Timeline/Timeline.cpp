@@ -291,8 +291,8 @@ namespace EE::Timeline
         EE_ASSERT( pItem != nullptr && Contains( pItem ) );
 
         ImVec2 const horizontalBorder( 1, 0 );
-        pDrawList->AddRectFilled( itemRect.GetTL() + horizontalBorder, itemRect.GetBR() - horizontalBorder, GetItemDisplayColor( pItem, itemState ), 2.0f, ImDrawFlags_RoundCornersBottom );
-        pDrawList->AddRectFilled( itemRect.GetTL() + horizontalBorder, itemRect.GetBR() - horizontalBorder - ImVec2( 0, 3 ), GetItemBackgroundColor( itemState ), 2.0f, ImDrawFlags_RoundCornersBottom );
+        pDrawList->AddRectFilled( itemRect.GetTL() + horizontalBorder, itemRect.GetBR() - horizontalBorder, GetItemDisplayColor( pItem, itemState ), 2.0f, ImDrawFlags_RoundBottom );
+        pDrawList->AddRectFilled( itemRect.GetTL() + horizontalBorder, itemRect.GetBR() - horizontalBorder - ImVec2( 0, 3 ), GetItemBackgroundColor( itemState ), 2.0f, ImDrawFlags_RoundBottom );
 
         {
             InlineString const itemLabel = GetItemLabel( pItem );

@@ -1,5 +1,4 @@
 
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
 #include "Engine/Render/Shaders/CommonSamplers.esh"
 
 #include "Engine/Render/Shaders/Debug/DebugDraw.esh"

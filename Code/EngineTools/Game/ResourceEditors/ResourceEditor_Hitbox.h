@@ -6,7 +6,7 @@
 #include "Engine/Hitbox/Hitbox_Definition.h"
 #include "Engine/Animation/AnimationSkeleton.h"
 #include "Engine/Render/RenderMesh.h"
-#include "Engine/Imgui/ImguiGizmo.h"
+#include "EngineTools/Gizmos/Gizmo.h"
 #include "Base/Imgui/ImguiCommandStack.h"
 #include "Base/Time/Timers.h"
 #include "Engine/Animation/AnimationClip.h"
@@ -162,6 +162,6 @@ namespace EE
         bool                                            m_enableAnimationLooping = true;
         bool                                            m_drawSocketTransforms = false;
 
-        ImGuiX::Gizmo                                   m_gizmo;
+        Gizmo                                   m_gizmo;
     };
 }

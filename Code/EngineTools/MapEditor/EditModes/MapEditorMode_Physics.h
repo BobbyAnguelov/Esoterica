@@ -76,8 +76,8 @@ namespace EE::Physics
     private:
 
         PropertyGrid*               m_pPropertyGrid = nullptr;
-        ImGuiX::Gizmo               m_startGizmo;
-        ImGuiX::Gizmo               m_endGizmo;
+        Gizmo                       m_startGizmo;
+        Gizmo                       m_endGizmo;
 
         Settings                    m_settings;
 

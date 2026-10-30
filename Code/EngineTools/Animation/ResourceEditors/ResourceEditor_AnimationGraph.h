@@ -10,7 +10,7 @@
 #include "EngineTools/NodeGraph/NodeGraph_View.h"
 #include "Engine/Animation/Graph/Animation_RuntimeGraph_Definition.h"
 #include "Engine/Animation/TaskSystem/Animation_TaskSystem.h"
-#include "Engine/Imgui/ImguiGizmo.h"
+#include "EngineTools/Gizmos/Gizmo.h"
 #include "Base/Utils/CategoryTree.h"
 #include "Base/Imgui/ImguiInputs.h"
 
@@ -282,7 +282,6 @@ namespace EE::Animation
         virtual void DrawMenu( UpdateContext const& context ) override;
         virtual bool SupportsToolbar() const override { return true; }
         virtual void DrawToolbar( UpdateContext const& context ) override;
-        virtual bool SupportsViewport() const override { return true; }
         virtual bool IsDataFileManualEditingAllowed() const override { return false; }
         virtual bool SupportsWorldTimeControls() const override { return true; }
         virtual bool ExtendViewportToolBar_VisualizationControls( UpdateContext const& context, Viewport* pViewport ) override;
@@ -561,7 +560,7 @@ namespace EE::Animation
         ResourceID const                                                    m_openedResourceID;
 
         AnimationClipBrowser                                                m_clipBrowser;
-        ImGuiX::Gizmo                                                       m_gizmo;
+        Gizmo                                                       m_gizmo;
 
         EventBindingID                                                      m_globalGraphEditEventBindingID;
         EventBindingID                                                      m_rootGraphBeginModificationBindingID;

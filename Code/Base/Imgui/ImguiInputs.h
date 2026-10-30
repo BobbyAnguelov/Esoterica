@@ -17,7 +17,7 @@ namespace EE::ImGuiX
 
     //-------------------------------------------------------------------------
 
-    // Combo with a preset set of options.
+    // Combo with a predefined set of options.
     // The currently selected option is identified by the selected option ID passed into the function
     // If the user selects a new value from the combo, it will return true and the selected option ID will be updated
     // WARNING: the OptionID is not stable so you cannot rely on it between updates! Do not cache this and rely on it
@@ -25,6 +25,8 @@ namespace EE::ImGuiX
 
     //-------------------------------------------------------------------------
 
+    // Input text with a predefined set of options.
+    // Basically provides an auto-complete helper
     EE_BASE_API bool InputTextWithOptions( const char* pInputTextID, char* pBuffer, size_t bufferSize, class OptionData* pOptionData, ImGuiInputTextFlags flags = 0, ImGuiInputTextCallback pInputTextCallback = nullptr, void* pUserData = nullptr );
 
     //-------------------------------------------------------------------------
@@ -101,6 +103,9 @@ namespace EE::ImGuiX
 
         // Try to find an item via text
         UUID FindItemIDByText( String const& textToMatch );
+
+        // Get the required buffer size to fit the option data in
+        size_t GetRequiredTextBufferSize() const;
 
         // Filtering
         //-------------------------------------------------------------------------

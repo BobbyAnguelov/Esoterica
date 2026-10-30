@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Animation_RuntimeGraphNode_AnimationClip.h"
-#include "Engine/Animation/Events/AnimationEvent_Warp.h"
+#include "Engine/Animation/AnimationRootMotionWarp.h"
 
 //-------------------------------------------------------------------------
 
@@ -9,7 +9,7 @@ namespace EE::Animation
 {
     class EE_ENGINE_API TargetWarpNode final : public PoseNode
     {
-        enum class InternalState
+        enum class InternalState : uint8_t
         {
             RequiresInitialUpdate,
             AllowUpdates,
@@ -17,34 +17,14 @@ namespace EE::Animation
             Failed,
         };
 
-    public:
-
-        struct WarpSection
+        enum class WarpedRootMotionUpdateType : uint8_t
         {
-            // Is this a section that should be ignored by the warp
-            inline bool IsFixedSection() const { return m_warpRule == TargetWarpRule::FixedSection; }
-
-            // Ensure that the section is at least 3 frames in length (i.e. a single warp frame)
-            inline bool HasValidFrameRange() const{ return m_endFrame > m_startFrame + 1; }
-
-            // Get number of warpable frames (including last frame)
-            inline int32_t GetNumWarpableFrames() const { return m_endFrame - m_startFrame; }
-
-        public:
-
-            int32_t                             m_startFrame = 0;
-            int32_t                             m_endFrame = 0;
-            Transform                           m_deltaTransform;
-            TVector<float>                      m_totalProgress; // The total progress along the section for each frame
-            float                               m_distanceCovered = 0.0f;
-            TargetWarpRule                      m_warpRule;
-            TargetWarpAlgorithm                 m_translationAlgorithm;
-            bool                                m_hasTranslation = false;
-
-            #if EE_DEVELOPMENT_TOOLS
-            mutable Vector                      m_debugPoints[4];
-            #endif
+            None,
+            Offset,
+            Recalculate,
         };
+
+    public:
 
         enum class TargetUpdateRule : uint8_t
         {
@@ -59,7 +39,7 @@ namespace EE::Animation
         struct EE_ENGINE_API Definition final : public PoseNode::Definition
         {
             EE_REFLECT_TYPE( Definition );
-            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_samplingMode, m_allowTargetUpdate, m_alignWithTargetAtLastWarpEvent, m_samplingPositionErrorThresholdSq, m_maxTangentLength, m_lerpFallbackDistanceThreshold, m_targetUpdateDistanceThreshold, m_targetUpdateAngleThresholdRadians );
+            EE_SERIALIZE_GRAPHNODEDEFINITION( PoseNode::Definition, m_clipReferenceNodeIdx, m_targetValueNodeIdx, m_samplingMode, m_targetUpdateRule, m_allowTargetUpdate, m_alignWithTargetAtLastWarpEvent, m_alignmentBoneID, m_samplingPositionErrorThresholdSq, m_maxTangentLength, m_lerpFallbackDistanceThreshold, m_targetUpdateDistanceThreshold, m_targetUpdateAngleThresholdRadians );
 
             virtual void InstantiateNode( InstantiationContext const& context, InstantiationOptions options ) const override;
 
@@ -85,27 +65,14 @@ namespace EE::Animation
         virtual void ShutdownInternal( GraphContext& context ) override;
         virtual GraphPoseNodeResult Update( GraphContext& context, SyncTrackTimeRange const* pUpdateRange ) override;
 
-        bool TryReadTarget( GraphContext& context );
-        bool UpdateWarp( GraphContext& context );
-        bool OffsetWarpedRootMotion( GraphContext &context );
-        bool CanRecalculateWarpedRootMotion( int32_t startFrame ) const;
-
-        bool GenerateWarpInfo( GraphContext& context );
-        void ClearWarpInfo();
-
-        // Generate the actual warp root motion
-        void GenerateWarpedRootMotion( GraphContext& context );
+        void EnsureWarpContextInitialized( GraphContext &context );
+        bool TryReadTarget( GraphContext& context, Transform& outTarget );
+        WarpedRootMotionUpdateType ResolveWarpedRootMotionUpdateType( Transform const &targetTransform ) const;
+        void UpdateWarpContext( GraphContext &context );
+        bool UpdateWarp( GraphContext &context );
 
         // Sample the warped root motion
         void SampleWarpedRootMotion( GraphContext& context, GraphPoseNodeResult& result );
-
-        // Section Solvers
-        //-------------------------------------------------------------------------
-
-        void SolveFixedSection( GraphContext& context, WarpSection const& section, Transform const& startTransform );
-        void SolveTranslationZSection( GraphContext& context, WarpSection const& section, Transform const& startTransform, float correctionZ );
-        void SolveTranslationSection( GraphContext& context, WarpSection const& section, Transform const& startTransform, Transform const& endTransform );
-        void SolveRotationSection( GraphContext& context, WarpSection const& section, Transform const& startTransform, Quaternion const& correction );
 
         //-------------------------------------------------------------------------
 
@@ -123,25 +90,11 @@ namespace EE::Animation
         RootMotionData::SamplingMode            m_samplingMode = RootMotionData::SamplingMode::WorldSpace;
         InternalState                           m_internalState = InternalState::RequiresInitialUpdate;
 
+        Transform                               m_warpRootTargetTransform; // This is where the code wants the root of the character be. Adjusted for alignment bone if specified.
+        Transform                               m_alignmentBoneRootTargetOffset = Transform::Identity; // Transform that is applied to the code requested target
+
         int32_t                                 m_alignmentBoneIdx = InvalidIndex;
-        int8_t                                  m_translationXYSectionIdx = InvalidIndex;
-        int8_t                                  m_rotationSectionIdx = InvalidIndex;
-        bool                                    m_isTranslationAllowedZ = false;
-        int8_t                                  m_numSectionZ = 0;
-        int32_t                                 m_totalNumWarpableZFrames = 0;
-
-        FrameTime                               m_warpStartTime;
-        Transform                               m_warpStartWorldTransform;
-        Transform                               m_requestedWarpTarget; //The warp target that was requested
-        Transform                               m_warpTarget; // The actual warp target we can achieve based on events
-
-        RootMotionData                          m_warpedRootMotion;
-
-        // Scratch Data - only used for calculations
-        //-------------------------------------------------------------------------
-
-        TVector<Transform>                      m_deltaTransforms;
-        TVector<Transform>                      m_inverseDeltaTransforms;
-        TInlineVector<WarpSection, 3>           m_warpSections;
+        RootMotionWarpContext                   m_warpContext;
+        bool                                    m_performWarp = false;
     };
 }

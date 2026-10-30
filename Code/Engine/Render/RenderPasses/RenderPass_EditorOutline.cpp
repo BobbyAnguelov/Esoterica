@@ -8,7 +8,7 @@
 #include "Engine/Render/RenderSystem.h"
 #include "Engine/Render/Device/DeviceRenderWorld.h"
 #include "Engine/Render/RenderPasses/RenderPass_ForwardShading.h"
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/RenderView.esh"
 #include "Engine/Render/Shaders/EditorOutline/EditorOutline_Initialize.esf"
 #include "Engine/Render/Shaders/EditorOutline/EditorOutline_JumpFlood.esf"
 #include "Engine/Render/Shaders/EditorOutline/EditorOutline_Composite.esf"
@@ -101,7 +101,7 @@ namespace EE::Render
             EE_ASSERT( renderViewProxy.GetNumRenderViews() == 1 );
 
             renderViewProxy.StartRenderViewWrite();
-            renderViewProxy.WriteRenderView( 0, pRenderViewport->GetViewVolume(), pRenderViewport->GetSize(), ShaderTypes::RENDER_VIEW_FLAG_DEPTH_ONLY );
+            renderViewProxy.WriteRenderView( 0, pRenderViewport->GetViewVolume(), pRenderViewport->GetSize(), ShaderTypes::g_renderViewFlagDepthOnly );
             renderViewProxy.SubmitRenderViewWrite();
         }
     }

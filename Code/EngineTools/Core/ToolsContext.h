@@ -47,11 +47,11 @@ namespace EE
         // Resources
         //-------------------------------------------------------------------------
 
-        virtual bool TryOpenDataFile( DataPath const& path ) const = 0;
+        virtual bool TryOpenFile( DataPath const& path ) const = 0;
 
         inline bool TryOpenResource( ResourceID const& resourceID ) const
         {
-            return TryOpenDataFile( resourceID.GetDataPath() );
+            return TryOpenFile( resourceID.GetDataPath() );
         }
 
         virtual bool TryFindInResourceBrowser( DataPath const& path ) const = 0;

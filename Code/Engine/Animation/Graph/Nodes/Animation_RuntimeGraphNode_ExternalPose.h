@@ -34,6 +34,7 @@ namespace EE::Animation
     private:
 
         Transform                       m_rootMotionDelta = Transform::Identity;
+        TVector<SampledEvent>           m_externalEvents;
         BoneMaskTaskList                m_boneMask;
         CachedPoseID                    m_externalPoseBufferID;
     };

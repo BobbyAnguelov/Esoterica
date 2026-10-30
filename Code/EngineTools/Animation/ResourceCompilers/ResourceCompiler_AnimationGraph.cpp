@@ -34,7 +34,7 @@ namespace EE::Animation
         // Compile
         //-------------------------------------------------------------------------
 
-        GraphDefinitionCompiler definitionCompiler( ctx.m_typeRegistry, ctx.m_sourceResourceDirectoryPath );
+        GraphDefinitionCompiler definitionCompiler( ctx.m_typeRegistry, ctx.m_sourceDataDirectoryPath );
         if ( !definitionCompiler.CompileGraph( pGraphDescriptor->m_graphDefinition, variationID ) )
         {
             // Dump log

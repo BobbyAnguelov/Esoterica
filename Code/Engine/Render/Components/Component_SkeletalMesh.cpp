@@ -3,6 +3,7 @@
 #include "Engine/Render/Device/DeviceRenderWorld.h"
 #include "Base/Drawing/DebugDrawing.h"
 #include "Base/Profiling.h"
+#include "Engine/Render/ProceduralBones/ProceduralBoneSolver.h"
 
 //-------------------------------------------------------------------------
 
@@ -60,6 +61,11 @@ namespace EE::Render
                 GenerateAnimationBoneMap();
             }
 
+            if ( m_mesh->HasProceduralBones() )
+            {
+                m_pProceduralBoneSolver = EE::New<ProceduralBoneSolver>( m_mesh.GetPtr() );
+            }
+
             // Set mesh to reference pose
             //-------------------------------------------------------------------------
 
@@ -75,6 +81,7 @@ namespace EE::Render
 
     void SkeletalMeshComponent::Shutdown()
     {
+        EE::Delete( m_pProceduralBoneSolver );
         m_parentSpaceBoneTransforms.clear();
         m_modelSpaceBoneTransforms.clear();
         m_meshToAnimBoneMap.clear();
@@ -164,9 +171,17 @@ namespace EE::Render
         EE_ASSERT( HasMeshResourceSet() && HasSkeletonResourceSet() );
         EE_ASSERT( !m_meshToAnimBoneMap.empty() );
         EE_ASSERT( pPose != nullptr );
+        EE_ASSERT( !pPose->IsPoseSet() || pPose->IsParentSpacePose() );
         EE_ASSERT( pPose->GetSkeleton() == m_skeleton.GetPtr() );
 
-        SetParentSpaceTransformsFromAnimation( pPose->GetParentSpaceTransforms() );
+        if ( pPose->IsPoseSet() && pPose->IsParentSpacePose() )
+        {
+            SetParentSpaceTransformsFromAnimation( pPose->GetParentSpaceTransforms() );
+        }
+        else // Clear the pose
+        {
+            ResetPose();
+        }
     }
 
     void SkeletalMeshComponent::ResetPose()
@@ -216,36 +231,45 @@ namespace EE::Render
 
         if ( m_transformsDirty )
         {
-            // Calculate model space transforms
-            //-------------------------------------------------------------------------
-
-            int32_t const numMeshBones = m_mesh->GetNumBones();
-            m_modelSpaceBoneTransforms[0] = m_parentSpaceBoneTransforms[0];
-            for ( int32_t boneIdx = 1; boneIdx < numMeshBones; boneIdx++ )
-            {
-                int32_t const parentIdx = m_mesh->GetParentBoneIndex( boneIdx );
-                EE_ASSERT( parentIdx < boneIdx );
-                m_modelSpaceBoneTransforms[boneIdx] = m_parentSpaceBoneTransforms[boneIdx] * m_modelSpaceBoneTransforms[parentIdx];
-            }
-
             // Run procedural bones
             //-------------------------------------------------------------------------
 
-            // TODO
+            if ( HasProceduralBones() && m_proceduralBonesEnabled )
+            {
+                EE_PROFILE_SCOPE_RENDER( "Procedural Bone Solver" );
+                m_pProceduralBoneSolver->Solve( m_parentSpaceBoneTransforms );
+            }
+
+            // Calculate model space transforms
+            //-------------------------------------------------------------------------
+
+            CalculateModelSpaceTransforms();
 
             //-------------------------------------------------------------------------
 
             m_transformsDirty = false;
         }
 
-        // TODO
+        //-------------------------------------------------------------------------
 
         NotifySocketsUpdated();
         UpdateBounds();
         UpdateSkinningProxy();
     }
 
-    //-------------------------------------------------------------------------
+    void SkeletalMeshComponent::CalculateModelSpaceTransforms()
+    {
+        EE_ASSERT( m_mesh != nullptr );
+
+        int32_t const numMeshBones = m_mesh->GetNumBones();
+        m_modelSpaceBoneTransforms[0] = m_parentSpaceBoneTransforms[0];
+        for ( int32_t boneIdx = 1; boneIdx < numMeshBones; boneIdx++ )
+        {
+            int32_t const parentIdx = m_mesh->GetParentBoneIndex( boneIdx );
+            EE_ASSERT( parentIdx < boneIdx );
+            m_modelSpaceBoneTransforms[boneIdx] = m_parentSpaceBoneTransforms[boneIdx] * m_modelSpaceBoneTransforms[parentIdx];
+        }
+    }
 
     void SkeletalMeshComponent::GenerateAnimationBoneMap()
     {
@@ -260,8 +284,6 @@ namespace EE::Render
             m_meshToAnimBoneMap[meshBoneIdx] = m_skeleton->GetBoneIndex( meshBoneID );
         }
     }
-
-    //-------------------------------------------------------------------------
 
     void SkeletalMeshComponent::UpdateSkinningProxy()
     {

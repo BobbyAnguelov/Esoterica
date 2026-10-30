@@ -39,6 +39,8 @@ namespace EE::Render
 
         //-------------------------------------------------------------------------
 
+    public:
+
         RenderSettings const*                               m_pRenderSettings = nullptr;
     };
 }

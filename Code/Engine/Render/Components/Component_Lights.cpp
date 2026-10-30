@@ -1,6 +1,7 @@
 
 #include "Component_Lights.h"
-#include "Engine/Render/Shaders/Renderer/RendererTypes.esh"
+#include "Engine/Render/Shaders/Renderer/LightInstance.esh"
+#include "Engine/Render/Shaders/Renderer/ShadowProjection.esh"
 #include "Base/Render/RHI.h"
 #include "Base/Math/ViewVolume.h"
 

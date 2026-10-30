@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../_Module/API.h"
 #include "DebugDrawingCommands.h"
 #include "Base/Math/Transform.h"
 #include "Base/Types/Color.h"
@@ -11,6 +10,8 @@
 #if EE_DEVELOPMENT_TOOLS
 namespace EE
 {
+    namespace Math { class ViewVolume; }
+
     //-------------------------------------------------------------------------
     // Debug Drawing Context
     //-------------------------------------------------------------------------
@@ -36,7 +37,7 @@ namespace EE
 
     public:
 
-        inline DebugDrawContext( DebugDrawContext const& RHS ) : m_commandBuffer( RHS.m_commandBuffer ) {}
+        inline DebugDrawContext( DebugDrawContext const& RHS ) : m_commandBuffer( RHS.m_commandBuffer ), m_pViewVolume( RHS.m_pViewVolume ), m_pViewportTopLeft( RHS.m_pViewportTopLeft ), m_pViewportSize( RHS.m_pViewportSize ) {}
 
         //-------------------------------------------------------------------------
 
@@ -70,6 +71,22 @@ namespace EE
 
         // Stop outlining drawn objects 
         void EndDrawOutline() { m_commandBuffer.SetDrawOutline( false ); }
+
+        //-------------------------------------------------------------------------
+        // Viewport
+        //-------------------------------------------------------------------------
+
+        // Are we drawing into a viewport?
+        inline bool IsViewportDrawContext() const { return m_pViewVolume != nullptr; }
+
+        // Get the view volume for the viewport - Can return nullptr
+        Math::ViewVolume const* GetViewVolume() const { return m_pViewVolume; }
+
+        // Get the top-left position of the viewport
+        Float2 GetViewportTopLeft() const { EE_ASSERT( m_pViewportTopLeft != nullptr ); return *m_pViewportTopLeft; }
+
+        // Get the size of the viewport
+        Float2 GetViewportSize() const { EE_ASSERT( m_pViewportSize != nullptr ); return *m_pViewportSize; }
 
         //-------------------------------------------------------------------------
         // Basic Primitives
@@ -499,12 +516,15 @@ namespace EE
         void InternalDrawWireCylinderOrCapsule( bool isCapsule, Vector const& c0, Vector const& c1, float radius, Float4 const& color, float thickness, DebugDrawLayer layer, Seconds TTL );
 
         // Try to prevent users from copying these contexts around - TODO: we should record the thread ID and assert everywhere that we are on the correct thread
-        inline DebugDrawContext( DebugDrawInternal::ThreadCommandBuffer& buffer ) : m_commandBuffer( buffer ) {}
-        inline DebugDrawContext operator=( DebugDrawContext const& RHS ) { return DebugDrawContext( RHS.m_commandBuffer ); }
+        inline DebugDrawContext( DebugDrawInternal::ThreadCommandBuffer& buffer, Math::ViewVolume const* pViewVolume, Float2 const* pTL, Float2 const* pSize ) : m_commandBuffer( buffer ), m_pViewVolume( pViewVolume ), m_pViewportTopLeft( pTL ), m_pViewportSize( pSize ) {}
+        inline DebugDrawContext operator=( DebugDrawContext const& RHS ) { return DebugDrawContext( RHS.m_commandBuffer, RHS.m_pViewVolume, RHS.m_pViewportTopLeft, RHS.m_pViewportSize ); }
 
     private:
 
-        DebugDrawInternal::ThreadCommandBuffer& m_commandBuffer;
+        DebugDrawInternal::ThreadCommandBuffer&     m_commandBuffer;
+        Math::ViewVolume const*                     m_pViewVolume = nullptr; // Only set for viewport drawing contexts
+        Float2 const*                               m_pViewportTopLeft = nullptr;
+        Float2 const*                               m_pViewportSize = nullptr;
     };
 }
 #endif
